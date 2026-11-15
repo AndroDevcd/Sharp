@@ -1,0 +1,165 @@
+mod backend.compiler.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.statements.branches,
+    backend.compiler.statements.loops,
+    backend.compiler.statements.jumps,
+    backend.compiler.statements.exceptions,
+    backend.compiler.statements.assembly
+)
+
+/**
+ * STATEMENTS: what a function body DOES, one statement after the other
+ *
+ * The body of a function is a block of statements. This package turns each
+ * statement of the syntax tree into its typed-tree object
+ * (backend/types/typed_tree/statements) and checks the rules of that kind of
+ * statement:
+ *
+ *      { ... }                     a new scope (this file)
+ *      n : int = 5;   n := 5;      local variables (local_declaration.sharp)
+ *      alias t as name;            a name for a type until the block ends (local_alias.sharp)
+ *      print(n);                   an expression carried out for what it does (expression_statement.sharp)
+ *      if  when                    branches/
+ *      while  do  for  foreach     loops/
+ *      return  break  continue     jumps/
+ *      throw  try  lock            exceptions/
+ *      asm { }                     assembly/
+ *
+ * What this package does NOT do is decide whether a statement can be
+ * reached, or whether every path of a function returns a value: that is a
+ * separate pass over the finished statements, the flow analysis
+ * (backend/compiler/flow) - the textbook split between building the tree and
+ * analysing the flow of control through it.
+ *
+ * SCOPES. A block is a scope: what it declares is gone when it ends, and a
+ * sibling block may reuse the name. A statement that stands where a block
+ * could (`if(ready) x := 1;`) is a scope of its own too, as if it were
+ * written in braces. The loops `for` and `foreach` and every `catch` open a
+ * scope for the variables they declare.
+ *
+ * The packages of the statements (each its own module) call back into this
+ * front door for the statements inside them (`analyse_part`): statements
+ * nest, so these packages are one recursive unit, like the expression
+ * packages.
+ *
+ * The files of this package (module `backend.compiler.statements`):
+ *
+ *      statements.sharp            this front door: analyse_statement (the dispatcher), blocks, parts
+ *      local_declaration.sharp     local variables: typed, inferred, several at once, default objects,
+ *                                  `inject` (E0600, E0617, E0618, W1023)
+ *      local_alias.sharp           `alias t as name;` inside a body (E0600)
+ *      expression_statement.sharp  an expression as a statement; W1018 when it does nothing
+ *
+ * and the packages below it:
+ *
+ *      branches/       if, when                                    (E0411, E0616, W1020)
+ *      loops/          while, do-while, for, foreach               (E0411, E0609, E0610)
+ *      jumps/          return, break, continue                     (E0602 - E0607)
+ *      exceptions/     throw, try / catch / finally, lock          (E0612 - E0615, W1019)
+ *      assembly/       asm blocks                                  (E0920 - E0923)
+ *
+ *      C++ comparison: compiler/functions/statements/statement_compiler.cpp
+ *      and one .cpp file per statement next to it; the same split here, a
+ *      file (or package) per statement.
+ */
+
+/**
+ * Analyse the statement at `node` and add what it becomes to `into`. (One
+ * statement of the source can be several of the tree: `a : int = 1, b = 2;`
+ * declares two variables.)
+ */
+def analyse_statement(context: analysis_context, node: _int64, into: list<bound_statement>) {
+    // one statement deeper (context/reporting.sharp, ANALYSIS_NESTING_LIMIT). The exception is
+    // the one the VM raises when the stack runs out: the driver of a body catches both (E0992).
+    context.statement_depth++;
+    if(context.statement_depth > ANALYSIS_NESTING_LIMIT) { throw new stack_overflow_exception("nested deeper than the analysis follows"); }
+
+    kind : _int64 = context.tree.kinds!![node];
+    before : _int64 = into.size().value as _int64;
+
+    if(kind == N_BLOCK) { into.add(analyse_block(context, node)); }
+    else if(kind == N_VARIABLE) { declare_locals(context, node, into, null, 0); }
+    else if(kind == N_EXPRESSION_STATEMENT) { into.add(analyse_expression_statement(context, node)); }
+    else if(kind == N_RETURN) { into.add(analyse_return(context, node)); }
+    else if(kind == N_IF) { into.add(analyse_if(context, node)); }
+    else if(kind == N_WHEN) { into.add(analyse_when(context, node)); }
+    else if(kind == N_WHILE) { into.add(analyse_while(context, node)); }
+    else if(kind == N_DO_WHILE) { into.add(analyse_do_while(context, node)); }
+    else if(kind == N_FOR) { into.add(analyse_for(context, node)); }
+    else if(kind == N_FOREACH) { into.add(analyse_foreach(context, node)); }
+    else if(kind == N_BREAK) { into.add(analyse_break(context, node)); }
+    else if(kind == N_CONTINUE) { into.add(analyse_continue(context, node)); }
+    else if(kind == N_THROW) { into.add(analyse_throw(context, node)); }
+    else if(kind == N_TRY) { into.add(analyse_try(context, node)); }
+    else if(kind == N_LOCK) { into.add(analyse_lock(context, node)); }
+    else if(kind == N_ASM) { into.add(analyse_asm(context, node)); }
+    else if(kind == N_ALIAS) {
+        declare_local_alias(context, node);
+        into.add(new bound_empty(context.unit, node));
+    }
+    else if(kind == N_EMPTY_STATEMENT || kind == N_ERROR) { into.add(new bound_empty(context.unit, node)); }
+    else { into.add(report_statement_without_rule(context, node)); }
+
+    // for -analysis-stats
+    counters : analysis_counters = context.session.counters;
+    for(i : _int64 = before; i < into.size(); i++) {
+        counters.statements++;
+        counters.statements_by_kind[into.at(i).kind]++;
+    }
+    context.statement_depth--;
+}
+
+/** `{ ... }`: a scope of its own; what is declared in it is gone when it ends */
+def analyse_block(context: analysis_context, node: _int64) : bound_block {
+    block := new bound_block(context.unit, node);
+    context.open_scope();
+    statement : _int64 = context.tree.first_child!![node];
+    while(statement >= 0) {
+        analyse_statement(context, statement, block.statements);
+        statement = context.tree.next_sibling!![statement];
+    }
+    context.close_scope();
+    return block;
+}
+
+/**
+ * The body of an `if`, a loop, a `catch` ...: a block, or ONE statement
+ * written without braces (`if(done) return;`). That one statement is a scope
+ * of its own, exactly as if it were in braces: `if(ready) x := 1;` declares
+ * an `x` nobody after it can see. When it declares several variables
+ * (`if(a) b := 1, c := 2;`) they are held in a block.
+ */
+def analyse_part(context: analysis_context, node: _int64) : bound_statement {
+    if(node < 0) { return new bound_empty(context.unit, 0); }
+    if(context.tree.kinds!![node] == N_BLOCK) { return analyse_block(context, node); }
+
+    context.open_scope();
+    made := new list<bound_statement>();
+    analyse_statement(context, node, made);
+    context.close_scope();
+
+    if(made.size() == 1) { return made.at(0); }
+    block := new bound_block(context.unit, node);
+    for(i : _int64 = 0; i < made.size(); i++) { block.statements.add(made.at(i)); }
+    return block;
+}
+
+/**
+ * E0990 (internal): a kind of statement node this stage has no rule for. The
+ * parser makes no such node today; the message is there so that a statement
+ * added to the grammar without a rule here is never silently ignored.
+ */
+def report_statement_without_rule(context: analysis_context, node: _int64) : bound_statement {
+    d := problem_at(context, "E0990", "the compiler has no rule for this statement (a `" + node_kind_name(context.tree.kinds!![node])
+                    + "` node)", node);
+    d.with_label("not analysed");
+    d.with_note("this is a mistake in the compiler, not in the program: every statement the parser accepts must have a rule in backend/compiler/statements");
+    report(context, d);
+    return new bound_empty(context.unit, node);
+}

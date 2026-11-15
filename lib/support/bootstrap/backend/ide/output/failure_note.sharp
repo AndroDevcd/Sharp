@@ -1,0 +1,49 @@
+mod backend.ide.output;
+
+import (
+    std.io
+)
+
+/**
+ * WHEN THE WRITING ITSELF FAILS
+ *
+ * The files for the editor must never fail the build, and the compiler must
+ * print exactly what it prints without `-ide`. So when something goes wrong
+ * while they are written (the folder cannot be made, the disk is full, a
+ * mistake in this package), the hooks stop and print nothing. The plugin
+ * then finds no `ide.json` and knows the run gave it nothing - but not WHY.
+ *
+ * This file leaves the why behind, where only the plugin looks:
+ *
+ *      <folder>/failed.txt       what went wrong, as text: the message of the
+ *                                exception and where it was thrown
+ *
+ * It is written on a best effort: if even that cannot be written (the folder
+ * itself is the problem) nothing more is tried. A run that succeeds removes a
+ * `failed.txt` an earlier run left in the same folder, so the file is there
+ * exactly when the last run into the folder failed.
+ *
+ *      C++ comparison: the `catch (...)` at the top of a plugin entry point
+ *      that logs to a side file instead of letting the host program die.
+ */
+const FAILURE_NOTE : string = "failed.txt";
+
+/** leave `failed.txt` in the folder; never throws */
+def note_failure(folder: string, problem: throwable) {
+    try {
+        text := new string_builder("the files for the editor could not be written: ");
+        text.append(problem.get_message());
+        text.append("\n");
+        trace : string? = problem.stack_trace;
+        if(trace != null) { text.append(trace!!); }
+        new file(folder + "/" + FAILURE_NOTE).write(text.build());
+    } catch(e: throwable) {
+        // nothing is left to try: the plugin still sees that no manifest was written
+    }
+}
+
+/** a run that got as far as its manifest: an older note in the same folder is no longer true */
+def clear_failure_note(folder: string) {
+    note := new file(folder + "/" + FAILURE_NOTE);
+    if(note.exists()) { note.delete(); }
+}

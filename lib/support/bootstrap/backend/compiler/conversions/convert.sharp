@@ -1,0 +1,284 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * APPLYING A CONVERSION TO AN EXPRESSION
+ *
+ * `convert(context, value, wanted, purpose)` is what every place that gives
+ * a value to something with a type calls:
+ *
+ *      total : decimal = count;        convert(<count>, decimal, "the value of `total`")
+ *
+ * It asks the table (find_conversion) and then
+ *
+ *   - returns the expression unchanged when there is nothing to do,
+ *   - wraps it in a bound_conversion when the compiler has to do something
+ *     (so the typed tree shows every implicit step),
+ *   - or reports why the value does not fit and returns an error node, which
+ *     has the error type - so whatever uses the result stays silent.
+ *
+ * The number of a constant survives a number conversion (`x : decimal = 5;`
+ * is still known to be 5), cut down the way the VM cuts it.
+ */
+def convert(context: analysis_context, value: bound_expression, wanted: resolved_type, purpose: string) : bound_expression {
+    if(value.type == wanted) { return value; }
+    how := find_conversion(context.session, value.type, wanted, 1);
+    if(how.kind == CONV_NONE) {
+        report_no_conversion(context, value, how, purpose);
+        failed := new bound_error(value.unit, value.node, context.session.types.error_type);
+        failed.inner = value;
+        return failed;
+    }
+    return apply_conversion(context, value, how);
+}
+
+/**
+ * Did the written type of a variable or field refuse the value it is
+ * declared with (E0410, reported by `convert`)? `value` is what `convert`
+ * gave back for that value.
+ *
+ *      ages : _int64 = { "ann": 31 };      E0410
+ *      ages.put("bob", 42);                quiet
+ *      foreach(name in ages.keys()) { }    quiet
+ *
+ * Which of the two is the mistake - the type or the value - is not known,
+ * and when it is the type, every later use of the variable would be judged
+ * by a type the programmer never meant: one more message per use, all about
+ * the one line. So such a variable is read as the ERROR type (6.2), which
+ * fits everywhere and says nothing: a local in found_names.sharp, a field
+ * in field_access.sharp. A value that was itself broken
+ * (`n : _int64 = nothing_here;`) is another matter: there the written type
+ * stands, and the variable is used as written.
+ */
+def written_type_refused(value: bound_expression?) : _int64 {
+    if(value == null || value!!.kind != BX_ERROR) { return 0; }
+    failed : bound_expression = value!!;
+    refused : bound_expression? = (failed as bound_error).inner;        // what `convert` could not convert
+    return refused != null && refused!!.type.kind != RT_ERROR;
+}
+
+/**
+ * Apply a conversion that was found to work (by `find_conversion`, or by
+ * overload resolution for an argument): nothing for an identity, a
+ * bound_conversion otherwise. A downcast gets its warning (W1017) here, and a
+ * construction where two constructors fit equally well is reported (E0503).
+ */
+def apply_conversion(context: analysis_context, value: bound_expression, how: conversion) : bound_expression {
+    if(how.kind == CONV_IDENTITY || how.kind == CONV_ERROR || how.kind == CONV_NONE) { return value; }
+    if(how.kind == CONV_DOWNCAST) { warn_implicit_downcast(context, value, how); }
+    if(how.kind == CONV_RESULT_IGNORED) { warn_result_ignored(context, value, how); }
+    if(how.kind == CONV_CONSTRUCT && how.function == null) {
+        report_undecided_construction(context, value, how);
+        failed := new bound_error(value.unit, value.node, context.session.types.error_type);
+        failed.inner = value;
+        return failed;
+    }
+
+    converted := new bound_conversion(value, how);
+    if(how.kind == CONV_NUMERIC && value.constant != null) {
+        warn_if_number_does_not_fit(context, value, how.to);
+        warn_if_whole_number_does_not_fit(context, value, how.to);
+        converted.constant = converted_constant(value.constant!!, how.to);
+        converted.literal = value.literal;
+    }
+    return converted;
+}
+
+/**
+ * W1037: a decimal the compiler knows, stored in a whole-number type that
+ * cannot hold it - `x : _int64 = 99999999999999999999999;` (a whole number
+ * too big for 64 bits is a decimal, 7.2) or `n : _int64 = 1e30;`. The value
+ * stored is not the number written; the message says which value it is,
+ * worked out by the same fold the program would do (`converted_constant`):
+ * the decimal is first made a 64-bit whole number the way the VM's `d2i`
+ * does it - a number past the ends becomes the end, 9223372036854775807 or
+ * -9223372036854775808 - and then cut to the type. (The C++ compiler folds
+ * with a C++ cast instead and stores -9223372036854775808 for every number
+ * out of range, also for a positive one; its program then disagrees with
+ * itself when the same conversion happens while it runs: backend.md D97.)
+ * Only for numbers outside the 64-bit range: a fraction dropped
+ * (`n : _int64 = 2.5;`) is the ordinary rule of 7.5.2.
+ *
+ * `z : _uint64 = 18446744073709551615;` is the case that misleads: the
+ * number FITS a `_uint64`, but written in digits it is a decimal, and that
+ * decimal is stored as 9223372036854775807. So the message says what is
+ * stored, not that the type is too small.
+ */
+def warn_if_number_does_not_fit(context: analysis_context, value: bound_expression, to: resolved_type) {
+    constant : constant_value = value.constant!!;
+    if(constant.kind != CONST_DECIMAL || to.kind != RT_INTEGER) { return; }
+    number : decimal = constant.number;
+    // 2^63 = 9223372036854775808: no 64-bit whole number reaches it
+    if(number < 9223372036854775807.0 && number > -9223372036854775807.0) { return; }
+    stored : _int64 = 0;
+    folded : constant_value? = converted_constant(constant, to);
+    if(folded != null) { stored = folded!!.integer; }
+    written_in_digits : _int64 = is_whole_in_digits(context, value.node);
+    // a whole number up to 2^64 - 1 fits the 64 bits of a `_uint64`: only its spelling is the problem
+    bits_in_hexadecimal : string = "";
+    if(written_in_digits == 1 && to.is_signed == 0 && to.bits == 64) {
+        bits_in_hexadecimal = hexadecimal_of_digits(source_text_of(context, value.node));
+    }
+    fits_unsigned : _int64 = sizeof(bits_in_hexadecimal.data) > 0;
+
+    d := problem_over(context, "W1037", "this number is stored in `" + to.to_text() + "` as " + exact_text(stored), value.node);
+    if(written_in_digits == 1) {
+        d.with_label("written in digits above 9223372036854775807, it is a `decimal`");
+        d.with_note("a whole number written in digits is a whole number up to 9223372036854775807 (63 bits and a sign); a bigger one is a `decimal`, and a decimal past the end of a 64-bit whole number becomes that end");
+    } else {
+        d.with_label("this decimal is past the end of a 64-bit whole number");
+        d.with_note("a decimal past the end of a 64-bit whole number becomes that end (9223372036854775807 or -9223372036854775808), the same as when the program converts it while it runs");
+    }
+    if(fits_unsigned == 1) {
+        // the top half of an unsigned 64-bit number can only be written as its bits, in hexadecimal
+        d.with_help("write the bits in hexadecimal: `0x" + bits_in_hexadecimal + "` (this compiler reads a hexadecimal number as the 64 bits it writes; the first Sharp compiler does not, and stores 9223372036854775807 for it as well); or keep it a decimal (`x : decimal = ...`)");
+    } else {
+        d.with_help("keep it a decimal (`x : decimal = ...`), or write a number that fits: from -9223372036854775808 to 9223372036854775807");
+    }
+    report(context, d);
+}
+
+/**
+ * The text of a whole number stored by `converted_constant` for a decimal
+ * out of the 64-bit range: one of the two ends, or - for a narrower type -
+ * a number that is small. (`"" + n` alone goes through a decimal in the
+ * compiler as the first Sharp compiler builds it and prints
+ * 9223372036854775807 as -9223372036854775808, backend.md D13; and 64-bit
+ * division is no better there, so the two ends are written out.)
+ */
+def exact_text(number: _int64) : string {
+    if(number > 4611686018427387904) { return "9223372036854775807"; }
+    if(number < 0 - 4611686018427387904) { return "-9223372036854775808"; }
+    return "" + number;
+}
+
+/** is the literal at `node` a whole number written in decimal digits (no point, no exponent, no `0x`)? */
+def is_whole_in_digits(context: analysis_context, node: _int64) : _int64 {
+    if(node < 0 || context.tree.kinds!![node] != N_LITERAL) { return 0; }
+    text : string = source_text_of(context, node);
+    if(sizeof(text.data) == 0) { return 0; }
+    foreach(c in text) {
+        if(c < '0' || c > '9') { if(c != '_') { return 0; } }
+    }
+    return 1;
+}
+
+/**
+ * The 16 hexadecimal digits of the whole number written in decimal `digits`
+ * ("18446744073709551615" -> "FFFFFFFFFFFFFFFF"), or "" when it needs more
+ * than 64 bits. Schoolbook long division by 16 on the decimal digits, 16
+ * times: every step works with numbers below 160 (and with `>>` and `&`),
+ * so it is exact in every build of this compiler - a 64-bit division here
+ * would not be in the one the first Sharp compiler builds (D13).
+ */
+def hexadecimal_of_digits(digits: string) : string {
+    hex := "0123456789ABCDEF";
+    values := new _int64[sizeof(digits.data)];
+    count : _int64 = 0;
+    foreach(c in digits) {
+        if(c >= '0' && c <= '9') { values[count] = c - '0'; count++; }
+    }
+    made := new string_builder("");
+    for(round : _int64 = 0; round < 16; round++) {
+        carry : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            current : _int64 = carry * 10 + values[i];
+            values[i] = current >> 4;
+            carry = current & 15;
+        }
+        made.append(hex.at(carry));         // the lowest digit that is left
+    }
+    for(i : _int64 = 0; i < count; i++) {
+        if(values[i] != 0) { return ""; }        // more than 16 hexadecimal digits
+    }
+    lowest_first : string = made.build();
+    text := new string_builder("");
+    for(i : _int64 = 15; i >= 0; i--) { text.append(lowest_first.at(i)); }
+    return text.build();
+}
+
+/**
+ * W1043: a whole number the compiler knows, stored in a narrower whole-number
+ * type that cannot hold it:
+ *
+ *      b : _int8 = 200;        holds -56
+ *      c : _uint8 = 256;       holds 0
+ *      a : _int8 = 127 + 1;    (the sum is folded first) holds -128
+ *
+ * Sharp has no narrowing error (7.5.2): the number is cut to the size of the
+ * type, silently in the C++ compiler. The cut is almost never what the
+ * writer meant, so it gets a warning with the value that is really stored.
+ * Written as a cast (`200 as _int8`) it is deliberate and gets nothing.
+ * 64-bit types are W1037's (a number past 64 bits is a decimal).
+ */
+def warn_if_whole_number_does_not_fit(context: analysis_context, value: bound_expression, to: resolved_type) {
+    constant : constant_value = value.constant!!;
+    if(constant.kind != CONST_INTEGER || to.kind != RT_INTEGER || to.bits >= 64) { return; }
+    number : _int64 = constant.integer;
+    lowest : _int64 = 0;
+    highest : _int64 = 0;
+    if(to.is_signed == 1) {
+        highest = (1 << (to.bits - 1)) - 1;
+        lowest = 0 - highest - 1;
+    } else {
+        highest = (1 << to.bits) - 1;
+    }
+    if(number >= lowest && number <= highest) { return; }
+
+    stored := converted_constant(constant, to);
+    d := problem_over(context, "W1043", "`" + number + "` does not fit `" + to.to_text() + "`", value.node);
+    if(stored != null) { d.with_label("stored as `" + stored!!.integer + "`"); }
+    d.with_note("a `" + to.to_text() + "` holds " + lowest + " to " + highest + "; a whole number outside that is cut down to its last " + to.bits + " bits");
+    d.with_help("use a type that holds it (`_int64`), or write the cut on purpose: `(" + source_text_of(context, value.node) + ") as " + to.to_text() + "`");
+    report(context, d);
+}
+
+/**
+ * E0503: `x : point = value;` where two constructors of point take the value
+ * equally well (`point(a: _int64)`, `point(a: string?)` and a `null`).
+ */
+def report_undecided_construction(context: analysis_context, value: bound_expression, how: conversion) {
+    target := how.to.to_text();
+    d := problem_over(context, "E0503", "`" + target + "` can be made from this value by more than one constructor", value.node);
+    d.with_label("`" + how.from.to_text() + "`: fits several constructors of `" + target + "` equally well");
+    d.with_note("a value becomes an object through a constructor that takes it; here no single one is the best fit");
+    d.with_help("make the object yourself, choosing the constructor: `new " + target + "(" + source_text_of(context, value.node)
+                + " as <type>)`");
+    report(context, d);
+}
+
+/**
+ * A number the compiler knows, as it is after being stored in a variable of
+ * type `to`: a decimal loses its fraction when it becomes a whole number, a
+ * whole number is cut to the size of the type (300 in an _int8 is 44).
+ */
+def converted_constant(value: constant_value, to: resolved_type) : constant_value? {
+    if(value.kind == CONST_TEXT) { return null; }
+    if(to.kind == RT_DECIMAL) {
+        if(value.kind == CONST_DECIMAL) { return value; }
+        return decimal_constant(value.integer);
+    }
+    whole : _int64 = value.integer;
+    if(value.kind == CONST_DECIMAL) { whole = value.number as _int64; }
+    return integer_constant(cut_to_size(whole, to.bits, to.is_signed));
+}
+
+/** a 64-bit whole number as it is when kept in `bits` bits */
+def cut_to_size(value: _int64, bits: _int64, is_signed: _int64) : _int64 {
+    if(bits >= 64) { return value; }
+    range : _int64 = 1 << bits;                // 256 for 8 bits
+    low : _int64 = value & (range - 1);         // the bits that are kept
+    if(is_signed == 1 && low >= range / 2) { return low - range; }
+    return low;
+}

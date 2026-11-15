@@ -1,0 +1,260 @@
+mod main;
+
+// output:
+// 1
+// 2
+// 3
+// 1
+// 10
+// 20
+// 30
+// 21
+// 31
+// 12
+// 22
+// 32
+// 13
+// 23
+// 33
+// 24
+// 34
+// 35
+// 41
+// 42
+// 43
+// 52
+// 51
+// 0
+// 60
+// 61
+// 20
+// 62
+// 63
+// 131
+// 132
+// 133
+// 3
+// 1
+// 4
+// 2
+// bb
+// 1
+// 4
+// 2
+// 4
+// null
+// 1
+// 2
+// 3
+// 4
+// 40
+// 150
+// 152
+// 155
+// 156
+// 60
+// -120
+// -121
+// 42
+// 8
+
+/*
+ * Ways out of a lock and of a try with a finally (doc/codegen.md 6.11, the
+ * exit stubs): `return`, `break` and `continue` run every finally block they
+ * pass, innermost first, and unlock every lock they leave, in the order the
+ * statements are nested.
+ *
+ *   - a return through two finally blocks and a lock (its value computed first);
+ *   - break and continue through two finally blocks and a lock in a `for`,
+ *     a `while(true)`, a `do`, a `foreach` over an array and over a list (a
+ *     `loopable` object: its get_elements());
+ *   - `continue` and `return` written inside a `when` clause;
+ *   - a return out of an endless loop's try;
+ *   - lock re-entered by the fiber that holds it, left by `continue`; the lock
+ *     an exception leaves is given back by the VM (the next `lock` of it does
+ *     not wait); `lock(self)` and a lock of a static object, left by `return`.
+ * After each of them the same lock is taken again, so a lock left held would
+ * make the program wait for ever.
+ */
+
+class oops base exception {
+    code : _int64;
+    oops(code: _int64) -> base("oops") { self->code = code; }
+}
+
+def boom(n: _int64) { throw new oops(n); }
+def value_of(n: _int64) : _int64 { show(n); return n; }
+
+def two_finallies_and_a_lock() : _int64 {
+    o := new oops(0);
+    lock(o) {
+        try {
+            try {
+                return value_of(1);
+            } finally {
+                show(2);
+            }
+        } finally {
+            show(3);
+        }
+    }
+    return 0;
+}
+
+def loops_with_finally() {
+    o := new oops(0);
+    for(i : _int64 = 0; i < 6; i++) {
+        lock(o) {
+            try {
+                try {
+                    if(i == 1) { continue; }
+                    if(i == 4) { break; }
+                    show(10 + i);
+                } finally {
+                    show(20 + i);
+                }
+            } finally {
+                show(30 + i);
+            }
+        }
+    }
+    lock(o) { show(35); }
+    j : _int64 = 0;
+    while(true) {
+        j++;
+        try {
+            if(j < 3) { continue; }
+            break;
+        } finally {
+            show(40 + j);
+        }
+    }
+    do {
+        try {
+            j--;
+            if(j == 1) { break; }
+        } finally {
+            show(50 + j);
+        }
+    } while(j > 0);
+}
+
+def foreach_loops() {
+    numbers : _int64[] = new _int64[5];
+    for(i : _int64 = 0; i < 5; i++) { numbers[i] = i * 10; }
+    foreach(n in numbers) {
+        try {
+            if(n == 10) { continue; }
+            if(n == 30) { break; }
+            show(n);
+        } finally {
+            show(60 + n / 10);
+        }
+    }
+    items := new list<string>();
+    items.add("1"); items.add("22"); items.add("333"); items.add("4444");
+    total : _int64 = 0;
+    foreach(x in items) {
+        size : _int64 = sizeof(x.data);
+        try {
+            if(size == 3) { break; }
+            total += size;
+        } finally {
+            show(130 + size);
+        }
+    }
+    show(total);
+}
+
+def finder(items: string[], wanted: string) : string? {
+    o := new oops(0);
+    lock(o) {
+        foreach(item in items) {
+            try {
+                when(item) {
+                    "skip" -> continue;
+                    "stop" -> return null;
+                }
+                if(item == wanted) { return item; }
+            } catch(e: exception) {
+                return "never";
+            } finally {
+                show(sizeof(item.data));
+            }
+        }
+    }
+    lock(o) { show(7); }
+    return "none";
+}
+
+def endless() : _int64 {
+    k : _int64 = 0;
+    while(true) {
+        try {
+            k++;
+            if(k == 4) { return k * 10; }
+        } finally {
+            show(k);
+        }
+    }
+    return 0 - 1;
+}
+
+def locks_again() {
+    o := new oops(0);
+    for(i : _int64 = 0; i < 3; i++) {
+        lock(o) {
+            lock(o) {
+                if(i == 1) { continue; }
+                show(150 + i);
+            }
+        }
+    }
+    try {
+        lock(o) {
+            boom(5);
+        }
+    } catch(e: oops) {
+        show(155);
+    }
+    lock(o) { show(156); }
+}
+
+class account {
+    balance : _int64 = 0;
+    static guard : oops = new oops(0);
+
+    def add(n: _int64) : _int64 {
+        lock(self) {
+            balance += n;
+            if(balance > 100) { return 0 - balance; }
+        }
+        return balance;
+    }
+
+    static def shared(n: _int64) : _int64 {
+        lock(guard) {
+            return n * 2;
+        }
+        return 0;
+    }
+}
+
+def main() {
+    show(two_finallies_and_a_lock());
+    loops_with_finally();
+    foreach_loops();
+    items := new string[4];
+    items[0] = "a"; items[1] = "skip"; items[2] = "bb"; items[3] = "stop";
+    found := finder(items, "bb");
+    if(found != null) { println(found!!); }
+    if(finder(items, "zz") == null) { println("null"); }
+    show(endless());
+    locks_again();
+    acc := new account();
+    show(acc.add(60));
+    show(acc.add(60));
+    show(acc.add(1));
+    show(account.shared(21));
+    show(account.shared(4));
+}

@@ -1,0 +1,103 @@
+mod backend.compiler.expressions.primary.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.expressions.primary,
+    backend.compiler.names,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE NULL RULE OF `.`:  a.b   a?.b   a!!.b
+ *
+ * Reaching INTO a value that may be null has to say what happens when it is
+ * null - the one null rule the language checks at a member access:
+ *
+ *      a.b     a is `t?`           E0722: write `a?.b` or `a!!.b`
+ *      a?.b                        null when a is null (safe_navigation.sharp)
+ *      a!!.b                       an exception when a is null
+ *      a?.b / a!!.b, a never null  W1005: the mark does nothing
+ *      a?.b.c   with  b : t?       accepted: once a chain has a `?.`, the links after it are
+ *                                  not asked for another (as in the C++ compiler)
+ *
+ * `receiver_of` applies the rule and hands back the object the member is
+ * then read from - known not to be null.
+ *
+ *      C++ comparison: "accessing nullable field `x` without `?.` or `!!.`"
+ *      in dependency.cpp.
+ */
+
+/**
+ * The object a member is read from, after the null rule: the value itself
+ * for `.`, the receiver of a safe navigation for `?.`, the asserted value
+ * for `!!.`.
+ */
+def receiver_of(context: analysis_context, target: bound_expression, node: _int64, name: string) : bound_expression {
+    mark : _int64 = token_kind_at(context, node);
+    type : resolved_type = target.type;
+    may_be_null : _int64 = type.is_nullable;
+
+    if(mark == P_SAFE_DOT) {
+        if(may_be_null == 1) { return begin_safe_navigation(context, target, node); }
+        warn_unneeded_mark(context, target, node, "?.");
+        return target;
+    }
+    if(mark == P_FORCE_DOT) {
+        if(may_be_null == 1) { return new bound_not_null(context.unit, node, target, type.as_non_null()); }
+        warn_unneeded_mark(context, target, node, "!!.");
+        return target;
+    }
+    if(may_be_null == 1 && context.navigation != null) {
+        // further along a chain that a `?.` already made safe: `a?.b.c` with
+        // `b : t?`. The C++ compiler asks for nothing more here (the library
+        // writes such chains), so neither does this one; the program throws
+        // at this point when `b` is null.
+        return new bound_not_null(context.unit, node, target, type.as_non_null());
+    }
+    if(may_be_null == 1 && target.kind == BX_LOCAL && (target as bound_local).variable.null_reported == 1) {
+        // `current := node;` then `current.value`, `current.after`: the fix is
+        // the same for every use (`node!!` where it is declared), so it is told once
+        return new bound_not_null(context.unit, node, target, type.as_non_null());
+    }
+    if(may_be_null == 1 && target.kind != BX_BASE) {
+        written := source_text_of(context, target.node);
+        d := problem_at(context, "E0722", "`" + written + "` may be null: `." + name + "` cannot be used on it directly", node);
+        d.with_label("`" + type.to_text() + "` may be null here");
+        d.with_note("reaching into an object that is not there stops the program; Sharp makes you say what should happen");
+        operand := as_operand_text(context, target.node);
+        d.with_help("`" + operand + "?." + name + "` gives null when `" + written + "` is null");
+        d.with_help("`" + operand + "!!." + name + "` says it is certainly not null (the program throws when it is)");
+        if(target.kind == BX_LOCAL) {
+            variable := (target as bound_local).variable;
+            variable.null_reported = 1;
+            if(variable.is_parameter == 0) {
+                d.with_note("later uses of `" + variable.name + "` in this function are not reported again; if it is never null, say so where it is declared: `"
+                            + variable.name + " := <value>!!;`");
+            }
+        }
+        report(context, d);
+        // analysed on as if it were not null: one mistake, one message
+        return new bound_not_null(context.unit, node, target, type.as_non_null());
+    }
+    return target;
+}
+
+/** W1005: `?.` or `!!.` on something that is never null */
+def warn_unneeded_mark(context: analysis_context, target: bound_expression, node: _int64, mark: string) {
+    if(target.type.kind == RT_ERROR) { return; }
+    d := problem_at(context, "W1005", "`" + mark + "` is not needed: `" + source_text_of(context, target.node) + "` is never null", node);
+    d.with_label("`" + target.type.to_text() + "` cannot be null");
+    d.with_help("write a plain `.`");
+    report(context, d);
+}
+

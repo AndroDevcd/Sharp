@@ -1,0 +1,110 @@
+mod backend.compiler.expressions.assignment;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions,
+    backend.compiler.expressions.calls,
+    backend.compiler.expressions.arithmetic
+)
+
+/**
+ * `object[index] = value` ON AN OBJECT
+ *
+ *      names := new list<string>();
+ *      names[0] = other;           names.put(0, other)
+ *
+ * An object is indexed through its class's `operator[]`, which only READS.
+ * Storing is the class's instance function `put(index, value)` (list has
+ * one), chosen by overload resolution with the index as `operator[]` took it
+ * and the value. A `put` that takes the index but refuses the VALUE means the
+ * value is the mistake: E0410 on it, naming that `put` (`a[0] = "s"` on a
+ * `list<int>`). When the class has no `put` that fits at all, the old meaning
+ * stays: `operator[]` is called and `=` is applied to the object it
+ * returned, through that object's `operator=` (doc/backend.md 7.8.3, decided
+ * 2026-11-12).
+ *
+ *      C++ comparison: `assign_through_index_operator` in assign_expression.cpp.
+ *      Kotlin calls `set(i, x)` for the same thing, Python `__setitem__`.
+ */
+def store_through_index(context: analysis_context, node: _int64, index_call: bound_call, value: bound_expression) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    on : bound_expression = index_call.on!!;
+    if(on.type.kind == RT_CLASS && index_call.arguments != null) {
+        owner : sharp_class = on.type.class_of!!;
+        functions := operator_functions(context, owner, "put");
+        if(functions.size() > 0) {
+            arguments := new list<call_argument>();
+            for(i : _int64 = 0; i < index_call.arguments!!.size(); i++) {
+                index := index_call.arguments!!.at(i);
+                arguments.add(new call_argument(index, index.node));
+            }
+            arguments.add(new call_argument(value, value.node));
+            result := resolve_overload(context, functions, arguments, null, owner);
+            if(result.best != null && !result.best!!.function.has(FLAG_STATIC)) {
+                call := bind_call(context, result.best!!, on, arguments, node, node);
+                call.written_as = AS_INDEX_STORE;
+                return call;
+            }
+            // a put that takes the index but not this VALUE: the value is the mistake
+            refused := put_refusing_only_the_value(result, arguments.size().value);
+            if(refused != null) {
+                report_no_conversion(context, value, refused!!.failed_how!!, "the value stored by `"
+                                     + source_text_of(context, index_call.node) + " = ...` (the parameter `" + refused!!.failed_parameter
+                                     + "` of `" + on.type.as_non_null().to_text() + ".put`)");
+                return new bound_error(context.unit, node, error_type);
+            }
+        }
+    }
+
+    // no put(index, value): `=` on what operator[] returned
+    returned : resolved_type = index_call.type;
+    if(returned.kind == RT_CLASS && returned.is_array == 0) {
+        through := assign_operator_call(context, node, index_call, value);
+        if(through != null) { return through!!; }
+    }
+    d := problem_over(context, "E0711", "`" + source_text_of(context, index_call.node) + "` cannot be assigned to", index_call.node);
+    d.with_label("`operator[]` of `" + on.type.to_text() + "` reads an item; nothing here stores one");
+    d.with_note("`o[i] = v` on an object calls the class's `put(index, value)`, or `operator=` on what `operator[]` returns");
+    if(on.type.kind == RT_CLASS && on.type.class_of!!.module.is_library()) {
+        // (never suggest editing the standard library)
+        d.with_help("call the function of `" + on.type.to_text() + "` that stores an item; its functions are listed in the library source of `"
+                    + on.type.class_of!!.name + "`");
+    } else {
+        d.with_help("give `" + on.type.to_text() + "` a function `def put(index: " + index_type_text(index_call) + ", value: "
+                    + value.type.to_text() + ")`");
+    }
+    report(context, d);
+    return new bound_error(context.unit, node, error_type);
+}
+
+/**
+ * Of the `put` functions that did not fit, the one that took every index
+ * and refused only the value (the last argument), when there is one: then
+ * the mistake is the value's type, and the message says so (E0410) instead
+ * of claiming the class cannot store items.
+ */
+def put_refusing_only_the_value(result: overload_result, argument_count: _int64) : call_candidate? {
+    if(!result.found_none()) { return null; }
+    for(i : _int64 = 0; i < result.rejected.size(); i++) {
+        candidate := result.rejected.at(i);
+        if(candidate.function.has(FLAG_STATIC) || candidate.wrong_count == 1) { continue; }
+        if(candidate.failed_argument == argument_count - 1 && candidate.failed_how != null) { return candidate; }
+    }
+    return null;
+}
+
+/** the type operator[] takes, for the help */
+def index_type_text(index_call: bound_call) : string {
+    if(index_call.function.parameters.size() == 0 || index_call.function.parameters.at(0).value_type == null) { return "<type>"; }
+    return index_call.function.parameters.at(0).value_type!!.to_text();
+}

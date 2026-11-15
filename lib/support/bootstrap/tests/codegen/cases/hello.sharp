@@ -1,0 +1,23 @@
+mod main;
+
+// output:
+// hello, world
+// 4631107791820423168
+// 42
+
+/*
+ * The first program the bootstrap compiler runs (doc/codegen.md 13.1): a
+ * main that prints a text and a number through the library's println.
+ *
+ * The long number is what the C++-built program prints too: println of a
+ * number goes to the library's print_num, whose asm prints the decimal's
+ * bits with `put` (an integer print), so 42.0 comes out as 4631107791820423168.
+ * The oracle is the C++-built program, so that is the right output here.
+ * show() (tests/codegen/print.sharp) prints the integer itself.
+ */
+def main() {
+    println("hello, world");
+    n : _int64 = 6 * 7;
+    println(n);
+    show(n);
+}

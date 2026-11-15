@@ -1,0 +1,10 @@
+// expect: E0712
+// help: for(i := 0; i < sizeof(a); i++) { a[i] += 1; }
+// replace: a += 1;
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    a := new _int64[3];
+    a += 1;
+}

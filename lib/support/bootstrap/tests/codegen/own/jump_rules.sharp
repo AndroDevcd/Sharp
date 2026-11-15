@@ -1,0 +1,149 @@
+mod main;
+
+import (
+    std.io.fiber
+)
+
+// output:
+// 1
+// 11
+// 12
+// 3
+// 13
+// 4
+// 14
+// 201
+// 1
+// 301
+// 400
+// 500
+// 501
+// 601
+// 601
+
+/*
+ * Three rules about jumps and locks where the C++-built program does something else, so
+ * the output block is the rule of the language worked out by hand
+ * (doc/codegen.md section 10):
+ *
+ *   - G31: `continue` in a `do { } while(c);` goes to the CONDITION, as in
+ *     every language with this loop: round 2 below skips its `show` but still
+ *     asks `more(2)`. The C++ compiler sends it to the top of the body, past
+ *     the condition (do_while_statement.cpp hands the block the loop's begin
+ *     label as the place `continue` goes to): its program never prints the
+ *     12 - and `do { continue; } while(false);` never ends there;
+ *
+ *   - G30: a jump out gives each lock back WHERE the lock block is left, in
+ *     the order the statements are nested. In
+ *
+ *          lock(guard) { try { lock(second) { return 1; } } finally { ... } }
+ *
+ *     the finally block is written outside `lock(second)`, so `second` is
+ *     free while it runs (201: another fiber gets it) and `guard` is still
+ *     held; after the function both are free. The same for `break` (301).
+ *     The C++-built program runs every finally block first and unlocks all
+ *     the locks only at the final jump: its finally sees `second` still held
+ *     (it would print 200 and 300). A lock written OUTSIDE the try is held in
+ *     its finally in both (400), and one written inside the finally block
+ *     itself too (500, then 501 after it);
+ *
+ *   - G32: the object of `lock(expression)` is evaluated ONCE, and that object
+ *     is locked and unlocked: `lock(g.open()) { }` calls open() one time (601
+ *     inside the block and 601 after it). The C++-built program evaluates the
+ *     expression again for the unlock: open() runs twice (it would print 601,
+ *     then 602), and an expression that gives another object the second time
+ *     unlocks the wrong one.
+ */
+
+class box { value : _int64 = 0; }
+
+def more(n: _int64) : _int64 { show(10 + n); return n < 4; }
+
+def continue_in_do() {
+    n : _int64 = 0;
+    do {
+        n++;
+        if(n == 2) { continue; }
+        show(n);
+    } while(more(n));
+}
+
+/** 1 when another fiber can take `guard` within a quarter of a second */
+def is_free(guard: object) : _int64 {
+    answer := new box();
+    slice({ a: object[] -> (int)
+        lock(a[0]) { (a[1] as box).value = 1; }
+        return 0;
+    }, new object[] { guard, answer });
+
+    for(i : _int64 = 0; i < 50 && answer.value == 0; i++) {
+        delay(5);
+    }
+    return answer.value;
+}
+
+def return_through(guard: object, second: object) : _int64 {
+    lock(guard) {
+        try {
+            lock(second) { return 1; }
+        } finally {
+            show(200 + is_free(second) + is_free(guard) * 10);
+        }
+    }
+    return 0;
+}
+
+def break_through(guard: object, second: object) {
+    while(true) {
+        lock(guard) {
+            try {
+                lock(second) { break; }
+            } finally {
+                show(300 + is_free(second) + is_free(guard) * 10);
+            }
+        }
+    }
+}
+
+def lock_around(guard: object) : _int64 {
+    lock(guard) {
+        try {
+            return 5;
+        } finally {
+            show(400 + is_free(guard));
+        }
+    }
+    return 0;
+}
+
+def lock_in_finally(guard: object) : _int64 {
+    try {
+        return 5;
+    } finally {
+        lock(guard) { show(500 + is_free(guard)); }
+        show(500 + is_free(guard));
+    }
+    return 0;
+}
+
+class gate {
+    hits : _int64 = 0;
+    def open() : gate { hits++; return self; }
+}
+
+def lock_once() {
+    g := new gate();
+    lock(g.open()) { show(600 + g.hits); }
+    show(600 + g.hits);
+}
+
+def main() {
+    continue_in_do();
+    a := new box();
+    b := new box();
+    show(return_through(a, b));
+    break_through(a, b);
+    lock_around(a);
+    lock_in_finally(a);
+    lock_once();
+}

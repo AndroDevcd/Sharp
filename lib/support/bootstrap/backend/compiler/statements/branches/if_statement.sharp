@@ -1,0 +1,68 @@
+mod backend.compiler.statements.branches;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.expressions,
+    backend.compiler.statements
+)
+
+/**
+ * `if(condition) then_part else else_part`
+ *
+ *      if(a) x(); else if(b) y(); else z();
+ *
+ * An `else if` is an `if` that is the else part of the one before it (that
+ * is how the parser builds it, and how the typed tree holds it: a bound_if
+ * whose else_part is a bound_if). Each part is a block or one statement, and
+ * either way a scope of its own.
+ *
+ * A chain of `else if`s is therefore nesting, as deep as the chain is long -
+ * and generated code writes chains of hundreds. One level of recursion per
+ * `else if` would run out of stack on the VM, so the chain is followed in a
+ * loop: each `if` of it is analysed in turn and hung on the one before.
+ *
+ *      E0411   the condition is not a number or a `bool` object (values.sharp)
+ *
+ *      C++ comparison: compiler/functions/statements/if_statement.cpp, which
+ *      also flattens the chain into "if / else-if / else" flags for its
+ *      return-path check; the flow analysis here needs no such special case.
+ */
+def analyse_if(context: analysis_context, node: _int64) : bound_statement {
+    tree : syntax_tree = context.tree;
+    counters : analysis_counters = context.session.counters;
+    first := if_without_else(context, node);
+    last := first;
+    else_node : _int64 = else_node_of(context, node);
+
+    while(else_node >= 0 && tree.kinds!![else_node] == N_IF) {
+        // (an `if` declares nothing by itself, so the scope `analyse_part` would
+        // open around it would stay empty; only the counting is repeated here)
+        next := if_without_else(context, else_node);
+        counters.statements++;
+        counters.statements_by_kind[BS_IF]++;
+        last.else_part = next;
+        last = next;
+        else_node = else_node_of(context, else_node);
+    }
+    if(else_node >= 0) { last.else_part = analyse_part(context, else_node); }
+    return first;
+}
+
+/** the condition and the then part of the `if` at `node`; its else part is added by `analyse_if` */
+def if_without_else(context: analysis_context, node: _int64) : bound_if {
+    condition_node : _int64 = context.tree.first_child!![node];
+    then_node : _int64 = context.tree.next_sibling!![condition_node];
+    condition := analyse_condition(context, condition_node, 1);
+    return new bound_if(context.unit, node, condition, analyse_part(context, then_node));
+}
+
+/** the node of the else part of the `if` at `node`; -1 when it has none */
+def else_node_of(context: analysis_context, node: _int64) : _int64 {
+    then_node : _int64 = context.tree.next_sibling!![context.tree.first_child!![node]];
+    if(then_node < 0) { return 0 - 1; }
+    return context.tree.next_sibling!![then_node];
+}

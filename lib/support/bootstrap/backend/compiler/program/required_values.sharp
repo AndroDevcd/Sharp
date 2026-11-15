@@ -1,0 +1,191 @@
+mod backend.compiler.program;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * A FIELD THAT NOTHING GIVES A VALUE
+ *
+ *      class holder {
+ *          item : node;                        W1032: `item` is never given a value
+ *          holder(n: _int64) { println(n); }
+ *      }
+ *
+ * A field of a class type, `object`, a function type or an array that is
+ * NOT nullable promises it always holds something - but it starts as null
+ * like every object field, and reading it before something is assigned
+ * throws `nullptr_exception`. So it must be given a value:
+ *
+ *   - where it is declared (`item : node = new node();`), or by `inject`;
+ *   - or it is a number class or `string`, which start as an object of their
+ *     own (`count : int;` is `int()`, 7.3);
+ *   - or, for an instance field, the FIRST thing every constructor does with
+ *     it is to assign it - or an `init { }` block does; for a static field, a
+ *     `static init { }` block. "First" is the first use in the order the code
+ *     is written, branches included, as in the C++ compiler's rule;
+ *   - or it is marked `excuse` ("it is set in another way; trust me").
+ *
+ * The constructor the compiler adds to every class (7.7.5) counts only when
+ * something calls it: a class that is only made with its own constructors is
+ * not blamed for the one nobody uses.
+ *
+ * DIFFERS FROM THE C++ COMPILER (D82). Its check (initialization_validator.cpp,
+ * "field `x` must be initialized") exists but never fires in practice: every
+ * probe compiled - a field no constructor sets, a global without a value, a
+ * static field read before it is set - and the last two ran into
+ * `nullptr_exception`. Making it an error would refuse programs the C++
+ * compiler builds and runs, so it is the warning W1032 (section 5, the rule for
+ * "stricter"). It is on by default only if the library does not give it.
+ *
+ *      W1032   a non-nullable object field is never given a value
+ *
+ * This file decides WHICH fields need a value and words the warning;
+ * first_uses.sharp works out what a constructor or init block does first
+ * with each of them.
+ */
+def check_required_values(session: analysis_session, analysed: analysed_program) {
+    for(i : _int64 = 0; i < analysed.modules.size(); i++) {
+        fields := analysed.modules.at(i).fields;
+        for(j : _int64 = 0; j < fields.size(); j++) {
+            field := fields.at(j);
+            if(needs_a_value(session, field)) { report_no_value(session, field, null, "a global is given its value only where it is declared", 0); }
+        }
+    }
+    for(i : _int64 = 0; i < analysed.classes.size(); i++) {
+        declared := analysed.classes.at(i);
+        if(declared.kind == D_INTERFACE) { continue; }
+        check_fields_of_class(session, declared);
+    }
+}
+
+/** a field whose type promises an object, written without a value, that has no other way to get one */
+def needs_a_value(session: analysis_session, field: sharp_field) : _int64 {
+    if(field.value_type == null || field.has_initializer() || field.bound_initializer != null) { return 0; }
+    if(field.inject_node >= 0 || field.injected_from != null || field.default_constructor != null) { return 0; }
+    if(field.has(FLAG_EXCUSE) || field.getter != null || field.setter != null) { return 0; }
+    type : resolved_type = field.value_type!!;
+    if(type.is_nullable == 1) { return 0; }
+    if(type.is_array == 1 || type.kind == RT_OBJECT || type.kind == RT_FUNCTION) { return 1; }
+    if(type.kind != RT_CLASS || type.class_of == null) { return 0; }
+    made : sharp_class = type.class_of!!;
+    if(session.known.is_box(made) || made == session.known.string_class) { return 0; }
+    return 1;
+}
+
+/**
+ * The fields of one class that need a value: the static ones against the
+ * `static init { }` blocks, the others against the `init { }` blocks and
+ * every constructor that can run. Each piece of code is walked ONCE for all
+ * the fields together (first_uses.sharp).
+ */
+def check_fields_of_class(session: analysis_session, declared: sharp_class) {
+    instance_fields := new list<sharp_field>();
+    static_fields := new list<sharp_field>();
+    for(i : _int64 = 0; i < declared.fields.size(); i++) {
+        field := declared.fields.at(i);
+        if(!needs_a_value(session, field)) { continue; }
+        if(field.has(FLAG_STATIC)) { static_fields.add(field); }
+        else { instance_fields.add(field); }
+    }
+    if(static_fields.size() > 0) { check_static_fields(session, declared, static_fields); }
+    if(instance_fields.size() > 0) { check_instance_fields(session, declared, instance_fields); }
+}
+
+/** static fields: a `static init { }` block assigns each first */
+def check_static_fields(session: analysis_session, declared: sharp_class, fields: list<sharp_field>) {
+    in_blocks := first_uses_in_blocks(declared.init_blocks, 1, fields);
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        field := fields.at(i);
+        if(in_blocks.state_of(field) == FIRST_WRITE) { continue; }
+        report_no_value(session, field, null, "no `static init { }` block of `" + declared.name + "` assigns it first", 0);
+    }
+}
+
+/** instance fields: an `init { }` block, or every constructor that can run, assigns each first */
+def check_instance_fields(session: analysis_session, declared: sharp_class, fields: list<sharp_field>) {
+    in_blocks := first_uses_in_blocks(declared.init_blocks, 0, fields);
+
+    // one walk per constructor that can run; the one the compiler adds (7.7.5) only when something calls it
+    constructors := new list<sharp_function>();
+    in_constructors := new list<first_uses>();
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) {
+        constructor := declared.constructors.at(i);
+        if(constructor.is_synthesized == 1 && constructor.used_anywhere == 0) { continue; }
+        uses := new first_uses(fields);
+        note_first_uses_in_function(constructor, uses);
+        constructors.add(constructor);
+        in_constructors.add(uses);
+    }
+
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        field := fields.at(i);
+        if(in_blocks.state_of(field) == FIRST_WRITE) { continue; }
+        for(j : _int64 = 0; j < constructors.size(); j++) {
+            first : _int64 = in_constructors.at(j).state_of(field);
+            if(first == FIRST_WRITE) { continue; }
+            report_constructor_leaves_out(session, declared, field, constructors.at(j), first);
+            break;                      // one message per field: the first constructor that leaves it out
+        }
+    }
+}
+
+/** W1032 for a field the constructor does not assign first */
+def report_constructor_leaves_out(session: analysis_session, declared: sharp_class, field: sharp_field,
+                                  constructor: sharp_function, first: _int64) {
+    why := "the constructor `" + constructor.signature() + "` ends without assigning it";
+    if(first == FIRST_READ) { why = "the constructor `" + constructor.signature() + "` reads it before assigning it"; }
+    if(constructor.is_synthesized == 1) {
+        why = "the constructor without parameters the compiler adds to `" + declared.name + "` is used, and it assigns nothing";
+    }
+    report_no_value(session, field, constructor, why, first == FIRST_READ);
+}
+
+/** the first uses of the fields in the init blocks of one kind (static or not), in the order written */
+def first_uses_in_blocks(blocks: list<sharp_function>, statics: _int64, fields: list<sharp_field>) : first_uses {
+    uses := new first_uses(fields);
+    for(i : _int64 = 0; i < blocks.size(); i++) {
+        block := blocks.at(i);
+        if(block.parameters.size() > 0) { continue; }       // `init(x)` is a conversion, not part of making an object
+        is_static : _int64 = block.has(FLAG_STATIC);
+        if(is_static != statics) { continue; }
+        note_first_uses_in_function(block, uses);
+    }
+    return uses;
+}
+
+/**
+ * W1032, at the field; `blamed` is the constructor that leaves it without a
+ * value (null: none); `read_first` says the constructor reads the field
+ * before it assigns it, which gets words of its own.
+ */
+def report_no_value(session: analysis_session, field: sharp_field, blamed: sharp_function?, why: string, read_first: _int64) {
+    session.counters.fields_without_value++;
+    if(session.extra_warnings == 0) { return; }
+    context := declaration_context(session, field);
+    if(context == null) { return; }
+    type_text := field.value_type!!.to_text();
+    message := "`" + field.name + "` is never given a value";
+    label := "a `" + type_text + "` may not be null, and this has no value";
+    left_how := "this constructor leaves it without a value";
+    if(read_first == 1) {
+        message = "`" + field.name + "` is read before it is given a value";
+        label = "a `" + type_text + "` may not be null, and this is still null when it is first read";
+        left_how = "this constructor reads it before assigning it";
+    }
+    d := error_at_names("W1032", message, field.unit, field.node);
+    d.with_label(label);
+    if(blamed != null) { d.with_related_place(place_of_declaration(blamed!!, left_how)); }
+    d.with_note(why);
+    d.with_note("until something is assigned it holds null, and reading it throws `nullptr_exception`");
+    d.with_help("give it a value - `" + field.name + " : " + type_text + " = ...;` - or declare it `" + type_text
+                + "?`, or mark it `excuse` when it is set in another way");
+    report(context!!, d);
+}

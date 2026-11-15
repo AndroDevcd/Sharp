@@ -1,0 +1,129 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.types.declarations
+)
+
+/**
+ * THE LEAVES OF THE TYPED TREE: values that are written out or named
+ *
+ *      5  'a'  "text"  true        bound_literal       the value is in `constant`
+ *      null                        bound_null
+ *      count                       bound_local         a parameter or local variable
+ *      self->x   x   point.total   bound_field         a field of an object, a static field, a global
+ *      color.red                   bound_enum_value
+ *      self                        bound_self
+ *      base                        bound_base          only in front of `->` or `.`
+ *      string   list<int>          bound_type_name     a class written where a value could stand;
+ *                                                      only legal in front of `.` or `(`
+ *      print                       bound_functions     a function NAME; which overload is meant is
+ *                                                      decided by the calls stage
+ */
+
+/** 5, 'a', "text", true: the value is in `constant`, the form in `literal` */
+class bound_literal base bound_expression {
+    bound_literal(unit: source_unit, node: _int64, type: resolved_type, value: constant_value, written_as: _int64)
+            -> base(BX_LITERAL, unit, node, type) {
+        constant = value;
+        literal = written_as;
+    }
+}
+
+/** the word `null` */
+class bound_null base bound_expression {
+    bound_null(unit: source_unit, node: _int64, null_type: resolved_type) -> base(BX_NULL, unit, node, null_type) {
+    }
+}
+
+/**
+ * A parameter or local variable. `depth` counts the function boundaries
+ * between this use and the variable's own function: 0 for an ordinary use,
+ * 1 for a lambda using a local of the function it is written in (a capture).
+ */
+class bound_local base bound_expression {
+    variable : local_variable;
+    depth : _int64 = 0;
+
+    bound_local(unit: source_unit, node: _int64, variable: local_variable) -> base(BX_LOCAL, unit, node, variable.type) {
+        self->variable = variable;
+        storage = STORE_LOCAL;
+    }
+}
+
+/**
+ * The STORED value of a field. `on` is the object the field is read from;
+ * null for a static field or a global. A field used by its plain name inside
+ * its class has an explicit bound_self here: nothing is left implied.
+ */
+class bound_field base bound_expression {
+    on : bound_expression?;
+    field : sharp_field;
+
+    bound_field(unit: source_unit, node: _int64, on: bound_expression?, field: sharp_field, type: resolved_type)
+            -> base(BX_FIELD, unit, node, type) {
+        self->on = on;
+        self->field = field;
+        storage = STORE_FIELD;
+    }
+}
+
+/** one value of an enum: color.red */
+class bound_enum_value base bound_expression {
+    value : sharp_enum_value;
+
+    bound_enum_value(unit: source_unit, node: _int64, value: sharp_enum_value, type: resolved_type)
+            -> base(BX_ENUM_VALUE, unit, node, type) {
+        self->value = value;
+    }
+}
+
+/** the object a function was called on. `is_implied`: the programmer wrote `x`, not `self->x` */
+class bound_self base bound_expression {
+    depth : _int64 = 0;
+    is_implied : _int64 = 0;
+
+    bound_self(unit: source_unit, node: _int64, type: resolved_type) -> base(BX_SELF, unit, node, type) {
+    }
+}
+
+/** `base`: the object seen as its base class, so `base->f()` reaches the function the class overrides */
+class bound_base base bound_expression {
+    class_of : sharp_class;
+    depth : _int64 = 0;     // as for bound_self: lambdas between this use and the function whose object it is
+
+    bound_base(unit: source_unit, node: _int64, class_of: sharp_class, type: resolved_type)
+            -> base(BX_BASE, unit, node, type) {
+        self->class_of = class_of;
+    }
+}
+
+/**
+ * A type written where an expression stands: the `point` of `point.count`,
+ * the `list<int>` of `list<int>.make()`. Its `type` is the type NAMED; it is
+ * not a value, and anything but `.` or `(` after it is an error (E0404).
+ */
+class bound_type_name base bound_expression {
+    bound_type_name(unit: source_unit, node: _int64, named: resolved_type) -> base(BX_TYPE_NAME, unit, node, named) {
+    }
+}
+
+/**
+ * A function name: `print` in `print(x)`, `size` in `names.size()`. Every
+ * function of that name that can be meant is listed; the calls stage picks
+ * one by the arguments (overload resolution). `on` is the object the function
+ * is called on, when there is one.
+ */
+class bound_functions base bound_expression {
+    name : string;
+    on : bound_expression?;
+    candidates : list<sharp_function>;
+
+    bound_functions(unit: source_unit, node: _int64, name: string, candidates: list<sharp_function>,
+                    error_type: resolved_type) -> base(BX_FUNCTIONS, unit, node, error_type) {
+        self->name = name;
+        self->candidates = candidates;
+    }
+}

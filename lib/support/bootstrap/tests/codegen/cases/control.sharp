@@ -1,0 +1,62 @@
+mod main;
+
+// output:
+// 10
+// 0
+// 1
+// 2
+// -2
+// 0
+// 1
+// 3
+// 4
+// 1
+// 4
+// 6
+
+/*
+ * Statements (doc/codegen.md 6.9, 6.10): for, while, do-while, an endless
+ * loop left by break, continue, if / else, compound assignment and ++.
+ * A loop goes back with a backward jump, where the JIT takes a hot loop
+ * over; the -nojit run checks the interpreter does the same.
+ */
+def main() {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < 5; i++) {
+        total += i;
+    }
+    show(total);
+
+    k : _int64 = 0;
+    while(k < 3) {
+        show(k);
+        k++;
+    }
+
+    j : _int64 = 10;
+    do {
+        j = j - 3;
+    } while(j > 0);
+    show(j);
+
+    for(m : _int64 = 0; m < 10; m++) {
+        if(m == 2) continue;
+        if(m == 5) break;
+        show(m);
+    }
+
+    if(total > 5) { show(1); } else { show(0); }
+
+    count : _int64 = 0;
+    while(true) {
+        count++;
+        if(count >= 4) { break; }
+    }
+    show(count);
+
+    sum : _int64 = 0;
+    for(x : _int64 = 0; x < 1000; x++) {
+        if(x % 2 == 0) { sum += 1; } else { sum -= 1; }
+    }
+    show(sum + 6);
+}

@@ -1,0 +1,62 @@
+mod frontend.syntax.printing;
+
+import (
+    std.io,
+    platform.kernel,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.parser
+)
+
+/**
+ * `sharpc -parsestats file...`: tokenize and parse the files and print what
+ * was found, every syntax error, and how fast it went. Nothing else is
+ * compiled. For checking the parser on real code.
+ *
+ * @param rounds  how many times every file is parsed for the timing
+ * @return how many syntax errors there were (in one round)
+ */
+def print_parser_stats(files: list<string>, rounds: _int64) : _int64 {
+    sources := new list<string>();
+    for(f : _int64 = 0; f < files.size(); f++) {
+        sources.add(file_utils.read_text(files.at(f)));
+    }
+
+    bytes : _int64 = 0;
+    tokens : _int64 = 0;
+    nodes : _int64 = 0;
+    mistakes : _int64 = 0;
+    files_with_mistakes : _int64 = 0;
+
+    started : decimal = vm.time_in_nanoseconds().value;
+    for(r : _int64 = 0; r < rounds; r++) {
+        for(s : _int64 = 0; s < sources.size(); s++) {
+            text : _int8[]? = sources.at(s).data;
+            if(text == null) { continue; }      // an empty file
+            p := parse_source(files.at(s), text!!);
+
+            if(r == 0) {
+                bytes += sizeof(text);
+                tokens += p.count;
+                nodes += p.tree.count;
+
+                found : _int64 = p.error_count;
+                mistakes += found;
+                if(found > 0) { files_with_mistakes++; }
+                for(e : _int64 = 0; e < found && e < 3; e++) {
+                    print(render(p.errors.at(e)));
+                }
+                if(found > 3) {
+                    println(files.at(s) + ": ... and " + (found - 3) + " more");
+                }
+            }
+        }
+    }
+    elapsed : decimal = (vm.time_in_nanoseconds().value - started) / 1000000;
+    megabytes : decimal = (bytes * rounds) / 1048576.0;
+
+    println("files " + files.size() + "  bytes " + bytes + "  tokens " + tokens + "  tree nodes " + nodes
+            + "  syntax errors " + mistakes + " in " + files_with_mistakes + " files");
+    println("rounds " + rounds + "  time ms " + elapsed + "  MB per second " + (megabytes / (elapsed / 1000)));
+    return mistakes;
+}

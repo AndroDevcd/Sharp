@@ -1,0 +1,9 @@
+// expect: E0100
+// help: for(i := 0; i <= 3; i++)
+// replace: foreach(i in 0..3)
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    foreach(i in 0..3) { println(i); }
+}

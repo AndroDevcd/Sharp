@@ -1,0 +1,144 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.types.declarations
+)
+
+/**
+ * CALLS IN THE TYPED TREE: exactly which function runs, on what, with what
+ *
+ *      print(total)                bound_call          function: the `print` overload chosen
+ *      names.add("x")              bound_call          on: names
+ *      a + b    (a is an object)   bound_call          AS_OPERATOR: a.operator+(b)
+ *      names[0] (an object)        bound_call          AS_INDEX: names.operator[](0)
+ *      box.width                   bound_call          AS_GETTER: the getter of `width`
+ *      handler(5)                  bound_value_call    handler holds a function value
+ *      new point(1, 2)             bound_new           the constructor chosen
+ *      get<database>()             bound_get_component the component definition that makes the value
+ *
+ * A lot of Sharp is a call in disguise: `a + b` on objects, `names[0]`,
+ * reading a property. In the typed tree all of them are a bound_call of the
+ * function that does the work, with `written_as` remembering how the
+ * programmer wrote it (for messages and the -analysis option only). A code
+ * generator never needs `written_as`.
+ *
+ * Every argument is already CONVERTED to its parameter (a bound_conversion
+ * where a conversion is needed), so the generator never compares types.
+ *
+ * `dispatch` says which body runs, decided from the declarations when the
+ * call is bound (doc/backend.md 7.7.3):
+ *
+ *      CALL_STATIC         no object: a global or static function
+ *      CALL_DIRECT         exactly this function
+ *      CALL_VIRTUAL        the object's class decides when the program runs: the
+ *                          function belongs to an override family (it has no body, or
+ *                          it is an `override`); the generator looks it up through
+ *                          `function.family_root`
+ *      CALL_BASE           base->f(): the base class's own function, never looked up
+ *      CALL_CONSTRUCTOR    -> base(...)
+ *
+ *      C++ comparison: `compile_function_call` in
+ *      compiler/expressions/expression.cpp emits the call at once and decides
+ *      direct or through-the-interface there (`dispatch_target`).
+ */
+const AS_CALL            : _int64 = 0;  // f(x)
+const AS_OPERATOR        : _int64 = 1;  // a + b, -a, a++ on an object
+const AS_INDEX           : _int64 = 2;  // o[i]
+const AS_INDEX_STORE     : _int64 = 3;  // o[i] = v      (a call of put)
+const AS_GETTER          : _int64 = 4;  // o.size
+const AS_SETTER          : _int64 = 5;  // o.size = 3
+const AS_ASSIGN_OPERATOR : _int64 = 6;  // o = v through operator=, o += v through operator+=
+const AS_ITERATE         : _int64 = 7;  // the get_elements() of a foreach
+const AS_TEXT_APPEND     : _int64 = 8;  // one piece of a string template: string.operator+
+
+// ---- which function body runs
+const CALL_STATIC      : _int64 = 0;    // no object
+const CALL_DIRECT      : _int64 = 1;    // this very function
+const CALL_VIRTUAL     : _int64 = 2;    // the object's class decides at run time
+const CALL_BASE        : _int64 = 3;    // base->f()
+const CALL_CONSTRUCTOR : _int64 = 4;    // -> base(...)
+
+/**
+ * A call of a declared function.
+ *
+ * `on` is the object (null for a static or global function, and for the
+ * appends of a string template, where the object is the result of the
+ * append before). For a call of an instance of a generic function,
+ * `function` is the INSTANCE (`first_or<string>`), whose parameters and
+ * result are the real types.
+ */
+class bound_call base bound_expression {
+    function : sharp_function;
+    on : bound_expression?;                         // the object; null for a static or global function
+    arguments : list<bound_expression>?;            // each already converted to its parameter; null: none
+    dispatch : _int64 = 0;                          // CALL_...
+    written_as : _int64 = 0;                        // AS_...
+
+    bound_call(unit: source_unit, node: _int64, function: sharp_function, on: bound_expression?, type: resolved_type)
+            -> base(BX_CALL, unit, node, type) {
+        self->function = function;
+        self->on = on;
+    }
+
+    /** one more argument, already converted */
+    def add_argument(argument: bound_expression) {
+        if(arguments == null) { arguments = new list<bound_expression>(); }
+        arguments!!.add(argument);
+    }
+}
+
+/**
+ * A call of a function VALUE: `callee` is any expression whose type is a
+ * function type - a variable, a field, an array item, the result of a call.
+ * The generator evaluates `callee`, then the arguments, and calls through the
+ * value (which carries its captured variables, doc/backend.md 4.3).
+ */
+class bound_value_call base bound_expression {
+    callee : bound_expression;
+    arguments : list<bound_expression>;             // each already converted to its parameter
+
+    bound_value_call(unit: source_unit, node: _int64, callee: bound_expression, arguments: list<bound_expression>,
+                     type: resolved_type) -> base(BX_VALUE_CALL, unit, node, type) {
+        self->callee = callee;
+        self->arguments = arguments;
+    }
+}
+
+/**
+ * Making an object: a new object of `class_of`, then `constructor` run on it
+ * with the arguments. `without_new` remembers `point(1, 2)` written without
+ * the word (for messages only).
+ */
+class bound_new base bound_expression {
+    class_of : sharp_class;
+    constructor : sharp_function;
+    arguments : list<bound_expression>;             // each already converted to its parameter
+    without_new : _int64 = 0;
+
+    bound_new(unit: source_unit, node: _int64, class_of: sharp_class, constructor: sharp_function,
+              arguments: list<bound_expression>, type: resolved_type) -> base(BX_NEW, unit, node, type) {
+        self->class_of = class_of;
+        self->constructor = constructor;
+        self->arguments = arguments;
+    }
+}
+
+/**
+ * `get<database>()`, `get("worker", app)`: the value a component definition
+ * makes (doc/backend.md 7.20). `definition` is the `single { }` /
+ * `factory { }` the request was resolved to - the generator never searches:
+ * for a `single` it hands out the one object (made on first use), for a
+ * `factory` it runs the definition's expression again. The type is what the
+ * definition provides.
+ */
+class bound_get_component base bound_expression {
+    definition : type_definition;
+
+    bound_get_component(unit: source_unit, node: _int64, definition: type_definition, type: resolved_type)
+            -> base(BX_GET_COMPONENT, unit, node, type) {
+        self->definition = definition;
+    }
+}

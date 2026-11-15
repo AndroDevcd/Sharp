@@ -1,0 +1,148 @@
+mod backend.compiler.program;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.program
+)
+
+/**
+ * THE WARNING SWITCHES AND THE ERROR LIMIT
+ *
+ *      sharpc app.sharp -w             no warnings at all
+ *      sharpc app.sharp -wcast         no warnings of the kind "cast" (W1003, W1004, W1017, W1029)
+ *      sharpc app.sharp -werror        every warning is an error: the build fails on it
+ *      sharpc app.sharp -wextra        also the warnings that are off by default (W1032, W1034, W1035)
+ *      sharpc app.sharp -wlib          also the warnings located in the standard library (hidden by
+ *                                      default and counted in one line: is_in_library)
+ *      sharpc app.sharp -errlmt 20     print at most 20 errors
+ *
+ * Every warning code belongs to one KIND, the C++ compiler's nine
+ * (`__w_general` ... `__w_dep` in settings.h); `-w<kind>` switches a kind
+ * off. The stages report everything they find; the switches are applied
+ * once, to the finished list, just before it is printed - so a stage never
+ * asks an option, and -analysis-stats still counts what was found.
+ *
+ *      general  W1002 W1008 W1010 W1016 W1018 W1019 W1020 W1021 W1023 W1025 W1030
+ *               W1033 W1034 W1035 W1036 W1037 W1038 W1044 W1045
+ *      access   W1005 W1007 W1009 W1012 W1022 W1040    (-waccess)
+ *      ambig    W1011 W1041 W1042                      (-wambig)
+ *      decl     W1001                                  (-wdecl)
+ *      main     W1015                                  (-wmain)
+ *      cast     W1003 W1004 W1017 W1029 W1043          (-wcast)
+ *      init     W1024 W1031 W1032                      (-winit)
+ *      null     W1006 W1026 W1027 W1028                (-wnull)
+ *      dep      W1013 W1014                            (-wdep)
+ *
+ * The list is then put in the order of the program text (message_order.sharp).
+ *
+ * The error limit counts errors only (default 1000, as in the C++ compiler);
+ * after it, one line says how many more there were.
+ *
+ *      C++ comparison: `create_new_warning` in compiler_info.cpp (the
+ *      `warning_options[type]` test, `options.werrors`) and `panicCheck` in
+ *      frontend/ErrorManager.cpp (`options.max_errors`).
+ */
+const WARN_GENERAL : _int64 = 0;
+const WARN_ACCESS  : _int64 = 1;
+const WARN_AMBIG   : _int64 = 2;
+const WARN_DECL    : _int64 = 3;
+const WARN_MAIN    : _int64 = 4;
+const WARN_CAST    : _int64 = 5;
+const WARN_INIT    : _int64 = 6;
+const WARN_NULL    : _int64 = 7;
+const WARN_DEP     : _int64 = 8;
+const WARN_KINDS   : _int64 = 9;
+
+class warning_settings {
+    enabled : _int64 = 1;           // 0: -w, no warning at all
+    kinds : _int64[];               // per WARN_ kind: 1 shown, 0 switched off
+    as_errors : _int64 = 0;         // -werror
+    extra : _int64 = 0;             // -wextra
+    error_limit : _int64 = 1000;    // -errlmt
+    library : _int64 = 0;           // -wlib: also the warnings located in the standard library
+    hidden_in_library : _int64 = 0; // set by apply_warning_settings: library warnings it left out
+
+    warning_settings() {
+        kinds = new _int64[WARN_KINDS];
+        for(i : _int64 = 0; i < WARN_KINDS; i++) { kinds[i] = 1; }
+    }
+}
+
+/** the kind a warning code belongs to (the table above) */
+def warning_kind_of(code: string) : _int64 {
+    if(code == "W1005" || code == "W1007" || code == "W1009" || code == "W1012" || code == "W1022" || code == "W1040") { return WARN_ACCESS; }
+    if(code == "W1011" || code == "W1041" || code == "W1042") { return WARN_AMBIG; }
+    if(code == "W1001") { return WARN_DECL; }
+    if(code == "W1015") { return WARN_MAIN; }
+    if(code == "W1003" || code == "W1004" || code == "W1017" || code == "W1029" || code == "W1043") { return WARN_CAST; }
+    if(code == "W1024" || code == "W1031" || code == "W1032") { return WARN_INIT; }
+    if(code == "W1006" || code == "W1026" || code == "W1027" || code == "W1028") { return WARN_NULL; }
+    if(code == "W1013" || code == "W1014") { return WARN_DEP; }
+    return WARN_GENERAL;
+}
+
+/**
+ * The diagnostics as the switches want them printed: warnings that are
+ * switched off are left out; with -werror the rest become errors.
+ */
+def apply_warning_settings(found: list<diagnostic>, settings: warning_settings, prog: sharp_program) : list<diagnostic> {
+    kept := new list<diagnostic>();
+    for(i : _int64 = 0; i < found.size(); i++) {
+        d := found.at(i);
+        if(d.severity == SEVERITY_WARNING) {
+            if(settings.enabled == 0 || settings.kinds[warning_kind_of(d.code)] == 0) { continue; }
+            if(settings.library == 0 && is_in_library(prog, d)) {
+                settings.hidden_in_library++;
+                continue;
+            }
+            if(settings.as_errors == 1) {
+                d.severity = SEVERITY_ERROR;
+                d.with_note("this is a warning, made an error by `-werror`");
+            }
+        }
+        kept.add(d);
+    }
+    return kept;
+}
+
+/**
+ * Is the diagnostic located in a file of the standard library? Such a
+ * warning is about code the programmer did not write and cannot change: on
+ * every build of every program it would stand between the programmer's own
+ * messages (about fifty of them). It is left out unless `-wlib` asks for it,
+ * and one line says how many were left out (library_warnings_line). Errors
+ * in the library are always shown: they would stop the build.
+ */
+def is_in_library(prog: sharp_program, d: diagnostic) : _int64 {
+    file := prog.files_by_path.at(d.file);
+    return file != null && file!!.module.is_library();
+}
+
+/** "(51 warnings in the standard library not shown; -wlib shows them)"; "" when none was left out */
+def library_warnings_line(settings: warning_settings) : string {
+    if(settings.hidden_in_library == 0) { return ""; }
+    return "(" + settings.hidden_in_library + " warning(s) in the standard library not shown; -wlib shows them)";
+}
+
+/**
+ * Print the diagnostics, but at most `limit` errors (warnings are not
+ * counted). Returns how many errors there were in all.
+ */
+def print_within_limit(found: list<diagnostic>, limit: _int64) : _int64 {
+    errors : _int64 = 0;
+    for(i : _int64 = 0; i < found.size(); i++) {
+        d := found.at(i);
+        if(d.severity == SEVERITY_ERROR) {
+            errors++;
+            if(errors > limit) { continue; }
+        } else if(errors >= limit) {
+            continue;
+        }
+        print(render(d));
+    }
+    if(errors > limit) {
+        println("(" + (errors - limit) + " more error(s) not shown: the limit is " + limit + ", set with -errlmt)");
+    }
+    return errors;
+}

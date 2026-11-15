@@ -1,0 +1,133 @@
+mod backend.ide.files;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations
+)
+
+/**
+ * THE FILES OF THE PROGRAM
+ *
+ * The package that knows which files there are and what each one's number is.
+ * The numbers are the manifest's: the files sorted by path (byte order), so the
+ * same program always gives the same numbering (the compiler hands the units
+ * over in the order its parallel parse happened to finish).
+ *
+ * The files of this package (module `backend.ide.files`):
+ *
+ *      ide_files.sharp   this front door: `collect_files`, the sorted list with look-up by path and by unit
+ *      ide_file.sharp    one file: its unit, its number, its position helpers
+ *      file_hash.sharp   the fingerprint of a file's text
+ *
+ * FINDING THE FILE OF A UNIT, FAST. Every declaration and every type that is
+ * written asks "which number has the file of this unit?" - some 20,000 times
+ * for the standard library. Looking the unit's PATH up in a table of names
+ * answers it, but comparing two paths of 70 characters costs the VM dozens of
+ * objects, and that alone was two thirds of everything the editor files
+ * cost. So the units are kept in a small hash table of their own (`slots`,
+ * open addressing as in types/int_table.sharp) that never compares a text: a
+ * unit's home slot comes from two numbers it has anyway (the length of its
+ * path and the size of its text), and the units that share a slot are told
+ * apart by being the same OBJECT.
+ */
+class ide_files {
+    all := new list<ide_file>();                // sorted by path; `index` is the position in this list
+    by_path := new name_table<ide_file>();      // for a path that comes as text (bodies_for.txt, a diagnostic's file)
+    slots : ide_file[]??;                       // the files by unit: see "finding the file of a unit" above
+    recent_unit : source_unit?;                 // the look-up of the last unit asked for (the same file is asked for many times in a row)
+    recent_file : ide_file?;
+
+    /** the file of a unit */
+    def of_unit(unit: source_unit) : ide_file {
+        if(recent_unit == unit) { return recent_file!!; }
+        found : ide_file? = null;
+        if(slots != null) {
+            size : _int64 = sizeof(slots);
+            slot : _int64 = home_slot_of(unit, size);
+            candidate : ide_file? = slots!![slot];
+            while(candidate != null) {
+                if(candidate!!.unit == unit) { found = candidate; break; }
+                slot = (slot + 1) % size;
+                candidate = slots!![slot];
+            }
+        }
+        if(found == null) { found = by_path.at(unit.file); }       // (every unit is in `slots`; this is the belt to the braces)
+        recent_unit = unit;
+        recent_file = found;
+        return found!!;
+    }
+
+    /** put every file into `slots` (twice as many slots as files, so the searches stay short) */
+    def index_units() {
+        count : _int64 = all.size().value as _int64;
+        size : _int64 = count * 2 + 1;
+        slots = new ide_file[size];
+        for(i : _int64 = 0; i < count; i++) {
+            f := all.at(i);
+            slot : _int64 = home_slot_of(f.unit, size);
+            while(slots!![slot] != null) { slot = (slot + 1) % size; }
+            slots!![slot] = f;
+        }
+    }
+
+    /** the file with this path, or null (a diagnostic may name a file that is not one of the units) */
+    def of_path(path: string) : ide_file? {
+        return by_path.at(path);
+    }
+
+    /** the number of a unit's file */
+    def index_of(unit: source_unit) : _int64 {
+        return of_unit(unit).index;
+    }
+
+    def count() : _int64 {
+        return all.size().value as _int64;
+    }
+
+    def at(index: _int64) : ide_file {
+        return all.at(index);
+    }
+}
+
+/** the slot a unit's search starts in: a number from the length of its path and the size of its text */
+def home_slot_of(unit: source_unit, slot_count: _int64) : _int64 {
+    number : _int64 = sizeof(unit.file.data) * 7919;
+    if(unit.parsed != null) { number = number + sizeof(unit.parsed!!.source); }
+    return number % slot_count;
+}
+
+/** -1, 0 or 1: how two paths compare byte by byte (what makes the numbering the same on every run) */
+def compare_paths(a: string, b: string) : decimal {
+    x : _int8[]? = a.data;
+    y : _int8[]? = b.data;
+    n : _int64 = sizeof(x);
+    m : _int64 = sizeof(y);
+    for(i : _int64 = 0; i < n && i < m; i++) {
+        p : _int64 = x!![i];
+        q : _int64 = y!![i];
+        if(p < 0) { p = p + 256; }
+        if(q < 0) { q = q + 256; }
+        if(p < q) { return 0 - 1; }
+        if(p > q) { return 1; }
+    }
+    if(n < m) { return 0 - 1; }
+    if(n > m) { return 1; }
+    return 0;
+}
+
+/** the files of the program, sorted by path and numbered */
+def collect_files(units: list<source_unit>) : ide_files {
+    files := new ide_files();
+    for(i : _int64 = 0; i < units.size(); i++) {
+        made := new ide_file(units.at(i));
+        files.all.add(made);
+    }
+    files.all.sort({ a: ide_file, b: ide_file -> (decimal) return compare_paths(a.path, b.path); });
+    for(i : _int64 = 0; i < files.all.size(); i++) {
+        files.all.at(i).index = i;
+        files.by_path.put(files.all.at(i).path, files.all.at(i));
+    }
+    files.index_units();
+    return files;
+}

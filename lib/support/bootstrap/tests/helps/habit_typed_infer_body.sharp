@@ -1,0 +1,11 @@
+// expect: E0100
+// help: def give(s: string) : string = s;
+// replace: def give(s: string) : string := s;
+mod tests.helps;
+import (std, std.io);
+
+def give(s: string) : string := s;
+
+def main() {
+    println(give("x"));
+}

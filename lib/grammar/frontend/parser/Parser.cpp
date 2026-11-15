@@ -2586,8 +2586,15 @@ bool parser::binaryLevel(Ast *ast, int level) {
                 Ast *exprAst = getBranch(branch, ast_expression);
                 Ast *rightExpr = getBranch(exprAst, ast_minus_e);
                 rightExpr->addToken(current());
-                parseExpression(rightExpr);
-                return true;
+                // The minus takes ONE operand, like a minus at the start of an
+                // expression: `a * -b + c` is `(a * -b) + c`. Whatever tighter
+                // operator follows (`a + -b * c`) is picked up by the level below,
+                // which finds the negated operand as its left side.
+                // (It used to parse EVERYTHING after the minus as its operand and
+                //  return: `a * -b + c` was `a * -(b + c)`, and `x == -1 || y`
+                //  was `x == -(1 || y)`. The same change is in every level.)
+                parseExpression(rightExpr, true, true);
+                binaryLevel(branch, level + 1);
             } else
                 binaryLevel(branch, level + 1);
             success = true;
@@ -2621,8 +2628,8 @@ bool parser::equality(Ast *ast) {
                 Ast *exprAst = getBranch(branch, ast_expression);
                 Ast *rightExpr = getBranch(exprAst, ast_minus_e);
                 rightExpr->addToken(current());
-                parseExpression(rightExpr);
-                return true;
+                parseExpression(rightExpr, true, true);
+                comparason(branch);
             } else
                 comparason(branch);
             success = true;
@@ -2656,8 +2663,8 @@ bool parser::comparason(Ast *ast) {
                 Ast *exprAst = getBranch(branch, ast_expression);
                 Ast *rightExpr = getBranch(exprAst, ast_minus_e);
                 rightExpr->addToken(current());
-                parseExpression(rightExpr);
-                return true;
+                parseExpression(rightExpr, true, true);
+                shift(branch);
             } else
                 shift(branch);
             success = true;
@@ -2691,8 +2698,8 @@ bool parser::shift(Ast *ast) {
                 Ast *exprAst = getBranch(branch, ast_expression);
                 Ast *rightExpr = getBranch(exprAst, ast_minus_e);
                 rightExpr->addToken(current());
-                parseExpression(rightExpr);
-                return true;
+                parseExpression(rightExpr, true, true);
+                addition(branch);
             } else
                 addition(branch);
             success = true;
@@ -2728,8 +2735,8 @@ bool parser::addition(Ast *ast) {
                 Ast *exprAst = getBranch(branch, ast_expression);
                 Ast *rightExpr = getBranch(exprAst, ast_minus_e);
                 rightExpr->addToken(current());
-                parseExpression(rightExpr);
-                return true;
+                parseExpression(rightExpr, true, true);
+                multiplication(branch);
             } else
                 multiplication(branch);
             success = true;
@@ -2763,8 +2770,8 @@ bool parser::multiplication(Ast *ast) {
                 Ast *exprAst = getBranch(branch, ast_expression);
                 Ast *rightExpr = getBranch(exprAst, ast_minus_e);
                 rightExpr->addToken(current());
-                parseExpression(rightExpr);
-                return true;
+                parseExpression(rightExpr, true, true);
+                exponent(branch);
             } else
                 exponent(branch);
             success = true;
@@ -2798,8 +2805,7 @@ bool parser::exponent(Ast *ast) {
                 Ast *exprAst = getBranch(branch, ast_expression);
                 Ast *rightExpr = getBranch(exprAst, ast_minus_e);
                 rightExpr->addToken(current());
-                parseExpression(rightExpr);
-                return true;
+                parseExpression(rightExpr, true, true);
             } else
                 unary(branch);
             success = true;

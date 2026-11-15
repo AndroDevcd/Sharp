@@ -11,8 +11,8 @@
 #include "taskdelegator/task_delegator.h"
 #include <atomic>
 
-#define PROG_NAME "sharp"
-#define PROG_VERS "0.3.0"
+#define PROG_NAME "sharpc"
+#define PROG_VERS "0.4.0"
 
 #define opt(v) strcmp(args[i], v) == 0
 

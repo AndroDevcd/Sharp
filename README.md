@@ -224,7 +224,7 @@ Next cd into the directory of your sharp build to the folder lib and run the com
 
 ```
 mkdir "C:/Program Files/Sharp/include/"
-cd {SHARP_INSTALL_PATH}/lib/support/0.3.0/
+cd {SHARP_INSTALL_PATH}/lib/support/0.4.0/
 cp -r * "C:/Program Files/Sharp/include/"
 Sharpc test.sharp -o test -s -R
 Sharp test

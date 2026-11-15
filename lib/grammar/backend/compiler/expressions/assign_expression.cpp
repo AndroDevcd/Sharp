@@ -177,9 +177,111 @@ void compile_assign_expression(expression *e, Ast *ast) {
     compile_assignment(e, ast, left, right, operand);
 }
 
+/**
+ * `names[i] = value` where `names` is an object, not an array.
+ *
+ *      names := new list<string>();
+ *      names[0] = other;           // the element at 0 IS `other` afterwards
+ *
+ * An object is indexed through its `operator[]` function, which only READS.
+ * Storing goes through the class's `put(index, value)` function - list has
+ * one - so the assignment is compiled as
+ *
+ *      names.put(0, other);
+ *
+ * The left side arrives here already compiled as the call names.operator[](0):
+ *
+ *      (steps that fetch names)
+ *      push the instance
+ *      push the index
+ *      call operator[]             <- these three are replaced
+ *      (labels)
+ *
+ * and those three steps are replaced by "push the instance, the index and
+ * the value, call put".
+ *
+ *      C++ comparison: `v[i] = x` with operator[] returning a reference.
+ *      Sharp has no references to a slot, hence the separate function.
+ *      Other languages do the same: Kotlin calls set(i, x), Python
+ *      __setitem__(i, x).
+ *
+ * (It used to stop the compiler - "attempting to assign stack data!" - or,
+ *  for a literal, wrote INTO the object the list held, which changed that
+ *  object for everyone else who had it.)
+ *
+ * false: the left side is not such a call, or the class has no fitting put():
+ * nothing was changed, the assignment is compiled the way it was.
+ */
+static bool assign_through_index_operator(expression *e, expression &left, expression &right, Ast *ast) {
+    // the call is the last step, apart from the label a `?.` chain jumps to
+    Int callAt = (Int)left.scheme.steps.size() - 1;
+    while(callAt >= 0 && left.scheme.steps.get(callAt)->type == operation_set_label)
+        callAt--;
+    if(callAt < 2) return false;
+
+    operation_step *call = left.scheme.steps.get(callAt);
+    operation_step *indexPush = left.scheme.steps.get(callAt - 1);
+    operation_step *instancePush = left.scheme.steps.get(callAt - 2);
+
+    if(call->type != operation_call_instance_function || call->function == NULL
+       || call->function->name.find("operator[") != 0
+       || call->function->parameters.size() != 1
+       || indexPush->type != operation_push_parameter_to_stack || indexPush->scheme == NULL
+       || instancePush->type != operation_push_value_to_stack)
+        return false;
+
+    List<sharp_field*> params;
+    List<operation_schema*> operations;
+    string name;
+    impl_location location(current_file, ast);
+
+    sharp_type indexType, valueType;
+    indexType.copy(call->function->parameters.get(0)->type);
+    valueType.copy(right.type);
+
+    params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
+                               location, indexType, flag_public, normal_field, ast));
+    params.add(new sharp_field(name, get_primary_class(&current_file->ctx),
+                               location, valueType, flag_public, normal_field, ast));
+
+    sharp_function *put = resolve_function(
+            "put", call->function->owner, params,
+            normal_function, constructor_only,
+            ast, true, true
+    );
+
+    bool found = put != NULL && !check_flag(put->flags, flag_static);
+    if(found) {
+        operations.add(new operation_schema(*indexPush->scheme));
+        operations.add(new operation_schema());
+        create_get_value_operation(operations.last(), &right.scheme, false);
+
+        // the steps that fetch the instance ...
+        for(Int i = 0; i < callAt - 2; i++)
+            e->scheme.steps.add(new operation_step(*left.scheme.steps.get(i)));
+
+        // ... the call of put() in place of the three steps of the read ...
+        compile_function_call(&e->scheme, params, operations, put, false, false, false);
+
+        // ... and what came after them (the labels)
+        for(Int i = callAt + 1; i < (Int)left.scheme.steps.size(); i++)
+            e->scheme.steps.add(new operation_step(*left.scheme.steps.get(i)));
+
+        e->type.copy(put->returnType);
+    }
+
+    deleteList(params);
+    deleteList(operations);
+    return found;
+}
+
 void compile_assignment(expression *e, Ast *ast, expression &left, expression &right, Token &operand) {
     sharp_function *matchedFun = NULL;
     uInt match_result = is_explicit_type_match(left.type, right.type);
+
+    // `object[index] = value` stores the value: object.put(index, value)
+    if(operand == "=" && assign_through_index_operator(e, left, right, ast))
+        return;
 
     if(operand == "=") {
         auto primaryFunction = get_primary_function(&current_context);

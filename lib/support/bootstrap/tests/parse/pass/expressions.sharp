@@ -1,0 +1,75 @@
+mod tests.expressions;
+
+class point {
+    x : decimal;
+    y : decimal;
+
+    def all_expressions(other: point?, items: list<int>, flags: _int64) : decimal {
+        // ---- literals
+        a := 12;
+        b := 1_000_000;
+        c := 0xff;
+        d := 1.5;
+        e := 2.5e-3;
+        f := 'c';
+        g := '\n';
+        h := "text";
+        ok := true;
+        no := false;
+        none := null;
+        huge := 1000000000000000000000;
+
+        // ---- arithmetic and precedence
+        n := 1 + 2 * 3 - 4 / 5 % 6;
+        power := 2 ** 3 ** 2;
+        negative := a * -b + c;
+        grouped := (a + b) * c;
+        bits := flags & 3 | 4 ^ 5;
+        shifted := flags << 2 >> 1;
+
+        // ---- comparison and logic
+        both := a < b && b <= c || !(a > c) && a >= 0;
+        same := a == b || a != c;
+        test := x == -1 || y == 0;
+
+        // ---- assignment
+        x = 1;
+        x += 1; x -= 1; x *= 2; x /= 2; x %= 3;
+        flags &= 1; flags |= 2; flags ^= 3;
+        y = x = 5;
+        x++; ++x; x--; --x;
+
+        // ---- members, calls, indexing
+        self->x = other!!.x;
+        length := items.size();
+        first := items[0];
+        chained := items.at(0).value.to_string().size();
+        safe := other?.x;
+        forced := other!!.y;
+        from_base := base->to_string();
+        made := new point();
+        array := new decimal[10];
+        filled := new decimal[] { 1, 2, 3 };
+        literal_array : decimal[] = { 1, 2, 3 };
+        table := { "a" : 1, "b" : 2 };
+        empty_table := { as <string, int> : };
+        qualified := std.io#println;
+        generic := first<int>(items);
+
+        // ---- the rest
+        cast := other as object;
+        check := other is point;
+        fallback := other ?: self;
+        choice := a > b ? a : b;
+        nested_choice := a > b ? 1 : a > c ? 2 : 3;
+        size := sizeof(array);
+        called := (pick())(3);
+        operator_call := operator+(other!!);
+        return n;
+    }
+
+    def operator+(other: point) : point { return self; }
+}
+
+def pick() : (int)(int) { return { v: int -> (int) return v; }; }
+def first<T>(items: list<T>) : T { return items.at(0); }

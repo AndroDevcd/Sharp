@@ -1,0 +1,107 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.members,
+    backend.compiler.context
+)
+
+/**
+ * THE NUMBER CLASSES ("boxes") USED AS THEIR NUMBER
+ *
+ * `int`, `long`, `bool`, `char`, `double` ... are CLASSES of the library:
+ * objects that hold a plain number in a field called `value`. In a few
+ * places the language uses such an object as its number without being asked:
+ *
+ *      if(a_bool) { }          the condition of a statement - a `bool` object ONLY:
+ *                              `if(an_int)` is an error (write `an_int != 0`)
+ *      an_int ? a : b          the condition of `? :` - any number object
+ *      numbers[an_int]         an array index
+ *      new _int64[an_int]      the size of a new array
+ *
+ * (also the right operand of arithmetic on a plain number, which the calls
+ * stage handles). Everywhere else a box is an ordinary object: `m : _int64 =
+ * an_int;` is an error, and the fix is `an_int.value`.
+ *
+ * In the typed tree the step is explicit: a bound_conversion of kind
+ * CONV_UNBOX that names the `value` field.
+ *
+ *      C++ comparison: `extract_value_field_from_expression` in
+ *      compiler/expressions/expression.cpp.
+ */
+
+/** is this the type of a box object that is certainly there (not nullable, not an array)? */
+def is_box_value(session: analysis_session, type: resolved_type) : _int64 {
+    if(type.kind != RT_CLASS || type.is_array == 1 || type.is_nullable == 1) { return 0; }
+    return session.known.is_box(type.class_of!!);
+}
+
+/**
+ * The value as a plain number: itself when it is one, the `value` field of a
+ * box, and null when it is neither (the caller reports what it needed the
+ * number for). The error type passes through.
+ *
+ * @param only_bool  1: of the number classes, accept only `bool`
+ */
+def as_plain_number(context: analysis_context, value: bound_expression, only_bool: _int64) : bound_expression? {
+    type : resolved_type = value.type;
+    if(type.is_number() || type.kind == RT_ERROR) { return value; }
+    if(!is_box_value(context.session, type)) { return null; }
+    if(only_bool == 1 && type.class_of != context.session.known.bool_class) { return null; }
+
+    holder := find_field(context.prog, type.class_of!!, "value");
+    if(holder == null || holder!!.value_type == null) { return null; }
+    how := new conversion(CONV_UNBOX, type, holder!!.value_type!!);
+    how.rank = 1;
+    how.field = holder;
+    return new bound_conversion(value, how);
+}
+
+/**
+ * The GRADE of a number conversion, lower is better. Two conversions of the
+ * same rank (doc/backend.md 7.6) are told apart by it - in overload
+ * resolution (step 7a) and when several one-parameter constructors could
+ * build an object from one number.
+ *
+ *      0 .. 8      the same kind, nothing lost: a whole number to one at least as wide
+ *                  (the narrower target first), a decimal to a decimal
+ *      9           a whole number to a decimal
+ *      10 .. 17    may lose something: to a narrower whole number, a decimal to a whole
+ *                  number (the wider target first)
+ */
+def number_grade(from: resolved_type, to: resolved_type) : _int64 {
+    if(from.kind == RT_DECIMAL && to.kind == RT_DECIMAL) { return 0; }
+    if(from.kind == RT_INTEGER && to.kind == RT_DECIMAL) { return 9; }
+    if(from.kind == RT_INTEGER && to.kind == RT_INTEGER && to.bits >= from.bits) { return to.bits / 8; }
+    return 10 + (64 - to.bits) / 8;
+}
+
+/** "an `int` object", "a number", "an array of `string`" ...: a type in words, for messages */
+def described_type(type: resolved_type) : string {
+    if(type.kind == RT_NULL) { return "`null`"; }
+    if(type.kind == RT_NIL) { return "nothing"; }
+    // `_int8[]` is what a text literal is: say "text" (the reader wrote "a"), and keep the type
+    if(is_text_array(type)) { return "text as characters (`" + type.to_text() + "`, what a text literal is)"; }
+    if(type.is_array == 1) { return "an array (`" + type.to_text() + "`)"; }
+    if(type.is_number()) { return "a number (`" + type.to_text() + "`)"; }
+    if(type.kind == RT_FUNCTION) { return "a function value (`" + type.to_text() + "`)"; }
+    return "`" + type.to_text() + "`";
+}
+
+/** `_int8[]` (or `_int8[]?`): the type of a text literal, the characters of a text */
+def is_text_array(type: resolved_type) : _int64 {
+    return type.is_array == 1 && type.kind == RT_INTEGER && type.bits == 8 && type.is_signed == 1;
+}
+
+/** like described_type, but a text literal is called what it is: "a text literal", not "an array (`_int8[]`)" */
+def described_value(value: bound_expression) : string {
+    if(value.literal == LIT_TEXT) { return "a text literal"; }
+    return described_type(value.type);
+}

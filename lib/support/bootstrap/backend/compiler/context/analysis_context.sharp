@@ -1,0 +1,173 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * WHERE ONE BODY IS: the analysis context
+ *
+ * One of these is made for every function body and every field value that
+ * is analysed, and handed to every analysis function. It answers the
+ * questions an expression cannot answer from its own text:
+ *
+ *      x = 5;      which class am I in (is `x` a field of it)?
+ *                  is this code static (then there is no `self`)?
+ *                  which local variables are in scope right now?
+ *                  inside list<string>, what does `T` stand for?
+ *
+ *      class_of        the class the body belongs to; for generic code the INSTANCE
+ *                      (list<string>), never the blueprint. Null in a global function.
+ *      function        the function being analysed; null for the value of a field
+ *      field           the field whose value is being analysed; null in a function
+ *      definition      the component definition whose value is being analysed (`single { ... }`);
+ *                      null everywhere else. Inside one, a `get()` may leave its type to the
+ *                      parameter it is given to (backend/compiler/components).
+ *      accessor_of     inside a getter or setter: its field. There, and only there, the
+ *                      field's name means the stored value and not a call of the getter.
+ *      environment     what the type parameters in force stand for
+ *      is_static       1: there is no `self` here
+ *      scope           the innermost scope of local variables
+ *      file            the file the body is WRITTEN in. For a function of list<string>
+ *                      that is list's file; for an extension function its own file.
+ *                      Imports are a property of the file, so names are looked up
+ *                      through it.
+ *
+ *      C++ comparison: `context` in backend/context/context.h, one mutable
+ *      object per file that the compiler pushes and pops ("ctx.type",
+ *      "ctx.function_cx"). Here a context is made per body and never shared.
+ */
+class analysis_context {
+    session : analysis_session;
+    prog : sharp_program;
+    file : sharp_file;
+    unit : source_unit;
+    state : parse_state;
+    tree : syntax_tree;
+
+    class_of : sharp_class?;
+    function : sharp_function?;
+    field : sharp_field?;
+    accessor_of : sharp_field?;
+    definition : type_definition?;
+    environment : type_environment?;
+    is_static : _int64 = 0;
+    scope : local_scope?;
+
+    // The `x?.` whose chain is still being read: `user?.address.city` is one
+    // safe navigation that ends where the chain ends
+    // (expressions/primary/members/safe_navigation.sharp).
+    navigation : bound_safe_navigation?;
+    // A link of a long chain (`a.f().g().h()`) analysed ahead of the link it is
+    // the receiver of (expressions.sharp `analyse_chain_from_front`): the next
+    // analyse_expression of exactly this node takes the value instead of
+    // analysing the node again. -1: nothing waiting.
+    ready_node : _int64 = 0 - 1;
+    statement_depth : _int64 = 0;           // how many statements the analysis is inside of (ANALYSIS_NESTING_LIMIT, reporting.sharp)
+    ready_value : bound_expression?;
+    reading_a_target : _int64 = 0;          // 1 while the left side of an assignment is analysed (assignment_targets.sharp)
+
+    locals : list<local_variable>;          // every variable declared so far, parameters first
+    alias_count : _int64 = 0;               // local aliases declared so far (nearly always 0: lets type lookup skip the scopes)
+
+    // What a `return` in this body must give: the function's result type (the
+    // nil type for "nothing"). Null for the value of a field, where there is no
+    // `return`. Set by the driver (driver/function_body.sharp).
+    expected_result : resolved_type?;
+
+    // A lambda written without its result type and with nothing around it to
+    // say it (`f := { x: int -> return x * 2; };`) gets the type its `return`s
+    // give. While its body is analysed `inferring_result` is 1, `expected_result`
+    // is null, and every `return` is listed here (backend/compiler/lambdas).
+    inferring_result : _int64 = 0;
+    returns : list<bound_statement>?;
+
+    // The loops, locks and try statements around the statement being
+    // analysed, innermost last: where `break` / `continue` / `return` go and
+    // what they pass on the way (jump_frames.sharp).
+    jumps : list<jump_frame>;
+
+    analysis_context(session: analysis_session, file: sharp_file) {
+        self->session = session;
+        self->prog = session.prog;
+        self->file = file;
+        self->unit = file.unit;
+        self->state = file.unit.parsed!!;
+        self->tree = file.unit.parsed!!.tree;
+        locals = new list<local_variable>();
+        jumps = new list<jump_frame>();
+    }
+
+    /** the body of a loop, lock or try begins: jumps inside it can reach `statement` (jump_frames.sharp) */
+    def enter_frame(kind: _int64, statement: bound_statement) {
+        jumps.add(new jump_frame(kind, statement));
+    }
+
+    /** ... and ends */
+    def leave_frame() {
+        if(jumps.size() > 0) { jumps.pop_back(); }
+    }
+
+    /**
+     * A variable the compiler needs and the programmer did not write: the
+     * subject of a `when`, the array of a `foreach`. It gets a slot in
+     * `locals` like any other, but no name in a scope, so no code can name it.
+     */
+    def hidden_local(name: string, type: resolved_type, node: _int64) : local_variable {
+        variable := new local_variable(name, type, unit, node);
+        variable.is_hidden = 1;
+        variable.function = function;
+        variable.index = locals.size().value as _int64;
+        locals.add(variable);
+        return variable;
+    }
+
+    /** a block begins: a new innermost scope */
+    def open_scope() {
+        scope = new local_scope(scope, function);
+    }
+
+    /** a block ends: its variables are gone */
+    def close_scope() {
+        if(scope != null) { scope = scope!!.outer; }
+    }
+
+    /** add a variable to the innermost scope and to the function's list */
+    def declare(variable: local_variable) {
+        variable.function = function;
+        variable.index = locals.size().value as _int64;
+        locals.add(variable);
+        if(scope == null) { open_scope(); }
+        scope!!.declare(variable);
+        session.counters.locals++;
+    }
+
+    /** the class a body belongs to, as a type: what `self` is */
+    def self_type() : resolved_type {
+        if(class_of == null) { return session.types.error_type; }
+        return type_of_class(class_of!!);
+    }
+}
+
+/**
+ * A context to report a problem about a declaration from, after the bodies
+ * are analysed (the whole-program checks): the file it is declared in, the
+ * class it belongs to and that class's environment, so that a problem found
+ * in a generic instance says which. Null when the file is not known (never
+ * expected).
+ */
+def declaration_context(session: analysis_session, declared: sharp_declaration) : analysis_context? {
+    file := session.prog.file_of(declared.unit);
+    if(file == null) { return null; }
+    context := new analysis_context(session, file!!);
+    context.class_of = declared.owner;
+    if(declared.owner != null) { context.environment = declared.owner!!.environment; }
+    return context;
+}

@@ -1,0 +1,55 @@
+mod main;
+
+import (std.io)
+
+// output:
+// green
+// red
+// other
+// blue green
+// true false
+// size 2.0000000000000000
+// ada 36 alan 41
+// abc
+// 3.0000000000000000
+
+/*
+ * Enum values used as values (doc/codegen.md 6.2: each is an object in its
+ * enum's static slot, made by the enum's static part) and dictionary
+ * literals (6.6: pairs made in order, given to the dictionary's
+ * constructor).
+ */
+enum colour { red, green = 5, blue }
+
+class paint {
+    shade : colour = colour.blue;
+}
+
+def name_of(c: colour) : string {
+    if(c == colour.red) { return "red"; }
+    if(c == colour.green) { return "green"; }
+    return "other";
+}
+
+def key(text: string) : string {
+    print(text);
+    return text;
+}
+
+def main() {
+    c : colour = colour.green;
+    println(name_of(c));
+    println(name_of(colour.red));
+    println(name_of(new paint().shade));
+    println("${colour.blue} ${c}");
+    same : colour = colour.green;
+    println("${c == same} ${c == colour.red}");
+
+    ages := { "ada" : 36, "alan" : 41 };
+    println("size ${ages.size()}");
+    pairs := ages.get_elements()!!;
+    println("${pairs[0].first} ${pairs[0].second} ${pairs[1].first} ${pairs[1].second}");
+    order := { key("a") : 1, key("b") : 2, key("c") : 3 };
+    println("");
+    println("${order.size()}");
+}

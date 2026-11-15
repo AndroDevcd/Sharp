@@ -1,0 +1,37 @@
+mod backend.reports;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * THE ANALYSED PROGRAM IN A FEW LINES (part of -analysis)
+ *
+ *      program: entry point app#main() - main(args: string[]) : int
+ *        start-up: platform.kernel#platform.srt_init
+ *        to generate: 2071 functions (8 lambdas), 433 classes, 267 modules
+ *        reached from main: 311 functions, 74 classes, 120 fields
+ *        needed by the runtime: 30 classes, 12 of them reached for that reason alone
+ *        reported: 0 error(s), 3 warning(s)
+ *
+ * What the whole-program checks handed over (backend/types/program/
+ * analysed_program.sharp): the entry point and its form, how much there is
+ * to generate, and how much of it the program can reach.
+ */
+def print_program_summary(analysed: analysed_program) {
+    entry := "none (a library: no executable can be built)";
+    if(analysed.main_function != null) {
+        entry = analysed.main_function!!.full_name() + "() - " + main_form_text(analysed.main_form);
+    }
+    println("program: entry point " + entry);
+    if(analysed.startup_function != null) { println("  start-up: " + analysed.startup_function!!.full_name()); }
+    println("  to generate: " + analysed.functions.size() + " functions (" + analysed.lambdas.size() + " lambdas), "
+            + analysed.classes.size() + " classes, " + analysed.modules.size() + " modules");
+    println("  reached from main: " + analysed.reached_functions.size() + " functions, " + analysed.reached_classes.size()
+            + " classes, " + analysed.reached_fields.size() + " fields");
+    println("  needed by the runtime: " + analysed.required_classes.size() + " classes, " + analysed.reached_for_runtime
+            + " of them reached for that reason alone");
+    println("  reported: " + analysed.errors + " error(s), " + analysed.warnings + " warning(s)");
+}

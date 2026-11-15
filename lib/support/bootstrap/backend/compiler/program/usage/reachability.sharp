@@ -1,0 +1,158 @@
+mod backend.compiler.program.usage;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.compiler.context
+)
+
+/**
+ * THE WALK FROM `main`: what the program can reach
+ *
+ *      def main() { s := new shop(); s.open(); }
+ *
+ *      reached:  main  ->  shop, shop()  ->  shop.open  ->  what open uses  -> ...
+ *
+ * A graph search (a work list) over the uses recorded by references.sharp.
+ * It starts at the platform's start-up function (`srt_init`, which runs the
+ * start-up code and then `main`) and at `main`; then at the classes the VM
+ * makes objects of itself (`analysed_program.required_classes`: nothing in
+ * the program may name `nullptr_exception`, and the VM still throws it). It
+ * follows these rules:
+ *
+ *      a function      what its body uses; its class; every function that
+ *                      overrides it (a virtual call may run any of them); for a
+ *                      getter or setter, its field
+ *      a field         what its value uses; its class; its getter and setter
+ *      a class         its base class and interfaces; everything it sets up
+ *                      (`static_initializers`, `instance_initializers`); for an
+ *                      enum, its values
+ *      an enum value   what its `= e` uses; its enum
+ *      anything        the global values of its module (`global_initializers`):
+ *                      they run when the program starts, so a module the program
+ *                      touches is set up whole
+ *
+ * A class the runtime needs is reached with every field it has (native code
+ * writes them). Each declaration reached gets `reached = 1` and is added, in the order
+ * found, to `analysed_program.reached_functions` / `reached_classes` /
+ * `reached_fields`. A program without `main` (the library alone) reaches
+ * only what the start-up function needs.
+ *
+ *      C++ comparison: `mark` in finalizer/optimization/dependency_runner.cpp,
+ *      from `genesis_method`, `user_main_method` and `static_init_method`.
+ *      There a function also marks its local variables, and a file every
+ *      dependency of the file; the bootstrap's rule per module is the same in
+ *      effect (a module's global values).
+ */
+class reach_walk {
+    analysed : analysed_program;
+    waiting : list<sharp_declaration>;
+
+    reach_walk(analysed: analysed_program) {
+        self->analysed = analysed;
+        waiting = new list<sharp_declaration>();
+    }
+
+    /** reach one declaration (once) */
+    def reach(declared: sharp_declaration?) {
+        if(declared == null) { return; }
+        found : sharp_declaration = declared!!;
+        if(found.reached == 1) { return; }
+        found.reached = 1;
+        kind : _int64 = found.kind;
+        if(kind == D_FIELD) { analysed.reached_fields.add(found as sharp_field); }
+        else if(kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM) { analysed.reached_classes.add(found as sharp_class); }
+        else if(kind == D_FUNCTION || kind == D_CONSTRUCTOR || kind == D_INIT || kind == D_GETTER || kind == D_SETTER) {
+            analysed.reached_functions.add(found as sharp_function);
+        }
+        waiting.add(found);
+    }
+
+    /** reach every declaration of a list */
+    def reach_all(declarations: list<sharp_declaration>?) {
+        if(declarations == null) { return; }
+        for(i : _int64 = 0; i < declarations!!.size(); i++) { reach(declarations!!.at(i)); }
+    }
+}
+
+/**
+ * The walk from the start-up function and `main`, and then from the classes
+ * the runtime needs. In two steps, so that it is known how many of those
+ * classes the program's own code did not lead to (`reached_for_runtime`,
+ * printed by -analysis-stats).
+ */
+def reach_from_roots(session: analysis_session, analysed: analysed_program) {
+    walk := new reach_walk(analysed);
+    walk.reach(analysed.startup_function);
+    walk.reach(analysed.main_function);
+    follow_until_done(walk);
+
+    required : list<sharp_class> = analysed.required_classes;
+    for(i : _int64 = 0; i < required.size(); i++) {
+        if(required.at(i).reached == 0) { analysed.reached_for_runtime++; }
+        reach_whole_object(walk, required.at(i));
+    }
+    follow_until_done(walk);
+}
+
+/**
+ * A class the VM makes objects of itself: the class, and every field of it
+ * and of the classes above it. Native code writes those fields (the message
+ * of an exception, the id of a thread) without any Sharp code naming them,
+ * so each must have its place in the object.
+ */
+def reach_whole_object(walk: reach_walk, needed: sharp_class) {
+    current : sharp_class? = needed;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        walk.reach(current);
+        fields := current!!.fields;
+        for(i : _int64 = 0; i < fields.size(); i++) { walk.reach(fields.at(i)); }
+        current = current!!.base_class;
+    }
+}
+
+/** take declarations off the work list and follow them until nothing is waiting */
+def follow_until_done(walk: reach_walk) {
+    while(walk.waiting.size() > 0) {
+        next : sharp_declaration = walk.waiting.pop_last();
+        follow(walk, next);
+    }
+}
+
+/** what reaching one declaration reaches in turn (the rules above) */
+def follow(walk: reach_walk, declared: sharp_declaration) {
+    walk.reach_all(declared.uses);
+    walk.reach(declared.owner);
+    reach_module(walk, declared.module);
+
+    kind : _int64 = declared.kind;
+    if(kind == D_FUNCTION || kind == D_CONSTRUCTOR || kind == D_INIT || kind == D_GETTER || kind == D_SETTER) {
+        function := declared as sharp_function;
+        walk.reach(function.field);
+        if(function.overridden_by != null) {
+            for(i : _int64 = 0; i < function.overridden_by!!.size(); i++) { walk.reach(function.overridden_by!!.at(i)); }
+        }
+    } else if(kind == D_FIELD) {
+        field := declared as sharp_field;
+        walk.reach(field.getter);
+        walk.reach(field.setter);
+    } else if(kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM) {
+        made := declared as sharp_class;
+        walk.reach(made.base_class);
+        for(i : _int64 = 0; i < made.interfaces.size(); i++) { walk.reach(made.interfaces.at(i)); }
+        walk.reach_all(made.static_initializers);
+        walk.reach_all(made.instance_initializers);
+        walk.reach_all(made.fiber_initializers);
+        for(i : _int64 = 0; i < made.enum_values.size(); i++) { walk.reach(made.enum_values.at(i)); }
+    }
+}
+
+/** the global values of a module run when the program starts: reaching the module reaches them */
+def reach_module(walk: reach_walk, module: sharp_module) {
+    if(module.reached == 1) { return; }
+    module.reached = 1;
+    walk.reach_all(module.global_initializers);
+    walk.reach_all(module.fiber_initializers);
+}

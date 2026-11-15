@@ -1,0 +1,11 @@
+// expect: E0606
+// help: def total(n: _int64) : _int64
+// replace: def total(n: _int64)
+mod tests.helps;
+import (std, std.io);
+
+def total(n: _int64) { if(n == 0) return 0; return n + total(n - 1); }
+
+def main() {
+    a : _int64 = total(3);
+}

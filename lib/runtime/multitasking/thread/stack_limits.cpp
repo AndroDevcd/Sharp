@@ -73,6 +73,20 @@ void initialize_main_thread_stack(std::list<string>& appArgs) {
      * Assign program args to be passed to main
      */
     for(auto arg : appArgs) {
+        /*
+         * An empty argument (`sharp prog a "" b`): create_object() makes no
+         * array of size 0 - it gives null - and assign_string_field() then
+         * threw "string field is null!" before main ran; the process died
+         * with SIGSEGV. Null is no answer either: platform.srt_init casts each
+         * item `as _int8[]`, which raises on null. So the item is an array of
+         * length 0 (create_empty_array), and main sees the string "".
+         *
+         * C++ comparison: like `std::string("")` - a valid, empty value, not an error.
+         */
+        if(arg.empty()) {
+            copy_object(argsObject->o->node + iter++, create_empty_array(type_int8));
+            continue;
+        }
         copy_object(argsObject->o->node + iter, create_object(arg.size(), type_int8));
         assign_string_field((argsObject->o->node + iter++)->o, arg);
     }

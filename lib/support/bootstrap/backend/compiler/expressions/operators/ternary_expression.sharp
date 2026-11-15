@@ -1,0 +1,183 @@
+mod backend.compiler.expressions.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE CONDITIONAL EXPRESSION:  condition ? a : b
+ *
+ * The condition is a number (or a number object: `an_int ? a : b`). The two
+ * branches must agree on ONE type, because the expression has one:
+ *
+ *      what the branches are                   the type of the whole
+ *      --------------------------------------  ---------------------------------------
+ *      b converts to a's type                  a's type        flag ? 1 : 2.5  is an _int32
+ *      otherwise a converts to b's type        b's type
+ *      one of them is `null`                   the other's type, with `?`
+ *      they differ only in `?`                 the type with `?`   flag ? node : maybe_node
+ *      "text" next to a `string`               string (the text becomes a string object)
+ *      anything else                           E0420
+ *
+ * "Converts" here means WITHOUT building an object through a constructor -
+ * `flag ? 1 : a_string` is a mistake, not "a string built from 1". The FIRST
+ * branch decides when both directions work: `flag ? 1 : 2.5` gives 1 or 2.
+ * Both branches are converted to the result type in the typed tree.
+ *
+ * A CHAIN  `a ? 1 : b ? 2 : c ? 3 : 4`  is a `? :` in the last branch of a
+ * `? :`, as deep as the chain is long (tables in generated code are written
+ * this way). It is followed in a loop, not by recursion, which would run out
+ * of stack on the VM: first the condition and the first branch of every
+ * `? :` in order, then the very last branch, and from there back up each
+ * `? :` is given its second branch and its type.
+ *
+ *      C++ comparison: compiler/expressions/inline_if_expression.cpp.
+ */
+def analyse_ternary(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    tree : syntax_tree = context.tree;
+    error_type : resolved_type = context.session.types.error_type;
+
+    // down the chain: the condition and the first branch of each `? :`
+    starts := new list<ternary_start>();
+    last_branch : bound_expression? = null;
+    current : _int64 = node;
+    while(last_branch == null) {
+        condition_node : _int64 = tree.first_child!![current];
+        true_node : _int64 = second_child_of(context, current);
+        if(condition_node < 0 || true_node < 0 || tree.next_sibling!![true_node] < 0) {
+            last_branch = new bound_error(context.unit, current, error_type);      // (cut short: the parser has said so)
+            break;
+        }
+        false_node : _int64 = tree.next_sibling!![true_node];
+
+        condition := analyse_condition(context, condition_node, 0);
+        first_found := analyse_expression(context, true_node, wanted);
+        start := new ternary_start(current, condition, as_value_for(context, first_found, wanted));
+        starts.add(start);
+
+        if(tree.kinds!![false_node] == N_TERNARY) {
+            current = false_node;
+            context.session.counters.expressions++;     // (as analyse_expression would have counted it)
+        } else {
+            last_branch = analyse_value_after(context, false_node, wanted, gives_nothing(first_found));
+        }
+    }
+
+    // and back up: each `? :` with the one below it as its second branch
+    result : bound_expression = last_branch!!;
+    for(i : _int64 = starts.size().value as _int64 - 1; i >= 0; i--) {
+        start := starts.at(i);
+        result = ternary_of(context, start.node, start.condition, start.when_true, result);
+    }
+    return result;
+}
+
+/** the `? :` at `node` so far: its condition and its first branch, analysed (see analyse_ternary) */
+class ternary_start {
+    node : _int64;
+    condition : bound_expression;
+    when_true : bound_expression;
+
+    ternary_start(node: _int64, condition: bound_expression, when_true: bound_expression) {
+        self->node = node;
+        self->condition = condition;
+        self->when_true = when_true;
+    }
+}
+
+/** the `? :` at `node` from its three analysed parts: the one type both branches agree on, or E0420 */
+def ternary_of(context: analysis_context, node: _int64, condition: bound_expression, first: bound_expression,
+               second: bound_expression) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    when_true := first;
+    when_false := second;
+
+    type := common_type_of(context, when_true, when_false);
+    if(type == null) {
+        d := problem_at(context, "E0420", "the two branches of `? :` have unrelated types: " + described_type(when_true.type)
+                        + " and " + described_type(when_false.type), node);
+        d.with_label("one expression cannot be both");
+        d.with_note("`c ? a : b` is ONE value, so `a` and `b` must be the same type, or one must convert to the other");
+        d.with_help(how_to_make_branches_agree(context, when_true, when_false));
+        report(context, d);
+        return new bound_ternary(context.unit, node, condition, when_true, when_false, error_type);
+    }
+    if(type!!.kind == RT_ERROR) { return new bound_ternary(context.unit, node, condition, when_true, when_false, error_type); }
+
+    when_true = convert(context, when_true, type!!, "the first branch of `? :`");
+    when_false = convert(context, when_false, type!!, "the second branch of `? :`");
+    return new bound_ternary(context.unit, node, condition, when_true, when_false, type!!);
+}
+
+/** the help of E0420: what to write for the pairs of branches that are usually meant to work */
+def how_to_make_branches_agree(context: analysis_context, first: bound_expression, second: bound_expression) : string {
+    a : resolved_type = first.type;
+    b : resolved_type = second.type;
+    one_is_null : _int64 = a.kind == RT_NULL || b.kind == RT_NULL;
+    one_is_number : _int64 = a.is_number() || b.is_number();
+    one_is_box : _int64 = is_box_value(context.session, a.as_non_null()) || is_box_value(context.session, b.as_non_null());
+    string_type := context.session.string_type();
+
+    if(one_is_null == 1 && one_is_number == 1) {
+        return "a plain number is never null: use a number for \"nothing\" (0, -1), or a number OBJECT that may be null (`int?`)";
+    }
+    if(one_is_number == 1 && one_is_box == 1) {
+        return "one branch is a plain number and the other a number object: read the object's number with `.value`, or wrap the number (`new int(...)`)";
+    }
+    if(one_is_number == 1 && (a.as_non_null() == string_type || b.as_non_null() == string_type)) {
+        return "to have text in both branches, write the number as text: `\"\" + <number>`";
+    }
+    if(a.is_reference() && b.is_reference() && one_is_null == 0) {
+        return "when both are meant as \"some object\", cast one branch: `<branch> as object`; otherwise use an `if` statement";
+    }
+    return "use an `if` statement, or make both branches the same type";
+}
+
+/**
+ * The one type two branches agree on (the table above); null when they do
+ * not. The error type when either branch was already reported.
+ */
+def common_type_of(context: analysis_context, first: bound_expression, second: bound_expression) : resolved_type? {
+    session : analysis_session = context.session;
+    a : resolved_type = first.type;
+    b : resolved_type = second.type;
+    if(a.kind == RT_ERROR || b.kind == RT_ERROR) { return session.types.error_type; }
+    if(a == b) { return a; }
+
+    // null next to something that can be null
+    if(a.kind == RT_NULL) {
+        if(b.is_number() || b.kind == RT_NIL) { return null; }
+        return b.as_nullable();
+    }
+    if(b.kind == RT_NULL) {
+        if(a.is_number() || a.kind == RT_NIL) { return null; }
+        return a.as_nullable();
+    }
+
+    // "text" next to a string object
+    string_type := session.string_type();
+    if(first.literal == LIT_TEXT && b.as_non_null() == string_type) { return b; }
+    if(second.literal == LIT_TEXT && a.as_non_null() == string_type) { return a; }
+
+    // may the result be null? when either branch may be
+    either_may_be_null : _int64 = a.is_nullable == 1 || b.is_nullable == 1;
+    plain_a : resolved_type = a.as_non_null();
+    plain_b : resolved_type = b.as_non_null();
+
+    chosen : resolved_type? = null;
+    if(find_conversion(session, plain_b, plain_a, 0).converts()) { chosen = plain_a; }
+    else if(find_conversion(session, plain_a, plain_b, 0).converts()) { chosen = plain_b; }
+    if(chosen == null) { return null; }
+    if(either_may_be_null == 1 && chosen!!.is_reference()) { return chosen!!.as_nullable(); }
+    return chosen;
+}

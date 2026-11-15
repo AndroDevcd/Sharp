@@ -1,0 +1,99 @@
+mod backend.types.program;
+
+import (
+    std.io,
+    backend.types.declarations
+)
+
+/**
+ * THE ANALYSED PROGRAM: what the backend hands to code generation
+ *
+ * Analysis ends here. Everything the stages before worked out is held in the
+ * objects they built - the declarations (`sharp_class`, `sharp_function`,
+ * `sharp_field` ...) and the typed tree each body owns. This object is the
+ * ONE handle a code generator receives: it says where to start and lists,
+ * once each, everything there is to generate, in the order a generator
+ * wants it.
+ *
+ *      analysed := check_program(session);                 backend/compiler/program
+ *      main_of := analysed.main_function;                   def main(args: string[]) : int
+ *      foreach(f in analysed.functions) { generate(f.bound_body ...) }
+ *
+ * doc/backend.md section 12 ("Handing over to code generation") is the
+ * guide: for each kind of object, which fields to read and what they mean.
+ * In short:
+ *
+ *   - every function, constructor, init block, getter, setter and lambda
+ *     with a body is in `functions`; its `bound_body` is the typed tree,
+ *     its `locals` the variables (parameters first) with their position
+ *     (`local_variable.index`) and whether a lambda captures them;
+ *   - every real class (generic instances included, blueprints never) is in
+ *     `classes`; its `instance_initializers` / `static_initializers` /
+ *     `fiber_initializers` say what runs when an object, the class and a
+ *     fiber are set up;
+ *   - every module is in `modules` with `global_initializers` /
+ *     `fiber_initializers`: what runs when the program starts;
+ *   - `main_function` is the entry point (null when the program has none -
+ *     a library; building an executable then has to refuse);
+ *   - `required_classes` are the classes the VM makes objects of itself
+ *     (the exceptions it throws, `string`, `thread` ...): an executable must
+ *     contain them even when the program never names them;
+ *   - `reached_*` are the declarations the program can come to from `main`,
+ *     the platform's start-up code and the required classes
+ *     (`sharp_declaration.reached`), in the order they were found: what a
+ *     generator must emit. The rest may be left out.
+ *
+ *      C++ comparison: there is no such object; the finalizer reads the
+ *      compiler's globals (`user_main_method`, `genesis_method`,
+ *      `compressedCompilationClasses`, the `used` flags).
+ */
+const MAIN_NONE           : _int64 = 0 - 1; // no `main` in the program
+const MAIN_ARGS_INT       : _int64 = 0;     // def main(args: string[]) : int       (the C++ compiler's main_method_sig 0)
+const MAIN_ARGS           : _int64 = 1;     // def main(args: string[])             (1)
+const MAIN_NO_ARGS        : _int64 = 2;     // def main()                           (2)
+const MAIN_NO_ARGS_INT    : _int64 = 3;     // def main() : int                     (3)
+
+class analysed_program {
+    prog : sharp_program;
+
+    main_function : sharp_function?;        // the entry point; null when there is none
+    main_form : _int64 = MAIN_NONE;         // MAIN_...: which of the four forms it has
+    startup_function : sharp_function?;     // platform.kernel#platform.srt_init: the VM starts here and it calls main
+    platform_class : sharp_class?;          // platform.kernel#platform: its static_init / tls_init are filled in by the generator
+    required_classes : list<sharp_class>;   // the classes the VM itself makes objects of (exceptions, string, thread ...):
+                                            // always emitted, whether the program names them or not
+
+    functions : list<sharp_function>;       // every function with a typed body, lambdas included, each once
+    classes : list<sharp_class>;            // every real class whose members were analysed (instances included)
+    modules : list<sharp_module>;           // every module (global variables, global functions)
+    lambdas : list<sharp_function>;         // the lambdas alone (each also in `functions`)
+
+    reached_functions : list<sharp_function>;   // what the program can come to from main and the start-up code
+    reached_classes : list<sharp_class>;
+    reached_fields : list<sharp_field>;         // fields and globals
+    reached_for_runtime : _int64 = 0;           // how many of `required_classes` nothing in the program led to
+
+    errors : _int64 = 0;                    // errors of the whole build AFTER the warning switches (-werror makes
+    warnings : _int64 = 0;                  // warnings errors, -w drops them): code generation runs only when errors is 0
+
+    analysed_program(prog: sharp_program) {
+        self->prog = prog;
+        functions = new list<sharp_function>();
+        classes = new list<sharp_class>();
+        modules = new list<sharp_module>();
+        lambdas = new list<sharp_function>();
+        required_classes = new list<sharp_class>();
+        reached_functions = new list<sharp_function>();
+        reached_classes = new list<sharp_class>();
+        reached_fields = new list<sharp_field>();
+    }
+}
+
+/** the words for a MAIN_ form, as -analysis prints it */
+def main_form_text(form: _int64) : string {
+    if(form == MAIN_ARGS_INT) { return "main(args: string[]) : int"; }
+    if(form == MAIN_ARGS) { return "main(args: string[])"; }
+    if(form == MAIN_NO_ARGS) { return "main()"; }
+    if(form == MAIN_NO_ARGS_INT) { return "main() : int"; }
+    return "none";
+}

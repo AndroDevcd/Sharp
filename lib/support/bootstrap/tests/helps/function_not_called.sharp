@@ -1,0 +1,11 @@
+// expect: E0410
+// help: count()
+// replace: count
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    n : _int64 = count;
+}
+
+def count() : _int64 { return 1; }

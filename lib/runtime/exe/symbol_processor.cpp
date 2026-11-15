@@ -13,7 +13,17 @@
 void process_symbols(KeyPair<int, string> &result) {
     check_section(ssymbol, CORRUPT_FILE, result);
 
-    const Int nativeSymbolCount = 14;
+    // One entry for every type next_type() (exe_processor.cpp) hands out from this table:
+    // the numbers, var, object - and nil (19), the result type of every function that
+    // returns nothing. The table had 14 entries, so `&nativeTypes[type_nil]` pointed five
+    // entries past the end of the block: reflection (build_reflect_function) then read
+    // whatever lay there as the result's type, and when that happened to look like
+    // type_class or type_function_ptr it followed a garbage pointer and the VM crashed at
+    // start-up. What lay there depended on the heap's layout - the length of the path the
+    // program was started with changed it (found by the bootstrap's optimizer stage: the
+    // kostya json program crashed as /tmp/fullbench/boot/json and ran as ./json).
+    // C++ equivalent: an array sized by the largest index used, not by a count written by hand.
+    const Int nativeSymbolCount = type_nil + 1;
     uInt itemsProcessed=0;
     uInt functionPointersProcessed=0;
     uInt functionPtrIndex=0;

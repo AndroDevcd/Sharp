@@ -1,0 +1,110 @@
+mod backend.compiler.overloads;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * THE OBJECTS OF OVERLOAD RESOLUTION
+ *
+ *      call_argument       one argument of a call, analysed: its value, and - for a
+ *                          lambda that waits for its parameter - its written form
+ *                          (how many parameters, the types and result written)
+ *      call_candidate      one function that might be meant, with the conversion
+ *                          each argument needs to reach its parameter, or the reason
+ *                          it cannot take these arguments
+ *      overload_result     the answer: the winner, or the tied best ones, or why
+ *                          nothing fits
+ *
+ * Textbook overload resolution is "collect the candidates, keep the
+ * applicable ones, pick the best by ranking the conversions each needs" -
+ * these are its data. The algorithm is in ranking.sharp and applicability.sharp
+ * (doc/backend.md 7.6).
+ */
+
+/** one argument of a call */
+class call_argument {
+    value : bound_expression;
+    node : _int64;                      // the syntax node, for messages
+    is_lambda : _int64 = 0;             // a lambda not typed yet: it fits a function-typed parameter by its count
+    lambda_parameters : _int64 = 0 - 1; // how many parameters the lambda was written with; -1: the `{ it }` form
+    lambda_parameter_types : list<resolved_type>?;  // the types written for them (the error type where none is)
+    lambda_result : resolved_type?;     // the result written `(t)`, when it is
+    named : bound_functions?;           // a function NAME passed as a value: the functions it may be
+    // A `get()` inside a component definition that leaves its type to the parameter
+    // (`new worker(get())`): the types the component definitions in reach provide.
+    // It fits a parameter of one of those types (components/get_expression.sharp).
+    request_node : _int64 = 0 - 1;      // the N_GET_COMPONENT; -1: not such an argument
+    request_types : list<resolved_type>?;
+    request_fits_any : _int64 = 0;      // 1: a definition in reach is still being analysed - decided when the call is bound
+
+    call_argument(value: bound_expression, node: _int64) {
+        self->value = value;
+        self->node = node;
+    }
+
+    /** "a lambda" or "a function": what a waiting argument is, for messages */
+    def waiting_kind() : string {
+        if(named != null) { return "a function"; }
+        if(request_node >= 0) { return "a `get()`"; }
+        return "a lambda";
+    }
+}
+
+/** one function that might be the one a call means */
+class call_candidate {
+    function : sharp_function;
+    conversions : list<conversion>;     // one per argument, when applicable (a lambda argument: identity)
+    applicable : _int64 = 0;            // every argument converts and the count is right
+    failed_argument : _int64 = 0 - 1;   // when not applicable: which argument (counted from 0); -1: the count, or a type argument
+    reason : string = "";               // ... in words, for the message (or worked out from the next four: reason_text)
+
+    // The two common reasons are kept as FACTS and put into words only when a message
+    // needs them (reason_text): a call of `string.operator+` tries twenty overloads, and
+    // writing out why each of the nineteen losers does not fit cost more than choosing.
+    wrong_count : _int64 = 0;           // 1: the number of arguments is wrong
+    parameter_count : _int64 = 0;
+    argument_count : _int64 = 0;
+    failed_how : conversion?;           // the conversion that failed for argument `failed_argument`
+    failed_parameter : string = "";     // ... the name of its parameter
+    failed_is_text : _int64 = 0;        // ... 1: the argument is a text literal
+    type_argument_code : string = "";   // E0515 .. E0518 when the TYPE arguments are what is wrong, not the arguments
+    distance : _int64 = 0;              // how many classes above the object's class it is declared (0: in that class)
+    request_unsure : _int64 = 0;        // a `get()` argument was let through only because a definition could not be asked yet
+    waits_for_lambda : _int64 = 0;      // a lambda argument was taken by its written form only: its body is analysed once this one is chosen
+
+    call_candidate(function: sharp_function) {
+        self->function = function;
+        conversions = new list<conversion>();
+    }
+
+    /** why this candidate does not fit, in words (for the E0501 / E0506 notes) */
+    def reason_text() : string {
+        if(sizeof(reason.data) > 0) { return reason; }
+        if(wrong_count == 1) { return "takes " + count_of(parameter_count, "argument") + ", " + count_was(argument_count, "given"); }
+        if(failed_how != null) { return why_argument_does_not_fit(failed_how!!, failed_argument, failed_parameter, failed_is_text); }
+        return reason;
+    }
+}
+
+/** what overload resolution found */
+class overload_result {
+    best : call_candidate?;                         // the winner; null when there is none
+    tied : list<call_candidate>;                    // no single winner: the best ones, equally good
+    rejected : list<call_candidate>;                // the candidates that cannot take the arguments
+    applicable_count : _int64 = 0;
+    type_argument_problem : string = "";            // E0515 .. E0518: what was wrong with the type arguments, if anything
+
+    overload_result() {
+        tied = new list<call_candidate>();
+        rejected = new list<call_candidate>();
+    }
+
+    /** nothing applicable at all */
+    def found_none() : _int64 { return best == null && tied.size().value == 0; }
+}

@@ -1,0 +1,85 @@
+mod backend.types.declarations;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * A FIELD OF A CLASS, OR A GLOBAL VARIABLE
+ *
+ *      private static count : decimal = 0;
+ *
+ *      width : decimal;
+ *          get { return width * scale; }
+ *          set value -> { width = value / scale; }
+ *
+ *      total := price * 2;         no type written: it is the type of the value
+ *
+ * A global variable is a field with no owner (it belongs to its module).
+ *
+ *      type            the type as written; null when there is none (`:=`),
+ *                      until the type of the value has been worked out
+ *      initializer     the tree node of the value after `=` / `:=`; -1 when none
+ *      getter, setter  the `get` / `set` blocks, as functions; null when none
+ */
+
+// ---- how far the type of a field or function result has been worked out
+const TYPE_UNKNOWN     : _int64 = 0;    // not yet (`x := value;` before its value is analysed)
+const TYPE_IN_PROGRESS : _int64 = 1;    // being worked out right now: meeting it again is a circle
+const TYPE_KNOWN       : _int64 = 2;
+
+class sharp_field base sharp_declaration {
+    type : sharp_type?;
+    initializer : _int64 = 0 - 1;
+    getter : sharp_function?;
+    setter : sharp_function?;
+    inject_node : _int64 = 0 - 1;       // `inject` / `inject(component)` in front of it; -1 when none
+
+    // ---- set by stage 5 (backend/postprocessor/generics/member_types.sharp)
+    // What a value of this field is. Null for `name := value;` until the
+    // value has been analysed (type_state says how far that is).
+    value_type : resolved_type?;
+    type_state : _int64 = 0;            // TYPE_UNKNOWN, TYPE_IN_PROGRESS, TYPE_KNOWN
+    origin : sharp_field?;              // on a field of a generic instance: the blueprint's field it was made from
+
+    sharp_field(name: string, unit: source_unit, node: _int64, owner: sharp_class?, module: sharp_module)
+            -> base(D_FIELD, name, unit, node, owner, module) {
+    }
+
+    // ---- set by the body stages (backend/compiler) ----
+    bound_initializer : bound_expression?;  // its value as a typed tree, already converted to the field's type
+    value_state : _int64 = 0;               // TYPE_UNKNOWN / TYPE_IN_PROGRESS / TYPE_KNOWN: has the value been analysed
+    // A field written without a value whose type is a number class or `string`
+    // (`count : int;`) starts as an object made by this constructor (the one
+    // without parameters), as a local does. Null for every other field.
+    default_constructor : sharp_function?;
+    // the record a lambda in the field's value is handed when it uses `self`; null otherwise
+    closure : closure_record?;
+    // set by code generation when the field is renamed by obfuscation (backend/finalizer/obfuscation,
+    // doc/codegen.md 6.17): the name the executable gives it; null when it keeps its own
+    name_in_executable : string?;
+    // the lambdas written in the field's value, in order
+    lambdas : list<sharp_function>?;
+    // `inject db : database;`: the component definition that gives the field its value
+    // (backend/compiler/components/injections.sharp); null when it is not injected, or nothing provides it (E0906)
+    injected_from : type_definition?;
+
+    def is_global() : _int64 { return owner == null; }
+    def has_initializer() : _int64 { return initializer >= 0; }
+}
+
+/**
+ * alias list<string> as names;  - another name for a type
+ */
+class sharp_alias base sharp_declaration {
+    target : sharp_type?;           // the type the alias stands for
+    being_resolved : _int64 = 0;    // 1 while its target is looked through: meeting it again is a circle (E0310, reported)
+
+    sharp_alias(name: string, unit: source_unit, node: _int64, owner: sharp_class?, module: sharp_module)
+            -> base(D_ALIAS, name, unit, node, owner, module) {
+    }
+}

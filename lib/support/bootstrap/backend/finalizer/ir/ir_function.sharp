@@ -1,0 +1,87 @@
+mod backend.finalizer.ir;
+
+import (
+    std.io
+)
+
+/**
+ * THE INTERMEDIATE FORM OF ONE FUNCTION
+ *
+ * Its instructions in order, the kind of each of its slots, how many labels
+ * it uses, and its `try` statements. The slots are numbered as the frame is
+ * laid out (doc/codegen.md 4.4, 5.3):
+ *
+ *      0                       `self`, for a function that has an object
+ *      then                    the parameters, in order
+ *      then                    the locals, in the order `sharp_function.locals` lists them
+ *      fixed_slots ...         the generator's own slots: every value it makes on the way
+ *
+ * The bytecode step reads `slot_kinds.count` as the size of the frame.
+ */
+class ir_function {
+    name : string;                          // the function's full name, for messages and -ir
+    instructions : list<ir_instruction>;
+    slot_kinds : number_list;               // SLOT_INT / SLOT_DEC / SLOT_REF, one per slot
+    fixed_slots : _int64 = 0;               // self + parameters + locals: the slots that are not the generator's
+    label_count : _int64 = 0;
+    tries : list<ir_try>;                   // in the order they START in the code (the VM asks the last first)
+
+    ir_function(name: string) {
+        self->name = name;
+        instructions = new list<ir_instruction>();
+        slot_kinds = new number_list();
+        tries = new list<ir_try>();
+    }
+
+    /** how many slots the function's frame needs */
+    def slot_count() : _int64 {
+        return slot_kinds.count;
+    }
+}
+
+/**
+ * ONE `try` STATEMENT OF THE IR: its ranges, given as LABELS
+ *
+ * The VM learns where a `try` is from a try record (doc/codegen.md 3.8): the
+ * range whose exceptions the catch clauses take, the wider range a `finally`
+ * guards, where each handler starts and which slot gets the exception. In
+ * the IR those positions are labels like any other - placed by the generator
+ * in the instruction list, turned into pcs by the bytecode step - so a `try`
+ * needs no instruction of its own:
+ *
+ *      nop                                 (outside the ranges: 4.7, R2)
+ *    start:
+ *      ... the try block ...
+ *      jump normal_exit
+ *    block_end:                            the block range is [start, the word before block_end]
+ *    handler 1:  ... catch body ... jump normal_exit
+ *    end:                                  the try range is [start, the word before end]
+ *    finally_start:  ... finally ... throw %finally_slot
+ *    finally_end:
+ *
+ * An END label is placed right AFTER the range it closes: the range's last
+ * word is the word before it. The last instruction inside each range is the
+ * `jump` that leaves it, never a call (rule R1 of 4.7, which the verifier
+ * checks).
+ */
+class ir_try {
+    start : _int64;                         // label: the first word of the try block
+    block_end : _int64;                     // label: one past the try block (its closing jump)
+    end : _int64;                           // label: one past the last catch handler
+    handlers : number_list;                 // per catch clause, in the order written: the label of its handler
+    catch_slots : number_list;              // ... the slot the VM stores the exception into, -1 for none
+    catch_classes : number_list;            // ... the address of the class it takes
+    has_finally : _int64 = 0;
+    finally_start : _int64 = 0 - 1;         // label: the finally block the VM enters with an exception
+    finally_end : _int64 = 0 - 1;           // label: one past it
+    finally_slot : _int64 = 0 - 1;          // the slot the VM stores that exception into
+
+    ir_try(start: _int64, block_end: _int64, end: _int64) {
+        self->start = start;
+        self->block_end = block_end;
+        self->end = end;
+        handlers = new number_list();
+        catch_slots = new number_list();
+        catch_classes = new number_list();
+    }
+}

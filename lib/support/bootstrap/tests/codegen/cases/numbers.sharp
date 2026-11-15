@@ -1,0 +1,97 @@
+mod main;
+
+// output:
+// 22
+// 12
+// 85
+// 2
+// 68
+// 8
+// 1
+// 21
+// 20
+// -17
+// 0
+// 1
+// 1
+// 0
+// 1
+// 0
+// 10
+// 1.25
+// 6.25
+// 2.4
+// 0.3333333333333333
+// 2
+// 17
+// 4886718345
+// 4886718346
+// -5000000000
+// 44
+// 44
+// 44
+// 1
+// 0
+// 1
+// 1
+// 0
+
+/*
+ * Numbers (doc/codegen.md 4.3, 6.3, 6.4): integer and decimal arithmetic,
+ * comparisons (1 or 0), bit operators, constants wider than 32 bits (built
+ * exactly, G3), decimals from the constant section (the literal's own digits
+ * or the exact hexadecimal form), conversions between integers and decimals,
+ * and the narrowing of an integer to a smaller type (300 as _int8 is 44).
+ */
+def main() {
+    a : _int64 = 17;
+    b : _int64 = 5;
+    show(a + b);
+    show(a - b);
+    show(a * b);
+    show(a % b);
+    show(a << 2);
+    show(a >> 1);
+    show(a & b);
+    show(a | b);
+    show(a ^ b);
+    show(-a);
+    show(a < b);
+    show(a > b);
+    show(a <= 17);
+    show(a >= 18);
+    show(a == 17);
+    show(a != 17);
+
+    d : decimal = 2.5;
+    show_decimal(d * 4);
+    show_decimal(d / 2);
+    show_decimal(d ** 2);
+    show_decimal(d - 0.1);
+    show_decimal(1.0 / 3.0);
+    show(d as _int64);
+    e : decimal = a;
+    show_decimal(e);
+
+    big : _int64 = 0x123456789;
+    show(big);
+    show(big + 1);
+    far : _int64 = 0 - 5000000000;
+    show(far);
+
+    n : _int64 = 300;
+    show(300 as _int8);
+    tiny : _int8 = n as _int8;
+    show(tiny);
+    unsigned : _uint8 = n as _uint8;
+    show(unsigned);
+
+    show(!0);
+    show(!5);
+    both : _int64 = (a > 3) && (b > 3);
+    show(both);
+    either : _int64 = (a > 100) || (b == 5);
+    show(either);
+    neither : _int64 = (a > 100) || (b == 6);
+    show(neither);
+}

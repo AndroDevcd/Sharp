@@ -1,0 +1,318 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * "THERE IS NO ..." - the messages for a plain name that was not found
+ *
+ *      E0400   a plain name nothing visible has
+ *      E0407   a local variable used above its declaration, or inside its own value
+ *
+ * (`point.z` and `std.io#prnt` - a name missing from ONE place - are in
+ * no_member.sharp.)
+ *
+ * A bare "not found" leaves the programmer to guess. So each message also
+ * looks for what was probably meant, in this order:
+ *
+ *   - the name is the very variable being declared: `x := x + 1;` (E0407);
+ *   - the name IS declared, further down in the same block (E0407);
+ *   - the closest names that are visible (did-you-mean);
+ *   - the name exists but cannot be seen from here: in the class this class
+ *     is declared inside, in a module the file does not import, or as a
+ *     static member of some class (`processor_count` for
+ *     `platform_info.processor_count`);
+ *   - the name is a habit from another language (`total = 0;` to declare,
+ *     `f(width = 2)`, `for(i; ...)`, `brake;`, `this`): other_language_habits.sharp.
+ *
+ * ONE NAME, ONE MESSAGE. A name that does not exist is usually used several
+ * times (`total = 0; total += 1; println(total);`). It is reported once per
+ * function, at its first use; the later uses are shown as places of that one
+ * message, not as messages of their own. And where the first use is a plain
+ * `=` - the habit of languages that declare by assigning - the help is the
+ * declaration to write at that very statement: `total := 0;`. A `for` whose
+ * start part only names a variable (`for(count; count < 3; count++)`) is
+ * reported at the start part, with the declaration it needs.
+ *
+ *      C++ comparison: "could not resolve symbol `x`" in dependency.cpp,
+ *      which says none of this.
+ */
+
+/** E0400 (or E0407): the plain name at `node` means nothing here */
+def report_unknown_name(context: analysis_context, name: string, node: _int64, is_called: _int64) {
+    if(already_reported(context, "E0400", node) || already_reported(context, "E0407", node)) { return; }
+    // inside a class whose base was not found (or that is declared twice) the name may well be
+    // a member the compiler could not see: saying "there is no ..." would follow from that error
+    if(context.class_of != null && members_are_uncertain(context.class_of!!)) { return; }
+    // a name the misspelt import of this file would have brought in: that import was reported (E0303)
+    if(context.file.brought_by_a_misspelt_import(name, 0)) { return; }
+    if(name == "it" && is_called == 0) {
+        report_no_it(context, node);
+        return;
+    }
+
+    own : _int64 = declaration_this_is_the_value_of(context, name, node);
+    if(own >= 0) {
+        d := problem_at(context, "E0407", "`" + name + "` is used in its own declaration", node);
+        d.with_label("`" + name + "` does not exist yet here");
+        d.with_related_place(place_of_node(context.unit, own, "this declaration is not complete until its value is worked out"));
+        d.with_note("a local variable exists from the END of its declaration, so its first value cannot use it");
+        d.with_help("give `" + name + "` a first value that does not mention `" + name + "`");
+        report(context, d);
+        return;
+    }
+
+    later : _int64 = declared_further_down(context, name, node);
+    if(later >= 0) {
+        d := problem_at(context, "E0407", "`" + name + "` is used before it is declared", node);
+        d.with_label("not declared yet at this point");
+        d.with_related_place(place_of_node(context.unit, later, "`" + name + "` is declared here, on line " + line_at(context, later)));
+        d.with_note("a local variable exists from its declaration to the end of its block");
+        d.with_help("move the declaration of `" + name + "` above this line");
+        report(context, d);
+        return;
+    }
+
+    key := unknown_name_key(context, name);
+    first : diagnostic? = context.session.unknown_names.at(key);
+    if(first != null) {
+        add_later_use(context, first!!, name, node);
+        return;
+    }
+
+    what := "variable, field or type";
+    if(is_called == 1) { what = "function, class or variable"; }
+    call : _int64 = call_of_named_argument(context, node);
+    if(call >= 0) {
+        report_named_argument(context, name, node, call, key);
+        return;
+    }
+    if(is_named_by_for_start(context, node)) {
+        report_for_start_declares_nothing(context, name, node, key);
+        return;
+    }
+    d := problem_at(context, "E0400", "there is no " + what + " named `" + name + "` here", node);
+    d.with_label(where_it_was_looked_for(context));
+    context.session.unknown_names.put(key, d);
+    declared_here : _int64 = add_declare_by_assignment(context, d, name, node);
+
+    // (a one-letter name is "close" to every other one-letter name: with the declaration
+    // already offered, guesses like that are only noise)
+    // `math.sqrt(x)`: the last part of a module's name used like an object (other_language_habits.sharp)
+    module_meant : _int64 = 0;
+    if(is_called == 0) { module_meant = add_module_named_by_last_part(context, d, name, node); }
+    if(module_meant == 0 && (declared_here == 0 || sizeof(name.data) > 1)) {
+        close := closest_names(name, names_visible_from(context), 3);
+        if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+    }
+    if(declared_here == 0 && module_meant == 0) { add_where_it_exists(context, d, name); }
+
+    add_statement_keyword(context, d, name, node);
+    add_call_form_keyword(context, d, name, node);
+    translated := word_in_sharp(name);
+    if(sizeof(translated.data) > 0) { d.with_help("`" + name + "` is written `" + translated + "` in Sharp"); }
+
+    if(d.helps.size() == 0 && d.notes.size() == 0) {
+        // nothing like it anywhere: say what would make the name exist
+        if(is_called == 1) {
+            d.with_help("declare the function: `def " + name + "(...) { ... }` - or, when it is in another file, add that file to the build and import its module");
+        } else {
+            d.with_help("declare it above this line: `" + name + " := <value>;` or `" + name + " : <type>;` (names are case-sensitive)");
+        }
+    }
+    report(context, d);
+}
+
+/**
+ * "file:function:name": an unknown name is reported once per function (or
+ * field value). A lambda belongs to the function it is written in: a name
+ * missing there is the same missing name inside the lambda.
+ */
+def unknown_name_key(context: analysis_context, name: string) : string {
+    owner : _int64 = 0 - 1;
+    function : sharp_function? = context.function;
+    while(function != null && function!!.is_lambda == 1 && function!!.enclosing != null) { function = function!!.enclosing; }
+    if(function != null) { owner = function!!.node; }
+    return context.unit.file + ":" + owner + ":" + name;
+}
+
+/** a later use of a name already reported in this function: a place of the first message (three at most) */
+def add_later_use(context: analysis_context, first: diagnostic, name: string, node: _int64) {
+    if(first.related.size() >= 3) { return; }
+    p : parse_state = context.state;
+    token : _int64 = context.tree.tokens!![node];
+    first.with_related(p.start_of(token), p.end_of(token), "`" + name + "` is used here too");
+}
+
+/** "not declared in this function, in class `cart`, in module `shop` or in anything it imports" */
+def where_it_was_looked_for(context: analysis_context) : string {
+    text := new string_builder("not declared in ");
+    if(context.function != null) { text.append("this function, "); }
+    if(context.class_of != null) { text.append("in class `" + context.class_of!!.written.name + "` or the classes above it, "); }
+    text.append("in module `" + context.file.module.name + "` or in anything this file imports");
+    return text.build();
+}
+
+/** helps for a name that exists where this code cannot see it */
+def add_where_it_exists(context: analysis_context, d: diagnostic, name: string) {
+    // in a class this class is declared inside
+    if(context.class_of != null) {
+        outer : sharp_class? = context.class_of!!.owner;
+        while(outer != null) {
+            found := new lookup_result();
+            find_class_member(context.prog, outer!!, name, found);
+            if(found.kind != FOUND_NOTHING) {
+                d.with_note("`" + name + "` is a member of `" + outer!!.written.name + "`, the class `" + context.class_of!!.written.name
+                            + "` is declared in; a class inside another does not see the outer class's members by their plain names");
+                d.with_help("for a static member write `" + outer!!.written.name + "." + name + "`; for an instance member the inner class needs an object of `"
+                            + outer!!.written.name + "`");
+                return;
+            }
+            outer = outer!!.owner;
+        }
+    }
+
+    // in a module the file does not import
+    shown : _int64 = 0;
+    for(i : _int64 = 0; i < context.prog.module_list.size() && shown < 2; i++) {
+        module := context.prog.module_list.at(i);
+        group := context.file.group_importing(module);
+        if(context.file.imports_module(module) && group == null) { continue; }
+        same_name := module.declared.find(name);
+        if(same_name == null || same_name!!.size() == 0 || !can_be_named(same_name!!.at(0).kind)) { continue; }
+        if(group != null) {
+            // `import (one) as q;`: the module is imported, under the group's name only
+            d.with_help("module `" + module.name + "` is imported as the group `" + group!!.name + "`, so its names are written through it: `"
+                        + group!!.name + "#" + name + "`");
+            shown++;
+            continue;
+        }
+        d.with_help("the " + declaration_kind_name(same_name!!.at(0).kind) + " `" + module.name + "#" + name
+                    + "` exists: add `import (" + module.name + ")` to this file");
+        shown++;
+    }
+    if(shown == 0) { add_static_members_called(context, d, name); }
+}
+
+/**
+ * `processor_count` written by itself, where `platform_info.processor_count`
+ * was meant: a static member (or an enum value, or a class inside a class) of
+ * some class of the program has the name. Says through which class it is
+ * reached, and which import is missing if one is. At most two are shown.
+ */
+def add_static_members_called(context: analysis_context, d: diagnostic, name: string) {
+    shown : _int64 = 0;
+    classes := context.prog.all_classes;
+    for(i : _int64 = 0; i < classes.size() && shown < 2; i++) {
+        owner := classes.at(i);
+        if(owner.members == null) { continue; }
+        same_name := owner.members!!.find(name);
+        if(same_name == null || same_name!!.size() == 0) { continue; }
+        member := same_name!!.at(0);
+        if(!can_be_named(member.kind)) { continue; }
+        if((member.kind == D_FIELD || member.kind == D_FUNCTION) && !member.has(FLAG_STATIC)) { continue; }
+
+        what := "the static " + declaration_kind_name(member.kind);
+        if(member.kind != D_FIELD && member.kind != D_FUNCTION) { what = "the " + declaration_kind_name(member.kind); }
+        text := what + " `" + owner.qualified_name() + "." + name + "` exists: a member of a class is reached through the class";
+        if(!context.file.imports_module(owner.module)) {
+            text = text + " (add `import (" + owner.module.name + ")` to this file first)";
+        }
+        d.with_help(text);
+        shown++;
+    }
+}
+
+/**
+ * `x := x + 1;` / `n : _int64 = n;` - when `node` stands inside the value of
+ * the declaration of a local called `name`: that declaration. -1 otherwise.
+ * (The C++ compiler accepts this and reads the variable before it has a
+ * value; it has no meaning, so it is refused here.)
+ */
+def declaration_this_is_the_value_of(context: analysis_context, name: string, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    up : _int64 = tree.parents!![node];
+    while(up >= 0) {
+        kind : _int64 = tree.kinds!![up];
+        if(kind == N_VARIABLE && name_at(context, up) == name) { return up; }
+        if(kind == N_BLOCK || kind == N_FUNCTION || kind == N_CONSTRUCTOR || kind == N_INIT || kind == N_LAMBDA || kind == N_GETTER
+           || kind == N_SETTER || kind == N_CLASS) {
+            return 0 - 1;
+        }
+        up = tree.parents!![up];
+    }
+    return 0 - 1;
+}
+
+/**
+ * The declaration of a local called `name` further down in a block around
+ * `node`; -1 when there is none. Only the syntax tree can answer this: the
+ * scopes do not know about variables that are not declared yet.
+ */
+def declared_further_down(context: analysis_context, name: string, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    used_at : _int64 = tree.tokens!![node];
+    up : _int64 = tree.parents!![node];
+    while(up >= 0) {
+        kind : _int64 = tree.kinds!![up];
+        if(kind == N_BLOCK) {
+            statement : _int64 = tree.first_child!![up];
+            while(statement >= 0) {
+                if(tree.kinds!![statement] == N_VARIABLE && tree.tokens!![statement] > used_at) {
+                    found : _int64 = variable_named(context, statement, name);
+                    if(found >= 0) { return found; }
+                }
+                statement = tree.next_sibling!![statement];
+            }
+        } else if(kind == N_FUNCTION || kind == N_CONSTRUCTOR || kind == N_INIT || kind == N_LAMBDA || kind == N_GETTER
+                  || kind == N_SETTER || kind == N_CLASS) {
+            return 0 - 1;
+        }
+        up = tree.parents!![up];
+    }
+    return 0 - 1;
+}
+
+/** `a : int = 1, b = 2;` is one N_VARIABLE with the further ones below it: the one called `name`, or -1 */
+def variable_named(context: analysis_context, variable: _int64, name: string) : _int64 {
+    if(name_at(context, variable) == name) { return variable; }
+    child : _int64 = context.tree.first_child!![variable];
+    while(child >= 0) {
+        if(context.tree.kinds!![child] == N_VARIABLE) {
+            found : _int64 = variable_named(context, child, name);
+            if(found >= 0) { return found; }
+        }
+        child = context.tree.next_sibling!![child];
+    }
+    return 0 - 1;
+}
+
+/**
+ * E0809: `it` where there is no `it`. The name exists only inside a lambda
+ * written without `->` whose function type has exactly one parameter
+ * (`items.each { println(it); }`): there it is that parameter.
+ */
+def report_no_it(context: analysis_context, node: _int64) {
+    in_lambda : _int64 = context.function != null && context.function!!.is_lambda == 1;
+    d := problem_at(context, "E0809", "`it` means nothing here", node);
+    if(in_lambda == 1) {
+        d.with_label("this lambda has no parameter called `it`");
+        d.with_note("`it` is the one parameter of a lambda written without `->` (`xs.each { println(it); }`), when the function it is given to passes exactly one value");
+        d.with_help("name the parameters: `{ x -> ... }`, and use `x`");
+    } else {
+        d.with_label("not inside a lambda");
+        d.with_note("`it` exists only in a lambda written without `->` that takes exactly one argument (`xs.each { println(it); }`)");
+        d.with_help("use the name of the value you mean; `it` is not a variable unless you declare one: `it := <value>;`");
+    }
+    report(context, d);
+}

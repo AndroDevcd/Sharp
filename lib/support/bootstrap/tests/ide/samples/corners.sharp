@@ -1,0 +1,72 @@
+mod corners;
+
+import ( std.io )
+
+// The corners of the editor files that shapes.sharp does not reach: a generic FUNCTION and its
+// instance, a member added by `mutate` in another file (corners_more.sharp), a nested class, an
+// operator function, static members reached through the class name, a one-line function, a lambda
+// in the value of a field, a constructor that calls its base, an alias of an array type, and the
+// text each kind of local variable can be seen in (tests/ide/check.py, case `corners`).
+
+class counter {
+    static made : _int64 = 0;
+    amount : _int64 = 0;
+    on_change := { delta: _int64 -> (_int64) return delta * 2; };
+
+    class step {
+        size : _int64 = 1;
+    }
+
+    def operator+(other: counter) : counter {
+        sum := new counter();
+        sum.amount = amount + other.amount;
+        return sum;
+    }
+
+    static def describe() : string { return "counter"; }
+    def twice() := amount * 2;
+}
+
+class tally base counter {
+    label : string = "";
+
+    tally(label: string, start: _int64) -> base() {
+        self->label = label;
+        amount = start;
+    }
+}
+
+alias string[] as words;
+
+def count_words(spoken: words) : _int64 { return sizeof(spoken); }
+
+def first_of<T>(items: T[]) : T { return items[0]; }
+
+def scopes(limit: _int64) : _int64 {
+    outer : _int64 = 0;
+    for(index : _int64 = 0; index < limit; index++) outer += index;
+    if(outer > 3) {
+        inner := "a ${ outer + sizeof({ 1, 2 }) } b { not a block";
+        outer += 1;
+    }
+    try {
+        outer += 2;
+    } catch(problem: exception) {
+        outer = 0;
+    }
+    foreach(item in { 1, 2 }) outer += item;
+    after : _int64 = outer;
+    return after;
+}
+
+def main(args: string[]) : int {
+    a := new counter();
+    b := a + a;
+    numbers := new _int64[] { 4, 5 };
+    picked := first_of(numbers);
+    pace := new counter.step();
+    counter.made = 1;
+    kept := new tally("kept", count_words(args));
+    println("x " + b.twice() + counter.describe() + b.bonus() + picked + scopes(3) + pace.size + kept.label);
+    return 0;
+}

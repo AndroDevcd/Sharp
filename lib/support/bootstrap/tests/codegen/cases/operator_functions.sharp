@@ -1,0 +1,67 @@
+mod main;
+
+import (std.io)
+
+// output:
+// 425
+// 125
+// 0
+// 1
+// 1
+// 155
+// 9
+// 8
+// 8
+// 7
+// 4
+
+/*
+ * Operators that are calls (doc/codegen.md 6.4, 6.6): `+`, `-`, `==`, `<`
+ * and `+=` of a class (its operator functions, called on the left operand),
+ * `g[i]` through `operator[]`, and the number classes of the library (`int`,
+ * `long`): `+=` and `++` on them, `+` making a new one, `.value` unboxed.
+ *
+ * (Not here: `(count + 1).value` with `count : int` makes the C++ compiler
+ * crash with a segmentation fault.)
+ */
+class money {
+    cents : _int64;
+    money(cents: _int64) { self->cents = cents; }
+    def operator+(other: money) : money { return new money(cents + other.cents); }
+    def operator-(other: money) : money { return new money(cents - other.cents); }
+    def operator==(other: money) : bool { return cents == other.cents; }
+    def operator<(other: money) : bool { return cents < other.cents; }
+    def operator+=(more: _int64) : money { cents += more; return self; }
+}
+
+class grid {
+    cells : _int64[] = new _int64[4];
+    def operator[](i: _int64) : _int64 { return cells[i]; }
+}
+
+def main() {
+    a := new money(150);
+    b := new money(275);
+    c := a + b;
+    show(c.cents);
+    show((b - a).cents);
+    show(a == b ? 1 : 0);
+    show(a == new money(150) ? 1 : 0);
+    show(a < b ? 1 : 0);
+    a += 5;
+    show(a.cents);
+    g := new grid();
+    g.cells[2] = 9;
+    show(g[2]);
+    total : int = 5;
+    total += 3;
+    show(total.value as _int64);
+    count : int = 7;
+    more : int = count + 1;
+    show(more.value as _int64);
+    n : _int64 = count.value;
+    show(n);
+    k : long = 3;
+    k++;
+    show(k.value as _int64);
+}

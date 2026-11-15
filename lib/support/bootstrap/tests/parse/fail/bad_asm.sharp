@@ -1,0 +1,18 @@
+// expect: E0101 E0100 E0121 E0120 E0120 E0100
+//
+// asm blocks: an operand missing, an instruction that does not exist, an
+// operand too many, operands of the wrong kind, something that is no
+// instruction at all.
+mod tests.fail;
+
+def main(args: string[]) {
+    asm {
+        movi ebx
+        mvoi adx, 5
+        pushl 12, 13
+        int ebx
+        mov8 ebx, 5
+        + 3
+        nop
+    }
+}

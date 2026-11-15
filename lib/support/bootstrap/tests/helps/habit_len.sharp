@@ -1,0 +1,10 @@
+// expect: E0400
+// help: sizeof(items)
+// replace: len(items)
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    items := new _int64[3];
+    n : _int64 = len(items);
+}

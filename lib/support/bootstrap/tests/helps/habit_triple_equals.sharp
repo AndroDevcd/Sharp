@@ -1,0 +1,10 @@
+// expect: E0100
+// help: ==
+// replace: ===
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    x := 1;
+    if(x === 1) { println("one"); }
+}

@@ -1,0 +1,211 @@
+mod backend.reports;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * THE `-analysis` OPTION: print the typed tree of one file
+ *
+ *      sharpc ... sample.sharp -analysis
+ *
+ * prints, for the LAST file on the command line, the typed tree of every
+ * field value and every function body written in it - what the body stages
+ * worked out, in the shape a code generator will read it. One line per node:
+ * what it is, what it refers to, its type after the colon, its constant
+ * value in brackets when the compiler knows it.
+ *
+ *      function main#cart.total(_int64) : decimal   [reached from main]
+ *        local #0 count : _int64 (parameter)
+ *        local #1 half : decimal
+ *        block
+ *          local half : decimal
+ *            cast (number) : decimal
+ *              local count : _int64
+ *          return
+ *            binary * (decimals) : decimal
+ *              field price : decimal
+ *                self (implied) : cart
+ *              local half : decimal
+ *
+ * The heading of a function names its parameter types (two overloads are
+ * two headings) and says whether the program can come to it from `main`;
+ * under it, every local variable with its slot. A function of a generic
+ * class is printed once per INSTANCE that was analysed (list<string>,
+ * list<int>): the types differ.
+ *
+ * This file walks the declarations and prints the headings, the locals and
+ * the set-up order of classes and modules; expression_printer.sharp prints
+ * the expressions of a tree, statement_printer.sharp the statements.
+ *
+ * This is a tool for reading the compiler's mind - for the owner, and for
+ * the tests of the stages to come. Nothing else depends on its format.
+ */
+def print_analysis(prog: sharp_program, file_name: string) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.fields.size(); j++) { print_field_analysis(module.fields.at(j), file_name); }
+        print_global_order(module, file_name);
+        for(j : _int64 = 0; j < module.functions.size(); j++) {
+            if(module.functions.at(j).owner == null) { print_function_analysis(module.functions.at(j), file_name); }
+        }
+        for(j : _int64 = 0; j < module.classes.size(); j++) { print_class_analysis(module.classes.at(j), file_name); }
+    }
+    for(i : _int64 = 0; i < prog.generic_instances.size(); i++) {
+        print_class_analysis(prog.generic_instances.at(i), file_name);
+    }
+    for(i : _int64 = 0; i < prog.components.size(); i++) { print_component_analysis(prog.components.at(i), file_name); }
+}
+
+/** one component block: each definition, what it provides, the typed tree of its expression */
+def print_component_analysis(declared: sharp_component, file_name: string) {
+    if(declared.unit.file != file_name) { return; }
+    println("component " + declared.described() + ":");
+    for(i : _int64 = 0; i < declared.definitions.size(); i++) {
+        definition := declared.definitions.at(i);
+        println("  " + definition.written_as() + " provides " + type_text(definition.provides));
+        if(definition.value != null) { print_expression(definition.value!!, 2); }
+    }
+}
+
+/** the line a node is on, counted from 1 */
+def line_of_node(unit: source_unit, node: _int64) : _int64 {
+    p : parse_state = unit.parsed!!;
+    return line_of(p.table, p.start_of(p.tree.tokens!![node]));
+}
+
+/** the members of one class that are written in the file, and the classes inside it */
+def print_class_analysis(declared: sharp_class, file_name: string) {
+    if(declared.bodies_analysed == 0 || declared.is_open()) { return; }
+    if(declared.unit.file == file_name) { print_initializer_lists(declared); }
+    for(i : _int64 = 0; i < declared.fields.size(); i++) { print_field_analysis(declared.fields.at(i), file_name); }
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) { print_function_analysis(declared.constructors.at(i), file_name); }
+    for(i : _int64 = 0; i < declared.init_blocks.size(); i++) { print_function_analysis(declared.init_blocks.at(i), file_name); }
+    for(i : _int64 = 0; i < declared.functions.size(); i++) { print_function_analysis(declared.functions.at(i), file_name); }
+    if(declared.is_instance()) { return; }      // the classes inside an instance are in the list of instances themselves
+    for(i : _int64 = 0; i < declared.classes.size(); i++) { print_class_analysis(declared.classes.at(i), file_name); }
+}
+
+/** one field: the typed tree of its value, then its getter and setter */
+def print_field_analysis(field: sharp_field, file_name: string) {
+    if(field.unit.file != file_name) { return; }
+    if(field.bound_initializer != null) {
+        println("field " + field.full_name() + " : " + type_text(field.value_type));
+        print_expression(field.bound_initializer!!, 1);
+    }
+    if(field.injected_from != null) {
+        from : type_definition = field.injected_from!!;
+        println("field " + field.full_name() + " : " + type_text(field.value_type) + "  injected from " + from.owner.described()
+                + ": " + from.written_as() + " (line " + line_of_node(from.unit, from.node) + ")");
+    }
+    if(field.getter != null) { print_function_analysis(field.getter!!, file_name); }
+    if(field.setter != null) { print_function_analysis(field.setter!!, file_name); }
+}
+
+/** one function: its heading, its parameters, the typed tree of its body */
+def print_function_analysis(function: sharp_function, file_name: string) {
+    if(function.unit.file != file_name || function.bound_body == null) { return; }
+    what := declaration_kind_name(function.kind);
+    if(function.kind == D_INIT && function.has(FLAG_STATIC)) { what = "static init block"; }
+    name := function.full_name();
+    if(function.field != null) { name = function.field!!.full_name(); }
+    reached := "";
+    if(function.reached == 1) { reached = "   [reached from main]"; }
+    println(what + " " + name + parameter_types_text(function) + " : " + type_text(function.result_type) + reached);
+    if(function.locals != null) { print_locals(function, 1); }
+    if(function.closure != null) { println("  closure record: " + record_text(function.closure!!)); }
+    if(function.bound_base_call != null) {
+        println("  -> base:");
+        print_expression(function.bound_base_call!!, 2);
+    }
+    print_statement(function.bound_body!!, 1);
+}
+
+/** "(_int64, string)": the parameter types of a function, which tell its overloads apart in a heading */
+def parameter_types_text(function: sharp_function) : string {
+    text := new string_builder("(");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        text.append(type_text(function.parameters.at(i).value_type));
+    }
+    text.append(")");
+    return text.build();
+}
+
+/** the order a class is set up in: what runs for a new object, once for the class, per fiber */
+def print_initializer_lists(declared: sharp_class) {
+    if(declared.instance_initializers == null) { return; }
+    println("class " + declared.qualified_name() + " is set up:");
+    println("  for every object: " + declarations_text(declared.instance_initializers!!));
+    println("  once:             " + declarations_text(declared.static_initializers!!));
+    if(declared.fiber_initializers!!.size() > 0) { println("  per fiber:        " + declarations_text(declared.fiber_initializers!!)); }
+    for(i : _int64 = 0; i < declared.enum_values.size(); i++) {
+        value := declared.enum_values.at(i);
+        if(value.constant != null) { println("  enum value " + value.name + " = " + value.constant!!.to_text()); }
+        else if(value.bound_value != null) { println("  enum value " + value.name + " = (worked out when the program starts)"); }
+        else { println("  enum value " + value.name + " = (a number of its own)"); }
+    }
+}
+
+/** "total, tail, init" */
+def declarations_text(declarations: list<sharp_declaration>) : string {
+    if(declarations.size() == 0) { return "(nothing)"; }
+    text := new string_builder("");
+    for(i : _int64 = 0; i < declarations.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        declared := declarations.at(i);
+        if(declared.kind == D_INIT && declared.has(FLAG_STATIC)) { text.append("static init block"); }
+        else if(declared.kind == D_INIT) { text.append("init block"); }
+        else if(declared.kind == D_FIELD && (declared as sharp_field).default_constructor != null) { text.append(declared.name + " (a default object)"); }
+        else { text.append(declared.name); }
+    }
+    return text.build();
+}
+
+/** the order the globals of a module written in this file are set up in when the program starts */
+def print_global_order(module: sharp_module, file_name: string) {
+    if(module.global_initializers == null || module.global_initializers!!.size() == 0) { return; }
+    if(module.global_initializers!!.at(0).unit.file != file_name) { return; }
+    println("module " + module.name + " sets up its globals: " + declarations_text(module.global_initializers!!));
+}
+
+/**
+ * Every local variable of a function with its SLOT - its position in
+ * `sharp_function.locals`, the number a code generator gives it - and its
+ * kind: a parameter, made by the compiler (hidden), captured by a lambda
+ * (it then lives in the closure record, not in the slot).
+ *
+ *      local #0 count : _int64 (parameter)
+ *      local #2 i : _int64
+ *      local #3 (hidden) when_subject : decimal
+ */
+def print_locals(function: sharp_function, depth: _int64) {
+    locals : list<local_variable> = function.locals!!;
+    for(i : _int64 = 0; i < locals.size(); i++) {
+        variable := locals.at(i);
+        if(variable.function != function) { continue; }         // a captured variable of the function around a lambda
+        kinds := new list<string>();
+        if(variable.is_parameter == 1) { kinds.add("parameter"); }
+        if(variable.is_hidden == 1) { kinds.add("made by the compiler"); }
+        if(variable.is_const == 1) { kinds.add("const"); }
+        if(variable.is_localized == 1) { kinds.add("localized"); }
+        if(variable.is_captured == 1) { kinds.add("captured by a lambda"); }
+        text := new string_builder(indent(depth) + "local #" + variable.index + " " + variable.name + " : " + variable.type.to_text());
+        if(kinds.size() > 0) {
+            text.append(" (");
+            for(j : _int64 = 0; j < kinds.size(); j++) {
+                if(j > 0) { text.append(", "); }
+                text.append(kinds.at(j));
+            }
+            text.append(")");
+        }
+        println(text.build());
+    }
+}

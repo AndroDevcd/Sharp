@@ -1,0 +1,841 @@
+mod frontend.syntax.parser;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    frontend.syntax.parser.habits
+)
+
+/**
+ * PARSING DECLARATIONS: everything that gives something a name
+ *
+ * Grammar (doc/grammar.md, sections 2.1 - 2.5):
+ *
+ *      compilation_unit = { top_level_decl } ;
+ *      top_level_decl   = module_decl | import_decl
+ *                       | [ access_types ] ( class_decl | interface_decl | enum_decl
+ *                                          | method_decl | variable_decl | alias_decl )
+ *                       | mutate_decl | component_decl | obfuscate_decl | ";" ;
+ *
+ * A file is a list of declarations; a class is a name and, between its braces,
+ * another list of declarations. As with statements, the first token after the
+ * modifiers (`public static ...`) says which declaration follows.
+ *
+ * parse_source() at the end of this file is the way in.
+ */
+
+/**
+ * access_types: the words in front of a declaration
+ *
+ *      public static const     private     stable ext
+ *
+ * @return an N_MODIFIERS node that has no parent yet, or -1 when there are none
+ */
+def parse_modifiers(p: parse_state) : _int64 {
+    if(!is_modifier(p.kind())) {
+        return 0 - 1;
+    }
+
+    modifiers : _int64 = p.node(N_MODIFIERS);
+    while(is_modifier(p.kind())) {
+        p.child(modifiers, N_MODIFIER);
+        p.advance();
+    }
+    return modifiers;
+}
+
+/** hang the modifiers (when there are any) on the declaration they belong to */
+def attach_modifiers(p: parse_state, declaration: _int64, modifiers: _int64) {
+    if(modifiers >= 0) {
+        p.tree.append(declaration, modifiers);
+    }
+}
+
+/**
+ * One declaration at the top of a file or inside a class.
+ *
+ * @param in_class  1 between the braces of a class: constructors and `init`
+ *                  exist only there, `mod` and `import` only outside
+ */
+def parse_declaration(p: parse_state, parent: _int64, in_class: _int64) {
+    if(in_class == 0 && p.at(K_MOD)) { parse_module(p, parent); return; }
+    if(in_class == 0 && p.at(K_IMPORT)) { parse_import(p, parent); return; }
+    if(p.at(P_SEMICOLON) && in_class == 1) { report_semicolon_in_class(p, parent); return; }
+    if(p.at(P_SEMICOLON)) { p.advance(); return; }          // a stray `;` at the top of a file is harmless
+
+    modifiers : _int64 = parse_modifiers(p);
+    kind : _int64 = p.kind();
+    // `calss point { }`, `dfe f() { }`, `improt (std);`: a keyword with a slip is reported and then read as the keyword
+    // (habits/misspelt_keywords.sharp)
+    if(kind == T_IDENTIFIER && read_misspelt_declaration_keyword(p, in_class) == 1) {
+        kind = p.kind();
+        if(kind == K_MOD && modifiers < 0) { parse_module(p, parent); return; }
+        if(kind == K_IMPORT && modifiers < 0) { parse_import(p, parent); return; }
+    }
+
+    if(kind == K_CLASS) { parse_class(p, parent, modifiers, N_CLASS); }
+    else if(kind == K_INTERFACE) { parse_class(p, parent, modifiers, N_INTERFACE); }
+    else if(kind == K_ENUM) { parse_enum(p, parent, modifiers); }
+    else if(kind == K_DEF) { parse_function(p, parent, modifiers); }
+    else if(kind == K_ALIAS) { parse_alias(p, parent, modifiers); }
+    else if(kind == K_MUTATE) { parse_mutate(p, parent); }
+    else if(kind == K_OBFUSCATE) { parse_obfuscate(p, parent); }
+    else if(kind == K_COMPONENT && in_class == 0) { parse_component(p, parent); }
+    else if(kind == K_INIT && in_class == 1) { parse_init(p, parent, modifiers); }
+    else if(kind == T_IDENTIFIER && p.peek(1) == P_LPAREN && in_class == 1) { parse_constructor(p, parent, modifiers); }
+    else if(variable_declaration_follows(p)) { parse_variable(p, parent, modifiers, 1); }
+    else if((kind == T_IDENTIFIER || is_native_type(kind)) && p.peek(1) == T_IDENTIFIER && p.peek(2) == P_LPAREN && parse_c_function(p, parent) == 1) {
+        // `function f() { }`, `int f() { }`: reported and read as a function (habits/declaration_habits.sharp)
+    }
+    else {
+        report_unexpected_declaration(p, in_class);
+    }
+}
+
+/**
+ * A `;` standing alone between the members of a class:
+ *
+ *      class c { def f() { }; }        the `;` after the `}`
+ *      class c { n : _int64 = 0;; }    a second `;`
+ *
+ * At the top of a file and inside a function body a lone `;` is allowed (an
+ * empty declaration or statement), but not in a class: the C++ parser says
+ * "expected method, class, or variable declaration" (grammar.md 2.5). The
+ * habit comes from C++ and Java, where `};` ends a class or a struct.
+ */
+def report_semicolon_in_class(p: parse_state, members: _int64) {
+    // the N_MEMBERS node belongs to a class, an interface, an enum or a mutate block
+    what : string = "class";
+    owner : _int64 = p.tree.parents!![members];
+    if(owner >= 0 && p.tree.kinds!![owner] == N_INTERFACE) { what = "interface"; }
+    after_block : _int64 = p.position > 0 && p.kinds[p.position - 1] == P_RBRACE;
+    note : string = "between the members of " + a_or_an_word(what) + " only declarations can stand: an empty one is not allowed there, unlike at the top of a file or in a function";
+    if(after_block) { note = "a member that ends with `}` (a function, a class, an `init` block) needs no `;` after it"; }
+    p.error("a `;` cannot stand alone in " + a_or_an_word(what))
+     .with_label("nothing is declared here")
+     .with_note(note)
+     .with_help("remove the `;`");
+    p.advance();
+}
+
+/** "a class", "an interface" */
+def a_or_an_word(word: string) : string {
+    if(sizeof(word.data) > 0 && (word.data[0] == 'a' || word.data[0] == 'e' || word.data[0] == 'i' || word.data[0] == 'o' || word.data[0] == 'u')) {
+        return "an " + word;
+    }
+    return "a " + word;
+}
+
+/**
+ * Nothing that can be declared starts with the current token. Say so, and for
+ * the mistakes people actually make, say what to write instead.
+ */
+def report_unexpected_declaration(p: parse_state, in_class: _int64) {
+    kind : _int64 = p.kind();
+    found := p.describe_current();
+
+    if(kind >= T_KEYWORD && (p.peek(1) == P_COLON || p.peek(1) == P_INFER || p.peek(1) == P_LPAREN)) {
+        // `single : decimal;`  `get()`: a reserved word where a name was meant
+        word := p.current_text();
+        p.error("`" + word + "` cannot be used as a name")
+         .with_label("this word is reserved by the language")
+         .with_note("the reserved words are listed in doc/grammar.md, section 1.2")
+         .with_help("pick another name, for example `" + word + "_` or `is_" + word + "`");
+    } else if(in_class == 0 && kind == P_RBRACE) {
+        p.error("this `}` closes nothing")
+         .with_label("no `{` is open here")
+         .with_help("remove it, or look for a `{` that is missing further up");
+    } else if(in_class == 1 && (kind == K_MOD || kind == K_IMPORT)) {
+        p.error(found + " cannot be inside a class")
+         .with_label("only allowed at the top of a file")
+         .with_help("move this line above the class");
+    } else if(kind == K_ELSE) {
+        p.error("this `else` has no `if`")
+         .with_label("nothing for it to belong to")
+         .with_help("an `else` comes directly after the block of an `if`, inside a function; check for a `}` too many in front of it");
+    } else if(kind == K_IF || kind == K_WHILE || kind == K_FOR || kind == K_FOREACH || kind == K_RETURN
+              || kind == K_DO || kind == K_TRY || kind == K_WHEN || kind == K_THROW || kind == K_LOCK) {
+        where : string = "at the top of a file";
+        if(in_class == 1) { where = "directly in a class"; }
+        p.error(found + " cannot stand " + where)
+         .with_label("a statement outside any function")
+         .with_note("only declarations can be here; code that DOES something goes into a function")
+         .with_help("move it into a function - for a program, into `def main(args: string[]) { ... }`; a `}` too many further up would also end the function early");
+    } else if(in_class == 0 && kind == K_INIT) {
+        p.error("`init` blocks belong to a class")
+         .with_label("not inside a class")
+         .with_help("put the block between the `{` and `}` of the class it initializes");
+    } else if(kind == T_IDENTIFIER && p.peek(1) == T_IDENTIFIER) {
+        // `int count;`  `var total = 0;`: a type written first, as in C or Java
+        corrected := sharp_variable_text(p);
+        d := p.error("a declaration is written name first, then the type")
+         .with_label("this looks like a type in front of a name");
+        if(sizeof(corrected.data) > 0) { d.with_help("write: `" + corrected + "`"); }
+        else { d.with_help("write  name : type;   or  name : type = value;   or  name := value;"); }
+    } else if(kind == T_IDENTIFIER && p.peek(1) == P_ASSIGN) {
+        p.error("a new variable is declared with `:=` or with a type")
+         .with_label("`=` alone changes a variable that already exists")
+         .with_help("write  " + p.current_text() + " := value;   or   " + p.current_text() + " : type = value;");
+    } else if(kind == T_IDENTIFIER && p.peek(1) == P_LPAREN && in_class == 0) {
+        p.error("a function is declared with `def`")
+         .with_label("a call cannot stand here, outside any function")
+         .with_help("to declare it write  def " + p.current_text() + "(...) { ... }");
+    } else if(in_class == 1) {
+        p.error("expected a field, a function or another member of the class, found " + found)
+         .with_label("not the start of a member");
+    } else {
+        p.error("expected a class, a function, a variable or another declaration, found " + found)
+         .with_label("not the start of a declaration");
+    }
+}
+
+/**
+ * Declarations up to the `}` that ends them, or to the end of the file.
+ * After a mistake the rest of that declaration is skipped (to its `;` or past
+ * its `{ ... }`) and parsing goes on with the next one.
+ */
+def parse_declarations(p: parse_state, parent: _int64, in_class: _int64) {
+    while(!p.at_end() && !(in_class == 1 && p.at(P_RBRACE))) {
+        before : _int64 = p.position;
+
+        parse_declaration(p, parent, in_class);
+
+        if(p.recovering == 1) {
+            if(p.line_lost == 0 && !ended_cleanly(p, before)) {
+                skip_to_statement_end(p);
+            }
+            p.recovering = 0;
+            p.line_lost = 0;        // a string without its closing quote: the next line starts afresh
+        }
+        if(p.position == before) {
+            p.advance();
+        }
+    }
+}
+
+/** module_decl:  mod std.io; */
+def parse_module(p: parse_state, parent: _int64) {
+    module : _int64 = p.child(parent, N_MODULE);
+    p.advance();
+    parse_dotted_names(p, module);
+    p.expect(P_SEMICOLON, "`;` after the module name");
+}
+
+/** name { "." name }: each becomes an N_NAME child */
+def parse_dotted_names(p: parse_state, parent: _int64) {
+    p.child(parent, N_NAME);
+    p.expect(T_IDENTIFIER, "a name");
+    while(p.at(P_DOT) && p.peek(1) == T_IDENTIFIER) {
+        p.advance();
+        p.child(parent, N_NAME);
+        p.advance();
+    }
+}
+
+/**
+ * import_decl:
+ *
+ *      import ( std.io, std.io.*, platform.kernel )
+ *      import ( std.math ) as m
+ */
+def parse_import(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_IMPORT);
+    p.advance();
+    if(!p.at(P_LPAREN)) {
+        // the one thing everybody writes first:  import std.io;
+        p.error("the modules of an import are written in parentheses")
+         .with_label("expected `(` here")
+         .with_help("write it as:  import ( std.io )   - several modules are separated by commas");
+        return;
+    }
+    p.advance();
+
+    while(!p.at(P_RPAREN) && !p.at_end()) {
+        item : _int64 = p.child(statement, N_IMPORT_ITEM);
+        parse_dotted_names(p, item);
+        if(p.at(P_DOT) && p.peek(1) == P_STAR) {
+            p.advance();
+            p.child(item, N_STAR);
+            p.advance();
+        }
+        if(p.accept(P_COMMA) == 0) { break; }
+    }
+    p.expect(P_RPAREN, "`)`");
+
+    if(p.accept(K_AS) == 1) {
+        p.child(statement, N_NAME);
+        p.expect(T_IDENTIFIER, "the name to import the modules as");
+    }
+    p.accept(P_SEMICOLON);
+}
+
+/**
+ * class_decl and interface_decl:
+ *
+ *      class name<T, U base comparable> base parent : readable, writable { members }
+ *
+ * The node's token is the NAME (not the word `class`): that is the place an
+ * error about the class should point at.
+ */
+def parse_class(p: parse_state, parent: _int64, modifiers: _int64, node_kind: _int64) {
+    p.advance();                                    // class / interface
+    declaration : _int64 = p.child(parent, node_kind);
+    attach_modifiers(p, declaration, modifiers);
+    if(p.expect(T_IDENTIFIER, "the name of the class") == 0) { return; }
+
+    if(p.at(P_LESS)) {
+        parse_generic_parameters(p, declaration);
+    }
+    parse_base_and_interfaces(p, declaration);
+    parse_members(p, declaration);
+}
+
+/** [ "base" type ] [ ":" type { "," type } ] */
+def parse_base_and_interfaces(p: parse_state, declaration: _int64) {
+    // `extends a` / `implements i`: the Java words, reported and read as `base` / `:` (the habits package)
+    while(p.at(T_IDENTIFIER) && parse_java_base_word(p, declaration) == 1) { }
+
+    if(p.at(K_BASE)) {
+        base_class : _int64 = p.child(declaration, N_BASE);
+        p.advance();
+        parse_type_name(p, base_class);
+        // `base a base c`: one base class only (the habits package)
+        while(p.at(K_BASE)) { parse_second_base(p, declaration, base_class); }
+    }
+
+    if(p.at(P_COLON)) {
+        interfaces : _int64 = p.child(declaration, N_INTERFACES);
+        p.advance();
+        parse_type_name(p, interfaces);
+        while(p.accept(P_COMMA) == 1) {
+            parse_type_name(p, interfaces);
+        }
+    }
+}
+
+/** class_block: { members } */
+def parse_members(p: parse_state, declaration: _int64) {
+    members : _int64 = p.child(declaration, N_MEMBERS);
+    opener : _int64 = p.position;
+    if(p.expect(P_LBRACE, "`{`") == 0) { return; }
+    parse_declarations(p, members, 1);
+    p.expect_closing(P_RBRACE, "`}` at the end of the class", opener);
+}
+
+/** generic_identifier_list:  <T, U base some_type>    (the current token is the `<`) */
+def parse_generic_parameters(p: parse_state, parent: _int64) {
+    list_node : _int64 = p.child(parent, N_GENERIC_PARAMETERS);
+    p.advance();
+    for( ;; ) {
+        parameter : _int64 = p.child(list_node, N_GENERIC_PARAMETER);
+        p.expect(T_IDENTIFIER, "the name of a type parameter");
+        if(p.accept(K_BASE) == 1) {
+            parse_type(p, parameter);
+        }
+        if(p.accept(P_COMMA) == 0) { break; }
+    }
+    close_generic(p);
+}
+
+/** mutate_decl:  mutate list<T> base x : y { members }  - add members to an existing class */
+def parse_mutate(p: parse_state, parent: _int64) {
+    declaration : _int64 = p.child(parent, N_MUTATE);
+    p.advance();
+    parse_type_name(p, declaration);
+    parse_base_and_interfaces(p, declaration);
+    parse_members(p, declaration);
+}
+
+/**
+ * enum_decl:
+ *
+ *      enum color { red, green = 5, blue }
+ */
+def parse_enum(p: parse_state, parent: _int64, modifiers: _int64) {
+    p.advance();
+    declaration : _int64 = p.child(parent, N_ENUM);
+    attach_modifiers(p, declaration, modifiers);
+    if(p.expect(T_IDENTIFIER, "the name of the enum") == 0) { return; }
+    if(p.expect(P_LBRACE, "`{`") == 0) { return; }
+
+    while(!p.at(P_RBRACE) && !p.at_end()) {
+        value : _int64 = p.child(declaration, N_ENUM_VALUE);
+        if(p.expect(T_IDENTIFIER, "the name of an enum value") == 0) { break; }
+        if(p.accept(P_ASSIGN) == 1) {
+            parse_expression_into(p, value);
+        }
+        if(p.accept(P_COMMA) == 0) { break; }
+    }
+    p.expect(P_RBRACE, "`}` at the end of the enum");
+}
+
+/**
+ * method_decl:
+ *
+ *      def area(side: decimal) : decimal { return side * side; }      a block
+ *      def area(side: decimal) : decimal = side * side;               one expression, with the type
+ *      def area(side: decimal) := side * side;                        one expression, type worked out
+ *      def area(side: decimal) : decimal;                             no body: an interface or native function
+ *      def operator+(other: vec) : vec { ... }                        an operator
+ *      def first<T>(items: list<T>) : T { ... }                       generic
+ *
+ * The node's token is the name (for an operator: the word `operator`).
+ */
+def parse_function(p: parse_state, parent: _int64, modifiers: _int64) {
+    p.advance();                                    // def
+    function : _int64 = p.child(parent, N_FUNCTION);
+    attach_modifiers(p, function, modifiers);
+
+    if(p.at(K_OPERATOR)) {
+        p.advance();
+        p.child(function, N_OPERATOR_NAME);
+        if(p.accept(P_LBRACKET) == 1) {
+            p.expect(P_RBRACKET, "`]`: the index operator is written `operator[]`");
+        } else if(binary_power(p.kind()) > 0 || p.at(P_NOT) || p.at(P_INC) || p.at(P_DEC)) {
+            p.advance();
+        } else {
+            p.error("expected the operator this function defines");
+        }
+    } else {
+        if(extension_owner_follows(p)) {
+            // def string.shout() ...: the type the function is added to, then its name
+            parse_extension_owner(p, function);
+            p.tree.tokens!![function] = p.position;         // the node is "at" the function's own name
+            if(p.at(K_OPERATOR)) {
+                p.advance();
+                p.child(function, N_OPERATOR_NAME);
+                if(p.accept(P_LBRACKET) == 1) {
+                    p.expect(P_RBRACKET, "`]`: the index operator is written `operator[]`");
+                } else {
+                    p.advance();
+                }
+                parse_parameters(p, function);
+                parse_function_body(p, function);
+                return;
+            }
+        }
+        if(p.expect(T_IDENTIFIER, "the name of the function") == 0) { return; }
+        if(p.at(P_LESS)) {
+            parse_generic_parameters(p, function);
+        }
+    }
+
+    parse_parameters(p, function);
+    parse_function_body(p, function);
+}
+
+/**
+ * An extension function: a function written OUTSIDE a class that is called as
+ * if it were one of the class's own.
+ *
+ *      def string.shout() : string { return self + "!"; }
+ *      def list<T>.second() : T { return self.at(1); }
+ *
+ *      "hey".shout()
+ *
+ * After `def` comes the type, a dot, and then the function's name. This looks
+ * ahead to tell that from a plain function: is there a `.` after the first
+ * name (and its generic arguments, if any)?
+ *
+ *      def area(...)               a plain function
+ *      def first<T>(...)           a generic function: `<T>` and then `(`
+ *      def shape.area(...)         an extension of shape
+ *      def list<T>.second(...)     an extension of list<T>: `<T>` and then `.`
+ */
+def extension_owner_follows(p: parse_state) : _int64 {
+    if(!p.at(T_IDENTIFIER)) { return 0; }
+
+    ahead : _int64 = 1;
+    if(p.peek(ahead) == P_LESS) {
+        depth : _int64 = 0;
+        for( ;; ) {
+            kind : _int64 = p.peek(ahead);
+            if(kind == P_LESS) { depth++; }
+            else if(kind == P_GREATER) { depth--; }
+            else if(kind == P_SHR) { depth -= 2; }
+            else if(kind == T_EOF || kind == P_LPAREN || kind == P_LBRACE || kind == P_SEMICOLON) { return 0; }
+            ahead++;
+            if(depth <= 0) { break; }
+        }
+    }
+    return p.peek(ahead) == P_DOT || p.peek(ahead) == P_HASH;
+}
+
+/**
+ * The type in front of an extension function's name: every `name<args>.` up
+ * to, but not including, the last name before the `(` - that one is the
+ * function. Becomes an N_TYPE_NAME child of the function.
+ */
+def parse_extension_owner(p: parse_state, function: _int64) {
+    owner : _int64 = p.child(function, N_TYPE_NAME);
+    if(module_path_follows(p)) {
+        parse_module_path(p, owner);
+    }
+
+    parse_type_part(p, owner);
+    while(p.at(P_DOT)) {
+        // is what follows the dot the function's own name?  name (   name <T> (   operator +
+        if(p.peek(1) == K_OPERATOR) {
+            p.advance();
+            return;
+        }
+        if(p.peek(1) == T_IDENTIFIER && (p.peek(2) == P_LPAREN || function_generics_follow(p, 2))) {
+            p.advance();
+            return;
+        }
+        p.advance();
+        parse_type_part(p, owner);
+    }
+    p.error("expected `.` and the name of the function after the type it is added to");
+}
+
+/** does `<...>` and then `(` start `ahead` tokens from here? (the type parameters of a generic function) */
+def function_generics_follow(p: parse_state, ahead: _int64) : _int64 {
+    if(p.peek(ahead) != P_LESS) { return 0; }
+
+    depth : _int64 = 0;
+    for( ;; ) {
+        kind : _int64 = p.peek(ahead);
+        if(kind == P_LESS) { depth++; }
+        else if(kind == P_GREATER) { depth--; }
+        else if(kind == P_SHR) { depth -= 2; }
+        else if(kind == T_EOF || kind == P_LPAREN || kind == P_LBRACE || kind == P_SEMICOLON) { return 0; }
+        ahead++;
+        if(depth <= 0) { break; }
+    }
+    return p.peek(ahead) == P_LPAREN;
+}
+
+/** method_body: what follows the parameters of a `def` (see parse_function for the forms) */
+def parse_function_body(p: parse_state, function: _int64) {
+    if(p.accept(P_COLON) == 1) {
+        result : _int64 = p.child(function, N_RETURN_TYPE);
+        if(p.accept(K_NIL) == 0) {
+            parse_type(p, result);
+        }
+
+        if(p.at(P_ASSIGN)) {
+            parse_expression_body(p, function);
+        } else if(p.at(P_INFER)) {
+            parse_typed_infer_body(p, function);        // `: string := s;` (the habits package)
+        } else if(p.accept(P_SEMICOLON) == 0) {
+            parse_required_block(p, function);
+        }
+    } else if(p.at(P_INFER)) {
+        parse_expression_body(p, function);
+    } else if(p.accept(P_SEMICOLON) == 0) {
+        parse_required_block(p, function);
+    }
+}
+
+/** = expression ;    := expression ;     (the current token is the `=` or `:=`) */
+def parse_expression_body(p: parse_state, function: _int64) {
+    body : _int64 = p.child(function, N_EXPRESSION_BODY);
+    p.advance();
+    parse_expression_into(p, body);
+    p.expect(P_SEMICOLON, "`;` after the expression");
+}
+
+/** the body of a `def` is always in braces */
+def parse_required_block(p: parse_state, parent: _int64) {
+    if(p.at(P_LBRACE)) {
+        parse_block(p, parent);
+    } else {
+        p.error("expected `{` and the body of the function");
+    }
+}
+
+/**
+ * constructor_decl:
+ *
+ *      point(x: decimal, y: decimal) { ... }
+ *      square(side: decimal) -> base(side, side) { ... }       calls the base class's constructor first
+ */
+def parse_constructor(p: parse_state, parent: _int64, modifiers: _int64) {
+    constructor : _int64 = p.child(parent, N_CONSTRUCTOR);
+    attach_modifiers(p, constructor, modifiers);
+    p.advance();                                    // the name
+    parse_parameters(p, constructor);
+    parse_base_call(p, constructor);
+    parse_body(p, constructor);
+}
+
+/** init_decl:  init { ... }    init(args) -> base(args) { ... } */
+def parse_init(p: parse_state, parent: _int64, modifiers: _int64) {
+    declaration : _int64 = p.child(parent, N_INIT);
+    attach_modifiers(p, declaration, modifiers);
+    p.advance();
+    if(p.at(P_LPAREN)) {
+        parse_parameters(p, declaration);
+        parse_base_call(p, declaration);
+    }
+    parse_body(p, declaration);
+}
+
+/** base_class_constructor:  -> base(args)   - only when it is there */
+def parse_base_call(p: parse_state, parent: _int64) {
+    if(p.at(P_ARROW) && p.peek(1) == K_BASE) {
+        call : _int64 = p.child(parent, N_BASE_CALL);
+        p.advance();
+        p.advance();
+        parse_arguments(p, call);
+    } else {
+        parse_super_call(p, parent);                    // `-> super(1)` (the habits package)
+    }
+}
+
+/**
+ * variable_decl: a global variable, a field or a local variable
+ *
+ *      count : int = 0;                    a type and a value
+ *      count : int;                        a type only
+ *      count := 0;                         a value only: the type is worked out from it
+ *      a := 1, b = 2;                      several at once
+ *      localized depth : decimal;          one per fiber
+ *
+ * A field can be followed by a getter and a setter:
+ *
+ *      width : decimal;
+ *          get { return width * scale; }
+ *          set value -> { width = value / scale; }
+ *
+ * @param with_accessors  1 for fields and globals. A local variable has none,
+ *                        and a call of a function named like them right after
+ *                        a local declaration must not be mistaken for one.
+ */
+def parse_variable(p: parse_state, parent: _int64, modifiers: _int64, with_accessors: _int64) {
+    variable : _int64 = parse_variable_names(p, parent, modifiers);
+    p.expect(P_SEMICOLON, "`;` at the end of the declaration");
+
+    if(with_accessors == 1) {
+        for(i : _int64 = 0; i < 2; i++) {
+            ahead : _int64 = 0;
+            while(is_modifier(p.peek(ahead))) { ahead++; }
+
+            if(p.peek(ahead) == K_GET) {
+                accessor_modifiers : _int64 = parse_modifiers(p);
+                getter : _int64 = p.child(variable, N_GETTER);
+                attach_modifiers(p, getter, accessor_modifiers);
+                p.advance();
+                parse_body(p, getter);
+            } else if(p.peek(ahead) == K_SET) {
+                accessor_modifiers : _int64 = parse_modifiers(p);
+                setter : _int64 = p.child(variable, N_SETTER);
+                attach_modifiers(p, setter, accessor_modifiers);
+                p.advance();
+                p.child(setter, N_NAME);
+                p.expect(T_IDENTIFIER, "the name for the value being set");
+                p.expect(P_ARROW, "`->`");
+                parse_body(p, setter);
+            }
+        }
+    }
+}
+
+/**
+ * The names of a variable declaration, without the `;` (a `for` writes its
+ * own). The first name becomes an N_VARIABLE under `parent`; further names of
+ * the same statement (`a := 1, b = 2`) are N_VARIABLE children OF THE FIRST,
+ * because they share its modifiers and, when it has one, its type.
+ *
+ * @return the first variable
+ */
+def parse_variable_names(p: parse_state, parent: _int64, modifiers: _int64) : _int64 {
+    localized_at : _int64 = 0 - 1;
+    if(p.at(K_LOCALIZED)) {
+        localized_at = p.position;
+        p.advance();
+    }
+
+    injection : _int64 = parse_inject(p);
+    variable : _int64 = p.child(parent, N_VARIABLE);
+    attach_modifiers(p, variable, modifiers);
+    if(localized_at >= 0) {
+        p.tree.add_child(variable, N_MODIFIER, localized_at);
+    }
+    if(injection >= 0) {
+        p.tree.append(variable, injection);
+    }
+    if(p.expect(T_IDENTIFIER, "the name of the variable") == 0) { return variable; }
+
+    if(p.accept(P_COLON) == 1) {
+        parse_type(p, variable);
+        if(p.at(P_ASSIGN)) {
+            parse_initializer(p, variable);
+        }
+    } else if(p.at(P_INFER)) {
+        parse_initializer(p, variable);
+    }
+
+    while(p.accept(P_COMMA) == 1) {
+        more_inject : _int64 = parse_inject(p);
+        more : _int64 = p.child(variable, N_VARIABLE);
+        if(more_inject >= 0) {
+            p.tree.append(more, more_inject);
+        }
+        if(p.expect(T_IDENTIFIER, "the name of the next variable") == 0) { break; }
+        if(p.at(P_ASSIGN)) {
+            parse_initializer(p, more);
+        }
+    }
+    return variable;
+}
+
+/** = value    := value     (the current token is the `=` or `:=`) */
+def parse_initializer(p: parse_state, variable: _int64) {
+    initializer : _int64 = p.child(variable, N_INITIALIZER);
+    p.advance();
+    parse_expression_into(p, initializer);
+}
+
+/**
+ * inject_request:  inject   inject(component)   - "fill this in from the dependency injection system"
+ * @return an N_INJECT node without a parent, or -1 when the word is not there
+ */
+def parse_inject(p: parse_state) : _int64 {
+    if(!p.at(K_INJECT)) {
+        return 0 - 1;
+    }
+
+    injection : _int64 = p.node(N_INJECT);
+    p.advance();
+    if(p.accept(P_LPAREN) == 1) {
+        p.child(injection, N_NAME);
+        p.expect(T_IDENTIFIER, "the name of a component");
+        p.expect(P_RPAREN, "`)`");
+    }
+    return injection;
+}
+
+/** alias_decl:  alias list<string> as names;    (also a statement) */
+def parse_alias(p: parse_state, parent: _int64, modifiers: _int64) {
+    alias_node : _int64 = p.child(parent, N_ALIAS);
+    attach_modifiers(p, alias_node, modifiers);
+    p.advance();
+    parse_type(p, alias_node);
+    p.expect(K_AS, "`as` and the new name");
+    p.tree.tokens!![alias_node] = p.position;       // the node is "at" the new name
+    p.expect(T_IDENTIFIER, "the new name");
+    p.expect(P_SEMICOLON, "`;`");
+}
+
+/**
+ * component_decl: what the dependency injection system can hand out
+ *
+ *      component app {
+ *          single { new database() }               one object, shared
+ *          factory("fresh") { new session() }      a new object every time
+ *      }
+ */
+def parse_component(p: parse_state, parent: _int64) {
+    declaration : _int64 = p.child(parent, N_COMPONENT);
+    p.advance();
+    if(p.at(T_IDENTIFIER)) {
+        p.child(declaration, N_NAME);
+        p.advance();
+    }
+
+    p.expect(P_LBRACE, "`{`");
+    while(p.at(K_SINGLE) || p.at(K_FACTORY)) {
+        entry : _int64 = p.child(declaration, N_COMPONENT_TYPE);
+        p.advance();
+        if(p.accept(P_LPAREN) == 1) {
+            p.child(entry, N_LITERAL);
+            p.expect(T_STRING, "the name of the entry, in quotes");
+            p.expect(P_RPAREN, "`)`");
+        }
+        p.expect(P_LBRACE, "`{`");
+        parse_expression_into(p, entry);
+        p.expect(P_RBRACE, "`}`");
+    }
+    p.expect(P_RBRACE, "`}` at the end of the component");
+}
+
+/**
+ * obfuscate_decl: which names the obfuscator must keep or may change
+ *
+ *      obfuscate -keep { "std", main.start, point.move(decimal, decimal) }
+ */
+def parse_obfuscate(p: parse_state, parent: _int64) {
+    declaration : _int64 = p.child(parent, N_OBFUSCATE);
+    p.advance();
+    if(p.accept(P_MINUS) == 1) {
+        p.child(declaration, N_NAME);
+        p.expect(T_IDENTIFIER, "`keep`, `keep_inclusive` or `inclusive`");
+    }
+
+    p.expect(P_LBRACE, "`{`");
+    while(!p.at(P_RBRACE) && !p.at_end()) {
+        element : _int64 = p.child(declaration, N_OBFUSCATE_ELEMENT);
+        if(p.at(T_STRING)) {
+            p.child(element, N_LITERAL);
+            p.advance();
+        } else {
+            parse_type(p, element);
+            if(p.at(P_LPAREN)) {
+                parameters : _int64 = p.child(element, N_PARAMETERS);
+                p.advance();
+                while(!p.at(P_RPAREN) && !p.at_end()) {
+                    parse_optionally_named_parameter(p, parameters);
+                    if(p.accept(P_COMMA) == 0) { break; }
+                }
+                p.expect(P_RPAREN, "`)`");
+            }
+        }
+        if(p.accept(P_COMMA) == 0) { break; }
+    }
+    p.expect(P_RBRACE, "`}`");
+}
+
+/**
+ * THE WAY IN: tokenize and parse one source file.
+ *
+ *      p := parse_source("main.sharp", text);
+ *      p.tree          the syntax tree; node 0 is the N_FILE
+ *      p.errors        what was wrong (diagnostics), empty when nothing was
+ */
+def parse_source(file: string, source: _int8[]) : parse_state {
+    p := new parse_state(file, source, scan(source));
+    root : _int64 = p.node(N_FILE);
+    try {
+        parse_declarations(p, root, 0);
+    } catch(e: stack_overflow_exception) {
+        report_nested_too_deeply(p);
+    }
+    // a habit is reported once the whole of its expression is read (the habits package), so a
+    // message can be found after one further right: print them as the text reads
+    if(p.errors.size() > 1) {
+        files := new list<string>();
+        files.add(file);
+        p.errors = in_source_order(p.errors, files);
+    }
+    return p;
+}
+
+/**
+ * The parser is recursive descent: every `(` and every block inside
+ * another is one more level of recursion, and the VM's stack is small. A
+ * file that nests deeper than it can hold (`((((... a ...))))` written
+ * out by a program, a hundred and more levels) makes the stack run out.
+ * That is a limit of this compiler, not a mistake in the program, and the
+ * message says so - at the token where the parser was, so the reader sees
+ * WHICH expression - instead of the crash it would otherwise be. The rest
+ * of the file is not parsed.
+ */
+def report_nested_too_deeply(p: parse_state) {
+    p.last_error_token = 0 - 1;         // (this message must be shown, whatever came before it)
+    d := p.report("E0103", "the code here is nested too deeply for this compiler");
+    if(p.depth > PARSER_NESTING_LIMIT) {
+        // the counted limit (parse_state.sharp): the same in every build of the compiler
+        d.with_label("this is level " + (PARSER_NESTING_LIMIT + 1) + " of nesting")
+         .with_note("each statement or expression inside another takes the parser one level deeper; it follows " + PARSER_NESTING_LIMIT + " levels. The rest of the file was not read");
+    } else {
+        d.with_label("the parser ran out of stack here")
+         .with_note("each `(`, `{` or expression inside another takes the parser one level deeper; this file goes deeper than the compiler's stack holds. The rest of the file was not read")
+         .with_note("with more stack the compiler follows deeper code: start it as `sharp -istack 1mb sharpc ...`");
+    }
+    d.with_help("split the expression: give the inner parts names (`part := ...;`) and combine those");
+    p.depth = 0;
+}

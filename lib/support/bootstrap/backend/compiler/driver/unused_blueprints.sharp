@@ -1,0 +1,230 @@
+mod backend.compiler.driver;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.postprocessor.members,
+    backend.compiler.context
+)
+
+/**
+ * GENERIC CODE THAT NOTHING USES YET is checked too
+ *
+ * The body of a generic class or function is analysed per INSTANCE: `box<T>`
+ * as written has no body that can be typed, `box<string>` has. So a generic
+ * class nobody instantiates - a library written before its first user - would
+ * never have its bodies looked at:
+ *
+ *      class box<T> {
+ *          def show() { prnt(value); }     // `prnt` does not exist: found only
+ *      }                                   // when somebody writes `box<...>`
+ *
+ * This pass closes that hole. For every generic class and generic function
+ * that got no instance from the program, it makes ONE stand-in instance
+ * whose type arguments are all "not known" - the error type, which fits
+ * everywhere and never sets off a message of its own - and analyses that.
+ * Everything in the body that does not depend on `T` is checked as usual
+ * (names, calls, statements, flow); everything that does depend on `T` is
+ * quiet, because nothing is known about it.
+ *
+ *      box<?>          the stand-in for `class box<T>`
+ *      first<?>(...)   the stand-in for `def first<T>(...)`
+ *
+ * A stand-in is not part of the program: no code generator must ever see a
+ * class with an unknown type in it. So the pass remembers how long the work
+ * lists were before it began (`stand_in_marks`), and `forget_stand_ins` cuts
+ * them back to that once the flow analysis has been through the stand-in
+ * bodies. Only the MESSAGES stay.
+ *
+ * AND THEY STAY AS WARNINGS:
+ *
+ *      W1039   a mistake in generic code that nothing uses yet
+ *
+ * The program is complete without the unused class - the C++ compiler never
+ * looks at it, builds the program, and the program runs - so a mistake in it
+ * must not stop the build. The message is the one the mistake would get
+ * anywhere else (its own code is named in a note), and it turns into that
+ * error the moment something uses the class.
+ *
+ * What gets a stand-in:
+ *
+ *   - a generic class with no instance, unless it is declared inside another
+ *     generic class (it is reached through the stand-in of that one);
+ *   - a generic function with no instance: a global one, one of a class that
+ *     is not generic, or one of a generic class - there the function is a
+ *     separate copy in each instance of the class, and a stand-in is made in
+ *     the first instance when NO instance of the class has one of it.
+ *
+ * The driver (main.sharp) runs it in three steps, with the flow analysis -
+ * a later package - in the middle:
+ *
+ *      marks := analyse_unused_blueprints(session);        // make and analyse the stand-ins
+ *      check_flow_from(session, marks.analysed_functions); // flow, for their bodies only
+ *      forget_stand_ins(session, marks);                   // errors -> W1039; cut the lists back
+ *
+ *      C++ comparison: none. The C++ compiler never looks at a generic body
+ *      that is not instantiated either, and has nothing in its place.
+ */
+class stand_in_marks {
+    // how long each list was before the first stand-in was made: what lies past these is theirs
+    instances : _int64;             // sharp_program.generic_instances
+    function_instances : _int64;    // sharp_program.pending_functions
+    analysed_functions : _int64;    // analysis_session.analysed_functions
+    requests : _int64;              // analysis_session.unsettled_requests
+    problems : _int64;              // analysis_session.problems
+
+    stand_in_marks(session: analysis_session) {
+        instances = session.prog.generic_instances.size().value as _int64;
+        function_instances = session.prog.pending_functions.size().value as _int64;
+        analysed_functions = session.analysed_functions.size().value as _int64;
+        requests = session.unsettled_requests.size().value as _int64;
+        problems = session.problems.size().value as _int64;
+    }
+}
+
+/** make a stand-in instance of every generic class and function that has no instance, and analyse their bodies */
+def analyse_unused_blueprints(session: analysis_session) : stand_in_marks {
+    prog : sharp_program = session.prog;
+    marks := new stand_in_marks(session);
+
+    // 1. the generic classes nothing made an instance of
+    classes : _int64 = prog.all_classes.size().value as _int64;       // (fixed: making instances may add classes)
+    for(i : _int64 = 0; i < classes; i++) {
+        declared := prog.all_classes.at(i);
+        if(!declared.is_generic() || has_instances(declared)) { continue; }
+        if(declared.owner != null && declared.owner!!.is_open()) { continue; }
+        nowhere := new sharp_type(TYPE_NAMED, declared.unit, 0 - 1);    // (no place names it: -1)
+        instantiate(prog, declared, unknown_types(session, declared.type_parameters.size().value as _int64), nowhere, null, session.problems);
+    }
+    analyse_work_list(session, marks.instances, marks.function_instances);
+
+    // 2. the generic functions nothing made an instance of. After the classes: a generic
+    //    function of a generic class is looked for in the instances that exist by now,
+    //    the stand-ins of step 1 among them
+    before : _int64 = prog.pending_functions.size().value as _int64;
+    blueprints : _int64 = prog.generic_functions.size().value as _int64;
+    for(i : _int64 = 0; i < blueprints; i++) {
+        function : sharp_function? = copy_to_stand_in_for(prog.generic_functions.at(i));
+        if(function == null) { continue; }
+        instantiate_function(prog, function!!, unknown_types(session, function!!.type_parameters.size().value as _int64));
+    }
+    analyse_work_list(session, prog.generic_instances.size().value as _int64, before);
+    return marks;
+}
+
+/** has the program made an instance of this generic class? */
+def has_instances(blueprint: sharp_class) : _int64 {
+    return blueprint.instance_list != null && blueprint.instance_list!!.size().value > 0;
+}
+
+/** `count` times "not known": the type arguments of a stand-in */
+def unknown_types(session: analysis_session, count: _int64) : list<resolved_type> {
+    types := new list<resolved_type>();
+    for(i : _int64 = 0; i < count; i++) { types.add(session.types.error_type); }
+    return types;
+}
+
+/**
+ * The function to make a stand-in instance of for the generic function
+ * `written`, or null when it needs none (it has an instance) or can have
+ * none (its class has no instance at all).
+ *
+ * A global function, or one of a class that is not generic, is its own
+ * blueprint. One of a generic class exists once per instance of the class
+ * (each a copy with the class's type arguments filled in): when none of
+ * those copies has an instance, the copy in the first instance gets one.
+ */
+def copy_to_stand_in_for(written: sharp_function) : sharp_function? {
+    if(written.owner == null || !written.owner!!.is_open()) {
+        if(function_has_instances(written)) { return null; }
+        return written;
+    }
+
+    owner : sharp_class = written.owner!!;
+    if(owner.instance_list == null || !owner.is_generic()) { return null; }     // (inside a class nested in a generic one: not followed)
+    first : sharp_function? = null;
+    for(i : _int64 = 0; i < owner.instance_list!!.size(); i++) {
+        instance := owner.instance_list!!.at(i);
+        for(j : _int64 = 0; j < instance.functions.size(); j++) {
+            copy := instance.functions.at(j);
+            if(copy.node != written.node || copy.unit != written.unit || !copy.is_generic()) { continue; }
+            if(function_has_instances(copy)) { return null; }
+            if(first == null) { first = copy; }
+        }
+    }
+    return first;
+}
+
+/** has the program made an instance of this generic function? */
+def function_has_instances(blueprint: sharp_function) : _int64 {
+    return blueprint.instances != null && !blueprint.instances!!.is_empty();
+}
+
+/**
+ * Take the stand-ins out of the program again: every error they reported
+ * becomes the warning W1039, the work lists are cut back to what the program
+ * itself made, and the blueprints forget the instances made since.
+ *
+ * (An instance with real type arguments that only a stand-in body named -
+ * `new list<string>()` inside an unused `box<T>` - goes too: nothing of the
+ * program uses it.)
+ */
+def forget_stand_ins(session: analysis_session, marks: stand_in_marks) {
+    prog : sharp_program = session.prog;
+    for(i : _int64 = marks.problems; i < session.problems.size(); i++) {
+        session.problems.put(i, as_unused_code_warning(session.problems.at(i)));
+    }
+
+    while(prog.generic_instances.size() > marks.instances) {
+        instance : sharp_class = prog.generic_instances.pop_last();
+        blueprint : sharp_class? = instance.blueprint;
+        if(blueprint != null && blueprint!!.instances != null) { blueprint!!.instances!!.remove(instance.instance_key); }
+        if(blueprint != null && blueprint!!.instance_list != null) { blueprint!!.instance_list!!.remove(instance); }
+    }
+    if(prog.instances_completed > marks.instances) { prog.instances_completed = marks.instances; }
+
+    while(prog.pending_functions.size() > marks.function_instances) {
+        instance : sharp_function = prog.pending_functions.pop_last();
+        blueprint : sharp_function? = instance.blueprint;
+        if(blueprint != null && blueprint!!.instances != null && instance.type_arguments != null) {
+            blueprint!!.instances!!.remove(key_of_type_arguments(instance.type_arguments!!));
+        }
+    }
+    while(session.analysed_functions.size() > marks.analysed_functions) { session.analysed_functions.pop_last(); }
+    while(session.unsettled_requests.size() > marks.requests) { session.unsettled_requests.pop_last(); }
+}
+
+/**
+ * W1039: an error found in a stand-in becomes a warning that says why it is
+ * one. The message, label, places and helps are the error's own; its code
+ * moves into a note, so it can still be looked up.
+ */
+def as_unused_code_warning(d: diagnostic) : diagnostic {
+    if(d.severity == SEVERITY_WARNING) { return d; }    // a warning stays the warning it is
+    warning := new diagnostic("W1039", d.message, d.file, d.source, d.table, d.from, d.to);
+    warning.as_warning();
+    warning.label = d.label;
+    warning.related = d.related;
+    warning.notes = d.notes;
+    warning.helps = d.helps;
+    warning.with_note("this is in generic code the program never uses with real types, so it does not stop the build; it is error "
+                      + d.code + " as soon as something makes an instance of it");
+    return warning;
+}
+
+/** the key a generic function keeps an instance under: the keys of its type arguments, with commas (generic_functions.sharp) */
+def key_of_type_arguments(arguments: list<resolved_type>) : string {
+    key := new string_builder("");
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        if(i > 0) { key.append(","); }
+        key.append(arguments.at(i).key());
+    }
+    return key.build();
+}

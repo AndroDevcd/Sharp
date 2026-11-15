@@ -1,0 +1,17 @@
+mod backend.postprocessor.names;
+
+/**
+ * STAGE 3, TYPE NAMES: every written type name is tied to its declaration
+ *
+ * The files of this package (module `backend.postprocessor.names`):
+ *
+ *      type_names.sharp      resolve_type_names (the stage's driver) and the lookup rules of a type name
+ *      type_name_messages.sharp  a type name that was not found: E0301, E0303 - E0305, with did-you-mean,
+ *                            the missing import or import group, other languages' names
+ *      declared_types.sharp  walks every declaration and resolves the types written in it
+ *      renamed_type_parameters.sharp  `def box<X>.f() : X`: an extension function's own name for its class's `T`
+ *      type_access.sharp     may the type be named from there? private / protected / local (E0700 - E0702)
+ *      mutations.sharp       mutate blocks: their members become members of the class
+ *
+ * This file is the package's front door: it only says what is where.
+ */

@@ -1,0 +1,115 @@
+mod backend.compiler.overloads;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * OVERLOAD RESOLUTION: which of several functions of one name a call means
+ *
+ *      def show(n: _int64)     def show(text: string)     def show(p: point, indent: _int32)
+ *
+ *      show(5)                 show(_int64): the number fits without being turned into an object
+ *      show("hi")              show(string): the text literal becomes a string
+ *      show(p)                 none fits: "show(p: point, indent: _int32) takes 2 arguments, 1 was given"
+ *
+ * This is the textbook RANKED CANDIDATE SEARCH: collect the functions the
+ * name can mean in one scope (the caller knows which scopes, and asks them
+ * in order - doc/backend.md 7.7), keep those that can take the arguments,
+ * and pick the best by ranking the conversions each needs. The C++
+ * compiler's own three steps come first, so every call that compiler
+ * resolves gets the same function here (doc/backend.md 7.6, D3).
+ *
+ * The files of this package (module `backend.compiler.overloads`):
+ *
+ *      overloads.sharp         this front door: resolve_overload, the one entry
+ *      call_candidate.sharp    the data: call_argument, call_candidate, overload_result
+ *      applicability.sharp     can one function take the arguments? the conversions it needs
+ *      ranking.sharp           the best of the applicable ones: exact, only one, plain numbers,
+ *                              ranks, grades, nearest class
+ *      type_inference.sharp    generic functions: the instance for the type arguments written or
+ *                              worked out from the arguments (unification)
+ *      overload_messages.sharp E0501 "no `add` takes ...", E0503 "ambiguous", with every candidate
+ *      type_argument_messages.sharp  E0515 - E0518: the type arguments of a generic call are what is wrong
+ *
+ *      C++ comparison: `resolve_function` in dependency/dependency.cpp, with
+ *      `function_parameters_match` (types/sharp_function.cpp) and
+ *      overload_preference.cpp.
+ */
+
+/**
+ * Choose among `functions` (the candidates of ONE scope) for `arguments`.
+ * Nothing is reported here: the caller decides whether to try another scope
+ * or to report (report_no_fit, report_ambiguous).
+ *
+ * @param type_arguments  written at the call (`f<int>(x)`), null when none
+ * @param receiver        the class of the object the function is called on (for "nearer
+ *                        class wins"); null for a global or static call
+ */
+def resolve_overload(context: analysis_context, functions: list<sharp_function>, arguments: list<call_argument>,
+                     type_arguments: list<resolved_type>?, receiver: sharp_class?) : overload_result {
+    result := new overload_result();
+    candidates := functions;
+    if(type_arguments != null || has_generic(functions)) {
+        made := instances_for_call(context, functions, arguments, type_arguments);
+        candidates = made.functions;
+        result.type_argument_problem = made.type_argument_problem;
+        for(i : _int64 = 0; i < made.rejected.size(); i++) { result.rejected.add(made.rejected.at(i)); }
+    }
+    choose_overload(context.session, candidates, arguments, receiver, result);
+    if(result.best != null && has_error_argument(arguments) == 1
+       && is_a_guess(context.session, candidates, arguments, result.best!!)) {
+        // no winner after all: the callers say nothing about a tie when an argument is unknown,
+        // and the call gets the error type
+        result.tied.add(result.best!!);
+        result.best = null;
+    }
+    return result;
+}
+
+/**
+ * An argument that is "not known" (the error type: its own mistake was
+ * reported) fits every parameter, so the winner among several overloads is
+ * then only the first that came along. When another overload could take the
+ * arguments as well AND gives another type back, taking the winner's result
+ * type would be a guess, and what the program does with that result would be
+ * judged by the guess:
+ *
+ *      abs(nope).value         // `nope` is unknown; were abs(decimal) taken, `.value`
+ *                              // would be reported on top - for abs(int) it is fine
+ *
+ * (Overloads that all return the same type are no guess: `new point(nope)`.)
+ */
+def is_a_guess(session: analysis_session, candidates: list<sharp_function>, arguments: list<call_argument>,
+               best: call_candidate) : _int64 {
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        other := candidates.at(i);
+        if(other == best.function || other.parameters.size() != arguments.size()) { continue; }
+        if(other.result_type != null && best.function.result_type != null
+           && same_resolved_type(other.result_type!!, best.function.result_type!!)) { continue; }
+        if(fit_candidate(session, other, arguments, 1).applicable == 1) { return 1; }
+    }
+    return 0;
+}
+
+/** is any of the functions generic? (nearly never: the common case skips the instance step) */
+def has_generic(functions: list<sharp_function>) : _int64 {
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        if(functions.at(i).is_generic()) { return 1; }
+    }
+    return 0;
+}
+
+/** does any argument have the error type? Then a failed call says nothing more (one mistake, one message) */
+def has_error_argument(arguments: list<call_argument>) : _int64 {
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        if(arguments.at(i).is_lambda == 0 && arguments.at(i).value.type.kind == RT_ERROR) { return 1; }
+    }
+    return 0;
+}

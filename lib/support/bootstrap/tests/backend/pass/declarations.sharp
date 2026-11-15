@@ -1,0 +1,41 @@
+mod shapes;
+
+import ( std.io )
+
+interface printable {
+    def show() : string;
+}
+
+public class shape {
+    protected name : string = "";
+    class corner { x : decimal; y : decimal; }
+    def area() : decimal;
+}
+
+public class circle<T base shape> base shape : printable {
+    private radius : decimal = 1, scale = 2;
+    items : list<T>?;
+    width : decimal;
+        get { return radius * 2; }
+        set value -> { radius = value / 2; }
+    on_change : (decimal)(nil)?;
+
+    circle(r: decimal) -> base() { radius = r; }
+    init { radius = 0; }
+
+    override def area() : decimal { return radius * radius * 3.14159; }
+    override def show() : string = "circle";
+    def first<U>(from: list<U>, at: corner) : U { return from.at(0); }
+    static def operator+(other: circle<T>) : circle<T> { return other; }
+    enum quadrant { first, second = 5 }
+}
+
+alias list<shape> as shapes_list;
+total : decimal = 0;
+
+def string.shout() : string { return self; }
+def main() { }
+
+mutate shape {
+    def perimeter() : decimal { return 0; }
+}

@@ -1,0 +1,73 @@
+// expect: E0722 E0722 W1005 W1005 W1004 E0723 E0721 W1027 E0724 W1006 W1006 E0721 E0420 E0420 E0420 E0411 E0411 E0411 E0410 E0411 E0411 E0411 E0411 E0411 E0411 E0413 E0413 E0413 E0414 E0414 E0415 E0415 E0416 W1023
+mod null_and_operator_mistakes;
+
+import ( std.io )
+
+/**
+ * NULL SAFETY AND THE BUILT-IN OPERATIONS: ?.  !!  ?:  ? :  sizeof  [ ]  conditions
+ * One mistake per line, in the order the compiler prints them.
+ */
+
+class node {
+    name : string = "node";
+    weight : _int64 = 1;
+    next : node?;
+    items : string[]?;
+}
+class rock { }
+
+def reaching_into(maybe: node?, sure: node) {
+    a : string = maybe.name;                    // E0722: may be null
+    b : string = maybe.next.name;               // E0722 for `next` only: `maybe` was reported on the line above (once per variable)
+    c : string = sure?.name;                    // W1005: ?. on something never null
+    d : string = sure!!.name;                   // W1005: !!. on something never null
+    e : node = sure!!;                          // W1004: !! not needed
+    f : _int64 = sure.weight!!;                 // E0723: !! on a number
+    g : string = maybe?.name;                   // E0721: the chain may give null
+    h : _int64 = maybe?.weight;                 // W1027: a number through ?. reads like !!.
+    i : string? = maybe?.next.name;             // fine: after a `?.` the chain is not asked again
+    j : string? = maybe?.next?.name;            // fine
+    k : string? = maybe!!.next!!.name;          // fine
+}
+
+def fallbacks(maybe: node?, sure: node, r: rock, n: _int64) {
+    a : node = maybe ?: r;                      // E0724: the fallback is not a node
+    b : node = sure ?: sure;                    // W1006: never null
+    c : _int64 = n ?: 3;                        // W1006
+    d : node = maybe ?: null;                   // E0721: still nullable
+}
+
+def choices(n: _int64, sure: node, r: rock, text: string, numbers: _int64[]) {
+    a := n ? sure : r;                          // E0420: unrelated branches
+    b := n ? 1 : text;                          // E0420: a number and a string
+    c := n ? null : 2;                          // E0420: null and a number
+    d := sure ? 1 : 2;                          // E0411: the condition is an object
+    e := numbers ? 1 : 2;                       // E0411: an array
+    f := "yes" ? 1 : 2;                         // E0411: text
+    g : rock = n ? sure : sure;                 // E0410: the result is a node
+}
+
+def conditions(sure: node, numbers: _int64[], an_int: int, a_bool: bool, text: string) {
+    if(sure) { }                                // E0411: an object (x != null)
+    while(numbers) { }                          // E0411: an array (sizeof(x) > 0)
+    if(an_int) { }                              // E0411: only a bool object is a condition
+    do { } while(text);                         // E0411
+    for(i : _int64 = 0; sure; i++) { }          // E0411
+    if(a_bool) { }                              // fine
+    if(null) { }                                // E0411
+}
+
+def sizes_and_indexes(n: _int64, sure: node, numbers: _int64[], anything: object, r: rock, d: decimal) {
+    a := sizeof(n);                             // E0413: a number has no size
+    b := sizeof(d);                             // E0413
+    b2 := sizeof(null);                         // E0413: null is no object at all
+    c := n[0];                                  // E0414: a number cannot be indexed
+    e := anything[0];                           // E0414: object
+    f := numbers[r];                            // E0415: the index is not a number
+    g := numbers["one"];                        // E0415
+    h := numbers[0, 1];                         // E0416: one dimension
+    i := sizeof(numbers);                       // fine
+    j := sizeof(sure);                          // fine
+    k := numbers[d];                            // fine: cut down
+    big := 3000000000;                          // W1023: does not fit the int it becomes
+}

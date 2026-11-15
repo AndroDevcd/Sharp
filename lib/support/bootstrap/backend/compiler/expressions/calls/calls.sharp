@@ -1,0 +1,62 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.expressions
+)
+
+/**
+ * CALLS: every form of `something(args)`, and `new`
+ *
+ *      print(x)                by a plain name           call_by_name.sharp
+ *      names.add(x)            through a value or class  member_calls.sharp
+ *      std.io#print(x)         in a named module         member_calls.sharp
+ *      handlers[0](x)          of a function value       value_calls.sharp
+ *      make()(x)               ... the result of a call is a value too
+ *      new point(1, 2)         an object                 new_expression.sharp
+ *      point(1, 2)             ... without `new`
+ *
+ * Each ends in the same three steps: the arguments are analysed
+ * (call_arguments.sharp), overload resolution picks the function
+ * (backend/compiler/overloads), and the call is built with every argument
+ * converted (bind_call.sharp).
+ *
+ * The files of this package (module `backend.compiler.expressions.calls`):
+ *
+ *      calls.sharp             this front door: analyse_call picks the form by what is called
+ *      call_arguments.sharp    the arguments (a lambda waits for its parameter), the type
+ *                              arguments of a generic call
+ *      call_by_name.sharp      name(args): local function value, the class's own name, members,
+ *                              globals module by module, a class made without `new`
+ *      member_calls.sharp      a.f(args), t.f(args), base->f(args), module#f(args)
+ *      value_calls.sharp       calling a function value (E0504, E0505)
+ *      new_expression.sharp    new t(args) and t(args): constructors (E0506, E0507)
+ *      base_constructor_call.sharp  a constructor's `-> base(args)` (E0509)
+ *      bind_call.sharp         the chosen function becomes a bound_call: arguments converted,
+ *                              dispatch, `private` (W1022), instance function without object (E0704)
+ *
+ *      C++ comparison: dependency.cpp (`resolve_function_reference_item` and
+ *      its helpers), primary/new_expression.cpp, post_ast_expression.cpp.
+ */
+
+/** `callee(arguments)` at `node` (an N_CALL) */
+def analyse_call(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    callee : _int64 = tree.first_child!![node];
+    kind : _int64 = tree.kinds!![callee];
+    if(kind == N_MEMBER) { return call_member(context, node, callee, node); }
+    if(kind == N_IDENTIFIER) { return call_by_name(context, node, callee, arguments_of(context, node)); }
+    if(kind == N_MODULE_NAME) { return call_in_module(context, node, callee, arguments_of(context, node)); }
+
+    // anything else in front of `(` must be a function value: (pick())(x), handlers[i](x)
+    value := analyse_value(context, callee, null);
+    return call_function_value(context, value, arguments_of(context, node), node);
+}

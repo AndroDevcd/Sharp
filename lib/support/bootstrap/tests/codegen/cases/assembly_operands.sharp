@@ -1,0 +1,96 @@
+mod main;
+
+// output:
+// 5
+// 0
+// 1
+// pointed
+// 3
+// 7
+// 42
+// 100
+
+/*
+ * The operands of asm instructions that NAME something (doc/codegen.md 6.17;
+ * cases/assembly.sharp has registers, numbers, locals and labels):
+ *
+ *      "hello"                 a text: its number in the string table (newString pushes its _int8[])
+ *      $point                  a class: its address (newClass pushes an object of it, no constructor runs)
+ *      $point[name]            a field: its slot in the object (movn; pushObj, popl copy it into a local)
+ *      $point[count]           a static field: its slot in the class's static object (movg, getf)
+ *      [seven]                 a function of this module: its address (call)
+ *      $main#__srt_global[twice]   a global function named through its module's globals class
+ *      $__srt_global[twice]        the same, the module left out: the module the code is in
+ *
+ * Every number such an operand stands for differs between the two builds
+ * (addresses, slots), so the test prints what the instructions DO with them.
+ */
+
+class point {
+    name : string?;
+    x : _int64;
+    static count : _int64 = 0;
+    point() { }
+}
+
+def seven() : _int64 { return 7; }
+def twice(n: _int64) : _int64 { return n * 2; }
+
+def main() {
+    chars : _int8[]? = null;
+    asm {
+        newString "hello"
+        popl [chars]
+    }
+    show(sizeof(chars));
+
+    p : point? = null;
+    asm {
+        newClass $point
+        popl [p]
+    }
+    show(p!!.x);
+    if(p is point) { show(1); }
+
+    q := new point();
+    q.name = "pointed";
+    text : string? = null;
+    asm {
+        movl [q]
+        movn $point[name]
+        pushObj
+        popl [text]
+    }
+    println(text!!);
+
+    point.count = 3;
+    counted : _int64 = 0;
+    asm {
+        movg $point
+        getf ebx, $point[count]
+        smovr2 [counted], ebx
+    }
+    show(counted);
+
+    result : _int64 = 0;
+    asm {
+        call [seven]
+        loadVal ebx
+        smovr2 [result], ebx
+    }
+    show(result);
+    asm {
+        istore 21
+        call $main#__srt_global[twice]
+        loadVal ebx
+        smovr2 [result], ebx
+    }
+    show(result);
+    asm {
+        istore 50
+        call $__srt_global[twice]
+        loadVal ebx
+        smovr2 [result], ebx
+    }
+    show(result);
+}

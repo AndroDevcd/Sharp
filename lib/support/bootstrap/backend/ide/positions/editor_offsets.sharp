@@ -1,0 +1,116 @@
+mod backend.ide.positions;
+
+import (
+    std.io,
+    frontend.lexer
+)
+
+/**
+ * BYTES TO THE EDITOR'S OFFSETS
+ *
+ * The compiler reads a file as BYTES and every position it keeps is a byte
+ * index. The editor counts UTF-16 units of the text it shows. For a file with
+ * only ASCII characters and no `\r` the two are the same number; for every
+ * other file they differ, and an error mark drawn from a byte index would sit
+ * in the wrong place after the first `é`.
+ *
+ *      "é" in a comment           2 bytes   1 unit
+ *      an emoji                   4 bytes   2 units  (UTF-16 writes it as a "surrogate pair")
+ *      \r\n                       2 bytes   1 unit   (the editor turns every line end into \n)
+ *      a tab                      1 byte    1 unit
+ *      a byte-order mark          3 bytes   0 units  (the editor does not show it)
+ *
+ * `file_positions` holds, for one file, the table `map` with one entry per
+ * byte: `map[i]` is the number of units that come before byte `i`. A file
+ * that needs no table has `map == null` and offset = byte index (nearly all
+ * files: the standard library has a handful of exceptions).
+ *
+ * A byte that is not valid UTF-8 counts as one unit: the editor shows one
+ * U+FFFD for it. That is right for the common damage and not promised for
+ * every broken sequence (doc/ide.md, limit 8).
+ *
+ *      C++ comparison: what a code-point iterator over std::string_view would
+ *      be, remembered as an array so that a look-up costs one read.
+ */
+class file_positions {
+    source : _int8[];
+    table : token_table;
+    map : _int32[]?;                // null: offset == byte index
+
+    file_positions(source: _int8[], table: token_table, needs_map: _int64) {
+        self->source = source;
+        self->table = table;
+        if(needs_map == 1) { build_map(); }
+    }
+
+    /** how many bytes the file has */
+    def length() : _int64 {
+        return sizeof(source);
+    }
+
+    /** the offset of byte `index` (an index outside the file is moved to its nearest end) */
+    def offset_of(index: _int64) : _int64 {
+        at : _int64 = index;
+        if(at < 0) { at = 0; }
+        if(at > sizeof(source)) { at = sizeof(source); }
+        if(map == null) { return at; }
+        return map!![at];
+    }
+
+    /**
+     * One pass over the bytes. `pending` is how many continuation bytes the
+     * character being read still has; those bytes add nothing (the lead byte
+     * already counted the character). A 4-byte character is two units: the
+     * first is counted at its lead byte and the second at its LAST byte, so a
+     * character that is cut short (the file is damaged) counts one unit - the
+     * one U+FFFD the editor shows for it - and not two.
+     */
+    private def build_map() {
+        size : _int64 = sizeof(source);
+        units := new _int32[size + 1];
+        count : _int64 = 0;
+        pending : _int64 = 0;
+        wide : _int64 = 0;              // 1 while the character being read is a 4-byte one
+
+        for(i : _int64 = 0; i < size; i++) {
+            units[i] = count;
+            b : _int64 = byte_at(i);
+
+            if(i == 0 && size >= 3 && b == 239 && byte_at(1) == 187 && byte_at(2) == 191) {
+                pending = 2;                                    // a byte-order mark: three bytes, no units
+            } else if(pending > 0 && b >= 128 && b <= 191) {
+                pending--;                                      // the rest of a character that was counted
+                if(pending == 0 && wide == 1) { count++; wide = 0; }    // ... and the second unit of a 4-byte one
+            } else {
+                pending = 0;
+                wide = 0;
+                if(b == 13 && i + 1 < size && byte_at(i + 1) == 10) {
+                    // a carriage return right before a line feed: the line feed counts for both
+                } else {
+                    count++;                                    // an ASCII character, the lead byte of a longer one, or a stray byte (one U+FFFD)
+                    if(b >= 240 && b <= 244) { pending = 3; wide = 1; }
+                    else if(b >= 224 && b <= 239) { pending = 2; }
+                    else if(b >= 194 && b <= 223) { pending = 1; }
+                }
+            }
+        }
+        units[size] = count;
+        map = units;
+    }
+
+    private def byte_at(index: _int64) : _int64 {
+        b : _int64 = source[index];
+        if(b < 0) { b = b + 256; }
+        return b;
+    }
+}
+
+/** 1 when the offsets of this file differ from its byte indexes: a byte above 127, or a `\r` */
+def needs_offset_map(source: _int8[]) : _int64 {
+    size : _int64 = sizeof(source);
+    for(i : _int64 = 0; i < size; i++) {
+        b : _int64 = source[i];
+        if(b < 0 || b == 13) { return 1; }
+    }
+    return 0;
+}

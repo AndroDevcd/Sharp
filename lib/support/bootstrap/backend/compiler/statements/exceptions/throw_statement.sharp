@@ -1,0 +1,60 @@
+mod backend.compiler.statements.exceptions;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * `throw value;`
+ *
+ * The value must be an object of a class that is `std#throwable` or below
+ * (checked with the C++ compiler: "must inherit base level exception class
+ * `std#throwable`", "must evaluate to a class"). It may be nullable - a null
+ * thrown raises the null-pointer exception instead (doc/backend.md 7.11).
+ * Execution never goes on after a `throw` (the flow analysis knows).
+ *
+ *      E0612   the value is not an object of a throwable class
+ *
+ *      C++ comparison: compiler/functions/statements/throw_statement.cpp.
+ */
+def analyse_throw(context: analysis_context, node: _int64) : bound_statement {
+    value_node : _int64 = context.tree.first_child!![node];
+    if(value_node < 0) { return new bound_empty(context.unit, node); }
+    value := analyse_value(context, value_node, null);
+    type : resolved_type = value.type;
+
+    if(type.kind != RT_ERROR) {
+        if(type.kind != RT_CLASS || type.is_array == 1) { report_not_throwable(context, value, value_node, 0); }
+        else if(!is_throwable(context, type.class_of!!) && type.class_of!!.inherits_uncertainly() == 0) { report_not_throwable(context, value, value_node, 1); }
+    }
+    return new bound_throw(context.unit, node, value);
+}
+
+/** E0612, with what to throw instead */
+def report_not_throwable(context: analysis_context, value: bound_expression, node: _int64, is_class: _int64) {
+    type : resolved_type = value.type;
+    if(is_class == 1) {
+        d := problem_over(context, "E0612", "`" + type.as_non_null().to_text() + "` cannot be thrown: it is not a `throwable`", node);
+        d.with_label("an object of a class that is not `std#throwable` or below it");
+        d.with_note("only objects of `throwable` and the classes below it (`exception`, `error` ...) can be thrown and caught");
+        if(type.class_of!!.module.is_library()) { d.with_help("throw an exception that carries it: `throw new exception(...)`"); }
+        else { d.with_help("let the class be one: `class " + type.class_of!!.written.name + " base exception { ... }`"); }
+        report(context, d);
+        return;
+    }
+    d := problem_over(context, "E0612", "only an object can be thrown, and this is " + described_value(value), node);
+    d.with_label("not an object of a `throwable` class");
+    d.with_note("only objects of `throwable` and the classes below it (`exception`, `error` ...) can be thrown and caught");
+    if(value.literal == LIT_TEXT || type == context.session.string_type()) {
+        d.with_help("wrap the message in an exception: `throw new exception(" + source_text_of(context, node) + ");`");
+    } else {
+        d.with_help("throw an exception that carries it: `throw new exception(\"...\");`");
+    }
+    report(context, d);
+}

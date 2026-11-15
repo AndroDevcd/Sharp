@@ -1,0 +1,300 @@
+mod backend.types.declarations;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * THE OBJECTS THE BACKEND WORKS WITH
+ *
+ * The parser turned each file into a tree. The tree is shaped like the TEXT:
+ * "here is the word class, then a name, then braces with things in them".
+ * The backend needs things shaped like the PROGRAM: "this is the class point;
+ * these are its fields; this is the class it inherits from". So the first
+ * backend stage (backend/preprocessor) builds one object for everything a
+ * program declares:
+ *
+ *      sharp_program
+ *        sharp_module "main"               one per `mod` name, however many files say it
+ *          sharp_class point               sharp_class.sharp
+ *            sharp_field x                 sharp_field.sharp
+ *            sharp_function length         sharp_function.sharp
+ *            sharp_class point.corner      a class inside a class
+ *          sharp_function main
+ *          sharp_alias names               sharp_alias.sharp
+ *        sharp_module "std"
+ *          ...
+ *
+ * and every place a type is written becomes a sharp_type (sharp_type.sharp).
+ *
+ * Each kind of thing has its own class with its own information. What they
+ * ALL have is in sharp_declaration, the class they inherit from:
+ *
+ *      kind        which of them it is (D_CLASS, D_FIELD, ...)
+ *      name        what it is called
+ *      flags       public, static, const ... (FLAG_...)
+ *      unit, node  where it was declared: which file, which node of its tree
+ *      owner       the class it is a member of; null for something declared in a module
+ *      module      the module it belongs to
+ *
+ *      C++ comparison: the old compiler's sharp_class / sharp_field /
+ *      sharp_function (lib/grammar/backend/types); this is the same idea with
+ *      a common base class instead of repeating the shared members in each.
+ */
+
+// ---- kinds of declaration
+const D_CLASS          : _int64 = 1;
+const D_INTERFACE      : _int64 = 2;
+const D_ENUM           : _int64 = 3;
+const D_ENUM_VALUE     : _int64 = 4;
+const D_ALIAS          : _int64 = 5;    // alias list<string> as names;
+const D_TYPE_PARAMETER : _int64 = 6;    // the T of class box<T>
+const D_FUNCTION       : _int64 = 7;
+const D_FIELD          : _int64 = 8;    // a field of a class, or a global variable
+const D_CONSTRUCTOR    : _int64 = 9;
+const D_COMPONENT      : _int64 = 10;
+const D_INIT           : _int64 = 11;   // an init { } block
+const D_GETTER         : _int64 = 12;
+const D_SETTER         : _int64 = 13;
+
+/** can a declaration of this kind be written where a type is expected? */
+def names_a_type(kind: _int64) : _int64 {
+    return kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM || kind == D_ALIAS || kind == D_TYPE_PARAMETER;
+}
+
+/** "class", "interface", ... for messages */
+def declaration_kind_name(kind: _int64) : string {
+    if(kind == D_CLASS) { return "class"; }
+    if(kind == D_INTERFACE) { return "interface"; }
+    if(kind == D_ENUM) { return "enum"; }
+    if(kind == D_ENUM_VALUE) { return "enum value"; }
+    if(kind == D_ALIAS) { return "alias"; }
+    if(kind == D_TYPE_PARAMETER) { return "type parameter"; }
+    if(kind == D_FUNCTION) { return "function"; }
+    if(kind == D_FIELD) { return "field"; }
+    if(kind == D_CONSTRUCTOR) { return "constructor"; }
+    if(kind == D_COMPONENT) { return "component"; }
+    if(kind == D_INIT) { return "init block"; }
+    if(kind == D_GETTER) { return "getter"; }
+    if(kind == D_SETTER) { return "setter"; }
+    return "name";
+}
+
+// ---- flags: the words in front of a declaration. One bit each, so a
+// declaration's flags are one number:  public static  =  FLAG_PUBLIC | FLAG_STATIC
+const FLAG_PUBLIC    : _int64 = 1;
+const FLAG_PRIVATE   : _int64 = 2;
+const FLAG_PROTECTED : _int64 = 4;
+const FLAG_STATIC    : _int64 = 8;
+const FLAG_CONST     : _int64 = 16;
+const FLAG_LOCAL     : _int64 = 32;
+const FLAG_EXT       : _int64 = 64;
+const FLAG_STABLE    : _int64 = 128;
+const FLAG_NATIVE    : _int64 = 256;
+const FLAG_EXCUSE    : _int64 = 512;
+const FLAG_OVERRIDE  : _int64 = 1024;
+const FLAG_LOCALIZED : _int64 = 2048;   // one per fiber
+const FLAG_MUTATED   : _int64 = 4096;   // added to its class by a `mutate` block, not written in the class itself
+
+/** the flag a modifier keyword stands for; 0 for a token that is not one */
+def flag_of_keyword(kind: _int64) : _int64 {
+    if(kind == K_PUBLIC) { return FLAG_PUBLIC; }
+    if(kind == K_PRIVATE) { return FLAG_PRIVATE; }
+    if(kind == K_PROTECTED) { return FLAG_PROTECTED; }
+    if(kind == K_STATIC) { return FLAG_STATIC; }
+    if(kind == K_CONST) { return FLAG_CONST; }
+    if(kind == K_LOCAL) { return FLAG_LOCAL; }
+    if(kind == K_EXT) { return FLAG_EXT; }
+    if(kind == K_STABLE) { return FLAG_STABLE; }
+    if(kind == K_NATIVE) { return FLAG_NATIVE; }
+    if(kind == K_EXCUSE) { return FLAG_EXCUSE; }
+    if(kind == K_OVERRIDE) { return FLAG_OVERRIDE; }
+    if(kind == K_LOCALIZED) { return FLAG_LOCALIZED; }
+    return 0;
+}
+
+/** "public static" for a flags number */
+def flags_text(flags: _int64) : string {
+    text := new string_builder("");
+    if((flags & FLAG_PUBLIC) != 0) { text.append("public "); }
+    if((flags & FLAG_PRIVATE) != 0) { text.append("private "); }
+    if((flags & FLAG_PROTECTED) != 0) { text.append("protected "); }
+    if((flags & FLAG_OVERRIDE) != 0) { text.append("override "); }
+    if((flags & FLAG_EXCUSE) != 0) { text.append("excuse "); }
+    if((flags & FLAG_LOCAL) != 0) { text.append("local "); }
+    if((flags & FLAG_STATIC) != 0) { text.append("static "); }
+    if((flags & FLAG_CONST) != 0) { text.append("const "); }
+    if((flags & FLAG_STABLE) != 0) { text.append("stable "); }
+    if((flags & FLAG_EXT) != 0) { text.append("ext "); }
+    if((flags & FLAG_NATIVE) != 0) { text.append("native "); }
+    if((flags & FLAG_LOCALIZED) != 0) { text.append("localized "); }
+    return text.build();
+}
+
+/** what every declared thing has; see the top of this file */
+class sharp_declaration {
+    kind : _int64;                  // D_...
+    name : string;
+    flags : _int64 = 0;             // FLAG_... added together
+    unit : source_unit;             // the file it is declared in
+    node : _int64;                  // its declaration in that file's syntax tree
+    owner : sharp_class?;           // the class it is a member of; null for something declared in a module
+    module : sharp_module;          // the module it belongs to
+
+    // Only a class, interface or enum has members; for every other kind this
+    // is null. It is here, and not only in sharp_class, so that code looking
+    // for `outer.inner` can ask any declaration "what is inside you?"
+    // without first asking what it is.
+    members : scope?;
+
+    // Whole-program checks (backend/compiler/program/usage): 1 when the program can come to it
+    // starting from `main` and the start-up code of the platform - the C++ compiler's `used`
+    // (dependency_runner.cpp). For the code generator, which may leave the rest out; analysis
+    // itself never skips anything on account of it. `used_anywhere` is 1 when ANY analysed
+    // code names it, reached or not (what the "never used" warnings ask).
+    reached : _int64 = 0;
+    used_anywhere : _int64 = 0;
+    uses : list<sharp_declaration>?;     // what its typed tree names (functions, fields, classes ...), each once; null: no tree
+    usage_stamp : _int64 = 0;           // (bookkeeping of the walk that fills `uses`)
+
+    // ---- set by code generation (backend/finalizer/layout, doc/codegen.md 5.5)
+    // `kept`: 1 when the executable has it - what the program can come to from where it starts.
+    // `address`: its number in the executable: a class's address in the VM's class table, a
+    // function's in the method table, a field's (or enum value's) slot (codegen.md 3.5, 3.7);
+    // -1 while it has none. Code generation runs once per compile, so these are set once.
+    kept : _int64 = 0;
+    address : _int64 = 0 - 1;
+    optimizer_facts : _int64 = 0;       // for a function, with -O: what a call of it can and cannot do (FACT_... of
+                                        // backend/optimizer/analysis/instruction_facts.sharp); 0: nothing is known
+    optimizer_kept_in : _int64 = 0;     // for a function, with -O: bit k set = its argument k (`self` first) does not
+                                        // escape it (backend/optimizer/passes/calls/escape_analysis.sharp)
+
+    sharp_declaration(kind: _int64, name: string, unit: source_unit, node: _int64, owner: sharp_class?,
+                      module: sharp_module) {
+        self->kind = kind;
+        self->name = name;
+        self->unit = unit;
+        self->node = node;
+        self->owner = owner;
+        self->module = module;
+    }
+
+    def has(flag: _int64) : _int64 {
+        return (flags & flag) != 0;
+    }
+
+    /** the name with the classes it is nested in: outer.inner */
+    def qualified_name() : string {
+        if(owner == null) { return name; }
+        return owner!!.qualified_name() + "." + name;
+    }
+
+    /** the name as it is known program-wide: module#outer.inner */
+    def full_name() : string {
+        if(sizeof(module.name.data) == 0) { return qualified_name(); }
+        return module.name + "#" + qualified_name();
+    }
+}
+
+/**
+ * The names declared in one place - a module, or the body of a class.
+ *
+ * A name can stand for several things at once: functions can be overloaded,
+ * and a class and a function may share a name. So a name leads to a LIST.
+ *
+ * The table is a `name_table` (name_table.sharp), not the library's hash_map: it is
+ * asked for every name in every body.
+ *
+ *      C++ comparison: std::unordered_map<std::string, std::vector<Declaration*>>
+ */
+class scope {
+    names := new name_table<list<sharp_declaration>>();      // (name_table.sharp: a faster hash table for names)
+    ordered := new list<sharp_declaration>();       // everything, in the order it was declared
+
+    def add(declared: sharp_declaration) {
+        same_name := names.at(declared.name);
+        if(same_name == null) {
+            fresh := new list<sharp_declaration>();
+            fresh.add(declared);
+            names.put(declared.name, fresh);
+        } else {
+            same_name!!.add(declared);
+        }
+        ordered.add(declared);
+    }
+
+    /**
+     * Take a declaration out again (an extension function leaves the names of
+     * its module when it becomes a member of its class).
+     */
+    def remove(declared: sharp_declaration) {
+        same_name := names.at(declared.name);
+        if(same_name != null) {
+            kept := new list<sharp_declaration>();
+            for(i : _int64 = 0; i < same_name!!.size(); i++) {
+                if(same_name!!.at(i) != declared) { kept.add(same_name!!.at(i)); }
+            }
+            names.put(declared.name, kept);
+        }
+
+        still_ordered := new list<sharp_declaration>();
+        for(i : _int64 = 0; i < ordered.size(); i++) {
+            if(ordered.at(i) != declared) { still_ordered.add(ordered.at(i)); }
+        }
+        ordered = still_ordered;
+    }
+
+    /** everything called `name` here; null when nothing is */
+    def find(name: string) : list<sharp_declaration>? {
+        return names.at(name);
+    }
+
+    /** the first thing called `name` here that can be used as a type, or null */
+    def find_type(name: string) : sharp_declaration? {
+        found := names.at(name);
+        if(found == null) { return null; }
+
+        for(i : _int64 = 0; i < found!!.size(); i++) {
+            candidate := found!!.at(i);
+            if(names_a_type(candidate.kind)) { return candidate; }
+        }
+        return null;
+    }
+}
+
+/** the text of the token a node is at: the name of a declaration, an identifier ... */
+def node_text(unit: source_unit, node: _int64) : string {
+    p : parse_state = unit.parsed!!;
+    return token_text(p.source, p.table, p.tree.tokens!![node]);
+}
+
+/**
+ * WHAT A NAME MEANS IN ONE PLACE, REMEMBERED
+ *
+ * "What is `size` in class list<string>?" and "what is `print` for the file
+ * shop.sharp?" are asked again and again while bodies are analysed, and the
+ * answer never changes once the declarations are complete. So the first
+ * answer is kept: in `sharp_class.remembered_members` for the members of a
+ * class and the classes above it, in `sharp_file.remembered_globals` for the
+ * modules a file sees (backend/compiler/names). A name nothing has is
+ * remembered too (`kind` 0), which is the common case that pays most: every
+ * global function called from a class first misses the class.
+ *
+ * `kind` is one of the FOUND_... numbers of
+ * backend/compiler/names/lookup_result.sharp; the fields are the ones of a
+ * lookup_result that do not depend on WHERE the name is used.
+ */
+class remembered_name {
+    kind : _int64 = 0;
+    field : sharp_field?;
+    value : sharp_enum_value?;
+    declaration : sharp_declaration?;
+    functions : list<sharp_function>?;
+    owner : sharp_class?;
+    in_module : sharp_module?;
+}

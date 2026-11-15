@@ -1,0 +1,336 @@
+mod backend.compiler.obfuscation;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.postprocessor.names,
+    backend.postprocessor.members,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.names
+)
+
+/**
+ * ONE NAME OF AN `obfuscate` BLOCK, LOOKED UP
+ *
+ *      "std.io"                        a module: the text in quotes is its name
+ *      point                           a class (an interface, an enum)
+ *      list<int>                       one instance of a generic class
+ *      point.x     total               a field of a class; a global variable
+ *      point.move(decimal, decimal)    a function of a class, by its parameter types
+ *      start(string[])                 a global function
+ *      std#string.at(int)              any of them with the module named in front
+ *
+ * The parser reads every name that is not in quotes as a TYPE name followed,
+ * for a function, by parameter types in parentheses. Its parts are walked
+ * from the left: as long as a part names a type (a class, a class inside
+ * it) the walk goes on; the first part that does not must be the LAST one,
+ * and names a member of the class reached - or, when it is the only part, a
+ * global of the modules the file sees.
+ *
+ * A function is always written with its parameters, also when it has none
+ * (`start()`): the name alone would not say which overload is meant. For a
+ * function of a generic class as written (`list.add(T)`) only the NUMBER of
+ * parameters is compared - what `T` is depends on the instance.
+ *
+ *      E0951   the name is no module, class, field or function; a function without its
+ *              parameters; parameters that fit no overload
+ *      W1016   a generic class without type arguments where the block does not reach
+ *              inside classes: nothing has that name
+ *      E0952   a generic function: it has no one function to keep or rename
+ *
+ *      C++ comparison: `compile_obfuscation_element` in compiler/obfuscate_compiler.cpp
+ *      (it resolves the name with `resolve_unrestricted` and accepts a class, a
+ *      field or a function).
+ */
+
+/** the rule for one element of a block; null when the name was reported */
+def rule_for_element(context: analysis_context, element: _int64, mode: _int64) : obfuscation_rule? {
+    tree : syntax_tree = context.tree;
+    rule := new obfuscation_rule(mode, context.unit, element);
+
+    literal : _int64 = tree.child_of_kind(element, N_LITERAL);
+    if(literal >= 0) {
+        rule.module = module_in_quotes(context, literal);
+        if(rule.module == null) { return null; }
+        return rule;
+    }
+
+    type_node : _int64 = tree.child_of_kind(element, N_TYPE);
+    if(type_node < 0) { return null; }                      // the parser reported it
+    name_node : _int64 = tree.child_of_kind(type_node, N_TYPE_NAME);
+    if(name_node < 0) {
+        report_not_a_name(context, element);
+        return null;
+    }
+    rule.declaration = declaration_listed(context, element, name_node, mode);
+    if(rule.declaration == null) { return null; }
+    return rule;
+}
+
+/** `"std.io"`: the module of that name (E0951 when the program has none) */
+def module_in_quotes(context: analysis_context, literal: _int64) : sharp_module? {
+    name := text_inside_quotes(node_text(context.unit, literal));
+    module := context.prog.find_module(name);
+    if(module != null) { return module; }
+
+    d := problem_at(context, "E0951", "there is no module named `" + name + "`", literal);
+    d.with_label("a name in quotes is a module");
+    names := new list<string>();
+    for(i : _int64 = 0; i < context.prog.module_list.size(); i++) { names.add(context.prog.module_list.at(i).name); }
+    close := closest_names(name, names, 3);
+    if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+    else { d.with_help("a class, field or function is listed WITHOUT quotes: `" + name + "`"); }
+    report(context, d);
+    return null;
+}
+
+/**
+ * The class, field or function a listed name means; null when it means
+ * nothing (reported).
+ *
+ * @param name_node  the N_TYPE_NAME: [N_MODULE_PATH] N_TYPE_PART...
+ */
+def declaration_listed(context: analysis_context, element: _int64, name_node: _int64, mode: _int64) : sharp_declaration? {
+    tree : syntax_tree = context.tree;
+    prog : sharp_program = context.prog;
+    signature : _int64 = tree.child_of_kind(element, N_PARAMETERS);
+
+    part : _int64 = tree.first_child!![name_node];
+    module : sharp_module? = null;
+    if(part >= 0 && tree.kinds!![part] == N_MODULE_PATH) {
+        module_name := dotted_name(context.unit, part);
+        module = prog.find_module(module_name);
+        if(module == null) {
+            d := problem_at(context, "E0951", "there is no module named `" + module_name + "`", part);
+            d.with_label("the part in front of `#` names a module");
+            report(context, d);
+            return null;
+        }
+        part = tree.next_sibling!![part];
+    }
+    if(part < 0) { return null; }
+
+    // ---- the first part: a type, or a global
+    first := name_at(context, part);
+    found := new lookup_result();
+    if(module != null) { find_in_module(module!!, first, found); }
+    else { find_in_visible_modules(context.file, first, found); }
+
+    owner : sharp_class? = null;
+    if(found.kind == FOUND_TYPE && found.declaration != null && is_class_kind(found.declaration!!.kind)) {
+        // ---- further parts: classes inside it, then at most one member
+        owner = found.declaration as sharp_class;
+        next : _int64 = tree.next_sibling!![part];
+        while(next >= 0 && tree.kinds!![next] == N_TYPE_PART) {
+            inner := find_member_type(prog, owner!!, name_at(context, next));
+            if(inner == null || !is_class_kind(inner!!.kind)) { break; }
+            owner = inner as sharp_class;
+            part = next;
+            next = tree.next_sibling!![next];
+        }
+        if(next < 0 || tree.kinds!![next] != N_TYPE_PART) {
+            // the whole name is a class
+            if(signature >= 0) {
+                // `point(decimal, decimal)`: a constructor
+                return function_with_parameters(context, element, part, owner!!.constructors, owner, signature);
+            }
+            warn_if_no_such_class_exists(context, part, owner!!, mode);
+            return class_with_arguments(context, element, part, owner!!);
+        }
+        // `next` names a member of `owner`; it must be the last part
+        if(tree.next_sibling!![next] >= 0 && tree.kinds!![tree.next_sibling!![next]] == N_TYPE_PART) {
+            report_name_inside_a_member(context, next, tree.next_sibling!![next], owner!!);
+            return null;
+        }
+        part = next;
+        ensure_members(prog, owner!!);
+        found = new lookup_result();
+        find_class_member(prog, owner!!, name_at(context, part), found);
+    } else if(tree.next_sibling!![part] >= 0 && tree.kinds!![tree.next_sibling!![part]] == N_TYPE_PART) {
+        // `a.b` where `a` is not a class
+        report_nothing_named(context, part, first, null);
+        return null;
+    }
+
+    // ---- `part` names a field or a function
+    name := name_at(context, part);
+    if(found.kind == FOUND_FIELD && signature < 0) { return found.field; }
+    if(found.kind == FOUND_ENUM_VALUE && signature < 0) { return found.value; }
+    if(found.kind == FOUND_FUNCTIONS) {
+        if(signature < 0) {
+            report_function_needs_parameters(context, part, found.functions!!);
+            return null;
+        }
+        listed := function_with_parameters(context, element, part, found.functions!!, owner, signature);
+        if(listed != null) {
+            chosen : sharp_declaration = listed!!;
+            if((chosen as sharp_function).is_generic()) {
+                report_generic_function_listed(context, element, chosen as sharp_function);
+                return null;
+            }
+        }
+        return listed;
+    }
+    if(found.kind == FOUND_FIELD) {
+        d := problem_at(context, "E0951", "`" + name + "` is a field, not a function", part);
+        d.with_label("written with parameters");
+        d.with_help("list it without the parentheses: `" + name + "`");
+        report(context, d);
+        return null;
+    }
+    report_nothing_named(context, part, name, owner);
+    return null;
+}
+
+/**
+ * `list<int>`: the INSTANCE the type arguments make (made now if nothing
+ * else in the program uses it). Any other class: the class itself.
+ */
+def class_with_arguments(context: analysis_context, element: _int64, part: _int64, named: sharp_class) : sharp_declaration? {
+    if(!named.is_generic() || context.tree.first_child!![part] < 0) { return named; }
+    type : resolved_type = resolve_type_at(context, context.tree.child_of_kind(element, N_TYPE));
+    if(type.kind == RT_CLASS && type.class_of != null) { return type.class_of; }
+
+    d := problem_over(context, "E0951", "`" + named.name + "` cannot be made with these type arguments", element);
+    d.with_label("not an instance of `" + named.name + "`");
+    d.with_help("write the type as a variable of it would be declared: `" + named.name + "<...>` with one type for each type parameter");
+    report(context, d);
+    return null;
+}
+
+/**
+ * The function among `candidates` whose parameters are the types written in
+ * the element's N_PARAMETERS; null (E0951) when none is.
+ */
+def function_with_parameters(context: analysis_context, element: _int64, name_part: _int64, candidates: list<sharp_function>,
+                             owner: sharp_class?, signature: _int64) : sharp_declaration? {
+    tree : syntax_tree = context.tree;
+    written := new list<resolved_type>();
+    for(parameter : _int64 = tree.first_child!![signature]; parameter >= 0; parameter = tree.next_sibling!![parameter]) {
+        type_node : _int64 = tree.child_of_kind(parameter, N_TYPE);
+        if(type_node < 0) { type_node = parameter; }
+        written.add(resolve_type_at(context, type_node));
+    }
+
+    by_count_only : _int64 = owner != null && owner!!.is_open();    // a generic class as written: `T` is not a type yet
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        candidate := candidates.at(i);
+        if(candidate.is_synthesized == 1 && written.size() > 0) { continue; }
+        if(candidate.parameters.size() != written.size()) { continue; }
+        fits : _int64 = 1;
+        for(j : _int64 = 0; j < written.size() && fits == 1 && by_count_only == 0; j++) {
+            type := candidate.parameters.at(j).value_type;
+            if(written.at(j).kind == RT_ERROR || type == null || type!!.is_open_type == 1) { continue; }
+            if(!same_resolved_type(type!!, written.at(j))) { fits = 0; }
+        }
+        if(fits == 1) { return candidate; }
+    }
+
+    name := name_at(context, name_part);
+    d := problem_over(context, "E0951", "no `" + name + "` has these parameters", element);
+    d.with_label("no overload takes exactly these types");
+    for(i : _int64 = 0; i < candidates.size() && i < 6; i++) {
+        d.with_note("there is `" + candidates.at(i).signature() + "`");
+    }
+    d.with_help("list the parameter types exactly as the function declares them");
+    report(context, d);
+    return null;
+}
+
+/** E0951: a function listed by its name alone */
+def report_function_needs_parameters(context: analysis_context, part: _int64, functions: list<sharp_function>) {
+    name := name_at(context, part);
+    d := problem_at(context, "E0951", "`" + name + "` is a function: list it with its parameter types", part);
+    d.with_label("which `" + name + "`?");
+    d.with_note("a function is told apart from its overloads by its parameters, so an `obfuscate` block names it with them - also when it has none");
+    d.with_help("write `" + functions.at(0).signature() + "`");
+    report(context, d);
+}
+
+/** E0951: a name that names nothing */
+def report_nothing_named(context: analysis_context, part: _int64, name: string, owner: sharp_class?) {
+    if(owner != null) {
+        d := problem_at(context, "E0951", "`" + owner!!.name + "` has no field, function or class named `" + name + "`", part);
+        d.with_label("not a member of `" + owner!!.name + "`");
+        known := new list<string>();
+        add_member_names(context.prog, owner!!, known, 0);
+        close := closest_names(name, known, 3);
+        if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+        d.with_note("an `obfuscate` block lists names that exist: one that names nothing would protect nothing");
+        report(context, d);
+        return;
+    }
+    d := problem_at(context, "E0951", "there is no class, field or function named `" + name + "` here", part);
+    d.with_label("names nothing");
+    close := closest_names(name, names_visible_from(context), 3);
+    if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+    else { d.with_help("a module is listed in quotes: `\"" + name + "\"`; a name from a module that is not imported: `<module>#" + name + "`"); }
+    d.with_note("an `obfuscate` block lists names that exist: one that names nothing would protect nothing");
+    report(context, d);
+}
+
+/** E0951: `point.x.more` - a name after one that is not a class */
+def report_name_inside_a_member(context: analysis_context, member: _int64, after: _int64, owner: sharp_class) {
+    name := name_at(context, member);
+    d := problem_at(context, "E0951", "`" + name_at(context, after) + "` cannot be inside `" + name + "`: `" + name + "` is not a class of `"
+                    + owner.name + "`", after);
+    d.with_label("only a class has names inside it");
+    d.with_help("end the name at `" + name + "`, or name the class that declares `" + name_at(context, after) + "`");
+    report(context, d);
+}
+
+/** E0951: something that is not a name at all (`_int64`, a function type) */
+def report_not_a_name(context: analysis_context, element: _int64) {
+    d := problem_over(context, "E0951", "this is not the name of something the program declares", element);
+    d.with_label("a built-in type cannot be renamed or kept");
+    d.with_help("list modules (in quotes), classes, fields and functions");
+    report(context, d);
+}
+
+/**
+ * W1016: `obfuscate -keep { list }` - `list` is a generic class as written.
+ * Only its instances (`list<int>`) exist with a name of their own; a block
+ * that reaches inside classes (`-keep_inclusive`, `-inclusive`) applies to
+ * every instance, any other block to nothing.
+ */
+def warn_if_no_such_class_exists(context: analysis_context, part: _int64, named: sharp_class, mode: _int64) {
+    if(!named.is_generic() || named.is_instance()) { return; }
+    if(context.tree.first_child!![part] >= 0) { return; }                   // `list<int>`: type arguments are written
+    if(mode == OBFUSCATE_KEEP_INCLUSIVE || mode == OBFUSCATE_INCLUSIVE) { return; }
+
+    d := problem_at(context, "W1016", "`" + named.name + "` is a generic class: listing it here does nothing", part);
+    d.with_label("no class is called just `" + named.name + "`");
+    d.with_note("a generic class exists only as its instances (`" + named.name + "<...>`); this block applies to the names listed and nothing inside them");
+    d.with_help("list one instance with its type arguments, or use `obfuscate -keep_inclusive { " + named.name
+                + " }` (or `-inclusive`), which applies to every instance");
+    report(context, d);
+}
+
+/**
+ * E0952: a generic function listed in an `obfuscate` block.
+ *
+ *      def twice<T>(x: T) : T { return x; }
+ *      obfuscate { twice<int>(x: int) }
+ *
+ * A generic function is a blueprint: every call with other type arguments
+ * makes a copy of its own (4.1), and none of them has the name written in the
+ * program. There is no single function to keep or to rename, so the entry
+ * would protect nothing - the reason a generic class without type arguments
+ * gets W1016 and a generic function cannot be a value (E0805). The C++
+ * compiler refuses it as well ("generic functions are not supported.",
+ * dependency.cpp).
+ */
+def report_generic_function_listed(context: analysis_context, element: _int64, function: sharp_function) {
+    d := problem_over(context, "E0952", "`" + function.name + "` is a generic function: an `obfuscate` block cannot list it", element);
+    d.with_label("a blueprint for functions, not one function");
+    d.with_related_place(place_of_declaration(function, "declared generic here"));
+    d.with_note("each use `" + function.name + "<...>(...)` makes its own copy of a generic function; there is no one function of this name to keep or rename");
+    d.with_help("list the module or the class it is in instead, or remove this entry");
+    report(context, d);
+}

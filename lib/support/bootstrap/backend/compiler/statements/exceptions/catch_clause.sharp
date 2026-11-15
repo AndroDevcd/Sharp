@@ -1,0 +1,122 @@
+mod backend.compiler.statements.exceptions;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree.statements,
+    backend.postprocessor.inheritance,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.statements
+)
+
+/**
+ * ONE `catch` CLAUSE
+ *
+ *      catch(e: io_exception) { log(e.message); }     takes an io_exception or a class below it;
+ *                                                      `e` is a local of the clause
+ *      catch(io_exception) { retry(); }                the same, without a name for it
+ *
+ * The type must be a class (not an array, not a number) that is
+ * `std#throwable` or below: nothing else is ever thrown (E0613). Checked
+ * against the clauses before it in the same `try`:
+ *
+ *      catch(e: io_exception) ... catch(e: io_exception)   the same class twice: E0614, as in
+ *                                                          the C++ compiler
+ *      catch(e: exception) ... catch(e: io_exception)      the second never runs - the first
+ *                                                          takes every io_exception already:
+ *                                                          W1019 (the C++ compiler says nothing,
+ *                                                          and the program runs)
+ *
+ *      C++ comparison: `compile_catch_clause` in try_catch_statement.cpp
+ *      ("handling class must inherit base level exception class",
+ *      "cannot evaluate to an array", "class has already been caught").
+ */
+def analyse_catch(context: analysis_context, node: _int64, statement: bound_try) : bound_catch {
+    tree : syntax_tree = context.tree;
+    parameter : _int64 = tree.child_of_kind(node, N_PARAMETER);
+    body_node : _int64 = 0 - 1;
+    if(parameter >= 0) { body_node = tree.next_sibling!![parameter]; }
+    context.open_scope();
+
+    caught : sharp_class? = null;
+    variable : local_variable? = null;
+    if(parameter >= 0) {
+        type_node : _int64 = tree.child_of_kind(parameter, N_TYPE);
+        type : resolved_type = context.session.types.error_type;
+        if(type_node >= 0) {
+            type = resolve_type_at(context, type_node);
+            caught = caught_class(context, type, type_node);
+            if(caught != null) { check_against_earlier_clauses(context, caught!!, statement, type_node); }
+        }
+        if(type_node >= 0 && tree.tokens!![parameter] != first_token_of(tree, type_node)) {
+            // `catch(e: t)`: the name comes before the type
+            name := name_at(context, parameter);
+            report_if_already_local(context, name, parameter);
+            variable = new local_variable(name, type, context.unit, parameter);
+            variable!!.writes++;
+            context.declare(variable!!);
+        }
+    }
+
+    clause := new bound_catch(context.unit, node, caught, variable);
+    clause.body = analyse_part(context, body_node);
+    context.close_scope();
+    return clause;
+}
+
+/** the class a clause takes; null (and E0613) when the type cannot be caught */
+def caught_class(context: analysis_context, type: resolved_type, type_node: _int64) : sharp_class? {
+    if(type.kind == RT_ERROR) { return null; }
+    if(type.kind == RT_CLASS && type.is_array == 0) {
+        if(is_throwable(context, type.class_of!!)) { return type.class_of; }
+        if(type.class_of!!.inherits_uncertainly() == 1) { return type.class_of; }     // its base was not found: reported there
+        d := problem_over(context, "E0613", "`" + type.as_non_null().to_text() + "` is never thrown: it is not a `throwable`", type_node);
+        d.with_label("a class that is not `std#throwable` or below it");
+        d.with_note("only objects of `throwable` and the classes below it (`exception`, `error` ...) can be thrown, so only those can be caught");
+        if(type.class_of!!.module.is_library()) {
+            d.with_help("catch `exception` to take every exception, or the library's exception class for the failure you expect");
+        } else {
+            d.with_help("catch `exception` to take every exception, or let the class be one: `class " + type.class_of!!.written.name
+                        + " base exception { ... }`");
+        }
+        report(context, d);
+        return null;
+    }
+    d := problem_over(context, "E0613", "`" + type.to_text() + "` cannot be caught: only objects of a `throwable` class are thrown", type_node);
+    d.with_label(described_type(type));
+    if(type.is_array == 1 && type.kind == RT_CLASS) { d.with_help("catch the class itself: `" + type.element_type().to_text() + "`"); }
+    else { d.with_help("catch `exception` to take every exception, or `throwable` to take everything thrown"); }
+    report(context, d);
+    return null;
+}
+
+/** E0614 (the same class as an earlier clause) and W1019 (a class an earlier clause already takes) */
+def check_against_earlier_clauses(context: analysis_context, caught: sharp_class, statement: bound_try, type_node: _int64) {
+    for(i : _int64 = 0; i < statement.catches.size(); i++) {
+        earlier := statement.catches.at(i);
+        if(earlier.caught == null) { continue; }
+        if(earlier.caught == caught) {
+            d := problem_over(context, "E0614", "`" + caught.qualified_name() + "` is caught twice", type_node);
+            d.with_label("caught again");
+            d.with_related_place(place_of_node(context.unit, earlier.node, "first caught here"));
+            d.with_note("the first clause that takes an exception runs; a second clause for the same class could never run");
+            d.with_help("remove one of the two clauses, or put both bodies in one");
+            report(context, d);
+            return;
+        }
+        if(inherits_from(context.prog, caught, earlier.caught!!)) {
+            d := problem_over(context, "W1019", "this clause never runs: the one above already takes every `" + caught.qualified_name()
+                              + "`", type_node);
+            d.with_label("`" + caught.qualified_name() + "` is below `" + earlier.caught!!.qualified_name() + "`");
+            d.with_related_place(place_of_node(context.unit, earlier.node, "this clause takes it first"));
+            d.with_note("the clauses are tried in the order written, and a clause takes the classes below its own too");
+            d.with_help("move this clause above the one for `" + earlier.caught!!.qualified_name() + "`");
+            report(context, d);
+            return;
+        }
+    }
+}

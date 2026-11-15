@@ -1,0 +1,78 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.typed_tree
+)
+
+/**
+ * JUMPS: statements after which execution does not simply go on
+ *
+ *      return value;       bound_return        leave the function
+ *      break;              bound_break         leave the loop
+ *      continue;           bound_continue      start the loop's next round
+ *      throw problem;      bound_throw         leave until a `catch` takes it
+ *
+ * On the way out a jump may pass a `lock` (the object must be unlocked) or a
+ * `try` that has a `finally` (the finally block must run first). `leaves`
+ * lists them, innermost first, so the code generator does not have to look:
+ *
+ *      lock(table) {
+ *          try {
+ *              return find(key);       leaves: [the try (its finally runs), the lock (unlocked)]
+ *          } finally { log("done"); }
+ *      }
+ *
+ * A `throw` lists nothing: the virtual machine unwinds to the handler itself.
+ *
+ * A jump that was reported as wrong - `break` outside a loop, `return` out of
+ * a finally block (E0602 - E0604) - is marked `broken`. It has no meaning to
+ * generate; the flow analysis lets execution go on after it, so that the one
+ * mistake does not also make the code after it "unreachable".
+ */
+
+/** `return;` / `return value;` */
+class bound_return base bound_statement {
+    value : bound_expression?;                  // converted to what the function returns; null: no value
+    leaves : list<bound_statement>;             // bound_lock / bound_try (with a finally) passed, innermost first
+    broken : _int64 = 0;                        // 1: reported as wrong (E0604); see above
+
+    bound_return(unit: source_unit, node: _int64, value: bound_expression?) -> base(BS_RETURN, unit, node) {
+        self->value = value;
+        leaves = new list<bound_statement>();
+    }
+}
+
+/** `break;` - out of the innermost loop */
+class bound_break base bound_statement {
+    loop : bound_loop?;                         // the loop it leaves; null only after E0602 (no loop around it)
+    leaves : list<bound_statement>;
+    broken : _int64 = 0;
+
+    bound_break(unit: source_unit, node: _int64, loop: bound_loop?) -> base(BS_BREAK, unit, node) {
+        self->loop = loop;
+        leaves = new list<bound_statement>();
+    }
+}
+
+/** `continue;` - on to the next round of the innermost loop (for a `for`: its step first) */
+class bound_continue base bound_statement {
+    loop : bound_loop?;                         // the loop it repeats; null only after E0603
+    leaves : list<bound_statement>;
+    broken : _int64 = 0;
+
+    bound_continue(unit: source_unit, node: _int64, loop: bound_loop?) -> base(BS_CONTINUE, unit, node) {
+        self->loop = loop;
+        leaves = new list<bound_statement>();
+    }
+}
+
+/** `throw value;` - the value is an object of a class that is `throwable` or below (it may be null: then a null-pointer exception) */
+class bound_throw base bound_statement {
+    value : bound_expression;
+
+    bound_throw(unit: source_unit, node: _int64, value: bound_expression) -> base(BS_THROW, unit, node) {
+        self->value = value;
+    }
+}

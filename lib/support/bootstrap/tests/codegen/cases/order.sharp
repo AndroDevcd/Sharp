@@ -1,0 +1,140 @@
+mod main;
+
+// output:
+// 2
+// 3
+// 6
+// 10
+// 16
+// 4
+// 112
+// 123
+// 0
+// -1
+// 0
+// 0
+// 1
+// 3
+// 44
+// 229
+// 14
+// 2
+// 1
+// 4
+// 3
+// 7
+// 6
+// 5
+// 9
+// 8
+// 10
+// 11
+// 0
+// 13
+// 0
+// 15
+// 5
+// 4
+// 8
+
+/*
+ * The order of evaluation when a part of an expression CHANGES a local that
+ * another part reads (doc/codegen.md 5.3, 6.0). The value of a local is its
+ * own slot, so a part evaluated first and used later must be copied when a
+ * later part stores into that local (`held_over`, generation/values.sharp):
+ *
+ *      r = (x = 5) + x;        the right x runs first and stays the OLD x: 1 + 5
+ *      a[i++] = i;             the value runs first: the old i is stored
+ *      three(x++, x, ++x);     arguments left to right, each its own value
+ *
+ * Every line is what the C++-built program prints.
+ */
+def say(n: _int64) : _int64 {
+    show(n);
+    return n;
+}
+
+def three(a: _int64, b: _int64, c: _int64) {
+    show(a * 100 + b * 10 + c);
+}
+
+class box {
+    v : _int64 = 0;
+    items : _int64[];
+    box() { items = new _int64[4]; }
+    def take(a: _int64, b: _int64) : _int64 { return v * 100 + a * 10 + b; }
+}
+
+def main() {
+    x : _int64 = 1;
+    r : _int64 = x++ + x;
+    show(r);
+    x = 1;
+    r = x + x++;
+    show(r);
+    x = 1;
+    r = (x = 5) + x;
+    show(r);
+    x = 1;
+    r = x + (x = 5);
+    show(r);
+    x = 1;
+    r = x * (x += 3);
+    show(r);
+    x = 2;
+    r = (x *= 3) - x;
+    show(r);
+    x = 1;
+    three(x, x++, x);
+    x = 1;
+    three(x++, x, ++x);
+    x = 3;
+    r = x - (--x);
+    show(r);
+    x = 3;
+    r = (--x) - x;
+    show(r);
+
+    a := new _int64[4];
+    i : _int64 = 0;
+    a[i] = i++;
+    show(a[0] * 10 + a[1]);
+    i = 0;
+    a[i++] = i;
+    show(a[0] * 10 + a[1]);
+    i = 1;
+    a[i] += i++;
+    show(a[1] * 10 + a[2]);
+    i = 1;
+    a[1] = 4;
+    r = a[i] + (i = 2);
+    show(r);
+    i = 1;
+    r = a[i++] * 10 + a[i];
+    show(r);
+
+    b := new box();
+    b.v = 2;
+    r = b.take(x, x = 9);
+    show(r);
+    b.v = b.v + (b.v = 7);
+    show(b.v);
+    b.items[say(1)] = say(2);
+    b.items[say(3)] += say(4);
+    r = say(5) + say(6) * say(7);
+    r = say(8) < say(9);
+    lo : _int64 = say(10) && say(11);
+    lo = say(0) && say(12);
+    lo = say(13) || say(14);
+    lo = say(0) || say(15);
+    d : decimal = 1.5;
+    e : decimal = d + (d = 2.5);
+    show_decimal(e);
+    d = 1.5;
+    e = (d = 2.5) + d;
+    show_decimal(e);
+    c := new box();
+    c.v = 4;
+    r = b.v + (b = c).v;
+    show(r);
+}

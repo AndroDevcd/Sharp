@@ -1,0 +1,69 @@
+mod backend.ide.types;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * AN ANALYSED TYPE -> ITS ID
+ *
+ * The bodies of functions are analysed with real types: a generic class is
+ * an INSTANCE there (`list<string>` is a class object of its own, whose own
+ * name is the text `list<string>`). Where the parts of the entry come from
+ * (`resolved_type`, resolved_type.sharp):
+ *
+ *      text        to_text()
+ *      class       class_of.written.full_name()   `written`: the class as declared (`std#list`),
+ *                                                 never the instance's own name
+ *      args        class_of.type_arguments        their ids; null on a class that is not an instance
+ *      array       is_array; `element` is element_type()
+ *      nullable    is_nullable
+ *      param       kind == RT_TYPE_PARAMETER      (only in generic code nothing instantiates: rare)
+ *      function    kind == RT_FUNCTION
+ *
+ * The error type (something already reported), `nil` and the type of `null`
+ * have no entry: the id is -1, which the plugin reads as "unknown".
+ *
+ * A type is asked for many times (every use of a variable has one), so the
+ * answer is remembered under the type's own canonical text, `key()`.
+ */
+def resolved_type_id(types: ide_types, type: resolved_type?) : _int64 {
+    if(type == null) { return 0 - 1; }
+    t : resolved_type = type!!;
+    if(t.kind == RT_ERROR || t.kind == RT_NIL || t.kind == RT_NULL) { return 0 - 1; }
+
+    if(types.last_type == t) { return types.last_id; }
+    key : string = t.key();
+    known := types.by_key.at(key);
+    if(known != null) { types.last_type = t; types.last_id = known!!.id; return known!!.id; }
+
+    class_id : string = "";
+    args_text : string = "";
+    if(t.kind == RT_CLASS && t.class_of != null) {
+        instance : sharp_class = t.class_of!!;
+        class_id = instance.written.full_name();
+        if(instance.type_arguments != null) {
+            arguments : list<resolved_type> = instance.type_arguments!!;
+            for(i : _int64 = 0; i < arguments.size(); i++) {
+                args_text = join_ids(args_text, resolved_type_id(types, arguments.at(i)));
+            }
+        }
+    }
+
+    element : _int64 = 0 - 1;
+    if(t.is_array == 1) { element = resolved_type_id(types, t.element_type()); }
+
+    is_parameter : _int64 = 0;
+    if(t.kind == RT_TYPE_PARAMETER) { is_parameter = 1; }
+    is_function : _int64 = 0;
+    if(t.kind == RT_FUNCTION) { is_function = 1; }
+
+    id : _int64 = types.intern(entry_text(types, t.to_text(), class_id, args_text, t.is_array, element, t.is_nullable,
+                                         is_parameter, is_function), t.to_text());
+    types.by_key.put(key, new id_box(id));
+    types.last_type = t;
+    types.last_id = id;
+    return id;
+}

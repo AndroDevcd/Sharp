@@ -1,0 +1,82 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * IMMEDIATE OPERANDS: a known number written into the instruction itself
+ *
+ * The VM has forms of `+`, `-` and `*` that carry one operand in the
+ * instruction (codegen.md 4.9: `iadd r, k`, and on a frame slot directly
+ * `iaddl n, k`). When constant propagation knows one operand of an integer
+ * operation and it fits 32 bits, the operation becomes `int_immediate`:
+ *
+ *      int_constant %3, 1
+ *      int_binary add %2, %2, %3       ->      int_immediate add %2, %2, 1        (selected as iaddl 2, 1)
+ *
+ * which is one VM instruction where there were five (`istorel`, two `loadl`,
+ * `add`, `smovr_2`); the constant's own slot is then usually dead and goes
+ * too (passes/removal). `+` and `*` take the known number on either side;
+ * `-` only on the right (`5 - x` is not `x - 5`). The other operations have
+ * no such form in the VM (`%` has one, but by zero it must still raise, so
+ * it is left as it is).
+ *
+ * IDENTITIES. With one operand known, some operations need not run at all
+ * (the textbook "algebraic simplification", the dragon book 8.5.4) - what
+ * unrolling a loop leaves when its counter is 0 or 1 in a copy of the body:
+ *
+ *      x + 0,  0 + x,  x - 0,  x * 1,  1 * x      ->      copy %d, %x
+ *      x * 0,  0 * x                              ->      int_constant %d, 0
+ *
+ * all exact for 64-bit integers that wrap around.
+ *
+ * Called by constant_propagation.sharp, which knows the values.
+ *
+ *      C++ comparison: pass_constant_propagation.cpp turns `movi` + `add` into
+ *      `iadd` the same way, one level lower.
+ */
+def use_immediate(made: ir_instruction, state: constant_state) : _int64 {
+    operation : _int64 = made.number;
+    if(operation != ARITH_ADD && operation != ARITH_SUB && operation != ARITH_MUL) { return 0; }
+    if(state.knows(made.second) && fits_32_bits(state.whole_of(made.second))) {
+        become_immediate(made, made.first, state.whole_of(made.second));
+        return 1;
+    }
+    if(operation != ARITH_SUB && state.knows(made.first) && fits_32_bits(state.whole_of(made.first))) {
+        become_immediate(made, made.second, state.whole_of(made.first));
+        return 1;
+    }
+    return 0;
+}
+
+/** does a whole number fit the raw second word of an instruction (a signed 32-bit number)? */
+def fits_32_bits(value: _int64) : _int64 {
+    return value <= 2147483647 && value >= 0 - 2147483648;
+}
+
+/** `target = operand op constant`: the immediate form, or less when the constant makes the operation an identity */
+def become_immediate(made: ir_instruction, operand: _int64, constant: _int64) {
+    operation : _int64 = made.number;
+    made.second = 0 - 1;
+    if(operation == ARITH_MUL && constant == 0) {
+        // x * 0 is 0 whatever x is
+        made.kind = IR_INT_CONSTANT;
+        made.first = 0 - 1;
+        made.number = 0;
+        made.detail = 0;
+        return;
+    }
+    if((operation == ARITH_MUL && constant == 1) || (operation != ARITH_MUL && constant == 0)) {
+        // x * 1, x + 0, x - 0 are x
+        made.kind = IR_COPY;
+        made.first = operand;
+        made.number = NARROW_NONE;
+        made.detail = 0;
+        return;
+    }
+    made.kind = IR_INT_IMMEDIATE;
+    made.first = operand;
+    made.detail = constant;
+}

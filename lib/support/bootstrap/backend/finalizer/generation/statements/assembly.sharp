@@ -1,0 +1,114 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.bytecode,
+    backend.finalizer.generation
+)
+
+/**
+ * `asm { }` BLOCKS (doc/codegen.md 6.17)
+ *
+ * Each instruction of the block becomes exactly the VM instruction it names.
+ * Analysis has resolved what its operands mean; here each becomes a number:
+ *
+ *      ebx                     its register number (3)
+ *      12, 'c', true           the number
+ *      "text"                  the text's number in the string table
+ *      @again                  the label (its pc is filled in by the bytecode step)
+ *      [count]                 a local's slot in this frame
+ *      [total], $c[total]      a field's slot
+ *      [run], $c[run]          a function's address
+ *      $thread                 a class's address
+ *
+ * How the numbers are placed into the instruction's words is the bytecode
+ * step's (asm_table.sharp). An instruction this compiler does not know is
+ * "not generated yet" - the parser has already refused names that do not exist.
+ */
+
+def generate_asm(g: generator, block: bound_asm) {
+    labels := new number_list();
+    for(i : _int64 = 0; i < block.labels.size(); i++) { labels.add(g.b.new_label()); }
+
+    for(i : _int64 = 0; i < block.instructions.size(); i++) {
+        instruction := block.instructions.at(i);
+        if(instruction.is_label == 1) {
+            index : _int64 = label_index(block, instruction.mnemonic);
+            if(index < 0) { g.stop("the asm label `" + instruction.mnemonic + "`", instruction.unit, instruction.node); }
+            g.b.place(labels.at(index));
+            continue;
+        }
+        spec : _int64 = asm_spec_number(instruction.mnemonic);
+        if(spec < 0) { g.stop("the asm instruction `" + instruction.mnemonic + "`", instruction.unit, instruction.node); }
+        values := new number_list();
+        label_flags := new number_list();
+        for(j : _int64 = 0; j < instruction.operands.size(); j++) {
+            operand := instruction.operands.at(j);
+            if(operand.kind == ASM_LABEL) {
+                values.add(labels.at(operand.label));
+                label_flags.add(1);
+            } else {
+                values.add(operand_number(g, operand, instruction));
+                label_flags.add(0);
+            }
+        }
+        made := g.b.emit(IR_ASM);
+        made.number = spec;
+        made.arguments = values;
+        made.label_operands = label_flags;
+    }
+}
+
+/** the position of a label's name in the block's list of labels; -1 when it is not there */
+def label_index(block: bound_asm, name: string) : _int64 {
+    for(i : _int64 = 0; i < block.labels.size(); i++) {
+        if(block.labels.at(i) == name) { return i; }
+    }
+    return 0 - 1;
+}
+
+/** the number an operand that is not a label stands for */
+def operand_number(g: generator, operand: bound_asm_operand, at: bound_asm_instruction) : _int64 {
+    kind : _int64 = operand.kind;
+    if(kind == ASM_REGISTER) {
+        number : _int64 = register_number(lower_case(operand.register));
+        if(number < 0) { g.stop("the register `" + operand.register + "`", at.unit, at.node); }
+        return number;
+    }
+    if(kind == ASM_NUMBER) { return operand.number; }
+    if(kind == ASM_TEXT) { return g.layout.strings.number_of(operand.text); }
+    if(kind == ASM_LOCAL) { return g.slot_of(operand.variable!!, at.unit, at.node); }
+    if(kind == ASM_FIELD) {
+        if(operand.field!!.address < 0) { g.stop("an asm operand naming a field that is not kept", at.unit, at.node); }
+        return operand.field!!.address;
+    }
+    if(kind == ASM_FUNCTION) {
+        if(operand.function!!.address < 0) { g.stop("an asm operand naming a function that is not kept", at.unit, at.node); }
+        return operand.function!!.address;
+    }
+    if(kind == ASM_CLASS) {
+        if(operand.class_of!!.address < 0) { g.stop("an asm operand naming a class that is not kept", at.unit, at.node); }
+        return operand.class_of!!.address;
+    }
+    g.stop("an asm operand", at.unit, at.node);
+    return 0;
+}
+
+/** "EBX" -> "ebx" */
+def lower_case(text: string) : string {
+    raw : _int8[]? = text.data;
+    if(raw == null) { return text; }
+    characters : _int8[] = raw!!;
+    out := new string_builder("");
+    for(i : _int64 = 0; i < sizeof(characters); i++) {
+        ch : _int64 = characters[i];
+        if(ch >= 'A' && ch <= 'Z') { ch = ch + 32; }
+        out.append_char(ch);
+    }
+    return out.build();
+}

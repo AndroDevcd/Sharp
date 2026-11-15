@@ -1,0 +1,11 @@
+// expect: E0405
+// help: new long(n).to_string()
+// replace: n.to_string()
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    n : _int64 = 5;
+    s := n.to_string();
+    println(s!!);
+}

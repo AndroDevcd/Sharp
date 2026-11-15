@@ -1,0 +1,23 @@
+// expect: E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100
+//
+// Things that are right in C, Java or Python and are not Sharp. Each message
+// says what to write instead.
+mod tests.fail;
+import std.io;
+
+int count = 0;
+
+class holder {
+    single : decimal;
+}
+
+def main(args: string[]) {
+    int value = 3;
+    if count > 3 {
+        println("big");
+    }
+    goto done;
+    def helper() {}
+}
+
+else { }

@@ -1,0 +1,271 @@
+mod expression_forms;
+
+import ( std.io )
+
+/**
+ * EXPRESSION FOUNDATIONS: every correct form the stage analyses
+ *
+ * Literals, names of every kind, member access, self and base, casts, type
+ * tests, the null operators, `? :`, sizeof, arrays, scopes and shadowing,
+ * inferred types - and the conversions between the types of the values
+ * involved. Calls and operators appear only where a real program could not
+ * be written without them; they are analysed by the next stage.
+ */
+
+// ---- globals: typed, inferred, constant, local to the file
+limit : _int64 = 100;
+ratio : decimal = 1;                    // a whole number given to a decimal
+letter : _int8 = 'a';
+flag : _int8 = true;
+small : _int8 = 300;                    // cut down, never refused
+title : string = "untitled";            // a text literal becomes a string object
+greeting := "hello";                    // an inferred string
+answer := 42;                           // an inferred int object
+half := 0.5;                            // a double object
+huge : decimal = 1000000000000000000000; // a whole number too large for 64 bits is a decimal
+yes := true;                            // a bool object
+mark := 'x';                            // a char object
+nothing_yet := null;                    // object?
+maybe_title : string? = null;
+anything : object = null;               // object takes null without the mark
+raw_text : _int8[] = "abc";
+copy_of_limit : _int64 = limit;
+local hidden_total : _int64 = 7;
+const fixed : _int64 = 3;
+
+enum color { red, green = 5, blue }
+
+interface printable_thing {
+    def describe() : string;
+}
+
+class shape : printable_thing {
+    name : string = "shape";
+    sides : _int64;
+    protected weight : decimal = 1.5;
+    private secret : _int64 = 9;
+    static count : _int64 = 0;
+    static const origin : _int64 = 0;
+    other : shape?;
+    tags : string[]?;
+    labels : string[]??;
+    tint : color = color.red;
+
+    // a property: read through its getter everywhere but inside the accessors
+    area : decimal = 2.5;
+        get { return area; }
+        set value -> { area = value; }
+
+    // field values may use the instance; later fields may use earlier and later ones
+    double_sides : _int64 = sides;
+    through_self : _int64 = self->sides;
+    forward : _int64 = behind;
+    behind : _int64 = 4;
+    inferred_from_field := name;        // a string
+    inferred_from_static := count;      // an _int64
+
+    override def describe() : string { return name; }
+
+    def names_and_members(sides: _int64, friend: shape, maybe: shape?) : _int64 {
+        // a parameter shadows the field; the field is self->sides
+        mine : _int64 = self->sides;
+        theirs : _int64 = friend.sides;
+        n : _int64 = sides;
+        s : string = name;
+        w : decimal = weight;
+        own : _int64 = secret;
+        c : _int64 = count;
+        through_class : _int64 = shape.count;
+        through_object : _int64 = friend.count;
+        module_qualified : _int64 = expression_forms#limit;
+        class_qualified : _int64 = expression_forms#shape.origin;
+        a_color : color = color.green;
+        plain_enum_value : color = blue;
+        through_value : color = a_color.red;
+        tint_of_friend : color = friend.tint;
+        deep : string = friend.other!!.name;
+        size_of_area : decimal = friend.area;
+        g : _int64 = limit;
+        h : _int64 = hidden_total;
+        return n;
+    }
+
+    def null_safety(maybe: shape?, sure: shape) : string? {
+        a : string? = maybe?.name;                  // null when maybe is null
+        b : string = maybe!!.name;
+        c : string? = maybe?.other?.name;           // two navigations, nested
+        d : string? = maybe?.other!!.name;          // the rest of the chain needs no second ?.
+        e : shape = maybe!!;
+        f : shape = maybe ?: sure;                  // non-null because the fallback is
+        g : shape? = maybe ?: maybe;
+        h : string = maybe_title ?: "none";         // a text literal as fallback
+        i : object = maybe;                         // a nullable value to object
+        j : shape? = sure;                          // t to t?
+        k : shape? = null;
+        items : string[]? = maybe?.tags;
+        first : string = tags[0];                   // a nullable array is indexed without !!
+        item : string? = labels[0];                 // an item of a t[]?? may be null
+        l : shape = maybe as shape;                 // a cast gives the type as written
+        return a;
+    }
+
+    def casts_and_tests(n: _int64, thing: object, p: printable_thing, s: shape) {
+        as_decimal : decimal = n as decimal;
+        as_byte : _int8 = n as _int8;
+        folded : _int8 = 300 as _int8;
+        as_shape : shape = thing as shape;
+        as_object : object = s as object;
+        from_interface : shape = p as shape;
+        to_interface : printable_thing = s as printable_thing;
+        as_array : string[] = thing as string[];
+        up : printable_thing = s;
+        to_object : object = s;
+        is_shape : _int8 = thing is shape;
+        is_known : _int8 = s is printable_thing;
+        is_number : _int8 = n is _int64;
+        is_maybe : _int8 = other is shape;
+    }
+
+    def choices(n: _int64, maybe: shape?, sure: shape, an_int: int, a_bool: bool) {
+        number : _int64 = n ? 1 : 2;
+        first_decides : _int32 = n ? 1 : 2.5;
+        text : string = n ? "a" : name;
+        other_way : string = n ? name : "b";
+        with_null : shape? = n ? sure : null;
+        null_first : shape? = n ? null : sure;
+        mixed : shape? = n ? sure : maybe;
+        boxed_condition : _int64 = an_int ? 1 : 0;
+        upcast : printable_thing = n ? sure : sure;
+        if(n) { }
+        if(a_bool) { }
+        while(flag) { break; }
+    }
+
+    def arrays(n: _int64, an_int: int) {
+        numbers : _int64[] = new _int64[10];
+        sized_by_decimal := new _int64[2.5];
+        sized_by_object := new decimal[an_int];
+        words : string[] = new string[] { "a", "b" };
+        shapes : shape[] = new shape[n];
+        written : _int32[] = { 1, 2, 3 };
+        cut : _int32[] = { 1, 2.5 };
+        strings : string[] = { "a", "b" };
+        objects : object[] = shapes;
+        as_object : object = numbers;
+        one : _int64 = numbers[0];
+        by_decimal : _int64 = numbers[1.5];
+        by_object : _int64 = numbers[an_int];
+        character : _int8 = raw_text[0];
+        length : _int32 = sizeof(numbers);
+        text_length : _int32 = sizeof("abc");
+        fields : _int32 = sizeof(self);
+        name_of_first : string = shapes[0].name;
+        chain : string = shapes[n].other!!.tags!![0];
+    }
+
+    def scopes(n: _int64) {
+        a : _int64 = 1, b = 2, c = 3;   // b and c share the type of a
+        { inner : _int64 = a; }
+        { inner : _int64 = b; }         // a name from a block that ended is free again
+        for(i : _int64 = 0; i < n; i++) { last : _int64 = i; }
+        for(i : _int64 = 0; i < n; i++) { last : _int64 = i; }
+        foreach(item in new _int64[3]) { doubled : _int64 = item; }
+        foreach(word : string in new string[2]) { copy : string = word; }
+        try { risky : _int64 = 1; } catch(problem: exception) { seen : exception = problem; }
+        if(n) once : _int64 = 1;
+        alias holder<string> as text_holder;    // a local alias: a second name for a type, to the end of the block
+        held : text_holder? = null;
+        held_item : string = held!!.item;
+        name : _int64 = 5;              // a local may have the name of a field
+        from_local : _int64 = name;
+        from_field : string = self->name;
+    }
+
+    static def without_object(friend: shape) : _int64 {
+        total : _int64 = count;         // a static field needs no object
+        through_parameter : _int64 = friend.sides;
+        return shape.origin;
+    }
+
+    def result_inferred() := sides;
+    def text_inferred() := "text";
+}
+
+class circle base shape {
+    radius : decimal = 1;
+
+    def members_from_above() : decimal {
+        n : _int64 = sides;                 // inherited
+        w : decimal = weight;               // protected: a class below may use it
+        through_base : string = base->name;
+        as_base : shape = base;
+        s : shape = self;                   // up the base chain
+        p : printable_thing = self;         // to an interface a base class lists
+        c : _int64 = count;
+        return radius;
+    }
+
+    def uses_operator_names() : string {
+        return name;
+    }
+}
+
+class holder<T> {
+    item : T;
+    items : T[]?;
+    next : holder<T>?;
+
+    def first() : T { return items!![0]; }
+    def same() : holder<T> { return self; }                 // the class's own name means the instance
+    def chained() : T { return next!!.next!!.item; }
+    def maybe_item() : T? { return next?.item; }
+    def as_object() : object { return item; }
+    static made : _int64 = 0;
+}
+
+// instances named only inside bodies are made, and their bodies analysed
+def uses_generics(h: holder<string>, deep: holder<holder<shape>>) : string {
+    direct : string = h.item;
+    through : string = h.next!!.item;
+    nested : shape = deep.item.item;
+    name_of_nested : string = deep.item.item.name;
+    fresh : holder<circle>? = null;
+    radius : decimal = fresh!!.item.radius;
+    counted : _int64 = holder<circle>.made;
+    return direct;
+}
+
+def module_level(s: shape, c: circle) : _int64 {
+    a : _int64 = limit;
+    w : decimal = s.weight;                 // protected, same module
+    x : shape = c;
+    y : circle = s;                         // downward without a cast: accepted with a warning (W1017)
+    e : exception? = null;
+    io_name : std#string = "x";
+    return fixed;
+}
+
+// `private` and `protected` on something declared outside any class
+private module_secret : _int64 = 7;             // private: the global code of this module only
+protected module_shared : _int64 = 8;           // protected: any code of this module, classes included
+def reads_private_global() : _int64 { return module_secret + module_shared; }
+class reads_protected_global {
+    def read() : _int64 { return module_shared; }
+}
+
+def main() { }
+
+// a private class may always name itself
+private class tally {
+    static made : _int64 = 0;
+    next : tally?;
+    def count() : _int64 { return tally.made; }
+}
+class cabinet {
+    private class shelf {
+        static depth : _int64 = 3;
+        below : shelf?;
+        def deep() : _int64 { return shelf.depth; }
+    }
+    private top : shelf? = null;
+}

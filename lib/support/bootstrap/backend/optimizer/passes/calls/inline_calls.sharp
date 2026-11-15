@@ -1,0 +1,252 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * INLINING: a call of a small function becomes a copy of its body
+ *
+ * A call is the most expensive thing ordinary code does: the VM pushes the
+ * arguments, makes a frame, jumps, and undoes it all on return. A getter is
+ * one field read; calling it costs many times the read. So a call of a small
+ * enough function is replaced by the function's own instructions, with its
+ * slots and labels renumbered into the caller (the textbook "procedure
+ * integration", Muchnick 15.2):
+ *
+ *      call %4, point.get_x(%0)                copy %9, %0                     (self, into the body's own slot)
+ *                                     ->       get_field %10, %9.point.x       (the body, its slots renumbered)
+ *                                              copy %4, %10                    (its `return_value`)
+ *
+ * and the value passes then remove the copies (`get_field %4, %0.point.x`).
+ * A call of `_object_`'s empty constructor, which every `new` makes, simply
+ * disappears.
+ *
+ * WHAT IS INLINED: a function that
+ *
+ *  - is called exactly (`call`, not a virtual or native call, not a function value),
+ *  - has at most 14 IR instructions and 24 slots, no loop (no jump back), no `try`,
+ *    no `throw`, no `lock`, no `asm`, and takes no closure record;
+ *  - is not the caller itself, and is not the static part of a class
+ *    (static_init<C>: see can_be_inlined).
+ *
+ * It may call other functions itself. Every place a caller inlines bodies
+ * SHARES the same extra slots, so the caller's frame grows by the largest
+ * body it takes in, not by the sum (a frame's size is recursion depth on this
+ * VM: codegen.md 11.8). That is safe because two inlined bodies can never be
+ * running at once in one frame: the caller runs one, then the next; a call
+ * made from inside a body runs in a frame of its own, and if it comes back
+ * into the caller (recursion), that is another frame with slots of its own.
+ *
+ * Its `line` marks are not copied: the inlined code belongs to the line of
+ * the call. So does an exception raised inside it (a getter called on null,
+ * or anything a call inside it raises): the stack trace shows the caller at
+ * the line of the call, and no frame of the inlined function - exactly as with
+ * the C++ optimizer, which says the same in pass_inline_calls.cpp ("VISIBLE
+ * DIFFERENCE"). Where the exception is caught does not change: the body is
+ * inside the same `try` ranges the call was. Nothing else can be seen.
+ *
+ *      C++ comparison: passes/pass_inline_calls.cpp. Its limit is 24 VM
+ *      instructions; one IR instruction is two to three VM words (the
+ *      bytecode step: 1.7 VM instructions each, measured over the library), so
+ *      14 here is about the same size of function.
+ */
+
+const MAX_INLINED_INSTRUCTIONS : _int64 = 14;
+const MAX_INLINED_SLOTS : _int64 = 24;
+/** a caller that has grown past this many instructions takes in no more */
+const MAX_CALLER_INSTRUCTIONS : _int64 = 3000;
+
+/** the extra slots of a caller that inlined bodies use, per kind of slot; shared by every place */
+class inline_slots {
+    by_kind : list<number_list>;    // [SLOT_INT .. SLOT_REF]: the caller's slots of that kind, in the order handed out
+
+    inline_slots() {
+        by_kind = new list<number_list>();
+        for(k : _int64 = 0; k < 4; k++) { by_kind.add(new number_list()); }
+    }
+
+    /** the `n`-th extra slot of `kind`, made in the caller when there are not that many yet */
+    def slot(code: ir_function, kind: _int64, n: _int64) : _int64 {
+        slots := by_kind.at(kind);
+        while(slots.count <= n) {
+            slots.add(code.slot_kinds.count);
+            code.slot_kinds.add(kind);
+        }
+        return slots.at(n);
+    }
+}
+
+/**
+ * Which functions may be inlined, asked once per function and kept for one
+ * round of inlining over the whole program - until the function itself takes
+ * in a body, which can make it too large: then it is asked again.
+ */
+class inline_choices {
+    layout : program_layout;
+    known : _int64[];               // per function address: -1 not asked yet, 0 no, 1 yes
+
+    inline_choices(layout: program_layout) {
+        self->layout = layout;
+        known = new _int64[layout.functions.size().value as _int64 + 1];
+        for(i : _int64 = 0; i < sizeof(known); i++) { known[i] = 0 - 1; }
+    }
+
+    /** is the function at `address` one whose body may be copied into its callers (the rules in the header)? */
+    def is_inlinable(address: _int64) : _int64 {
+        if(known[address] < 0) {
+            known[address] = can_be_inlined(layout.functions.at(address));
+        }
+        return known[address];
+    }
+
+    /** the function at `address` has changed: the answer for it is asked again */
+    def forget(address: _int64) {
+        known[address] = 0 - 1;
+    }
+}
+
+/** replace the calls of small functions in `caller` by their bodies; the number of calls replaced */
+def inline_calls(caller: function_layout, choices: inline_choices) : _int64 {
+    code : ir_function = caller.ir!!;
+    // first only looked for: most functions call nothing that is inlined, and then nothing is made
+    wanted : _int64 = 0;
+    total : _int64 = code.instructions.size().value as _int64;
+    for(i : _int64 = 0; i < total && wanted == 0; i++) {
+        if(callee_to_inline(code.instructions.at(i), caller, choices) != null) { wanted = 1; }
+    }
+    if(wanted == 0) { return 0; }
+    shared := new inline_slots();
+    made := new list<ir_instruction>();
+    inlined : _int64 = 0;
+    for(i : _int64 = 0; i < total; i++) {
+        instruction := code.instructions.at(i);
+        callee := callee_to_inline(instruction, caller, choices);
+        if(callee == null || made.size() > MAX_CALLER_INSTRUCTIONS) {
+            made.add(instruction);
+            continue;
+        }
+        copy_body(code, made, instruction, callee!!.ir!!, shared);
+        inlined++;
+    }
+    if(inlined > 0) {
+        code.instructions = made;
+        choices.forget(caller.address);
+    }
+    return inlined;
+}
+
+/** the function a call instruction calls, when it is one to inline (the rules in the header); else null */
+def callee_to_inline(instruction: ir_instruction, caller: function_layout, choices: inline_choices) : function_layout? {
+    if(instruction.kind != IR_CALL || instruction.number != CALL_HOW_DIRECT || instruction.declaration == null) { return null; }
+    address : _int64 = instruction.declaration!!.address;
+    if(address < 0 || address >= choices.layout.functions.size() || address == caller.address) { return null; }
+    if(choices.is_inlinable(address) == 0) { return null; }
+    callee := choices.layout.functions.at(address);
+    // `self` (for a function that has one) and the parameters come first in its slots, then the call's arguments fill them
+    if(instruction.arguments == null || instruction.arguments!!.count != (1 - callee.is_static) + callee.parameter_count()) { return null; }
+    return callee;
+}
+
+/** may this function's body be copied into its callers (the rules in the header, except the caller's own)? */
+def can_be_inlined(callee: function_layout) : _int64 {
+    // (a lambda that is handed a record can only be called by name once closure elimination has
+    // made its `call_value` a `call`, with the record as the last argument: closure_calls.sharp)
+    if(callee.ir == null) { return 0; }
+    // The static part of a class (static_init<C>) stays a call. Every constructor of the class
+    // begins with "flag set? else call static_init<C>": with the static part copied in, the
+    // constructor of a number box (`int`: one field store) grew from 4 instructions to 15 and
+    // was itself too large to inline - so `new int(n)`, which every `list.size()` makes, stayed
+    // a call and its object could not be removed (box_elimination.sharp). Left as a call it runs
+    // once per class in the whole run; the flag test in front of it is all a constructor pays.
+    // (Measured on the compiler compiling itself, 13.7: 5.5 million `int` objects fewer.)
+    if(callee.made_from == MADE_STATIC_INIT) { return 0; }
+    body : ir_function = callee.ir!!;
+    if(body.slot_count() > MAX_INLINED_SLOTS || body.tries.size() > 0) { return 0; }
+    return is_small_body(body);
+}
+
+/** a body of at most MAX_INLINED_INSTRUCTIONS that jumps only forwards and has none of the excluded kinds */
+def is_small_body(body: ir_function) : _int64 {
+    real : _int64 = 0;
+    places := places_of_labels(body);
+    total : _int64 = body.instructions.size().value as _int64;
+    for(i : _int64 = 0; i < total; i++) {
+        made := body.instructions.at(i);
+        kind : _int64 = made.kind;
+        // (a lock is tied to its frame: the VM gives it back by call depth when an exception leaves it)
+        if(kind == IR_ASM || kind == IR_THROW || kind == IR_LOCK || kind == IR_UNLOCK) { return 0; }
+        if(is_jump(made) && places.at(made.number) <= i) { return 0; }
+        if(kind != IR_LINE && kind != IR_LABEL) { real++; }
+    }
+    return real <= MAX_INLINED_INSTRUCTIONS;
+}
+
+/**
+ * The body of `body` in place of the call `call`, added to `made`: the
+ * arguments copied into the body's parameters, every slot and label of the
+ * body renumbered, each return a copy of its value into the call's target and
+ * a jump to the end.
+ */
+def copy_body(code: ir_function, made: list<ir_instruction>, call: ir_instruction, body: ir_function, shared: inline_slots) {
+    // ---- the body's slots: each one an extra slot of the caller of the same kind
+    renumbered := new number_list();
+    taken := new number_list();
+    for(k : _int64 = 0; k < 4; k++) { taken.add(0); }
+    for(s : _int64 = 0; s < body.slot_count(); s++) {
+        kind : _int64 = body.slot_kinds.at(s);
+        renumbered.add(shared.slot(code, kind, taken.at(kind)));
+        taken.replace(kind, taken.at(kind) + 1);
+    }
+    // ---- its labels: new ones of the caller, and one for the end of the body
+    first_label : _int64 = code.label_count;
+    code.label_count = code.label_count + body.label_count;
+    end_label : _int64 = code.label_count;
+    code.label_count++;
+
+    // ---- the arguments into the parameters (`self` first)
+    arguments : number_list = call.arguments!!;
+    for(a : _int64 = 0; a < arguments.count; a++) {
+        into := new ir_instruction(IR_COPY);
+        into.target = renumbered.at(a);
+        into.first = arguments.at(a);
+        made.add(into);
+    }
+    // ---- the body
+    total : _int64 = body.instructions.size().value as _int64;
+    for(i : _int64 = 0; i < total; i++) {
+        original := body.instructions.at(i);
+        if(original.kind == IR_LINE) { continue; }
+        if(original.kind == IR_RETURN || original.kind == IR_RETURN_VALUE) {
+            if(original.kind == IR_RETURN_VALUE && call.target >= 0) {
+                result := new ir_instruction(IR_COPY);
+                result.target = call.target;
+                result.first = renumbered.at(original.first);
+                result.number = original.number;        // the narrowing of the value returned
+                made.add(result);
+            }
+            leave := new ir_instruction(IR_JUMP);
+            leave.number = end_label;
+            made.add(leave);
+            continue;
+        }
+        copied := copy_of_instruction(original);
+        if(copied.target >= 0) { copied.target = renumbered.at(copied.target); }
+        if(copied.first >= 0) { copied.first = renumbered.at(copied.first); }
+        if(copied.second >= 0) { copied.second = renumbered.at(copied.second); }
+        if(copied.kind == IR_SET_ELEMENT) { copied.detail = renumbered.at(copied.detail); }
+        if((copied.kind == IR_CALL || copied.kind == IR_CALL_VALUE) && copied.arguments != null) {
+            called_with : number_list = copied.arguments!!;
+            for(a : _int64 = 0; a < called_with.count; a++) { called_with.replace(a, renumbered.at(called_with.at(a))); }
+        }
+        if(copied.kind == IR_LABEL || is_jump(copied)) { copied.number = first_label + copied.number; }
+        made.add(copied);
+    }
+    end := new ir_instruction(IR_LABEL);
+    end.number = end_label;
+    made.add(end);
+}

@@ -1,0 +1,112 @@
+mod backend.ide.bodies;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.ide.output,
+    backend.ide.types,
+    backend.types.program
+)
+
+/**
+ * BODIES: WHAT THE EDITOR NEEDS ABOUT THE CODE IN A FILE
+ *
+ * `bodies/<n>.json` is written for each file the editor has open (see
+ * wanted_files.sharp). It holds what completion, hover and go-to-definition
+ * need INSIDE function bodies, which the index of declarations does not have:
+ *
+ *      lines       the offset at which every line starts (so a line and column follow from any offset)
+ *      functions   every function with a typed body: its text range, the class it is in, whether `self` exists
+ *      locals      every parameter and local variable, with its type and the text it can be used in
+ *      uses        a table of every NAME used: what it refers to and the type of its value
+ *
+ * (The exact format, field by field, is doc/ide.md 4.7.)
+ *
+ * The files of this package (module `backend.ide.bodies`):
+ *
+ *      bodies.sharp           this front door: `write_bodies`
+ *      wanted_files.sharp     which files get a bodies file (`bodies_for.txt`)
+ *      function_records.sharp which functions have typed bodies; one entry per function, numbering of the locals
+ *      local_records.sharp    functions[] and locals[] as JSON, the text ranges
+ *      use_walker.sharp       the walk over the typed trees; the table of uses
+ *      use_names.sharp        which token is the name of a syntax node
+ *      type_name_uses.sharp   uses of type names (kind 1) from written types
+ *
+ * All of it is READ from the analysis objects; nothing is changed.
+ */
+
+/**
+ * Write `bodies/<n>.json` for every wanted file.
+ * Marks `bodies_written` on the files that got one, so the manifest can name it.
+ */
+def write_bodies(folder: string, run: string, prog: sharp_program, files: ide_files, types: ide_types) {
+    apply_wanted_files(folder, files, prog);
+
+    any_wanted : _int64 = 0;
+    for(i : _int64 = 0; i < files.count(); i++) {
+        if(files.at(i).wanted == 1) { any_wanted = 1; }
+    }
+    if(any_wanted == 0) { return; }
+    make_folder(folder + "/bodies");
+
+    job := new bodies_job(files);
+    gather_functions(prog, job);
+    add_declared_type_uses(prog, job, types);
+
+    walker := new use_walker(job, types);
+    for(i : _int64 = 0; i < files.count(); i++) {
+        bodies := job.slots!![i];
+        if(bodies == null) { continue; }
+        walk_file(prog, walker, types, bodies!!);
+        write_bodies_file(folder, run, types, bodies!!);
+        bodies!!.file.bodies_written = 1;
+    }
+}
+
+/** every use in one file: its functions, the values of its fields, the types written in it */
+private def walk_file(prog: sharp_program, walker: use_walker, types: ide_types, bodies: file_bodies) {
+    walker.recent_function = null;          // what the walker remembers belongs to the file before
+    walker.recent_entry = null;
+    for(i : _int64 = 0; i < bodies.functions.size(); i++) { walk_function(walker, bodies, bodies.functions.at(i)); }
+    for(i : _int64 = 0; i < bodies.initializers.size(); i++) { walk_field_value(walker, bodies, bodies.initializers.at(i)); }
+    add_body_type_uses(prog, walker.job, types, bodies);
+}
+
+/** one bodies file */
+private def write_bodies_file(folder: string, run: string, types: ide_types, bodies: file_bodies) {
+    file := bodies.file;
+    table := file.unit.parsed!!.table;
+
+    entry_ranges := new list<text_range>();
+    for(i : _int64 = 0; i < bodies.functions.size(); i++) { entry_ranges.add(body_range_of(bodies.functions.at(i), file)); }
+
+    w := new json_writer();
+    w.begin_object();
+    w.key(KEY_FORMAT);  w.number(1);
+    w.key(KEY_RUN);  w.text(run);
+    w.key(KEY_FILE);  w.number(file.index);
+
+    w.key(KEY_LINES);
+    w.begin_array();
+    for(i : _int64 = 0; i < table.line_count; i++) { w.number(file.offset_of(table.line_starts!![i])); }
+    w.end_array();
+
+    w.key(KEY_FUNCTIONS);
+    write_functions(w, bodies, entry_ranges);
+    w.key(KEY_LOCALS);
+    write_locals(w, bodies, types, entry_ranges);
+
+    w.key(KEY_USES);
+    w.begin_array();
+    for(i : _int64 = 0; i < bodies.use_count; i++) {
+        at : _int64 = i * 6;
+        w.line();
+        w.sextet(file.offset_of(bodies.use_data[at]), file.offset_of(bodies.use_data[at + 1]), bodies.use_data[at + 2],
+                 bodies.use_data[at + 3], bodies.use_data[at + 4], bodies.use_data[at + 5]);
+    }
+    w.line();
+    w.end_array();
+    w.end_object();
+
+    write_file_atomically(folder, "bodies/" + file.index + ".json", w.build());
+}

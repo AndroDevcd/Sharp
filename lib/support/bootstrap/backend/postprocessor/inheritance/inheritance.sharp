@@ -1,0 +1,92 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.checks,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * STAGE 4, CLASS CHECKS, and the real base classes of stage 5
+ *
+ * The files of this package (module `backend.postprocessor.inheritance`):
+ *
+ *      inheritance.sharp               check_classes (the stage's driver); an alias may not stand for itself
+ *      base_classes.sharp              the class after `base`
+ *      interfaces.sharp                the interfaces after `:`
+ *      overrides.sharp                 functions without a body and the override functions that define them (written types)
+ *      override_messages.sharp         the messages of overrides (E0341 - E0343, E0346)
+ *      class_bases.sharp               the REAL base class and interfaces of a real class (generic instances); inherits_from
+ *      override_families.sharp         override links recomputed with resolved types: overrides, overridden_by, family_root
+ *      override_family_messages.sharp  the messages of override_families
+ *      hidden_functions.sharp          W1041: a function with the parameters of one with a body above it hides it
+ *
+ * This file is the package's front door and holds its driver.
+ */
+
+/**
+ * STAGE 4 OF THE BACKEND: HOW THE DECLARATIONS FIT TOGETHER
+ *
+ * Every name in a declaration is known by now. This stage looks at the
+ * declarations AGAINST EACH OTHER, and connects the objects that belong
+ * together. In order - each step uses what the one before it set up:
+ *
+ *      check_aliases           no alias stands for itself                      (below)
+ *      link_base_classes       every class gets its base class                 base_classes.sharp
+ *      link_interfaces         ... and its interfaces                          interfaces.sharp
+ *      check_duplicates        nothing is declared twice                       duplicates.sharp
+ *      link_overrides          body-less functions and their overrides         overrides.sharp
+ */
+def check_classes(prog: sharp_program, problems: list<diagnostic>) {
+    check_aliases(prog, problems);
+    link_base_classes(prog, problems);
+    link_interfaces(prog, problems);
+    check_duplicates(prog, problems);
+    link_overrides(prog, problems);
+}
+
+/**
+ * alias a as b;  alias b as a;     - neither ever names a real type
+ *
+ * E0310, reported at each alias that is part of such a circle.
+ */
+def check_aliases(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        check_aliases_in(prog.module_list.at(i).aliases, problems);
+    }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        check_aliases_in(prog.all_classes.at(i).aliases, problems);
+    }
+}
+
+/** E0310 for each alias of the list that, followed through what it stands for, comes back to itself */
+def check_aliases_in(aliases: list<sharp_alias>, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < aliases.size(); i++) {
+        declared := aliases.at(i);
+        chain := new string_builder(declared.name);
+
+        // follow what the alias stands for; coming back to it is the mistake
+        current : sharp_alias = declared;
+        for(step : _int64 = 0; step < 64; step++) {
+            target := current.target;
+            if(target == null || target!!.form != TYPE_NAMED || target!!.declaration == null
+               || target!!.declaration!!.kind != D_ALIAS) {
+                break;      // a real type (or a name that was not found): fine
+            }
+
+            current = target!!.declaration as sharp_alias;
+            chain.append(" -> " + current.name);
+            if(current == declared) {
+                problems.add(error_at_node("E0310", "alias `" + declared.name + "` stands for itself", declared.unit, declared.node)
+                    .with_label("never names a real type")
+                    .with_note("following what it stands for goes round in a circle:  " + chain.build())
+                    .with_help("one of these aliases must name a class or a built-in type"));
+                break;
+            }
+        }
+    }
+}

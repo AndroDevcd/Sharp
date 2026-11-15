@@ -1,0 +1,220 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io
+)
+
+/**
+ * THE INSTRUCTIONS OF THE VIRTUAL MACHINE (doc/codegen.md 4.9)
+ *
+ * The low 8 bits of a word are the opcode. These are the numbers of
+ * lib/core/opcode/opcode.h; `opcode_name` gives the name the listing prints,
+ * `is_two_words` says which instructions take a second word (a raw 32-bit
+ * number, or for invoke_delegate a second encoded word).
+ *
+ * Registers are numbered as the VM numbers them; registers hold numbers only,
+ * never references, and no register keeps its value across a call (4.1).
+ */
+const OP_NOP             : _int64 = 0x00;
+const OP_INT             : _int64 = 0x01;
+const OP_MOVI            : _int64 = 0x02;
+const OP_RET             : _int64 = 0x03;
+const OP_HLT             : _int64 = 0x04;
+const OP_NEWARRAY        : _int64 = 0x05;
+const OP_CAST            : _int64 = 0x06;
+const OP_MOV8            : _int64 = 0x07;
+const OP_MOV16           : _int64 = 0x08;
+const OP_MOV32           : _int64 = 0x09;
+const OP_MOVU8           : _int64 = 0x0b;
+const OP_MOVU16          : _int64 = 0x0c;
+const OP_MOVU32          : _int64 = 0x0d;
+const OP_RSTORE          : _int64 = 0x0f;
+const OP_ADD             : _int64 = 0x10;
+const OP_SUB             : _int64 = 0x11;
+const OP_MUL             : _int64 = 0x12;
+const OP_DDIV            : _int64 = 0x13;
+const OP_MOD             : _int64 = 0x14;
+const OP_IADD            : _int64 = 0x15;      // regs[r] += k  (k in the second word; the optimizer's int_immediate)
+const OP_ISUB            : _int64 = 0x16;
+const OP_IMUL            : _int64 = 0x17;
+const OP_POP             : _int64 = 0x1a;
+const OP_MOVR            : _int64 = 0x1d;
+const OP_LT              : _int64 = 0x21;
+const OP_GT              : _int64 = 0x22;
+const OP_LTE             : _int64 = 0x23;
+const OP_GTE             : _int64 = 0x24;
+const OP_MOVL            : _int64 = 0x25;
+const OP_SIZEOF          : _int64 = 0x27;
+const OP_PUT             : _int64 = 0x28;
+const OP_PUTC            : _int64 = 0x29;
+const OP_CHECKLEN        : _int64 = 0x2a;
+const OP_JMP             : _int64 = 0x2b;
+const OP_PUSHOBJ         : _int64 = 0x2d;
+const OP_CALL            : _int64 = 0x2f;
+const OP_NEWCLASS        : _int64 = 0x30;
+const OP_MOVN            : _int64 = 0x31;
+const OP_TEST            : _int64 = 0x33;
+const OP_TNE             : _int64 = 0x34;
+const OP_LOCK            : _int64 = 0x35;
+const OP_ULOCK           : _int64 = 0x36;
+const OP_MOVG            : _int64 = 0x37;
+const OP_MOVND           : _int64 = 0x38;
+const OP_NEWOBJARRAY     : _int64 = 0x39;
+const OP_NOT             : _int64 = 0x3a;
+const OP_SHL             : _int64 = 0x3d;
+const OP_SHR             : _int64 = 0x3e;
+const OP_UAND            : _int64 = 0x42;
+const OP_OR              : _int64 = 0x43;
+const OP_XOR             : _int64 = 0x44;
+const OP_THROW           : _int64 = 0x45;
+const OP_CHECKNULL       : _int64 = 0x46;
+const OP_RETURNOBJ       : _int64 = 0x47;
+const OP_NEWCLASSARRAY   : _int64 = 0x48;
+const OP_NEWSTRING       : _int64 = 0x49;
+const OP_IADDL           : _int64 = 0x4f;      // fp[n].var += k  (k in the second word; the optimizer's int_immediate)
+const OP_ISUBL           : _int64 = 0x50;
+const OP_IMULL           : _int64 = 0x51;
+const OP_LOADL           : _int64 = 0x54;
+const OP_POPOBJ          : _int64 = 0x55;
+const OP_RETURNVAL       : _int64 = 0x5b;
+const OP_SMOVR_2         : _int64 = 0x5d;
+const OP_ISTOREL         : _int64 = 0x5e;
+const OP_POPL            : _int64 = 0x5f;
+const OP_PUSHNULL        : _int64 = 0x60;
+const OP_IPUSHL          : _int64 = 0x61;
+const OP_PUSHL           : _int64 = 0x62;
+const OP_ITEST           : _int64 = 0x63;
+const OP_INVOKE_DELEGATE : _int64 = 0x64;
+const OP_JE              : _int64 = 0x67;
+const OP_JNE             : _int64 = 0x68;
+const OP_IPOPL           : _int64 = 0x69;
+const OP_CALLD           : _int64 = 0x6b;
+const OP_TLS_MOVL        : _int64 = 0x6d;
+const OP_LDC             : _int64 = 0x71;
+const OP_SMOVR_3         : _int64 = 0x72;
+const OP_NEG             : _int64 = 0x73;
+const OP_DEXP            : _int64 = 0x74;
+const OP_IS              : _int64 = 0x75;
+const OP_MOV_ABS         : _int64 = 0x76;
+const OP_LOAD_ABS        : _int64 = 0x77;
+const OP_SMOVR_4         : _int64 = 0x78;
+const OP_DADD            : _int64 = 0x79;
+const OP_DSUB            : _int64 = 0x7a;
+const OP_DMUL            : _int64 = 0x7b;
+const OP_DNEG            : _int64 = 0x7c;
+const OP_DLT             : _int64 = 0x7f;
+const OP_DGT             : _int64 = 0x80;
+const OP_DLTE            : _int64 = 0x81;
+const OP_DGTE            : _int64 = 0x82;
+const OP_DTEST           : _int64 = 0x83;
+const OP_DTNE            : _int64 = 0x84;
+const OP_DNOT            : _int64 = 0x85;
+const OP_DISTOREL        : _int64 = 0x92;
+const OP_I2D             : _int64 = 0x95;
+const OP_D2I             : _int64 = 0x96;
+const OP_GETF            : _int64 = 0x97;
+const OP_PUTF            : _int64 = 0x98;
+const OP_ALOAD8          : _int64 = 0x99;
+const OP_ALOADU8         : _int64 = 0x9a;
+const OP_ALOAD16         : _int64 = 0x9b;
+const OP_ALOADU16        : _int64 = 0x9c;
+const OP_ALOAD32         : _int64 = 0x9d;
+const OP_ALOADU32        : _int64 = 0x9e;
+const OP_ALOAD64         : _int64 = 0x9f;
+const OP_ASTORE8         : _int64 = 0xa0;
+const OP_ASTORE16        : _int64 = 0xa1;
+const OP_ASTORE32        : _int64 = 0xa2;
+const OP_ASTORE64        : _int64 = 0xa3;
+const OP_LAST            : _int64 = 0xa3;
+const OP_ILL             : _int64 = 0xff;      // only as the opcode of invoke_delegate's second word
+
+// ---- the registers
+const REG_ADX : _int64 = 0;     // index of array elements and of movnd
+const REG_CX  : _int64 = 1;
+const REG_CMT : _int64 = 2;     // comparisons write it; je / jne read it
+const REG_EBX : _int64 = 3;     // first operand, results
+const REG_ECX : _int64 = 4;     // second operand
+const REG_ECF : _int64 = 5;
+const REG_EDF : _int64 = 6;
+const REG_EHF : _int64 = 7;
+const REG_BMR : _int64 = 8;     // test, tne, and, or, xor write it
+const REG_EGX : _int64 = 9;     // scratch
+
+opcode_names : string[]? = null;
+
+/** the name of an opcode, as the listing prints it */
+def opcode_name(opcode: _int64) : string {
+    if(opcode_names == null) {
+        opcode_names = split_names("nop int movi ret hlt newarray cast mov8 mov16 mov32 mov64 movu8 movu16 movu32 movu64 "
+            + "rstore add sub mul ddiv mod iadd isub imul didiv imod pop inc dec movr brh ife ifne lt gt lte gte movl "
+            + "movsl sizeof put putc checklen jmp loadpc pushobj del call newclass movn sleep test tne lock ulock movg "
+            + "movnd newobjarray not skip loadval shl shr skpe skne and uand or xor throw checknull returnobj "
+            + "newclassarray newstring addl subl mull ddivl modl iaddl isubl imull didivl imodl loadl popobj smovr "
+            + "andl orl xorl smov returnval istore smovr_2 istorel popl pushnull ipushl pushl itest invoke_delegate "
+            + "get isadd je jne ipopl cmp calld varcast tls_movl dup popobj_2 swap ldc smovr_3 neg dexp is mov_abs "
+            + "load_abs smovr_4 dadd dsub dmul dneg dinc ddec dlt dgt dlte dgte dtest dtne dnot dcmp diadd disub "
+            + "dimul daddl dsubl dmull diaddl disubl dimull disadd distore distorel dmovi dput i2d d2i getf putf "
+            + "aload8 aloadu8 aload16 aloadu16 aload32 aloadu32 aload64 astore8 astore16 astore32 astore64");
+    }
+    if(opcode < 0 || opcode >= sizeof(opcode_names)) { return "ill"; }
+    return opcode_names!![opcode];
+}
+
+/** "a b c" -> ["a", "b", "c"] */
+def split_names(text: string) : string[] {
+    names := new list<string>();
+    current := new string_builder("");
+    characters : _int8[] = text.data!!;
+    for(i : _int64 = 0; i < sizeof(characters); i++) {
+        if(characters[i] == ' ') {
+            if(current.size() > 0) { names.add(current.build()); current = new string_builder(""); }
+        } else {
+            current.append(characters[i]);
+        }
+    }
+    if(current.size() > 0) { names.add(current.build()); }
+    made := new string[names.size().value as _int64];
+    for(i : _int64 = 0; i < names.size(); i++) { made[i] = names.at(i); }
+    return made;
+}
+
+/** does the instruction with this opcode take a second word? */
+def is_two_words(opcode: _int64) : _int64 {
+    return opcode == OP_MOVI || (opcode >= 0x15 && opcode <= 0x19) || opcode == OP_NEWCLASS || opcode == OP_MOVN
+        || opcode == OP_NEWCLASSARRAY || (opcode >= 0x4f && opcode <= 0x53) || opcode == 0x5c || opcode == OP_ISTOREL
+        || opcode == OP_INVOKE_DELEGATE || opcode == 0x66 || opcode == 0x6a || opcode == 0x75 || opcode == OP_SMOVR_4
+        || (opcode >= 0x86 && opcode <= 0x89) || (opcode >= 0x8d && opcode <= 0x93);
+}
+
+/** is it one of the instructions that call a function (the exception rules R1, R2 of codegen.md 4.7 are about them)? */
+def is_call_opcode(opcode: _int64) : _int64 {
+    return opcode == OP_CALL || opcode == OP_INVOKE_DELEGATE || opcode == OP_CALLD;
+}
+
+/** the number of a register by its name (adx, cx, cmt, ebx, ecx, ecf, edf, ehf, bmr, egx); -1 for none */
+def register_number(name: string) : _int64 {
+    if(name == "adx") { return REG_ADX; }
+    if(name == "cx") { return REG_CX; }
+    if(name == "cmt") { return REG_CMT; }
+    if(name == "ebx") { return REG_EBX; }
+    if(name == "ecx") { return REG_ECX; }
+    if(name == "ecf") { return REG_ECF; }
+    if(name == "edf") { return REG_EDF; }
+    if(name == "ehf") { return REG_EHF; }
+    if(name == "bmr") { return REG_BMR; }
+    if(name == "egx") { return REG_EGX; }
+    return 0 - 1;
+}
+
+/**
+ * How the operands of an instruction are encoded, one letter per opcode
+ * 00 .. a3 (codegen.md 4.9): E none, D one, C two, B three, K class D and a
+ * raw second word, X class E and a raw second word, G invoke_delegate.
+ */
+opcode_forms : string = "EDKDECDCCCCCCCCDBBBBBKKKKKEDDCEEECCCCDDDDDDDDEEDXXDCCEEDDDCDDBBCCCCCCEDEKDCCCCCKKKKKCECCCCCDXCKDEDDDGDKDDDKDCDEEECDCBKDDKBBBCDDCCCCCCCKKKKCCCKKKKXKKDCCCCCCCCCCCCCCC";
+
+/** the form letter of an opcode ('?' for one the VM does not have) */
+def opcode_form(opcode: _int64) : _int64 {
+    if(opcode < 0 || opcode > OP_LAST) { return '?'; }
+    return opcode_forms.data!![opcode];
+}

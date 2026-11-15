@@ -1,0 +1,86 @@
+mod main;
+
+// output:
+// 80
+// 81
+// 5
+// 2.5
+// 5
+// 3
+// 71
+// 3
+// 1.5
+// 2
+// 44
+// 0
+// 4
+// 15
+// 30
+// 81
+// 9
+// 81
+
+/*
+ * Globals and static fields read BEFORE any object is made (doc/codegen.md
+ * 5.8, 6.15): in a normal program platform.static_init gives them their
+ * values before `main` runs (until stage 4 these tests started at `main`
+ * itself, which then ran the same static parts first). The
+ * static part of `holder` prints 80 and 81 before main's first line - in both
+ * builds. Only ONE static part here prints: the order BETWEEN the static
+ * parts of a program is the bootstrap's own (6.15, G13) - the C++ compiler's
+ * follows the sizes of the source files, and changed when this comment was
+ * added.
+ */
+def say(n: _int64) : _int64 {
+    show(n);
+    return n;
+}
+
+total : _int64 = 5;
+ratio : decimal = 2.5;
+table : _int64[] = new _int64[] { 3, 4, 5 };
+late : _int64 = 70 + 1;
+
+class config {
+    static level : _int64 = 3;
+    static scale : decimal = 1.5;
+    static names : _int64[] = new _int64[2];
+    static small : _int8 = 300 as _int8;
+    static plain : _int64;
+
+    static def bump() : _int64 {
+        level++;
+        return level;
+    }
+}
+
+class holder {
+    static made : _int64 = say(80);
+    static init {
+        made = made + 1;
+        show(made);
+    }
+    value : _int64 = 9;
+}
+
+def main() {
+    show(total);
+    show_decimal(ratio);
+    show(table[2]);
+    show(sizeof(table));
+    show(late);
+    show(config.level);
+    show_decimal(config.scale);
+    show(sizeof(config.names));
+    show(config.small);
+    show(config.plain);
+    show(config.bump());
+    total += 10;
+    show(total);
+    config.plain = total * 2;
+    show(config.plain);
+    show(holder.made);
+    h := new holder();
+    show(h.value);
+    show(holder.made);
+}

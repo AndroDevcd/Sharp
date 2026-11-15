@@ -1,0 +1,14 @@
+mod frontend.diagnostics;
+
+/**
+ * DIAGNOSTICS: an error or warning as an object, and how it is drawn
+ *
+ * The files of this package (module `frontend.diagnostics`):
+ *
+ *      diagnostic.sharp     the diagnostic object: code, message, label, notes, helps, related places
+ *      render.sharp         draws a diagnostic with its source line; counts and prints a list of them
+ *      similar_names.sharp  did-you-mean: the closest names to a name that was not found
+ *      message_order.sharp  the order a list of diagnostics is printed in: the order of the program text
+ *
+ * This file is the package's front door: it only says what is where.
+ */

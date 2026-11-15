@@ -1,0 +1,82 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * COMPONENTS: THE DEFINITIONS, RECORDED
+ * (the C++ compiler: compiler/di/component_compiler.cpp, component_manager.cpp)
+ *
+ *      component app {
+ *          single { new database("main") }             one object, made on first use
+ *          factory("worker") { new worker(get()) }     a new object every time, with a name
+ *      }
+ *
+ * A component is a list of recipes for objects that `inject` and `get` ask
+ * for (dependency injection). The preprocessor made a sharp_component for
+ * the block; here each `single` / `factory` inside it becomes an object too,
+ * a type_definition (sharp_function.sharp), and every component is listed in
+ * sharp_program.components.
+ *
+ * That is all this stage can do: WHAT a definition provides is the type of
+ * its expression, which only exists after the expression is analysed. The
+ * whole-program stage fills in `provides`, checks that no two definitions of
+ * a component provide the same thing, and resolves every `get` / `inject`.
+ */
+def record_components(prog: sharp_program) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.components.size(); j++) {
+            declared := module.components.at(j);
+            prog.components.add(declared);
+            record_definitions(declared);
+        }
+    }
+}
+
+/** one type_definition per `single { }` / `factory { }` of a component, in the order written */
+def record_definitions(declared: sharp_component) {
+    unit := declared.unit;
+    p : parse_state = unit.parsed!!;
+    tree : syntax_tree = p.tree;
+
+    entry : _int64 = tree.first_child!![declared.node];
+    while(entry >= 0) {
+        if(tree.kinds!![entry] == N_COMPONENT_TYPE) {
+            name : string? = null;
+            value : _int64 = 0 - 1;
+
+            // children: [N_LITERAL "name"] expression
+            child : _int64 = tree.first_child!![entry];
+            while(child >= 0) {
+                if(tree.kinds!![child] == N_LITERAL && tree.next_sibling!![child] >= 0) {
+                    name = text_inside_quotes(node_text(unit, child));
+                } else {
+                    value = child;
+                }
+                child = tree.next_sibling!![child];
+            }
+
+            is_factory : _int64 = p.kinds[tree.tokens!![entry]] == K_FACTORY;
+            declared.definitions.add(new type_definition(declared, name, is_factory, unit, entry, value));
+        }
+        entry = tree.next_sibling!![entry];
+    }
+}
+
+/** "worker" -> worker */
+def text_inside_quotes(literal: string) : string {
+    chars : _int8[]? = literal.data;
+    text := new string_builder("");
+    for(i : _int64 = 1; i + 1 < sizeof(chars); i++) {
+        text.append(chars!![i]);
+    }
+    return text.build();
+}

@@ -1,0 +1,80 @@
+mod backend.ide.files;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.ide.positions
+)
+
+/**
+ * ONE FILE OF THE PROGRAM, AS THE EDITOR FILES SEE IT
+ *
+ * Everything the writers need to say about a file, kept in one place: the
+ * `source_unit` the compiler made of it, its number in the manifest (`index`:
+ * the number every other file of the output uses to name this file), and the
+ * lazily made helpers that turn the compiler's byte positions into the
+ * editor's offsets.
+ *
+ *      path        as given on the command line
+ *      index       its place in the manifest's `files` (sorted by path)
+ *      wanted      1 when the plugin asked for this file's `bodies/<n>.json`
+ *      bodies_written  1 when it was written (asked for, and the program was analysed)
+ *
+ * `positions()` and `blocks()` are made on first use: most files are library
+ * files of which only the declarations are written.
+ */
+class ide_file {
+    unit : source_unit;
+    path : string;
+    index : _int64 = 0;
+    wanted : _int64 = 0;
+    bodies_written : _int64 = 0;    // 1 once `bodies/<index>.json` was written for it
+    made_positions : file_positions?;
+    made_blocks : block_ends?;
+
+    ide_file(unit: source_unit) {
+        self->unit = unit;
+        self->path = unit.file;
+    }
+
+    /** 1 when the file was read and parsed (an unreadable file has no tree and no positions) */
+    def is_readable() : _int64 {
+        return unit.parsed != null;
+    }
+
+    /** the bytes of the file; none for an unreadable one */
+    def source() : _int8[] {
+        if(unit.parsed == null) { return new _int8[0]; }
+        return unit.parsed!!.source;
+    }
+
+    /** the byte -> offset table of this file (made once) */
+    def positions() : file_positions {
+        if(made_positions == null) {
+            made_positions = new file_positions(source(), unit.parsed!!.table, needs_offset_map(source()));
+        }
+        return made_positions!!;
+    }
+
+    /** the matching of `{` and `}` in this file (made once) */
+    def blocks() : block_ends {
+        if(made_blocks == null) { made_blocks = new block_ends(unit.parsed!!.table); }
+        return made_blocks!!;
+    }
+
+    /** the editor's form of the token `token` */
+    def place_of_token(token: _int64) : place {
+        table := unit.parsed!!.table;
+        return place_in(positions(), table.starts!![token], table.ends!![token]);
+    }
+
+    /** the editor's form of the token a syntax node is at */
+    def place_of_node(node: _int64) : place {
+        return place_of_token(unit.parsed!!.tree.tokens!![node]);
+    }
+
+    /** the offset of a byte index */
+    def offset_of(byte_index: _int64) : _int64 {
+        return positions().offset_of(byte_index);
+    }
+}

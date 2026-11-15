@@ -1,0 +1,90 @@
+mod backend.compiler.expressions.literals;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.syntax.parser,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * LITERALS
+ *
+ *      literal             type                                    constant    mark
+ *      ------------------  --------------------------------------  ----------  -----------
+ *      12  0xff  1_000     _int32, or _int64 when it needs more    the number  LIT_INTEGER
+ *                          than 32 bits
+ *      1.5  1e3            decimal                                 the number  LIT_DECIMAL
+ *      (and a whole number that needs more than 64 bits)
+ *      'a'  '\n'           _int8                                   its code    LIT_CHAR
+ *      true  false         _int8                                   1 / 0       LIT_BOOL
+ *      "text"              _int8[]  (an array of characters,       the text    LIT_TEXT
+ *                          NOT a string object)
+ *
+ * A literal is an ordinary value of an ordinary type: `5` IS an _int32, and
+ * converts to any other number type like every number does. The mark only
+ * matters in two places - `x := 5` makes x an `int` OBJECT
+ * (conversions/inferred_types.sharp), and a text literal becomes a `string`
+ * object wherever an object is needed (through string's constructor, like
+ * any conversion through a class).
+ *
+ * A whole number too large for 64 bits (1000000000000000000000) is a
+ * decimal, as in the C++ compiler.
+ *
+ * The VALUE of the literal was already checked by the parser
+ * (frontend/syntax/parser/literals.sharp: digits, escapes, size); the same
+ * file's readers give the value here.
+ *
+ *      C++ comparison: compiler/expressions/primary/literal_expression.cpp.
+ */
+def analyse_literal(context: analysis_context, node: _int64) : bound_expression {
+    p : parse_state = context.state;
+    types : type_table = context.session.types;
+    token : _int64 = context.tree.tokens!![node];
+    kind : _int64 = p.kinds[token];
+
+    if(kind == T_INTEGER && !fits_in_64_bits(p.source, p.start_of(token), p.end_of(token))) {
+        // 1000000000000000000000: more than 64 bits hold. It is a decimal, as
+        // if it were written with `.0` (the suite compares against such numbers).
+        return new bound_literal(context.unit, node, types.decimal_type, decimal_constant(decimal_value(p, token)), LIT_DECIMAL);
+    }
+    if(kind == T_INTEGER || kind == T_HEX) {
+        value : _int64 = integer_value(p, token);
+        // 2147483647 is the largest number 32 bits hold
+        type : resolved_type = types.int32;
+        if(value > 2147483647 || value < 0) { type = types.int64; }
+        return new bound_literal(context.unit, node, type, integer_constant(value), LIT_INTEGER);
+    }
+    if(kind == T_DECIMAL) {
+        number : decimal = decimal_value(p, token);
+        if(number - number != 0) { warn_decimal_too_big(context, node); }      // only infinity minus itself is not 0
+        return new bound_literal(context.unit, node, types.decimal_type, decimal_constant(number), LIT_DECIMAL);
+    }
+    if(kind == T_CHAR) {
+        return new bound_literal(context.unit, node, types.int8, integer_constant(character_value(p, token)), LIT_CHAR);
+    }
+    if(kind == K_TRUE) { return new bound_literal(context.unit, node, types.int8, integer_constant(1), LIT_BOOL); }
+    if(kind == K_FALSE) { return new bound_literal(context.unit, node, types.int8, integer_constant(0), LIT_BOOL); }
+
+    // "text", and the pieces of a string with values in it
+    return new bound_literal(context.unit, node, types.int8.array_of(), text_constant(string_value(p, token)), LIT_TEXT);
+}
+
+/**
+ * W1038: `1e400` - a decimal too big for 64-bit floating point. It is read
+ * as infinity, which the program then computes with (the C++ compiler is
+ * silent). The largest decimal is about 1.7976931348623157e308.
+ */
+def warn_decimal_too_big(context: analysis_context, node: _int64) {
+    d := problem_at(context, "W1038", "this number is too big for a `decimal`: it becomes infinity", node);
+    d.with_label("more than about 1.8e308");
+    d.with_note("a `decimal` is a 64-bit floating-point number; past its largest value there is only infinity");
+    d.with_help("write a smaller number, or keep the exponent at most 308");
+    report(context, d);
+}

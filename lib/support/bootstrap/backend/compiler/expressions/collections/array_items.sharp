@@ -1,0 +1,57 @@
+mod backend.compiler.expressions.collections;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * AN ITEM WRITTEN INTO A NEW ARRAY:  { a, b }   new node[] { a, b }
+ *
+ * Each item must convert to the item type of the array, like any value
+ * given to something that has a type. One thing is different: an item that
+ * MAY BE NULL.
+ *
+ *      maybe : node? = find();
+ *      nodes := { first, maybe };          a node[] whose second slot may hold null
+ *
+ * A slot of an array of objects can always hold null - `new node[3]` is
+ * three nulls - and the C++ compiler accepts such an item without a word.
+ * By the rule for cases like this (doc/backend.md, section 5: what the old
+ * compiler accepts and gives a meaning to is accepted, with a WARNING where
+ * a sound language would refuse) the item is accepted and W1026 says that
+ * whoever reads the array later gets a null the type does not show.
+ *
+ * `null` written out as an item (`{ a, null }`) stays an error (E0720), as
+ * in the C++ compiler.
+ *
+ *      C++ comparison: `compile_vector_item` in
+ *      compiler/expressions/vector_array_expression.cpp, which compares the
+ *      item types without looking at the `?`.
+ */
+def convert_array_item(context: analysis_context, value: bound_expression, element: resolved_type, purpose: string) : bound_expression {
+    type : resolved_type = value.type;
+    if(type.is_nullable == 0 || type.kind == RT_ERROR || element.kind == RT_ERROR || element.can_be_null()) {
+        return convert(context, value, element, purpose);
+    }
+
+    // does everything fit except the `?` ?
+    how := find_conversion(context.session, type, element, 1);
+    if(how.kind != CONV_NONE || how.only_nullable_in_the_way == 0) { return convert(context, value, element, purpose); }
+
+    written := as_operand_text(context, value.node);
+    d := problem_over(context, "W1026", "this item may be null, in an array of `" + element.to_text() + "`", value.node);
+    d.with_label("`" + type.to_text() + "`: may be null");
+    d.with_note("the array is a `" + element.to_text() + "[]`: whoever reads this slot expects an object and may get null");
+    d.with_help("when it is certainly not null here, say so: `" + written + "!!`");
+    report(context, d);
+    return convert(context, value, element.as_nullable(), purpose);
+}

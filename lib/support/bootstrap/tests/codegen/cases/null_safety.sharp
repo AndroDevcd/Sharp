@@ -1,0 +1,115 @@
+mod main;
+
+// output:
+// 7
+// 1
+// 1
+// 1
+// 1
+// 300
+// 700
+// 11
+// 11
+// 3
+// 7
+// 3
+// 1
+// 2
+// 10
+// 5
+// 2
+// 3
+// 1
+// 2
+// 2
+// 4
+// 5
+// 0
+// 6
+// 0
+// 8
+// 9
+// 1
+// 10
+// 1
+// 1
+
+/*
+ * Null safety and the values that choose a path (doc/codegen.md 6.4, 6.5):
+ * `?.` on a null and on an object, chains `a?.b?.c` (each `?.` tests its own
+ * receiver), a `?.` whose call gives nothing used as a statement, `?:` (the
+ * fallback runs only when needed), `!!` (tests nothing), `? :` with numbers,
+ * decimals and objects, nested, and `&&` / `||` with calls that show which
+ * side ran.
+ *
+ * (Not here: `z?.follow() == null` with a null `z` - a `?.` that ends in a
+ * CALL - is 0 in the C++-built program: the chain does not give null there, a
+ * bug of the C++ compiler; this compiler gives null. codegen.md 13.2.)
+ */
+class node {
+    value : _int64;
+    next : node?;
+
+    node(value: _int64) { self->value = value; }
+
+    def follow() : node? { return next; }
+    def poke() { show(value * 100); }
+}
+
+def maybe(n: _int64) : node? {
+    if(n > 0) { return new node(n); }
+    return null;
+}
+
+def tick(n: _int64) : _int64 {
+    show(n);
+    return n;
+}
+
+def fallback(n: _int64) : node {
+    show(n);
+    return new node(n);
+}
+
+def main() {
+    a : node? = maybe(3);
+    z : node? = maybe(0);
+    a!!.next = new node(7);
+
+    k : node? = a?.next;
+    show(k!!.value);
+    show(z?.next == null);
+    show(a?.follow()?.follow() == null);
+    show(a?.next?.next == null);
+    show(z?.next?.next == null);
+
+    a?.poke();
+    z?.poke();
+    a?.next?.poke();
+
+    w : node = z ?: fallback(11);
+    show(w.value);
+    w = a ?: fallback(12);
+    show(w.value);
+    w = z?.next ?: a?.next ?: fallback(13);
+    show(w.value);
+
+    y := a!!;
+    show(y.value);
+
+    t : _int64 = 5;
+    show(a != null ? 1 : 2);
+    show(z != null ? 1 : 2);
+    show(t > 3 ? t * 2 : t - 1);
+    show_decimal(t > 30 ? 1.5 : t);
+    show(t > 100 ? 1 : t > 4 ? 2 : 3);
+    picked : node = t > 3 ? a!! : fallback(14);
+    show(picked.value);
+    show(tick(1) > 0 ? tick(2) : tick(3));
+
+    show(tick(4) > 0 && tick(5) > 9);
+    show(tick(6) > 9 && tick(7) > 0);
+    show(tick(8) > 9 || tick(9) > 0);
+    show(tick(10) > 0 || tick(11) > 0);
+    show(!(t > 3) || z == null);
+}

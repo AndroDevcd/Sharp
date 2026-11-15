@@ -1,0 +1,201 @@
+mod backend.compiler.components;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * ONE DEFINITION OF A COMPONENT, ANALYSED
+ *
+ *      single { new database("main") }         provides a `database`
+ *      factory("worker") { new worker(get()) } provides a `worker`; its `get()` asks for
+ *                                              whatever the constructor of `worker` takes
+ *      single("port") { 8080 }                 provides an `int`
+ *
+ * The expression between the braces is analysed like the value of a global
+ * variable: code of the module, with no object and no local variables. Its
+ * type is what the definition PROVIDES - the type a `get` or `inject` must
+ * ask for to receive it. It is worked out as for a variable written
+ * `x := value;`: a whole number makes an `int` object, text in quotes a `string`.
+ *
+ * ON DEMAND, ONCE. The type is needed by whoever asks first - a `get` in
+ * some function body, or the `get()` of another definition - so a
+ * definition is analysed when first asked for (`provides_of`), the way the
+ * type of `x := value;` is (driver/lazy_types.sharp). While it is being
+ * analysed it stands on `session.definitions_in_progress`; a request that
+ * arrives back at it cannot be answered yet: `provides_of` returns null and
+ * the request waits (requests.sharp) - if it turns out that it needed this
+ * very definition, the definitions form a circle (E0908).
+ *
+ * ANALYSED TOO EARLY. A search looks at EVERY definition of the components
+ * in reach - it must, to notice a second answer - so analysing one
+ * definition can start the analysis of a later one that has nothing to do
+ * with it:
+ *
+ *      single { new config() }
+ *      single { new repository(get()) }    asks for a config; the search also looks at ...
+ *      factory { new service(get()) }      ... this one, whose `get()` asks for a repository -
+ *                                          the definition still in progress above
+ *
+ * The request of the third would have to wait for the second, although the
+ * second does not need the third at all. So a definition analysed INSIDE
+ * another one's analysis whose own request had to wait is put back
+ * (`put_back`): its result is dropped, the requests it left waiting are taken
+ * back, and for the rest of the outer analysis it counts as "in progress".
+ * When the outermost definition is done, the ones put back are made ready
+ * again and analysed afresh when next asked for - by then the second
+ * definition is known, and the third finds it. Only the outermost
+ * definition keeps a request that waits; whether that is a real circle is
+ * decided from what the definitions really ended up needing (requests.sharp).
+ * The cost is small: a definition is put back at most once per outermost
+ * analysis, and messages reported twice are reported once (`report`).
+ * What the dropped analysis added to the PROGRAM goes with it: the lambdas
+ * written in the expression (`factory { new job({ -> get<queue>().next(); }) }`)
+ * were made into functions with a `get` that had no answer yet; they are
+ * taken out again (`forget_lambdas_of`), and the second analysis makes them anew.
+ *
+ *      E0905   the expression of a definition has no value: a call of a function that
+ *              returns nothing, or `null` (which has no type to ask for)
+ *
+ *      C++ comparison: `compile_type_definition` in compiler/di/component_compiler.cpp
+ *      ("type of `nil` cannot be defined in components").
+ */
+
+/**
+ * The type `definition` provides. Null while the definition is being
+ * analysed (the caller is inside its expression); the error type when its
+ * expression was reported as wrong and its type is not known; the nil type
+ * when it has no value at all (E0905).
+ */
+def provides_of(session: analysis_session, definition: type_definition) : resolved_type? {
+    if(definition.state == TYPE_KNOWN) { return definition.provides; }
+    if(definition.state == TYPE_IN_PROGRESS || definition.put_back == 1) { return null; }
+    analyse_definition(session, definition);
+    return definition.provides;
+}
+
+/** does the definition provide a type a request can ask for (analysed, not reported as wrong, with a value)? */
+def provides_a_type(definition: type_definition) : _int64 {
+    if(definition.provides == null) { return 0; }
+    return definition.provides!!.kind != RT_ERROR && definition.provides!!.kind != RT_NIL;
+}
+
+/** analyse the expression of one definition and note what it provides */
+def analyse_definition(session: analysis_session, definition: type_definition) {
+    error_type : resolved_type = session.types.error_type;
+    definition.state = TYPE_IN_PROGRESS;
+    definition.provides = error_type;
+    definition.needs.clear();
+    definition.unknown_by_waiting = 0;
+    forget_lambdas_of(session, definition);     // (analysed before: requests.sharp analyses a definition again)
+
+    file := session.prog.file_of(definition.unit);
+    if(file == null || definition.value_node < 0) {
+        definition.state = TYPE_KNOWN;      // the parser reported the missing expression
+        return;
+    }
+    context := new analysis_context(session, file!!);
+    context.is_static = 1;
+    context.definition = definition;
+
+    session.definitions_in_progress.add(definition);
+    waiting_before : _int64 = session.unsettled_requests.size().value as _int64;
+    found := analyse_expression(context, definition.value_node, null);
+    if(found.type.kind == RT_NIL || found.type.kind == RT_NULL) {
+        report_no_value_to_provide(context, definition, found);
+        definition.value = found;
+        definition.provides = session.types.nil_type;       // it answers no request, and no request is kept quiet for it
+    } else {
+        value := as_value(context, found);
+        provided : resolved_type = inferred_type_of(session, value);
+        definition.value = convert(context, value, provided, "the value of this definition");
+        definition.provides = provided;
+    }
+    session.definitions_in_progress.pop_last();
+    left_waiting : _int64 = session.unsettled_requests.size().value > waiting_before;
+    if(left_waiting == 1 && session.definitions_in_progress.size() > 0) {
+        put_back(session, definition, waiting_before);
+        return;
+    }
+    // no type, and the reason is a request of its own that waits (nothing reported yet):
+    // that request is decided later, and must not take this definition for a reported one
+    if(definition.provides!!.kind == RT_ERROR && left_waiting == 1) {
+        definition.unknown_by_waiting = 1;
+    }
+    session.counters.definitions++;
+    definition.state = TYPE_KNOWN;
+    if(session.definitions_in_progress.size() == 0) { make_put_back_ready(session); }
+}
+
+/**
+ * Analysed too early (see the header): drop the result, take back the
+ * requests it (and the definitions analysed inside it) left waiting, and
+ * count it as in progress until the outermost analysis is over.
+ */
+def put_back(session: analysis_session, definition: type_definition, waiting_before: _int64) {
+    while(session.unsettled_requests.size() > waiting_before) { session.unsettled_requests.pop_last(); }
+    definition.value = null;
+    definition.provides = null;
+    definition.needs.clear();
+    definition.unknown_by_waiting = 0;
+    definition.state = TYPE_UNKNOWN;
+    definition.put_back = 1;
+    forget_lambdas_of(session, definition);
+    session.put_back_definitions.add(definition);
+}
+
+/**
+ * The lambdas an analysis of `definition` made are taken out of the program:
+ * out of the list of lambdas and out of the functions the later passes walk
+ * (flow, the completeness check). That analysis is being dropped - their
+ * bodies may hold a `get` that had no answer then - and the next one makes
+ * them again. Without this the completeness check met the stale body and
+ * reported an expression "without a type and without a message" (E0991).
+ */
+def forget_lambdas_of(session: analysis_session, definition: type_definition) {
+    stale : list<sharp_function> = definition.lambdas;
+    if(stale.size() == 0) { return; }
+    remove_listed(session.prog.lambdas, stale);
+    remove_listed(session.analysed_functions, stale);
+    stale.clear();
+}
+
+/** take every function of `listed` out of `functions` (read from the end: the newest are last) */
+def remove_listed(functions: list<sharp_function>, listed: list<sharp_function>) {
+    left : _int64 = listed.size().value as _int64;
+    for(i : _int64 = (functions.size().value as _int64) - 1; i >= 0 && left > 0; i--) {
+        if(listed.contains(functions.at(i))) {
+            functions.remove_at(i);
+            left--;
+        }
+    }
+}
+
+/** the outermost definition is done: the definitions put back may be analysed again */
+def make_put_back_ready(session: analysis_session) {
+    put_back_list : list<type_definition> = session.put_back_definitions;
+    for(i : _int64 = 0; i < put_back_list.size(); i++) { put_back_list.at(i).put_back = 0; }
+    put_back_list.clear();
+}
+
+/** E0905 */
+def report_no_value_to_provide(context: analysis_context, definition: type_definition, found: bound_expression) {
+    d := problem_over(context, "E0905", "this definition provides nothing", definition.value_node);
+    if(found.type.kind == RT_NULL) {
+        d.with_label("`null` has no type a `get` could ask for");
+        d.with_note("a definition is found by the type of its expression; `null` alone has none");
+        d.with_help("write an expression that makes the object: `" + definition.written_as() + " { new <class>() }`");
+    } else {
+        d.with_label("this returns nothing");
+        d.with_note("the expression of a `single` / `factory` definition is the object it hands out, so it must have a value");
+        d.with_help("call something that returns the object, or make it here: `" + definition.written_as() + " { new <class>() }`");
+    }
+    report(context, d);
+}

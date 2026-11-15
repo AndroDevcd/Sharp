@@ -1,0 +1,11 @@
+// expect: E0501
+// help: println("total ${n} ${items.size()}")
+// replace: println("total", n, items.size())
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    n : _int64 = 3;
+    items := new list<int>();
+    println("total", n, items.size());
+}

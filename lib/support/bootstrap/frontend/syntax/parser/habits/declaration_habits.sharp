@@ -1,0 +1,266 @@
+mod frontend.syntax.parser.habits;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    frontend.syntax.parser
+)
+
+/**
+ * HABITS IN DECLARATIONS (see habits.sharp for the idea)
+ *
+ *      function f() { }  fn f()    JS, Rust        def f() { }
+ *      int add(int a, int b) { }   C, Java         def add(a: int, b: int) : int { }
+ *      class b extends a           Java            class b base a
+ *      class b implements i        Java            class b : i
+ *      class b base a base c       (two bases)     class b base a : c
+ *      b() -> super(1) { }         Java            b() -> base(1) { }
+ *      def f() : t := value;       (mixing both)   def f() : t = value;
+ *      x : int = 0; get { ... }    (C# property)   a getter belongs to a field of a class
+ *      int count = 0;  var n = 1;  C, Java, JS     count : int = 0;  n := 1;
+ *
+ * Called from parse_declarations.sharp, and from parse_statements.sharp for
+ * the two that stand inside a function.
+ */
+
+/**
+ * `function f() { }`, `fn f()`, `void f()`, `int f() { }`: a function
+ * declared without `def`, the result type (if any) in front. The current
+ * token is that first word, the name follows and then `(`.
+ *
+ * The help gives the Sharp declaration for the very parameters written,
+ * turning C's `int count` into `count: int`.
+ *
+ * @return 1 when it was reported and parsed (as a function with the body that follows)
+ */
+def parse_c_function(p: parse_state, parent: _int64) : _int64 {
+    if(!(p.at(T_IDENTIFIER) || is_native_type(p.kind())) || p.peek(1) != T_IDENTIFIER || p.peek(2) != P_LPAREN) { return 0; }
+    word := p.current_text();
+    introduces : _int64 = 0;
+    if(word == "function" || word == "fn" || word == "func" || word == "fun" || word == "sub" || word == "void") { introduces = 1; }
+
+    first : _int64 = p.position;
+    name := token_text(p.source, p.table, first + 1);
+    // the parameters, as Sharp writes them
+    closing : _int64 = first + 2;
+    depth : _int64 = 0;
+    while(closing < p.count) {
+        kind : _int64 = p.kinds[closing];
+        if(kind == P_LPAREN) { depth++; }
+        else if(kind == P_RPAREN) { depth--; if(depth == 0) { break; } }
+        else if(kind == P_LBRACE || kind == P_SEMICOLON) { return 0; }
+        closing++;
+    }
+    if(closing >= p.count) { return 0; }
+    parameters := sharp_parameters(p, first + 3, closing - 1);
+
+    result := "";
+    if(introduces == 0) { result = " : " + word; }
+    corrected := "def " + name + "(" + parameters + ")" + result;
+
+    message := "a function is declared with `def` in Sharp";
+    d : diagnostic? = null;
+    if(introduces == 1) {
+        d = report_habit(p, first, first, message);
+        d!!.with_label("`" + word + "` is not a word of Sharp");
+    } else {
+        d = report_habit(p, first, first, message + ", and its result type comes after the parameters");
+        d!!.with_label("the result type in front of the name is the C form");
+    }
+    d!!.with_help("write: `" + corrected + "`");
+
+    // read on as the function it is: the name, the parameters skipped (they
+    // may be in the C form), the body as usual
+    function : _int64 = p.child(parent, N_FUNCTION);
+    p.advance();
+    p.tree.tokens!![function] = p.position;
+    p.advance();
+    while(p.position <= closing) { p.advance(); }
+    p.child(function, N_PARAMETERS);
+    if(p.at(P_LBRACE)) { parse_block(p, function); }
+    else { p.accept(P_SEMICOLON); }
+    return 1;
+}
+
+/**
+ * The parameters between tokens first..last in Sharp's form: `int a, string b`
+ * becomes `a: int, b: string`; parameters already written `a: int` are kept.
+ */
+def sharp_parameters(p: parse_state, first: _int64, last: _int64) : string {
+    if(last < first) { return ""; }
+    text := new string_builder("");
+    start : _int64 = first;
+    for(i : _int64 = first; i <= last + 1; i++) {
+        if(i <= last && p.kinds[i] != P_COMMA) { continue; }
+        // one parameter: start..i-1
+        if(text.size() > 0) { text.append(", "); }
+        if(i - start == 2 && p.kinds[start + 1] == T_IDENTIFIER
+           && (p.kinds[start] == T_IDENTIFIER || is_native_type(p.kinds[start]))) {
+            text.append(token_text(p.source, p.table, start + 1) + ": " + token_text(p.source, p.table, start));
+        } else {
+            text.append(tokens_text(p, start, i - 1));
+        }
+        start = i + 1;
+    }
+    return text.build();
+}
+
+/**
+ * `class b extends a`, `class b implements i`: Java's words for the base
+ * class and the interfaces. The current token is the word.
+ * @return 1 when it was one (reported, and the type after it read in its place)
+ */
+def parse_java_base_word(p: parse_state, declaration: _int64) : _int64 {
+    extends_word : _int64 = token_is_word(p, p.position, "extends");
+    implements_word : _int64 = token_is_word(p, p.position, "implements");
+    if(extends_word == 0 && implements_word == 0) { return 0; }
+    word : _int64 = p.position;
+    class_name := token_text(p.source, p.table, p.tree.tokens!![declaration]);
+    p.advance();
+    holder : _int64 = 0;
+    if(extends_word == 1) { holder = p.child(declaration, N_BASE); }
+    else { holder = p.child(declaration, N_INTERFACES); }
+    parse_type_name(p, holder);
+    while(implements_word == 1 && p.accept(P_COMMA) == 1) { parse_type_name(p, holder); }
+    written := tokens_text(p, word + 1, p.position - 1);
+
+    if(extends_word == 1) {
+        d := report_habit(p, word, word, "the base class is written after `base` in Sharp");
+        d.with_label("`extends` is the Java word");
+        d.with_help("write: `class " + class_name + " base " + written + "`");
+    } else {
+        d := report_habit(p, word, word, "the interfaces of a class are listed after `:` in Sharp");
+        d.with_label("`implements` is the Java word");
+        d.with_help("write: `class " + class_name + " : " + written + "`");
+    }
+    return 1;
+}
+
+/**
+ * `class b base a base c`: a second `base`. A class has ONE base class;
+ * whatever else it is, it is listed after `:` (an interface). The current
+ * token is the second `base`; `first_base` the node of the first.
+ */
+def parse_second_base(p: parse_state, declaration: _int64, first_base: _int64) {
+    word : _int64 = p.position;
+    class_name := token_text(p.source, p.table, p.tree.tokens!![declaration]);
+    base_text := tokens_text(p, first_token_in(p.tree, first_base) + 1, last_token_in(p.tree, first_base));
+    p.advance();
+    holder : _int64 = p.child(declaration, N_INTERFACES);
+    parse_type_name(p, holder);
+    second := tokens_text(p, word + 1, p.position - 1);
+    d := report_habit(p, word, word, "a class has one base class");
+    d.with_label("a second `base`");
+    d.with_note("a class inherits the code of ONE class; what else it promises to be is a list of interfaces, after `:`");
+    d.with_help("if `" + second + "` is an interface, write: `class " + class_name + " base " + base_text + " : " + second + "`");
+}
+
+/**
+ * `b() -> super(1) { }`: Java's `super` for the base class's constructor.
+ * The current token is the `->`, `super` follows.
+ * @return 1 when it was this habit (parsed as `-> base(1)`)
+ */
+def parse_super_call(p: parse_state, parent: _int64) : _int64 {
+    if(!p.at(P_ARROW) || !token_is_word(p, p.position + 1, "super") || p.peek(2) != P_LPAREN) { return 0; }
+    word : _int64 = p.position + 1;
+    call : _int64 = p.child(parent, N_BASE_CALL);
+    p.advance();
+    p.advance();
+    parse_arguments(p, call);
+    arguments := tokens_text(p, word + 1, p.position - 1);
+    d := report_habit(p, word, word, "the base class's constructor is called with `base` in Sharp");
+    d.with_label("`super` is the Java word");
+    d.with_help("write: `-> base" + arguments + "`");
+    return 1;
+}
+
+/**
+ * `def give(s: string?) : string := s;`: `:=` after a result type. A
+ * one-expression body is `= value;` when the type is written and `:= value;`
+ * when it is worked out - never both. The current token is the `:=`;
+ * `function` the N_FUNCTION node.
+ */
+def parse_typed_infer_body(p: parse_state, function: _int64) {
+    infer : _int64 = p.position;
+    head_start : _int64 = p.tree.tokens!![function];
+    if(head_start > 0 && p.kinds[head_start - 1] == K_DEF) { head_start--; }
+    parse_expression_body(p, function);
+    value_end : _int64 = p.position - 1;
+    if(value_end >= 0 && p.kinds[value_end] == P_SEMICOLON) { value_end--; }
+    corrected := tokens_text(p, head_start, infer - 1) + " = " + tokens_text(p, infer + 1, value_end) + ";";
+    d := report_habit(p, infer, infer, "with a result type, a one-expression body is written with `=`");
+    d.with_label("`:=` is for a body whose type is worked out");
+    d.with_note("`def f() : t = value;` returns `value` as a `t`; `def f() := value;` returns whatever type `value` has");
+    d.with_help("write: `" + corrected + "`");
+}
+
+/**
+ * `x : _int64 = 0; get { return 1; }` inside a function: a getter or a
+ * setter after a LOCAL variable. Fields and globals can have them; a local
+ * cannot. The current token is `get` (with `{` after it) or `set` (with a
+ * name and `->`); `block` is the block the statements are in.
+ * @return 1 when it was one (reported, and the accessor read and dropped)
+ */
+def parse_local_accessor(p: parse_state, block: _int64) : _int64 {
+    is_getter : _int64 = p.at(K_GET) && p.peek(1) == P_LBRACE;
+    is_setter : _int64 = p.at(K_SET) && p.peek(1) == T_IDENTIFIER && p.peek(2) == P_ARROW;
+    if(is_getter == 0 && is_setter == 0) { return 0; }
+    variable : _int64 = p.tree.last_child!![block];
+    if(variable < 0 || p.tree.kinds!![variable] != N_VARIABLE) { return 0; }
+
+    word : _int64 = p.position;
+    name := token_text(p.source, p.table, p.tree.tokens!![variable]);
+    type_text := "";
+    type_node : _int64 = p.tree.child_of_kind(variable, N_TYPE);
+    if(type_node >= 0) { type_text = tokens_text(p, first_token_in(p.tree, type_node), last_token_in(p.tree, type_node)); }
+
+    holder : _int64 = p.node(N_ERROR);
+    p.advance();
+    if(is_setter == 1) { p.advance(); p.advance(); }
+    parse_body(p, holder);
+
+    what := "getter";
+    if(is_setter == 1) { what = "setter"; }
+    d := report_habit(p, word, word, "the local variable `" + name + "` cannot have a " + what);
+    d.with_label("`" + token_text(p.source, p.table, word) + "` after a variable declared in a function");
+    d.with_note("`get` and `set` belong to the fields of a class and to global variables: they run when the field is read or written from anywhere");
+    if(is_getter == 1) {
+        result := "";
+        if(sizeof(type_text.data) > 0) { result = " : " + type_text; }
+        d.with_help("compute the value with a function instead:  def " + name + "_value()" + result + " { ... }");
+    } else {
+        parameter := "value";
+        if(sizeof(type_text.data) > 0) { parameter = "value: " + type_text; }
+        d.with_help("change the variable through a function instead:  def set_" + name + "(" + parameter + ") { ... }");
+    }
+    d.with_help("or make `" + name + "` a field of a class, where `get` / `set` can follow it");
+    return 1;
+}
+
+/**
+ * `int count = 0;`, `var total = 0;`, `string name;`: a variable declared
+ * the C way, type first. The current token is the type, the name follows.
+ * The Sharp declaration of the very same variable: `count : int = 0;`,
+ * `total := 0;` (`var`, `let` and `auto` mean "work the type out"),
+ * `name : string;`. "" when the statement does not end on this line (the
+ * help then shows the general form).
+ */
+def sharp_variable_text(p: parse_state) : string {
+    type_word := p.current_text();
+    name := token_text(p.source, p.table, p.position + 1);
+    after : _int64 = p.position + 2;
+    if(after >= p.count) { return ""; }
+    if(p.kinds[after] == P_SEMICOLON) {
+        if(type_word == "var" || type_word == "let" || type_word == "auto") { return ""; }
+        return name + " : " + type_word + ";";
+    }
+    if(p.kinds[after] != P_ASSIGN) { return ""; }
+    last : _int64 = after + 1;
+    while(last < p.count && p.kinds[last] != P_SEMICOLON && p.same_line(after, last)) { last++; }
+    if(last >= p.count || p.kinds[last] != P_SEMICOLON || last == after + 1) { return ""; }
+    value := tokens_text(p, after + 1, last - 1);
+    if(type_word == "var" || type_word == "let" || type_word == "auto") { return name + " := " + value + ";"; }
+    return name + " : " + type_word + " = " + value + ";";
+}

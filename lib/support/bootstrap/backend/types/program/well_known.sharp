@@ -1,0 +1,138 @@
+mod backend.types.program;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * THE LIBRARY CLASSES THE COMPILER ITSELF NEEDS
+ *
+ * Most of the standard library is just code to the compiler. A few classes
+ * are part of what the LANGUAGE means:
+ *
+ *      "text"              becomes an object of std#string
+ *      x := 5;             x is a std#int       (the "boxes": classes that hold one number)
+ *      enum color { }      inherits from std#_enum_; every class from std#_object_
+ *      throw e;            e must be a std#throwable
+ *      foreach(x in xs)    xs may be anything that is a std#loopable
+ *      { "a" : 1 }         is a std#dictionary of std#pair
+ *      { -> ... }          is a platform.kernel#function_value
+ *
+ * Each is looked up ONCE, here, by its module and name, and kept in
+ * sharp_program.well_known. The stages take them from there instead of
+ * searching by name again (and each time handling "not found").
+ *
+ * A build without the standard library (a single file given to the compiler
+ * to look at its tree) finds none of them: every field is then null and
+ * nothing is reported. With the module `std` present, a class that is
+ * missing is the library's mistake and is reported once:
+ *
+ *      E0395   a class the compiler needs is missing from the library
+ *
+ *      C++ comparison: the old compiler looks these up where it needs them
+ *      (`resolve_class(get_module("std"), "string", ...)` in a dozen places),
+ *      each with its own "cannot locate" error.
+ */
+class well_known_classes {
+    object_class : sharp_class?;        // std#_object_    the base of every class
+    enum_class : sharp_class?;          // std#_enum_      the base of every enum
+    string_class : sharp_class?;        // std#string
+    throwable_class : sharp_class?;     // std#throwable   what can be thrown and caught
+    loopable_class : sharp_class?;      // std#loopable<t> what foreach can walk (a blueprint)
+    pair_class : sharp_class?;          // std#pair<A, B>  one entry of a dictionary literal (a blueprint)
+    dictionary_class : sharp_class?;    // std#dictionary<k, v>  (a blueprint)
+    function_value_class : sharp_class?;    // platform.kernel#function_value
+
+    // the boxes: the class that holds one number of each kind
+    bool_class : sharp_class?;
+    char_class : sharp_class?;          // _int8
+    uchar_class : sharp_class?;         // _uint8
+    byte_class : sharp_class?;
+    short_class : sharp_class?;         // _int16
+    ushort_class : sharp_class?;        // _uint16
+    int_class : sharp_class?;           // _int32
+    uint_class : sharp_class?;          // _uint32
+    long_class : sharp_class?;          // _int64
+    ulong_class : sharp_class?;         // _uint64
+    double_class : sharp_class?;        // decimal
+
+    /** the box class for a number type (`int` for `_int32`); null for anything that is not a plain number */
+    def box_of(type: resolved_type) : sharp_class? {
+        if(type.is_array == 1) { return null; }
+        if(type.kind == RT_DECIMAL) { return double_class; }
+        if(type.kind != RT_INTEGER) { return null; }
+        if(type.is_signed == 1) {
+            if(type.bits == 8) { return char_class; }
+            if(type.bits == 16) { return short_class; }
+            if(type.bits == 32) { return int_class; }
+            return long_class;
+        }
+        if(type.bits == 8) { return uchar_class; }
+        if(type.bits == 16) { return ushort_class; }
+        if(type.bits == 32) { return uint_class; }
+        return ulong_class;
+    }
+
+    /** is this one of the classes that hold a single number (int, bool, double ...)? */
+    def is_box(declared: sharp_class) : _int64 {
+        return declared == int_class || declared == long_class || declared == double_class || declared == bool_class
+            || declared == char_class || declared == byte_class || declared == short_class || declared == uchar_class
+            || declared == ushort_class || declared == uint_class || declared == ulong_class;
+    }
+}
+
+/** look every well-known class up; E0395 for one the library should have and does not */
+def find_well_known_classes(prog: sharp_program, problems: list<diagnostic>) : well_known_classes {
+    known := new well_known_classes();
+    std_module := prog.find_module("std");
+    if(std_module == null) { return known; }    // no standard library in this build
+    library : sharp_module = std_module!!;
+
+    known.object_class = library_class(prog, library, "_object_", problems);
+    known.enum_class = library_class(prog, library, "_enum_", problems);
+    known.string_class = library_class(prog, library, "string", problems);
+    known.throwable_class = library_class(prog, library, "throwable", problems);
+    known.loopable_class = library_class(prog, library, "loopable", problems);
+    known.pair_class = library_class(prog, library, "pair", problems);
+    known.dictionary_class = library_class(prog, library, "dictionary", problems);
+
+    known.bool_class = library_class(prog, library, "bool", problems);
+    known.char_class = library_class(prog, library, "char", problems);
+    known.uchar_class = library_class(prog, library, "uchar", problems);
+    known.byte_class = library_class(prog, library, "byte", problems);
+    known.short_class = library_class(prog, library, "short", problems);
+    known.ushort_class = library_class(prog, library, "ushort", problems);
+    known.int_class = library_class(prog, library, "int", problems);
+    known.uint_class = library_class(prog, library, "uint", problems);
+    known.long_class = library_class(prog, library, "long", problems);
+    known.ulong_class = library_class(prog, library, "ulong", problems);
+    known.double_class = library_class(prog, library, "double", problems);
+
+    kernel := prog.find_module("platform.kernel");
+    if(kernel != null) {
+        known.function_value_class = library_class(prog, kernel!!, "function_value", problems);
+    }
+    return known;
+}
+
+/** the class `name` of a library module; reported (E0395) and null when the library does not have it */
+def library_class(prog: sharp_program, library: sharp_module, name: string, problems: list<diagnostic>) : sharp_class? {
+    found := library.declared.find_type(name);
+    if(found != null && (found!!.kind == D_CLASS || found!!.kind == D_INTERFACE)) {
+        return found as sharp_class;
+    }
+
+    // reported at the first line of the first file of the module: there is no better place for "something is absent"
+    if(library.units.size() > 0) {
+        unit := library.units.at(0);
+        problems.add(error_at_node("E0395", "the standard library has no class `" + library.name + "#" + name
+                                   + "`, which the compiler itself needs", unit, 0)
+            .with_label("module `" + library.name + "` is part of this build, but `" + name + "` is not declared in it")
+            .with_note("the language is built on a handful of library classes (text is a `string`, `x := 5` is an `int`, every class inherits from `_object_` ...)")
+            .with_help("check that the whole standard library is given to the compiler, and that it is the version this compiler belongs to"));
+    }
+    return null;
+}

@@ -1,0 +1,57 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * WHAT A NAME WAS FOUND TO BE
+ *
+ * Name lookup answers with one of these. It says WHAT the name is
+ * (`kind`) and hands over the thing itself; the caller turns a field into a
+ * bound_field, a class into a bound_type_name, and so on. Keeping lookup and
+ * tree building apart is what lets the same lookup serve `x`, `x(...)`, the
+ * left of `x.y`, and later the names inside `asm` blocks.
+ *
+ *      FOUND_NOTHING       nothing visible has the name
+ *      FOUND_LOCAL         a local variable or parameter        -> variable
+ *      FOUND_FIELD         a field of a class, or a global      -> field, owner
+ *      FOUND_ENUM_VALUE    one value of an enum                 -> value
+ *      FOUND_FUNCTIONS     one or more functions of that name   -> functions (overloads, nearest first)
+ *      FOUND_TYPE          a class, interface, enum, alias or
+ *                          type parameter                       -> declaration (resolved by the caller,
+ *                                                                  which knows the type arguments written)
+ *                          or a local alias                     -> type
+ *
+ *      C++ comparison: `resolve_normal_item` in dependency.cpp answers by
+ *      filling a sharp_type whose `type` field says what was found and
+ *      generates the access code in the same step.
+ */
+const FOUND_NOTHING    : _int64 = 0;
+const FOUND_LOCAL      : _int64 = 1;
+const FOUND_FIELD      : _int64 = 2;
+const FOUND_ENUM_VALUE : _int64 = 3;
+const FOUND_FUNCTIONS  : _int64 = 4;
+const FOUND_TYPE       : _int64 = 5;
+
+class lookup_result {
+    kind : _int64 = 0;                      // FOUND_...
+    variable : local_variable?;
+    depth : _int64 = 0;                     // for a local: function boundaries crossed to reach it (a capture when > 0)
+    field : sharp_field?;
+    value : sharp_enum_value?;
+    functions : list<sharp_function>?;
+    declaration : sharp_declaration?;       // FOUND_TYPE: the class, alias or type parameter
+    type : resolved_type?;                  // FOUND_TYPE through a local alias: the type itself
+    owner : sharp_class?;                   // the class the member was found in (the context's class or one above it)
+    in_module : sharp_module?;              // the module a global was found in
+    through_class : _int64 = 0;             // 1: found as a member of the class the code is in
+}

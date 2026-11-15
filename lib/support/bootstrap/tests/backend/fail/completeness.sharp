@@ -1,0 +1,95 @@
+// expect: E0402 E0600 W1039 W1039 W1039 E0903 E0600 E0511 E0511 E0511 E0410 E0804 E0722 E0400 E0400 E0400 E0406 E0711 E0411 E0411 W1027 E0600 E0802 E0801 E0805 E0412 W1037 W1038 E0400 E0400
+mod completeness_mistakes;
+
+import ( std, std.io )
+
+/**
+ * THE COMPLETENESS STAGE: gaps found by comparing the bootstrap with the C++
+ * compiler, each closed where its rule lives. One mistake per line; each
+ * line gives ONE message (the follow-ons the stage removed are noted).
+ */
+
+class holder { }
+class account { static def total() : _int64 { return 1; } }
+class counter { def size() : _int64 { return 1; } }
+class link { next : link? = null; n : _int64 = 1; }
+class rootless { def g() : _int64 { return base->f(); } }               // E0402 + "`rootless` declares no base class"
+class pet { }
+class rock { }
+class reading { x : decimal = 1; }
+interface shaped { def scale(by: _int64, by: _int64); }                 // E0600: also in a function without a body
+
+// generic code that nothing uses: each is analysed once as a stand-in (`crate<?>`), and
+// what is wrong in it - whatever does not depend on T - is the warning W1039
+class crate<T> {
+    item : T;
+    def show() { prnt(item); item.anything(); }                         // W1039 (E0400): `prnt`; `item.anything()` depends on T: quiet
+    def count() : _int64 { }                                            // W1039 (E0605): no return
+}
+def never_called<T>(x: T) : T { y : _int64 = "text"; return x; }        // W1039 (E0410)
+
+// ... and unused generic code that is RIGHT gives nothing, whatever it does with its T
+interface measured<T> { def area(of: T) : decimal; }
+class square<T> : measured<T> {
+    side : T;
+    override def area(of: T) : decimal { return 1; }
+    def both() : list<T> { sides := new list<T>(); sides.add(side); return sides; }
+    def same(other: square<T>) : _int64 { return other.side == side; }
+    def pick<U>(a: U, b: U) : U { if(a == b) { return a; } return b; }
+}
+class cube<T> base square<T> {                                          // (above `cube<?>` stands `square<?>`: what it inherits is known)
+    def all() : list<T> { return both(); }
+    def flat() : decimal { return base->area(side) + area(side); }
+}
+
+component {
+    factory { get<holder>() }                                           // E0903: the definition only asks for itself
+}
+
+def twice<T>(x: T) : T { return x; }
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def each(b: (_int64)()) { b(1); }
+def nothing() { }
+def pick(a: _int64) : _int64 { return a; }
+def pick(a: string) : string { return a; }
+def area(width: _int64, height: _int64) : _int64 { return width * height; }
+
+def same_name(a: _int64, a: string) { }                                 // E0600: two parameters named `a`
+
+def main() {
+    numbers := new _int64[3];
+    small := new _int32[3];
+    same := numbers == small;                                           // E0511: no array is both
+    stones := new rock[2] != new pet[2];                                // E0511: unrelated classes
+    mixed := new object[2] == numbers;                                  // E0511: an object[] is never an array of numbers
+
+    x : _int64 = account.total;                                         // E0410 with "call it: `account.total()`"
+    c := new counter();
+    n : _int64 = c.size;                                                // E0804 with "call it: `c.size()`"
+
+    l := new link();
+    println(l.next.n);                                                  // E0722, the help says `l.next?.n`
+
+    total = 0;                                                          // E0400 once, "declare it here: `total := 0;`"
+    total += 1;                                                         //   (a place of the same message)
+    for(step; step < 3; step++) { }                                     // E0400 once: the start part declares nothing
+    area(width = 2, heigth = 3);                                        // E0400 once for the call (10.11): Sharp has no named arguments
+    items := { nothing(), nothing() };                                  // E0406 once
+    true++;                                                             // E0711: a literal is not a place
+    if("yes") { }                                                       // E0411 with a help for text
+    if(nothing) { }                                                     // E0411 with "call it: `nothing()`"
+    maybe : reading? = null;
+    wide := maybe?.x ?: -1;                                             // W1027 only, with the fix (not also W1006)
+    pairs := { a: _int64, a: _int64 -> println(a); };                   // E0600: two parameters of a lambda
+
+    apply({ x: string -> (decimal) return 1; }, 9);                     // E0802 at `x: string`, not E0501
+    y := each;
+    y({ -> return 1; });                                                // E0801 only (no E0606 for its body)
+    f := twice<int>;                                                    // E0805, the help writes `twice<int>(x)`
+    o : object = numbers;
+    g := o as (decimal)(decimal)[];                                     // E0412: no run-time test can tell
+    big : _int64 = 99999999999999999999999;                             // W1037
+    huge := 1e400;                                                      // W1038
+    chosen := pick(missing).length();                                   // E0400 only: which `pick` is a guess, so nothing about `.length()`
+    brake;                                                              // E0400 "did you mean the keyword `break`?"
+}

@@ -63,6 +63,19 @@ void memcopy() {
     auto from = pop_stack_object.o;
     auto to = pop_stack_object.o;
 
+    /*
+     * Copying nothing does nothing, whatever the arrays are. An empty array is
+     * null on this VM (`new _int8[0]` gives null), so `string.append` of an
+     * empty array copies 0 items into a null `data`; that raised
+     * nullptr_exception - and an empty command-line argument stopped every
+     * program in platform.srt_init. Only an empty copy is let through: a
+     * copy of 1 item or more into or out of null still raises below.
+     *
+     * C++ comparison: memcpy(dest, src, 0) is valid for any pointers.
+     */
+    if(copyLen == 0 && srcStart >= 0 && destStart >= 0)
+        return;
+
     if(from != NULL && to != NULL) {
         if(srcEnd > from->size || srcEnd < 0 || srcStart < 0 || srcStart >= from->size
             || copyLen < 0) {

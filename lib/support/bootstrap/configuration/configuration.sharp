@@ -1,0 +1,83 @@
+mod configuration;
+
+import (
+    std.io
+)
+
+/*
+ * CONFIGURATION: what the user asked the compiler to do
+ *
+ *      sharpc main.sharp -o app -L /usr/include/sharp/0.4.0 -O
+ *      sharpc -P my_project                (the options are in my_project/settings.json)
+ *
+ * Before anything is compiled the command line - and, for a project, its
+ * settings.json - is read into ONE place, the static fields of the class
+ * `options`. Everything after that (the driver in main.sharp, the build
+ * cache) only asks `options`; nothing else looks at the command line.
+ *
+ * This package knows nothing of the compiler's stages: it is the bottom of
+ * the driver. The files (module `configuration`):
+ *
+ *      configuration.sharp         this front door; the compiler's name and version; `error`,
+ *                                  `warning` (each also `_with_help`), `not_supported_yet`
+ *                                  (the driver's own messages)
+ *      options.sharp               the class `options`: every switch, with its default
+ *      command_line.sharp          the options of the command line, one by one; the --h text
+ *      settings.sharp              the setters the command line and settings.json share
+ *                                  (they check what they are given)
+ *      settings_processor.sharp    settings.json of a project
+ *      platform.sharp              the platforms `-target` can name
+ *
+ *      C++ comparison: lib/grammar/main.cpp (_bootstrap: the options) and
+ *      lib/grammar/settings/ (settings.h: `options`; settings_processor.cpp).
+ */
+
+program_name : string = "sharpc";
+program_vers : string = "0.4.0";
+
+/**
+ * The compiler cannot go on: a command line it does not understand, a file
+ * that is not there. The message, then exit code 1 (as the C++ compiler).
+ */
+def error(message: string) {
+    println("$program_name:  error: $message");
+    exit(1);
+}
+
+/**
+ * `error`, with a line under it that says how to fix it - the same `= help:`
+ * line the compiler's diagnostics end with (frontend/diagnostics).
+ */
+def error_with_help(message: string, help: string) {
+    println("$program_name:  error: $message");
+    println("    = help: $help");
+    exit(1);
+}
+
+def warning(message: string) {
+    println("$program_name:  warning: $message");
+}
+
+/** `warning`, with a line under it that says what to do about it */
+def warning_with_help(message: string, help: string) {
+    println("$program_name:  warning: $message");
+    println("    = help: $help");
+}
+
+/**
+ * An option the C++ compiler has and this compiler accepts but does not act
+ * on yet: said once, as a warning, and the compile goes on.
+ */
+def not_supported_yet(option: string, what: string) {
+    warning("option `$option` is not supported yet: $what");
+}
+
+/** 1 when `name` is one of `names` */
+def contains(names: list<string>, name: string) : decimal {
+    foreach(listed in names) {
+        if(listed == name)
+            return true;
+    }
+
+    return false;
+}

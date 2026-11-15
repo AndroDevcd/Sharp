@@ -1,0 +1,50 @@
+mod backend.compiler.statements.loops;
+
+import (
+    std.io,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.expressions,
+    backend.compiler.statements
+)
+
+/**
+ * `while(condition) body` AND `do body while(condition);`
+ *
+ * The difference is when the condition is asked: before every round, or
+ * after it - a do-while runs its body at least once. The variables declared
+ * in the body of a do-while are gone when the condition is read: the body is
+ * a block of its own and the condition stands after it.
+ *
+ *      E0411   the condition is not a number or a `bool` object (values.sharp)
+ *
+ *      C++ comparison: compiler/functions/statements/while_statement.cpp and
+ *      do_while_statement.cpp.
+ */
+def analyse_while(context: analysis_context, node: _int64) : bound_statement {
+    condition_node : _int64 = context.tree.first_child!![node];
+    loop := new bound_while(context.unit, node, analyse_condition(context, condition_node, 1));
+    loop.is_endless = is_constant_true(loop.condition);
+
+    context.enter_frame(FRAME_LOOP, loop);
+    loop.body = analyse_part(context, context.tree.next_sibling!![condition_node]);
+    context.leave_frame();
+    return loop;
+}
+
+/** `do body while(condition);` - the body (the first child) before the condition (the second) */
+def analyse_do_while(context: analysis_context, node: _int64) : bound_statement {
+    body_node : _int64 = context.tree.first_child!![node];
+    loop := new bound_do_while(context.unit, node);
+
+    context.enter_frame(FRAME_LOOP, loop);
+    loop.body = analyse_part(context, body_node);
+    context.leave_frame();
+
+    if(body_node >= 0 && context.tree.next_sibling!![body_node] >= 0) {
+        loop.condition = analyse_condition(context, context.tree.next_sibling!![body_node], 1);
+    }
+    loop.is_endless = is_constant_true(loop.condition);
+    return loop;
+}

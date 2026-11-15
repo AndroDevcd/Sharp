@@ -1,0 +1,150 @@
+mod backend.compiler.expressions.primary.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.expressions.primary,
+    backend.compiler.names,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE MESSAGES OF MEMBER ACCESS that are not "no such member"
+ *
+ *      E0405   `.name` on something that has no members at all: a number, an array,
+ *              `object`, a function value, `null`; and a CLASS reached through an object
+ *      W1005   `?.` / `!!.` after the name of a class
+ *      W1012   a `static localized` field read through an object
+ *
+ * (E0402 "has no member named" is in backend/compiler/names/no_member.sharp;
+ * the null rule of `.`, E0722 and W1005, in member_receiver.sharp.)
+ */
+
+/**
+ * W1012: `worker.current` where `current` is `static localized` - one value
+ * per thread, belonging to the class. Written through an object it reads as
+ * if every object had its own. (The C++ compiler warns here too:
+ * "accessing static localized field through instance".)
+ */
+def warn_localized_through_object(context: analysis_context, field: sharp_field, receiver: bound_expression, name_node: _int64) {
+    owner_name := field.owner!!.written.name;
+    d := problem_at(context, "W1012", "`" + field.name + "` is a static localized field of `" + owner_name
+                    + "`, read through an object", name_node);
+    d.with_label("the object is not used: there is one `" + field.name + "` per thread, not per object");
+    d.with_related_place(place_of_declaration(field, "declared `static localized` here"));
+    d.with_help("write `" + owner_name + "." + field.name + "`");
+    report(context, d);
+}
+
+/** E0405: `.name` on a number, an array, `object`, a function value or `null` */
+def report_no_members(context: analysis_context, type: resolved_type, name: string, name_node: _int64, object_node: _int64) {
+    written := source_text_of(context, object_node);
+    d := problem_at(context, "E0405", "`" + written + "` is " + described_type(type) + ": it has no member `" + name + "`", name_node);
+    if(type.is_array == 1) {
+        d.with_label("an array has no members");
+        d.with_note("arrays are not objects of a class; the one thing to ask of an array is its length");
+        if(name == "size" || name == "length" || name == "count") { d.with_help("its length is `sizeof(" + written + ")`"); }
+        else if(item_class_has(context, type.element_type(), name) == 1) {
+            d.with_help("its items have a `" + name + "`: `" + written + "[index]." + name + call_after(context, name_node) + "`");
+        }
+    } else if(type.is_number()) {
+        d.with_label("a plain number has no members");
+        if(name == "value") {
+            d.with_help("`" + written + "` already is the number: remove `.value` (it is the `int`, `long` ... OBJECTS that keep their number in `.value`)");
+        } else if(box_class_has(context, type, name)) {
+            d.with_help("the class `" + box_name_of(type) + "` has a `" + name + "`: `new " + box_name_of(type) + "(" + written + ")." + name + call_after(context, name_node) + "`");
+        } else {
+            d.with_note("a `" + type.to_text() + "` is the number itself: there is nothing inside it to reach");
+        }
+    } else if(type.kind == RT_OBJECT) {
+        d.with_label("`object` can be anything, so nothing is known about its members");
+        d.with_help("say what it is first: `(" + written + " as <class>)." + name + call_after(context, name_node) + "`");
+    } else if(type.kind == RT_FUNCTION) {
+        d.with_label("a function value has no members");
+        d.with_help("to use what it returns, call it: `" + written + "(...)`");
+    } else {
+        d.with_label("nothing can be reached through this");
+    }
+    report(context, d);
+}
+
+/**
+ * E0405: `a_vault.plate` where `plate` is a class declared inside `vault`.
+ * (An enum, an enum value and an alias may be reached through an object; a
+ * class may not - the C++ compiler: "cannot access inner class through field".)
+ */
+def report_class_through_object(context: analysis_context, inner: sharp_declaration, receiver: bound_expression, name_node: _int64) {
+    owner_name := "its class";
+    if(inner.owner != null) { owner_name = "`" + inner.owner!!.written.name + "`"; }
+    d := problem_at(context, "E0405", "`" + inner.name + "` is a class declared inside " + owner_name
+                    + ": it cannot be reached through an object", name_node);
+    d.with_label("a class belongs to the class it is declared in, not to that class's objects");
+    d.with_related_place(place_of_declaration(inner, "`" + inner.name + "` is declared here"));
+    d.with_help("name it through the class: `" + inner.qualified_name() + "`");
+    report(context, d);
+}
+
+/** W1005: `point?.count` / `point!!.count` - a `?.` or `!!.` after the NAME OF A CLASS, which is never null */
+def warn_mark_after_type(context: analysis_context, target: bound_expression, node: _int64) {
+    mark : _int64 = token_kind_at(context, node);
+    if(mark != P_SAFE_DOT && mark != P_FORCE_DOT) { return; }
+    if(target.type.kind == RT_ERROR) { return; }
+    d := problem_at(context, "W1005", "this mark is not needed: `" + target.type.to_text() + "` is a class, and a class is never null", node);
+    d.with_label("only a VALUE can be null");
+    d.with_help("write a plain `.`");
+    report(context, d);
+}
+
+/**
+ * `(5)` when the member at `name_node` is called as `x.to_string(5)`, "" when
+ * it is only read: a help that rewrites the receiver must keep the call, or
+ * the text it offers reads the function without calling it.
+ */
+def call_after(context: analysis_context, name_node: _int64) : string {
+    tree : syntax_tree = context.tree;
+    member : _int64 = tree.parents!![name_node];
+    if(member < 0 || tree.kinds!![member] != N_MEMBER) { return ""; }
+    call : _int64 = tree.parents!![member];
+    if(call < 0 || tree.kinds!![call] != N_CALL || tree.first_child!![call] != member) { return ""; }
+    arguments : _int64 = tree.child_of_kind(call, N_ARGUMENTS);
+    text := new string_builder("(");
+    argument : _int64 = 0 - 1;
+    if(arguments >= 0) { argument = tree.first_child!![arguments]; }
+    count : _int64 = 0;
+    while(argument >= 0) {
+        if(count > 0) { text.append(", "); }
+        text.append(source_text_of(context, argument));
+        count++;
+        argument = tree.next_sibling!![argument];
+    }
+    text.append(")");
+    return text.build();
+}
+
+/** is `item` (the item type of an array) a class with a member called `name`? */
+def item_class_has(context: analysis_context, item: resolved_type, name: string) : _int64 {
+    if(item.kind != RT_CLASS || item.is_array == 1) { return 0; }
+    owner : sharp_class? = item.class_or_null();
+    if(owner == null) { return 0; }
+    found := new lookup_result();
+    find_class_member(context.prog, owner!!, name, found);
+    return found.kind != FOUND_NOTHING;
+}
+
+/** does the number CLASS of a plain number type (`int` for `_int32`, `double` for `decimal`) have a member called `name`? */
+def box_class_has(context: analysis_context, type: resolved_type, name: string) : _int64 {
+    box : sharp_class? = context.session.known.box_of(type);
+    if(box == null) { return 0; }
+    found := new lookup_result();
+    find_class_member(context.prog, box!!, name, found);
+    return found.kind != FOUND_NOTHING;
+}

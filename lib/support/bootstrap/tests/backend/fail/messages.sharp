@@ -1,0 +1,72 @@
+// expect: W1025 E0511 E0511 E0511 E0501 E0412 E0400 E0400 E0400 E0400 E0400 E0400 E0606 E0352 E0410 E0410 E0501 E0511 E0511
+//
+// The messages of the "Leftovers: messages" stage (doc/backend.md 10.11):
+// one mistake, one message - and each with a fix that can be pasted (the
+// fixes themselves are compiled by tests/helps.sh).
+mod tests.fail;
+import (std, std.io);
+
+// declared with the left operand as a parameter too: W1025 here, then ONE
+// E0511 for all three uses below (the later uses are places of that message)
+class vec { def operator+(a: vec, b: vec) : vec { return a; } }
+enum colour { red, green }
+
+def operators() {
+    a := new vec();
+    b := new vec();
+    c := a + b;
+    d := a + b;
+    e := a + b;
+    x := colour.red;
+    x++;                                    // an enum value is not counted up
+    s : string = "a";
+    t : string = "b";
+    if(s < t) { }                           // `s.compare_to(t) < 0`
+    if(s.equals("b")) { }                   // `s == "b"`
+    k := s.at(0);
+    n : _int8 = (k - 32) as _int8;          // `(k - 32).value`
+}
+
+def names() {
+    n := 1;
+    if(n == 1) { } elif(n == 2) { }         // `else if`
+    switch(n) { }                           // `when`
+    whlie(n < 2) { }                        // the keyword `while`
+    if(n == 3) { } esle { }                 // the keyword `else`
+    m := len(new _int64[2]);                // `sizeof(...)`
+    r := math.sqrt(2.0);                    // the module std.math, not imported
+}
+
+// returns values but declares no result type: one E0606, its callers quiet
+def total(k: _int64) { if(k == 0) return 0; return k + total(k - 1); }
+def callers() {
+    p : _int64 = total(3);
+    q : _int64 = total(4);
+}
+
+// a generic FUNCTION that wraps its type argument at every call: one E0352,
+// worded about the function
+def wrap<T>(x: T, depth: _int64) : _int64 { if(depth == 0) return 0; l := new list<T>(); l.add(x); return 1 + wrap<list<T>>(l, depth - 1); }
+def use_wrap() { w := wrap<int>(new int(1), 3); }
+
+// a field declared with a value its type refuses: ONE E0410 at the value (for
+// `ages`, and for the global `titles`); the uses are read as the error type and
+// say nothing, wherever they stand - also in a function the compiler comes to
+// before it comes to the field
+class register {
+    ages : _int64 = { 1, 2 };
+    def first() : _int64 { return ages[0] + ages[1]; }
+    def change() { ages[0] = 3; ages.put("ann", 31); }
+}
+titles : _int64 = new list<string>();
+def use_register() { r := new register(); r.ages.clear(); titles.add("x"); }
+
+// a function NAMED where its result was meant: each message says "call it"
+def count_items() : _int64 { return 1; }
+def not_called() {
+    println(count_items);                   // `count_items()`; the fourteen `println`s are not listed
+    n := count_items + 1;
+    m := 2 * count_items;
+}
+
+def main() { }

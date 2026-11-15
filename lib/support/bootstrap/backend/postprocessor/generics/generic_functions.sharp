@@ -1,0 +1,171 @@
+mod backend.postprocessor.generics;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * GENERIC FUNCTIONS: THE BLUEPRINTS, AND HOW AN INSTANCE IS MADE
+ * (the C++ compiler: compiler/functions/generic_functions.cpp)
+ *
+ *      def largest<T>(a: T, b: T) : T { ... }
+ *
+ *      largest<int>(p, q)          the call writes the type arguments
+ *
+ * A generic function works like a generic class (generic_classes.sharp),
+ * per function: the declaration is a blueprint, and each distinct list of
+ * type arguments gets a function object of its own, with its own resolved
+ * parameter types and - later - its own analysed body.
+ *
+ * This stage does the declaration side:
+ *
+ *   - every generic function as written is listed (sharp_program.generic_functions)
+ *     and its declaration is checked;
+ *   - `instantiate_function` is provided for the calls stage, which is the
+ *     one that meets `largest<int>(...)`.
+ *
+ * A generic function inside a generic class is copied into each instance of
+ * the class like any other member and is still a blueprint there (its own T
+ * is open, the class's T is known). An instance of it gets an environment
+ * that chains to the class instance's.
+ *
+ *      E0358   two generic functions of one name with the same NUMBER of type
+ *              parameters in one place. A call says `name<int, string>(...)`;
+ *              the number of type arguments is what picks the blueprint.
+ *      E0359   the same type parameter name twice:  class pair<T, T>   def f<A, A>()
+ *      E0345   a generic function without a body, or marked `override`
+ *
+ * WHY A GENERIC FUNCTION CANNOT BE OVERRIDDEN. A function without a body is
+ * a promise that every class below has it; which one runs is decided at run
+ * time by the object's class, through a table with one entry per function
+ * (backend.md 7.7.3). A generic function is not one function: every call
+ * `f<int>(...)`, `f<string>(...)` makes its own from the text, and which
+ * ones exist is only known when the whole program has been read. There is
+ * no entry to look up. So a generic function always has its body where it
+ * is declared and is never `override`. [differs from the C++ compiler, which
+ * accepts both words and then ignores them: the function is called like any
+ * other generic function.]
+ */
+def register_generic_functions(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        register_generic_functions_of(prog, prog.module_list.at(i).functions, problems);
+    }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        report_repeated_type_parameters(declared.type_parameters, "class `" + declared.name + "`", problems);
+        register_generic_functions_of(prog, declared.functions, problems);
+    }
+}
+
+/** list the generic functions among `functions` (of one module, or of one class) and check each declaration */
+def register_generic_functions_of(prog: sharp_program, functions: list<sharp_function>, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        if(!function.is_generic()) { continue; }
+
+        prog.generic_functions.add(function);
+        report_repeated_type_parameters(function.type_parameters, "function `" + function.name + "`", problems);
+        report_if_meant_to_be_overridden(function, problems);
+
+        // against the generic functions of the same name before it in the same place
+        for(j : _int64 = 0; j < i; j++) {
+            earlier := functions.at(j);
+            if(earlier.is_generic() && earlier.name == function.name && earlier.owner == function.owner
+               && earlier.type_parameters.size() == function.type_parameters.size()) {
+                count : _int64 = function.type_parameters.size().value as _int64;
+                problems.add(error_at_node("E0358", "generic function `" + function.name + "` is declared twice with " + count
+                                           + " type parameter(s)", function.unit, function.node)
+                    .with_label("a second `" + function.name + "<...>` with the same number of type parameters")
+                    .with_related_place(place_of_node(earlier.unit, earlier.node, "the first one is here"))
+                    .with_note("a call names the type arguments, `" + function.name
+                               + "<...>(...)`, and the NUMBER of them picks the generic function; the parameter types are only known after that")
+                    .with_help("give one of them another name, or another number of type parameters"));
+                break;
+            }
+        }
+    }
+}
+
+/** E0345: `def f<T>(x: T);` in a class, and `override def f<T>(x: T) { }` */
+def report_if_meant_to_be_overridden(function: sharp_function, problems: list<diagnostic>) {
+    why : string = "which function runs for an overridden function is decided at run time by the object's class. A generic function is made anew for every `"
+                   + function.name + "<...>(...)` that is written, so there is no single function a class could replace";
+
+    // (outside a class a function without a body is E0340 already, whatever it is)
+    if(!function.has_body() && !function.has(FLAG_NATIVE) && function.owner != null) {
+        problems.add(error_at_node("E0345", "the generic function `" + function.name + "` has no body", function.unit, function.node)
+            .with_label("a function with type parameters cannot be left for the classes below to define")
+            .with_note(why)
+            .with_help("give it a body here")
+            .with_help("or drop the type parameters and take the general type instead (`object`, or an interface the values share); such a function can be left without a body"));
+        return;
+    }
+
+    if(function.has(FLAG_OVERRIDE)) {
+        problems.add(error_at_node("E0345", "the generic function `" + function.name + "` cannot be marked `override`",
+                                   function.unit, function.node)
+            .with_label("a function with type parameters never overrides another")
+            .with_note(why)
+            .with_help("remove `override`: a `" + function.name + "<...>(...)` called on this class is this function"));
+    }
+}
+
+/** E0359: <T, T> */
+def report_repeated_type_parameters(parameters: list<sharp_type_parameter>, where: string, problems: list<diagnostic>) {
+    for(i : _int64 = 1; i < parameters.size(); i++) {
+        for(j : _int64 = 0; j < i; j++) {
+            if(parameters.at(j).name == parameters.at(i).name) {
+                second := parameters.at(i);
+                problems.add(error_at_node("E0359", "the type parameter `" + second.name + "` of " + where + " is named twice",
+                                           second.unit, second.node)
+                    .with_label("a second `" + second.name + "`")
+                    .with_related_place(place_of_node(parameters.at(j).unit, parameters.at(j).node, "the first one is here"))
+                    .with_help("give each type parameter its own name:  <" + second.name + ", U>"));
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * The instance of a generic function for these type arguments: found, or
+ * made. For the calls stage. The arguments must be real types, one per type
+ * parameter (the caller has checked the number: E0515).
+ *
+ * The new function is put on sharp_program.pending_functions, the work list
+ * the body stages take function instances from.
+ */
+def instantiate_function(prog: sharp_program, blueprint: sharp_function, arguments: list<resolved_type>) : sharp_function {
+    key := new string_builder("");
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        if(i > 0) { key.append(","); }
+        key.append(arguments.at(i).key());
+    }
+
+    if(blueprint.instances == null) { blueprint.instances = new hash_map<string, sharp_function>(); }
+    found := blueprint.instances!!.at(key.build());
+    if(found != null) { return found!!; }
+
+    outer : type_environment? = null;
+    owner_is_open : _int64 = 0;
+    if(blueprint.owner != null) {
+        outer = blueprint.owner!!.environment;
+        owner_is_open = blueprint.owner!!.is_open();
+    }
+
+    instance := copy_function(blueprint, blueprint.owner);
+    instance.blueprint = blueprint;
+    instance.type_arguments = arguments;
+    instance.type_parameters = new list<sharp_type_parameter>();    // all known: a real function
+    instance.environment = new type_environment(blueprint.type_parameters, arguments, outer, null);
+    blueprint.instances!!.put(key.build(), instance);
+
+    resolve_function_types(prog, instance, instance.environment, owner_is_open, prog.problems);
+    prog.pending_functions.add(instance);
+    return instance;
+}

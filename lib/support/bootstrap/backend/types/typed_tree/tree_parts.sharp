@@ -1,0 +1,145 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io
+)
+
+/**
+ * THE PARTS OF AN EXPRESSION
+ *
+ *      a.size() + 1        bound_binary
+ *                            bound_call size        <- parts of the binary
+ *                              bound_local a        <- part of the call
+ *                            bound_literal 1
+ *
+ * `parts_of` lists the expressions DIRECTLY below one expression, in the
+ * order they are evaluated. Passes that must visit every expression of a
+ * tree - the count of expressions without a type (reports), the check that a
+ * `-> base(...)` argument reads no field of the object (initializers) - walk
+ * the tree with it instead of each knowing every kind of node.
+ *
+ * A lambda has no parts here: its body belongs to its own function
+ * (`bound_lambda.function.bound_body`), which is visited as a function.
+ * The receiver of a `?.` chain appears once, as the receiver; the
+ * `bound_receiver` inside the rest of the chain stands for it and has no
+ * parts of its own.
+ */
+def parts_of(expression: bound_expression) : list<bound_expression> {
+    parts := new list<bound_expression>();
+    add_parts(expression, parts);
+    return parts;
+}
+
+/**
+ * Every expression of the tree below `expression`, itself first, each one
+ * before its parts and the parts in the order they are evaluated ("pre-order").
+ *
+ * A pass that only has to LOOK at every expression walks this list instead
+ * of calling itself for each part: `a + a + a + ...` with a thousand terms is
+ * a tree a thousand levels deep, and a function that recursed down it would
+ * run out of stack on the VM. The list is built with a stack of work to do,
+ * so no depth is too much.
+ */
+def all_expressions_in(expression: bound_expression) : list<bound_expression> {
+    found := new list<bound_expression>();
+    waiting := new list<bound_expression>();        // the stack: what is still to be visited, the next one last
+    parts := new list<bound_expression>();
+    waiting.add(expression);
+    while(waiting.size() > 0) {
+        next : bound_expression = waiting.pop_last();
+        found.add(next);
+        parts.clear();
+        add_parts(next, parts);
+        for(i : _int64 = parts.size().value as _int64 - 1; i >= 0; i--) { waiting.add(parts.at(i)); }
+    }
+    return found;
+}
+
+/**
+ * The same, added to a list the caller keeps: a pass over a whole tree can
+ * use ONE list as its stack instead of making a list per node.
+ */
+def add_parts(expression: bound_expression, parts: list<bound_expression>) {
+    kind : _int64 = expression.kind;
+    if(kind == BX_ERROR) { add_if_there(parts, (expression as bound_error).inner); }
+    else if(kind == BX_PENDING) { add_all(parts, (expression as bound_pending).parts); }
+    else if(kind == BX_FIELD) { add_if_there(parts, (expression as bound_field).on); }
+    else if(kind == BX_FUNCTIONS) { add_if_there(parts, (expression as bound_functions).on); }
+    else if(kind == BX_CALL) {
+        call := expression as bound_call;
+        add_if_there(parts, call.on);
+        add_all(parts, call.arguments);
+    }
+    else if(kind == BX_VALUE_CALL) {
+        parts.add((expression as bound_value_call).callee);
+        add_all(parts, (expression as bound_value_call).arguments);
+    }
+    else if(kind == BX_NEW) { add_all(parts, (expression as bound_new).arguments); }
+    else if(kind == BX_CONVERSION) { parts.add((expression as bound_conversion).operand); }
+    else if(kind == BX_CAST) { parts.add((expression as bound_cast).operand); }
+    else if(kind == BX_IS) { parts.add((expression as bound_is).operand); }
+    else if(kind == BX_NOT_NULL) { parts.add((expression as bound_not_null).operand); }
+    else if(kind == BX_SIZEOF) { parts.add((expression as bound_sizeof).operand); }
+    else if(kind == BX_SAFE_NAVIGATION) {
+        navigation := expression as bound_safe_navigation;
+        parts.add(navigation.receiver);
+        add_if_there(parts, navigation.rest);
+    }
+    else if(kind == BX_ELVIS) {
+        parts.add((expression as bound_elvis).value);
+        parts.add((expression as bound_elvis).fallback);
+    }
+    else if(kind == BX_TERNARY) {
+        ternary := expression as bound_ternary;
+        parts.add(ternary.condition);
+        parts.add(ternary.when_true);
+        parts.add(ternary.when_false);
+    }
+    else if(kind == BX_INDEX) {
+        parts.add((expression as bound_index).array);
+        parts.add((expression as bound_index).index);
+    }
+    else if(kind == BX_NEW_ARRAY) {
+        made := expression as bound_new_array;
+        add_if_there(parts, made.size);
+        add_all(parts, made.items);
+    }
+    else if(kind == BX_ARRAY_LITERAL) { add_all(parts, (expression as bound_array_literal).items); }
+    else if(kind == BX_STRING_TEMPLATE) {
+        template := expression as bound_string_template;
+        add_if_there(parts, template.start);
+        for(i : _int64 = 0; i < template.appends.size(); i++) { parts.add(template.appends.at(i)); }
+    }
+    else if(kind == BX_DICTIONARY) {
+        dictionary := expression as bound_dictionary;
+        for(i : _int64 = 0; i < dictionary.keys.size(); i++) {
+            parts.add(dictionary.keys.at(i));
+            parts.add(dictionary.values.at(i));
+        }
+    }
+    else if(kind == BX_BINARY) {
+        parts.add((expression as bound_binary).left);
+        parts.add((expression as bound_binary).right);
+    }
+    else if(kind == BX_LOGICAL) {
+        parts.add((expression as bound_logical).left);
+        parts.add((expression as bound_logical).right);
+    }
+    else if(kind == BX_UNARY) { parts.add((expression as bound_unary).operand); }
+    else if(kind == BX_INCREMENT) { parts.add((expression as bound_increment).target); }
+    else if(kind == BX_ASSIGN) {
+        parts.add((expression as bound_assign).target);
+        parts.add((expression as bound_assign).value);
+    }
+}
+
+/** add `part` when there is one */
+def add_if_there(parts: list<bound_expression>, part: bound_expression?) {
+    if(part != null) { parts.add(part!!); }
+}
+
+/** add every expression of a list that may be missing */
+def add_all(parts: list<bound_expression>, more: list<bound_expression>?) {
+    if(more == null) { return; }
+    for(i : _int64 = 0; i < more!!.size(); i++) { parts.add(more!!.at(i)); }
+}

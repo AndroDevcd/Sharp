@@ -1,0 +1,207 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.names,
+    backend.compiler.context
+)
+
+/**
+ * LOOKING UP A PLAIN NAME
+ *
+ * A name written by itself (`total`, `print`, `string`) is looked for in
+ * this order, and the first place that has it wins - the textbook walk
+ * through nested scopes, innermost first:
+ *
+ *   1. the local variables and parameters, innermost block outward (and the
+ *      local aliases, when the function declares any);
+ *   2. the class the code is in, then its base classes upward: a field, an
+ *      enum value, an alias or class declared inside, a function;
+ *   3. the modules the file sees, in order: its own module, `std`,
+ *      `std.io.console`, then its imports - a global variable, an alias, a
+ *      class or enum, a global function. The nearer module hides the name of
+ *      a farther one;
+ *   4. the type parameters in force and the types declared in the classes
+ *      AROUND the class (`T`, or `node` inside `list<T>.iterator`);
+ *   5. the values of the enums those modules declare, by their plain names
+ *      (`red` for `color.red`).
+ *
+ * Code in a class declared inside another class does NOT see the outer
+ * class's fields and functions by their plain names - only its types
+ * (rule 4). The not-found message offers `outer.name` when that is the case.
+ *
+ * A local is visible from its declaration on. A use further up in the block
+ * simply does not find it here (step 1), so a field of the same name is what
+ * that earlier use means - as in the C++ compiler.
+ *
+ *      C++ comparison: `resolve_normal_item` in dependency/dependency.cpp.
+ *      The order is the same, except that it looks for type parameters first;
+ *      a local named like a type parameter is not something programs do.
+ */
+
+/**
+ * What the name at `node` means. `name` is its text.
+ */
+def look_up_name(context: analysis_context, name: string, node: _int64) : lookup_result {
+    found := new lookup_result();
+    context.session.counters.names++;
+
+    // 1. locals and parameters
+    if(context.scope != null) {
+        find_local(context, name, found);
+        if(found.kind != FOUND_NOTHING) { return found; }
+    }
+
+    // 2. the class and the classes above it
+    if(context.class_of != null) {
+        declared : sharp_class = context.class_of!!;
+        find_class_member(context.prog, declared, name, found);
+        if(found.kind != FOUND_NOTHING) {
+            found.through_class = 1;
+            return found;
+        }
+        if(name == declared.written.name) {
+            // the class's own name; inside list<string>, plain `list` means list<string>
+            // (`either<R, L>` written inside either<L, R> names another instance: looked up by its arguments)
+            found.kind = FOUND_TYPE;
+            if(context.tree.child_of_kind(node, N_TYPE) >= 0) { found.declaration = declared.written; }
+            else { found.type = type_of_class(declared); }
+            return found;
+        }
+    }
+
+    // 3. the modules this file sees
+    find_in_visible_modules(context.file, name, found);
+    if(found.kind != FOUND_NOTHING) { return found; }
+
+    // 4. type parameters, and types declared in the classes around this one
+    around := find_in_enclosing_scopes(context.prog, context.file, node, name, blueprint_function_of(context));
+    if(around != null) {
+        found.kind = FOUND_TYPE;
+        found.declaration = around;
+        return found;
+    }
+
+    // 5. a value of an enum the file sees, by its plain name
+    find_enum_value_by_plain_name(context.file, name, found);
+    return found;
+}
+
+/**
+ * Step 5: `red` for `color.red`. The C++ compiler accepts the plain name of
+ * an enum value anywhere its enum is visible (checked: `e : color = red;` in
+ * a global function compiles), so this is the last place looked - after
+ * everything that could shadow it. The first enum in the order of the
+ * modules the file sees that has the value wins.
+ */
+def find_enum_value_by_plain_name(file: sharp_file, name: string, found: lookup_result) {
+    for(i : _int64 = 0; i < file.imports.size(); i++) {
+        classes := file.imports.at(i).classes;
+        for(j : _int64 = 0; j < classes.size(); j++) {
+            declared := classes.at(j);
+            if(declared.kind != D_ENUM) { continue; }
+            same_name := declared.members!!.find(name);
+            if(same_name == null) { continue; }
+            for(k : _int64 = 0; k < same_name!!.size(); k++) {
+                if(same_name!!.at(k).kind == D_ENUM_VALUE) {
+                    found.kind = FOUND_ENUM_VALUE;
+                    found.value = same_name!!.at(k) as sharp_enum_value;
+                    found.owner = declared;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+/** step 1: the scope chain. Crossing into another function on the way out is a capture (`depth`) */
+def find_local(context: analysis_context, name: string, found: lookup_result) {
+    current : local_scope? = context.scope;
+    depth : _int64 = 0;
+    hash : _int64 = name_hash(name);          // once: each block compares numbers (local_scope.sharp)
+    while(current != null) {
+        if(current!!.variables != null) {
+            variable := current!!.declared_here(name, hash);
+            if(variable != null) {
+                found.kind = FOUND_LOCAL;
+                found.variable = variable;
+                found.depth = depth;
+                return;
+            }
+        }
+        if(current!!.aliases != null) {
+            aliased := current!!.aliases!!.at(name);
+            if(aliased != null) {
+                found.kind = FOUND_TYPE;
+                found.type = aliased;
+                return;
+            }
+        }
+        if(current!!.outer != null && current!!.outer!!.function != current!!.function) { depth++; }
+        current = current!!.outer;
+    }
+}
+
+/** step 3: the first module of the file's list that declares the name */
+def find_in_visible_modules(file: sharp_file, name: string, found: lookup_result) {
+    // asked before for this file? (types/declarations: remembered_name)
+    if(file.remembered_globals == null) { file.remembered_globals = new name_table<remembered_name>(); }
+    known := file.remembered_globals!!.at(name);
+    if(known != null) {
+        recall(known!!, found);
+        return;
+    }
+    for(i : _int64 = 0; i < file.imports.size(); i++) {
+        module := file.imports.at(i);
+        same_name := module.declared.find(name);
+        if(same_name != null && classify_module_names(module, same_name!!, found)) { break; }
+    }
+    file.remembered_globals!!.put(name, remember(found));
+}
+
+/** `module#name`: the name in that one module */
+def find_in_module(module: sharp_module, name: string, found: lookup_result) {
+    same_name := module.declared.find(name);
+    if(same_name != null) { classify_module_names(module, same_name!!, found); }
+}
+
+/**
+ * What the declarations called `name` in ONE module are. A global variable,
+ * alias or class wins over functions of the same name. Returns 0 when the
+ * list holds nothing a body can name (a component).
+ */
+def classify_module_names(module: sharp_module, same_name: list<sharp_declaration>, found: lookup_result) : _int64 {
+    functions : list<sharp_function>? = null;
+    for(i : _int64 = 0; i < same_name.size(); i++) {
+        candidate := same_name.at(i);
+        kind : _int64 = candidate.kind;
+        if(kind == D_FIELD) {
+            found.kind = FOUND_FIELD;
+            found.field = candidate as sharp_field;
+            found.in_module = module;
+            return 1;
+        }
+        if(kind == D_ALIAS || kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM) {
+            found.kind = FOUND_TYPE;
+            found.declaration = candidate;
+            found.in_module = module;
+            return 1;
+        }
+        if(kind == D_FUNCTION) {
+            if(functions == null) { functions = new list<sharp_function>(); }
+            functions!!.add(candidate as sharp_function);
+        }
+    }
+    if(functions == null) { return 0; }
+    found.kind = FOUND_FUNCTIONS;
+    found.functions = functions;
+    found.in_module = module;
+    return 1;
+}

@@ -1,0 +1,142 @@
+mod backend.compiler.flow;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * E0605: A FUNCTION THAT RETURNS A VALUE, WHOSE END CAN BE REACHED
+ *
+ *      def sign(n: _int64) : _int64 {
+ *          if(n > 0) { return 1; }
+ *          else if(n < 0) { return 0 - 1; }
+ *      }       <- E0605 marked here: "when n is 0 ..."
+ *
+ * The message is placed on the closing brace of the body - where execution
+ * arrives without a value - and shows the PATH that gets there: following
+ * the statements that complete from the end of the body inward, down to the
+ * one that lets execution through (an `if` without `else`, a loop that can
+ * end, a `when` without `else`, the last plain statement).
+ *
+ *      C++ comparison: function_compiler.cpp ("not all code paths return a
+ *      value", on the body).
+ */
+
+/** one step of the explanation: the statement that lets execution through, and why */
+class open_path {
+    statement : bound_statement;
+    reason : string;
+
+    open_path(statement: bound_statement, reason: string) {
+        self->statement = statement;
+        self->reason = reason;
+    }
+}
+
+/** E0605 for `function`, whose block `body` completes */
+def report_missing_return(context: analysis_context, function: sharp_function, body: bound_block) {
+    p : parse_state = context.state;
+    closing : _int64 = closing_brace_of(context, body.node);
+    result := result_text_of(function);
+    name := "`" + function.name + "`";
+    if(function.field != null) { name = "the getter of `" + function.field!!.name + "`"; }
+    if(function.is_lambda == 1) { name = "this lambda"; }      // its made-up name (`lambda@3:9`) means nothing to a reader
+
+    d := new_error("E0605", "not every path through " + name + " returns a value", context.unit.file, p.source, p.table,
+                   p.start_of(closing), p.end_of(closing));
+    d.with_label("execution can arrive here without a `return`");
+    way := path_through(body);
+    if(way.statement != body) { d.with_related_place(place_of_node(context.unit, way.statement.node, way.reason)); }
+    else { d.with_note(way.reason); }
+    d.with_note(name + " returns `" + result + "`, so every way to the end of its body must `return` a value (or `throw`)");
+    if(way.statement.kind == BS_IF) { d.with_help("give the `if` an `else` that returns, or add `return <" + result + " value>;` at the end"); }
+    else if(way.statement.kind == BS_WHEN) { d.with_help("give the `when` an `else ->` that returns, or add `return <" + result + " value>;` at the end"); }
+    else { d.with_help("add `return <" + result + " value>;` at the end"); }
+    report(context, d);
+}
+
+/** the `}` that ends a block (its `{` matched by counting braces); the block's own token when there is none */
+def closing_brace_of(context: analysis_context, block: _int64) : _int64 {
+    p : parse_state = context.state;
+    opener : _int64 = context.tree.tokens!![block];
+    depth : _int64 = 0;
+    for(token : _int64 = opener; token < p.table.count; token++) {
+        if(p.kinds[token] == P_LBRACE) { depth++; }
+        else if(p.kinds[token] == P_RBRACE) {
+            depth--;
+            if(depth == 0) { return token; }
+        }
+    }
+    return opener;
+}
+
+/** what the function returns, as text */
+def result_text_of(function: sharp_function) : string {
+    if(function.result_type != null) { return function.result_type!!.to_text(); }
+    if(function.field != null && function.field!!.value_type != null) { return function.field!!.value_type!!.to_text(); }
+    return "?";
+}
+
+/**
+ * Follow the way through `statement` (which completes) to the statement that
+ * lets execution through, and say why it does.
+ */
+def path_through(from: bound_statement) : open_path {
+    // (down a chain of `else if`s in a loop, not by recursion: reachability.sharp says why)
+    statement : bound_statement = from;
+    while(statement.kind == BS_IF) {
+        link := statement as bound_if;
+        if(link.else_part == null || link.then_part.completes == 1 || link.else_part!!.kind != BS_IF) { break; }
+        statement = link.else_part!!;
+    }
+    kind : _int64 = statement.kind;
+    if(kind == BS_BLOCK) {
+        block := statement as bound_block;
+        for(i : _int64 = block.statements.size().value as _int64 - 1; i >= 0; i--) {
+            if(block.statements.at(i).kind != BS_EMPTY) { return path_through(block.statements.at(i)); }
+        }
+        return new open_path(statement, "nothing in this block returns");
+    }
+    if(kind == BS_IF) {
+        branch := statement as bound_if;
+        if(branch.else_part == null) {
+            return new open_path(statement, "when this condition is false nothing returns: this `if` has no `else`");
+        }
+        if(branch.then_part.completes == 1) { return path_through(branch.then_part); }
+        return path_through(branch.else_part!!);
+    }
+    if(kind == BS_WHEN) {
+        choice := statement as bound_when;
+        if(choice.else_part == null) {
+            return new open_path(statement, "when no clause fits nothing returns: this `when` has no `else`");
+        }
+        for(i : _int64 = 0; i < choice.clauses.size(); i++) {
+            if(choice.clauses.at(i).body.completes == 1) { return path_through(choice.clauses.at(i).body); }
+        }
+        return path_through(choice.else_part!!);
+    }
+    if(kind == BS_TRY) {
+        guarded := statement as bound_try;
+        if(guarded.body.completes == 1) { return path_through(guarded.body); }
+        for(i : _int64 = 0; i < guarded.catches.size(); i++) {
+            if(guarded.catches.at(i).body.completes == 1) { return path_through(guarded.catches.at(i).body); }
+        }
+        return new open_path(statement, "execution goes on after this `try`");
+    }
+    if(kind == BS_LOCK) { return path_through((statement as bound_lock).body); }
+    if(kind == BS_WHILE || kind == BS_DO_WHILE || kind == BS_FOR || kind == BS_FOREACH) {
+        loop := statement as bound_loop;
+        if(loop.left_by_break == 1) { return new open_path(statement, "a `break` leaves this loop, and nothing after it returns"); }
+        if(kind == BS_FOREACH) { return new open_path(statement, "this loop ends when the items run out, and nothing after it returns"); }
+        return new open_path(statement, "this loop ends when its condition is false, and nothing after it returns");
+    }
+    return new open_path(statement, "after this the function ends without returning a value");
+}

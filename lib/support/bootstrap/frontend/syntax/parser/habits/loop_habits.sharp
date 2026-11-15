@@ -1,0 +1,112 @@
+mod frontend.syntax.parser.habits;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    frontend.syntax.parser
+)
+
+/**
+ * HABITS IN LOOPS (see habits.sharp for the idea)
+ *
+ *      for(x in items)             Python, Kotlin  foreach(x in items)
+ *      foreach(i in 0..10)         Kotlin, Rust    for(i := 0; i <= 10; i++)
+ *      for(i in 0..<10)            Swift           for(i := 0; i < 10; i++)
+ *
+ * Called from parse_statements.sharp.
+ */
+
+/**
+ * `for(x in items) { }`: Python's and Kotlin's loop over the items of
+ * something. Sharp's is `foreach`; its `for` is C's, with three parts. The
+ * current token is `for`, and `(`, a name and `in` follow. Parsed as the
+ * `foreach` that was meant (an N_FOREACH node), so the body and the item
+ * name are analysed as usual and nothing else is reported.
+ * @return 1 when it was this habit
+ */
+def parse_for_in(p: parse_state, parent: _int64) : _int64 {
+    if(p.peek(1) != P_LPAREN || p.peek(2) != T_IDENTIFIER || p.peek(3) != K_IN) { return 0; }
+    word : _int64 = p.position;
+    statement : _int64 = p.child(parent, N_FOREACH);
+    p.advance();
+    p.advance();
+    name := p.current_text();
+    p.child(statement, N_PARAMETER);
+    p.advance();
+    p.advance();
+    if(parse_range_habit(p, statement, name) == 0) {
+        values : _int64 = p.position;
+        parse_expression_into(p, statement);
+        d := report_habit(p, word, word, "a loop over the items of something is written `foreach` in Sharp");
+        d.with_label("Sharp's `for` is the C loop: `for(start; condition; step)`");
+        d.with_help("write: `foreach(" + name + " in " + tokens_text(p, values, p.position - 1) + ")`");
+    }
+    p.expect(P_RPAREN, "`)`");
+    parse_body(p, statement);
+    return 1;
+}
+
+/**
+ * `foreach(i in 0..10)` (or, through parse_for_in, `for(i in 0..10)`): a
+ * RANGE of numbers, Kotlin's, Rust's and Swift's way to count. Sharp counts
+ * with the C `for`. The current token is the first after `in`. A `..` (two
+ * dots that touch) before the closing `)` makes it this habit; `..=` (Rust)
+ * includes the last number and `..<` (Swift) stops before it. A plain `..`
+ * includes it in Kotlin and stops before it in Rust, so the help takes the
+ * Kotlin reading and the note gives the other.
+ *
+ * The range is read and replaced by an N_ERROR node (a value with the error
+ * type), so the loop and its body are analysed without a second message.
+ * @return 1 when it was a range
+ */
+def parse_range_habit(p: parse_state, statement: _int64, name: string) : _int64 {
+    dots : _int64 = 0 - 1;
+    depth : _int64 = 0;
+    i : _int64 = p.position;
+    while(i + 1 < p.count && dots < 0) {
+        kind : _int64 = p.kinds[i];
+        if(kind == P_LPAREN || kind == P_LBRACKET) { depth++; }
+        else if(kind == P_RPAREN || kind == P_RBRACKET) {
+            if(depth == 0) { return 0; }
+            depth--;
+        }
+        else if(kind == P_LBRACE || kind == P_SEMICOLON) { return 0; }
+        else if(kind == P_DOT && depth == 0 && p.kinds[i + 1] == P_DOT && tokens_touch(p, i, i + 1)) { dots = i; }
+        i++;
+    }
+    if(dots <= p.position) { return 0; }
+
+    // the end of the range: up to the `)` that closes the loop's parentheses
+    after : _int64 = dots + 2;
+    compare := "<=";
+    marker := "..";
+    if(after < p.count && p.kinds[after] == P_ASSIGN && tokens_touch(p, dots + 1, after)) { after++; marker = "..="; }
+    else if(after < p.count && p.kinds[after] == P_LESS && tokens_touch(p, dots + 1, after)) { after++; compare = "<"; marker = "..<"; }
+    closing : _int64 = after;
+    depth = 0;
+    while(closing < p.count) {
+        kind : _int64 = p.kinds[closing];
+        if(kind == P_LPAREN || kind == P_LBRACKET) { depth++; }
+        else if(kind == P_RPAREN || kind == P_RBRACKET) {
+            if(depth == 0) { break; }
+            depth--;
+        }
+        else if(kind == P_LBRACE || kind == P_SEMICOLON) { break; }
+        closing++;
+    }
+    if(closing >= p.count || p.kinds[closing] != P_RPAREN || closing == after) { return 0; }
+
+    low := tokens_text(p, p.position, dots - 1);
+    high := tokens_text(p, after, closing - 1);
+    p.child(statement, N_ERROR);
+    while(p.position < closing) { p.advance(); }
+    d := report_habit(p, dots, after - 1, "Sharp has no range `" + low + marker + high + "`: it counts with a `for` loop");
+    d.with_label("a range of another language");
+    if(sizeof(marker.data) == 2) {
+        d.with_note("`" + low + ".." + high + "` takes in `" + high + "` in Kotlin, as below; to stop before it, as Rust's `..` does, write `" + name + " < " + high + "`");
+    }
+    d.with_help("write: `for(" + name + " := " + low + "; " + name + " " + compare + " " + high + "; " + name + "++)`");
+    return 1;
+}

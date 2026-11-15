@@ -1,0 +1,150 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.types.declarations
+)
+
+/**
+ * TYPED-TREE NODES FOR THE BUILT-IN OPERATORS AND FOR ASSIGNMENT
+ *
+ *      a + b    a < b    a & b         bound_binary        on NUMBERS, or `==` / `!=` on references
+ *      a && b   a || b                 bound_logical       the right side runs only when needed
+ *      -a   !a                         bound_unary         on a number
+ *      a++  --a                        bound_increment     a number variable, field, item or property
+ *      a = b    a += b                 bound_assign        into a variable, a field or an array item
+ *
+ * Only the operations the VM does itself are here. An operator on an OBJECT
+ * (`a + b` with `a : money`, `-v` with `v : vector`) is a call of the class's
+ * operator function: a bound_call written_as AS_OPERATOR. So is `o[i] = v`
+ * (a call of `put`), `p.size = 3` through a setter, and `s = "x"` through
+ * `operator=`.
+ *
+ * `operation` is the token kind of the operator (P_PLUS, P_LESS ... from
+ * frontend/lexer); `operands` says how the VM computes it, which the types
+ * decided (doc/backend.md 7.8.1):
+ *
+ *      OPERANDS_INTEGER     whole numbers
+ *      OPERANDS_DECIMAL     decimals (either side is a decimal, or `/` and `**`)
+ *      OPERANDS_REFERENCE   `==` / `!=`: the same object?
+ *      OPERANDS_NULL_TEST   `==` / `!=` against null: is there an object?
+ *
+ *      C++ comparison: the old compiler records the same choice on its
+ *      operation steps (`set_numeric_operation`, type_binary_operation in
+ *      binary_expression.cpp).
+ */
+const OPERANDS_INTEGER   : _int64 = 1;
+const OPERANDS_DECIMAL   : _int64 = 2;
+const OPERANDS_REFERENCE : _int64 = 3;
+const OPERANDS_NULL_TEST : _int64 = 4;
+
+/**
+ * `left <operation> right` done by the VM. Both sides are already what the
+ * operation works on: numbers (a number object was unboxed, a bound_conversion
+ * of kind CONV_UNBOX), or references for `==` / `!=`.
+ */
+class bound_binary base bound_expression {
+    operation : _int64;             // the token kind: P_PLUS, P_EQEQ ...
+    left : bound_expression;
+    right : bound_expression;
+    operands : _int64;              // OPERANDS_...
+
+    bound_binary(unit: source_unit, node: _int64, operation: _int64, left: bound_expression, right: bound_expression,
+                 operands: _int64, type: resolved_type) -> base(BX_BINARY, unit, node, type) {
+        self->operation = operation;
+        self->left = left;
+        self->right = right;
+        self->operands = operands;
+    }
+}
+
+/** `left && right`, `left || right`: 1 or 0; `right` is evaluated only when `left` does not decide */
+class bound_logical base bound_expression {
+    is_or : _int64;
+    left : bound_expression;        // a number: 0 is false
+    right : bound_expression;
+
+    bound_logical(unit: source_unit, node: _int64, is_or: _int64, left: bound_expression, right: bound_expression,
+                  type: resolved_type) -> base(BX_LOGICAL, unit, node, type) {
+        self->is_or = is_or;
+        self->left = left;
+        self->right = right;
+    }
+}
+
+/** `-operand` or `!operand` on a number. `!` gives 1 or 0 (an _int8) */
+class bound_unary base bound_expression {
+    operation : _int64;             // P_MINUS or P_NOT
+    operand : bound_expression;
+    operands : _int64;              // OPERANDS_INTEGER or OPERANDS_DECIMAL
+
+    bound_unary(unit: source_unit, node: _int64, operation: _int64, operand: bound_expression, operands: _int64,
+                type: resolved_type) -> base(BX_UNARY, unit, node, type) {
+        self->operation = operation;
+        self->operand = operand;
+        self->operands = operands;
+    }
+}
+
+/**
+ * `target++`, `--target`: one more or one less, stored back.
+ *
+ * `target` is storage (a bound_local, bound_field or bound_index); the parts
+ * that lead to it (the object of a field, the array and the index of an item)
+ * are evaluated ONCE. The value of the expression is the new value, or for
+ * the postfix form the old one.
+ *
+ * On a PROPERTY (a field with a getter and / or a setter, doc/backend.md
+ * 7.17) `getter` and `setter` are set: the value is read through the getter
+ * and written through the setter; when one of them is null the stored field
+ * itself is read or written.
+ */
+class bound_increment base bound_expression {
+    target : bound_expression;
+    is_decrement : _int64;
+    is_postfix : _int64;
+    getter : sharp_function?;
+    setter : sharp_function?;
+
+    bound_increment(unit: source_unit, node: _int64, target: bound_expression, is_decrement: _int64,
+                    is_postfix: _int64) -> base(BX_INCREMENT, unit, node, target.type) {
+        self->target = target;
+        self->is_decrement = is_decrement;
+        self->is_postfix = is_postfix;
+    }
+}
+
+/**
+ * `target = value` or `target <op>= value` into storage. The value of the
+ * expression is the target's new value.
+ *
+ * For `=`: `operation` is 0 and `value` is already converted to the target's
+ * type.
+ *
+ * For a compound assignment on NUMBERS (`total += price`): `operation` is the
+ * arithmetic operator (P_PLUS for `+=`), `value` is the right side as a plain
+ * number, `operands` says how the arithmetic is done (as for bound_binary),
+ * and `store` is the conversion of the result back to the target's type
+ * (`small += 1` with `small : _int8` cuts the sum to 8 bits).
+ *
+ * `getter` / `setter`: as in bound_increment, for a compound assignment to a
+ * property. (A plain `=` to a property with a setter is a bound_call of the
+ * setter, AS_SETTER.)
+ */
+class bound_assign base bound_expression {
+    target : bound_expression;
+    value : bound_expression;
+    operation : _int64 = 0;         // 0 for `=`; else P_PLUS, P_MINUS ... the arithmetic of `+=`, `-=` ...
+    operands : _int64 = 0;          // compound only: OPERANDS_INTEGER / OPERANDS_DECIMAL
+    store : conversion?;            // compound only: the result back to the target's type
+    getter : sharp_function?;
+    setter : sharp_function?;
+
+    bound_assign(unit: source_unit, node: _int64, target: bound_expression, value: bound_expression)
+            -> base(BX_ASSIGN, unit, node, target.type) {
+        self->target = target;
+        self->value = value;
+    }
+}

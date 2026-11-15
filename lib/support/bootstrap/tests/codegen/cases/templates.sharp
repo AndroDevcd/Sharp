@@ -1,0 +1,62 @@
+mod main;
+
+import (std.io)
+
+// output:
+// n is 42 and sharp, d 2.5000000000000000
+// sum 43!
+// sharpsharp
+// sharp first
+// char q neg -3 small 1
+// hi, I am ada (36)
+// 3 letters
+// <1><2><3>1 2 3
+// abcdef
+// 6 true false
+// []
+
+/*
+ * String templates and text (doc/codegen.md 6.6): pieces of every kind - an
+ * integer, a decimal, a character, a comparison, a text, a `string`, the result of
+ * a call, an expression - appended left to right to the text before them;
+ * a template that starts with a value; `+` on strings and `==` between them
+ * (calls of string's operators); the order in which the pieces run.
+ */
+class person {
+    name : string;
+    age : _int64;
+
+    person(name: string, age: _int64) {
+        self->name = name;
+        self->age = age;
+    }
+
+    def greeting() : string { return "hi, I am ${name} (${age})"; }
+}
+
+def piece(n: _int64) : _int64 {
+    print("<" + n + ">");
+    return n;
+}
+
+def main() {
+    n : _int64 = 42;
+    name := "sharp";
+    d : decimal = 2.5;
+    ch : _int8 = 'q';
+    println("n is ${n} and $name, d ${d}");
+    println("sum ${n + 1}!");
+    println("$name$name");
+    println("${name} first");
+    println("char ${ch} neg ${0 - 3} small ${ch == 'q'}");
+    p := new person("ada", 36);
+    println(p.greeting());
+    println("${p.name.size()} letters");
+    println("${piece(1)} ${piece(2)} ${piece(3)}");
+    s : string = "abc";
+    s2 : string = s + "def";
+    println(s2);
+    println("${s2.size()} ${s == "abc"} ${s2 == "abc"}");
+    empty := "";
+    println("[${empty}]");
+}

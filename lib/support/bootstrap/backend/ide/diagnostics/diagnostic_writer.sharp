@@ -1,0 +1,85 @@
+mod backend.ide.diagnostics;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.ide.files,
+    backend.ide.output,
+    backend.ide.positions
+)
+
+/**
+ * ONE DIAGNOSTIC AS JSON
+ *
+ * The fields are the fields of the compiler's own `diagnostic` and
+ * `related_place` (frontend/diagnostics/diagnostic.sharp), plus the place in
+ * the editor's counting (doc/ide.md 4.1):
+ *
+ *      { "severity": "error", "code": "E0400", "message": "...",
+ *        "file": "/mnt/c/x/shop.sharp", "from": 412, "to": 416,
+ *        "line": 14, "column": 12, "end_line": 14, "end_column": 16,
+ *        "label": "...", "notes": [...], "helps": [...],
+ *        "related": [ { "file": ..., "from": .., "to": .., "line": .., ..., "label": "..." } ] }
+ *
+ * A diagnostic carries the bytes and the token table of its own file beside its
+ * `from` / `to`, so its place needs no look-up of the file - except that the
+ * byte -> offset table of a file is made once and shared: it is found by the
+ * file's path in the list of files, and made on the spot for a file that is not
+ * in it (it should be, but the writer must not fail over it).
+ */
+
+/** the position helper for a file that a diagnostic names */
+def positions_for(files: ide_files, path: string, source: _int8[], table: token_table) : file_positions {
+    known := files.of_path(path);
+    if(known != null && known!!.is_readable()) { return known!!.positions(); }
+    return new file_positions(source, table, needs_offset_map(source));
+}
+
+/** the five numbers and two words every place has, written into the object being built */
+def write_place_fields(w: json_writer, where: place) {
+    w.key(KEY_FROM);  w.number(where.from);
+    w.key(KEY_TO);    w.number(where.to);
+    w.key(KEY_LINE);  w.number(where.line);
+    w.key(KEY_COLUMN);  w.number(where.column);
+    w.key(KEY_END_LINE);  w.number(where.end_line);
+    w.key(KEY_END_COLUMN);  w.number(where.end_column);
+}
+
+/** a diagnostic and its related places as one object */
+def write_diagnostic(w: json_writer, files: ide_files, d: diagnostic) {
+    where : place = place_in(positions_for(files, d.file, d.source, d.table), d.from, d.to);
+
+    w.begin_object();
+    w.key(KEY_SEVERITY);
+    if(d.severity == SEVERITY_WARNING) { w.text("warning"); } else { w.text("error"); }
+    w.key(KEY_CODE);  w.text(d.code);
+    w.key(KEY_MESSAGE);  w.text(d.message);
+    w.key(KEY_FILE);  w.text(d.file);
+    write_place_fields(w, where);
+    w.key(KEY_LABEL);  w.text(d.label);
+
+    w.key(KEY_NOTES);
+    w.begin_array();
+    for(i : _int64 = 0; i < d.notes.size(); i++) { w.text(d.notes.at(i)); }
+    w.end_array();
+
+    w.key(KEY_HELPS);
+    w.begin_array();
+    for(i : _int64 = 0; i < d.helps.size(); i++) { w.text(d.helps.at(i)); }
+    w.end_array();
+
+    w.key(KEY_RELATED);
+    w.begin_array();
+    for(i : _int64 = 0; i < d.related.size(); i++) {
+        r : related_place = d.related.at(i);
+        spot : place = place_in(positions_for(files, r.file, r.source, r.table), r.from, r.to);
+        w.begin_object();
+        w.key(KEY_FILE);  w.text(r.file);
+        write_place_fields(w, spot);
+        w.key(KEY_LABEL);  w.text(r.label);
+        w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+}

@@ -1,0 +1,34 @@
+mod backend.ide.files;
+
+import (
+    std.io,
+    backend.ide.output
+)
+
+/**
+ * A FINGERPRINT OF A FILE'S TEXT: FNV-1a, 32 bits
+ *
+ * The plugin must know whether the file on disk is still the text the
+ * compiler saw: if not, positions in the files written for the editor may
+ * point at the wrong characters. It computes the same number over the file's
+ * bytes and compares. FNV-1a is the simplest hash that mixes well enough for
+ * this:
+ *
+ *      h = 2166136261                      (the "offset basis")
+ *      for every byte b:   h = (h xor b) * 16777619   (the "prime"), kept to 32 bits
+ *
+ * The result is written as eight lower-case hex digits.
+ *
+ *      C++ comparison: the same ten lines in any hash-function collection;
+ *      std::hash<std::string> is not specified, so it cannot be compared across programs.
+ */
+def file_hash(source: _int8[]) : string {
+    h : _int64 = 2166136261;
+    size : _int64 = sizeof(source);
+    for(i : _int64 = 0; i < size; i++) {
+        b : _int64 = source[i];
+        if(b < 0) { b = b + 256; }
+        h = ((h ^ b) * 16777619) & 4294967295;
+    }
+    return hex_text(h, 8);
+}

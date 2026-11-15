@@ -1,0 +1,122 @@
+mod backend.finalizer.generation.setup;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.calls,
+    backend.finalizer.generation.statements,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * THE CODE THE GENERATOR WRITES ITSELF: how objects, classes and the program are set up
+ * (doc/codegen.md 6.14, 6.15)
+ *
+ * THE PROLOGUE OF A CONSTRUCTOR (and of an `init(x)` conversion), before its body:
+ *
+ *      1. the base constructor: `-> base(...)`, written or implied
+ *      2. the class's static part, the first time:   if @static_init_flag == 0: static_init<C>()
+ *      3. the setting up of the object:              init<C>(self)
+ *      4. the body
+ *
+ * init<C>() - for each entry of `class_layout.object_entries`, in order: a
+ * field's value stored into the field of `self`, or the start object of a
+ * field like `count : int;`, or an `init { }` block generated in place (its
+ * locals get slots of init<C>'s frame).
+ *
+ * The files of this package (module `backend.finalizer.generation.setup`):
+ *
+ *      setup.sharp             this front door: the constructor's prologue, init<C>, a field's start value
+ *      static_parts.sharp      static_init<C>: static fields, enum values, `static init { }`, once
+ *      startup.sharp           platform.static_init / tls_init, the `main` value, a test entry's prologue
+ *      components.sharp        `single` / `factory` definitions as functions; `get<t>()`, `inject`
+ *
+ *      C++ comparison: init_compiler.cpp (the constructor's prologue and
+ *      init<C>), static_init in finalizer.cpp.
+ */
+
+/** the prologue of a constructor or `init(x)` function of the class being generated: the shape above */
+def generate_constructor_prologue(g: generator, function: sharp_function) {
+    owner := g.made.owner;
+    if(function.bound_base_call != null) {
+        base_call := function.bound_base_call!!;
+        if(base_call.kind != BX_CALL) { g.stop("a base constructor call that was never bound", function.unit, function.node); }
+        g.line_of_node(base_call.unit, base_call.node);
+        call_value(g, base_call as bound_call, 0);
+    }
+    if(owner.static_init != null) {
+        done : _int64 = g.b.temp(SLOT_INT);
+        skip : _int64 = g.b.new_label();
+        g.b.get_static(done, owner.address, owner.static_flag!!);
+        g.b.jump_if(done, skip);
+        g.b.release(done);
+        g.b.call(0 - 1, owner.static_init!!.of, new number_list(), CALL_HOW_DIRECT);
+        g.b.place(skip);
+    }
+    if(owner.object_init != null) {
+        arguments := new number_list();
+        arguments.add(g.self_slot);
+        g.b.call(0 - 1, owner.object_init!!.of, arguments, CALL_HOW_DIRECT);
+    }
+}
+
+/** init<C>(): the field values and init { } blocks of one object */
+def generate_object_init(g: generator) {
+    owner := g.made.owner;
+    g.self_slot = g.b.fixed_slot(SLOT_REF);
+    // the frame first: the locals of every init { } block, and a slot for each closure record made here
+    // (a block's own, or a field's whose value holds a lambda that uses `self`: codegen.md 6.12)
+    for(i : _int64 = 0; i < owner.object_entries.size(); i++) {
+        entry := owner.object_entries.at(i);
+        if(entry.kind == D_INIT) {
+            g.add_locals(entry as sharp_function);
+            g.add_own_record((entry as sharp_function).closure);
+        } else if(entry.kind == D_FIELD) {
+            g.add_own_record((entry as sharp_field).closure);
+        }
+    }
+    for(i : _int64 = 0; i < owner.object_entries.size(); i++) {
+        entry := owner.object_entries.at(i);
+        if(entry.kind == D_INIT) {
+            block := entry as sharp_function;
+            open_block_record(g, block);
+            if(block.bound_body != null) { generate_statement(g, block.bound_body!!); }
+            continue;
+        }
+        if(entry.kind != D_FIELD) { continue; }
+        field := entry as sharp_field;
+        open_field_record(g, field);
+        value : _int64 = field_start_value(g, field);
+        if(value < 0) { continue; }
+        g.b.set_field(g.self_slot, field, value, narrowing_of(field.value_type));
+        g.b.release(value);
+    }
+    g.b.emit(IR_RETURN);
+}
+
+/**
+ * The value a field starts with when its class (or object) is set up: its
+ * written value, or a new object made by its constructor without parameters
+ * (`count : int;`); -1 when it has none (it keeps 0 / null).
+ */
+def field_start_value(g: generator, field: sharp_field) : _int64 {
+    g.line_of_node(field.unit, field.node);
+    if(field.injected_from != null) { return component_value(g, field.injected_from!!, field.unit, field.node); }
+    if(field.bound_initializer != null) { return value_of(g, field.bound_initializer!!); }
+    if(field.default_constructor != null) {
+        constructor := field.default_constructor!!;
+        if(constructor.owner == null || constructor.address < 0) { g.stop("a start object", field.unit, field.node); }
+        made : _int64 = g.b.temp(SLOT_REF);
+        g.b.new_object(made, constructor.owner!!);
+        arguments := new number_list();
+        arguments.add(made);
+        g.b.call(0 - 1, constructor, arguments, CALL_HOW_DIRECT);
+        return made;
+    }
+    return 0 - 1;
+}

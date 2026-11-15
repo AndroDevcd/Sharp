@@ -1,0 +1,592 @@
+mod main;
+
+import (
+    std.math,
+    std.export
+)
+
+/**
+ * Sharp performance test.
+ *
+ * Every benchmark below is one function that does one kind of work, timed with
+ * time.measure. Each one leaves a number in `checksum` when it is done, and the
+ * checksum is printed next to the time: the times are expected to change between
+ * compilers / runtimes / optimization levels, the checksums are NOT. If a
+ * checksum differs between two runs, one of them computed something wrong.
+ *
+ * Results are recorded in the comment above main().
+ */
+
+// ---------------------------------------------------------------------------------
+// data used by the benchmarks
+// ---------------------------------------------------------------------------------
+class simple_class {
+    num: int;
+}
+
+class advanced_class {
+    simple: simple_class = new simple_class();
+    empty: simple_class?;
+    num: decimal = 8;
+}
+
+class large_class {
+    advanced: advanced_class = new advanced_class();
+    message := "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+    num: decimal = 9;
+    dec := 0.383;
+    dict := { "1" : 1, "2" : 2 };
+}
+
+class point {
+    x : decimal = 0;
+    y : decimal = 0;
+
+    point(px: decimal, py: decimal) {
+        x = px;
+        y = py;
+    }
+
+    def length_squared(): double {
+        return x * x + y * y;
+    }
+
+    def plus(o: point): point {
+        return new point(x + o.x, y + o.y);
+    }
+}
+
+class counter {
+    total : decimal = 0;
+
+    def bump(by: decimal) {
+        total += by;
+    }
+
+    def read(): double {
+        return total;
+    }
+}
+
+simple := new simple_class();
+advanced := new advanced_class();
+large := new large_class();
+
+checksum : decimal = 0;     // what the benchmark that just ran computed
+total_ms : decimal = 0;     // all benchmark times added up
+
+// ---------------------------------------------------------------------------------
+// loops
+// ---------------------------------------------------------------------------------
+
+/** 10 million trips around a loop that does nothing */
+def empty_loop() {
+    for(i : decimal = 0; i < 10_000_000; i++) {
+    }
+    checksum = 1;
+}
+
+/** add up the numbers 0 .. 10 million */
+def loop_sum() {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 10_000_000; i++) {
+        total += i;
+    }
+    checksum = total;
+}
+
+/** a loop inside a loop, 3 million trips of the inner body */
+def nested_loops() {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 3000; i++) {
+        for(j : decimal = 0; j < 1000; j++) {
+            total += i * 2 + j;
+        }
+    }
+    checksum = total;
+}
+
+/** an inner loop with a small fixed number of trips */
+def small_fixed_loops() {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 1_000_000; i++) {
+        for(k : decimal = 0; k < 4; k++) {
+            total += k * i;
+        }
+    }
+    checksum = total;
+}
+
+/** while loop full of ifs: length of the Collatz sequence of every number below 30000 */
+def branches() {
+    steps : decimal = 0;
+    for(n : decimal = 1; n < 30000; n++) {
+        x : decimal = n;
+        while(x != 1) {
+            if(x % 2 == 0) {
+                x = x / 2;
+            } else {
+                x = x * 3 + 1;
+            }
+            steps++;
+        }
+    }
+    checksum = steps;
+}
+
+/** work whose result nobody uses */
+def unused_work() {
+    wasted : decimal = 0;
+    for(i : decimal = 0; i < 10_000_000; i++) {
+        wasted += i * 2;
+    }
+    checksum = 2;
+}
+
+// ---------------------------------------------------------------------------------
+// math
+// ---------------------------------------------------------------------------------
+
+/** floating point arithmetic on many variables */
+def arithmetic() {
+    a : decimal = 1.5;
+    b : decimal = 2.25;
+    c : decimal = 3;
+    d : decimal = 0.5;
+    e : decimal = 7;
+    f : decimal = 11;
+    g : decimal = 0;
+    h : decimal = 1;
+    for(i : decimal = 0; i < 2_000_000; i++) {
+        g = a * b + c * d;
+        h = (e - f) * (a + i) / 3;
+        a = (g + h) % 1000 + 1.5;
+        b = b + d * 0.001;
+        c = (c * 7 + i) % 97;
+        e = e + c - d;
+        f = (f + g) % 113;
+    }
+    first : decimal = a + b + c;
+    checksum = first + e + f;
+}
+
+/** whole number arithmetic: a linear congruential random number generator */
+def integer_math() {
+    seed : decimal = 12345;
+    hits : decimal = 0;
+    for(i : decimal = 0; i < 3_000_000; i++) {
+        seed = (seed * 1103 + 12345) % 2147483;
+        if(seed % 7 == 3) {
+            hits += seed % 10;
+        }
+    }
+    checksum = hits + seed;
+}
+
+/** std.math functions */
+def math_library() {
+    total : decimal = 0;
+    for(i : decimal = 1; i < 300_000; i++) {
+        total += sqrt(i).value + sin(i).value * cos(i).value;
+    }
+    checksum = total;
+}
+
+// ---------------------------------------------------------------------------------
+// functions
+// ---------------------------------------------------------------------------------
+
+def fib(n: decimal): int {
+    if(n < 2) { return n; }
+    return fib(n - 1).value + fib(n - 2).value;
+}
+
+/** recursion that branches: the 25th Fibonacci number, about 250,000 calls */
+def recursion_fibonacci() {
+    checksum = fib(25).value;
+}
+
+def sum_down(n: decimal): double {
+    if(n <= 0) { return 0; }
+    return n + sum_down(n - 1).value;
+}
+
+/**
+ * recursion that goes deep
+ *
+ * LEFT OUT OF THE RUN (see main): at 500 calls deep this crashes the VM with a
+ * SIGSEGV instead of a stack overflow error. The default fiber stack is 64 KB
+ * (4096 slots), which sum_down() uses up at roughly 500 frames, and the VM then
+ * dies while raising the stack overflow exception. The ORIGINAL runtime does
+ * exactly the same, so it is not a result of the optimizer / JIT work - but it
+ * means this benchmark cannot be part of a before/after comparison until that
+ * VM bug is fixed.
+ */
+def recursion_deep() {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 1000; i++) {
+        total += sum_down(500).value;
+    }
+    checksum = total;
+}
+
+def scale(x: decimal, factor: decimal): double {
+    return x * factor + 0.5;
+}
+
+def clamp(x: decimal, low: decimal, high: decimal): double {
+    if(x < low) { return low; }
+    if(x > high) { return high; }
+    return x;
+}
+
+/** small functions called in a hot loop, each returning a number */
+def function_calls() {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 1_000_000; i++) {
+        total += scale(i, 0.5).value + clamp(i, 100, 5000).value;
+    }
+    checksum = total;
+}
+
+/** methods on an object */
+def method_calls() {
+    c := new counter();
+    for(i : decimal = 0; i < 2_000_000; i++) {
+        c.bump(i % 5);
+    }
+    checksum = c.read().value;
+}
+
+def call_many(work: ()(), times: decimal) {
+    for(i : decimal = 0; i < times; i++) {
+        work();
+    }
+}
+
+/** calling a closure that changes a captured variable */
+def closures() {
+    n : int = 0;
+    call_many({ ->
+        n += 3;
+    }, 500_000);
+    checksum = n.value;
+}
+
+// ---------------------------------------------------------------------------------
+// objects and memory
+// ---------------------------------------------------------------------------------
+
+/** create a million small objects */
+def object_allocation() {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 1_000_000; i++) {
+        p := new point(i, 1);
+        total += p.x + p.y;
+    }
+    checksum = total;
+}
+
+/** objects that create more objects */
+def object_graph() {
+    origin := new point(1, 2);
+    total : decimal = 0;
+    for(i : decimal = 0; i < 300_000; i++) {
+        p := new point(i, i + 1);
+        q := p.plus(origin);
+        total += q.length_squared().value % 1000;
+    }
+    checksum = total;
+}
+
+/** arithmetic on boxed numbers (int objects) */
+def boxed_numbers() {
+    a : int = 0;
+    total : decimal = 0;
+    for(i : decimal = 0; i < 500_000; i++) {
+        a += 3;
+        b : int = i % 1000;   // (kept small: a * b must stay inside a 32-bit int)
+        c := a * b - a;
+        total += c.value % 7;
+    }
+    checksum = total + a.value;
+}
+
+/** fill and add up a 100,000 element number array, 20 times */
+def arrays() {
+    data := new decimal[100_000];
+    total : decimal = 0;
+    for(round : decimal = 0; round < 20; round++) {
+        for(i : decimal = 0; i < 100_000; i++) {
+            data[i] = i * round;
+        }
+        for(i : decimal = 0; i < 100_000; i++) {
+            total += data[i];
+        }
+    }
+    checksum = total;
+}
+
+/** the standard library list */
+def lists() {
+    items := new list<int>();
+    for(i : decimal = 0; i < 100_000; i++) {
+        items.add(i);
+    }
+    total : decimal = 0;
+    for(i : decimal = 0; i < 100_000; i++) {
+        total += items.at(i).value;
+    }
+    checksum = total;
+}
+
+/** build strings */
+def strings() {
+    total : decimal = 0;
+    for(i : decimal = 0; i < 60_000; i++) {
+        text := "item $i";
+        text += " done";
+        total += text.at(5).value;
+    }
+    long_text : string = "";
+    for(i : decimal = 0; i < 2000; i++) {
+        long_text += "ab";
+    }
+    checksum = total + long_text.at(1999).value;
+}
+
+/** throw and catch */
+def exceptions() {
+    caught : decimal = 0;
+    for(i : decimal = 0; i < 50_000; i++) {
+        try {
+            if(i % 2 == 0) {
+                throw new illegal_state_exception("even");
+            }
+            caught += 2;
+        } catch(e: illegal_state_exception) {
+            caught++;
+        }
+    }
+    checksum = caught;
+}
+
+// ---------------------------------------------------------------------------------
+// serialization
+// ---------------------------------------------------------------------------------
+
+def serialization() {
+    for(i : decimal = 0; i < 20_000; i++) {
+        serialize(simple);
+        serialize(advanced);
+        serialize(large);
+    }
+    checksum = 3;
+}
+
+def deserialization() {
+    simple_data := serialize(simple);
+    advanced_data := serialize(advanced);
+    large_data := serialize(large);
+
+    for(i : decimal = 0; i < 20_000; i++) {
+        deserialize(simple_data);
+        deserialize(advanced_data);
+        deserialize(large_data);
+    }
+    checksum = 4;
+}
+
+def full_serialization() {
+    for(i : decimal = 0; i < 10_000; i++) {
+        deserialize(serialize(simple));
+        deserialize(serialize(advanced));
+        deserialize(serialize(large));
+    }
+    checksum = 5;
+}
+
+// ---------------------------------------------------------------------------------
+
+def report(name: string, ms: long) {
+    total_ms += ms.value;
+    println("$name: $ms ms      [check $checksum]");
+}
+
+def main(args: string[]) {
+    /**
+     * RESULTS  (recorded 2026-11-11, x86-64 Linux under WSL2, `sharp -mem 3gb tests/test`)
+     *
+     * Each number is the MEDIAN of 5 runs, in milliseconds. All 23 checksums were
+     * identical in every configuration.
+     *
+     *   OLD      = compiler and runtime built from commit 13447f4b, the state of
+     *              the project before the JIT / scheduler / optimizer work
+     *   OLD -R   = the same, compiled with -R (release). The old compiler has no
+     *              optimization switch; -R only leaves out debug information, so
+     *              this is the closest thing to an "optimized" old build.
+     *   NEW -O0  = current compiler without optimization, current runtime + JIT
+     *   NEW -O   = current compiler with -O (all optimizations), current runtime + JIT
+     *
+     *   benchmark                          OLD     OLD -R    NEW -O0     NEW -O    OLD -> NEW -O
+     *   -----------------------------   -------   -------   --------   --------   --------------
+     *   empty loop, 10M trips               188       200         96          0      removed (1)
+     *   loop sum, 10M trips                 302       305        156          0      formula (2)
+     *   nested loops, 3M trips              157       151         85         74          2.1x
+     *   small fixed loops, 4M trips         212       206        110         58          3.7x
+     *   branches (collatz)                  215       211        149        122          1.8x
+     *   unused work, 10M trips              438       434        223          0      removed (1)
+     *   arithmetic, 2M rounds               582       562        378        294          2.0x
+     *   integer math, 3M rounds             294       299        242        196          1.5x
+     *   math library, 300K calls           2154      2151       1771       1448          1.5x
+     *   recursion: fibonacci(25)            172       178        151         54          3.2x  (6)
+     *   function calls, 2M                 1924      1826       1725         74           26x  (6)
+     *   method calls, 2M                    180       186        136         98          1.8x
+     *   closure calls, 500K                  76        75         58         54          1.4x
+     *   object allocation, 1M               948       901        765        931          1.0x  (3)
+     *   object graph, 300K                 1191      1185        854        701          1.7x  (3)
+     *   boxed numbers, 500K                1708      1548       1518         68           25x  (4)
+     *   arrays, 4M element visits           247       245        170        150          1.6x
+     *   list add + read, 100K               371       362        314        207          1.8x
+     *   strings                            1482      1412       1191        925          1.6x
+     *   exceptions, 25K thrown              169       162        153        100          1.7x
+     *   serialize, 60K objects              173       125         66        179          1.0x  (5)
+     *   deserialize, 60K objects            151       153        134        133          1.1x  (5)
+     *   serialize + deserialize 30K         234       249        209        184          1.3x  (5)
+     *   -----------------------------   -------   -------   --------   --------   --------------
+     *   total                             13568     13126      10654       6050          2.2x
+     *
+     * (1) nothing uses the result, so the optimizer deletes the loop
+     * (2) the loop is replaced by the formula for the sum
+     * (3) allocation heavy code gains little: the time goes into creating the
+     *     objects and into reference counting, not into the bytecode around it.
+     *     (An earlier build was SLOWER here with optimization on: inlining a
+     *     constructor chain copied `self` at every level. The "object copies"
+     *     optimization removes those copies.)
+     * (4) every int object in the loop is folded into a plain number
+     * (6) the callers only read `.value`, so they are sent to a hidden version of
+     *     the function that returns the number without creating an object
+     * (5) these three finish in ~0.1-0.2 s and vary by +-50% from run to run;
+     *     they show no real change.
+     *
+     * NOT IN THE TABLE
+     *   - recursion_deep() is commented out below: it crashes the VM, old and new.
+     *   - without `-mem 3gb` the run sometimes dies with "out of memory" in the
+     *     serialization benchmarks, on the old runtime as well as the new one.
+     *   - time.measure reads the system clock, which occasionally jumps under
+     *     WSL; that is why the table uses medians.
+     *
+     * RESULTS AFTER THE TYPED VM AND THE NEW JIT  (recorded 2026-11-12, same machine,
+     * `sharp -mem 3gb tests/test`, median of 5 runs, milliseconds)
+     *
+     * Between the table above and this one: the tracing garbage collector replaced
+     * reference counting; numbers became real 64-bit integers and 64-bit decimals
+     * (`var` is now `decimal`) with typed instructions; number fields are stored in
+     * the object and arrays at their element size; and the JIT was rewritten - VM
+     * registers live in CPU registers and compiled code calls compiled code directly.
+     *
+     *   OLD, 11-11 -O0, 11-11 -O   the columns OLD, NEW -O0 and NEW -O of the table above
+     *   NOW -O0                    today's compiler without optimization, runtime + new JIT
+     *   NOW -O                     today's compiler with -O, runtime + new JIT
+     *
+     *   benchmark                          OLD   11-11 -O0   11-11 -O    NOW -O0     NOW -O   OLD -> NOW -O0   OLD -> NOW -O
+     *   -----------------------------   -------   ---------   --------   --------   --------   --------------   -------------
+     *   empty loop, 10M trips               188          96          0         26          0             7.2x         removed
+     *   loop sum, 10M trips                 302         156          0         29         27              10x         11x (7)
+     *   nested loops, 3M trips              157          85         74          9          8              17x             20x
+     *   small fixed loops, 4M trips         212         110         58         13         10              16x             21x
+     *   branches (collatz)                  215         149        122         25         27             8.6x            8.0x
+     *   unused work, 10M trips              438         223          0         29          0              15x         removed
+     *   arithmetic, 2M rounds               582         378        294         73         58             8.0x             10x
+     *   integer math, 3M rounds             294         242        196         41         40             7.2x            7.3x
+     *   math library, 300K calls           2154        1771       1448        385        328             5.6x            6.6x
+     *   recursion: fibonacci(25)            172         151         54         27          8             6.4x             22x
+     *   function calls, 2M                 1924        1725         74        253          8             7.6x            240x
+     *   method calls, 2M                    180         136         98         18         10              10x             18x
+     *   closure calls, 500K                  76          58         54         12         11             6.3x            6.9x
+     *   object allocation, 1M               948         765        931        151         95             6.3x           10.0x
+     *   object graph, 300K                 1191         854        701        131         65             9.1x             18x
+     *   boxed numbers, 500K                1708        1518         68        213          7             8.0x            244x
+     *   arrays, 4M element visits           247         170        150         18         17              14x             15x
+     *   list add + read, 100K               371         314        207         40         28             9.3x             13x
+     *   strings                            1482        1191        925        169        162             8.8x            9.1x
+     *   exceptions, 25K thrown              169         153        100         19         21             8.9x            8.0x
+     *   serialize, 60K objects              173          66        179         16         10              11x             17x
+     *   deserialize, 60K objects            151         134        133          8          8              19x             19x
+     *   serialize + deserialize 30K         234         209        184         19         17              12x             14x
+     *   -----------------------------   -------   ---------   --------   --------   --------   --------------   -------------
+     *   total                             13568       10654       6050       1724        965             7.9x             14x
+     *
+     *   Without the JIT (`-nojit`, the interpreter alone) the totals are about
+     *   4170 ms without -O and 1990 ms with it: the typed interpreter by itself is
+     *   faster than the 11-11 build was WITH its JIT.
+     *
+     * CHECKSUMS: identical in all runs, with and without -O, JIT and interpreter. Two of
+     * the 23 differ from the builds of the table above, both because a decimal is now a
+     * 64-bit double everywhere (the old VM mixed 80-bit and 64-bit arithmetic):
+     *   arithmetic      95003022.7499999850988388   (was 95003491.75; a C++ program doing the
+     *                   same steps with `double` prints exactly the new number)
+     *   math library    109544237.4888492673635483  (was ...4888491630554199: last digits)
+     *
+     * (7) the optimizer no longer replaces this loop by the formula for the sum: the
+     *     pass that did it does not recognise the loop now that its counter is a
+     *     decimal with typed instructions. Still to be adapted.
+     */
+    println("Sharp performance test\n");
+
+    t := time.measure(milliseconds, { -> empty_loop(); });
+    report("empty loop, 10M trips      ", t);
+    t = time.measure(milliseconds, { -> loop_sum(); });
+    report("loop sum, 10M trips        ", t);
+    t = time.measure(milliseconds, { -> nested_loops(); });
+    report("nested loops, 3M trips     ", t);
+    t = time.measure(milliseconds, { -> small_fixed_loops(); });
+    report("small fixed loops, 4M trips", t);
+    t = time.measure(milliseconds, { -> branches(); });
+    report("branches (collatz)         ", t);
+    t = time.measure(milliseconds, { -> unused_work(); });
+    report("unused work, 10M trips     ", t);
+
+    t = time.measure(milliseconds, { -> arithmetic(); });
+    report("arithmetic, 2M rounds      ", t);
+    t = time.measure(milliseconds, { -> integer_math(); });
+    report("integer math, 3M rounds    ", t);
+    t = time.measure(milliseconds, { -> math_library(); });
+    report("math library, 300K calls   ", t);
+
+    t = time.measure(milliseconds, { -> recursion_fibonacci(); });
+    report("recursion: fibonacci(25)   ", t);
+    // crashes the VM (old and new), see the comment on recursion_deep()
+    // t = time.measure(milliseconds, { -> recursion_deep(); });
+    // report("recursion: 500 deep x 1000 ", t);
+    t = time.measure(milliseconds, { -> function_calls(); });
+    report("function calls, 2M         ", t);
+    t = time.measure(milliseconds, { -> method_calls(); });
+    report("method calls, 2M           ", t);
+    t = time.measure(milliseconds, { -> closures(); });
+    report("closure calls, 500K        ", t);
+
+    t = time.measure(milliseconds, { -> object_allocation(); });
+    report("object allocation, 1M      ", t);
+    t = time.measure(milliseconds, { -> object_graph(); });
+    report("object graph, 300K         ", t);
+    t = time.measure(milliseconds, { -> boxed_numbers(); });
+    report("boxed numbers, 500K        ", t);
+    t = time.measure(milliseconds, { -> arrays(); });
+    report("arrays, 4M element visits  ", t);
+    t = time.measure(milliseconds, { -> lists(); });
+    report("list add + read, 100K      ", t);
+    t = time.measure(milliseconds, { -> strings(); });
+    report("strings                    ", t);
+    t = time.measure(milliseconds, { -> exceptions(); });
+    report("exceptions, 25K thrown     ", t);
+
+    t = time.measure(milliseconds, { -> serialization(); });
+    report("serialize, 60K objects     ", t);
+    t = time.measure(milliseconds, { -> deserialization(); });
+    report("deserialize, 60K objects   ", t);
+    t = time.measure(milliseconds, { -> full_serialization(); });
+    report("serialize + deserialize 30K", t);
+
+    println("\ntotal: $total_ms ms");
+}

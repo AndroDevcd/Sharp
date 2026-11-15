@@ -1,0 +1,12 @@
+mod main;
+
+// expect: E0975
+
+/*
+ * A program whose only `main` has a form the runtime cannot call (W1015 in
+ * analysis). Code generation refuses it with E0975 AT that `main` - "this
+ * program has no `main` function" would be wrong, and would say nothing of
+ * where to look. Its help names `-c` (compile without an executable), not
+ * "without -o": without -o the compiler still writes `out`.
+ */
+def main(count: _int64) : string { return "" + count; }

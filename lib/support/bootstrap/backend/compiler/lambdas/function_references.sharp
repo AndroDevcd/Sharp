@@ -1,0 +1,286 @@
+mod backend.compiler.lambdas;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.driver,
+    backend.compiler.expressions.calls
+)
+
+/**
+ * A FUNCTION NAMED AS A VALUE
+ *
+ *      def twice(x: decimal) : decimal { return x * 2; }
+ *
+ *      f := twice;                         f : (decimal)(decimal)
+ *      apply(twice, 4);                    passed where (decimal)(decimal) is expected
+ *      g : (decimal)(decimal) = math.half; a static function of a class
+ *
+ * The value is a function value that captures nothing: only a function that
+ * needs no object can be named so - a global function or a `static` one.
+ *
+ *      E0804   an instance function used as a value (`d.bark`, or `bark` inside its class):
+ *              a function value carries no object. The help writes the lambda that does.
+ *      E0805   a generic function used as a value: there is no one function to point at -
+ *              each `f<int>(...)` call makes its own
+ *      W1011   an overloaded name with nothing to say which overload: the first declared is taken
+ *      E0510   a `static` function without a body used as a value: there is nothing to call
+ *
+ * WHICH OVERLOAD. With a function type expected (the variable's type, the
+ * parameter the name is passed to) the overload whose type is exactly that
+ * one; with none expected, the first declared, and W1011 says so. A name is
+ * a function value only when nothing else of that name is visible - a
+ * variable or class with the name wins (name lookup, 7.4.1).
+ *
+ *      C++ comparison: `resolve_primary_class_function_address` and
+ *      `process_get_static_function_address` in dependency/dependency.cpp
+ *      ("cannot get address of non-static function", "getting address from
+ *      ambiguous function reference").
+ */
+def function_value_of(context: analysis_context, named: bound_functions, wanted: resolved_type?) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    expected : resolved_type? = function_type_expected(wanted);
+    candidates : list<sharp_function> = named.candidates;
+    if(candidates.size() == 0) { return new bound_error(named.unit, named.node, error_type); }
+
+    chosen : sharp_function = candidates.at(0);
+    if(expected != null) {
+        fitting := overload_of_type(context, named, expected!!, 0);
+        if(fitting == null) { fitting = overload_of_type(context, named, expected!!, 1); }
+        if(fitting != null) { chosen = fitting!!; }
+    }
+
+    if(chosen.is_generic()) {
+        report_generic_as_value(context, named, chosen);
+        return new bound_error(named.unit, named.node, error_type);
+    }
+    if(chosen.owner != null && !chosen.has(FLAG_STATIC)) {
+        report_instance_function_as_value(context, named, chosen, wanted);
+        return new bound_error(named.unit, named.node, error_type);
+    }
+    if(chosen.owner != null && chosen.kind == D_FUNCTION && !chosen.has_body() && !chosen.has(FLAG_NATIVE)) {
+        report_value_of_function_without_body(context, named, chosen);
+        return new bound_error(named.unit, named.node, error_type);
+    }
+    if(expected == null && candidates.size() > 1) { warn_first_overload_taken(context, named, chosen); }
+    check_function_access(context, chosen, named.node);         // `local` / `private` (W1022)
+
+    context.session.counters.function_values++;
+    return new bound_function_reference(named.unit, named.node, chosen, type_of_function(context, chosen, named.node));
+}
+
+/**
+ * The first overload of the name whose type is `expected`. With
+ * `ignoring_result` = 1: the first whose PARAMETERS are those of `expected`,
+ * whatever it returns - what an argument of a function type needs in the C++
+ * compiler (W1029 when it is passed, lambdas.sharp `loosely_converted`).
+ */
+def overload_of_type(context: analysis_context, named: bound_functions, expected: resolved_type, ignoring_result: _int64) : sharp_function? {
+    for(i : _int64 = 0; i < named.candidates.size(); i++) {
+        candidate := named.candidates.at(i);
+        if(candidate.is_generic()) { continue; }
+        type := type_of_function(context, candidate, named.node);
+        if(ignoring_result == 0 && function_types_fit(type, expected)) { return candidate; }
+        if(ignoring_result == 1 && parameters_fit(type, expected)) { return candidate; }
+    }
+    return null;
+}
+
+/** the same number of parameters, each the type expected (or that type without a `?` the expected side has) */
+def parameters_fit(given: resolved_type, expected: resolved_type) : _int64 {
+    if(given.parameters!!.size() != expected.parameters!!.size()) { return 0; }
+    for(i : _int64 = 0; i < given.parameters!!.size(); i++) {
+        if(!same_or_nullable_of(given.parameters!!.at(i), expected.parameters!!.at(i))) { return 0; }
+    }
+    return 1;
+}
+
+/** the function type wanted at a place, when it is one: `(decimal)(decimal)` of a `(decimal)(decimal)?` */
+def function_type_expected(wanted: resolved_type?) : resolved_type? {
+    if(wanted == null) { return null; }
+    if(wanted!!.kind != RT_FUNCTION || wanted!!.is_array == 1) { return null; }
+    return wanted!!.as_non_null();
+}
+
+/** `(decimal)(decimal)`: the type of a value that is this function */
+def type_of_function(context: analysis_context, function: sharp_function, node: _int64) : resolved_type {
+    session : analysis_session = context.session;
+    parameters := new list<resolved_type>();
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        type := function.parameters.at(i).value_type;
+        if(type != null) { parameters.add(type!!); } else { parameters.add(session.types.error_type); }
+    }
+    result : resolved_type? = function.result_type;
+    if(result == null) { result = result_of_function(context, function, node); }     // `def f() := value;`
+    return function_type_of(parameters, result!!);
+}
+
+/**
+ * E0804, with the fix for what was most likely meant: where a function type
+ * is expected, the lambda that does the same, ready to paste; anywhere else
+ * (`n : _int64 = x.size;`, `n := s.length;`) the `()` that calls it.
+ */
+def report_instance_function_as_value(context: analysis_context, named: bound_functions, function: sharp_function, wanted: resolved_type?) {
+    owner_name := function.owner!!.written.name;
+    d := problem_over(context, "E0804", "`" + function.name + "` is an instance function of `" + owner_name
+                      + "`: it cannot be used as a value", named.node);
+    d.with_label("a function value carries no object to call it on");
+    d.with_related_place(place_of_declaration(function, "declared here, without `static`"));
+    d.with_note("only a global or `static` function can be named as a value");
+
+    object_text := "a_" + owner_name;                  // no object written: one is needed
+    if(named.on != null) {
+        object_text = "self";
+        if(named.on!!.kind != BX_SELF) { object_text = source_text_of(context, named.on!!.node); }
+    }
+    if(function_type_expected(wanted) == null) {
+        // no function type wanted here: the `()` is what is missing
+        d.with_help("call it: `" + source_text_of(context, named.node) + "(" + parameter_placeholders(function) + ")`");
+        report(context, d);
+        return;
+    }
+
+    parameters := new string_builder("");
+    arguments := new string_builder("");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        parameter := function.parameters.at(i);
+        if(i > 0) {
+            parameters.append(", ");
+            arguments.append(", ");
+        }
+        type_text := "?";
+        if(parameter.value_type != null) { type_text = parameter.value_type!!.to_text(); }
+        parameters.append(parameter.name + ": " + type_text);
+        arguments.append(parameter.name);
+    }
+    arrow := " -> ";
+    if(function.parameters.size() == 0) { arrow = "-> "; }
+    d.with_help("wrap the call in a lambda, which keeps the object: `{ " + parameters.build() + arrow + object_text + "."
+                + function.name + "(" + arguments.build() + ") }`");
+    report(context, d);
+}
+
+/** "" / "..." : what to write between the parentheses of a suggested call */
+def parameter_placeholders(function: sharp_function) : string {
+    if(function.parameters.size() == 0) { return ""; }
+    return "...";
+}
+
+/** E0805 */
+def report_generic_as_value(context: analysis_context, named: bound_functions, function: sharp_function) {
+    d := problem_over(context, "E0805", "`" + function.name + "` is a generic function: it cannot be used as a value", named.node);
+    d.with_label("which `" + function.name + "<...>` is meant?");
+    d.with_related_place(place_of_declaration(function, "declared here with type parameters"));
+    d.with_note("a generic function is made anew for every list of type arguments it is called with; there is no single function to point at");
+    written := written_type_arguments(context, named.node);
+    if(written.size() > 0) {
+        // `f := twice<int>;` - the type arguments are there, but a value still needs a function to point at
+        d.with_note("even with its type arguments written, `" + function.name + "<" + comma_separated(written)
+                    + ">` names a family member that exists only where it is called");
+        d.with_help("wrap the call in a lambda: `" + lambda_calling_generic(context, named.node, function, written) + "`");
+    } else {
+        d.with_help("wrap a call with the type arguments in a lambda: `{ x: <type> -> " + function.name + "<<type>>(x) }`");
+    }
+    report(context, d);
+}
+
+/**
+ * The lambda to write instead of `pair<int, string>` as a value:
+ * `{ a: int, b: string -> pair<int, string>(a, b) }` - the function's own
+ * parameters, each with its type as the written type arguments make it (a
+ * parameter declared `T` becomes the type written for `T`), and the call
+ * with whatever was written in front of the name (`tools.pair`).
+ */
+def lambda_calling_generic(context: analysis_context, name_node: _int64, function: sharp_function, written: list<string>) : string {
+    parameters := new string_builder("");
+    arguments := new string_builder("");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        parameter := function.parameters.at(i);
+        type_text := "<type>";
+        if(parameter.type != null) { type_text = parameter.type!!.to_text(); }
+        for(j : _int64 = 0; j < function.type_parameters.size() && j < written.size(); j++) {
+            if(function.type_parameters.at(j).name == type_text) { type_text = written.at(j); }
+        }
+        if(i > 0) {
+            parameters.append(", ");
+            arguments.append(", ");
+        }
+        parameters.append(parameter.name + ": " + type_text);
+        arguments.append(parameter.name);
+    }
+
+    // `box<int>.make<string>`: what stands in front of the name is part of the call
+    tree : syntax_tree = context.tree;
+    receiver := "";
+    parent : _int64 = tree.parents!![name_node];
+    if(parent >= 0 && tree.kinds!![parent] == N_MEMBER && tree.first_child!![parent] != name_node) {
+        before : _int64 = tree.first_child!![parent];
+        receiver = source_text_of(context, before);
+        // (the closing `>` of type arguments belongs to no node, so the text of `box<int>` stops short of it)
+        if(written_type_arguments(context, before).size() > 0) { receiver = receiver + ">"; }
+        receiver = receiver + ".";
+    }
+    arrow := " -> ";
+    if(function.parameters.size() == 0) { arrow = "-> "; }
+    return "{ " + parameters.build() + arrow + receiver + function.name + "<" + comma_separated(written) + ">(" + arguments.build() + ") }";
+}
+
+/** "int, string" */
+def comma_separated(parts: list<string>) : string {
+    text := new string_builder("");
+    for(i : _int64 = 0; i < parts.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        text.append(parts.at(i));
+    }
+    return text.build();
+}
+
+/** W1011: `f := twice;` with several `twice` and nothing that says which */
+def warn_first_overload_taken(context: analysis_context, named: bound_functions, chosen: sharp_function) {
+    d := problem_over(context, "W1011", "`" + named.name + "` has " + (named.candidates.size().value as _int64) + " overloads; `"
+                      + signature_of(chosen) + "` is taken", named.node);
+    d.with_label("nothing here says which one is meant");
+    d.with_note("a function value is one function; with no function type expected the first one declared is used");
+    d.with_help("give the variable the function type of the one you mean: `f : (<types>)(<result>) = " + named.name + ";`");
+    report(context, d);
+}
+
+/** `int` / `string`, `int`: the type arguments written after a function's name, as text; empty when none are */
+def written_type_arguments(context: analysis_context, name_node: _int64) : list<string> {
+    tree : syntax_tree = context.tree;
+    written := new list<string>();
+    if(name_node < 0 || tree.kinds!![name_node] != N_IDENTIFIER) { return written; }
+    child : _int64 = tree.first_child!![name_node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_TYPE) { written.add(source_text_of(context, child)); }
+        child = tree.next_sibling!![child];
+    }
+    return written;
+}
+
+/**
+ * E0510: `f := tool.promise;` where `static def promise();` has no body.
+ *
+ * The same rule as for a static CALL of such a function (calls/bind_call.sharp,
+ * check_static_call_has_body): a function without a body is completed by the
+ * class of an object, and a function value carries no object - so the value
+ * could only ever be called into nothing. The C++ compiler builds it, and
+ * the VM stops at the call ("attempting to call non-native static delegate
+ * function").
+ */
+def report_value_of_function_without_body(context: analysis_context, named: bound_functions, function: sharp_function) {
+    owner_name := function.owner!!.written.name;
+    d := problem_over(context, "E0510", "the static function `" + function.name + "` of `" + owner_name
+                      + "` has no body: as a value it has nothing to call", named.node);
+    d.with_label("a function value of a function that does nothing");
+    d.with_related_place(place_of_declaration(function, "declared here without a body"));
+    d.with_note("a function without a body is completed by the class of an OBJECT; a function value carries no object");
+    d.with_help("give it a body - `static def " + function.name + "(...) { ... }` - or mark it `native` if the VM provides it");
+    report(context, d);
+}

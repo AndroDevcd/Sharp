@@ -1,0 +1,83 @@
+mod main;
+
+// output:
+// 42
+// 77
+// 105
+// 2.5
+// 118
+// 77
+// 77
+// 20
+// 30
+// 77
+// 16
+// 1
+// 2
+// 12
+// 1
+// 0
+
+/*
+ * Function values and their calls (doc/codegen.md 4.6, 6.6, 6.12): a global
+ * function and a static function named as a value, a lambda that captures
+ * nothing, values kept in a local, a field, an array, handed to a function
+ * and returned from one; calls that give a number, a decimal, an object or
+ * nothing; the arguments of a value call evaluated left to right after the
+ * value; `==` between function values.
+ *
+ * (Not here: a lambda without parameters, `{ -> show(55); }`, stops the C++
+ * compiler's code generator - "attempt to add invalid type to exe file".)
+ */
+def twice(n: _int64) : _int64 { return n * 2; }
+def hello() { show(77); }
+def half(d: decimal) : decimal { return d / 2; }
+def arg(n: _int64) : _int64 { show(n); return n; }
+
+class maths {
+    static def triple(n: _int64) : _int64 { return n * 3; }
+}
+
+class button {
+    on_press : ()();
+    scale : (_int64)(_int64);
+    def press() { on_press(); }
+}
+
+def run(work: ()(), times: _int64) {
+    for(i : _int64 = 0; i < times; i++) { work(); }
+}
+
+def chosen(which: _int64) : (_int64)(_int64) {
+    if(which == 1) { return twice; }
+    return maths.triple;
+}
+
+def main() {
+    f := twice;
+    show(f(21));
+    g : ()() = hello;
+    g();
+    h := { x: _int64 -> (_int64) return x + 100; };
+    show(h(5));
+    halving : (decimal)(decimal) = half;
+    show_decimal(halving(5.0));
+    ops := new (_int64)(_int64)[3];
+    ops[0] = twice;
+    ops[1] = h;
+    ops[2] = maths.triple;
+    show(ops[0](3) + ops[1](3) + ops[2](3));
+    run(hello, 2);
+    show(chosen(1)(10));
+    show(chosen(2)(10));
+    b := new button();
+    b.on_press = hello;
+    b.press();
+    b.scale = twice;
+    show(b.scale(8));
+    sum := { a: _int64, b2: _int64 -> (_int64) return a * 10 + b2; };
+    show(sum(arg(1), arg(2)));
+    same := twice;
+    show(f == same);
+    show(f == h);
+}

@@ -1,0 +1,11 @@
+// expect: E0501
+// help: count_items()
+// replace: count_items
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    println(count_items);
+}
+
+def count_items() : _int64 { return 1; }

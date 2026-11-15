@@ -1,0 +1,33 @@
+mod backend.ide.diagnostics;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics
+)
+
+/**
+ * WHAT IS WRONG BEFORE THERE IS ANYTHING TO ANALYSE
+ *
+ * When a file does not parse the build stops: there is no tree to trust, so
+ * nothing is analysed and the only thing to tell the editor is the syntax
+ * errors. Two kinds of trouble come before that:
+ *
+ *      a syntax error     `unit.parsed.errors`: ordinary diagnostics
+ *      an unreadable file `unit.problem` is set and there is no `parsed`: the file is missing, or
+ *                         could not be read. It has no diagnostics of its own, so it is listed
+ *                         apart ("unreadable" in diagnostics.json)
+ *
+ * The syntax errors are collected in the order of `units` - the order the
+ * compiler printed them in.
+ */
+def syntax_errors_of(units: list<source_unit>) : list<diagnostic> {
+    found := new list<diagnostic>();
+    for(i : _int64 = 0; i < units.size(); i++) {
+        unit := units.at(i);
+        if(unit.parsed == null) { continue; }
+        errors : list<diagnostic> = unit.parsed!!.errors;
+        for(j : _int64 = 0; j < errors.size(); j++) { found.add(errors.at(j)); }
+    }
+    return found;
+}

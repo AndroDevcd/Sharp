@@ -1,0 +1,172 @@
+mod backend.postprocessor.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * MAY THIS TYPE BE NAMED HERE?  private / protected / local on a class, alias or enum
+ *
+ *      class vault {
+ *          private class plate { }             a class only `vault` itself may name
+ *      }
+ *      local class scratch { }                 a class only this FILE may name
+ *
+ *      def f() { p : vault.plate? = null; }    E0700
+ *
+ * A type name was found (type_names.sharp); this asks whether the place that
+ * wrote it is allowed to. The rules are the ones for every other declaration
+ * (backend/compiler/names/access_rules.sharp does the same for fields and for
+ * types named inside EXPRESSIONS, like `vault.plate.depth`):
+ *
+ *      the type is                 written      may be named from
+ *      --------------------------  -----------  ----------------------------------------------
+ *      declared in a module        local        the same file                                E0702
+ *                                  private      the module's code outside any class          E0700
+ *                                  protected    the same module                              E0701
+ *      declared inside a class     private      that class itself (not a class inside or     E0700
+ *                                               below it)
+ *                                  protected    that class, the classes above and below it,  E0701
+ *                                               and the whole module
+ *
+ * A class may always name ITSELF (`private class plate { next : plate?; }`).
+ * A class declared inside it may not: for `private`, "the class itself" is
+ * meant literally.
+ *
+ * This runs in the type-names stage because that stage visits every type
+ * name of the program exactly once - the ones in declarations (a field's
+ * type, a base class) and the ones in bodies (`new plate()`, `x as plate`).
+ * "Which class is this written in?" is read off the syntax tree: the nearest
+ * class around the name.
+ *
+ *      C++ comparison: `check_access` in dependency/dependency.cpp, called
+ *      from `resolve_class` and friends.
+ */
+
+/** report E0700 / E0701 / E0702 when the type `found`, named at `part`, may not be named there */
+def check_type_access(prog: sharp_program, file: sharp_file, part: _int64, found: sharp_declaration, problems: list<diagnostic>) {
+    flags : _int64 = found.flags;
+    if((flags & (FLAG_PRIVATE | FLAG_PROTECTED | FLAG_LOCAL)) == 0) { return; }       // nearly every type: public
+    what := declaration_kind_name(found.kind);
+
+    if(found.owner == null && (flags & FLAG_LOCAL) != 0) {
+        if(found.unit == file.unit) { return; }
+        problems.add(error_at_node("E0702", "the " + what + " `" + found.name + "` is `local` to its file and cannot be named here", file.unit, part)
+            .with_label("declared `local` in another file")
+            .with_related_place(place_of_node(found.unit, found.node, "`" + found.name + "` is declared here, `local`"))
+            .with_note("`local` means: visible only in the file that declares it")
+            .with_help("remove `local` from the declaration to use it from other files"));
+        return;
+    }
+
+    user := class_written_around(prog, file, part);
+    same_module : _int64 = file.module == found.module;
+
+    // a class may always name ITSELF: `private class plate { next : plate?; }`
+    if(user != null && is_class_kind(found.kind) && user!!.written == (found as sharp_class).written) { return; }
+
+    if((flags & FLAG_PRIVATE) != 0) {
+        if(found.owner == null) {
+            if(same_module == 1 && user == null) { return; }
+            d := error_at_node("E0700", "the " + what + " `" + found.name + "` is private to the global code of module `"
+                               + found.module.name + "`", file.unit, part)
+                .with_related_place(place_of_node(found.unit, found.node, "declared `private` here"))
+                .with_note("`private` on something declared outside any class means: only the functions and variables of its module that are outside any class too");
+            if(same_module == 1) {
+                d.with_label("named inside class `" + user!!.name + "`");
+                d.with_help("declare `" + found.name + "` `protected` to let the classes of module `" + found.module.name + "` use it");
+            } else {
+                d.with_label("cannot be named from module `" + file.module.name + "`");
+                d.with_help("remove `private` from the declaration of `" + found.name + "` to use it from other modules");
+            }
+            problems.add(d);
+            return;
+        }
+
+        owner : sharp_class = found.owner!!;
+        if(user != null && user!!.written == owner.written) { return; }
+        if(found.kind == D_ALIAS) {
+            // (no word made it private: every alias of a class is, see alias_flags in declare.sharp)
+            alias_target := "the type it stands for";
+            if((found as sharp_alias).target != null) {
+                alias_target = "`" + (found as sharp_alias).target!!.to_text() + "`";
+                // (`alias list<T> as items` in `box<T>`: outside the class there is no `T`)
+                if(owner.written.is_generic()) { alias_target = alias_target + " (with the types given to `" + owner.name + "`)"; }
+            }
+            problems.add(error_at_node("E0700", "the alias `" + found.name + "` is private to `" + owner.qualified_name() + "`", file.unit, part)
+                .with_label("cannot be named outside `" + owner.name + "`")
+                .with_related_place(place_of_node(found.unit, found.node, "declared in class `" + owner.name + "`"))
+                .with_note("an alias declared in a class is always private: only code of that class may name it")
+                .with_help("write " + alias_target + " here, or move the alias out of the class to use it everywhere"));
+            return;
+        }
+        problems.add(error_at_node("E0700", "the " + what + " `" + found.name + "` is private to `" + owner.qualified_name() + "`", file.unit, part)
+            .with_label("cannot be named outside `" + owner.name + "`")
+            .with_related_place(place_of_node(found.unit, found.node, "declared `private` here"))
+            .with_note("`private` means: only code of the class itself - not a class declared inside it, not a class below it")
+            .with_help("declare `" + found.name + "` `public` or `protected`, or keep the use inside `" + owner.name + "`"));
+        return;
+    }
+
+    if((flags & FLAG_PROTECTED) != 0) {
+        if(same_module == 1) { return; }
+        if(found.owner != null && user != null
+           && (is_same_or_below(prog, user!!, found.owner!!) || is_same_or_below(prog, found.owner!!, user!!))) { return; }
+        where := "module `" + found.module.name + "`";
+        if(found.owner != null) { where = "`" + found.owner!!.qualified_name() + "`"; }
+        d := error_at_node("E0701", "the " + what + " `" + found.name + "` is protected in " + where, file.unit, part)
+            .with_label("cannot be named from here")
+            .with_related_place(place_of_node(found.unit, found.node, "declared `protected` here"));
+        if(found.owner != null) {
+            d.with_note("`protected` means: the class itself, the classes above and below it, and code in module `" + found.module.name + "`");
+        } else {
+            d.with_note("`protected` on something declared outside any class means: only code of module `" + found.module.name + "`");
+        }
+        d.with_help("remove `protected` from the declaration of `" + found.name + "` to use it from module `" + file.module.name + "`");
+        problems.add(d);
+    }
+}
+
+/**
+ * The class whose code the node is part of: the nearest class around it in
+ * the tree; for an extension function (`def string.shout()`) or a `mutate`
+ * block, the class it adds to. Null for code outside any class.
+ */
+def class_written_around(prog: sharp_program, file: sharp_file, node: _int64) : sharp_class? {
+    tree : syntax_tree = file.unit.parsed!!.tree;
+    name_node : _int64 = tree.parents!![node];      // the whole type name the part belongs to
+    up : _int64 = name_node;
+    while(up >= 0) {
+        kind : _int64 = tree.kinds!![up];
+        around : sharp_declaration? = null;
+
+        if(kind == N_CLASS || kind == N_INTERFACE || kind == N_ENUM) {
+            around = class_at_node(file, up);
+        } else if(kind == N_MUTATE) {
+            around = mutate_target(prog, file, up);
+        } else if(kind == N_FUNCTION && tree.parents!![up] >= 0 && tree.kinds!![tree.parents!![up]] == N_FILE) {
+            extended : _int64 = tree.child_of_kind(up, N_TYPE_NAME);
+            // (the name of the extended class itself is not "inside" the class)
+            if(extended >= 0 && extended != name_node) { around = resolve_type_name(prog, file, extended, null, 0, null); }
+        }
+        if(around != null && is_class_kind(around!!.kind)) { return around as sharp_class; }
+        up = tree.parents!![up];
+    }
+    return null;
+}
+
+/** is `lower` the class `upper` (as written), or a class below it? (the base chain only) */
+def is_same_or_below(prog: sharp_program, lower: sharp_class, upper: sharp_class) : _int64 {
+    current : sharp_class? = lower;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        if(current!!.written == upper.written) { return 1; }
+        current = base_class_of(prog, current!!);
+    }
+    return 0;
+}

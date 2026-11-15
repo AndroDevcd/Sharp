@@ -1,0 +1,75 @@
+mod app;
+
+/*
+ * Lambdas the bootstrap accepts and the C++ compiler does not (doc/backend.md
+ * section 5): numbers captured (D10), a result worked out from the `return`s
+ * (D11), a one-expression body after an arrow, a nullable function variable
+ * given `null` (D27), a lambda called where it is written, a lambda that
+ * returns a lambda.
+ */
+
+def run(work: ()()) { work(); }
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def each(items: decimal[], f: (decimal)()) { foreach(v in items) { f(v); } }
+def make(f: ()(decimal)) : decimal { return f(); }
+
+// a number captured: it lives in the closure record, and every call has its own
+def make_counter() : ()(_int64) {
+    count : _int64 = 0;
+    return { -> (_int64) count++; return count; };
+}
+
+// a lambda that returns a lambda; the inner one reaches two functions out
+def adder_of(start: decimal) : (decimal)((decimal)(decimal)) {
+    return { step: decimal -> ((decimal)(decimal)) return { x: decimal -> (decimal) return x + step + start; }; };
+}
+
+class account {
+    balance : decimal = 0;
+
+    // a lambda in an instance field's value that uses `self`
+    deposit : (decimal)() = { amount: decimal -> balance += amount; };
+
+    def total_after(amounts: decimal[]) : decimal {
+        each(amounts) { balance += it; }        // `it`, and `self` captured
+        return balance;
+    }
+}
+
+def main() {
+    sum : decimal = 0;
+    each(new decimal[] { 1, 2, 3 }) { sum += it; }          // a number captured and changed
+    run { sum = sum * 2; }
+
+    // the result worked out from the returns
+    halve := { x: decimal -> return x / 2; };
+    h : decimal = halve(8);
+    pick := { n: _int64 -> if(n > 0) { return "positive"; } return "not"; };
+    word : string = pick(3);
+    shout := { -> println("hi"); };                          // returns nothing
+    shout();
+
+    // a one-expression body after an arrow
+    square := { x: decimal -> (decimal) x * x };
+    s : decimal = apply({ x -> x + 1 }, 2) + square(3) + make { 6 * 7 };
+
+    // called where it is written
+    seven : _int64 = { -> (_int64) return 7; }();
+    eight := { -> return 8; }();
+
+    // a lambda that returns a lambda
+    add_five := adder_of(2)(3);
+    ten : decimal = add_five(5);
+
+    // a nullable function variable
+    maybe : (decimal)(decimal)? = null;
+    if(maybe == null) { maybe = { x: decimal -> (decimal) return x; }; }
+
+    counter := make_counter();
+    counter();
+    two : _int64 = counter();
+
+    acct := new account();
+    acct.deposit(5);
+    t : decimal = acct.total_after(new decimal[] { 1, 2 });
+}

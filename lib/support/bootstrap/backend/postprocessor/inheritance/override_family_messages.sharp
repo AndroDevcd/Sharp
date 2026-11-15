@@ -1,0 +1,147 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * THE MESSAGES OF THE EXACT OVERRIDE CHECK
+ *
+ * override_families.sharp compares overriding functions with the real types
+ * of every class - generic instances included - and finds what stage 4 could
+ * not see. What the reader is told is written here:
+ *
+ *      E0341   report_missing_in_real_class        a required function is not defined
+ *      E0342   report_overrides_nothing_exactly    `override`, and nothing to override
+ *      E0343   report_other_result_exactly         the result is another type
+ *
+ * Signatures in these messages are written with the REAL types
+ * (resolved_signature): `compare(other: money)`, not `compare(other: T)`.
+ * A mistake that only a generic instance shows names the instance and the
+ * place that uses it (add_first_use, generic_classes.sharp).
+ */
+
+/** the result of a function as a message says it: "`string`" or "nothing" */
+def result_text(function: sharp_function) : string {
+    if(function.result_type == null || function.result_type!!.is_nil()) { return "nothing"; }
+    return "`" + function.result_type!!.to_text() + "`";
+}
+
+/** name(type, type) with the real types, for messages */
+def resolved_signature(function: sharp_function) : string {
+    text := new string_builder(function.name + "(");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        parameter := function.parameters.at(i);
+        text.append(parameter.name);
+        if(parameter.value_type != null) { text.append(": " + parameter.value_type!!.to_text()); }
+    }
+    text.append(")");
+    if(function.result_type != null && !function.result_type!!.is_nil()) {
+        text.append(" : " + function.result_type!!.to_text());
+    }
+    return text.build();
+}
+
+/** E0341: one message for the class, listing everything it lacks (with the real types) */
+def report_missing_in_real_class(prog: sharp_program, declared: sharp_class, missing: list<sharp_function>) {
+    first := missing.at(0);
+    d := error_at_node("E0341", "`" + declared.qualified_name() + "` does not define `" + first.name + "`, which "
+                       + kind_and_name(first.owner!!) + " requires", declared.unit, declared.node)
+        .with_label("must define `" + resolved_signature(first) + "`");
+
+    stubs := new string_builder("add to `" + declared.written.name + "`:");
+    for(i : _int64 = 0; i < missing.size(); i++) {
+        wanted := missing.at(i);
+        if(i < 3) {
+            d.with_related_place(place_of_node(wanted.unit, wanted.node, "`" + wanted.name + "` is declared without a body in "
+                                               + kind_and_name(wanted.owner!!)));
+        }
+        near := declared.members!!.find(wanted.name);
+        if(near != null) {
+            for(j : _int64 = 0; j < near!!.size(); j++) {
+                if(near!!.at(j).kind == D_FUNCTION) {
+                    d.with_note("`" + declared.qualified_name() + "` has `" + resolved_signature(near!!.at(j) as sharp_function)
+                                + "`, but the parameters must be exactly those of `" + resolved_signature(wanted) + "`");
+                }
+            }
+        }
+        stubs.append("\n            override def " + resolved_signature(wanted) + " { ... }");
+    }
+    if(declared.blueprint != null) {
+        d.with_note("found while checking `" + declared.qualified_name() + "`: with these type arguments the functions of `"
+                    + declared.written.name + "` no longer match what is required");
+        add_first_use(d, declared);
+    }
+    d.with_help(stubs.build());
+    prog.problems.add(d);
+}
+
+/** E0342, exactly: stage 4 found something that might be overridden; with the real types it is not */
+def report_overrides_nothing_exactly(declared: sharp_class, function: sharp_function, above: list<sharp_function>,
+                                     problems: list<diagnostic>) {
+    // (one message for the function as written, however many instances show it)
+    written_function : sharp_function = function;
+    while(written_function.origin != null) { written_function = written_function.origin!!; }
+    if(written_function.exact_problem_reported == 1) { return; }
+    written_function.exact_problem_reported = 1;
+
+    d := error_at_node("E0342", "`" + resolved_signature(function) + "` is marked `override` but there is nothing for it to override",
+                       function.unit, function.node)
+        .with_label("nothing above `" + declared.qualified_name() + "` has a body-less `" + function.name + "` with exactly these parameter types");
+
+    shown : _int64 = 0;
+    for(i : _int64 = 0; i < above.size() && shown < 3; i++) {
+        if(above.at(i).name == function.name) {
+            d.with_related_place(place_of_node(above.at(i).unit, above.at(i).node,
+                                               kind_and_name(above.at(i).owner!!) + " declares `" + resolved_signature(above.at(i)) + "`"));
+            shown++;
+        }
+    }
+    if(declared.blueprint != null) {
+        d.with_note("found while checking `" + declared.qualified_name() + "`");
+        add_first_use(d, declared);
+    }
+    if(shown == 0) {
+        // nothing of that name at all (a class whose base is a type parameter: only now is the base known)
+        d.with_help("remove `override` if this is a function of its own");
+    } else {
+        d.with_note("an overriding function takes exactly the parameters of the function it overrides, after every type parameter has been replaced by the type it stands for");
+        d.with_help("change the parameter types to match, or remove `override` to make this a separate function");
+    }
+    problems.add(d);
+}
+
+/**
+ * E0343, exactly: stage 4 compared the results as written and found them
+ * alike (or could not tell); with the real types they differ.
+ *
+ *      interface source<T> { def next() : T; }
+ *      class words<U> : source<U> { override def next() : string { ... } }
+ *      w : words<int>;             source<int> promises an int
+ */
+def report_other_result_exactly(declared: sharp_class, function: sharp_function, promise: sharp_function,
+                                problems: list<diagnostic>) {
+    written_function : sharp_function = function;
+    while(written_function.origin != null) { written_function = written_function.origin!!; }
+    if(written_function.exact_problem_reported == 1) { return; }
+    written_function.exact_problem_reported = 1;
+
+    d := error_at_node("E0343", "`" + function.name + "` returns " + result_text(function) + ", but the function it overrides returns "
+                       + result_text(promise), function.unit, function.node)
+        .with_label("must return " + result_text(promise))
+        .with_related_place(place_of_node(promise.unit, promise.node, "declared in " + kind_and_name(promise.owner!!) + " here"));
+    if(declared.blueprint != null) {
+        d.with_note("found while checking `" + declared.qualified_name() + "`: the result is fine as written, but not with these type arguments");
+        add_first_use(d, declared);
+    }
+    d.with_note("code that calls `" + function.name + "` through `" + promise.owner!!.qualified_name() + "` relies on the result it promises");
+    d.with_help("write:  override def " + resolved_signature(promise));
+    problems.add(d);
+}

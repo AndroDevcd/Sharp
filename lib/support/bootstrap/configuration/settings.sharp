@@ -1,0 +1,203 @@
+mod configuration;
+
+import (
+    std.io
+)
+
+/*
+ * THE SETTERS: one function per switch, shared by the command line and settings.json
+ *
+ *      sharpc main.sharp -target alpha -errlmt 50          command_line.sharp calls
+ *      { "target": "alpha", "error_limit": 50 }            settings_processor.sharp calls
+ *                                                          set_target_platform("alpha"), set_error_limit("50")
+ *
+ * Both ways of asking go through the same function, so a value is checked
+ * in one place and means the same wherever it was written: a platform nobody
+ * knows, an error limit of 0, a library folder that is not there are refused
+ * (`error`) or warned about (`warning`) here. What a setter accepts it writes
+ * into `options` (options.sharp).
+ *
+ *      C++ comparison: the functions of the same names in
+ *      lib/grammar/settings/settings.cpp.
+ */
+
+def enable_compile_only(enable: decimal) {
+   options.compile = enable;
+}
+
+def enable_show_all_errors(enable: decimal) {
+   options.aggressive_errors = enable;
+}
+
+def set_output_file(outfile: string) {
+   options.out = outfile;
+}
+
+def set_optimization_level(olvl: optimization_level) {
+   options.optimize_level = olvl;
+}
+
+/**
+ * -R / -release: a build to hand out - the executable carries no source text.
+ * (It does not switch the optimizer on: that is -O, as in the C++ compiler,
+ * whose -R only calls enable_app_debugging(false).)
+ */
+def enable_release_mode() {
+   options.debug = false;
+   options.strip = true;
+   options.debug_file = false;
+}
+
+def enable_magic_mode(enable : decimal) {
+   options.magic = enable;
+}
+
+def enable_debug_mode(enable : decimal) {
+   options.debug_mode = enable;
+}
+
+def set_target_platform(target : string) {
+   // ("alpha-cr4" is the name the C++ compiler knows the platform by; a number cannot be
+   //  stored in an enum field, so a number picks the platform that has it)
+   number : _int64 = whole_number(target);
+   if(number == configuration#platform.alpha_cr4.ordinal
+      || target.to_lower() == "alpha" || target.to_lower() == "alpha-cr4") {
+       options.target = configuration#platform.alpha_cr4;
+       check_target();
+       return;
+   }
+   error_with_help("unknown platform target `$target`",
+                   "the platforms are `alpha` (also written `alpha-cr4`, or its number "
+                   + (configuration#platform.alpha_cr4.ordinal as _int64) + ")");
+}
+
+/** the platform asked for must be one this compiler can write a file for */
+def check_target() {
+    when(options.target) {
+        configuration#platform.alpha_cr4 -> {
+            return;
+        }
+        else -> {
+            error("invalid platform target `${options.target}`");
+        }
+    }
+}
+
+def enable_warnings(enable : decimal) {
+   options.warnings = enable;
+}
+
+def enable_warning_type(wtype : string, enable: decimal) {
+   when(wtype) {
+      "-waccess" -> warning_options[__w_access] = enable;
+      "-wambig" -> warning_options[__w_ambig] = enable;
+      "-wdecl" -> warning_options[__w_decl] = enable;
+      "-wmain" -> warning_options[__w_main] = enable;
+      "-wcast" -> warning_options[__w_cast] = enable;
+      "-winit" -> warning_options[__w_init] = enable;
+      "-wnull" -> warning_options[__w_null] = enable;
+      "-wdep" -> warning_options[__w_dep] = enable;
+      else -> error("invalid warning type: $wtype");
+   }
+}
+
+def enable_green_mode(enable : decimal) {
+   options.green_mode = enable;
+}
+
+def add_ignored_file(filepath : string) {
+   ignored_file := new file(filepath);
+   if(!ignored_file.exists()) {
+      warning("file to leave out (-ignore): `$ignored_file` does not exist; nothing is left out for it");
+      return;
+   }
+
+   if(ignored_file.is_directory()) {
+      warning("ignored file: $ignored_file is a directory, try `-ignoredir` instead");
+      return;
+   }
+
+   options.ignored_files.add(ignored_file.get_absolute_path());
+}
+
+def add_ignored_directory(dirpath : string) {
+   ignored_dir := new file(dirpath);
+   if(!ignored_dir.exists()) {
+      warning("folder to leave out (-ignoredir / \"ignore_folders\"): `$ignored_dir` does not exist; nothing is left out for it");
+      return;
+   }
+
+   if(!ignored_dir.is_directory()) {
+      warning("ignored directory: $ignored_dir is a file, try `-ignore` instead");
+      return;
+   }
+
+   options.ignored_directories.add(ignored_dir.get_absolute_path());
+}
+
+def add_library_path(libpath: string) {
+   library_dir := new file(libpath);
+
+   if(!library_dir.exists()) {
+      warning("library path: `$library_dir` does not exist; it adds no files");
+      return;
+   }
+
+   if(!library_dir.is_directory()) {
+      warning_with_help("library path: `$library_dir` is a file, not a folder; it adds no files",
+                        "-L names a folder (every .sharp file in it and below is read); a single file is named without -L");
+      return;
+   }
+
+   options.libraries.add(library_dir.get_absolute_path());
+}
+
+/** -P <folder>: compile the project in that folder */
+def set_project_directory(path: string) {
+   project_folder := new file(path);
+   if(!project_folder.exists()) {
+      error_with_help("project folder `$path` does not exist",
+                      "make one with `$program_name --new-project $path`");
+   }
+
+   if(!project_folder.is_directory()) {
+      error_with_help("project folder `$path` is a file, not a folder",
+                      "-P names the folder that holds settings.json and src/");
+   }
+
+   options.compile_mode = compilation_mode.project_mode;
+   options.project_dir = project_folder.get_absolute_path();
+}
+
+/** -cache <folder>: keep the build cache there (cache/cache_controller.sharp) */
+def set_cache_folder(path: string) {
+   cache_folder := new file(path);
+   if(cache_folder.exists() && !cache_folder.is_directory()) {
+      error("cache folder: $path was found to be a file");
+   }
+
+   options.cache_folder = cache_folder.get_absolute_path();
+}
+
+def enable_warnings_as_errors() {
+   options.werrors = true;
+   options.warnings = true;
+}
+
+/**
+ * -errlmt <n> / "error_limit": how many errors are shown before the rest are
+ * only counted. A whole number from 1 to 100,000 (the C++ compiler wants at
+ * least 10; doc/codegen.md 8.2).
+ */
+def set_error_limit(lmt: string) {
+   limit : _int64 = whole_number(lmt);
+   if(limit < 0 && sizeof(lmt.data) > 0 && is_number(lmt))
+       error_with_help("the error limit $lmt is above 100000, the largest this compiler takes", "write a number from 1 to 100000");
+   if(limit < 0)
+       error_with_help("the error limit `$lmt` is not a whole number", "write for example `-errlmt 20`");
+   if(limit == 0)
+       error_with_help("the error limit cannot be 0: no error would be shown", "write a number from 1 to 100000");
+   if(limit > 100000)
+       error_with_help("the error limit $lmt is above 100000, the largest this compiler takes", "write a number from 1 to 100000");
+   options.max_errors = limit;
+}

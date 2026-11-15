@@ -1,0 +1,115 @@
+mod backend.types.declarations;
+
+import (
+    std.io
+)
+
+/**
+ * A TABLE FROM NAMES TO WHAT THEY MEAN
+ *
+ *      members := new name_table<list<sharp_declaration>>();
+ *      members.put("size", ...);
+ *      found := members.at("size");        null when nothing is called that
+ *
+ * The symbol tables of the compiler - the names of a module or a class
+ * (`scope`), the remembered answers of name lookup (`remembered_name`) - are
+ * asked hundreds of thousands of times while bodies are analysed. The
+ * library's `hash_map<string, ...>` works out `string.hash()` with decimal
+ * arithmetic and an `int` object per character and compares keys with
+ * `string.operator==`: about 6 microseconds per question on the VM, measured
+ * (doc/backend.md 10.6, "Speed"). This table does the same job with a
+ * plain-number hash of the name (`name_hash`, the textbook djb2), keeps that
+ * number in each entry, and compares the text of a name only when the numbers
+ * agree - about a third of the time per question.
+ *
+ * It is a hash table with chaining, as the textbook has it: an array of
+ * buckets, each the start of a list of entries; the array doubles when the
+ * table is three-quarters full.
+ *
+ *      C++ comparison: std::unordered_map<std::string, V>, which keeps the
+ *      hash of every key too.
+ */
+class name_entry<v base _object_> {
+    key : string;
+    hash : _int64;
+    value : v;
+    next : name_entry<v>?;
+
+    name_entry(key: string, hash: _int64, value: v, next: name_entry<v>?) {
+        self->key = key;
+        self->hash = hash;
+        self->value = value;
+        self->next = next;
+    }
+}
+
+class name_table<v base _object_> {
+    buckets : name_entry<v>[]?;
+    count : _int64 = 0;
+
+    name_table() {
+        buckets = new name_entry<v>[16];
+    }
+
+    /** what is kept under `name`; null when nothing is */
+    def at(name: string) : v? {
+        hash : _int64 = name_hash(name);
+        table : name_entry<v>[] = buckets!!;
+        entry : name_entry<v>? = table[hash % sizeof(table)];
+        while(entry != null) {
+            if(entry!!.hash == hash && entry!!.key == name) { return entry!!.value; }
+            entry = entry!!.next;
+        }
+        return null;
+    }
+
+    /** keep `value` under `name`, in place of what was there */
+    def put(name: string, value: v) {
+        hash : _int64 = name_hash(name);
+        table : name_entry<v>[] = buckets!!;
+        index : _int64 = hash % sizeof(table);
+        entry : name_entry<v>? = table[index];
+        while(entry != null) {
+            if(entry!!.hash == hash && entry!!.key == name) {
+                entry!!.value = value;
+                return;
+            }
+            entry = entry!!.next;
+        }
+        table[index] = new name_entry<v>(name, hash, value, table[index]);
+        count++;
+        if(count * 4 > sizeof(table) * 3) { grow(); }
+    }
+
+    /** twice as many buckets; every entry goes to its bucket in the new array */
+    def grow() {
+        old : name_entry<v>[] = buckets!!;
+        table := new name_entry<v>[sizeof(old) * 2];
+        for(i : _int64 = 0; i < sizeof(old); i++) {
+            entry : name_entry<v>? = old[i];
+            while(entry != null) {
+                following : name_entry<v>? = entry!!.next;
+                index : _int64 = entry!!.hash % sizeof(table);
+                entry!!.next = table[index];
+                table[index] = entry!!;
+                entry = following;
+            }
+        }
+        buckets = table;
+    }
+}
+
+/**
+ * A number worked out from the characters of a name (the textbook "djb2"
+ * string hash, kept within 30 bits so it stays positive). Equal names give
+ * equal numbers. Plain `_int64` arithmetic: no object is made.
+ */
+def name_hash(text: string) : _int64 {
+    data : _int8[]? = text.data;
+    if(data == null) { return 0; }
+    characters : _int8[] = data!!;
+    hash : _int64 = 5381;
+    length : _int64 = sizeof(characters);
+    for(i : _int64 = 0; i < length; i++) { hash = ((hash * 33) + characters[i]) & 1073741823; }
+    return hash;
+}

@@ -106,7 +106,24 @@ void kill_gc();
 #define MB_TO_BYTES(bytes) (((uInt)bytes)*1048576)
 #define GB_TO_BYTES(bytes) (((uInt)(bytes))*1073741824)
 
-#define DEFAULT_HEAP_SIZE (MB_TO_BYTES(250))
+/*
+ * THE DEFAULT CEILING OF THE HEAP (what -mem replaces)
+ *
+ * A quarter of the machine's memory, and never less than MINIMUM_HEAP_SIZE:
+ * default_heap_size() in garbage_collector.cpp works it out when the VM starts.
+ * It used to be a fixed 250 MB, which every real use had to override (the test
+ * suite ran with -mem 1gb, the benchmarks with 2.8 GB, the compiler compiling
+ * itself with 4 GB). The number is only a CEILING - the collector runs whenever
+ * the heap has about doubled since its last run, whatever the ceiling is - so a
+ * higher default costs a small program nothing.
+ *
+ *      C++ comparison: none (C++ has no heap limit); it is Java's rule for -Xmx:
+ *      a quarter of physical memory.
+ */
+#define MINIMUM_HEAP_SIZE (MB_TO_BYTES(64))     // the owner's choice (2026-11-15): on a small machine, a quarter may be little
+#define DEFAULT_HEAP_SIZE (default_heap_size())
+
+uInt default_heap_size();
 
 #define guard_mutex(mut) \
     std::lock_guard<recursive_mutex> guard((mut));

@@ -1,0 +1,105 @@
+mod backend.compiler.expressions.literals;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions,
+    backend.compiler.expressions.calls,
+    backend.compiler.expressions.arithmetic
+)
+
+/**
+ * STRING TEMPLATES: a string with values in it
+ *
+ *      "total: ${a + b} for $name"
+ *
+ * is ONE value of type `string`. The parser cut it into pieces - text,
+ * expression, text, expression, text - and it means exactly
+ *
+ *      "total: " + (a + b) + " for " + name
+ *
+ * built left to right starting from a `string`: the first piece becomes a
+ * string object, and every further piece is appended by the
+ * `string.operator+` that overload resolution picks for its type - a number
+ * is appended as text, an _int8 as a CHARACTER, an object through its
+ * `to_string` (every class is `printable` through `_object_`). Empty pieces
+ * of text are left out.
+ *
+ *      E0423   a piece that no `string.operator+` takes (a function value, an array of
+ *              numbers other than `_int8[]`)
+ *
+ *      C++ comparison: the old compiler's TOKENIZER rewrites the string into
+ *      the `+` chain before the parser sees it, so the overload chosen for a
+ *      piece is the one a hand-written `+` chain would choose - as here.
+ */
+def analyse_string_template(context: analysis_context, node: _int64) : bound_expression {
+    string_type : resolved_type = context.session.string_type();
+    pieces := new list<bound_expression>();
+    piece : _int64 = context.tree.first_child!![node];
+    while(piece >= 0) {
+        pieces.add(analyse_value(context, piece, null));
+        piece = context.tree.next_sibling!![piece];
+    }
+    made := new bound_string_template(context.unit, node, pieces, string_type);
+    if(string_type.kind == RT_ERROR || pieces.size() == 0) { return made; }
+
+    made.start = convert(context, pieces.at(0), string_type, "the start of a string template");
+    failed : _int64 = 0;
+    for(i : _int64 = 1; i < pieces.size(); i++) {
+        value := pieces.at(i);
+        if(value.type.kind == RT_ERROR) {
+            failed = 1;
+            continue;
+        }
+        if(value.literal == LIT_TEXT && value.constant != null && value.constant!!.text!!.size() == 0) { continue; }
+        append := append_piece(context, string_type, value);
+        if(append == null) { failed = 1; }
+        else { made.appends.add(append!!); }
+    }
+    if(failed == 1) {
+        broken := new bound_error(context.unit, node, context.session.types.error_type);
+        broken.inner = made;
+        return broken;
+    }
+    return made;
+}
+
+/** the `string.operator+` call that appends one piece; null (reported) when none takes it */
+def append_piece(context: analysis_context, string_type: resolved_type, value: bound_expression) : bound_call? {
+    arguments := one_argument(value);
+    functions := operator_functions(context, string_type.class_of!!, "operator+");
+    result := resolve_overload(context, functions, arguments, null, string_type.class_of);
+    if(result.best == null) {
+        d := problem_over(context, "E0423", "`" + source_text_of(context, value.node) + "` cannot be put into a string: it is "
+                          + described_value(value), value.node);
+        d.with_label("no `string.operator+` takes " + described_value(value));
+        if(value.type.kind == RT_OBJECT && value.type.is_array == 0) {
+            // `object` (or `object?`): it could be anything, and `+` has to know what it appends
+            d.with_note("each value in a string template is appended with `+`, which takes numbers, text and objects of a class; an `object` could be anything");
+            d.with_help("say what it is first, in a variable of that class (`v := " + source_text_of(context, value.node) + " as <class>;`), and put that into the string");
+        } else if(value.type.kind == RT_CLASS && value.type.is_array == 0 && value.type.is_nullable == 1) {
+            // refused only because of the `?`: `+` takes the object, not "maybe no object"
+            d.with_note("each value in a string template is appended with `+`, which takes numbers, text and objects of a class - but not a value that may be null");
+            d.with_help("when it is certainly not null here, say so: `$${" + as_operand_text(context, value.node) + "!!}`");
+            d.with_help("otherwise test it first: `if(" + source_text_of(context, value.node) + " != null) { ... }`");
+        } else {
+            d.with_note("each value in a string template is appended with `+`, which takes numbers, text and objects of a class");
+            d.with_help("call a function that gives its text, or put a number from it into the string");
+        }
+        report(context, d);
+        return null;
+    }
+    call := bind_call(context, result.best!!, null, arguments, value.node, value.node);
+    call.dispatch = CALL_DIRECT;        // on the string built so far
+    call.written_as = AS_TEXT_APPEND;
+    return call;
+}

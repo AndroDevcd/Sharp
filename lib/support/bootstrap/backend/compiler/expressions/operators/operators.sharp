@@ -1,0 +1,21 @@
+mod backend.compiler.expressions.operators;
+
+/**
+ * THE BUILT-IN OPERATIONS THAT NEED NO OVERLOAD RESOLUTION
+ *
+ * The files of this package (module `backend.compiler.expressions.operators`):
+ *
+ *      operators.sharp             this front door
+ *      cast_expression.sharp       value as type
+ *      is_expression.sharp         value is type
+ *      not_null_expression.sharp   value!!
+ *      elvis_expression.sharp      value ?: fallback
+ *      ternary_expression.sharp    condition ? a : b
+ *      sizeof_expression.sharp     sizeof(value)
+ *
+ * Arithmetic, comparison, `!`, `++` and assignment may run a function the
+ * programmer wrote (`operator+`): they are expressions/arithmetic and
+ * expressions/assignment.
+ *
+ * This file is the package's front door: it only says what is where.
+ */

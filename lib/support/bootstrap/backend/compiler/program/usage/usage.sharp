@@ -1,0 +1,143 @@
+mod backend.compiler.program.usage;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * WHAT THE PROGRAM USES, AND WHAT IT CAN REACH FROM `main`
+ *
+ * Two questions about every declaration, answered after all bodies are
+ * analysed:
+ *
+ *   - is it named ANYWHERE in the analysed code? (`used_anywhere`) - a
+ *     private function nothing calls is dead code (W1035, unused_declarations.sharp);
+ *   - can the program COME TO IT, starting from `main` and the platform's
+ *     start-up function? (`reached`, reachability.sharp) - what a code
+ *     generator must emit; the rest of the library can be left out. This is
+ *     the textbook "live code" computation, a graph search over the uses.
+ *
+ * Neither is used to skip analysis: every body is analysed and checked
+ * whether it is reached or not (decision 3, section 11 of doc/backend.md).
+ *
+ * First every typed tree is walked once and what it names is recorded on
+ * its owner (`sharp_declaration.uses`, references.sharp): every function,
+ * constructor, init block, accessor and lambda (its body and its base call),
+ * every field (its value, its start object, the definition it is injected
+ * from), every enum value (its `= e`). Then the reachability walk follows
+ * those lists.
+ *
+ * The files of this package (module `backend.compiler.program.usage`):
+ *
+ *      usage.sharp                 this front door: record_usage
+ *      references.sharp            what one typed tree names (use_collector)
+ *      reachability.sharp          the walk from main: `reached`, analysed_program.reached_*
+ *      unused_declarations.sharp   W1034 unused local, W1035 unused private member (both off unless
+ *                                  -wextra), W1036 a local named like a field of its class
+ *
+ *      C++ comparison: the `dependencies` of every declaration (dependency.cpp)
+ *      and `markRelevantDependencyMembers` in finalizer/optimization/dependency_runner.cpp;
+ *      lazy_functions.cpp walks the same graph to decide which library bodies
+ *      to compile at all, which the bootstrap does not do (it checks everything).
+ */
+def record_usage(session: analysis_session, analysed: analysed_program) {
+    collector := new use_collector();
+    stamp : _int64 = 0;
+
+    functions : list<sharp_function> = analysed.functions;
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        stamp++;
+        collector.start(stamp);
+        if(function.bound_body != null) { collect_in_statement(function.bound_body!!, collector); }
+        if(function.bound_base_call != null) { collect_in_expression(function.bound_base_call!!, collector); }
+        keep_uses(function, collector);
+    }
+    for(i : _int64 = 0; i < analysed.modules.size(); i++) {
+        fields := analysed.modules.at(i).fields;
+        for(j : _int64 = 0; j < fields.size(); j++) {
+            stamp++;
+            collect_for_field(fields.at(j), collector, stamp);
+        }
+    }
+    for(i : _int64 = 0; i < analysed.classes.size(); i++) {
+        declared := analysed.classes.at(i);
+        for(j : _int64 = 0; j < declared.fields.size(); j++) {
+            stamp++;
+            collect_for_field(declared.fields.at(j), collector, stamp);
+        }
+        for(j : _int64 = 0; j < declared.enum_values.size(); j++) {
+            value := declared.enum_values.at(j);
+            stamp++;
+            collector.start(stamp);
+            if(value.bound_value != null) { collect_in_expression(value.bound_value!!, collector); }
+            keep_uses(value, collector);
+        }
+    }
+    // The VM calls the start-up function and `main` itself: they are used although no code names them
+    // (a `private def main()` is not an unused private function, W1035).
+    if(analysed.startup_function != null) { mark_used(analysed.startup_function!!); }
+    if(analysed.main_function != null) { mark_used(analysed.main_function!!); }
+    reach_from_roots(session, analysed);
+}
+
+/** the uses of a field: its value, the object it starts as, what it is injected from */
+def collect_for_field(field: sharp_field, collector: use_collector, stamp: _int64) {
+    collector.start(stamp);
+    if(field.bound_initializer != null) { collect_in_expression(field.bound_initializer!!, collector); }
+    collector.note(field.default_constructor);
+    if(field.injected_from != null) {
+        note_definition(field.injected_from!!, collector);
+        drain(collector);
+    }
+    keep_uses(field, collector);
+}
+
+/**
+ * Record what the owner uses, and mark each of those "used anywhere". A
+ * member of a generic instance stands for the member as written
+ * (`origin`): `list<string>.add` used means `list.add` is used.
+ */
+def keep_uses(owner: sharp_declaration, collector: use_collector) {
+    owner.uses = collector.uses;
+    // the component definitions it receives a value from (directly, or through another definition's
+    // value): code generation makes each such definition's function only when one of these is kept
+    for(i : _int64 = 0; i < collector.definitions.size(); i++) { collector.definitions.at(i).requested_by.add(owner); }
+    for(i : _int64 = 0; i < collector.uses.size(); i++) {
+        used : sharp_declaration = collector.uses.at(i);
+        if(used == owner) { continue; }         // a function calling itself is not a use of it
+        mark_used(used);
+    }
+}
+
+/** `used_anywhere` on a declaration and on what it was copied from */
+def mark_used(used: sharp_declaration) {
+    current : sharp_declaration? = used;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        if(current!!.used_anywhere == 1) { return; }
+        current!!.used_anywhere = 1;
+        current = origin_of(current!!);
+    }
+}
+
+/** the member a member of a generic instance was copied from; null for one written in the source */
+def origin_of(declared: sharp_declaration) : sharp_declaration? {
+    if(declared.kind == D_FIELD) { return (declared as sharp_field).origin; }
+    if(declared.kind == D_ENUM_VALUE) { return (declared as sharp_enum_value).origin; }
+    if(declared.kind == D_FUNCTION || declared.kind == D_CONSTRUCTOR || declared.kind == D_GETTER
+       || declared.kind == D_SETTER || declared.kind == D_INIT) {
+        function := declared as sharp_function;
+        if(function.origin != null) { return function.origin; }
+        return function.blueprint;          // an instance of a generic function: the function as written
+    }
+    if(declared.kind == D_CLASS || declared.kind == D_INTERFACE || declared.kind == D_ENUM) {
+        made := declared as sharp_class;
+        if(made.written != made) { return made.written; }
+    }
+    return null;
+}

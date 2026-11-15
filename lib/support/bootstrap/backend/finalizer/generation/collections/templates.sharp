@@ -1,0 +1,52 @@
+mod backend.finalizer.generation.collections;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation,
+    backend.finalizer.generation.calls
+)
+
+/**
+ * STRING TEMPLATES: "total: ${a + b} for $name" (doc/codegen.md 6.6)
+ *
+ * Analysis has turned the template into a start and a list of appends:
+ *
+ *      start:    "total: " as a `string` (a CONV_CONSTRUCT of the text)
+ *      appends:  string.operator+(_int64)   with (a + b)
+ *                string.operator+(_int8[])  with " for "
+ *                string.operator+(string)   with name
+ *
+ * Each append is a call ON THE RESULT OF THE ONE BEFORE - that is why its
+ * `on` is null in the typed tree - so the code is a chain of calls through
+ * one slot, the pieces evaluated left to right as they are written (6.0,
+ * measured):
+ *
+ *      %t = start
+ *      %t = string.operator+(%t, a + b)
+ *      %t = string.operator+(%t, " for ")
+ *      %t = string.operator+(%t, name)
+ *      the value is %t
+ *
+ *      C++ comparison: the C++ compiler builds the same chain of `+` while
+ *      it parses the template (string_template.cpp).
+ */
+def template_value(g: generator, e: bound_string_template) : _int64 {
+    if(e.start == null) { g.stop("a string template without its start", e.unit, e.node); }
+    pieces := new list<bound_expression>();
+    for(i : _int64 = 0; i < e.appends.size(); i++) { pieces.add(e.appends.at(i)); }
+    current : _int64 = held_over_all(g, value_of(g, e.start!!), pieces, 0);
+    for(i : _int64 = 0; i < e.appends.size(); i++) {
+        append : bound_call = e.appends.at(i);
+        arguments := new number_list();
+        arguments.add(current);
+        add_arguments(g, arguments, append.arguments);
+        release_all(g, arguments);
+        result : _int64 = g.temp_for(append.type);
+        emit_call(g, result, append.function, arguments, append.dispatch, append);      // CALL_DIRECT: on the text so far
+        current = result;
+    }
+    return current;
+}

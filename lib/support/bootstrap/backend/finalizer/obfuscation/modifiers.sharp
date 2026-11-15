@@ -1,0 +1,127 @@
+mod backend.finalizer.obfuscation;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * WHAT EACH NAME IS TOLD: rename it, or keep it (doc/codegen.md 6.17)
+ *
+ * Every class, field, function and module ends up with one MODIFIER: the
+ * default, then each rule of the `obfuscate` blocks that names it, in the
+ * order they are written (`sharp_program.obfuscation_rules`) - a later rule
+ * wins, as in the C++ compiler, which sets a flag each time a rule is met
+ * (`set_obfuscation_flag`, compiler/obfuscate_compiler.cpp).
+ *
+ *      the default             -obf: a class `inclusive` (it and all its members are renamed),
+ *                              a field, function or module `obfuscate`; without -obf: none
+ *      obfuscate { x }         x: obfuscate
+ *      -keep { x }             x: keep
+ *      -keep_inclusive { c }   c and every field and function of c: keep_inclusive
+ *      -inclusive { c }        c and every field and function of c: inclusive
+ *
+ * A rule naming a generic class as written (`list`) with an inclusive form
+ * applies to every instance of it (`list<int>`, `list<string>` ...); a
+ * plain rule on one is W1016 in analysis and does nothing, as in the C++
+ * compiler.
+ *
+ * Then (`should_rename_member`, the C++ `should_obfuscate`): a member of a
+ * class is renamed when the class is not `keep_inclusive`, the member is not
+ * told to keep its name, and either the member is told to be renamed or the
+ * class is `inclusive`.
+ */
+const MODIFIER_NONE           : _int64 = 0 - 1;
+const MODIFIER_OBFUSCATE      : _int64 = OBFUSCATE_PLAIN;
+const MODIFIER_KEEP           : _int64 = OBFUSCATE_KEEP;
+const MODIFIER_KEEP_INCLUSIVE : _int64 = OBFUSCATE_KEEP_INCLUSIVE;
+const MODIFIER_INCLUSIVE      : _int64 = OBFUSCATE_INCLUSIVE;
+
+/** is this a modifier that renames? */
+def renames(modifier: _int64) : _int64 {
+    return modifier == MODIFIER_OBFUSCATE || modifier == MODIFIER_INCLUSIVE;
+}
+
+/**
+ * The modifier of a class: the default for a class, then each rule naming
+ * it - or, for an inclusive rule, naming the generic class it is an
+ * instance of.
+ */
+def class_modifier(declared: sharp_class, rules: list<obfuscation_rule>, everything: _int64) : _int64 {
+    modifier : _int64 = MODIFIER_NONE;
+    if(everything == 1) { modifier = MODIFIER_INCLUSIVE; }
+    for(i : _int64 = 0; i < rules.size(); i++) {
+        rule := rules.at(i);
+        if(rule.declaration == null) { continue; }
+        named : sharp_declaration = rule.declaration!!;
+        if(named == declared) { modifier = rule.mode; }
+        else if(declared.blueprint != null && named == declared.blueprint!! && is_inclusive(rule.mode)) { modifier = rule.mode; }
+    }
+    return modifier;
+}
+
+/**
+ * The modifier of a field or function: the default, then each rule that
+ * names it, or names its class (or the generic class of its class) with an
+ * inclusive form.
+ */
+def member_modifier(member: sharp_declaration, rules: list<obfuscation_rule>, everything: _int64) : _int64 {
+    modifier : _int64 = MODIFIER_NONE;
+    if(everything == 1) { modifier = MODIFIER_OBFUSCATE; }
+    owner : sharp_class? = member.owner;
+    for(i : _int64 = 0; i < rules.size(); i++) {
+        rule := rules.at(i);
+        if(rule.declaration == null) { continue; }
+        named : sharp_declaration = rule.declaration!!;
+        if(named == member || named == written_member(member)) { modifier = rule.mode; continue; }
+        if(owner == null || !is_inclusive(rule.mode)) { continue; }
+        if(named == owner!! || (owner!!.blueprint != null && named == owner!!.blueprint!!)) { modifier = rule.mode; }
+    }
+    return modifier;
+}
+
+/** the modifier of a module: the default, then each rule that names it ("std.io") */
+def module_modifier(module: sharp_module, rules: list<obfuscation_rule>, everything: _int64) : _int64 {
+    modifier : _int64 = MODIFIER_NONE;
+    if(everything == 1) { modifier = MODIFIER_OBFUSCATE; }
+    for(i : _int64 = 0; i < rules.size(); i++) {
+        rule := rules.at(i);
+        if(rule.module != null && rule.module!! == module) { modifier = rule.mode; }
+    }
+    return modifier;
+}
+
+/**
+ * Is a member of a class with modifier `holder` renamed when it is told
+ * `member`? The C++ `should_obfuscate`, with one change: a member a rule
+ * KEEPS keeps its name also in a class that is renamed with everything in it
+ * (the C++ compiler renames it anyway, so under -obf `obfuscate -keep {
+ * point.y }` does nothing there: codegen.md 10, G35).
+ */
+def should_rename_member(member: _int64, holder: _int64) : _int64 {
+    if(holder == MODIFIER_KEEP_INCLUSIVE) { return 0; }
+    if(member == MODIFIER_KEEP || member == MODIFIER_KEEP_INCLUSIVE) { return 0; }
+    return renames(member) == 1 || holder == MODIFIER_INCLUSIVE;
+}
+
+/** the two forms of a rule that reach inside a class */
+def is_inclusive(mode: _int64) : _int64 {
+    return mode == MODIFIER_INCLUSIVE || mode == MODIFIER_KEEP_INCLUSIVE;
+}
+
+/**
+ * A field or function of a generic instance (`list<int>.add`) stands for the
+ * one written in its blueprint (`list.add(T)`), which is what a rule names.
+ */
+def written_member(member: sharp_declaration) : sharp_declaration {
+    if(member.kind == D_FIELD) {
+        field := member as sharp_field;
+        if(field.origin != null) { return field.origin!!; }
+    } else if(member.kind == D_FUNCTION || member.kind == D_CONSTRUCTOR || member.kind == D_GETTER
+              || member.kind == D_SETTER || member.kind == D_INIT) {
+        function := member as sharp_function;
+        if(function.origin != null) { return function.origin!!; }
+    }
+    return member;
+}

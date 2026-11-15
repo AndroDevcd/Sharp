@@ -1,0 +1,268 @@
+mod backend.compiler.initializers;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * WHICH FIELD VALUE IS WORKED OUT FIRST
+ *
+ *      total := price * count;         reads two fields declared further down
+ *      price : decimal = 2.5;
+ *      count := new int(4);
+ *
+ * Field values run one after the other: the instance fields' for every new
+ * object, the static fields' once per class, the globals' when the program
+ * starts. The C++ compiler runs them in the order WRITTEN, so `total` above
+ * reads `count` before it has its object and the program stops with a
+ * null-pointer exception (checked: globals `a := b + 1; b := 5;`). Here they
+ * run in an order in which every value comes after the values it reads -
+ * a topological sort of the "reads" relation, the written order wherever
+ * that relation says nothing [differs D70]. Only DIRECT reads count: a
+ * field named in the value (or read through its getter), not what a called
+ * function may read.
+ *
+ * When values read each other in a circle (`a : int = b; b : int = a;`)
+ * there is no such order. The circle is then placed as ONE unit - after
+ * everything its members read from outside it - and inside it the written
+ * order is kept, as the C++ compiler runs them: the first value of the
+ * circle reads the others before they are set (0 or null), and W1031 says so
+ * (two passes: the depth-first search finds the circles, a second ordering
+ * treats each as a unit - the idea of ordering "strongly connected
+ * components", done the simple way because circles are rare and small). (A
+ * circle of values that have no written TYPE is an error earlier: their
+ * types cannot be worked out, E0408.)
+ *
+ *      W1031   field values that read each other in a circle (the message lists the circle),
+ *              or a value that reads its own field
+ *
+ * A lambda in a value does not read anything yet: its body runs when it is
+ * called (`on_change : ()() = { -> total += 1; };` does not read `total`).
+ */
+
+/**
+ * What the ordering of one list of fields works with. `state` and
+ * `circle_of` are indexed like the list.
+ */
+class reading_order {
+    session : analysis_session;
+    fields : list<sharp_field>;
+    instance : _int64;                      // 1: instance fields, read through `self`; 0: static fields or globals
+    state : _int64[];                       // 0 not visited, 1 being placed, 2 placed
+    circle_of : _int64[];                   // 0: in no circle; otherwise the number of the circle the field is in
+    circles : _int64 = 0;                   // how many circles were found
+    being_placed : list<sharp_field>;       // the chain of fields from the one started with to the one being placed
+    ordered : list<sharp_field>;
+
+    reading_order(session: analysis_session, fields: list<sharp_field>, instance: _int64) {
+        self->session = session;
+        self->fields = fields;
+        self->instance = instance;
+        count : _int64 = fields.size().value as _int64;
+        state = new _int64[count];
+        circle_of = new _int64[count];
+        being_placed = new list<sharp_field>();
+        ordered = new list<sharp_field>();
+    }
+}
+
+/**
+ * `fields` (all with a value, all instance or all static of one place) in an
+ * order in which each comes after the fields among them its value reads.
+ *
+ * @param instance  1: instance fields, read through `self`; 0: static fields or globals
+ */
+def in_reading_order(session: analysis_session, fields: list<sharp_field>, instance: _int64) : list<sharp_field> {
+    order := new reading_order(session, fields, instance);
+    count : _int64 = fields.size().value as _int64;
+    for(i : _int64 = 0; i < count; i++) { place_after_reads(order, i); }
+    if(order.circles == 0) { return order.ordered; }
+
+    // circles are rare: the order is worked out once more, each circle as one unit
+    for(i : _int64 = 0; i < count; i++) { order.state[i] = 0; }
+    order.ordered = new list<sharp_field>();
+    for(i : _int64 = 0; i < count; i++) { place_with_circles(order, i); }
+    return order.ordered;
+}
+
+/**
+ * Depth first: the fields `fields[i]` reads, then `fields[i]` itself (the
+ * textbook topological sort). Meeting a field that is still being placed
+ * means the chain has come back to it: a circle (a "back edge" of the
+ * depth-first search).
+ */
+def place_after_reads(order: reading_order, i: _int64) {
+    if(order.state[i] == 2) { return; }
+    if(order.state[i] == 1) {
+        note_circle(order, i);
+        return;
+    }
+    order.state[i] = 1;
+    field := order.fields.at(i);
+    order.being_placed.add(field);
+    reads := new list<sharp_field>();
+    if(field.bound_initializer != null) { collect_reads(field.bound_initializer!!, order.instance, reads); }
+    for(r : _int64 = 0; r < reads.size(); r++) {
+        j : _int64 = index_in(order.fields, reads.at(r));
+        if(j == i) { warn_reads_itself(order.session, field); }
+        else if(j >= 0) { place_after_reads(order, j); }
+    }
+    order.being_placed.pop_last();
+    order.state[i] = 2;
+    order.ordered.add(field);
+}
+
+/**
+ * The chain came back to `fields[i]`: the fields of the chain from there to
+ * its end read each other in a circle. They get one circle number (a circle
+ * that shares a field with an earlier one is the same circle), and W1031.
+ */
+def note_circle(order: reading_order, i: _int64) {
+    chain : list<sharp_field> = order.being_placed;
+    start : _int64 = index_in(chain, order.fields.at(i));
+    if(start < 0) { return; }
+
+    order.circles++;
+    number : _int64 = order.circles;
+    for(k : _int64 = start; k < chain.size(); k++) {
+        member : _int64 = index_in(order.fields, chain.at(k));
+        earlier : _int64 = order.circle_of[member];
+        if(earlier != 0 && earlier != number) {
+            // part of a circle found before: the two are one
+            for(m : _int64 = 0; m < sizeof(order.circle_of); m++) {
+                if(order.circle_of[m] == earlier) { order.circle_of[m] = number; }
+            }
+        }
+        order.circle_of[member] = number;
+    }
+    warn_reading_circle(order, start);
+}
+
+/**
+ * The second ordering, when there are circles. A field in no circle is
+ * placed as before. A circle is placed as ONE unit: first everything its
+ * members read from outside it, then the members in the order WRITTEN - the
+ * order the C++ compiler runs them in, so a program with such a circle
+ * behaves as it does there.
+ */
+def place_with_circles(order: reading_order, i: _int64) {
+    if(order.state[i] != 0) { return; }
+    number : _int64 = order.circle_of[i];
+    count : _int64 = order.fields.size().value as _int64;
+
+    if(number == 0) {
+        order.state[i] = 2;
+        place_what_it_reads(order, i, 0);
+        order.ordered.add(order.fields.at(i));
+        return;
+    }
+    for(m : _int64 = 0; m < count; m++) {
+        if(order.circle_of[m] == number) { order.state[m] = 2; }
+    }
+    for(m : _int64 = 0; m < count; m++) {
+        if(order.circle_of[m] == number) { place_what_it_reads(order, m, number); }
+    }
+    for(m : _int64 = 0; m < count; m++) {
+        if(order.circle_of[m] == number) { order.ordered.add(order.fields.at(m)); }
+    }
+}
+
+/** place the fields `fields[i]` reads, except those of the circle `inside` (0: none) */
+def place_what_it_reads(order: reading_order, i: _int64, inside: _int64) {
+    field := order.fields.at(i);
+    if(field.bound_initializer == null) { return; }
+    reads := new list<sharp_field>();
+    collect_reads(field.bound_initializer!!, order.instance, reads);
+    for(r : _int64 = 0; r < reads.size(); r++) {
+        j : _int64 = index_in(order.fields, reads.at(r));
+        if(j < 0 || j == i) { continue; }
+        if(inside != 0 && order.circle_of[j] == inside) { continue; }
+        place_with_circles(order, j);
+    }
+}
+
+/**
+ * Every field the expression reads directly: through `self` (instance) or
+ * without an object (static, global). A lambda's body is not looked into: it
+ * runs when the lambda is called, not when the value is made (and it is no
+ * part of the expression: tree_parts.sharp).
+ */
+def collect_reads(expression: bound_expression, instance: _int64, reads: list<sharp_field>) {
+    every := all_expressions_in(expression);
+    for(i : _int64 = 0; i < every.size(); i++) {
+        next := every.at(i);
+        if(next.kind == BX_FIELD) {
+            read := next as bound_field;
+            if(instance == 1 && read.on != null && read.on!!.kind == BX_SELF) { reads.add(read.field); }
+            if(instance == 0 && read.on == null) { reads.add(read.field); }
+        } else if(next.kind == BX_CALL) {
+            call := next as bound_call;
+            if(call.written_as == AS_GETTER && call.function.field != null) {
+                if(instance == 1 && call.on != null && call.on!!.kind == BX_SELF) { reads.add(call.function.field!!); }
+                if(instance == 0 && call.on == null) { reads.add(call.function.field!!); }
+            }
+        }
+    }
+}
+
+/** the position of `field` in `fields`; -1 when it is not there */
+def index_in(fields: list<sharp_field>, field: sharp_field) : _int64 {
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        if(fields.at(i) == field) { return i; }
+    }
+    return 0 - 1;
+}
+
+/**
+ * W1031. The circle is the part of the chain `order.being_placed` from
+ * `start` to its end: "`x` reads `y`, `y` reads `x`". The message stands at
+ * the member written FIRST: the members of a circle run in the order
+ * written, so that one runs first and finds the others not yet set.
+ */
+def warn_reading_circle(order: reading_order, start: _int64) {
+    chain : list<sharp_field> = order.being_placed;
+    first : sharp_field = chain.at(start);          // the member written first
+    circle := new string_builder("");
+    for(i : _int64 = start; i < chain.size(); i++) {
+        reader := chain.at(i);
+        read : sharp_field = chain.at(start);       // the last of the chain reads the first again
+        if(i + 1 < chain.size()) { read = chain.at(i + 1); }
+        if(i > start) { circle.append(", "); }
+        circle.append("`" + reader.name + "` reads `" + read.name + "`");
+        if(index_in(order.fields, reader) < index_in(order.fields, first)) { first = reader; }
+    }
+
+    // a circle of fields whose TYPES depend on each other was reported already (E0408)
+    if(first.value_type == null || first.value_type!!.kind == RT_ERROR) { return; }
+    file := order.session.prog.file_of(first.unit);
+    if(file == null) { return; }
+    context := new analysis_context(order.session, file!!);
+
+    d := problem_at(context, "W1031", "the value of `" + first.name + "` is part of a circle of field values that read each other", first.node);
+    d.with_label("runs first of the circle: what it reads of the others is still their start value (0 or null)");
+    for(i : _int64 = start; i < chain.size(); i++) {
+        other := chain.at(i);
+        if(other != first) { d.with_related_place(place_of_declaration(other, "`" + other.name + "` is part of the circle")); }
+    }
+    d.with_note("the circle: " + circle.build());
+    d.with_note("field values run one after the other; the values of a circle run in the order they are written, so the first of them cannot wait for the others");
+    d.with_help("give one of the fields a value that does not read the others, or set it in a constructor or `init` block");
+    report(context, d);
+}
+
+/** W1031 for the smallest circle: `x : _int64 = x + 1;` */
+def warn_reads_itself(session: analysis_session, field: sharp_field) {
+    if(field.value_type == null || field.value_type!!.kind == RT_ERROR) { return; }
+    file := session.prog.file_of(field.unit);
+    if(file == null) { return; }
+    context := new analysis_context(session, file!!);
+    d := problem_at(context, "W1031", "the value of `" + field.name + "` reads `" + field.name + "` itself", field.node);
+    d.with_label("its own value is not there yet: this reads the start value (0 or null)");
+    d.with_note("a field has its start value (0 or null) until its own value has been worked out and stored");
+    d.with_help("write the value without `" + field.name + "`, or set it in a constructor or `init` block");
+    report(context, d);
+}

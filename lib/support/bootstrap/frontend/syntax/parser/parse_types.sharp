@@ -1,0 +1,273 @@
+mod frontend.syntax.parser;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree
+)
+
+/**
+ * PARSING TYPES
+ *
+ * Grammar (doc/grammar.md, section 2.6; the rule names are the ones of that
+ * file, which took them from doc/grammars.txt):
+ *
+ *      utype             = type_identifier [ "[" "]" ] [ "?" ] [ "?" ] ;
+ *      type_identifier   = native_type | function_ptr | reference_pointer ;
+ *      native_type       = "decimal" | "object" | "_int8" | ... | "_uint64" ;
+ *      function_ptr      = utype_arg_list_opt "(" [ "nil" | utype ] ")" ;
+ *      reference_pointer = [ identifier { "." identifier } "#" ]
+ *                          reference_item { "." reference_item } ;
+ *      reference_item    = identifier [ "<" utype { "," utype } ">" ] ;
+ *
+ * Examples:
+ *      decimal                     string[]            list<string>?
+ *      std.io#file                 hash_map<string, list<int>>
+ *      (int, int)(decimal)         a function that takes two ints
+ *      ()()                        a function that takes and returns nothing
+ *      string[]??                  a nullable array whose items may be null
+ *
+ * Every function adds what it parsed as the last child of `parent` and
+ * returns the new node.
+ */
+
+/** utype: a complete type, with its `[]` and `?` */
+def parse_type(p: parse_state, parent: _int64) : _int64 {
+    type : _int64 = p.child(parent, N_TYPE);
+    kind : _int64 = p.kind();
+
+    if(is_native_type(kind)) {
+        p.child(type, N_NATIVE_TYPE);
+        p.advance();
+    } else if(kind == P_LPAREN) {
+        parse_function_type(p, type);
+    } else if(kind == T_IDENTIFIER) {
+        parse_type_name(p, type);
+    } else {
+        report_not_a_type(p);
+        return type;
+    }
+
+    // `[` belongs to the type only when `]` comes right after it:
+    // in `new int[5]` the bracket is the size, not part of the type
+    if(p.at(P_LBRACKET) && p.peek(1) == P_RBRACKET) {
+        p.child(type, N_ARRAY_SUFFIX);
+        p.advance();
+        p.advance();
+    }
+
+    // one `?`: the value may be null. A second one, on an array: its items may be.
+    if(p.at(P_QUESTION)) {
+        p.child(type, N_NULLABLE);
+        p.advance();
+        if(p.at(P_QUESTION)) {
+            p.child(type, N_NULLABLE);
+            p.advance();
+        }
+    }
+    return type;
+}
+
+/**
+ * utype_naked: a type without `[]` and `?` - what follows `new`.
+ * (`new int[5]`: the brackets are the array size, see parse_new.)
+ */
+def parse_naked_type(p: parse_state, parent: _int64) : _int64 {
+    type : _int64 = p.child(parent, N_TYPE);
+    kind : _int64 = p.kind();
+
+    if(is_native_type(kind)) {
+        p.child(type, N_NATIVE_TYPE);
+        p.advance();
+    } else if(kind == T_IDENTIFIER) {
+        parse_type_name(p, type);
+    } else if(kind == P_LPAREN) {
+        parse_function_type(p, type);
+    } else {
+        report_not_a_type(p);
+    }
+    return type;
+}
+
+/**
+ * A type was expected and the current token cannot start one. `nil` is the
+ * usual case: it reads like a type ("returns nothing") but is only allowed
+ * as the result of a function - there is no value, array or variable of it.
+ */
+def report_not_a_type(p: parse_state) {
+    if(p.at(K_NIL)) {
+        p.error("expected a type, found `nil`")
+         .with_label("`nil` is not a type of values")
+         .with_note("`nil` only says that a function returns nothing (`def f() : nil`); nothing can be stored as a `nil`")
+         .with_help("for any kind of object write `object`, for example:  new object[3]");
+        return;
+    }
+    p.error("expected a type, found " + p.describe_current())
+     .with_label("a type is a name such as `string` or `list<int>`, a number type such as `_int64`, or a function type `(int)(string)`");
+}
+
+/**
+ * reference_pointer, used as the name of a type:
+ *
+ *      string          std#string          list<int>           outer.inner
+ *      std.io#file     pair<k, v>.entry
+ */
+def parse_type_name(p: parse_state, parent: _int64) : _int64 {
+    name : _int64 = p.child(parent, N_TYPE_NAME);
+
+    if(module_path_follows(p)) {
+        parse_module_path(p, name);
+    }
+
+    parse_type_part(p, name);
+    while(p.at(P_DOT) && p.peek(1) == T_IDENTIFIER) {
+        p.advance();
+        parse_type_part(p, name);
+    }
+    return name;
+}
+
+/** reference_item: one name of a type, with its generic arguments: list<int> */
+def parse_type_part(p: parse_state, parent: _int64) {
+    part : _int64 = p.child(parent, N_TYPE_PART);
+    if(p.expect(T_IDENTIFIER, "the name of a type") == 0) { return; }
+
+    if(p.at(P_LESS)) {
+        p.advance();
+        parse_type(p, part);
+        while(p.accept(P_COMMA) == 1) {
+            parse_type(p, part);
+        }
+        close_generic(p);
+    }
+}
+
+/**
+ * Does `a.b.c#` start here? The names before a `#` are a module, and only the
+ * `#` shows it, so this looks ahead over `name . name . name` for one.
+ */
+def module_path_follows(p: parse_state) : _int64 {
+    ahead : _int64 = 0;
+    while(p.peek(ahead) == T_IDENTIFIER && p.peek(ahead + 1) == P_DOT) {
+        ahead += 2;
+    }
+    return p.peek(ahead) == T_IDENTIFIER && p.peek(ahead + 1) == P_HASH;
+}
+
+/** std.io#   (the caller checked module_path_follows) */
+def parse_module_path(p: parse_state, parent: _int64) {
+    path : _int64 = p.child(parent, N_MODULE_PATH);
+    p.child(path, N_NAME);
+    p.advance();
+    while(p.accept(P_DOT) == 1) {
+        p.child(path, N_NAME);
+        p.advance();
+    }
+    p.advance();    // the #
+}
+
+/**
+ * The `>` that ends a list of generic arguments.
+ *
+ *      list<list<int>>
+ *                   ^^ the tokenizer made ONE token of these: `>>`, shift right
+ *
+ * The first list that closes takes half of that token (half_shift = 1, the
+ * position stays), the second takes the other half and moves on.
+ *
+ *      C++ comparison: the same problem C++ had until C++11 ("> >" had to be
+ *      written with a space) and the same fix.
+ */
+def close_generic(p: parse_state) {
+    if(p.at(P_GREATER)) {
+        p.advance();
+    } else if(p.at(P_SHR)) {
+        if(p.half_shift == 0) {
+            p.half_shift = 1;
+        } else {
+            p.half_shift = 0;
+            p.advance();
+        }
+    } else {
+        p.error("expected `>` to close the generic type list");
+    }
+}
+
+/**
+ * function_ptr: the type of a function value
+ *
+ *      (int, int)(decimal)     (name: string)()        ()(nil)
+ *
+ * First the parameter types (a parameter may have a name, it is documentation
+ * only), then what the function returns: a type, `nil` or nothing.
+ */
+def parse_function_type(p: parse_state, parent: _int64) : _int64 {
+    function : _int64 = p.child(parent, N_FUNCTION_TYPE);
+
+    parameters : _int64 = p.child(function, N_PARAMETERS);
+    p.expect(P_LPAREN, "`(`");
+    if(!p.at(P_RPAREN)) {
+        parse_optionally_named_parameter(p, parameters);
+        while(p.accept(P_COMMA) == 1) {
+            parse_optionally_named_parameter(p, parameters);
+        }
+    }
+    p.expect(P_RPAREN, "`)`");
+
+    result : _int64 = p.child(function, N_RETURN_TYPE);
+    p.expect(P_LPAREN, "`(` and the type the function returns");
+    if(p.accept(K_NIL) == 0 && !p.at(P_RPAREN)) {
+        parse_type(p, result);
+    }
+    p.expect(P_RPAREN, "`)`");
+    return function;
+}
+
+/** utype_arg_opt:  `name: type`  or just  `type` */
+def parse_optionally_named_parameter(p: parse_state, parent: _int64) {
+    parameter : _int64 = p.child(parent, N_PARAMETER);
+    if(p.at(T_IDENTIFIER) && p.peek(1) == P_COLON) {
+        p.advance();
+        p.advance();
+    }
+    parse_type(p, parameter);
+}
+
+/**
+ * utype_arg_list: the parameters of a function declaration
+ *
+ *      (a: int, b: string[])       ()
+ *
+ * Every parameter has a name and a type.
+ */
+def parse_parameters(p: parse_state, parent: _int64) : _int64 {
+    parameters : _int64 = p.child(parent, N_PARAMETERS);
+    p.expect(P_LPAREN, "`(`");
+    opener : _int64 = p.position - 1;
+    if(!p.at(P_RPAREN)) {
+        parse_parameter(p, parameters);
+        for( ;; ) {
+            if(p.accept(P_COMMA) == 1) {
+                parse_parameter(p, parameters);
+            } else if(p.at(T_IDENTIFIER) && p.peek(1) == P_COLON) {
+                // (a: int b: int): another parameter starts, only the comma is missing
+                p.missing(P_COMMA, "`,` between the parameters");
+                p.recovering = 0;       // the list itself is fine: keep reading it
+                parse_parameter(p, parameters);
+            } else {
+                break;
+            }
+        }
+    }
+    p.expect_closing(P_RPAREN, "`)` at the end of the parameters", opener);
+    return parameters;
+}
+
+/** utype_arg:  name: type */
+def parse_parameter(p: parse_state, parent: _int64) {
+    parameter : _int64 = p.child(parent, N_PARAMETER);
+    if(p.expect(T_IDENTIFIER, "the name of a parameter") == 0) { return; }
+    if(p.expect(P_COLON, "`:` and the type of the parameter") == 1) {
+        parse_type(p, parameter);
+    }
+}

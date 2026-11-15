@@ -1,0 +1,51 @@
+mod backend.compiler.expressions.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * `sizeof(value)`
+ *
+ *      sizeof(numbers)     how many items the array has - arrays have no members, this is
+ *                          the only way to ask
+ *      sizeof("abc")       3
+ *      sizeof(thing)       how many fields the object has
+ *
+ * The result is an `_int32`. A plain number and `null` have no size (E0413).
+ *
+ *      C++ comparison: primary/sizeof_expression.cpp.
+ */
+def analyse_sizeof(context: analysis_context, node: _int64) : bound_expression {
+    types : type_table = context.session.types;
+    value_node : _int64 = context.tree.first_child!![node];
+    if(value_node < 0) { return new bound_error(context.unit, node, types.error_type); }
+
+    value := analyse_value(context, value_node, null);
+    if(value.type.is_number() || value.type.kind == RT_NULL) {
+        d := problem_over(context, "E0413", "`sizeof` needs an array or an object, but this is " + described_type(value.type), value_node);
+        if(value.type.kind == RT_NULL) { d.with_label("`null` is no object at all"); }
+        else { d.with_label("a plain number has no size"); }
+        d.with_note("`sizeof` gives the number of items of an array, or of fields of an object");
+        if(value.type.is_number()) {
+            d.with_help("a number is always one value; if you want how many BYTES it takes, that is fixed by its type (`_int64`: 8)");
+        }
+        report(context, d);
+        return new bound_error(context.unit, node, types.error_type);
+    }
+    result := new bound_sizeof(context.unit, node, value, types.int32);
+    if(value.literal == LIT_TEXT && value.constant != null) {
+        result.constant = integer_constant(sizeof(value.constant!!.text!!.data));
+    }
+    return result;
+}

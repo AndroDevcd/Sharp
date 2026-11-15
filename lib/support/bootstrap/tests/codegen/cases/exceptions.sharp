@@ -1,0 +1,256 @@
+mod main;
+
+// output:
+// 50
+// 1
+// 4
+// 3
+// 5
+// text
+// 2
+// 8
+// 4
+// 3
+// 11
+// 13
+// 12
+// 61
+// 63
+// 70
+// 71
+// 72
+// 73
+// 74
+// 81
+// 82
+// 900
+// 903
+// 906
+// 90
+// 1000
+// 100
+// 101
+// 102
+// 103
+// 104
+// 105
+
+/*
+ * try / catch / finally and throw (doc/codegen.md 4.7, 6.11): which handler
+ * takes an exception, in which order the finally blocks run, and what the
+ * code after them sees.
+ *
+ *   - the first clause whose class takes the object runs (a class below it too),
+ *     the inner try before the outer one; a finally runs on every way out of
+ *     its try: the normal end, an exception, a return;
+ *   - an exception inside a catch handler is offered to the finally, then to
+ *     the handlers AROUND the try - never to the clauses of its own try;
+ *   - an exception thrown by a finally replaces the one it was running for;
+ *   - `throw e;` in a handler raises the same object again;
+ *   - exceptions out of callees, several frames deep, each frame's finally
+ *     running as the exception passes;
+ *   - a try inside a finally block, a loop inside one;
+ *   - a function that catches in every round of a loop (the VM leaves what the
+ *     failing call had pushed on the operand stack: 4.7 - a thousand rounds
+ *     stay inside the fiber's stack, as in the C++-built program);
+ *   - the exceptions the VM raises itself: a null object, `%` by zero, a cast
+ *     that does not hold, an index outside an array, `lock` of null; a clause
+ *     without a variable; `catch(throwable)` takes everything;
+ *   - a return value of every kind through a finally (computed BEFORE the
+ *     finally runs: the finally's change of `x` is not returned).
+ */
+
+class oops base exception {
+    code : _int64;
+    oops(code: _int64) -> base("oops") { self->code = code; }
+}
+
+class other base exception {
+    other() -> base("other") { }
+}
+
+def boom(n: _int64) { throw new oops(n); }
+
+def ret_through_finally() : _int64 {
+    x : _int64 = 1;
+    try {
+        return x;
+    } finally {
+        x = 5;
+        show(50);
+    }
+    return 9;
+}
+
+def returns_decimal(x: decimal) : decimal {
+    try {
+        return x * 2.0;
+    } finally {
+        show(4);
+    }
+    return 0.0;
+}
+
+def returns_text() : string {
+    try {
+        return "text";
+    } finally {
+        show(5);
+    }
+    return "none";
+}
+
+def nested(n: _int64) : _int64 {
+    try {
+        try {
+            boom(n);
+        } catch(e: illegal_state_exception) {
+            show(1);
+        } finally {
+            show(2);
+        }
+    } catch(e: oops) {
+        show(e.code);
+        return 3;
+    } finally {
+        show(4);
+    }
+    return 7;
+}
+
+def in_catch() {
+    try {
+        try {
+            boom(10);
+        } catch(e: oops) {
+            show(11);
+            boom(12);
+        } finally {
+            show(13);
+        }
+    } catch(e: oops) {
+        show(e.code);
+    }
+}
+
+def throw_in_finally() {
+    try {
+        try {
+            boom(60);
+        } finally {
+            show(61);
+            throw new other();
+        }
+    } catch(e: oops) {
+        show(62);
+    } catch(e: other) {
+        show(63);
+    }
+}
+
+def try_in_finally() {
+    try {
+        boom(70);
+    } catch(e: oops) {
+        show(e.code);
+    } finally {
+        try {
+            boom(71);
+        } catch(e: oops) {
+            show(e.code);
+        } finally {
+            show(72);
+        }
+        for(k : _int64 = 0; k < 2; k++) {
+            show(73 + k);
+        }
+    }
+}
+
+def rethrow() {
+    try {
+        try {
+            boom(80);
+        } catch(e: oops) {
+            show(81);
+            throw e;
+        }
+    } catch(e: exception) {
+        show(82);
+    }
+}
+
+def deep(n: _int64) : _int64 {
+    try {
+        if(n == 0) { boom(90); }
+        return deep(n - 1) + 1;
+    } finally {
+        if(n % 3 == 0) { show(900 + n); }
+    }
+    return 0;
+}
+
+def many_rounds() {
+    caught : _int64 = 0;
+    for(i : _int64 = 0; i < 1000; i++) {
+        try {
+            boom(i);
+        } catch(e: oops) {
+            caught += 1;
+        }
+    }
+    show(caught);
+}
+
+def vm_exceptions() {
+    try {
+        o : oops? = null;
+        show(o!!.code);
+    } catch(e: nullptr_exception) {
+        show(100);
+    }
+    try {
+        z : _int64 = 0;
+        show(5 % z);
+    } catch(e: exception) {
+        show(101);
+    }
+    try {
+        t : exception = new other();
+        u := t as oops;
+        show(u.code);
+    } catch(e: class_cast_exception) {
+        show(102);
+    }
+    try {
+        o : oops? = null;
+        lock(o!!) { show(1030); }
+    } catch(e: nullptr_exception) {
+        show(103);
+    }
+    try {
+        a : _int64[] = new _int64[2];
+        a[5] = 1;
+    } catch(out_of_bounds_exception) {
+        show(104);
+    }
+    try {
+        boom(1);
+    } catch(throwable) {
+        show(105);
+    }
+}
+
+def main() {
+    show(ret_through_finally());
+    show_decimal(returns_decimal(1.5));
+    println(returns_text());
+    show(nested(8));
+    in_catch();
+    throw_in_finally();
+    try_in_finally();
+    rethrow();
+    try { deep(7); } catch(e: oops) { show(e.code); }
+    many_rounds();
+    vm_exceptions();
+}

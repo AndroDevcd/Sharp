@@ -1,0 +1,52 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.typed_tree
+)
+
+/**
+ * WHERE A JUMP CAN GO: the statements around the code being analysed
+ *
+ *      while(more()) {                 frame: loop         <- `break` / `continue` go here
+ *          lock(table) {               frame: lock         <- passing it unlocks the table
+ *              try {                   frame: guarded      <- passing it runs the finally
+ *                  if(done) break;
+ *              } finally {             frame: finally      <- nothing may jump out of here
+ *                  ...
+ *              }
+ *          }
+ *      }
+ *
+ * While the body of a loop, a lock or a try is analysed, a frame for it is
+ * on the analysis context's stack (`analysis_context.jumps`). A `break`
+ * walks the stack from the top: the first loop frame is its loop, and every
+ * lock and guarded frame it passes on the way is something its code must
+ * undo (`leaves`, in bound_jumps.sharp). A `return` walks the whole stack.
+ * Meeting a `finally` frame on the way is E0604: a finally block runs
+ * BECAUSE the try is being left, and cannot itself leave for somewhere else.
+ *
+ * A lambda is a function of its own with a context of its own, so its stack
+ * starts empty: `break` inside a lambda inside a loop has no loop (E0602).
+ *
+ *      C++ comparison: `stored_block_info` and the block types (`for_block`,
+ *      `lock_block`, `finally_block` ...) in backend/context/context.h, which
+ *      `retrieve_loop_block`, `retrieve_lock_expressions` and
+ *      `retrieve_finally_labels` search.
+ */
+
+const FRAME_LOOP    : _int64 = 1;   // inside the body of a loop
+const FRAME_LOCK    : _int64 = 2;   // inside the body of a lock
+const FRAME_GUARDED : _int64 = 3;   // inside the body or a catch of a try that has a finally
+const FRAME_FINALLY : _int64 = 4;   // inside a finally block
+
+class jump_frame {
+    kind : _int64;                  // FRAME_...
+    statement : bound_statement;    // the loop, the lock or the try
+
+    jump_frame(kind: _int64, statement: bound_statement) {
+        self->kind = kind;
+        self->statement = statement;
+    }
+}

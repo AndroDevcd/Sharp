@@ -1,0 +1,102 @@
+mod main;
+
+import (
+    std.io,
+    configuration,
+    frontend.diagnostics,
+    backend.postprocessor.members,
+    backend.compiler.context,
+    backend.compiler.driver,
+    backend.compiler.flow,
+    backend.compiler.initializers,
+    backend.compiler.components,
+    backend.compiler.obfuscation,
+    backend.compiler.program,
+    backend.types.program
+)
+
+/*
+ * A PROGRAM WHOSE DECLARATIONS HAVE ERRORS: its bodies are checked all the same
+ *
+ *      class shop {
+ *          stock : hash_mapp<string, int>;         // no type `hash_mapp`: a declaration error
+ *          def total() : _int64 { return "many"; } // a mistake in a body, in the same build
+ *      }
+ *
+ * A compiler that stopped at the first kind of error would show the misspelt
+ * type, and the wrong `return` only on the next build. So when the
+ * declaration stages (names, classes, members) report errors, the driver
+ * (main.sharp, exec_runtime) still runs the body stages - here, apart from
+ * the normal path, because on a broken program they need care:
+ *
+ *  - every body is analysed (a broken name in it is the error type, which
+ *    sets off nothing), and what the stages report is ADDED to the messages
+ *    there already are;
+ *  - one kind of message is dropped: a REPEAT. The body stages read the type
+ *    names written inside bodies again, so a misspelt `new hash_mapp<...>()`
+ *    that the type-names stage reported would be reported a second time - the
+ *    same code at the same place. Anything else is a mistake nobody has told
+ *    the programmer about yet, and is kept;
+ *  - the passes after the bodies run as well - components, obfuscate blocks,
+ *    initializers, the whole-program checks - so that a declaration error does
+ *    not hide what only they find (a field nothing gives a value, a `get` no
+ *    component answers). Only the completeness self-check is left out: on a
+ *    broken program it has nothing to prove;
+ *  - nothing is generated from it: the result of these stages is thrown away.
+ *
+ * These stages were written for a program whose declarations are sound, so
+ * on a broken one a pass may fail outright (an exception). That must never
+ * cost the programmer a message they would otherwise have had: should the
+ * body stages fail, their messages are dropped and the declaration errors
+ * stand alone; should one of the passes AFTER the bodies fail, only the
+ * later passes are given up - what the bodies found is kept.
+ *
+ *      C++ comparison: none. The C++ compiler stops after the stage that
+ *      reported errors.
+ */
+
+/**
+ * Run the body stages on a program whose declarations have errors and add
+ * what they find to `found` (the rules in the header). `members_resolved` is
+ * 1 when the members stage has run already (its run is then not repeated).
+ */
+def analyse_bodies_after_declaration_errors(whole_program: sharp_program, found: list<diagnostic>, members_resolved: _int64) {
+    later := new list<diagnostic>();
+    session : analysis_session? = null;
+    try {
+        if(members_resolved == 0) { resolve_members(whole_program, later); }
+        session = analyse_bodies(whole_program, later);
+        check_flow(session!!);
+        stand_ins := analyse_unused_blueprints(session!!);
+        check_flow_from(session!!, stand_ins.analysed_functions);
+        forget_stand_ins(session!!, stand_ins);
+    } catch(e: exception) {
+        return;
+    }
+    try {
+        // the whole-program passes too: a missing value (W1032), a request no component
+        // answers (E0903), a second `main` (E0930) are mistakes of their own. Their result -
+        // the analysed program - is not kept: nothing is generated from a broken program.
+        check_components(session!!);
+        check_obfuscate_blocks(session!!);
+        order_initializers(session!!);
+        session!!.extra_warnings = options.extra_warnings ? 1 : 0;
+        check_program(session!!);
+    } catch(e: exception) {
+        // (what these passes had reported before failing is in `later` and is kept)
+    }
+
+    reported := new hash_map<string, string>();
+    foreach(d in found) { reported.put(place_and_code(d), d.code); }
+    foreach(d in later) {
+        key := place_and_code(d);
+        if(reported.at(key) != null) { continue; }
+        reported.put(key, d.code);
+        found.add(d);
+    }
+}
+
+/** "E0301 at shop.sharp:412": what makes two messages the same message */
+def place_and_code(d: diagnostic) : string {
+    return d.code + " at " + d.file + ":" + d.from;
+}

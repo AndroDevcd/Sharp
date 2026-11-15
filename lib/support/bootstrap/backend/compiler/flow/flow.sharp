@@ -1,0 +1,104 @@
+mod backend.compiler.flow;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * THE FLOW ANALYSIS: where can execution go?
+ *
+ * After the body stages have built the typed tree of every function, this
+ * pass walks each body once more and answers, for every statement, the
+ * textbook question of control-flow analysis: CAN EXECUTION GO ON AFTER IT?
+ * (`bound_statement.completes`; reachability.sharp has the rule for each
+ * kind of statement). Two checks follow from the answer:
+ *
+ *      def sign(n: _int64) : _int64 {
+ *          if(n > 0) { return 1; }
+ *          else if(n < 0) { return 0 - 1; }
+ *      }                               E0605: when n is 0 execution reaches the end, and the
+ *                                      function returns an _int64 - the message shows that path
+ *
+ *      return total;
+ *      count++;                        W1002: never reached
+ *
+ * It is a separate pass, over the finished statements, for two reasons: the
+ * rules read the typed tree (a `while(true)` is endless only once its
+ * condition is known to be the constant true; a `break` belongs to a loop),
+ * and building the tree and analysing the flow through it are different jobs
+ * - the textbook split. The pass reads only the typed tree, never the
+ * syntax, except to place its messages.
+ *
+ * DIFFERS FROM THE C++ COMPILER (D12). The old compiler tracks eight flags
+ * per block ("an if returned, an else returned ...") and misses every path
+ * through nested blocks, loops and try statements: it rejects
+ *
+ *      def f() : _int64 { while(true) { } }                    (never ends: nothing to return)
+ *      def f() : _int64 { { return 1; } }
+ *      def f() : _int64 { do { } while(true); }
+ *      def f() : _int64 { for(;;) { } }
+ *
+ * with "not all code paths return a value". The flow analysis accepts them,
+ * and rejects nothing the old compiler accepts and runs. Its unreachable-code
+ * warning sees more too: after `while(true) { }` without a `break`, after an
+ * `if` whose two branches both return.
+ *
+ * The files of this package (module `backend.compiler.flow`):
+ *
+ *      flow.sharp              this front door: check_flow, the driver of the pass
+ *      reachability.sharp      can execution go on after each statement? W1002 for code it never reaches
+ *      missing_return.sharp    E0605, with the path that reaches the end of the function
+ *
+ *      C++ comparison: `controlPaths` and `validate_control_paths` in
+ *      compiler/compiler.cpp and functions/function_compiler.cpp
+ *      ("not all code paths return a value"); `blockInfo.reachable` in
+ *      statements/statement_compiler.cpp ("unreachable statement").
+ */
+def check_flow(session: analysis_session) {
+    check_flow_from(session, 0);
+}
+
+/**
+ * The same for the functions analysed from index `first` on: the bodies a
+ * later pass added to the list (the stand-ins of unused generic code,
+ * compiler/driver/unused_blueprints.sharp).
+ */
+def check_flow_from(session: analysis_session, first: _int64) {
+    functions : list<sharp_function> = session.analysed_functions;
+    for(i : _int64 = first; i < functions.size(); i++) {
+        function := functions.at(i);
+        if(function.bound_body == null) { continue; }
+        file := session.prog.file_of(function.unit);
+        if(file == null) { continue; }
+
+        context := new analysis_context(session, file!!);
+        context.class_of = function.owner;
+        context.function = function;
+        if(function.environment != null) { context.environment = function.environment; }
+        else if(function.owner != null) { context.environment = function.owner!!.environment; }
+
+        body : bound_statement = function.bound_body!!;
+        try {
+            completes : _int64 = flow_of(context, body, 1);
+            if(completes == 1 && body.kind == BS_BLOCK && returns_a_value(function) == 1) {
+                report_missing_return(context, function, body as bound_block);
+            }
+        } catch(e: stack_overflow_exception) {
+            report_nested_too_deeply(context, function, "the flow analysis");
+            function.bound_body = null;     // (no later pass walks a body it could not follow either)
+        }
+    }
+}
+
+/** does the function give a value back (so every path must `return` one)? Unknown and error types do not count */
+def returns_a_value(function: sharp_function) : _int64 {
+    result : resolved_type? = function.result_type;
+    if(result == null && function.kind == D_GETTER && function.field != null) { result = function.field!!.value_type; }
+    if(result == null) { return 0; }
+    return result!!.kind != RT_NIL && result!!.kind != RT_ERROR;
+}

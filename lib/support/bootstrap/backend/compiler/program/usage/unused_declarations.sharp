@@ -1,0 +1,210 @@
+mod backend.compiler.program.usage;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.compiler.context
+)
+
+/**
+ * NAMES THAT ARE DECLARED AND NEVER USED
+ *
+ *      def total(items: item[]) : decimal {
+ *          count := 0;                     W1034: `count` is never used
+ *          ...
+ *      }
+ *      class cart {
+ *          private def recount() { }       W1035: nothing calls the private `recount`
+ *          size : _int64 = 0;
+ *          def add() { size := 1; }        W1036: this local `size` hides the field `size`
+ *      }
+ *
+ * Three warnings every serious compiler has. They are certain - a private
+ * member can only be used inside its class (or its module), and every body
+ * there has been analysed; a local only inside its function - and cheap:
+ * the counts were made while the bodies were analysed (`local_variable.reads`,
+ * `sharp_declaration.used_anywhere`).
+ *
+ * W1034 and W1035 are OFF unless -wextra is given, because both fire in the
+ * standard library (doc/backend.md 10.6 has the counts: 66 and 107), and a
+ * warning the programmer cannot act on is noise. W1036 does not fire there
+ * and is on. It is given only when the field could have been meant: not for
+ * a private field of a class above (it cannot be named here anyway), and not
+ * for an instance field inside a `static` function. The counts are made either way; -analysis-stats prints them.
+ *
+ * Not counted as unused: parameters (an override must take what the function
+ * it overrides takes), variables the compiler made, a name that starts with
+ * `_` (the way to say "on purpose"), a `foreach` variable (the loop may only
+ * count), the variable of a `catch` (the clause may only care that it was
+ * thrown), the private members of a generic class nothing makes an instance
+ * of (its bodies are analysed per instance, so nothing is known about them),
+ * private constructors (a class with only private constructors says
+ * "no objects"), getters, setters, `override` and `native` functions, and the
+ * functions of an interface.
+ *
+ *      W1034   a local variable that is never used after its declaration
+ *      W1035   a private field or function that nothing uses
+ *      W1036   a local variable with the name of a field of its class: the field is hidden
+ *
+ *      C++ comparison: the C++ compiler has none of the three.
+ */
+class unused_counts {
+    locals : _int64 = 0;
+    private_members : _int64 = 0;
+    hidden_fields : _int64 = 0;
+}
+
+def report_unused(session: analysis_session, analysed: analysed_program) : unused_counts {
+    counts := new unused_counts();
+    for(i : _int64 = 0; i < analysed.functions.size(); i++) { check_locals(session, analysed.functions.at(i), counts); }
+    for(i : _int64 = 0; i < analysed.modules.size(); i++) {
+        module := analysed.modules.at(i);
+        for(j : _int64 = 0; j < module.fields.size(); j++) { check_private(session, module.fields.at(j), counts); }
+        for(j : _int64 = 0; j < module.functions.size(); j++) { check_private(session, module.functions.at(j), counts); }
+    }
+    prog : sharp_program = session.prog;
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        if(declared.kind == D_INTERFACE) { continue; }
+        for(j : _int64 = 0; j < declared.fields.size(); j++) { check_private(session, declared.fields.at(j), counts); }
+        for(j : _int64 = 0; j < declared.functions.size(); j++) { check_private(session, declared.functions.at(j), counts); }
+    }
+    session.counters.unused_locals = counts.locals;
+    session.counters.unused_private_members = counts.private_members;
+    session.counters.hidden_fields = counts.hidden_fields;
+    return counts;
+}
+
+/** W1034 and W1036 for the local variables of one function */
+def check_locals(session: analysis_session, function: sharp_function, counts: unused_counts) {
+    if(function.locals == null) { return; }
+    locals : list<local_variable> = function.locals!!;
+    for(i : _int64 = 0; i < locals.size(); i++) {
+        variable := locals.at(i);
+        if(variable.is_parameter == 1 || variable.is_hidden == 1 || variable.function != function) { continue; }
+        if(starts_with_underscore(variable.name)) { continue; }
+        if(variable.reads == 0 && !declared_by_loop_or_catch(variable)) {
+            counts.locals++;
+            if(session.extra_warnings == 1) { report_unused_local(session, function, variable); }
+        }
+        if(function.owner != null && function.is_lambda == 0) { check_hides_field(session, function, variable, counts); }
+    }
+}
+
+/** is the variable the one a `foreach` or a `catch` declares? (it has to be written, used or not) */
+def declared_by_loop_or_catch(variable: local_variable) : _int64 {
+    tree := variable.unit.parsed!!.tree;
+    parent : _int64 = tree.parents!![variable.node];
+    return parent >= 0 && (tree.kinds!![parent] == N_FOREACH || tree.kinds!![parent] == N_CATCH);
+}
+
+/** W1034 */
+def report_unused_local(session: analysis_session, function: sharp_function, variable: local_variable) {
+    context := declaration_context(session, function);
+    if(context == null) { return; }
+    d := problem_at(context!!, "W1034", "the local variable `" + variable.name + "` is never used", variable.node);
+    d.with_label("declared here, never read or assigned again");
+    d.with_help("remove it, or name it `_" + variable.name + "` to say it is unused on purpose");
+    report(context!!, d);
+}
+
+/** W1036: a local named like a field of the class its function belongs to */
+def check_hides_field(session: analysis_session, function: sharp_function, variable: local_variable, counts: unused_counts) {
+    owner : sharp_class = function.owner!!;
+    if(owner.is_open()) { return; }
+    found := fields_by_name(owner).at(variable.name);
+    if(found == null) { return; }
+    field : sharp_field = found!!;
+    if(function.has(FLAG_STATIC) && !field.has(FLAG_STATIC)) { return; }    // static code cannot name an instance field anyway
+    counts.hidden_fields++;
+    context := declaration_context(session, function);
+    if(context == null) { return; }
+    d := problem_at(context!!, "W1036", "the local variable `" + variable.name + "` hides the field `" + variable.name + "` of `"
+                    + owner.written.name + "`", variable.node);
+    d.with_label("from here on, `" + variable.name + "` means this local");
+    d.with_related_place(place_of_declaration(field, "the field it hides"));
+    d.with_help("give the local another name; to reach the field write `self->" + variable.name + "`");
+    report(context!!, d);
+}
+
+/** W1035 for one private member that no analysed code names */
+def check_private(session: analysis_session, member: sharp_declaration, counts: unused_counts) {
+    if(!member.has(FLAG_PRIVATE) || member.used_anywhere == 1) { return; }
+    if(member.has(FLAG_OVERRIDE) || member.has(FLAG_NATIVE)) { return; }
+    if(member.kind != D_FIELD && member.kind != D_FUNCTION) { return; }
+    if(starts_with_underscore(member.name)) { return; }
+    if(member.owner != null && !was_analysed(member.owner!!)) { return; }
+    if(member.kind == D_FUNCTION) {
+        function := member as sharp_function;
+        if(function.is_operator == 1 || function.extends != null || function.is_lambda == 1) { return; }
+    }
+    counts.private_members++;
+    if(session.extra_warnings == 0) { return; }
+    context := declaration_context(session, member);
+    if(context == null) { return; }
+    what := "field";
+    if(member.kind == D_FUNCTION) { what = "function"; }
+    where := "its module";
+    if(member.owner != null) { where = "`" + member.owner!!.name + "`"; }
+    d := error_at_names("W1035", "the private " + what + " `" + member.name + "` is never used", member.unit, member.node);
+    d.with_label("nothing in " + where + " uses it");
+    d.with_note("`private` means only " + where + " can use it, and no code there does");
+    d.with_help("remove it, or make it public if other code is meant to use it");
+    report(context!!, d);
+}
+
+/**
+ * Were the bodies of this class analysed? Always for an ordinary class. A
+ * generic class (and a class inside one) is analysed once per INSTANCE
+ * (`box<string>`); with no instance, nothing is known about what its bodies
+ * use, and "never used" cannot be said of its members.
+ */
+def was_analysed(owner: sharp_class) : _int64 {
+    if(!owner.is_open()) { return 1; }
+    current : sharp_class? = owner;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        instances := current!!.instance_list;
+        if(instances != null) {
+            for(i : _int64 = 0; i < instances!!.size(); i++) {
+                if(instances!!.at(i).bodies_analysed == 1) { return 1; }
+            }
+            return 0;
+        }
+        if(current!!.is_generic()) { return 0; }
+        current = current!!.owner;
+    }
+    return 0;
+}
+
+/**
+ * The fields code of a class can name: its own and those of the classes
+ * above it that are not private there, by name (the nearest first), made once per class. Asked for every local variable of
+ * the class's functions: a table lookup each, instead of a member search
+ * through the class chain.
+ */
+def fields_by_name(owner: sharp_class) : name_table<sharp_field> {
+    if(owner.field_names != null) { return owner.field_names!!; }
+    table := new name_table<sharp_field>();
+    current : sharp_class? = owner;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        fields := current!!.fields;
+        for(i : _int64 = 0; i < fields.size(); i++) {
+            field := fields.at(i);
+            if(depth > 0 && field.has(FLAG_PRIVATE)) { continue; }      // private to a class above: not nameable here
+            if(table.at(field.name) == null) { table.put(field.name, field); }
+        }
+        current = current!!.base_class;
+    }
+    owner.field_names = table;
+    return table;
+}
+
+/** does the name start with `_` (the way to say "unused on purpose")? */
+def starts_with_underscore(name: string) : _int64 {
+    data : _int8[]? = name.data;
+    return data != null && sizeof(data!!) > 0 && data!![0] == '_';
+}

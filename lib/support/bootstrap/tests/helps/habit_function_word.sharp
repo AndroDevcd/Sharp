@@ -1,0 +1,11 @@
+// expect: E0100
+// help: def greet()
+// replace: function greet()
+mod tests.helps;
+import (std, std.io);
+
+function greet() { println("hi"); }
+
+def main() {
+    greet();
+}

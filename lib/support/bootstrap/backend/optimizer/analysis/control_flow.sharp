@@ -1,0 +1,254 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * THE CONTROL-FLOW GRAPH OF ONE FUNCTION
+ *
+ * The textbook structure every optimizer starts from (the dragon book, 8.4):
+ * the instructions are cut into BASIC BLOCKS - runs that are entered only at
+ * the top and left only at the bottom - and an edge goes from a block to
+ * every block control can go on to.
+ *
+ *          int_constant %3, 0            block 0
+ *          copy %1, %3
+ *      L0:                               block 1   <- block 0 (falls in), block 3 (jumps back)
+ *          int_compare lt %3, %2, %0
+ *          jump_unless %3, L2                      -> block 2 (falls on), block 4 (jumps)
+ *          ...                           block 2
+ *          jump L0                                 -> block 1
+ *      L2:                               block 4
+ *          return_value %1
+ *
+ * A block begins at the first instruction, at every label, and after every
+ * jump, return and `throw`. Every label begins a block of its own, even
+ * right after another label: the ranges of a `try` are labels, and a block is
+ * then always wholly inside or wholly outside each range. A block has at most
+ * two successors - the block it falls into and the block its last jump goes
+ * to - so they are kept in two arrays (`falls_to`, `jumps_to`, -1 for none);
+ * the predecessors of all blocks are in one array, block by block (the
+ * "compressed rows" a sparse matrix is kept in): the predecessors of block b
+ * are `predecessors[first_predecessor[b] .. first_predecessor[b + 1] - 1]`.
+ * The graph is made for every pass that needs one, so it is made of a few
+ * flat arrays rather than a list per block.
+ *
+ * EXCEPTION EDGES. Inside the range of a `try`, any instruction that may
+ * raise (instruction_facts.sharp, `may_raise`) can leave its block in the
+ * middle, for a catch handler or the finally block (codegen.md 4.7). Such a
+ * block has HANDLERS: the blocks where those handlers begin (`handlers_of`).
+ * They are kept apart from the ordinary successors because they leave from
+ * the middle of the block, with every slot as it was BEFORE the instruction
+ * that raised - liveness.sharp adds them at each such instruction, not at the
+ * block's end. A handler block is entered by the VM, which writes one slot on
+ * the way in (the catch variable, or the finally's exception): `entry_slot`.
+ *
+ *      C++ comparison: analysis/control_flow.cpp of the C++ optimizer builds
+ *      the same graph over decoded bytecode.
+ */
+class flow_graph {
+    code : ir_function;
+    blocks : _int64 = 0;
+    starts : _int64[];                  // per block: the index of its first instruction
+    ends : _int64[];                    // per block: one past its last instruction
+    falls_to : _int64[];                // per block: the block it falls into, -1 when its last instruction does not go on
+    jumps_to : _int64[];                // per block: the block its last instruction jumps to, -1 when none
+    first_predecessor : _int64[];       // per block (and one more): where its predecessors begin in `predecessors`
+    predecessors : _int64[];
+    first_handler : _int64[]?;          // per block (and one more): where its handlers begin in `handler_blocks`;
+    handler_blocks : _int64[]?;         //     both null when the function has no `try`
+    entry_slot : _int64[];              // per block: the slot the VM writes when it enters it for an exception, else -1
+    is_handler : _int64[];              // per block: 1 for a block the VM enters for an exception
+    block_of_label : _int64[];          // per label: the block it begins (-1 when it is not placed)
+    block_of : _int64[];                // per instruction: its block
+
+    flow_graph(code: ir_function) {
+        self->code = code;
+    }
+
+    /** how many blocks */
+    def block_count() : _int64 {
+        return blocks;
+    }
+
+    /** the k-th successor of block b (k = 0, 1), or -1 */
+    def successor(b: _int64, k: _int64) : _int64 {
+        if(k == 0) { return falls_to[b]; }
+        if(jumps_to[b] == falls_to[b]) { return 0 - 1; }       // (a jump to the next block: one edge)
+        return jumps_to[b];
+    }
+
+    /** can an exception inside block b go to a handler of a `try`? */
+    def has_handlers(b: _int64) : _int64 {
+        if(first_handler == null) { return 0; }
+        return first_handler!![b + 1] > first_handler!![b];
+    }
+}
+
+/** the control-flow graph of a function's IR as it is now */
+def build_flow_graph(code: ir_function) : flow_graph {
+    graph := new flow_graph(code);
+    count : _int64 = code.instructions.size().value as _int64;
+
+    // ---- the blocks: a new one at the start, at each label, after each jump / return / throw
+    blocks : _int64 = 0;
+    graph.block_of = new _int64[count + 1];
+    for(i : _int64 = 0; i < count; i++) {
+        if(begins_a_block(code, i)) { blocks++; }
+        graph.block_of[i] = blocks - 1;
+    }
+    graph.blocks = blocks;
+    graph.starts = new _int64[blocks + 1];
+    graph.ends = new _int64[blocks + 1];
+    graph.block_of_label = new _int64[code.label_count + 1];
+    for(l : _int64 = 0; l <= code.label_count; l++) { graph.block_of_label[l] = 0 - 1; }
+    b : _int64 = 0 - 1;
+    for(i : _int64 = 0; i < count; i++) {
+        if(begins_a_block(code, i)) {
+            if(b >= 0) { graph.ends[b] = i; }
+            b++;
+            graph.starts[b] = i;
+        }
+        made := code.instructions.at(i);
+        if(made.kind == IR_LABEL) { graph.block_of_label[made.number] = b; }
+    }
+    if(b >= 0) { graph.ends[b] = count; }
+
+    // ---- the ordinary edges: from the last instruction of each block
+    graph.falls_to = new _int64[blocks + 1];
+    graph.jumps_to = new _int64[blocks + 1];
+    graph.entry_slot = new _int64[blocks + 1];
+    graph.is_handler = new _int64[blocks + 1];
+    graph.first_predecessor = new _int64[blocks + 2];
+    for(k : _int64 = 0; k < blocks; k++) {
+        last := code.instructions.at(graph.ends[k] - 1);
+        graph.jumps_to[k] = 0 - 1;
+        graph.falls_to[k] = 0 - 1;
+        graph.entry_slot[k] = 0 - 1;
+        if(is_jump(last)) { graph.jumps_to[k] = graph.block_of_label[last.number]; }
+        if(!ends_the_way(last) && k + 1 < blocks) { graph.falls_to[k] = k + 1; }
+    }
+    // the predecessors, counted first and then filled in, block by block
+    for(k : _int64 = 0; k < blocks; k++) {
+        for(e : _int64 = 0; e < 2; e++) {
+            to : _int64 = graph.successor(k, e);
+            if(to >= 0) { graph.first_predecessor[to + 1] = graph.first_predecessor[to + 1] + 1; }
+        }
+    }
+    for(k : _int64 = 0; k < blocks; k++) { graph.first_predecessor[k + 1] = graph.first_predecessor[k + 1] + graph.first_predecessor[k]; }
+    graph.predecessors = new _int64[graph.first_predecessor[blocks] + 1];
+    filled := new _int64[blocks + 1];
+    for(k : _int64 = 0; k < blocks; k++) {
+        for(e : _int64 = 0; e < 2; e++) {
+            to : _int64 = graph.successor(k, e);
+            if(to >= 0) {
+                graph.predecessors[graph.first_predecessor[to] + filled[to]] = k;
+                filled[to] = filled[to] + 1;
+            }
+        }
+    }
+    if(code.tries.size() > 0) { add_exception_edges(graph); }
+    return graph;
+}
+
+/** does instruction i begin a basic block (the rule in the header)? */
+def begins_a_block(code: ir_function, i: _int64) : _int64 {
+    if(i == 0) { return 1; }
+    if(code.instructions.at(i).kind == IR_LABEL) { return 1; }
+    before := code.instructions.at(i - 1);
+    return ends_the_way(before) || before.kind == IR_JUMP_IF || before.kind == IR_JUMP_UNLESS;
+}
+
+/**
+ * The exception edges of every `try` (its ranges are labels: ir_function.sharp):
+ * every block of a range can go to the handlers that range has. Kept as
+ * compressed rows like the predecessors, built from a list per block (only
+ * functions with a `try` come here).
+ */
+def add_exception_edges(graph: flow_graph) {
+    code := graph.code;
+    lists := new list<number_list>();
+    for(k : _int64 = 0; k < graph.blocks; k++) { lists.add(new number_list()); }
+    tries_count : _int64 = code.tries.size().value as _int64;
+    for(t : _int64 = 0; t < tries_count; t++) {
+        region := code.tries.at(t);
+        start : _int64 = start_of_label(graph, region.start);
+        block_end : _int64 = start_of_label(graph, region.block_end);
+        end : _int64 = start_of_label(graph, region.end);
+        for(h : _int64 = 0; h < region.handlers.count; h++) {
+            handler : _int64 = graph.block_of_label[region.handlers.at(h)];
+            if(handler < 0) { continue; }
+            graph.is_handler[handler] = 1;
+            graph.entry_slot[handler] = region.catch_slots.at(h);
+            add_handler_to_range(graph, lists, start, block_end, handler);
+        }
+        if(region.has_finally == 1) {
+            finally_block : _int64 = graph.block_of_label[region.finally_start];
+            if(finally_block >= 0) {
+                graph.is_handler[finally_block] = 1;
+                graph.entry_slot[finally_block] = region.finally_slot;
+                add_handler_to_range(graph, lists, start, end, finally_block);
+            }
+        }
+    }
+    first := new _int64[graph.blocks + 2];
+    total : _int64 = 0;
+    for(k : _int64 = 0; k < graph.blocks; k++) {
+        first[k] = total;
+        total = total + lists.at(k).count;
+    }
+    first[graph.blocks] = total;
+    blocks_of := new _int64[total + 1];
+    for(k : _int64 = 0; k < graph.blocks; k++) {
+        handlers := lists.at(k);
+        for(i : _int64 = 0; i < handlers.count; i++) { blocks_of[first[k] + i] = handlers.at(i); }
+    }
+    graph.first_handler = first;
+    graph.handler_blocks = blocks_of;
+}
+
+/** the index of the instruction that places a label (-1 when it is not placed) */
+def start_of_label(graph: flow_graph, label: _int64) : _int64 {
+    block : _int64 = graph.block_of_label[label];
+    if(block < 0) { return 0 - 1; }
+    return graph.starts[block];
+}
+
+/** every block whose first instruction lies in [first, end) can go to `handler` when something in it raises */
+def add_handler_to_range(graph: flow_graph, lists: list<number_list>, first: _int64, end: _int64, handler: _int64) {
+    if(first < 0 || end < 0) { return; }
+    for(b : _int64 = graph.block_of[first]; b < graph.blocks && graph.starts[b] < end; b++) {
+        handlers := lists.at(b);
+        known : _int64 = 0;
+        for(i : _int64 = 0; i < handlers.count; i++) {
+            if(handlers.at(i) == handler) { known = 1; }
+        }
+        if(known == 0) { handlers.add(handler); }
+    }
+}
+
+/**
+ * The blocks control can reach from the entry, or from a handler the VM may
+ * enter (a handler is reached through an exception, which no edge shows):
+ * 1 per block that can run.
+ */
+def reachable_blocks(graph: flow_graph) : _int64[] {
+    reached := new _int64[graph.blocks + 1];
+    work := new _int64[graph.blocks + 1];
+    waiting : _int64 = 0;
+    if(graph.blocks > 0) { work[0] = 0; waiting = 1; reached[0] = 1; }
+    for(b : _int64 = 0; b < graph.blocks; b++) {
+        if(graph.is_handler[b] == 1 && reached[b] == 0) { reached[b] = 1; work[waiting] = b; waiting++; }
+    }
+    while(waiting > 0) {
+        waiting--;
+        b : _int64 = work[waiting];
+        for(e : _int64 = 0; e < 2; e++) {
+            next : _int64 = graph.successor(b, e);
+            if(next >= 0 && reached[next] == 0) { reached[next] = 1; work[waiting] = next; waiting++; }
+        }
+    }
+    return reached;
+}

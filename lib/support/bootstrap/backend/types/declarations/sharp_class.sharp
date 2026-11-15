@@ -1,0 +1,216 @@
+mod backend.types.declarations;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * A CLASS, AN INTERFACE OR AN ENUM
+ *
+ *      public class circle<T base number> base shape : printable, comparable {
+ *          radius : decimal;                           -> fields
+ *          circle(r: decimal) { ... }                  -> constructors
+ *          init { ... }                                -> init_blocks
+ *          def area() : decimal { ... }                -> functions
+ *          class segment { ... }                       -> classes
+ *          enum quadrant { first, second }             -> classes (an enum is a class with values)
+ *          alias list<circle> as circles;              -> aliases
+ *      }
+ *
+ * Everything the class itself says is here, in lists that keep the order it
+ * was written in. The same members are also in `members` (inherited from
+ * sharp_declaration), which finds them BY NAME.
+ *
+ * Which of the three it is: `kind` (D_CLASS, D_INTERFACE, D_ENUM). They share
+ * this class because they share almost everything - an interface is a class
+ * whose functions have no bodies, an enum a class with a fixed set of values.
+ *
+ * BASE CLASS AND INTERFACES come in two steps, like every type (sharp_type.sharp):
+ *      base_type, interface_types      what is WRITTEN after `base` and `:`   (preprocessor)
+ *      base, interfaces                the classes those names mean           (postprocessor)
+ */
+class sharp_class base sharp_declaration {
+    type_parameters := new list<sharp_type_parameter>();    // <T, U>; empty for a class that is not generic
+
+    base_type : sharp_type?;                                // `base shape`; null when none is written
+    interface_types := new list<sharp_type>();              // `: printable, comparable`
+    base_class : sharp_class?;                              // resolved from base_type
+    interfaces := new list<sharp_class>();                  // resolved from interface_types
+    base_known : _int64 = 0;                                // 1 once base_class has been worked out (it may be null)
+
+    // `class mixin<T> base T` / `class tagged<T> : T` - what the class inherits from is one
+    // of its type parameters, so it is different in every instance and only known there
+    // (class_bases.sharp). The blueprint has `_object_` as its base meanwhile.
+    base_is_parameter : _int64 = 0;                         // 1: the name after `base` is a type parameter
+    inherits_from_parameter : _int64 = 0;                   // 1: the base, or a name after the `:`, is a type parameter
+
+    // What the type parameters of the base class / of each interface stand for
+    // in this class: `class money : comparable<money>` -> comparable's T is money
+    // (type_compare.sharp). interface_bindings.at(i) belongs to interfaces.at(i).
+    base_bindings : type_bindings?;
+    interface_bindings := new list<type_bindings>();
+
+    fields := new list<sharp_field>();
+    functions := new list<sharp_function>();
+    constructors := new list<sharp_function>();
+    init_blocks := new list<sharp_function>();
+    classes := new list<sharp_class>();                     // classes, interfaces and enums declared inside this one
+    aliases := new list<sharp_alias>();
+    enum_values := new list<sharp_enum_value>();            // only an enum has any
+
+    // ---- generic classes (backend/postprocessor/generics/generic_classes.sharp) ----
+    //
+    // `class box<T>` as written is a BLUEPRINT: T is not known, so it is not
+    // a class anything can have an object of. Each use with real types,
+    // box<string>, is an INSTANCE: a sharp_class of its own, made from the
+    // blueprint the first time that use is seen.
+    //
+    //      written         the class as it stands in the source: itself for a written
+    //                      class, the blueprint's for an instance, the copied class's
+    //                      for a class nested in an instance (box<string>.slot)
+    //      blueprint       the class this one was made from; null for a written class
+    //      type_arguments  on an instance: what each type parameter stands for
+    //      instance_key    on an instance: the canonical text of its arguments
+    //      environment     "T is string", chained to the class it is nested in; null
+    //                      for a class that has nothing to do with generics
+    //      instances       on a blueprint: its instances by key
+    //      instance_list   ... and in the order they were made
+    //      first_use       on an instance: the written type that made it - the first place
+    //                      in the source that names it. A mistake that only this instance
+    //                      shows is reported inside the generic class; this is the place
+    //                      a reader has to be sent to as well ("`box<_int64>` is used here")
+    written : sharp_class;
+    blueprint : sharp_class?;
+    type_arguments : list<resolved_type>?;      // (null for everything that is not an instance: most classes are not)
+    instance_key : string = "";
+    is_generic_instance : _int64 = 0;
+    environment : type_environment?;
+    instances : hash_map<string, sharp_class>?;
+    instance_list : list<sharp_class>?;         // (null until the first instance is made)
+    first_use : sharp_type?;
+    nesting_depth : _int64 = 0;         // box<box<string>>: 2. Stops instances that nest without end (E0352)
+    failed_constraint : _int64 = 0 - 1; // on an instance: the first type argument that breaks its `T base x`; -1 none
+    inside_refused_instance : _int64 = 0;   // on an instance: 1 when it was made while resolving the members of an instance whose
+                                            // type arguments were refused (E0351) - its bodies are not analysed either
+    constraints_checked : _int64 = 0;
+
+    // ---- what stage 5 works out (backend/postprocessor/members/members.sharp) ----
+    members_resolved : _int64 = 0;      // 1 once its members have their resolved types (for an instance: once they exist)
+    bases_resolved : _int64 = 0;        // 1 once base_class / interfaces are the classes this class really has
+    families_linked : _int64 = 0;       // 1 once its override functions know what they override (override_families.sharp)
+    open_state : _int64 = 0;            // 0 not asked yet, 1 a real class, 2 "open": a blueprint or inside one
+    plain_type : resolved_type?;        // the type "an object of this class" (resolved_type.sharp)
+    canonical_name : string?;           // class_key(), remembered
+    missing_reported : _int64 = 0;      // E0341 was reported for this class (once is enough)
+    // 1 when a declaration error means the list of its members cannot be trusted: the class is
+    // declared twice (which one has the member?), or a name after `base` / `:` is not a class
+    // that was found. "`x` has no member named ..." about such a class would be a follow-on of
+    // that error, so it is not said (compiler/names/no_member.sharp).
+    members_uncertain : _int64 = 0;
+    // 1 when the base class is only ASSUMED: `class job_failed : exception` (E0324) is checked as
+    // if `base exception` were written (inheritance/interfaces.sharp). What that base requires
+    // (E0341) is not asked: the assumption must not make messages of its own.
+    base_assumed : _int64 = 0;
+    default_constructor : sharp_function?;  // the constructor without parameters, written or added (constructors.sharp)
+
+    sharp_class(kind: _int64, name: string, unit: source_unit, node: _int64, owner: sharp_class?,
+                module: sharp_module) -> base(kind, name, unit, node, owner, module) {
+        members = new scope();
+        written = self;
+    }
+
+    // The names of the functions this class has ONLY through an interface (one
+    // it lists, or a class above it lists): promised there and not written
+    // in the class chain, or added to the interface as an extension function.
+    // Worked out once, on the first name lookup that misses the class chain
+    // (backend/compiler/names/class_members.sharp); null until then.
+    interface_only_names : hash_map<string, sharp_function>?;
+    remembered_members : name_table<remembered_name>?;    // answers of member lookup by name (sharp_declaration.sharp)
+    bodies_analysed : _int64 = 0;           // 1 once the body stages have been through its members (backend/compiler/driver)
+    promise_checked : _int64 = 0;          // 1 once `unkept_promise` was worked out (expressions/calls/new_expression.sharp)
+    unkept_promise : sharp_function?;       // a function without a body that this class still has (W1033 on `new`); null: none
+    field_names : name_table<sharp_field>?;  // its fields and those above it, by name, nearest first (program/usage, W1036); made on first use
+
+    // ---- the order a class is initialised in (backend/compiler/initializers, doc/backend.md 7.15.2)
+    // What runs for every new object, in order, after the base constructor and
+    // before the constructor's own body: the instance fields that have a value
+    // or a default object (`count : int;`), in the order written, then the
+    // `init { }` blocks in the order written.
+    instance_initializers : list<sharp_declaration>?;
+    // What runs once, before the first object or static use of the class: the
+    // static fields with a value (in an order in which each comes after the
+    // static fields its value reads), the enum values, then the `static init { }` blocks.
+    static_initializers : list<sharp_declaration>?;
+    // `localized` static fields with a value: one value per fiber, so they run
+    // once for every fiber that starts (the C++ compiler's `tls_init`).
+    fiber_initializers : list<sharp_declaration>?;
+
+    /** made from a generic class with type arguments: box<string> */
+    def is_instance() : _int64 { return is_generic_instance; }
+
+    /**
+     * Is this a class whose types are not all known - a generic class as
+     * written, or a class inside one? Nothing can have an object of an open
+     * class; its declarations are checked and its bodies are not analysed.
+     */
+    def is_open() : _int64 {
+        if(open_state == 0) {
+            open_state = 1;
+            if(type_parameters.size().value > 0) { open_state = 2; }
+            else if(owner != null && owner!!.is_open()) { open_state = 2; }
+        }
+        return open_state == 2;
+    }
+
+    def is_interface() : _int64 { return kind == D_INTERFACE; }
+    def is_enum() : _int64 { return kind == D_ENUM; }
+
+    /**
+     * Is what this class inherits not known for sure - it, or a class above it,
+     * names a base class or interface that was not found, or is declared twice
+     * (`members_uncertain`)? Then a rule about what the class IS (a `throwable`,
+     * a `point` for `T base point`, the constructors of its base) cannot be
+     * judged, and saying it fails would repeat the declaration error.
+     */
+    def inherits_uncertainly() : _int64 {
+        up : sharp_class? = self;
+        for(depth : _int64 = 0; up != null && depth < 256; depth++) {
+            if(up!!.members_uncertain == 1 || up!!.written.members_uncertain == 1) { return 1; }
+            up = up!!.base_class;
+        }
+        return 0;
+    }
+    def is_generic() : _int64 { return type_parameters.size().value > 0; }
+}
+
+/** the T of `class box<T base number>`: a name that stands for a type inside the class or function */
+class sharp_type_parameter base sharp_declaration {
+    constraint : sharp_type?;       // `base number`: what the type must inherit from; null when anything goes
+    plain_type : resolved_type?;    // the type "whatever this stands for" (resolved_type.sharp)
+    endless_nesting_reported : _int64 = 0;     // 1: E0352 was reported for the class or function this parameter belongs to
+
+    sharp_type_parameter(name: string, unit: source_unit, node: _int64, owner: sharp_class?, module: sharp_module)
+            -> base(D_TYPE_PARAMETER, name, unit, node, owner, module) {
+    }
+}
+
+/** one value of an enum: `green = 5` */
+class sharp_enum_value base sharp_declaration {
+    value_node : _int64 = 0 - 1;    // the expression after `=`; -1 when the value is the next number
+    value_type : resolved_type?;    // the type of the value: its enum (set by stage 5)
+    has_number : _int64 = 0;        // 1: the declaration fixes its number (enum_values.sharp)
+    number : _int64 = 0;            // ... which is this
+    origin : sharp_enum_value?;     // on a value of an enum inside a generic instance: the value it was copied from
+
+    // ---- set by the body stages (backend/compiler/initializers/enum_values.sharp)
+    bound_value : bound_expression?;    // the expression written after `=`, analysed (a whole number); null when none
+    constant : constant_value?;         // its number when the program fixes it (written, or one more than a fixed one before it)
+
+    sharp_enum_value(name: string, unit: source_unit, node: _int64, owner: sharp_class?, module: sharp_module)
+            -> base(D_ENUM_VALUE, name, unit, node, owner, module) {
+    }
+}

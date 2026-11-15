@@ -1,0 +1,946 @@
+mod frontend.syntax.parser;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.syntax.parser.habits
+)
+
+/**
+ * PARSING EXPRESSIONS
+ *
+ * An expression is operands joined by operators, and the one question is how
+ * they group: is `a + b * c` the sum of a and (b * c), or (a + b) times c?
+ * Every operator has a BINDING POWER; the one with the higher power takes the
+ * operand that stands between two operators.
+ *
+ *      power   operators                       groups from
+ *        1     =  +=  -=  *=  /=  %=  &=  |=  ^=       the right   a = b = c    is  a = (b = c)
+ *        2     ?:                                      the right   a ?: b ?: c  is  a ?: (b ?: c)
+ *        3     ? :                                     the right   a ? b : c ? d : e
+ *        4     ||                                      the left
+ *        5     &&                                      the left
+ *        6     |                                       the left
+ *        7     ^                                       the left
+ *        8     &                                       the left
+ *        9     ==  !=                                  the left
+ *       10     <  >  <=  >=                            the left
+ *       11     <<  >>                                  the left
+ *       12     +  -                                    the left    a - b - c    is  (a - b) - c
+ *       13     *  /  %                                 the left
+ *       14     **                                      the right   2 ** 3 ** 2  is  2 ** (3 ** 2)
+ *       15     as  is                                  the left    a as t
+ *       --     -a  !a  ++a  --a                        prefix: tighter than every operator above
+ *       --     a!!  a++  a--  a[i]  a(x)  a.b          postfix: tightest of all
+ *
+ * The same order as C, C++, Java and Kotlin, so nothing here should surprise.
+ *
+ * HOW IT IS PARSED: "precedence climbing"
+ *
+ *      parse_binary(p, minimum):
+ *          left = one operand (with its prefix and postfix operators)
+ *          while the next token is an operator whose power >= minimum:
+ *              right = parse_binary(p, the operator's power + 1)
+ *              left = (left operator right)
+ *          return left
+ *
+ * `+ 1` is what makes an operator group from the left: the right side may not
+ * contain another operator of the same power. An operator that groups from the
+ * right passes its own power instead. That one loop replaces a function per
+ * level (the old parser had binaryLevel, equality, comparason, shift,
+ * addition, multiplication, exponent - seven copies of the same code).
+ *
+ *      Textbook names: operator precedence parsing; "Pratt parser" for the
+ *      general form. Dragon book section 4.6, Crafting Interpreters chapter 17.
+ *
+ * WHAT THE FUNCTIONS RETURN
+ * A node that has no parent yet. The caller decides where it goes - a binary
+ * operator makes the operand it has already parsed its own left child, which
+ * would be impossible had the operand been attached somewhere already.
+ */
+
+/** expression: the whole thing, assignments included */
+def parse_expression(p: parse_state) : _int64 {
+    // one level deeper, as in parse_statement (parse_state.sharp, PARSER_NESTING_LIMIT)
+    p.depth++;
+    if(p.depth > PARSER_NESTING_LIMIT) { throw new stack_overflow_exception("nested deeper than the parser follows"); }
+    expression : _int64 = parse_binary(p, 1);
+    p.depth--;
+    return expression;
+}
+
+/** parse an expression and make it the last child of `parent` */
+def parse_expression_into(p: parse_state, parent: _int64) : _int64 {
+    expression : _int64 = parse_expression(p);
+    p.tree.append(parent, expression);
+    return expression;
+}
+
+/**
+ * The binding power of the token as a BINARY operator, 0 when it is not one.
+ * (The table at the top of this file.)
+ */
+def binary_power(kind: _int64) : _int64 {
+    if(kind == P_ASSIGN || kind == P_PLUSEQ || kind == P_MINUSEQ || kind == P_MULTEQ || kind == P_DIVEQ
+       || kind == P_MODEQ || kind == P_ANDEQ || kind == P_OREQ || kind == P_XOREQ) { return 1; }
+    if(kind == P_ELVIS) { return 2; }
+    if(kind == P_QUESTION) { return 3; }
+    if(kind == P_OROR) { return 4; }
+    if(kind == P_ANDAND) { return 5; }
+    if(kind == P_OR) { return 6; }
+    if(kind == P_XOR) { return 7; }
+    if(kind == P_AND) { return 8; }
+    if(kind == P_EQEQ || kind == P_NOTEQ) { return 9; }
+    if(kind == P_LESS || kind == P_GREATER || kind == P_LTE || kind == P_GTE) { return 10; }
+    if(kind == P_SHL || kind == P_SHR) { return 11; }
+    if(kind == P_PLUS || kind == P_MINUS) { return 12; }
+    if(kind == P_STAR || kind == P_SLASH || kind == P_PERCENT) { return 13; }
+    if(kind == P_EXPONENT) { return 14; }
+    if(kind == K_AS || kind == K_IS) { return 15; }
+    return 0;
+}
+
+/** precedence climbing: see the top of this file */
+def parse_binary(p: parse_state, minimum: _int64) : _int64 {
+    // (no more locals here than needed: a `? :` chain recurses through this
+    // function once per link, and every local makes each level bigger)
+    left : _int64 = parse_unary(p);
+
+    for( ;; ) {
+        kind : _int64 = p.kind();
+        power : _int64 = binary_power(kind);
+        if(power == 0 && p.at(T_IDENTIFIER) && word_operator_here(p) != 0) {
+            // `a and b`, `o instanceof t`: a word where an operator belongs, read as
+            // the Sharp operator and reported (the habits package)
+            if(binary_power(word_operator_here(p)) < minimum) { return left; }
+            left = parse_word_operator(p, left);
+            continue;
+        }
+        if(power == 0 || power < minimum) {
+            return left;
+        }
+
+        if((kind == P_ANDAND || kind == P_OROR) && logical_assignment_here(p)) {
+            // `ok &&= check()`: read as `ok && check()`, reported (the habits package)
+            left = parse_logical_assignment(p, left);
+            continue;
+        }
+
+        if(power == 1) {
+            // target = value         (from the right: the value is a whole expression)
+            node : _int64 = p.node(N_ASSIGN);
+            p.advance();
+            p.tree.append(node, left);
+            p.tree.append(node, parse_binary(p, 1));
+            left = node;
+        } else if(power == 2) {
+            // value ?: fallback
+            node : _int64 = p.node(N_ELVIS);
+            p.advance();
+            p.tree.append(node, left);
+            p.tree.append(node, parse_binary(p, 2));
+            left = node;
+        } else if(power == 3) {
+            // condition ? when true : when false
+            node : _int64 = p.node(N_TERNARY);
+            p.advance();
+            p.tree.append(node, left);
+            p.tree.append(node, parse_binary(p, 2));
+            p.expect(P_COLON, "`:` and the value for when the condition is false");
+            p.tree.append(node, parse_binary(p, 3));
+            left = node;
+        } else if(power == 15) {
+            // value as type          value is type
+            node : _int64 = p.node(kind == K_AS ? N_CAST : N_IS);
+            p.advance();
+            p.tree.append(node, left);
+            parse_type(p, node);
+            left = node;
+        } else {
+            node : _int64 = p.node(N_BINARY);
+            if(read_triple_equals(p) == 0) { p.advance(); }      // `===` is read as `==`, reported (the habits package)
+            p.tree.append(node, left);
+            // ** groups from the right, every other operator from the left
+            p.tree.append(node, parse_binary(p, kind == P_EXPONENT ? power : power + 1));
+            left = node;
+        }
+    }
+    return left;
+}
+
+/**
+ * An operand with the operators that stand in front of it:
+ *
+ *      -a      !done       ++count     --count     - -a      !!flag (two nots)
+ *
+ * A prefix operator takes one operand, however many operators follow:
+ * `a * -b + c` is (a * (-b)) + c.
+ */
+def parse_unary(p: parse_state) : _int64 {
+    kind : _int64 = p.kind();
+
+    if(kind == P_MINUS || kind == P_NOT || kind == P_INC || kind == P_DEC) {
+        node : _int64 = p.node(N_UNARY);
+        p.advance();
+        p.tree.append(node, parse_unary(p));
+        return node;
+    }
+    if(kind == T_IDENTIFIER && word_not_here(p)) {
+        return parse_word_not(p);                       // `not done` (the habits package)
+    }
+
+    return parse_postfix(p, parse_primary(p));
+}
+
+/**
+ * Everything that can follow an operand, as often as it likes:
+ *
+ *      a.b     a?.b    a!!.b       a member
+ *      self->b  base->b            a member of this object / of its base class
+ *      a(x, y)                     a call, perhaps with a trailing lambda:  a(x) { ... }   a { ... }
+ *      a[i]                        an element
+ *      a!!                         "this is not null"
+ *      a++     a--
+ *
+ * `operand` is what was parsed so far; each round wraps it in a new node.
+ */
+def parse_postfix(p: parse_state, operand: _int64) : _int64 {
+    for( ;; ) {
+        kind : _int64 = p.kind();
+
+        if(kind == P_DOT || kind == P_SAFE_DOT || kind == P_FORCE_DOT) {
+            operand = parse_member(p, operand);
+        } else if(kind == P_ARROW && arrow_member_allowed(p, operand)) {
+            operand = parse_member(p, operand);
+        } else if(kind == P_LPAREN) {
+            call : _int64 = p.node(N_CALL);
+            p.tree.append(call, operand);
+            parse_arguments(p, call);
+            if(trailing_lambda_follows(p)) {
+                p.tree.append(call, parse_lambda(p));
+            }
+            operand = call;
+        } else if(kind == P_LBRACE && is_callable_name(p, operand) && trailing_lambda_follows(p)) {
+            // name { ... }: a call with no arguments but the lambda
+            call : _int64 = p.node(N_CALL);
+            p.tree.append(call, operand);
+            p.tree.add_child(call, N_ARGUMENTS, p.position);
+            p.tree.append(call, parse_lambda(p));
+            operand = call;
+        } else if(kind == P_LBRACKET) {
+            index : _int64 = p.node(N_INDEX);
+            p.advance();
+            p.tree.append(index, operand);
+            parse_expression_into(p, index);
+            while(p.accept(P_COMMA) == 1) {
+                parse_expression_into(p, index);
+            }
+            p.expect(P_RBRACKET, "`]`");
+            operand = index;
+        } else if(kind == P_FORCE) {
+            node : _int64 = p.node(N_NOT_NULL);
+            p.advance();
+            p.tree.append(node, operand);
+            operand = node;
+        } else if(kind == P_INC || kind == P_DEC) {
+            node : _int64 = p.node(N_POSTFIX);
+            p.advance();
+            p.tree.append(node, operand);
+            operand = node;
+        } else {
+            return operand;
+        }
+    }
+    return operand;
+}
+
+/** `->` reaches a member only right after `self` or `base`; everywhere else it belongs to a lambda or a when clause */
+def arrow_member_allowed(p: parse_state, operand: _int64) : _int64 {
+    kind : _int64 = p.tree.kinds!![operand];
+    return (kind == N_SELF || kind == N_BASE_VALUE) && p.peek(1) == T_IDENTIFIER;
+}
+
+/** only a name or a member can be called by writing a lambda after it: `launch { }`, `xs.filter { }` */
+def is_callable_name(p: parse_state, operand: _int64) : _int64 {
+    kind : _int64 = p.tree.kinds!![operand];
+    return kind == N_IDENTIFIER || kind == N_MEMBER || kind == N_MODULE_NAME;
+}
+
+/** .name   ?.name   !!.name   ->name     (the current token is the dot or the arrow) */
+def parse_member(p: parse_state, target: _int64) : _int64 {
+    member : _int64 = p.node(N_MEMBER);
+    p.advance();
+    p.tree.append(member, target);
+
+    if(p.at(T_IDENTIFIER)) {
+        p.tree.append(member, parse_identifier(p));
+    } else if(p.at(K_OPERATOR)) {
+        p.tree.append(member, parse_operator_name(p));      // a.operator+(b)
+    } else {
+        p.error("expected the name of a member");
+    }
+    return member;
+}
+
+/** value_list: ( a, b, c ) */
+def parse_arguments(p: parse_state, parent: _int64) : _int64 {
+    arguments : _int64 = p.child(parent, N_ARGUMENTS);
+    opener : _int64 = p.position;
+    p.expect(P_LPAREN, "`(`");
+    if(!p.at(P_RPAREN)) {
+        parse_expression_into(p, arguments);
+        while(p.accept(P_COMMA) == 1) {
+            parse_expression_into(p, arguments);
+        }
+    }
+    p.expect_closing(P_RPAREN, "`)` at the end of the arguments", opener);
+    return arguments;
+}
+
+/**
+ * A name used as a value, with generic arguments when it has them:
+ *
+ *      count       comparator<string>      first_or<int>
+ *
+ * `<` after a name is also "less than". It is a generic list when what stands
+ * between `<` and the matching `>` can only be types AND a `(` or a `.`
+ * follows: `make<int>(5)`, `box<int>.empty`. Otherwise `a < b` is a comparison.
+ * (The same rule C# uses.)
+ */
+def parse_identifier(p: parse_state) : _int64 {
+    identifier : _int64 = p.node(N_IDENTIFIER);
+    p.advance();
+
+    if(p.at(P_LESS) && generic_arguments_follow(p)) {
+        p.advance();
+        parse_type(p, identifier);
+        while(p.accept(P_COMMA) == 1) {
+            parse_type(p, identifier);
+        }
+        close_generic(p);
+    }
+    return identifier;
+}
+
+/** see parse_identifier; the current token is the `<` */
+def generic_arguments_follow(p: parse_state) : _int64 {
+    depth : _int64 = 0;
+    ahead : _int64 = 0;
+
+    for( ;; ) {
+        kind : _int64 = p.peek(ahead);
+
+        if(kind == P_LESS) { depth++; }
+        else if(kind == P_GREATER) { depth--; }
+        else if(kind == P_SHR) { depth -= 2; }
+        else if(kind != T_IDENTIFIER && kind != P_COMMA && kind != P_DOT && kind != P_HASH
+                && kind != P_QUESTION && kind != P_LBRACKET && kind != P_RBRACKET
+                && kind != P_LPAREN && kind != P_RPAREN && kind != K_NIL && !is_native_type(kind)) {
+            return 0;       // something no type contains
+        }
+
+        ahead++;
+        if(depth <= 0) {
+            after : _int64 = p.peek(ahead);
+            // `twice<int>;` / `f(twice<int>)`: no comparison ends in `>` with nothing after
+            // it, so a name with type arguments used as a value is read as one (the backend
+            // then says what a generic function named as a value means, E0805)
+            return after == P_LPAREN || after == P_DOT || after == P_SAFE_DOT || after == P_FORCE_DOT
+                || after == P_SEMICOLON || after == P_RPAREN || after == P_COMMA;
+        }
+    }
+    return 0;
+}
+
+/**
+ * primary_expr: an operand with no operator around it.
+ *
+ *      12   1.5   0xff   "text"   'c'   true   false   null
+ *      name   std.io#name   self   base
+ *      new point(1, 2)      new int[5]      new string[] { "a", "b" }
+ *      ( expression )       sizeof(x)
+ *      { a, b -> a + b }    { 1, 2, 3 }     { "k" : v }
+ */
+def parse_primary(p: parse_state) : _int64 {
+    kind : _int64 = p.kind();
+
+    if(kind == T_INTEGER || kind == T_DECIMAL || kind == T_HEX || kind == T_STRING || kind == T_CHAR
+       || kind == K_TRUE || kind == K_FALSE) {
+        stuck_letters : _int64 = check_literal(p);      // too large, a bad escape, ... (literals.sharp)
+        literal : _int64 = p.node(N_LITERAL);
+        p.advance();
+        if(stuck_letters == 1) { p.advance(); }         // 10L: the L was reported, it is not looked at again
+        return literal;
+    }
+
+    if(kind == T_STRING_BEGIN) {
+        return parse_string_template(p);
+    }
+
+    if(kind == T_ERROR) {
+        broken : _int64 = p.node(N_ERROR);
+        report_bad_token(p);
+        p.advance();
+        return broken;
+    }
+
+    if(kind == T_IDENTIFIER) {
+        if(module_path_follows(p)) {
+            // std.io#name
+            named : _int64 = p.node(N_MODULE_NAME);
+            parse_module_path(p, named);
+            if(p.at(T_IDENTIFIER)) {
+                p.tree.append(named, parse_identifier(p));
+            } else {
+                p.error("expected a name after `#`");
+            }
+            return named;
+        }
+        return parse_identifier(p);
+    }
+
+    if(kind == K_SELF) {
+        node : _int64 = p.node(N_SELF);
+        p.advance();
+        return node;
+    }
+
+    if(kind == K_NULL) {
+        node : _int64 = p.node(N_NULL);
+        p.advance();
+        return node;
+    }
+
+    if(kind == K_BASE) {
+        // base     base@type  (which base class, when there is a choice)
+        node : _int64 = p.node(N_BASE_VALUE);
+        p.advance();
+        if(p.accept(P_AT) == 1) {
+            parse_type(p, node);
+        }
+        return node;
+    }
+
+    if(kind == K_NEW) {
+        return parse_new(p);
+    }
+
+    if(kind == P_LPAREN) {
+        if(c_cast_end(p) >= 0) { return parse_c_cast(p, c_cast_end(p)); }      // `(string) o` (the habits package)
+        node : _int64 = p.node(N_PAREN);
+        opener : _int64 = p.position;
+        p.advance();
+        parse_expression_into(p, node);
+        p.expect_closing(P_RPAREN, "`)`", opener);
+        return node;
+    }
+
+    if(kind == K_SIZEOF) {
+        node : _int64 = p.node(N_SIZEOF);
+        p.advance();
+        p.expect(P_LPAREN, "`(`");
+        parse_expression_into(p, node);
+        p.expect(P_RPAREN, "`)`");
+        return node;
+    }
+
+    if(kind == P_LBRACE) {
+        return parse_brace_expression(p);
+    }
+
+    if(kind == K_GET) {
+        return parse_get_component(p);
+    }
+
+    if(kind == K_OPERATOR) {
+        return parse_operator_name(p);
+    }
+
+    if(kind == K_NIL) {
+        node : _int64 = p.node(N_ERROR);
+        report_nil_value(p);                            // `x = nil;` (the habits package)
+        return node;
+    }
+
+    // nothing an expression can start with
+    node : _int64 = p.node(N_ERROR);
+    report_missing_expression(p);
+    return node;
+}
+
+/**
+ * A string with values worked into it (the current token is its first piece):
+ *
+ *      "total: ${a + b} $unit"
+ *
+ * The tokenizer has already cut it up (T_STRING_BEGIN in lexer.sharp): pieces
+ * of text with ordinary tokens between them. Here the pieces become N_LITERAL
+ * children and what stands between them is parsed like any other expression -
+ * so `${ }` can hold anything an expression can, strings with their own
+ * `${ }` included.
+ *
+ *      $name       one name, nothing more: "$user.name" is the value of `user` followed by the text ".name"
+ *      ${ ... }    any expression:         "${user.name}"
+ *
+ * The whole string is ONE value: "n=$n".size() is the size of the finished
+ * text. (The old compiler rewrote the string into "n=" + n before parsing,
+ * so the .size() went to `n`.)
+ */
+def parse_string_template(p: parse_state) : _int64 {
+    template : _int64 = p.node(N_STRING_TEMPLATE);
+    check_literal(p);
+    p.child(template, N_LITERAL);
+    p.advance();
+
+    for( ;; ) {
+        // a value ...
+        if(p.at(P_INTERP_OPEN)) {
+            opener : _int64 = p.position;
+            p.advance();
+            if(p.at(P_INTERP_CLOSE)) {
+                p.error("there is nothing between `$${` and `}`")
+                 .with_label("expected a value here")
+                 .with_help("write a value: \"$${count + 1}\"; to have the characters $${ in the text itself, write the dollar sign twice");
+            } else {
+                parse_expression_into(p, template);
+            }
+
+            if(p.at(T_ERROR)) {
+                // the line ended inside the $${ ... }
+                p.line_lost = 1;
+                p.report_at(opener, "E0115", "this `$${` is never closed", p.start_of(opener), p.end_of(opener))
+                 .with_label("no `}` for it on this line")
+                 .with_note("a string, and everything inside it, ends on the line it starts on")
+                 .with_help("add the `}` and the closing quote");
+                p.advance();
+                return template;
+            }
+            p.expect_closing(P_INTERP_CLOSE, "`}` to end the `$${`", opener);
+        } else if(p.at(T_IDENTIFIER)) {
+            p.child(template, N_IDENTIFIER);
+            p.advance();
+        } else {
+            return template;        // the tokenizer reported a string that does not end
+        }
+
+        // ... then text again
+        if(p.at(T_STRING_MIDDLE)) {
+            check_literal(p);
+            p.child(template, N_LITERAL);
+            p.advance();
+        } else if(p.at(T_STRING_END)) {
+            check_literal(p);
+            p.child(template, N_LITERAL);
+            p.advance();
+            return template;
+        } else {
+            if(p.at(T_ERROR)) {
+                report_bad_token(p);
+                p.advance();
+            } else {
+                p.error("the string is not finished")
+                 .with_label("expected the rest of the string here");
+            }
+            return template;
+        }
+    }
+    return template;
+}
+
+/**
+ * The tokenizer could not make a token of the characters here. Say which of
+ * the few possible reasons it is.
+ */
+def report_bad_token(p: parse_state) {
+    from : _int64 = p.start_of(p.position);
+    first : _int64 = p.source[from];
+
+    if(first == '"' || p.kind() != T_ERROR || (p.position > 0 && is_string_piece(p.kinds[p.position - 1]))) {
+        p.line_lost = 1;
+        p.report_at(p.position, "E0115", "this string is never closed", from, from + 1)
+         .with_label("the string that starts here has no closing `\"` on this line")
+         .with_note("a string ends on the line it starts on")
+         .with_help("add the closing quote; for a long text join pieces with `+`, and for a line break in the text write \\n");
+    } else if(first == '\'') {
+        p.report_at(p.position, "E0115", "this character literal is never closed", from, from + 1)
+         .with_label("no closing `'` on this line")
+         .with_help("a character literal is one character between single quotes: 'a'. Text goes in double quotes");
+    } else {
+        p.report("E0116", "this character cannot be used here")
+         .with_label("not part of the language")
+         .with_help("if it belongs to a text, the text has to be in quotes");
+    }
+}
+
+def is_string_piece(kind: _int64) : _int64 {
+    return kind == T_STRING_BEGIN || kind == T_STRING_MIDDLE || kind == P_INTERP_CLOSE || kind == T_IDENTIFIER;
+}
+
+/**
+ * A value was expected and the current token cannot start one. Say what was
+ * found, and for the usual causes what to do.
+ */
+def report_missing_expression(p: parse_state) {
+    kind : _int64 = p.kind();
+    found := p.describe_current();
+
+    if(kind == P_RPAREN || kind == P_RBRACKET || kind == P_RBRACE || kind == P_SEMICOLON || kind == P_COMMA) {
+        // `f(a, )`  `x = ;`  `a + )`: the value is simply not there
+        where : _int64 = p.start_of(p.position);
+        if(p.position > 0) { where = p.end_of(p.position - 1); }
+        p.report_at(p.position, "E0102", "a value is missing here", where, where + 1)
+         .with_label("expected a value before " + found);
+    } else if(kind >= T_KEYWORD && is_native_type(kind) && function_type_end(p) > p.position) {
+        // `x := (_int64)(_int64);` - the whole of a function type, not only its first part
+        last : _int64 = function_type_end(p);
+        from : _int64 = p.start_of(p.position - 1);
+        to : _int64 = p.end_of(last);
+        p.report_at(p.position, "E0102", "expected a value, found the function type `" + new string(p.source, from, to) + "`", from, to)
+         .with_label("a type is not a value")
+         .with_help("a value of a function type is a lambda or a function's name: `x : " + new string(p.source, from, to) + " = { ... };`");
+    } else if(kind >= T_KEYWORD && is_native_type(kind)) {
+        p.report("E0102", "expected a value, found the type " + found)
+         .with_label("a type is not a value")
+         .with_help("to make a value of this type write a number, or a variable declared with it:  x : " + p.current_text() + " = 0;");
+    } else if(kind >= T_KEYWORD) {
+        p.report("E0102", "expected a value, found the keyword " + found)
+         .with_label("this word starts a statement, it is not a value");
+    } else if(kind == T_EOF) {
+        p.report("E0102", "expected a value, but the file ends here")
+         .with_label("the file ends in the middle of an expression");
+    } else {
+        p.report("E0102", "expected a value, found " + found)
+         .with_label("a value cannot start with this");
+    }
+}
+
+/**
+ * When the current token begins the parameter list of a function type that
+ * stands where a value is expected - `(` before it, then `( ... )( ... )` -
+ * the index of the token that closes the type (its second `)`); -1 when the
+ * tokens are not a function type. Only types, commas and `nil` may stand
+ * inside the parentheses.
+ */
+def function_type_end(p: parse_state) : _int64 {
+    if(p.position == 0 || p.kinds[p.position - 1] != P_LPAREN) { return 0 - 1; }
+    index : _int64 = p.position;
+    groups : _int64 = 0;
+    while(index < p.count && groups < 2) {
+        kind : _int64 = p.kinds[index];
+        if(kind == P_RPAREN) {
+            groups++;
+            if(groups == 2) { return index; }
+            if(index + 1 >= p.count || p.kinds[index + 1] != P_LPAREN) { return 0 - 1; }
+            index += 2;
+            continue;
+        }
+        if(kind != P_COMMA && kind != K_NIL && kind != T_IDENTIFIER && kind != P_LBRACKET && kind != P_RBRACKET
+           && kind != P_QUESTION && !is_native_type(kind)) { return 0 - 1; }
+        index++;
+    }
+    return 0 - 1;
+}
+
+/**
+ * An operator function named like any other function, usually to call it:
+ *
+ *      operator+(other)        self.operator==(other)      operator[](3)
+ *
+ * Node: N_IDENTIFIER whose token is the word `operator`; its N_OPERATOR_NAME
+ * child holds the operator.
+ */
+def parse_operator_name(p: parse_state) : _int64 {
+    identifier : _int64 = p.node(N_IDENTIFIER);
+    p.advance();
+
+    p.child(identifier, N_OPERATOR_NAME);
+    if(p.accept(P_LBRACKET) == 1) {
+        p.expect(P_RBRACKET, "`]`: the index operator is written `operator[]`");
+    } else if(binary_power(p.kind()) > 0 || p.at(P_NOT) || p.at(P_INC) || p.at(P_DEC)) {
+        p.advance();
+    } else {
+        p.error("expected an operator after `operator`");
+    }
+    return identifier;
+}
+
+/**
+ * new_expr:
+ *
+ *      new point(1, 2)             an object
+ *      new int[5]                  an array of 5
+ *      new string[] { "a", "b" }   an array with these items
+ */
+def parse_new(p: parse_state) : _int64 {
+    start : _int64 = p.position;
+    p.advance();
+
+    holder : _int64 = p.tree.add(N_NEW, start);
+    parse_naked_type(p, holder);
+
+    if(p.at(P_LBRACKET)) {
+        p.tree.kinds!![holder] = N_NEW_ARRAY;
+        p.advance();
+        if(p.accept(P_RBRACKET) == 1) {
+            // new t[] { items }
+            if(p.at(P_LBRACE)) {
+                p.tree.append(holder, parse_array_literal(p));
+            } else {
+                p.error("expected `{` and the items of the array");
+            }
+        } else {
+            parse_expression_into(p, holder);
+            p.expect(P_RBRACKET, "`]`");
+        }
+    } else if(p.at(P_LPAREN)) {
+        parse_arguments(p, holder);
+    } else {
+        p.error("expected `(` or `[` after the type");
+    }
+    return holder;
+}
+
+/**
+ * `{` where an expression is expected is one of three things:
+ *
+ *      { a, b -> a + b }       a lambda:       an arrow follows the parameter names
+ *      { "k" : v, "j" : w }    a dictionary:   a `:` follows the first item  (or `{ : }`, `{ as <k, v> : }`)
+ *      { 1, 2, 3 }             an array:       everything else
+ */
+def parse_brace_expression(p: parse_state) : _int64 {
+    if(lambda_arrow_follows(p)) {
+        return parse_lambda(p);
+    }
+
+    if(p.peek(1) == P_COLON || p.peek(1) == K_AS) {
+        return parse_dictionary(p);
+    }
+
+    // the first item decides between an array and a dictionary
+    start : _int64 = p.position;
+    p.advance();
+    if(p.at(P_RBRACE)) {
+        empty : _int64 = p.tree.add(N_ARRAY_LITERAL, start);
+        p.advance();
+        return empty;
+    }
+
+    first : _int64 = parse_expression(p);
+    if(p.at(P_COLON)) {
+        dictionary : _int64 = p.tree.add(N_DICTIONARY, start);
+        parse_dictionary_pairs(p, dictionary, first);
+        return dictionary;
+    }
+
+    array : _int64 = p.tree.add(N_ARRAY_LITERAL, start);
+    p.tree.append(array, first);
+    while(p.accept(P_COMMA) == 1) {
+        if(p.at(P_RBRACE)) { break; }       // a comma after the last item is fine
+        parse_expression_into(p, array);
+    }
+    p.expect(P_RBRACE, "`}` at the end of the array");
+    return array;
+}
+
+/** vector_array: { a, b, c }   (the current token is the `{`) */
+def parse_array_literal(p: parse_state) : _int64 {
+    array : _int64 = p.node(N_ARRAY_LITERAL);
+    p.advance();
+    if(!p.at(P_RBRACE)) {
+        parse_expression_into(p, array);
+        while(p.accept(P_COMMA) == 1) {
+            if(p.at(P_RBRACE)) { break; }
+            parse_expression_into(p, array);
+        }
+    }
+    p.expect(P_RBRACE, "`}` at the end of the array");
+    return array;
+}
+
+/** dictionary:  { : }    { as <string, int> : }    { as <string, int> "a" : 1 }   (starts at the `{`) */
+def parse_dictionary(p: parse_state) : _int64 {
+    dictionary : _int64 = p.node(N_DICTIONARY);
+    p.advance();
+
+    if(p.accept(K_AS) == 1) {
+        types : _int64 = p.child(dictionary, N_DICTIONARY_TYPE);
+        p.expect(P_LESS, "`<` and the key and value types");
+        parse_type(p, types);
+        p.expect(P_COMMA, "`,` between the key type and the value type");
+        parse_type(p, types);
+        close_generic(p);
+    }
+
+    if(p.accept(P_COLON) == 1) {
+        // an empty dictionary
+        p.expect(P_RBRACE, "`}`");
+        return dictionary;
+    }
+
+    parse_dictionary_pairs(p, dictionary, parse_expression(p));
+    return dictionary;
+}
+
+/** key : value { , key : value } "}"  - the first key is already parsed */
+def parse_dictionary_pairs(p: parse_state, dictionary: _int64, first_key: _int64) {
+    key : _int64 = first_key;
+    for( ;; ) {
+        pair : _int64 = p.child(dictionary, N_DICTIONARY_PAIR);
+        p.tree.append(pair, key);
+        p.expect(P_COLON, "`:` between a key and its value");
+        parse_expression_into(p, pair);
+
+        if(p.accept(P_COMMA) == 0 || p.at(P_RBRACE)) { break; }
+        key = parse_expression(p);
+    }
+    p.expect(P_RBRACE, "`}` at the end of the dictionary");
+}
+
+/**
+ * Is the `{` at the current position the start of a lambda WITH an arrow?
+ *
+ *      { -> ...            { a -> ...          { a, b -> ...       { a: int, b: list<int> -> ...
+ *
+ * Between the `{` and the `->` there are only parameter names and types.
+ * Anything else first (a `;`, an operator, a call ...) and it is not one.
+ */
+def lambda_arrow_follows(p: parse_state) : _int64 {
+    ahead : _int64 = 1;
+    for( ;; ) {
+        kind : _int64 = p.peek(ahead);
+        if(kind == P_ARROW) { return 1; }
+
+        if(kind != T_IDENTIFIER && kind != P_COMMA && kind != P_COLON && kind != P_DOT && kind != P_HASH
+           && kind != P_LESS && kind != P_GREATER && kind != P_SHR && kind != P_QUESTION
+           && kind != P_LBRACKET && kind != P_RBRACKET && kind != P_LPAREN && kind != P_RPAREN
+           && kind != K_NIL && !is_native_type(kind)) {
+            return 0;
+        }
+        ahead++;
+    }
+    return 0;
+}
+
+/**
+ * Does a lambda follow a call or a name, as its last argument?
+ *
+ *      items.for_each { println(it); }
+ *      launch(scope) { work(); }
+ *
+ * The `{` must be on the same line as what it follows: a `{` on a new line
+ * starts a block of its own. (The old parser took that block as a lambda too.)
+ */
+def trailing_lambda_follows(p: parse_state) : _int64 {
+    return p.at(P_LBRACE) && p.same_line(p.position - 1, p.position);
+}
+
+/**
+ * lambda_function, written out or implicit (the current token is the `{`):
+ *
+ *      { a: int, b: int -> (int) return a + b; }       parameters, the type it returns, statements
+ *      { a, b -> a.value + b.value }                   untyped parameters: their types come from where the lambda is used
+ *      { -> work(); }                                  no parameters
+ *      { println(it); }                                no arrow at all: one parameter called `it`, if the body uses it
+ *
+ * Node: N_LAMBDA with N_PARAMETERS, an optional N_RETURN_TYPE, and N_BLOCK.
+ */
+def parse_lambda(p: parse_state) : _int64 {
+    has_arrow : _int64 = lambda_arrow_follows(p);
+    lambda : _int64 = p.node(N_LAMBDA);
+    p.advance();
+
+    parameters : _int64 = p.child(lambda, N_PARAMETERS);
+    if(has_arrow == 1) {
+        while(!p.at(P_ARROW) && !p.at_end()) {
+            parameter : _int64 = p.child(parameters, N_PARAMETER);
+            p.expect(T_IDENTIFIER, "the name of a parameter");
+            if(p.accept(P_COLON) == 1) {
+                parse_type(p, parameter);
+            }
+            if(p.accept(P_COMMA) == 0) { break; }
+        }
+        p.expect(P_ARROW, "`->`");
+
+        if(lambda_return_type_follows(p)) {
+            result : _int64 = p.child(lambda, N_RETURN_TYPE);
+            p.advance();
+            if(p.accept(K_NIL) == 0) {
+                parse_type(p, result);
+            }
+            p.expect(P_RPAREN, "`)`");
+        }
+    }
+
+    body : _int64 = p.child(lambda, N_BLOCK);
+    parse_statements_until_brace(p, body);
+    p.expect(P_RBRACE, "`}` at the end of the lambda");
+    return lambda;
+}
+
+/**
+ * lambda_return_type: `(type)` or `(nil)` right after the arrow.
+ *
+ *      { x: decimal -> (decimal) return x * 2; }       a return type
+ *      { x -> (x + 1).to_string() }                    an expression in parentheses
+ *
+ * It is a return type when the parentheses hold nothing but a type and a
+ * statement begins after them - not a `.`, an operator or the end of the lambda.
+ */
+def lambda_return_type_follows(p: parse_state) : _int64 {
+    if(!p.at(P_LPAREN)) { return 0; }
+
+    depth : _int64 = 0;
+    ahead : _int64 = 0;
+    for( ;; ) {
+        kind : _int64 = p.peek(ahead);
+        if(kind == P_LPAREN) { depth++; }
+        else if(kind == P_RPAREN) { depth--; }
+        else if(kind != T_IDENTIFIER && kind != P_COMMA && kind != P_COLON && kind != P_DOT && kind != P_HASH
+                && kind != P_LESS && kind != P_GREATER && kind != P_SHR && kind != P_QUESTION
+                && kind != P_LBRACKET && kind != P_RBRACKET && kind != K_NIL && !is_native_type(kind)) {
+            return 0;
+        }
+
+        ahead++;
+        if(depth == 0) { break; }
+    }
+
+    after : _int64 = p.peek(ahead);
+    if(after == P_RBRACE || after == P_SEMICOLON || after == P_COMMA || after == P_RPAREN
+       || after == P_LBRACKET || after == P_LPAREN || after == P_FORCE
+       || after == P_DOT || after == P_SAFE_DOT || after == P_FORCE_DOT || after == P_INC || after == P_DEC) {
+        return 0;
+    }
+    return binary_power(after) == 0;
+}
+
+/**
+ * get_component: ask the dependency injection system for an object
+ *
+ *      get<service>()      get<service>("named")       get("named", app)       get(app)
+ */
+def parse_get_component(p: parse_state) : _int64 {
+    node : _int64 = p.node(N_GET_COMPONENT);
+    p.advance();
+
+    if(p.accept(P_LESS) == 1) {
+        parse_type(p, node);
+        close_generic(p);
+    }
+
+    p.expect(P_LPAREN, "`(`");
+    if(p.at(T_STRING)) {
+        p.child(node, N_LITERAL);
+        p.advance();
+        if(p.accept(P_COMMA) == 1) {
+            p.child(node, N_NAME);
+            p.expect(T_IDENTIFIER, "the name of a component");
+        }
+    } else if(p.at(T_IDENTIFIER)) {
+        p.child(node, N_NAME);
+        p.advance();
+    }
+    p.expect(P_RPAREN, "`)`");
+    return node;
+}

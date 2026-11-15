@@ -1,0 +1,103 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * A FUNCTION THAT HIDES ONE OF ITS BASE CLASS
+ *
+ *      class base_node { def plain(s: string) : string { return "base"; } }
+ *      class leaf base base_node {
+ *          def plain(s: string) : string { return "leaf"; }      W1041
+ *      }
+ *
+ * In Sharp only a function WITHOUT a body is replaced at run time (an
+ * interface function, or `def f(...);` in a class, defined below with
+ * `override`). A function with a body is never replaced: `leaf.plain` above
+ * does not override `base_node.plain`, it stands beside it under the same
+ * name and parameters. What that means differs by place:
+ *
+ *      new leaf().plain(new string("x"))   "leaf"  - the nearer one
+ *      b : base_node = new leaf();
+ *      b.plain(new string("x"))            "base"  - not replaced
+ *      new leaf().plain("x")               the C++ compiler: "call to method
+ *                                          `plain` is ambiguous" (the argument
+ *                                          needs a conversion, so both fit)
+ *
+ * This compiler takes the nearer function in every case (member_lookup.sharp:
+ * the lower one hides the one above, D44), which is wider than the C++
+ * compiler on the third line. The warning at the declaration says what the
+ * function really does, and how to get run-time choice if that was meant.
+ *
+ * The same holds for two `static` functions (`leaf.make("x")` is ambiguous
+ * for the C++ compiler when `base_node` has a `make(string)` too), and for a
+ * `private` one above: both get the warning, with the words that fit.
+ *
+ * It is given for functions WITH parameters only: without any, no call can
+ * be ambiguous, and `def to_string()` written below `_object_` is everyday
+ * code.
+ *
+ *      C++ comparison: no counterpart; the ambiguity is found at each call
+ *      in dependency.cpp (`resolve_function_reference_item`).
+ */
+def warn_if_hides_defined(prog: sharp_program, declared: sharp_class, function: sharp_function) {
+    if(declared.blueprint != null || function.is_generic()) { return; }
+    // (without parameters no call can be ambiguous; `to_string()` redefined below
+    // `_object_` is the everyday case, and warning about each would be noise)
+    if(function.parameters.size() == 0) { return; }
+    hidden := defined_above_with_same_parameters(prog, declared, function);
+    if(hidden == null) { return; }
+    above : sharp_class = hidden!!.owner!!;
+    lower := "`" + declared.name + "." + function.name + "`";
+    upper := "`" + above.name + "." + function.name + "`";
+
+    d := error_at_node("W1041", lower + " hides " + upper + ", which has the same parameters", function.unit, function.node);
+    d.with_related_place(place_of_node(hidden!!.unit, hidden!!.node, upper + " is declared here, with a body"));
+    if(function.has(FLAG_STATIC)) {
+        d.with_label("a second `" + function.name + "` with these parameters");
+        d.with_note("`" + declared.name + "." + function.name + "(...)` calls this one and `" + above.name + "." + function.name
+                    + "(...)` the other: two functions that share a name");
+    } else {
+        d.with_label("not an override: a function with a body is never replaced");
+        d.with_note("on a `" + declared.name + "` this one is called; through a variable of type `" + above.name
+                    + "` the one of `" + above.name + "` runs, even when the object is a `" + declared.name + "`");
+        d.with_help("to choose by the object's class when the program runs, declare `" + function.name + "` in `" + above.name
+                    + "` without a body (`def " + function.name + "(...);`) and define it here with `override def " + function.name + "`");
+    }
+    d.with_note("a call of it whose argument needs converting (a text literal given for a `string`) is refused as ambiguous by the first Sharp compiler");
+    if(function.has(FLAG_STATIC)) { d.with_help("give this function a name of its own"); }
+    else { d.with_help("or give this function a name of its own"); }
+    prog.problems.add(d.as_warning());
+}
+
+/**
+ * The function with a body, in a base class of `declared`, with the name and
+ * exactly the parameter types of `function` - a static one for a static
+ * function, an instance one for an instance function; null when none.
+ */
+def defined_above_with_same_parameters(prog: sharp_program, declared: sharp_class, function: sharp_function) : sharp_function? {
+    up : sharp_class? = declared.base_class;
+    for(depth : _int64 = 0; up != null && depth < 256; depth++) {
+        ensure_members(prog, up!!);
+        if(up!!.members != null) {
+            same_name := up!!.members!!.find(function.name);
+            if(same_name != null) {
+                for(i : _int64 = 0; i < same_name!!.size(); i++) {
+                    candidate := same_name!!.at(i);
+                    if(candidate.kind != D_FUNCTION) { continue; }
+                    other := candidate as sharp_function;
+                    if(other.has_body() && other.has(FLAG_STATIC) == function.has(FLAG_STATIC) && !other.is_generic()
+                       && same_resolved_parameters(other, function)) { return other; }
+                }
+            }
+        }
+        up = up!!.base_class;
+    }
+    return null;
+}

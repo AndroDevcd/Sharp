@@ -1,0 +1,212 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.postprocessor.members,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions
+)
+
+/**
+ * MAKING AN OBJECT:  new point(1, 2)   point(1, 2)   new list<string>()   list<int>()
+ *
+ * The class is named; one of ITS constructors is chosen by overload
+ * resolution (the constructors of a base class are not candidates: they make
+ * a base-class object), and runs on the new object.
+ *
+ *      new point(1, 2)         the constructor point(x: decimal, y: decimal)
+ *      new point()             every class has a constructor without parameters - the
+ *                              compiler adds one where none is written (7.7.5)
+ *      point(1, 2)             the same, written without `new` (the old compiler's
+ *                              `resolve_class_construction`): a call whose name is a class
+ *
+ * What cannot be made:
+ *
+ *      new printable()         an interface has no bodies                      E0507
+ *      new color()             an enum's values are made by the compiler        E0507 (D26)
+ *      new _enum_(...)         an `ext` class is made only by the compiler      E0507
+ *      new decimal()           a number is not an object                        E0507
+ *      new point("a")          no constructor takes the arguments               E0506
+ *      new animal()            `animal` has `def speak();` without a body       W1033 (accepted, as in
+ *                              and nothing below gives one                      the C++ compiler)
+ *
+ * A private class is E0700 where it is named (stage 3); a private
+ * constructor used outside its class is W1022 (the C++ compiler does not
+ * check it).
+ *
+ *      C++ comparison: `compile_new_class_expression` in
+ *      primary/new_expression.cpp, `resolve_class_construction` in dependency.cpp.
+ */
+
+/** `new t(args)` */
+def analyse_new(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    type_node : _int64 = tree.child_of_kind(node, N_TYPE);
+    arguments := arguments_of(context, node);
+    if(type_node < 0) { return failed_call(context, node, null, arguments); }
+    made := resolve_type_at(context, type_node);
+    return construct(context, made, arguments, node, type_node, 0);
+}
+
+/**
+ * An object of `type` made with `arguments`.
+ *
+ * @param name_node    where the class is named, for messages
+ * @param without_new  1: written `point(1, 2)`
+ */
+def construct(context: analysis_context, type: resolved_type, arguments: list<call_argument>, node: _int64,
+              name_node: _int64, without_new: _int64) : bound_expression {
+    if(type.kind == RT_ERROR || type.is_open_type == 1) { return failed_call(context, node, null, arguments); }
+    if(!can_be_made(context, type, name_node)) { return failed_call(context, node, null, arguments); }
+
+    made : sharp_class = type.class_of!!;
+    ensure_members(context.prog, made);
+    result := resolve_overload(context, made.constructors, arguments, null, null);
+    if(result.best == null) {
+        if(has_error_argument(arguments) == 1) { return failed_call(context, node, null, arguments); }
+        if(result.tied.size() > 0) {
+            report_ambiguous(context, made.written.name, name_node, result.tied, arguments);
+        } else {
+            report_no_fit_with_help(context, "E0506", "no constructor of `" + made.qualified_name() + "` takes "
+                                    + argument_types_text(arguments), name_node, result.rejected, arguments,
+                                    inherited_constructor_help(context, made, arguments));
+        }
+        return failed_call(context, node, null, arguments);
+    }
+
+    chosen : call_candidate = result.best!!;
+    converted := new list<bound_expression>();
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        argument := arguments.at(i);
+        converted.add(argument_for(context, argument, chosen.conversions.at(i), chosen.function.parameters.at(i).value_type,
+                                   i, chosen.function.name));
+    }
+    check_function_access(context, chosen.function, name_node);
+    warn_if_promises_unkept(context, made, name_node);
+    made_object := new bound_new(context.unit, node, made, chosen.function, converted, type.as_non_null());
+    made_object.without_new = without_new;
+    return made_object;
+}
+
+/**
+ * The help for `new dog("rex")` when `dog` has no such constructor but the
+ * class above it does: constructors are not inherited (a habit from other
+ * languages), so the class must write one that hands the arguments on.
+ * "" when the base class has no constructor for these arguments either.
+ */
+def inherited_constructor_help(context: analysis_context, made: sharp_class, arguments: list<call_argument>) : string {
+    above := made.base_class;
+    if(above == null) { return ""; }
+    ensure_members(context.prog, above!!);
+    fitting := resolve_overload(context, above!!.constructors, arguments, null, null).best;
+    if(fitting == null || fitting!!.function.parameters.size() == 0) { return ""; }
+
+    parameters := new string_builder("");
+    names := new string_builder("");
+    for(i : _int64 = 0; i < fitting!!.function.parameters.size(); i++) {
+        parameter := fitting!!.function.parameters.at(i);
+        if(i > 0) { parameters.append(", "); names.append(", "); }
+        parameters.append(parameter.name + ": ");
+        if(parameter.value_type != null) { parameters.append(parameter.value_type!!.to_text()); }
+        names.append(parameter.name);
+    }
+    name := made.written.name;
+    return "constructors are not inherited: the base class `" + above!!.written.name + "` has one for these arguments, `" + name
+           + "` has not. Add it: `" + name + "(" + parameters.build() + ") -> base(" + names.build() + ") { }`";
+}
+
+/** E0507 for what cannot have an object made with `new` */
+def can_be_made(context: analysis_context, type: resolved_type, node: _int64) : _int64 {
+    why := "";
+    if(type.is_array == 1) {
+        why = "an array is made with `new " + type.element_type().to_text() + "[size]`";
+    } else if(type.kind != RT_CLASS) {
+        why = described_type(type) + " is not a class";
+    } else if(type.class_of!!.is_interface()) {
+        why = "`" + type.to_text() + "` is an interface: it only promises functions, it has no bodies to run";
+    } else if(type.class_of!!.is_enum()) {
+        why = "`" + type.to_text() + "` is an enum: its values are made by the compiler, and there are no others";
+    } else if(type.class_of!!.has(FLAG_EXT)) {
+        why = "`" + type.to_text() + "` is an `ext` class: only the compiler makes objects of it";
+    }
+    if(why.size() == 0) { return 1; }
+
+    d := problem_over(context, "E0507", "an object of `" + type.to_text() + "` cannot be made", node);
+    d.with_label("cannot be made with `new`");
+    d.with_note(why);
+    if(type.kind == RT_CLASS && type.is_array == 0 && type.class_of!!.is_interface()) {
+        d.with_help("make an object of a class that has the interface: `class my_" + type.class_of!!.written.name + " : "
+                    + type.class_of!!.written.name + " { ... }`");
+    } else if(type.kind == RT_CLASS && type.is_array == 0 && type.class_of!!.is_enum()) {
+        d.with_help("use one of its values: `" + type.to_text() + ".<value>`");
+    } else if(type.is_number()) {
+        box := context.session.known.box_of(type);
+        if(box != null) { d.with_help("a number needs no `new`; for an object holding one write `new " + box!!.name + "(...)`"); }
+    }
+    report(context, d);
+    return 0;
+}
+
+/**
+ * W1033: an object of a class that still has a function WITHOUT a body -
+ * declared there or above it, and given a body by nothing on the way down:
+ *
+ *      class animal { def speak(); }
+ *      a := new animal();          W1033: `speak` has no body in `animal`
+ *
+ * The C++ compiler accepts this (a class with such functions is not marked
+ * abstract) and the program runs until `a.speak()` is called. So it is a
+ * warning (section 5). An interface is E0507 already. The answer is kept on
+ * the class: it is asked once per class, not once per `new`.
+ */
+def warn_if_promises_unkept(context: analysis_context, made: sharp_class, node: _int64) {
+    if(made.promise_checked == 0) {
+        made.promise_checked = 1;
+        made.unkept_promise = first_unkept_promise(context, made);
+    }
+    if(made.unkept_promise == null) { return; }
+    missing : sharp_function = made.unkept_promise!!;
+    where := missing.owner!!.written.name;
+    d := problem_at(context, "W1033", "`" + made.written.name + "` has a function without a body: `" + missing.name
+                    + "` in `" + where + "`", node);
+    d.with_label("an object of `" + made.written.name + "` is made here");
+    d.with_related_place(place_of_declaration(missing, "declared without a body"));
+    d.with_note("calling `" + missing.name + "` on this object has no body to run");
+    if(missing.owner!!.written == made.written) {
+        d.with_help("give it a body - `def " + missing.name + "(...) { ... }` - or make an object of a class below `"
+                    + made.written.name + "` that does");
+    } else {
+        d.with_help("add `override def " + missing.name + "(...) { ... }` to `" + made.written.name
+                    + "`, or make an object of a class below it that has one");
+    }
+    report(context, d);
+}
+
+/** the first function without a body that `made` or a class above it declares and nothing on the way down defines */
+def first_unkept_promise(context: analysis_context, made: sharp_class) : sharp_function? {
+    current : sharp_class? = made;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        functions := current!!.functions;
+        for(i : _int64 = 0; i < functions.size(); i++) {
+            function := functions.at(i);
+            if(function.has_body() || function.has(FLAG_NATIVE) || function.is_generic() || function.extends != null) { continue; }
+            if(function.kind != D_FUNCTION) { continue; }
+            visible := find_member(context.prog, made, function.name).functions;
+            for(j : _int64 = 0; j < visible.size(); j++) {
+                if(visible.at(j) == function) { return function; }
+            }
+        }
+        current = current!!.base_class;
+    }
+    return null;
+}

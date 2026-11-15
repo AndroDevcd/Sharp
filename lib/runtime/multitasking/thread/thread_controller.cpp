@@ -65,6 +65,21 @@ vm_thread_entry(void *arg)
     bool unboundException = false;
     sharp_thread *thread = (sharp_thread*)arg;
     thread_self = thread;
+
+    // Where this thread's machine stack ends. The stack grows DOWN from about
+    // here (the address of a local of the thread's first function) and is
+    // thread->stackSize bytes long, so its last byte is that far below. The
+    // floor is NATIVE_STACK_RESERVE above the end - a quarter of the stack when
+    // the stack is small - and compiled code stops nesting calls when it gets
+    // there, with a stack_overflow_exception instead of a crash.
+    {
+        char here;
+        uintptr_t size = (uintptr_t) thread->stackSize;
+        uintptr_t reserve = NATIVE_STACK_RESERVE;
+        if(reserve > size / 4) reserve = size / 4;
+        thread->nativeStackFloor = size != 0 && (uintptr_t) &here > size
+                ? (uintptr_t) &here - size + reserve : 0;
+    }
     tgc_leave_safe(thread);     // this thread touches objects from here on (waits if a collection is running)
     TELEMETRY(telemetry_thread_begin(thread);)
 
@@ -693,6 +708,25 @@ void shutdown_thread(sharp_thread* thread) {
         && thread->task->stack[vm.mf.threadLocals].obj.o->type == type_class
         && CLASS(thread->task->stack[vm.mf.threadLocals].obj.o->info) == vm.int_class->address) {
         thread->task->exitVal = number_field(thread->task->stack[vm.mf.threadLocals].obj.o, "value");
+        /*
+         * ... and that is the exit code of the process. destroy() (vm_initializer.cpp)
+         * copies task->exitVal into vm.exitVal BEFORE it calls this function, so
+         * the value just read never got there: every program ended with 0,
+         * whatever its `def main() : int` returned. (An explicit exit(n) sets
+         * task->exitVal earlier and is not affected: platform.srt_init has not
+         * returned then, and the slot holds the argument array, not an int.)
+         */
+        vm.exitVal = thread->task->exitVal;
+    }
+
+    /*
+     * An exception nobody caught ends the main thread: the process ends with 1,
+     * not 0 - `sharp prog && next` must not go on after a crash of `prog`.
+     * C++ comparison: an uncaught exception ends a C++ program with
+     * std::terminate (abort), never with exit code 0.
+     */
+    if (thread->id == main_threadid && hasSignal(thread->signal, tsig_except) && thread->task) {
+        vm.exitVal = 1;
     }
 
     print_thrown_exception();

@@ -1,0 +1,14 @@
+// expect: E0926
+// help: loadl ebx, [big]
+// replace: movi ebx, 5000000000
+// help: big : _int64 = 5000000000;
+// before: asm {
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    asm {
+        movi ebx, 5000000000
+        put ebx
+    }
+}

@@ -1,0 +1,177 @@
+mod backend.compiler.expressions.primary.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.expressions.primary,
+    backend.compiler.names,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * MEMBER ACCESS:  a.b   a->b   a?.b   a!!.b
+ *
+ * What `b` may be depends on what `a` is:
+ *
+ *      a is                        b may be
+ *      --------------------------  ------------------------------------------------------
+ *      a value of a class type     a field (instance or static), a function
+ *      a class name                a static field, an enum value, a static function, a
+ *                                  class or alias declared inside. An INSTANCE field
+ *                                  here is E0703: the class is not one of its objects.
+ *      `base`                      a member of the base class (`base->b`; `base.b` means the same)
+ *      a number, an array,         nothing: E0405. (An array has no members; its length
+ *      `object`, a function value  is `sizeof(a)`.)
+ *      a text literal              the members of `string`: "abc".size() makes a string first
+ *
+ * Null safety - the one null rule the language checks at this point: reaching
+ * INTO a value that may be null needs to say what happens when it is null.
+ *
+ *      a.b     a is `t?`           E0722: write `a?.b` or `a!!.b`
+ *      a?.b                        null when a is null (safe_navigation.sharp)
+ *      a!!.b                       an exception when a is null
+ *      a?.b / a!!.b, a never null  W1005: the mark does nothing
+ *      a?.b.c   with  b : t?       accepted: once a chain has a `?.`, the links after it are
+ *                                  not asked for another (as in the C++ compiler)
+ *
+ * `->` is the same as `.`; it is what `self->name` and `base->name` are
+ * written with.
+ *
+ * @param is_called  1: `a.b(...)`. Only then may `b` be a function name, kept
+ *                   with all its overloads for the calls stage.
+ *
+ *      C++ comparison: `compile_dotted_identifier` in
+ *      primary/dotted_identifier.cpp and `resolve_item` in dependency.cpp.
+ */
+def analyse_member(context: analysis_context, node: _int64, is_called: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    object_node : _int64 = tree.first_child!![node];
+    name_node : _int64 = tree.next_sibling!![object_node];
+    error_type : resolved_type = context.session.types.error_type;
+    if(name_node < 0) { return new bound_error(context.unit, node, error_type); }    // the parser reported the missing name
+
+    target := analyse_expression(context, object_node, null);
+    name := name_at(context, name_node);
+    context.session.counters.members++;
+
+    if(target.kind == BX_TYPE_NAME) {
+        warn_mark_after_type(context, target, node);
+        return member_of_type(context, target.type, name, name_node);
+    }
+    if(target.kind == BX_FUNCTIONS && tree.kinds!![object_node] == N_IDENTIFIER) {
+        // `build.is_windows()` inside a class that has a function `build`:
+        // in front of a `.` a TYPE of that name is what is meant
+        hidden := type_hidden_by_function(context, object_node);
+        if(hidden != null) { return member_of_type(context, hidden!!, name, name_node); }
+    }
+    if(target.kind == BX_FUNCTIONS) {
+        d := problem_at(context, "E0405", "`" + (target as bound_functions).name + "` is a function: it has no member `" + name + "`", name_node);
+        d.with_label("a function has no members");
+        d.with_help("to use what the function returns, call it: `" + (target as bound_functions).name + "()." + name + "`");
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(target.type.kind == RT_ERROR) {
+        // the object was reported, or is something a later stage types (a call):
+        // nothing can be said about its member. What was analysed is kept below it.
+        unknown := new bound_error(context.unit, node, error_type);
+        unknown.inner = target;
+        return unknown;
+    }
+
+    // "abc".size(): a text literal becomes a string object when a member is asked of it
+    if(target.literal == LIT_TEXT) { target = convert(context, target, context.session.string_type(), "a `string`"); }
+
+    type : resolved_type = target.type;
+    if(type.kind != RT_CLASS || type.is_array == 1) {
+        report_no_members(context, type, name, name_node, object_node);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    // Is there such a member at all? Asked BEFORE the null rule: for
+    // `maybe.nothng` the one thing to say is that `nothng` does not exist.
+    owner : sharp_class = type.class_of!!;
+    found := new lookup_result();
+    find_class_member(context.prog, owner, name, found);
+    if(found.kind == FOUND_NOTHING) {
+        report_no_member(context, owner, name, name_node, 0);
+        return new bound_error(context.unit, name_node, error_type);
+    }
+    return member_of_value(context, receiver_of(context, target, node, name), found, name, name_node);
+}
+
+/**
+ * `value.name`: the member `found` (what the class of the value has under
+ * that name), read from the object `receiver`.
+ */
+def member_of_value(context: analysis_context, receiver: bound_expression, found: lookup_result, name: string,
+                    name_node: _int64) : bound_expression {
+    if(found.kind == FOUND_FIELD) {
+        field : sharp_field = found.field!!;
+        check_access(context, field, name_node);
+        // a static field through an object is allowed: the object only says which class
+        if(field.has(FLAG_STATIC)) {
+            if(field.has(FLAG_LOCALIZED)) { warn_localized_through_object(context, field, receiver, name_node); }
+            return read_field(context, field, null, name_node);
+        }
+        return read_field(context, field, receiver, name_node);
+    }
+    if(found.kind == FOUND_FUNCTIONS) {
+        named := new bound_functions(context.unit, name_node, name, found.functions!!, context.session.types.error_type);
+        named.on = receiver;
+        return named;
+    }
+    if(found.kind == FOUND_TYPE && found.declaration != null
+       && (found.declaration!!.kind == D_CLASS || found.declaration!!.kind == D_INTERFACE)) {
+        // `a_vault.plate`: a class declared inside a class belongs to the class, not to its objects
+        report_class_through_object(context, found.declaration!!, receiver, name_node);
+        return new bound_error(context.unit, name_node, context.session.types.error_type);
+    }
+    // an enum value, an enum or an alias reached through an object: allowed (as in
+    // the C++ compiler); what the name means does not depend on the object
+    return expression_for_found(context, found, name_node, name);
+}
+
+/** `type.name`: a member reached through the class itself */
+def member_of_type(context: analysis_context, type: resolved_type, name: string, name_node: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    if(type.kind == RT_ERROR || type.is_open_type == 1) { return new bound_error(context.unit, name_node, error_type); }
+    if(type.kind != RT_CLASS || type.is_array == 1) {
+        d := problem_at(context, "E0405", "the type `" + type.to_text() + "` has no members", name_node);
+        d.with_label("nothing can be reached through this type");
+        d.with_note("only a class, an interface or an enum has static members");
+        report(context, d);
+        return new bound_error(context.unit, name_node, error_type);
+    }
+
+    owner : sharp_class = type.class_of!!;
+    found := new lookup_result();
+    find_class_member(context.prog, owner, name, found);
+    if(found.kind == FOUND_NOTHING) {
+        report_no_member(context, owner, name, name_node, 1);
+        return new bound_error(context.unit, name_node, error_type);
+    }
+    if(found.kind == FOUND_FIELD) {
+        field : sharp_field = found.field!!;
+        check_access(context, field, name_node);
+        if(!field.has(FLAG_STATIC)) {
+            // the class is not one of its objects - not even inside its own functions
+            report_instance_field_without_object(context, field, name_node, 1);
+            return new bound_error(context.unit, name_node, error_type);
+        }
+        return read_field(context, field, null, name_node);
+    }
+    if(found.kind == FOUND_FUNCTIONS) {
+        return new bound_functions(context.unit, name_node, name, found.functions!!, error_type);
+    }
+    return expression_for_found(context, found, name_node, name);
+}

@@ -1,0 +1,128 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * COPY COALESCING: a value made only to be copied is made where the copy puts it
+ *
+ *      int_binary add %5, %1, %3                   int_binary add %1, %1, %3
+ *      copy %1, %5                             ->
+ *
+ *      new_object %2, point                        new_object %0, point
+ *      call -, point.point(%2)                 ->  call -, point.point(%0)
+ *      copy %0, %2
+ *
+ * Copy propagation (copy_propagation.sharp) works forwards - later readers of
+ * the copy read the original. This is the other direction: when the slot a
+ * copy READS (%5) is never read again after the copy, the instruction that
+ * wrote it can write the copy's target (%1) directly, and the copy goes. The
+ * textbook name is "coalescing" (two slots whose lives do not overlap become
+ * one; the dragon book, 8.8.4, and every register allocator).
+ *
+ * The conditions, for `P: ... -> %t` and later `Q: copy %d, %t` in one block:
+ *
+ *  - %t is dead after Q (liveness.sharp), and Q does not narrow;
+ *  - P is the last write of %t before Q;
+ *  - between P and Q nothing reads or writes %d (it will hold the value early);
+ *    reads of %t there are changed to read %d;
+ *  - when the block is inside a `try` and something between P and Q may
+ *    raise, nothing is done: a handler entered there would see %d changed.
+ *
+ * P itself may read %d (`add %1, %1, %3`): every VM sequence reads all its
+ * operands before it writes its result (codegen.md 5.1).
+ */
+def coalesce_copies(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(!has_a_plain_copy(code)) { return 0; }
+    graph := analyses.graph();
+    live := analyses.live();
+    removed := new number_list();
+    changes : _int64 = 0;
+    dead_after := new number_list();        // per instruction of the block: 1 when the copy's source is dead after it
+    for(b : _int64 = 0; b < graph.block_count(); b++) {
+        start : _int64 = graph.starts[b];
+        end : _int64 = graph.ends[b];
+        if(!block_has_a_plain_copy(code, start, end)) { continue; }
+
+        // what is live after each instruction, from the block's end backwards
+        dead_after.count = 0;
+        for(i : _int64 = start; i < end; i++) { dead_after.add(0); }
+        walking := live.out_of(b);
+        into_handlers := live.live_into_handlers(b);
+        for(i : _int64 = end - 1; i >= start; i--) {
+            made := code.instructions.at(i);
+            if(is_plain_copy(made) && !walking.has(made.first)) { dead_after.replace(i - start, 1); }
+            step_back(made, walking, into_handlers);
+        }
+
+        guarded : _int64 = graph.has_handlers(b);
+        for(q : _int64 = start; q < end; q++) {
+            copy := code.instructions.at(q);
+            if(!is_plain_copy(copy) || dead_after.at(q - start) == 0) { continue; }
+            if(code.slot_kinds.at(copy.target) != code.slot_kinds.at(copy.first)) { continue; }
+            p : _int64 = write_to_take_over(code, start, q, copy.first, copy.target, guarded);
+            if(p < 0) { continue; }
+            source : _int64 = copy.first;
+            for(i : _int64 = p + 1; i < q; i++) { rename_reads(code.instructions.at(i), source, copy.target); }
+            code.instructions.at(p).target = copy.target;
+            removed.add(q);
+            // the copy is gone: it must not be taken as a write of %d by a later match in this block
+            copy.kind = IR_NOP;
+            changes++;
+        }
+    }
+    // the copies taken over were turned into nops on the way; they are removed now
+    remove_instructions(code, removed);
+    if(changes > 0) { analyses.changed(); }
+    return changes;
+}
+
+/** does the function have a copy this pass could take away at all? */
+def has_a_plain_copy(code: ir_function) : _int64 {
+    return block_has_a_plain_copy(code, 0, code.instructions.size().value as _int64);
+}
+
+/** how far back the write a copy reads is looked for: a long block is not searched again for every copy */
+const COALESCING_REACH : _int64 = 64;
+
+/** does block [start, end) have a copy this pass could take away? */
+def block_has_a_plain_copy(code: ir_function, start: _int64, end: _int64) : _int64 {
+    for(i : _int64 = start; i < end; i++) {
+        if(is_plain_copy(code.instructions.at(i))) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * The instruction P before `q` (in the same block) whose write of `source`
+ * can write `target` instead, or -1 (the conditions in the header).
+ */
+def write_to_take_over(code: ir_function, start: _int64, q: _int64, source: _int64, target: _int64, guarded: _int64) : _int64 {
+    // (looked for at most COALESCING_REACH instructions back: a value copied far from where it was made is left)
+    for(i : _int64 = q - 1; i >= start && i >= q - COALESCING_REACH; i--) {
+        made := code.instructions.at(i);
+        if(slot_written(made) == source) {
+            if(made.kind == IR_NOP) { return 0 - 1; }
+            return i;
+        }
+        if(slot_written(made) == target || reads_slot(made, target)) { return 0 - 1; }
+        if(guarded == 1 && may_raise(made)) { return 0 - 1; }
+        if(made.kind == IR_LABEL) { return 0 - 1; }
+    }
+    return 0 - 1;
+}
+
+/** every read of `from` in the instruction becomes a read of `to` */
+def rename_reads(made: ir_instruction, from: _int64, to: _int64) {
+    k : _int64 = 0;
+    read : _int64 = slot_read(made, 0);
+    while(read >= 0) {
+        if(read == from) { replace_slot_read(made, k, to); }
+        k++;
+        read = slot_read(made, k);
+    }
+}

@@ -1,0 +1,203 @@
+mod backend.compiler.components;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.members,
+    backend.compiler.context,
+    backend.compiler.overloads
+)
+
+/**
+ * `get`: ASKING A COMPONENT FOR A VALUE
+ *
+ *      get<database>()                 the definition that provides a `database`
+ *      get<worker>("fast")             the definition named "fast"; it must provide a `worker`
+ *      get<database>(app)              ... of the component `app`
+ *      get("fast", app)                name and component decide; the type is what "fast" provides
+ *      new worker(get())               INSIDE a definition: the type is the parameter's
+ *
+ * The expression becomes a `bound_get_component` that points at the
+ * definition found - a code generator never searches. Its type is the type
+ * that definition provides.
+ *
+ * WHAT MUST BE WRITTEN. Outside a component a `get` says what it wants
+ * itself: the type, or both a name and a component (E0902 otherwise).
+ * Inside a definition it may leave the type out: `get()` then asks for the
+ * type EXPECTED where it stands - the parameter it is passed to, the type a
+ * cast or declaration names. With nothing expected either (`single { get() }`)
+ * it is E0902 too.
+ *
+ * A `get()` AS AN ARGUMENT WAITS, like a lambda whose types are not written
+ * (lambdas/lambdas.sharp): which parameter it is given to depends on which
+ * overload is chosen, and which overload fits depends on what the components
+ * provide. So the call stage notes on the argument the types in reach
+ * (`describe_waiting_request`), overload resolution lets it fit a parameter
+ * of one of those types (overloads/applicability.sharp), and once the
+ * function is chosen the `get()` is analysed against that parameter.
+ *
+ *      E0902   a `get` with nothing that says what is wanted
+ *      W1014   `get<t>("name", component)`: name and component already decide; the type is checked, not needed
+ *
+ *      C++ comparison: compiler/expressions/primary/get_expression.cpp; the
+ *      waiting `get()` is its `type_get_component_request`, matched against a
+ *      parameter in `is_implicit_type_match`.
+ */
+def analyse_get(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    tree : syntax_tree = context.tree;
+    failed := new bound_error(context.unit, node, context.session.types.error_type);
+    type_node : _int64 = tree.child_of_kind(node, N_TYPE);
+    name_node : _int64 = tree.child_of_kind(node, N_LITERAL);
+    component_node : _int64 = tree.child_of_kind(node, N_NAME);
+
+    request := new component_request(context.unit, node);
+    if(name_node >= 0) { request.name = text_inside_quotes(node_text(context.unit, name_node)); }
+    if(component_node >= 0) { request.component_name = name_at(context, component_node); }
+    if(context.definition != null) { request.inside = context.definition!!.owner; }
+
+    if(type_node >= 0) {
+        request.type = resolve_type_at(context, type_node);
+        if(request.type!!.kind == RT_ERROR) { return failed; }       // reported where the type is written
+        if(name_node >= 0 && component_node >= 0) { warn_type_not_needed(context, request, type_node); }
+    } else if(context.definition == null) {
+        if(name_node < 0 || component_node < 0) {
+            report_get_says_nothing(context, request, wanted);
+            return failed;
+        }
+    } else if(name_node < 0) {
+        // inside a definition: the type expected where the `get()` stands
+        if(wanted == null) {
+            report_get_says_nothing(context, request, null);
+            return failed;
+        }
+        if(wanted!!.kind == RT_ERROR || wanted!!.is_open_type == 1) { return failed; }
+        request.type = wanted;
+    }
+
+    definition : type_definition? = settle_request(context, request, "E0903");
+    if(definition == null) { return failed; }
+    // what MAKING the definition's object needs: the edges of the circle test. A `get` in a
+    // lambda runs when the lambda is called, so it is not one (requests.sharp)
+    if(context.definition != null && asked_inside_a_lambda(context) == 0) { context.definition!!.needs.add(definition!!); }
+    return new bound_get_component(context.unit, node, definition!!, definition!!.provides!!);
+}
+
+/**
+ * Is the expression at `node` a `get` that leaves its type to the parameter
+ * it is given to: written in a definition, with neither a type nor a name?
+ * Returns its N_GET_COMPONENT node (parentheses looked through), or -1.
+ */
+def open_request_at(context: analysis_context, node: _int64) : _int64 {
+    if(context.definition == null) { return 0 - 1; }
+    tree : syntax_tree = context.tree;
+    current : _int64 = node;
+    while(current >= 0 && tree.kinds!![current] == N_PAREN) { current = tree.first_child!![current]; }
+    if(current < 0 || tree.kinds!![current] != N_GET_COMPONENT) { return 0 - 1; }
+    if(tree.child_of_kind(current, N_TYPE) >= 0 || tree.child_of_kind(current, N_LITERAL) >= 0) { return 0 - 1; }
+    return current;
+}
+
+/**
+ * A `get()` passed to a call, before the function is chosen: note on the
+ * argument which types the definitions in reach provide. A definition that
+ * cannot be asked yet (it is being analysed, or was reported as wrong) makes
+ * the argument fit any parameter; the real search, with its messages, is
+ * done when the call is bound.
+ */
+def describe_waiting_request(context: analysis_context, node: _int64, argument: call_argument) {
+    session : analysis_session = context.session;
+    request := new component_request(context.unit, node);
+    component_node : _int64 = context.tree.child_of_kind(node, N_NAME);
+    if(component_node >= 0) { request.component_name = name_at(context, component_node); }
+    request.inside = context.definition!!.owner;
+
+    argument.is_lambda = 1;         // it waits for its parameter, as a lambda does
+    argument.request_node = node;
+    types := new list<resolved_type>();
+    reach := components_in_reach(session.prog, request);
+    if(reach.size() == 0) { argument.request_fits_any = 1; }
+    for(c : _int64 = 0; c < reach.size(); c++) {
+        definitions := reach.at(c).definitions;
+        for(i : _int64 = 0; i < definitions.size(); i++) {
+            definition := definitions.at(i);
+            if(definition.name != null) { continue; }
+            provided : resolved_type? = provides_of(session, definition);
+            if(provided == null || provided!!.kind == RT_ERROR) { argument.request_fits_any = 1; }
+            else if(provided!!.kind != RT_NIL) { types.add(provided!!); }
+        }
+    }
+    argument.request_types = types;
+}
+
+/** E0902: a `get` that says neither a type nor (name and component), where nothing else says it */
+def report_get_says_nothing(context: analysis_context, request: component_request, wanted: resolved_type?) {
+    d := problem_over(context, "E0902", "this `get` does not say what it asks for", request.node);
+    type_text := "T";                   // nothing says the type: the help writes `get<T>()`
+    type_known : _int64 = 0;
+    if(wanted != null && wanted!!.kind != RT_ERROR) {
+        type_text = wanted!!.as_non_null().to_text();
+        type_known = 1;
+    }
+    where_t := "";
+    if(type_known == 0) { where_t = ", with the type wanted for `T`"; }
+
+    if(context.definition != null) {
+        d.with_label("no type, and nothing here expects one");
+        d.with_note("inside a component definition a `get()` takes its type from where it stands - the parameter it is passed to; here there is none");
+        d.with_help("write the type: `get<" + type_text + ">()`" + where_t);
+    } else {
+        if(request.name != null) { d.with_label("a name alone: which component, or which type?"); }
+        else if(request.component_name != null) { d.with_label("a component alone: which type?"); }
+        else { d.with_label("no type"); }
+        d.with_note("outside a component a `get` must name the type, or both the definition's name and its component; only inside a `single` / `factory` definition may `get()` leave the type to the parameter it is given to");
+        written := "";
+        if(request.name != null) { written = "\"" + request.name!! + "\""; }
+        if(request.component_name != null) { written = request.component_name!!; }
+        d.with_help("write the type: `get<" + type_text + ">(" + written + ")`" + where_t);
+    }
+    report(context, d);
+}
+
+/** W1014: `get<worker>("fast", app)` */
+def warn_type_not_needed(context: analysis_context, request: component_request, type_node: _int64) {
+    d := problem_over(context, "W1014", "the type is not needed here: the name \"" + request.name!! + "\" and the component `"
+                      + request.component_name!! + "` already decide", type_node);
+    d.with_label("only checked against what \"" + request.name!! + "\" provides");
+    untyped := get_without_type(request);
+    declared : _int64 = declaration_inferring(context, request.node);
+    if(declared >= 0) {
+        // `a := get<settings>("main", runtime);`: without `<settings>` the C++
+        // compiler cannot type `a` (D101), so the type moves to the variable
+        d.with_note("written `" + name_at(context, declared) + " := " + untyped + ";` the variable would get its type from the definition, a form the first Sharp compiler refuses: the type written on the variable is understood by both");
+        d.with_help("give the type to the variable instead: `" + name_at(context, declared) + " : " + source_text_of(context, type_node)
+                    + " = " + untyped + ";`");
+    } else {
+        d.with_help("write `" + untyped + "`");
+    }
+    report(context, d);
+}
+
+/** `get("main", runtime)`: the request written without its type */
+def get_without_type(request: component_request) : string {
+    return "get(\"" + request.name!! + "\", " + request.component_name!! + ")";
+}
+
+/**
+ * The variable whose type `x := <the get at node>` would be inferred from:
+ * its N_VARIABLE when the get is the whole value of a declaration without a
+ * written type; -1 otherwise.
+ */
+def declaration_inferring(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    value_of : _int64 = tree.parents!![node];
+    if(value_of < 0 || tree.kinds!![value_of] != N_INITIALIZER) { return 0 - 1; }
+    variable : _int64 = tree.parents!![value_of];
+    if(variable < 0 || tree.kinds!![variable] != N_VARIABLE) { return 0 - 1; }
+    if(tree.child_of_kind(variable, N_TYPE) >= 0 || tree.child_of_kind(variable, N_NATIVE_TYPE) >= 0
+       || tree.child_of_kind(variable, N_FUNCTION_TYPE) >= 0) { return 0 - 1; }
+    return variable;
+}

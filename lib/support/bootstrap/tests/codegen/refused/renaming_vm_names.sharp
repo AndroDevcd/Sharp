@@ -1,0 +1,17 @@
+mod main;
+
+// expect: E0971 E0971
+
+/*
+ * A program analysis accepts but code generation must refuse (doc/codegen.md
+ * 6.17): an `obfuscate` block that asks for a name to be renamed which the VM
+ * finds BY NAME when the program runs - a class it looks up (`string`, the
+ * class of every text) and a field it reads (`message` of every exception).
+ * Renamed, the program would load and then fail inside the VM. Each is
+ * E0971 at the name in the block, and no file is written.
+ */
+obfuscate { string, throwable.message }
+
+def main() {
+    println("never built");
+}

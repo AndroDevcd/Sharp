@@ -1,0 +1,124 @@
+mod backend.ide;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.compiler.context,
+    backend.ide.bodies,
+    backend.ide.diagnostics,
+    backend.ide.declarations,
+    backend.ide.files,
+    backend.ide.manifest,
+    backend.ide.output,
+    backend.ide.types,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * WHAT THE COMPILER WRITES FOR AN EDITOR  (the `-ide <folder>` option)
+ *
+ * An editor plugin (CLion) cannot read the text the compiler prints for a
+ * person. With `-ide <folder>` the compiler also writes, into that folder,
+ * files a program can read (the exact format, field by field, is doc/ide.md
+ * section 4):
+ *
+ *      ide.json            the manifest, written last: what the run covers, the files and their fingerprints
+ *      diagnostics.json    every error and warning: code, message, file, position, label, notes, helps, related places
+ *      types.json          the table of types every other file points into
+ *      declarations.json   what the program declares - classes with their members, globals, modules,
+ *                          extension functions - for completion, hover and go-to-definition
+ *      bodies/<n>.json     per file the editor has open: its functions, its local variables with the text
+ *                          they can be seen in, and a table of every name USED (what it refers to, its type)
+ *
+ * The compiler is run again every time a file is saved; the editor reads the
+ * files afterwards. NOTHING here changes what the compiler does: this package
+ * only READS the objects the other stages built, prints nothing, and when
+ * anything in it fails (the folder cannot be made, the disk is full) it
+ * stops quietly - the plugin finds the missing manifest and says so, with the
+ * reason the hook left for it in `failed.txt` (output/failure_note.sharp).
+ *
+ * Every file is written to `<name>.tmp` and renamed, so a reader never sees
+ * half a file, and `ide.json` is written last, so a reader that finds it finds
+ * everything it names. All files of one run carry the same `run` id.
+ *
+ * The packages (each its own module, `backend.ide.<name>`):
+ *
+ *      output/        the JSON writer, escaping, atomic file writes, the run id, the note of a failure
+ *      positions/     bytes -> the editor's offsets, lines and columns; where blocks end
+ *      files/         the files of the program, numbered as in the manifest; the fingerprint
+ *      diagnostics/   diagnostics.json
+ *      types/         types.json: the table of types
+ *      declarations/  declarations.json
+ *      bodies/        bodies/<n>.json
+ *      manifest/      ide.json
+ *
+ * The two functions below are the only things `main.sharp` calls. They are
+ * the front door of the package.
+ *
+ *      C++ comparison: what a compiler's `-Xclang -ast-dump=json` or a
+ *      compile_commands/LSIF export is for clangd - a machine-readable account
+ *      of the program, written once per build.
+ */
+
+/**
+ * The build stopped at syntax errors: only they can be written.
+ * (A file with a syntax error has no tree to trust, so nothing was analysed;
+ * the plugin keeps the last good index.)
+ */
+def write_syntax_errors_for_editor(folder: string, units: list<source_unit>) {
+    try {
+        started : _int64 = clock_ms();
+        run : string = run_id();
+        make_folder(folder);
+        files := collect_files(units);
+        errors := syntax_errors_of(units);
+        write_diagnostics(folder, run, files, errors, units);
+        clear_failure_note(folder);
+        write_manifest(folder, run, LEVEL_SYNTAX_ERRORS, files, null, errors, started);
+    } catch(problem: throwable) {
+        // never fail the build over the editor's files, and print nothing: the reason is left in the folder
+        note_failure(folder, problem);
+    }
+}
+
+/**
+ * The build got past parsing.
+ *
+ * Everything is reached from `prog`, `units` and `shown`; the last two
+ * arguments are not used: they are null whenever a declaration stage
+ * reported an error, although the bodies were analysed all the same
+ * (main.sharp, `analyse_bodies_after_declaration_errors`), and what that
+ * analysis worked out hangs on the declarations themselves.
+ *
+ * @param shown     the diagnostics that are printed (after the warning switches)
+ * @param bodies    the analysis session (not used)
+ * @param analysed  the analysed program (not used)
+ */
+def write_for_editor(folder: string, units: list<source_unit>, prog: sharp_program, shown: list<diagnostic>,
+                     bodies: analysis_session?, analysed: analysed_program?) {
+    try {
+        started : _int64 = clock_ms();
+        run : string = run_id();
+        make_folder(folder);
+        files := collect_files(units);
+        types := new ide_types(files);
+
+        // function bodies first: they add the types of the variables to the table that types.json is made from
+        level : string = LEVEL_DECLARATIONS;
+        if(program_has_typed_bodies(prog) == 1) {
+            level = LEVEL_FULL;
+            write_bodies(folder, run, prog, files, types);
+        }
+        write_declarations(folder, run, prog, files, types);
+        write_types(folder, run, types);
+        write_diagnostics(folder, run, files, shown, units);
+        clear_failure_note(folder);
+        write_manifest(folder, run, level, files, prog, shown, started);
+    } catch(problem: throwable) {
+        // never fail the build over the editor's files, and print nothing: the reason is left in the folder
+        note_failure(folder, problem);
+    }
+}

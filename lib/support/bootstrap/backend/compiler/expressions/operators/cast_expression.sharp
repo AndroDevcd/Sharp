@@ -1,0 +1,189 @@
+mod backend.compiler.expressions.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.postprocessor.members,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * A CAST:  value as type
+ *
+ *      n as decimal            a number in another number type
+ *      an_animal as dog        "this animal is a dog" - the program tests it when it runs
+ *      thing as object         always fine
+ *
+ * What may be cast to what is the table in
+ * conversions/explicit_conversion.sharp. The RESULT always has exactly the
+ * type written after `as`: `maybe_animal as dog` is a `dog`, not a `dog?` -
+ * to keep the `?`, write it (`x as dog?`).
+ *
+ * A text literal is not cast to `string` ("abc" as string): a cast never
+ * builds an object. The literal becomes a string by itself wherever one is
+ * expected, or is built with `new string("abc")`.
+ *
+ *      E0412   a cast that can never work, or a type nothing can be cast to
+ *      W1003   a cast to the type the value already has (also `x as t?` for a `t`)
+ *
+ *      C++ comparison: primary/cast_expression.cpp.
+ */
+def analyse_cast(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    value_node : _int64 = tree.first_child!![node];
+    type_node : _int64 = tree.child_of_kind(node, N_TYPE);
+    if(value_node < 0 || type_node < 0) { return new bound_error(context.unit, node, context.session.types.error_type); }
+
+    wanted := resolve_type_at(context, type_node);
+    value := analyse_value(context, value_node, wanted);
+
+    how := find_cast(context.session, value.type, wanted);
+    if(how.kind == CONV_NONE && is_instance_cast_to_function_array(context, how, type_node)) {
+        // `o as T[]` in list<(decimal)(decimal)>: see the comment of the function below
+        how = tested_at_run_time(value.type, wanted);
+    }
+    if(how.kind == CONV_NONE) {
+        report_impossible_cast(context, value, how, node, type_node);
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    // `x as t` where x is a `t` already; also `x as t?`, which an assignment does by itself
+    if(wanted.kind != RT_ERROR && (how.kind == CONV_IDENTITY || (how.kind == CONV_TO_NULLABLE && value.type.as_nullable() == wanted))) {
+        d := problem_over(context, "W1003", "this cast does nothing: the value already is a `" + value.type.to_text() + "`", type_node);
+        d.with_label("already `" + value.type.to_text() + "`");
+        if(how.kind == CONV_IDENTITY) { d.with_help("remove ` as " + wanted.to_text() + "`"); }
+        else { d.with_help("remove ` as " + wanted.to_text() + "`: a `" + value.type.to_text() + "` is accepted wherever a `" + wanted.to_text() + "` is wanted"); }
+        report(context, d);
+    }
+    result := new bound_cast(context.unit, node, value, how, wanted);
+    if(how.kind == CONV_NUMERIC && value.constant != null) { result.constant = converted_constant(value.constant!!, wanted); }
+    return result;
+}
+
+/**
+ * `o as T[]` in a body of a generic class, in an instance where `T` is a
+ * function type (`list<(decimal)(decimal)>`). Written directly, `o as fn[]`
+ * is E0412 (explicit_conversion.sharp). But here the programmer wrote no
+ * such cast - the library's `list.to_array()` did, for every `T` - and every
+ * body of every instance is analysed (4.1): refusing it would make every
+ * program that keeps lambdas in a list fail, whether or not it calls
+ * `to_array`. So in an instance, when the written target names a type
+ * parameter, the cast is accepted as "tested when the program runs": the
+ * items of the array are function values stored as objects. [differs D93:
+ * the C++ compiler, which compiles a function of an instance only when it is
+ * called, refuses the call of `to_array` there.]
+ */
+def is_instance_cast_to_function_array(context: analysis_context, how: conversion, type_node: _int64) : _int64 {
+    if(how.problem != WHY_NOT_CASTABLE || how.to.kind != RT_FUNCTION || how.to.is_array == 0) { return 0; }
+    if(context.environment == null) { return 0; }
+    return mentions_type_parameter(written_type_at(context, type_node));
+}
+
+/** does a written type name a type parameter anywhere (`T[]`, `list<T>`, `(T)(decimal)`)? */
+def mentions_type_parameter(written: sharp_type) : _int64 {
+    if(written.form == TYPE_NAMED) {
+        if(written.declaration != null && written.declaration!!.kind == D_TYPE_PARAMETER) { return 1; }
+        for(i : _int64 = 0; i < written.arguments.size(); i++) {
+            if(mentions_type_parameter(written.arguments.at(i))) { return 1; }
+        }
+    } else if(written.form == TYPE_FUNCTION) {
+        for(i : _int64 = 0; i < written.parameters.size(); i++) {
+            if(mentions_type_parameter(written.parameters.at(i))) { return 1; }
+        }
+        if(written.result != null) { return mentions_type_parameter(written.result!!); }
+    }
+    return 0;
+}
+
+/** E0412, with the reason and the thing to write instead */
+def report_impossible_cast(context: analysis_context, value: bound_expression, how: conversion, node: _int64, type_node: _int64) {
+    from : resolved_type = how.from;
+    to : resolved_type = how.to;
+    written := source_text_of(context, value.node);
+
+    if(how.problem == WHY_NOT_CASTABLE) {
+        d := problem_over(context, "E0412", "nothing can be cast to `" + to.to_text() + "`", type_node);
+        d.with_label("not a type a cast can produce");
+        d.with_note("a cast names a class, `object`, a number type, or an array of one of those");
+        if(to.kind == RT_FUNCTION && to.is_array == 1) {
+            d.with_note("an array of function values is stored as an array of objects; when the program runs nothing can tell which function type its items have");
+            d.with_help("keep the array in a variable of its own type (`" + to.as_non_null().to_text() + "`) instead of an `object`, so no cast is needed");
+        }
+        report(context, d);
+        return;
+    }
+    if(how.problem == WHY_NO_VALUE) {
+        d := problem_over(context, "E0406", "this expression has no value to cast", value.node);
+        d.with_label("gives nothing back");
+        report(context, d);
+        return;
+    }
+
+    if(value.literal == LIT_TEXT && how.problem == WHY_ARRAY) {
+        // "abc" as string - refused by the C++ compiler too ("cannot cast `string_literal`")
+        d := problem_at(context, "E0412", "a text literal cannot be cast to `" + to.to_text() + "`", node);
+        d.with_label("a cast does not build an object");
+        d.with_note("a text literal is an `_int8[]`, an array of characters; a `string` is an object that is BUILT from one");
+        if(to == context.session.string_type()) {
+            d.with_help("build the string: `new string(" + written + ")` - or leave the cast out where a `string` is expected: the literal becomes one by itself");
+        }
+        report(context, d);
+        return;
+    }
+
+    // the label goes under the value that cannot be cast, not the `as`
+    d := problem_over(context, "E0412", described_type(from) + " cannot be cast to `" + to.to_text() + "`", value.node);
+    d.with_label("this value cannot become a `" + to.to_text() + "` by a cast");
+    operand := as_operand_text(context, value.node);
+    if(how.problem == WHY_NUMBER_TO_OBJECT) {
+        d.with_note("a cast does not turn a plain number into an object");
+        if(to.kind == RT_CLASS && context.session.known.is_box(to.class_of!!)) {
+            d.with_help("make the object: `new " + to.to_text() + "(" + written + ")`");
+        } else {
+            d.with_help("make an object that holds it: `new " + box_name_of(from) + "(" + written + ")`");
+        }
+    } else if(how.problem == WHY_OBJECT_TO_NUMBER) {
+        d.with_note("a cast does not turn an object into a plain number");
+        if(is_box_value(context.session, from.as_non_null())) { add_read_the_number(context, d, value, operand, to); }
+        else if(from.kind == RT_CLASS && from.class_of!!.is_enum()) { d.with_help("read its number, then cast that: `" + operand + ".ordinal as " + to.to_text() + "`"); }
+    } else if(how.problem == WHY_NULL) {
+        d.with_note("`null` is not a number");
+    } else if(how.problem == WHY_ARRAY) {
+        d.with_note("an array and a single value are never the same thing");
+    } else if(from.kind == RT_CLASS && to.kind == RT_CLASS) {
+        d.with_note("`" + from.class_of!!.qualified_name() + "` and `" + to.class_of!!.qualified_name()
+                    + "` are unrelated classes: neither inherits from the other, so no object is both");
+    } else {
+        d.with_note("an array of plain numbers is only ever an array of exactly that number type");
+    }
+    report(context, d);
+}
+
+/**
+ * E0412 for a number object (`char`, `int` ...) cast to a plain number: the
+ * number is its `value` field. When that field already is the type asked
+ * for, `.value` alone is the fix and the cast goes. Otherwise the field is
+ * cast - and for an operation (`(c - 32)`) the parts are first given a name:
+ * `(c - 32).value as _int16` makes the C++ compiler crash, and a fix must
+ * build with the toolchain there is (tests/helps).
+ */
+def add_read_the_number(context: analysis_context, d: diagnostic, value: bound_expression, operand: string, to: resolved_type) {
+    holder := find_field(context.prog, value.type.as_non_null().class_of!!, "value");
+    if(holder != null && holder!!.value_type != null && holder!!.value_type!! == to) {
+        d.with_help("read its number, which already is a `" + to.to_text() + "`: `" + operand + ".value`");
+        return;
+    }
+    if(operand.starts_with("(")) {
+        d.with_help("read its number, then cast that: `n := " + source_text_of(context, value.node) + ";` and then `n.value as " + to.to_text() + "`");
+        return;
+    }
+    d.with_help("read its number, then cast that: `" + operand + ".value as " + to.to_text() + "`");
+}

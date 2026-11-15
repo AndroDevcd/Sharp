@@ -1,0 +1,103 @@
+mod backend.compiler.expressions.collections;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * AN ARRAY WRITTEN OUT:  { a, b, c }
+ *
+ * The FIRST item decides what the array is an array of; every further item
+ * must convert to that type:
+ *
+ *      { 1, 2, 3 }         an _int32[]
+ *      { 1, 2.5 }          an _int32[] too: 2.5 is cut down to 2
+ *      { "a", "b" }        a string[]  (a text literal as an item becomes a string object)
+ *      { a_dog, a_cat }    a dog[] - and the cat is a mistake
+ *
+ * The type the surroundings want does NOT change this - as in the C++
+ * compiler, `d : decimal[] = { 1, 2 };` is an error (write `{ 1.0, 2.0 }`
+ * or `new decimal[] { 1, 2 }`), and an empty `{ }` is an array of nothing
+ * that can be named (write `new decimal[0]`).
+ *
+ * An item that MAY BE NULL is accepted with a warning (array_items.sharp).
+ *
+ *      E0418   the type of the items cannot be told (`{ }`, `{ null, ... }`, an array as first item)
+ *      E0410   a later item does not convert to the first item's type
+ *      W1026   an item that may be null
+ *
+ *      C++ comparison: compiler/expressions/vector_array_expression.cpp.
+ *
+ * @param wanted  the type the surroundings expect, or null. Used only to
+ *                write a better help for `{ }`.
+ */
+def analyse_array_literal(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    tree : syntax_tree = context.tree;
+    error_type : resolved_type = context.session.types.error_type;
+    first_node : _int64 = tree.first_child!![node];
+    items := new list<bound_expression>();
+
+    if(first_node < 0) {
+        report_empty_array(context, node, wanted);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    first_found := analyse_expression(context, first_node, null);
+    first_had_no_value : _int64 = gives_nothing(first_found);
+    first := as_value_for(context, first_found, null);
+    element : resolved_type = first.type;
+    if(first.literal == LIT_TEXT) { element = context.session.string_type(); }
+
+    if(element.kind == RT_NULL || element.kind == RT_NIL || (element.is_array == 1 && element.kind != RT_ERROR)) {
+        if(element.kind == RT_NULL) { report_untyped_array(context, first_node, "`null` as the first item does not say what the array holds"); }
+        else if(element.kind == RT_NIL) { report_untyped_array(context, first_node, "the first item has no value"); }
+        else { report_untyped_array(context, first_node, "the first item is itself an array, and there are no arrays of arrays"); }
+        element = error_type;
+    }
+    // `{ maybe_node, ... }` is an array of `node`: the `?` belongs to the value, not to the array
+    if(element.is_nullable == 1) { element = element.as_non_null(); }
+
+    purpose := "an item of this array (its first item makes it a `" + element.to_text() + "[]`)";
+    items.add(convert_array_item(context, first, element, purpose));
+    item : _int64 = tree.next_sibling!![first_node];
+    while(item >= 0) {
+        items.add(convert_array_item(context, analyse_value_after(context, item, element, first_had_no_value), element, purpose));
+        item = tree.next_sibling!![item];
+    }
+
+    array_type : resolved_type = error_type;
+    if(element.kind != RT_ERROR) { array_type = element.array_of(); }
+    return new bound_array_literal(context.unit, node, element, items, array_type);
+}
+
+/** E0418 for `{ null, a }` and the like */
+def report_untyped_array(context: analysis_context, node: _int64, why: string) {
+    d := problem_over(context, "E0418", "the type of this array cannot be worked out: " + why, node);
+    d.with_label("an array of what?");
+    d.with_note("`{ a, b }` is an array of whatever its FIRST item is");
+    d.with_help("name the type: `new <type>[] { ... }`");
+    report(context, d);
+}
+
+/** E0418 for `{ }`: with no first item there is nothing to take the type from */
+def report_empty_array(context: analysis_context, node: _int64, wanted: resolved_type?) {
+    d := problem_over(context, "E0418", "the type of this array cannot be worked out: an empty `{ }` does not say what it is an array of", node);
+    d.with_label("an array of what?");
+    d.with_note("`{ a, b }` is an array of whatever its FIRST item is - also where the surroundings expect a certain array");
+    if(wanted != null && wanted!!.is_array == 1 && wanted!!.kind != RT_ERROR) {
+        d.with_help("an array with no items is written `new " + wanted!!.element_type().as_non_null().to_text() + "[0]`");
+    } else {
+        d.with_help("an array with no items is written `new <type>[0]`");
+    }
+    report(context, d);
+}

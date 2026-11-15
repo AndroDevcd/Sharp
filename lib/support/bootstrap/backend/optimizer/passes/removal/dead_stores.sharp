@@ -1,0 +1,78 @@
+mod backend.optimizer.passes.removal;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * DEAD STORES: a value written into a slot nobody reads again is not made
+ *
+ *      int_constant %3, 1              (gone: %3 is written again below before anything reads it)
+ *      call %3, f()
+ *
+ *      call %6, list.add(%2, %4)   ->  call -, list.add(%2, %4)       (the result is dropped)
+ *
+ * With liveness (analysis/liveness.sharp): going backwards through each
+ * block, an instruction whose slot is not live right after it wrote a value
+ * for nobody. It is removed when that is ALL it does (`has_effect` is 0: a
+ * constant, a copy, an operation that cannot raise ...). A call is kept - it
+ * does something - but its result is no longer taken (`pop` instead of a
+ * store). Removing an instruction also removes its reads, so the walk goes
+ * on with what it read no longer live, and a chain of dead values goes in one
+ * run.
+ *
+ * A copy of a slot into itself (`copy %2, %2`: what constant propagation
+ * makes of `x = x + 0`) writes what is already there and goes too.
+ *
+ * A slot a handler reads is live before every instruction of its `try` that
+ * may raise (liveness.sharp), so a value a `catch` still needs is never
+ * taken away.
+ *
+ *      C++ comparison: passes/pass_dead_stores.cpp.
+ */
+def remove_dead_stores(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    graph := analyses.graph();
+    live := analyses.live();
+    walking := new slot_set(code.slot_count());
+    removed := new number_list();
+    changes : _int64 = 0;
+    for(b : _int64 = graph.block_count() - 1; b >= 0; b--) {
+        live.load_out(b, walking);
+        into_handlers := live.live_into_handlers(b);
+        for(i : _int64 = graph.ends[b] - 1; i >= graph.starts[b]; i--) {
+            made := code.instructions.at(i);
+            written : _int64 = slot_written(made);
+            if(made.kind == IR_COPY && made.target == made.first && made.number == NARROW_NONE) {
+                removed.add(i);         // `copy %a, %a` (what `x + 0` becomes): it changes nothing
+                changes++;
+                continue;
+            }
+            if(written >= 0 && !walking.has(written)) {
+                if(has_effect(made) == 0) {
+                    removed.add(i);
+                    changes++;
+                    continue;           // gone: what it reads is not read here any more
+                }
+                if((made.kind == IR_CALL || made.kind == IR_CALL_VALUE) && made.target >= 0) {
+                    made.target = 0 - 1;
+                    changes++;
+                }
+            }
+            step_back(made, walking, into_handlers);
+        }
+    }
+    // the walk went from the last block to the first: the indexes are put in increasing order
+    remove_instructions(code, in_increasing_order(removed));
+    if(changes > 0) { analyses.changed(); }
+    return changes;
+}
+
+/** a list of indexes noted from the end towards the start, turned around */
+def in_increasing_order(backwards: number_list) : number_list {
+    turned := new number_list();
+    for(i : _int64 = backwards.count - 1; i >= 0; i--) { turned.add(backwards.at(i)); }
+    return turned;
+}

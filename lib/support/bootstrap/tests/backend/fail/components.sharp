@@ -1,0 +1,69 @@
+// expect: E0901 E0901 E0905 E0905 E0900 E0903 E0908 E0908 E0908 E0906 E0909 E0906 E0906 W1013 E0902 E0902 E0902 E0903 E0903 E0904 W1014 E0903 E0909 E0903 W1013 E0906 E0410
+mod app;
+
+/*
+ * Components, `get` and `inject` used wrongly. The C++ compiler rejects the
+ * same mistakes where its own search works (see pass/components.sharp); the
+ * circles it gives up on after a number of rounds ("cannot set type of ...
+ * as a type definition").
+ */
+
+class database { database(n: string) { } }
+class cache { }
+class worker { worker(c: cache) { } worker(d: database) { } }                 // the second: the components provide a database
+class logger { }
+class engine { engine(c: car) { } }
+class car { car(e: engine) { } }
+class node { node(n: node) { } }
+class lonely { lonely(c: cache) { } }
+def nothing() { }
+
+component app {
+    single { new database("main") }
+    single { new database("second") }                   // E0901 a second unnamed database
+    factory("worker") { new worker(get()) }
+    single("worker") { new logger() }                   // E0901 the name again
+    single { nothing() }                                // E0905 nothing to provide
+    single { null }                                     // E0905
+}
+
+component app {                                         // E0900
+    single { new logger() }
+}
+
+class knot { knot(tie: ()()) { } }
+
+component cars {
+    single { new lonely(get()) }                        // E0903 nothing provides a cache (said when every definition is known: after the circles)
+    single { new engine(get()) }                        // E0908 with the next one
+    single { new car(get()) }
+    single { new node(get<node>()) }                    // E0908 needs itself
+    single { new knot({ -> k : knot = get<knot>(); }) } // E0908 a lambda may ask later, but not for its own definition
+}
+
+component other {
+    single { new logger() }
+}
+
+class service {
+    inject c : cache;                                   // E0906
+    inject(nowhere) d : database;                       // E0909
+    inject(other) e : database;                         // E0906 not in that component (help: inject(app))
+    inject f : worker;                                  // E0906 only under a name
+    inject g : logger;                                  // W1013 app and other
+}
+
+def main() {
+    a := get();                                         // E0902
+    b := get("worker");                                 // E0902 a name alone
+    c := get(app);                                      // E0902 a component alone
+    d := get<cache>();                                  // E0903
+    e := get<worker>();                                 // E0903 only under a name (help: by name)
+    f := get<database>("worker", app);                  // W1014, then E0904
+    g := get<logger>("wroker");                         // E0903 did you mean
+    h := get<database>(ap);                             // E0909 did you mean
+    i := get<logger>(cars);                             // E0903 (help: it is in app)
+    j := get<logger>();                                 // W1013
+    inject m : cache;                                   // E0906
+    n : decimal = get<database>();                      // E0410
+}

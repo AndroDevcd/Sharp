@@ -4,7 +4,7 @@ import ( testing, std.math )
 
 /**
  * std.math - linear algebra: vector2, vector3 and matrix
- * (lib/support/0.3.0/std/math/linear/).
+ * (lib/support/0.4.0/std/math/linear/).
  */
 
 def check_vector2() {

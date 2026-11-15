@@ -1,0 +1,72 @@
+mod backend.compiler.expressions.collections;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * A NEW ARRAY:  new t[n]   new t[] { a, b }
+ *
+ *      new _int64[10]              ten numbers, all 0
+ *      new string[count]           `count` items, all null until they are assigned
+ *      new string[] { "a", "b" }   two items; each must convert to `string`
+ *
+ * The size is a number (a decimal is cut down; an `int` object gives its
+ * number). The result is a `t[]`.
+ *
+ *      E0415   the size is not a number
+ *      E0417   an array of something arrays cannot hold (an array of arrays, of nothing)
+ *      W1026   an item that may be null (array_items.sharp)
+ *
+ *      C++ comparison: `compile_new_array_expression` in
+ *      primary/new_expression.cpp.
+ */
+def analyse_new_array(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    error_type : resolved_type = context.session.types.error_type;
+    type_node : _int64 = tree.child_of_kind(node, N_TYPE);
+    if(type_node < 0) { return new bound_error(context.unit, node, error_type); }
+    rest : _int64 = tree.next_sibling!![type_node];
+
+    element := resolve_type_at(context, type_node);
+    if(element.kind == RT_NIL || element.is_array == 1) {
+        d := problem_over(context, "E0417", "there are no arrays of `" + element.to_text() + "`", type_node);
+        if(element.is_array == 1) {
+            d.with_label("an array of arrays");
+            d.with_note("Sharp arrays have one dimension");
+            d.with_help("put the inner arrays in objects: an array of a class that holds an array");
+        } else {
+            d.with_label("`nil` means \"no value\"");
+        }
+        report(context, d);
+        element = error_type;
+    }
+
+    array_type : resolved_type = error_type;
+    if(element.kind != RT_ERROR) { array_type = element.array_of(); }
+    made := new bound_new_array(context.unit, node, element, array_type);
+
+    if(rest >= 0 && tree.kinds!![rest] == N_ARRAY_LITERAL) {
+        items := new list<bound_expression>();
+        item : _int64 = tree.first_child!![rest];
+        while(item >= 0) {
+            items.add(convert_array_item(context, analyse_value(context, item, element), element,
+                                         "an item of this `" + element.to_text() + "[]`"));
+            item = tree.next_sibling!![item];
+        }
+        made.items = items;
+    } else if(rest >= 0) {
+        made.size = analyse_whole_number(context, rest, "the size of an array");     // null after E0415
+    }
+    return made;
+}

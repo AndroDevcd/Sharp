@@ -23,6 +23,7 @@ void init_struct(sharp_thread *thread) {
     new (&thread->mut) recursive_mutex();
     thread->id = 0;
     thread->stackSize = 0;
+    thread->nativeStackFloor = 0;
     thread->priority = THREAD_PRIORITY_NORM;
     thread->daemon = false;
     thread->terminated = false;

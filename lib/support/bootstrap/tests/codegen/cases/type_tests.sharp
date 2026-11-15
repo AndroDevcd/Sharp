@@ -1,0 +1,113 @@
+mod main;
+
+// output:
+// 1
+// 0
+// 0
+// 1
+// 1
+// 1
+// 0
+// 0
+// 1
+// 0
+// 0
+// 1
+// 1
+// 4
+// 4
+// 3
+// 0
+// 2
+// 4
+// 0
+// 3
+// 2
+// 0
+// 0
+// 0
+// 1
+// 1
+// 1
+// 1
+// 3
+// 2
+
+/*
+ * Tests of a value and checked conversions (doc/codegen.md 4.5, 6.3, 6.8):
+ * `is` against a class, an interface, a class above, a number array type, a
+ * number type (always 1, as in the C++-built program); `as` down to a class,
+ * to an interface, to a number array and to an array of a class (checked
+ * against the class itself, as the C++ compiler does); `sizeof` of an array,
+ * of a null array and of an object (its kept fields only); a plain number
+ * against a class or `object` (0), an object against a plain number type (0),
+ * and `is` / `as` against `object` and `object[]` ("is there an object";
+ * nothing to check for the cast).
+ *
+ * (Not here: `is` on a value that holds NULL against its own class or
+ * `object` - 1 in the C++-built program, 0 here: codegen.md 10, G29;
+ * tests/codegen/own/null_and_known_tests.sharp holds it.)
+ */
+interface shape { def sides() : _int64; }
+class square : shape { override def sides() : _int64 { return 4; } }
+class cube base square { size : _int64 = 3; }
+class box : shape { override def sides() : _int64 { return 6; } }
+class pair { first : _int64 = 1; second : _int64 = 2; unused : _int64 = 3; }
+
+def main() {
+    s : shape = new square();
+    c : shape = new cube();
+    o : object = s;
+    show(s is square);
+    show(s is box);
+    show(s is cube);
+    show(c is square);
+    show(c is cube);
+    show(o is shape);
+    show(o is pair);
+    missing : shape? = null;
+    show(missing is square);
+
+    numbers := new _int64[4];
+    o = numbers;
+    show(o is _int64[]);
+    show(o is _int8[]);
+    show(o is square);
+    n : _int64 = 3;
+    d : decimal = 1.5;
+    show(n is decimal);
+    show(d is _int8);
+
+    sq : square = s as square;
+    show(sq.sides());
+    back : shape = o2_of(c) as shape;
+    show(back.sides());
+    cu := c as cube;
+    show(cu.size);
+    show((o as _int64[])[2]);
+    things : object = new square[2];
+    squares := things as square[];
+    show(sizeof(squares));
+
+    show(sizeof(numbers));
+    empty : _int8[]? = null;
+    show(sizeof(empty));
+    p := new pair();
+    show(p.first + p.second);
+    show(sizeof(p));
+
+    // plain numbers are never objects, and `object` / `object[]` ask only "is there an object"
+    show(n is string);
+    show(n is object);
+    show(o is _int64);
+    show(s is object);
+    show(o is object);
+    lots : object = new object[3];
+    show(lots is object[]);
+    show(things is object[]);
+    all := lots as object[];
+    show(sizeof(all));
+    show(sizeof(things as object[]));
+}
+
+def o2_of(s: shape) : object { return s; }

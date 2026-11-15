@@ -47,6 +47,35 @@ void set_memory_limit(Int limit) {
     gc.memoryLimit = limit;
 }
 
+/**
+ * How much memory the machine has, in bytes; 0 when the operating system
+ * will not say.
+ */
+static uInt physical_memory() {
+#ifdef WIN32_
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    if(GlobalMemoryStatusEx(&status))
+        return (uInt) status.ullTotalPhys;
+    return 0;
+#else
+    long pages = sysconf(_SC_PHYS_PAGES);
+    long pageSize = sysconf(_SC_PAGE_SIZE);
+    if(pages > 0 && pageSize > 0)
+        return (uInt) pages * (uInt) pageSize;
+    return 0;
+#endif
+}
+
+/**
+ * The heap's ceiling when no -mem is given: a quarter of the machine's memory,
+ * at least MINIMUM_HEAP_SIZE (see garbage_collector.h for the reasons).
+ */
+uInt default_heap_size() {
+    uInt quarter = physical_memory() / 4;
+    return quarter > MINIMUM_HEAP_SIZE ? quarter : MINIMUM_HEAP_SIZE;
+}
+
 void release_bytes(size_t bytes) {
     guard_mutex(gc_lock)
 

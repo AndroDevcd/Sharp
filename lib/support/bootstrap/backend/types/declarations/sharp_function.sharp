@@ -1,0 +1,156 @@
+mod backend.types.declarations;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * A FUNCTION - and everything else that has parameters and a body
+ *
+ *      public static def area(side: decimal) : decimal { return side * side; }
+ *
+ * `kind` says which it is:
+ *
+ *      D_FUNCTION      def name(...)           also operators: the name is then "operator+"
+ *      D_CONSTRUCTOR   point(x: decimal) { }   named like its class
+ *      D_INIT          init { }                runs when an object is made, before the constructor
+ *      D_GETTER        get { }                 of a field: see sharp_field.getter
+ *      D_SETTER        set value -> { }        of a field; its one parameter is the new value
+ *
+ *      parameters      in order, each with its name and type
+ *      return_type     the type after the `:`; null when none is written
+ *      returns_nil     1 for `: nil` (says outright that nothing is returned)
+ *      body            the tree node of the { } block; -1 when there is none
+ *      expression      the tree node of the value for the one-line forms
+ *                      (`def f() : t = value;`, `def f() := value;`); -1 otherwise
+ *
+ * A function with neither `body` nor `expression` is only DECLARED: a function
+ * of an interface, or a `native` function the runtime provides.
+ *
+ * WHAT IT RETURNS, in the order the cases are decided:
+ *      a return_type           that type
+ *      returns_nil             nothing
+ *      an expression, no type  the type of the expression (worked out later)
+ *      none of them            nothing
+ */
+class sharp_function base sharp_declaration {
+    type_parameters := new list<sharp_type_parameter>();    // def first<T>(...)
+    parameters := new list<sharp_parameter>();
+    return_type : sharp_type?;
+    returns_nil : _int64 = 0;
+
+    body : _int64 = 0 - 1;
+    expression : _int64 = 0 - 1;
+    base_call : _int64 = 0 - 1;         // a constructor's `-> base(args)`; -1 when none
+
+    is_operator : _int64 = 0;           // def operator+(...)
+    extends : sharp_type?;              // def string.shout(): the type an extension function is added to; null otherwise
+    field : sharp_field?;               // for a getter or setter: the field it belongs to
+
+    // An `override` function and the function of a base class or interface it
+    // stands in for know each other (set by the postprocessor, overrides.sharp):
+    overrides : sharp_function?;                            // the function this one implements; null when none
+    implementations := new list<sharp_function>();          // the functions that implement this one
+
+    // ---- set by stage 5 (backend/postprocessor) ----
+    //
+    //      result_type     what it returns: the nil type for "nothing"; null for
+    //                      `def f() := value;` until the value has been analysed
+    //      origin          on a function of a generic instance: the blueprint's function
+    //      extension_of    for `def string.shout()`: the class it became a member of
+    //      is_synthesized  1: a constructor the compiler added (constructors.sharp);
+    //                      `node` is then the node of the class
+    //      overridden_by   the functions that override this one, in every class
+    //                      below - instances of generic classes included
+    //      family_root     for a function that takes part in run-time lookup: the
+    //                      body-less function at the top that all of them stand in for
+    result_type : resolved_type?;
+    type_state : _int64 = 0;
+    origin : sharp_function?;
+    extension_of : sharp_class?;
+    is_synthesized : _int64 = 0;
+    overridden_by : list<sharp_function>?;      // (null: nothing overrides it - true of nearly every function)
+    family_root : sharp_function?;
+    exact_problem_reported : _int64 = 0;    // an E0342 found with the real types was reported for this function
+    returns_unwritten_value : _int64 = 0 - 1;  // -1 not asked yet; 1: declared without a result type, yet its body has `return <value>`
+                                            // (E0606 there; its callers stay quiet: conversion_messages.sharp)
+    declared_twice : _int64 = 0;            // 1: a second function, constructor or init(x) with the same parameters, reported
+                                            // (E0331, E0332, E0333): a conversion does not count it as a second choice (no E0503
+                                            // on top), and a second `main()` is not also "a second entry point" (E0930)
+
+    // ---- generic functions (backend/postprocessor/generics/generic_functions.sharp) ----
+    // `def first<T>(...)` as written is a blueprint, like a generic class.
+    // The calls stage makes an instance per distinct list of type arguments.
+    blueprint : sharp_function?;                            // on an instance: the function it was made from
+    type_arguments : list<resolved_type>?;                  // on an instance; null otherwise
+    environment : type_environment?;                        // on an instance: "T is string", chained to its class's
+    instances : hash_map<string, sharp_function>?;          // on a blueprint: its instances by key
+
+    sharp_function(kind: _int64, name: string, unit: source_unit, node: _int64, owner: sharp_class?,
+                   module: sharp_module) -> base(kind, name, unit, node, owner, module) {
+    }
+
+    // ---- set by the body stages (backend/compiler) ----
+    // The TYPED TREE of the body: what analysis worked out, statement by
+    // statement (backend/types/typed_tree). Null until the body is analysed,
+    // and for a function without a body.
+    bound_body : bound_statement?;
+    // A constructor's `-> base(args)`: the call of the base class's constructor
+    // (a bound_call with dispatch CALL_CONSTRUCTOR; a bound_pending while a
+    // lambda argument still decides which). Null when none is written.
+    bound_base_call : bound_expression?;
+    locals : list<local_variable>?;         // parameters first, then every local in the order declared
+    body_state : _int64 = 0;                // TYPE_UNKNOWN not analysed, TYPE_IN_PROGRESS being analysed, TYPE_KNOWN done
+
+    // ---- lambdas and closures (backend/compiler/lambdas, doc/backend.md 4.3) ----
+    // A lambda is a function of its own: static, named `lambda@line:column`,
+    // owned by the class it is written in (null in global code), and not a
+    // member anything can name. `enclosing` is the function it is written in
+    // (null when it is written in the value of a field: `enclosing_field`).
+    is_lambda : _int64 = 0;
+    enclosing : sharp_function?;
+    enclosing_field : sharp_field?;
+    // 1: the lambda is handed the closure record of the function around it, as
+    // a hidden last argument (it, or a lambda inside it, uses something from out there)
+    takes_record : _int64 = 0;
+    // the variables of THIS function that its lambdas capture; null when they capture none
+    closure : closure_record?;
+    // the lambdas written directly in this function, in order
+    lambdas : list<sharp_function>?;
+
+    def has_body() : _int64 { return body >= 0 || expression >= 0; }
+    def is_extension() : _int64 { return extends != null; }
+    def is_generic() : _int64 { return type_parameters.size().value > 0; }
+
+    /** name(type, type): what tells two functions with one name apart */
+    def signature() : string {
+        text := new string_builder(name + "(");
+        for(i : _int64 = 0; i < parameters.size(); i++) {
+            if(i > 0) { text.append(", "); }
+            parameter := parameters.at(i);
+            if(parameter.type != null) { text.append(parameter.type!!.to_text()); }
+            else { text.append("?"); }
+        }
+        text.append(")");
+        return text.build();
+    }
+}
+
+/** one parameter of a function: `side: decimal` */
+class sharp_parameter {
+    name : string;
+    type : sharp_type?;             // null for the untyped parameter of a setter
+    node : _int64;                  // its node in the tree of the function's file
+    value_type : resolved_type?;    // what a value of it is (set by stage 5)
+
+    sharp_parameter(name: string, type: sharp_type?, node: _int64) {
+        self->name = name;
+        self->type = type;
+        self->node = node;
+    }
+}
+

@@ -1,0 +1,202 @@
+mod app;
+
+/*
+ * Every form of statement the statements stage accepts. The C++ compiler
+ * accepts this file too (and runs it); the flow cases only the bootstrap
+ * accepts are in flow_wider.sharp.
+ */
+
+class shape {
+    def area() : decimal { return 0; }
+}
+
+class square base shape {
+    side : decimal = 2;
+    def area() : decimal { return side * side; }
+}
+
+class problem base exception {
+    problem(message: string) -> base(message) { }
+}
+
+class small_problem base problem {
+    small_problem() -> base("small") { }
+}
+
+enum light { red, amber, green }
+
+total_seen : _int64 = 0;
+
+// ---- local variables: typed, inferred, several at once, const, default objects, arrays, local aliases
+def locals() : _int64 {
+    a : _int64 = 1;
+    b := 2;
+    c : int = 3, d = 4;
+    const limit : _int64 = 10;
+    n : int;                        // an int object holding 0
+    s : string;                     // an empty string
+    numbers := new _int64[3];
+    names : string[] = { "a", "b" };
+    maybe : shape? = null;
+    alias list<string> as words;
+    w : words = new words();
+    w.add("x");
+    {
+        inner : _int64 = 5;
+        a += inner;
+    }
+    {
+        inner : _int64 = 6;              // a sibling block may reuse the name
+        a += inner;
+    }
+    if(a > 0) e := 1;               // a statement without braces is a scope of its own
+    return a + b + c.value + d.value + limit + n.value + sizeof(s.data) + sizeof(numbers) + sizeof(names);
+}
+
+// ---- if / else chains and conditions
+def sign(n: _int64) : _int64 {
+    if(n > 0) { return 1; }
+    else if(n < 0) { return 0 - 1; }
+    else { return 0; }
+}
+
+def conditions(flag: bool, ratio: decimal) {
+    if(flag) { total_seen++; }                  // a bool object is a condition
+    if(ratio) { total_seen++; }                 // a decimal: compared with 0
+    while(false) { }
+}
+
+// ---- loops
+def loops(items: _int64[]) : _int64 {
+    sum : _int64 = 0;
+    i : _int64 = 0;
+    while(i < sizeof(items)) { sum += items[i]; i++; }
+    do { sum++; } while(sum < 0);
+    for(j : _int64 = 0; j < 3; j++) { sum += j; }
+    for(x : _int64 = 0, y = 10; x < y; x++) { y--; }
+    for(;;) { break; }
+    for(k : _int64 = 0; ; k++) { if(k > 3) { break; } continue; }
+    return sum;
+}
+
+def foreach_forms(items: _int64[], words: list<string>, maybe: _int64[]?, things: object[]) : decimal {
+    total : decimal = 0;
+    foreach(n in items) { total += n; }
+    foreach(d: decimal in items) { total += d; }        // each item widened to a decimal
+    foreach(w in words) { total += sizeof(w.data); }    // a loopable object: its get_elements()
+    foreach(c in "text") { total += c; }                // a text literal: its characters
+    foreach(c in words.at(0)) { total += c; }           // a string is loopable
+    if(maybe != null) { foreach(m in maybe) { total += m; } }
+    foreach(t: shape in things) { total += t.area(); }  // an object item to a class: tested when it runs
+    foreach(n in items) {
+        when(n) {
+            1 -> { continue; }                          // `continue` and `break` reach through a when
+            9 -> { break; }
+        }
+        total++;
+    }
+    return total;
+}
+
+// ---- when
+def when_forms(n: _int64, word: string, l: light, sh: shape) : _int64 {
+    result : _int64 = 0;
+    when(n) {
+        1 -> result = 10;
+        2, 3 -> result = 20;
+        else -> result = 30;
+    }
+    when(word) {                                        // string.operator==
+        "a" -> result++;
+        "b" -> result--;
+    }
+    when(l) {
+        light.red -> result += 1;
+        light.green -> result += 2;
+    }
+    when(sh) {                                          // the same object?
+        null -> result = 0;
+    }
+    when {
+        n < 0 -> result = 0 - 1;
+        n > 100 -> result = 100;
+        else -> { }
+    }
+    return result;
+}
+
+// ---- return
+def nothing() { }
+def returns_nothing() { return nothing(); }             // a call of nothing, then return
+def early(n: _int64) { if(n > 0) { return; } total_seen++; }
+def widened() : decimal { return 5; }
+def boxed() : int { return 5; }                         // made into an int object
+def inferred() := later() * 2;                          // used before `later`'s type is known
+def later() := 21;
+
+// ---- throw, try / catch / finally, lock
+def risky(n: _int64) : _int64 {
+    if(n < 0) { throw new problem("negative"); }
+    maybe : problem? = null;
+    if(n == 99) { throw maybe; }                        // a nullable object may be thrown
+    return n;
+}
+
+def handlers(n: _int64) : _int64 {
+    result : _int64 = 0;
+    try {
+        result = risky(n);
+    } catch(e: small_problem) {
+        result = 0 - 2;
+    } catch(e: problem) {                               // e: a sibling clause may reuse the name
+        result = 0 - 1;
+    } catch(exception) {                                // no name
+        result = 0 - 3;
+    } finally {
+        total_seen++;
+    }
+    try { result++; } finally { }
+    for(i : _int64 = 0; i < 3; i++) {
+        try {
+            if(i == 1) { continue; }                    // runs the finally first
+            if(i == 2) { break; }
+        } finally {
+            total_seen++;
+        }
+    }
+    return result;
+}
+
+def locks(items: _int64[]) : _int64 {
+    guard := new shape();
+    lock(guard) { total_seen++; }
+    lock(self_guard) {
+        if(sizeof(items) == 0) { return 0; }            // unlocks first
+    }
+    return 1;
+}
+
+self_guard := new square();
+
+// ---- asm
+def asm_forms(count: _int64) {
+    asm {
+        .again:
+        loadl ebx, [count]
+        movi adx, [total_seen]
+        jmp @done
+        .done:
+        nop
+    }
+}
+
+def main() {
+    words := new list<string>();
+    words.add("ab");
+    print("" + locals() + sign(5) + loops(new _int64[2]) + when_forms(2, "a", light.red, new square()) + handlers(3)
+          + foreach_forms(new _int64[] { 1, 2 }, words, null, new object[0]) + locks(new _int64[0]) + inferred());
+    conditions(new bool(true), 0.5);
+    returns_nothing();
+    early(1);
+    print("" + widened() + boxed().value);
+}

@@ -1,0 +1,48 @@
+mod backend.ide.declarations;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.ide.output,
+    backend.ide.types,
+    backend.types.program
+)
+
+/**
+ * DECLARATIONS: WHAT THE PROGRAM DECLARES
+ *
+ * `declarations.json` is the index that completion, hover and go-to-definition
+ * work from: every module with its classes (and their fields, functions,
+ * constructors, nested classes, aliases, enum values), globals, functions
+ * and aliases - the standard library included. Only what was WRITTEN is here:
+ * a generic class once, as written (`list<T>`), never its instances.
+ *
+ * It needs nothing from the body analysis: every type is the type as written,
+ * so it exists even when a declaration has an error.
+ *
+ * The files of this package (module `backend.ide.declarations`):
+ *
+ *      declarations.sharp   this front door: `write_declarations`
+ *      module_records.sharp one module
+ *      class_records.sharp  one class, interface or enum, and what is in it
+ *      member_records.sharp fields, functions, aliases, enum values; the signature text
+ */
+def write_declarations(folder: string, run: string, prog: sharp_program, files: ide_files, types: ide_types) {
+    job := new declaration_job(files, types);
+
+    w := new json_writer();
+    w.begin_object();
+    w.key(KEY_FORMAT);  w.number(1);
+    w.key(KEY_RUN);  w.text(run);
+    w.key(KEY_MODULES);
+    w.begin_array();
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        w.line();
+        write_module(w, job, prog.module_list.at(i));
+    }
+    w.line();
+    w.end_array();
+    w.end_object();
+
+    write_file_atomically(folder, "declarations.json", w.build());
+}

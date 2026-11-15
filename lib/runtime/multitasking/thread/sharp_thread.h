@@ -36,6 +36,13 @@ struct sharp_thread {
     recursive_mutex mut;
     Int id;
     Int stackSize;
+    // The lowest address of this thread's MACHINE stack that code may still
+    // use (set when the thread starts, vm_thread_entry). Compiled code nests one
+    // machine frame per Sharp call it makes; before it goes one deeper it tests
+    // the machine stack pointer against this (jit/x64/opcode/direct_calls.cpp)
+    // and prepare_method() raises stack_overflow_exception when it is passed.
+    // 0: not a thread that runs Sharp code (nothing is tested).
+    uintptr_t nativeStackFloor;
     Int signal;
     Int nativeCalls;
     int priority;

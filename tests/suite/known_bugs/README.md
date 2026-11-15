@@ -51,7 +51,29 @@ sharp /tmp/bug
 
 ## Compiler
 
-No reproduction file is left in this folder.
+Found on 2026-11-12 porting `lib/support/bootstrap` to the current language:
+
+| Bug | File |
+|---|---|
+| An error in the initializer of a global is reported in the files that IMPORT the module, with the importing file's text at that line; "could not locate main method" is reported against `std/io/atomic.sharp:0:0`. | not reduced |
+
+Found on 2026-11-15 by random programs built with both compilers (the verifier
+of the bootstrap's optimizer, `lib/support/bootstrap/doc/codegen.md` 13.6); the
+bootstrap compiler gives the right answer in each:
+
+| Bug | File |
+|---|---|
+| A `? :` with a CONSTANT arm, compared or negated, gives the wrong answer when the other arm is taken: with `five : _int64 = 5; wide : _int64 = 0;` the program prints 0 for `((11 == five) ? 7 : 0) == 0`, for `((11 == five) ? 123456789 : wide) == 0` and for `!((11 == five) ? 123456789 : wide)` (each is 1). With two variables as arms (`((11 == five) ? five : wide) == 0`) it is right, and so is the value when it is only printed (`n3 : _uint8 = 0; show((11 == five) ? 123456789 : n3)` prints 0). Seen with and without the JIT; not tried with `-O`. | not reduced further |
+
+Found on 2026-11-15 while the bootstrap's driver was completed
+(`lib/support/bootstrap/doc/codegen.md` 13.7); worked around in
+`lib/support/bootstrap/configuration/settings_processor.sharp`, `project_path`,
+by putting the object in a local first. The bootstrap compiler builds the
+program as written:
+
+| Bug | File |
+|---|---|
+| A `new` expression used directly as the receiver of a call inside a condition stops the code generator: `def pick(written: string) : string { if(new file(written).exists()) { return written; } return "none"; }` gives "sharp: <code-generator> fatal error: incorrect operation_step, found (1) when (31) was expected. note: in function: pick(std#string): std#string". With `candidate := new file(written); if(candidate.exists())` it compiles. | not in a file (the text here is the whole reproduction; it needs `import ( std.io )`) |
 
 Not in a file (described only; not retested on 2026-11-12):
 members added by one `mutate` file are not always visible inside another
@@ -64,7 +86,8 @@ mutating file imports may not resolve.
 
 | Bug | File |
 |---|---|
-| Seen with the JIT that was replaced in November 2026, not re-tested with the new one: a crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). Not reduced to a small program. | - |
+| Seen with the JIT that was replaced in November 2026: a crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). A bug of exactly this shape was found and fixed on 2026-11-14 (see "Fixed" below: a fiber continued in the machine code of a function compiled while it waited); the warm-ups were left in place. Re-tested without them on 2026-11-14 (`lib_coroutines_core`, `_channels`, `_sync` with the `warm_up()` call taken out, plain and `-O`, 25 runs each, and 8 runs each under the address sanitizer): no failure, neither with the runtime from before that fix nor with the one after. So the warm-ups no longer guard anything that can be reproduced; they cost nothing and stay. | `cases/lib_coroutines_resume_after_compile.sharp` |
+| NOT REPRODUCED OUTSIDE THE BOOTSTRAP COMPILER: a plain `main` that `launch`ed one coroutine per source file (each read and parsed a file, then `send` its result on an unlimited channel) and then called `receive()` once per file hung about one run in three with 6 or more files, with and without the JIT; 4 or fewer files never hung. A small test of the same shape with a number loop instead of the file work ran 1,200 rounds without hanging, so the cause is something in the real work (file reads, large allocations during a collection) and is not found. `lib/support/bootstrap/main.sharp` now uses `run_blocking { coroutine_scope { launch_on(pool) } }` and a list, which has not hung. | first version of `parse_all` in `lib/support/bootstrap/main.sharp`, 2026-11-12 |
 | The JIT exists for x86-64 Linux / Intel macOS only; on arm64 and Windows everything is interpreted. | `lib/runtime/jit/jit_compiler.cpp` |
 | An integer constant above 2^53 written in source is loaded through a decimal constant (`ldc` + `d2i`) and loses its low bits. | needs an integer constant table |
 | The native bridge (`snb`) passes every number as a decimal. | `lib/runtime/snb` |
@@ -79,6 +102,36 @@ mutating file imports may not resolve.
 | `file.get_free_space()` returns <= 0 under `-O` (asm loads an int object). | `std/io/file.sharp` |
 
 ## Fixed (kept here so the history is easy to find)
+
+Fixed on 2026-11-15 (runtime): a SIGSEGV at start-up, before `main`, in `build_reflect_function`
+(reflection). The loader's table of native types had 14 entries, but it hands out entry 19 (`nil`)
+as the result type of every function that returns nothing, so reflection read memory past the
+table; when those bytes read as a class or function type it followed a garbage pointer. Whether
+it crashed depended on the heap's layout - the length of the program's PATH changed it (the kostya
+json program built by the bootstrap crashed as `/tmp/fullbench/boot/json`, ran as `./json`). Fixed
+in `lib/runtime/exe/symbol_processor.cpp` (the table covers every type up to `nil`); found by the
+bootstrap's optimizer stage while measuring the benchmarks (codegen.md 11.3, 13.6).
+
+Fixed on 2026-11-15 (runtime, the kind-check build only, `-DSHARP_TYPE_CHECK`): `rstore`, `istore`,
+`ipushl` and `distore` wrote the kind tag of the new stack top before growing the stack, one byte past
+the tag array when that push grew it (heap corruption, then a hang); and the checker's signature of
+interrupt 0x45 (`fiber_start`) still expected a number for the started function, which is an object
+since the typed VM (false "holds a decimal" reports). Both found by the kind check of suite cases built
+with the bootstrap's `-O` (codegen.md 13.6).
+
+Fixed on 2026-11-15 (runtime), found by the bootstrap's completeness critics (codegen.md 13.8):
+- An EMPTY command-line argument (`sharp prog a "" b`) killed every program with SIGSEGV before
+  `main`: the VM makes no array of length 0 (`create_object` gives null), so filling the argument's
+  text threw "string field is null!" during start-up. It is now an empty array object
+  (`create_empty_array`, memory/sharp_object.cpp; used in multitasking/thread/stack_limits.cpp),
+  and `memcopy` of 0 items does nothing whatever the arrays are (lib/Modules/std.io/memory.cpp:
+  `string.append` of an empty array copies 0 items into a null `data`). `sharp ""` no longer
+  aborts on `string("").at(0)` (main.cpp).
+- What `def main() : int` returns never became the exit code of the process: `destroy()` copied
+  the main fiber's exit value BEFORE `shutdown_thread()` read main's result into it, so every
+  program ended with 0 (only `exit(n)` worked). `shutdown_thread()` now hands the value on
+  (multitasking/thread/thread_controller.cpp), and an exception nobody caught on the main thread
+  ends the process with 1, not 0.
 
 Moved into `../cases/` after they started to pass: `threads.sharp` (scheduler
 deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
@@ -219,6 +272,32 @@ Found while doing the fourth part:
   the difference wrapped around to an enormous number and the fiber was
   preempted at once (`scheduler.cpp`, the time slice loop). It looked like a
   JIT bug only because the JIT changed how often the two moments met.
+
+Found running several bootstrap compilers at once (2026-11-14):
+
+- **"(SIGSEGV) found" in about one run in 150** of `lib/support/bootstrap`,
+  a different suite case each time, always passing when run again
+  (`lib_coroutines_resume_after_compile`, and `lib_coroutines_resume_shapes`
+  for the other mixes of frames). A fiber continued after a context
+  switch gets the machine frames of its compiled functions back; the walk
+  (`main_vm_loop`, `invoke_next_frame`) entered every function compiled at
+  that moment, also one the interpreter had been running when it made its
+  call and that another thread compiled since. Its still-interpreted callee
+  ran in a nested interpreter loop, which after the callee returned ran the
+  rest of the fiber, and the outer loop then dispatched past the end of
+  `fiber_main`. A function is now continued in machine code only when the
+  frame of its call says it called from machine code
+  (`continues_in_machine_code`, `virtual_machine.cpp`). Found with a runtime
+  built with `-fsanitize=address` (heap-buffer-overflow in `main_vm_loop`).
+
+Found porting `lib/support/bootstrap` (2026-11-12):
+
+- **`names[0] = other` on a list stopped the compiler** ("attempting to assign
+  stack data!"), and with a literal it wrote into the object the list held
+  (`list_index_assignment`). `object[index] = value` now stores the value: it
+  is compiled as `object.put(index, value)` (`assign_expression.cpp`).
+- **`cond ? a : b` with a `T` and a `T?`** was a "nullability mismatch"
+  (`ternary_nullable_side`); the result is a `T?` now.
 
 From the typed VM and the new JIT (November 2026):
 

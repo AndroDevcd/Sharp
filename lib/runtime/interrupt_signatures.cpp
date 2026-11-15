@@ -50,7 +50,13 @@ static const interrupt_signature signatures[] = {
     { OP_CORES,                 "cores",                "",                     "",             "ebx:i" },
 
     // ---- fibers
-    { OP_FIBER_START,           "fiber_start",          "",                     "o i i o o",    "ebx:i" },
+    // top first: name, the main function, the thread id, the fiber, the arguments
+    // (platform/kernel/vm.sharp, start_fiber). The function was an index - "i" - until a
+    // function value became an object (function_value.sharp); the kind checker then read
+    // the number half of an object's slot, which holds whatever an earlier value left there
+    // ("stack slot 13 holds a decimal, an integer is needed" in the coroutine cases built
+    // with the bootstrap's -O, which leaves other values on that part of the stack).
+    { OP_FIBER_START,           "fiber_start",          "",                     "o o i o o",    "ebx:i" },
     { OP_FIBER_SUSPEND,         "fiber_suspend",        "",                     "i",            "ebx:i" },
     { OP_FIBER_UNSUSPEND,       "fiber_unsuspend",      "",                     "i",            "ebx:i" },
     { OP_FIBER_KILL,            "fiber_kill",           "",                     "i",            "ebx:i" },

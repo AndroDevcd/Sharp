@@ -33,11 +33,45 @@ void compile_inline_if_expression(expression *e, Ast *ast) {
         sharp_label *endLabel, *ifFalseLabel;
         Int match_result = is_implicit_type_match(trueExpr.type, falseExpr.type, exclude_all);
 
+        // `first ? a : b` with a: node and b: node? (or null), in either order:
+        // the two sides differ only in "may be null", and the result simply
+        // may be null too. (It used to be an error, "nullability mismatch".)
+        //
+        //      C++ comparison: `cond ? ptr : nullptr` is a pointer.
+        bool resultIsNullable = false;
+        bool typeFromFalseSide = false;
+        if(match_result == indirect_match_w_nullability_mismatch) {
+            resultIsNullable = true;
+            match_result = indirect_match;
+        } else if(!is_match_normal(match_result)) {
+            Int reversed = is_implicit_type_match(falseExpr.type, trueExpr.type, exclude_all);
+            if(reversed == indirect_match_w_nullability_mismatch || is_match_normal(reversed)) {
+                resultIsNullable = reversed == indirect_match_w_nullability_mismatch || trueExpr.type.type == type_null;
+                typeFromFalseSide = true;
+                match_result = indirect_match;
+            }
+        }
+
         if(is_match_normal(match_result)) {
             // `flag ? 1 : 0.5` - the whole expression has the type of the first
             // branch, so the second branch is made that kind of number too
-            convert_number_for(falseExpr, trueExpr.type);
-            e->type.copy(trueExpr.type);
+            if(!typeFromFalseSide) {
+                convert_number_for(falseExpr, trueExpr.type);
+                e->type.copy(trueExpr.type);
+            } else {
+                e->type.copy(falseExpr.type);   // the first branch is `null` or the nullable one's plain form
+            }
+
+            if(resultIsNullable) {
+                // a variable keeps its field while it is one: the nullable
+                // result is the field's type, not the field itself
+                if(e->type.type == type_field) {
+                    sharp_type valueType;
+                    valueType.copy(e->type.field->type);
+                    e->type.copy(valueType);
+                }
+                e->type.nullable = true;
+            }
 
             set_internal_label_name(ss, "if_end", uniqueId++)
             endLabel = create_label(ss.str(), &current_context, ast, &e->scheme);
@@ -54,7 +88,7 @@ void compile_inline_if_expression(expression *e, Ast *ast) {
             create_set_label_operation(&e->scheme, endLabel);
 
             e->scheme.schemeType = scheme_inline_if;
-            e->scheme.type = get_real_type(trueExpr.type);
+            e->scheme.type = get_real_type(typeFromFalseSide ? falseExpr.type : trueExpr.type);
         } else if(match_result == indirect_match_w_nullability_mismatch) {
             create_new_error(NULLABILITY_MISMATCH, ast->line, ast->col, " expression of type `" + type_to_str(falseExpr.type) + "` is not equal to that of type `"
                                                                                + type_to_str(trueExpr.type) + "`.");

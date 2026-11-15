@@ -1,0 +1,218 @@
+mod backend.compiler.driver;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions,
+    backend.compiler.expressions.calls,
+    backend.compiler.statements,
+    backend.compiler.initializers
+)
+
+/**
+ * ONE FUNCTION BODY
+ *
+ * For a function, constructor, init block, getter or setter:
+ *
+ *   1. make its analysis context: which class, static or not, which
+ *      environment of type parameters (`T is string` inside list<string>);
+ *   2. open the outermost scope and declare the parameters in it - they are
+ *      local variables like any other, and the first in `locals`;
+ *   3. a constructor's `-> base(a, b)`: the base class's constructor the
+ *      arguments choose (expressions/calls/base_constructor_call.sharp); when
+ *      none is written, the one without parameters (initializers/base_calls.sharp).
+ *      A constructor the compiler added has only that call and an empty body;
+ *   4. analyse the body, statement by statement, which builds its typed tree
+ *      (backend/compiler/statements); a `return` is checked against what the
+ *      function returns (`expected_result` on the context);
+ *   5. `def area() := w * h;` - a function whose result type is not written
+ *      gets the type of its expression (conversions/inferred_types.sharp).
+ *
+ * The result is stored on the function: `bound_body`, `bound_base_call`, `locals`.
+ *
+ * Static or not: a function declared in a module (outside any class) and a
+ * `static` function have no `self`. A getter or setter is static when its
+ * field is.
+ *
+ *      C++ comparison: compiler/functions/function_compiler.cpp
+ *      (`compile_function`), init_compiler.cpp, field_compiler.cpp for
+ *      accessors.
+ */
+def analyse_function_body(session: analysis_session, function: sharp_function) {
+    if(function.body_state != TYPE_UNKNOWN) { return; }
+    function.body_state = TYPE_IN_PROGRESS;
+
+    file := session.prog.file_of(function.unit);
+    if(file != null && function.is_synthesized == 1) {
+        // a constructor the compiler added: an empty body and the implied base call
+        complete_added_constructor(context_of_function(session, function, file!!), function);
+        function.locals = new list<local_variable>();
+        function.body_state = TYPE_KNOWN;
+        session.analysed_functions.add(function);
+        return;
+    }
+    if(file == null || (!function.has_body() && function.base_call < 0)) {
+        function.body_state = TYPE_KNOWN;       // a native function, a function an interface only promises
+        if(file != null) {
+            // no body to analyse, but its parameter list is still held to the rule of every list
+            context := context_of_function(session, function, file!!);
+            for(i : _int64 = 0; i < function.parameters.size(); i++) { report_if_parameter_twice(context, function, i); }
+        }
+        return;
+    }
+
+    context := context_of_function(session, function, file!!);
+    context.open_scope();
+    declare_parameters(context, function);
+
+    if(function.base_call >= 0) {
+        function.bound_base_call = bind_base_constructor_call(context, function, function.base_call);
+        if(function.bound_base_call != null) { check_base_arguments(context, function.bound_base_call!!); }
+    } else if(makes_an_object(function)) {
+        function.bound_base_call = implied_base_call(context, function);     // the base class's constructor without parameters
+    }
+
+    try {
+        if(function.body >= 0) {
+            context.expected_result = expected_result_of(context, function);
+            statements := new list<bound_statement>();
+            analyse_statement(context, function.body, statements);
+            if(statements.size() > 0) { function.bound_body = statements.at(0); }
+        } else if(function.expression >= 0) {
+            function.bound_body = analyse_expression_body(context, function);
+        }
+    } catch(e: stack_overflow_exception) {
+        function.bound_body = null;     // (the later passes skip a function without a typed body)
+        report_nested_too_deeply(context, function, "the analysis");
+    }
+
+    function.locals = context.locals;
+    function.body_state = TYPE_KNOWN;
+    session.counters.bodies++;
+    if(function.bound_body != null) { session.analysed_functions.add(function); }     // for the flow analysis
+}
+
+/** step 1: where this function's body is */
+def context_of_function(session: analysis_session, function: sharp_function, file: sharp_file) : analysis_context {
+    context := new analysis_context(session, file);
+    context.class_of = function.owner;
+    context.function = function;
+    context.is_static = function.owner == null || function.has(FLAG_STATIC);
+
+    if(function.field != null) {
+        // a getter or setter: inside it the field's name means the stored value
+        context.accessor_of = function.field;
+        if(function.field!!.has(FLAG_STATIC)) { context.is_static = 1; }
+    }
+
+    // an instance of a generic function has its own environment (chained to
+    // its class's); everything else lives under its class's
+    if(function.environment != null) { context.environment = function.environment; }
+    else if(function.owner != null) { context.environment = function.owner!!.environment; }
+    return context;
+}
+
+/**
+ * What a `return` in the body must give: the result type (the nil type for
+ * "nothing": constructors, init blocks, setters, functions without a result).
+ * A getter returns its field's type, which for `x := 5 get { ... }` is known
+ * only once the value is analysed.
+ */
+def expected_result_of(context: analysis_context, function: sharp_function) : resolved_type {
+    if(function.result_type != null) { return function.result_type!!; }
+    if(function.kind == D_GETTER && function.field != null) { return type_of_field(context, function.field!!, function.node); }
+    return context.session.types.error_type;
+}
+
+/** step 2: the parameters, as the first local variables */
+def declare_parameters(context: analysis_context, function: sharp_function) {
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        parameter := function.parameters.at(i);
+        type : resolved_type = context.session.types.error_type;
+        if(parameter.value_type != null) {
+            type = parameter.value_type!!;
+        } else if(function.kind == D_SETTER && function.field != null) {
+            // `set value -> { ... }`: the parameter has the field's type, which
+            // for `x := 5 set v -> ...` is only known once the value is analysed
+            type = type_of_field(context, function.field!!, parameter.node);
+        }
+        report_if_parameter_twice(context, function, i);
+        variable := new local_variable(parameter.name, type, context.unit, parameter.node);
+        variable.is_parameter = 1;
+        context.declare(variable);
+    }
+}
+
+/**
+ * E0600: `def f(a: _int64, a: string)` - two parameters with one name. The
+ * body could reach only one of them (the second would hide the first), so
+ * the name must be unique in the parameter list, as a local must be unique
+ * among the locals in scope (7.4.2). Reported at the second, once.
+ *
+ *      C++ comparison: the C++ compiler accepts it, and the body's `a` is the
+ *      last parameter of that name. Stricter here on purpose (D90): a
+ *      function whose first parameter cannot be read has no meaning a caller
+ *      could rely on.
+ */
+def report_if_parameter_twice(context: analysis_context, function: sharp_function, index: _int64) {
+    parameter := function.parameters.at(index);
+    for(i : _int64 = 0; i < index; i++) {
+        earlier := function.parameters.at(i);
+        if(!(earlier.name == parameter.name)) { continue; }
+        d := problem_at(context, "E0600", "`" + parameter.name + "` is already a parameter of " + function_words(function), parameter.node);
+        d.with_label("a second parameter named `" + parameter.name + "`");
+        d.with_related_place(place_of_node(context.unit, earlier.node, "the first `" + parameter.name + "` is here"));
+        d.with_note("inside the body a name means one variable; with two parameters of one name the first could never be read");
+        d.with_help("give each parameter its own name, for example `" + parameter.name + "2`");
+        report(context, d);
+        return;
+    }
+}
+
+/** "`f`", "the constructor `point`": the function a parameter belongs to, for messages */
+def function_words(function: sharp_function) : string {
+    if(function.kind == D_CONSTRUCTOR) { return "the constructor `" + function.name + "`"; }
+    return "`" + function.name + "`";
+}
+
+
+/**
+ * Step 5: `def f() := value;` and `def f() : t := value;`. The value IS the
+ * result; with no type written, its type is the function's result type.
+ */
+def analyse_expression_body(context: analysis_context, function: sharp_function) : bound_statement {
+    session : analysis_session = context.session;
+    node : _int64 = function.expression;
+
+    if(function.type_state == TYPE_UNKNOWN) {
+        found := analyse_expression(context, node, null);
+        if(found.type.kind == RT_NIL) {
+            // `def sleep(ms: decimal) := time.sleep(ms);` - the call returns nothing, and so does the function
+            function.result_type = session.types.nil_type;
+            function.type_state = TYPE_KNOWN;
+            return new bound_expression_statement(context.unit, node, found);
+        }
+        value := as_value(context, found);
+        result := inferred_result_of(session, value);
+        function.result_type = result;
+        function.type_state = TYPE_KNOWN;
+        return new bound_return(context.unit, node, convert(context, value, result, "the result of `" + function.name + "`"));
+    }
+
+    result : resolved_type = session.types.nil_type;
+    if(function.result_type != null) { result = function.result_type!!; }
+    if(result.kind == RT_NIL) {
+        // a function that returns nothing, written with `:=`: the expression is carried out for what it does
+        return new bound_expression_statement(context.unit, node, analyse_expression(context, node, null));
+    }
+    return new bound_return(context.unit, node, analyse_converted(context, node, result, "the result of `" + function.name + "`"));
+}

@@ -1,0 +1,196 @@
+mod backend.types.type_system;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * ARE TWO TYPES THE SAME TYPE?
+ *
+ * Needed wherever two declarations are held against each other:
+ *
+ *      def add(x: int)  and  def add(x: int)           declared twice?
+ *      def show() : string   in an interface, and
+ *      override def show() : string   in a class       does the one implement the other?
+ *
+ * Two types are the same when they are written with the same parts: the same
+ * class (the same sharp_class OBJECT - not merely the same name), the same
+ * `[]` and `?`, the same type arguments. An alias counts as the type it
+ * stands for.
+ *
+ * TYPE PARAMETERS need one more thing. In
+ *
+ *      interface comparable<T> { def compare(other: T) : int; }
+ *      class money : comparable<money> { override def compare(other: money) : int { } }
+ *
+ * the interface says `T` and the class says `money`, and they match, because
+ * the class named its interface as comparable<money>. A `type_bindings` holds
+ * that knowledge: "T stands for money".
+ *
+ *      same_type(a, b, bindings, lenient)
+ *
+ * `bindings` apply to `a` only (the type from the base class or interface).
+ *
+ * `lenient` decides what happens when the answer cannot be known - a name
+ * that was never found (reported already), or a type parameter nothing is
+ * known about:
+ *      1   they count as the same   (do not pile a second error on the first)
+ *      0   they count as different  (two functions are only "declared twice"
+ *                                    when that is certain)
+ */
+
+/** "the type parameter parameters[i] stands for arguments[i]" */
+class type_bindings {
+    parameters : list<sharp_type_parameter>;
+    arguments : list<sharp_type>;
+
+    type_bindings(parameters: list<sharp_type_parameter>, arguments: list<sharp_type>) {
+        self->parameters = parameters;
+        self->arguments = arguments;
+    }
+
+    /** what `parameter` stands for; null when these bindings say nothing about it */
+    def bound_to(parameter: sharp_declaration) : sharp_type? {
+        for(i : _int64 = 0; i < parameters.size(); i++) {
+            if(parameters.at(i) == parameter) {
+                if(i < arguments.size()) { return arguments.at(i); }
+                return null;
+            }
+        }
+        return null;
+    }
+}
+
+/**
+ * A type with its aliases and bound type parameters looked through:
+ * `names[]` where `alias list<string> as names` is seen as list<string>, an array.
+ */
+class seen_type {
+    type : sharp_type;
+    is_array : _int64 = 0;
+    is_nullable : _int64 = 0;
+
+    seen_type(type: sharp_type) {
+        self->type = type;
+    }
+
+    /** a name that was never found: nothing can be said about it */
+    def is_unknown() : _int64 {
+        return type.form == TYPE_NAMED && type.declaration == null;
+    }
+
+    /** a type parameter that nothing is bound to: it could be any type */
+    def is_open() : _int64 {
+        return type.form == TYPE_NAMED && type.declaration != null && type.declaration!!.kind == D_TYPE_PARAMETER;
+    }
+}
+
+def look_through(written: sharp_type, bindings: type_bindings?) : seen_type {
+    seen := new seen_type(written);
+
+    // (16: an alias that stands for itself must not go round forever)
+    for(step : _int64 = 0; step < 16; step++) {
+        current : sharp_type = seen.type;
+        if(current.is_array == 1) { seen.is_array = 1; }
+        if(current.is_nullable == 1) { seen.is_nullable = 1; }
+
+        if(current.form != TYPE_NAMED || current.declaration == null) { return seen; }
+        declared : sharp_declaration = current.declaration!!;
+
+        next : sharp_type? = null;
+        if(declared.kind == D_ALIAS) {
+            next = (declared as sharp_alias).target;
+        } else if(declared.kind == D_TYPE_PARAMETER && bindings != null) {
+            next = bindings!!.bound_to(declared);
+        }
+
+        if(next == null) { return seen; }
+        seen.type = next!!;
+    }
+    return seen;
+}
+
+def same_type(a: sharp_type?, b: sharp_type?, bindings: type_bindings?, lenient: _int64) : _int64 {
+    return compare_types(a, b, bindings, lenient, 0);
+}
+
+/**
+ * @param may_promise_more  1: `b` may leave out the `?` that `a` has. For the
+ *                          result of an overriding function: where `string?`
+ *                          is promised, a function that always returns a
+ *                          string keeps the promise.
+ */
+def compare_types(a: sharp_type?, b: sharp_type?, bindings: type_bindings?, lenient: _int64,
+                  may_promise_more: _int64) : _int64 {
+    if(a == null && b == null) { return 1; }
+    if(a == null || b == null) { return lenient; }     // one of them has no type written (`x := value`)
+
+    left := look_through(a!!, bindings);
+    right := look_through(b!!, null);
+
+    if(left.is_unknown() || right.is_unknown()) { return lenient; }
+    if(left.is_open() && left.type.declaration != right.type.declaration) {
+        // a type parameter on the base side that nothing is known about
+        return lenient;
+    }
+
+    if(left.is_array != right.is_array) { return 0; }
+    if(left.is_nullable != right.is_nullable) {
+        if(!(may_promise_more == 1 && left.is_nullable == 1)) { return 0; }
+    }
+
+    x : sharp_type = left.type;
+    y : sharp_type = right.type;
+    if(x.form != y.form) { return 0; }
+
+    if(x.form == TYPE_NATIVE) {
+        return x.native_kind == y.native_kind;
+    }
+
+    if(x.form == TYPE_FUNCTION) {
+        if(x.parameters.size() != y.parameters.size()) { return 0; }
+        for(i : _int64 = 0; i < x.parameters.size(); i++) {
+            if(!same_type(x.parameters.at(i), y.parameters.at(i), bindings, lenient)) { return 0; }
+        }
+        if(x.result == null || y.result == null) {
+            return x.result == null && y.result == null;
+        }
+        return same_type(x.result, y.result, bindings, lenient);
+    }
+
+    if(x.form == TYPE_NAMED) {
+        if(x.declaration != y.declaration) { return 0; }
+        if(x.arguments.size() != y.arguments.size()) { return 0; }
+        for(i : _int64 = 0; i < x.arguments.size(); i++) {
+            if(!same_type(x.arguments.at(i), y.arguments.at(i), bindings, lenient)) { return 0; }
+        }
+    }
+    return 1;
+}
+
+/** do two functions take the same parameters: as many, with the same types in the same order? */
+def same_parameters(a: sharp_function, b: sharp_function, bindings: type_bindings?, lenient: _int64) : _int64 {
+    if(a.parameters.size() != b.parameters.size()) { return 0; }
+    for(i : _int64 = 0; i < a.parameters.size(); i++) {
+        if(!same_type(a.parameters.at(i).type, b.parameters.at(i).type, bindings, lenient)) { return 0; }
+    }
+    return 1;
+}
+
+/**
+ * Does `b` return what `a` returns? (How a function says what it returns:
+ * sharp_function.sharp.) `a` is the function from above, `b` the one that
+ * overrides it; `b` may return `string` where `a` says `string?`.
+ */
+def same_result(a: sharp_function, b: sharp_function, bindings: type_bindings?) : _int64 {
+    // `def f() := value;` - the type is the type of the value, which is not worked out yet
+    if(a.return_type == null && a.expression >= 0) { return 1; }
+    if(b.return_type == null && b.expression >= 0) { return 1; }
+
+    if(a.return_type == null || b.return_type == null) {
+        return a.return_type == null && b.return_type == null;      // both return nothing
+    }
+    return compare_types(a.return_type, b.return_type, bindings, 1, 1);
+}

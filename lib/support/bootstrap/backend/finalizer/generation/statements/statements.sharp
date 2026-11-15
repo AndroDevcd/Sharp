@@ -1,0 +1,174 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.calls,
+    backend.finalizer.generation.null_safety,
+    backend.finalizer.generation.closures,
+    backend.finalizer.generation.setup
+)
+
+/**
+ * STATEMENTS (doc/codegen.md 6.9 - 6.11, 6.17)
+ *
+ *      { ... }                 each statement in order
+ *      x : t = v;              store_local %x, %v (cut to t when t is a narrower integer)
+ *      x : t;                  its start value, written explicitly: 0, 0.0 or null - the VM does
+ *                              not clear new slots, and a declaration inside a loop starts again
+ *                              every round (4.4); `n : int;` a new object of its class
+ *      f(x);                   the call; a result nobody uses is dropped (`pop`)
+ *      return v;               return_value %v; through a lock or a finally: exits.sharp
+ *      if, when                branches.sharp
+ *      loops, break, continue  loops.sharp
+ *      try, throw              exceptions.sharp
+ *      lock                    locks.sharp
+ *      asm { }                 assembly.sharp
+ *
+ * Every statement starts with a `line` mark: the line table maps each pc to
+ * the source line stack traces print.
+ *
+ * The files of this package (module `backend.finalizer.generation.statements`):
+ *
+ *      statements.sharp        this front door: blocks, expression statements, locals, return
+ *      branches.sharp          if / else, when
+ *      loops.sharp             while, do, for, foreach; break and continue
+ *      exceptions.sharp        try / catch / finally, throw
+ *      locks.sharp             lock
+ *      exits.sharp             return, break and continue that leave a lock or a try with a finally:
+ *                              the exit stubs
+ *      assembly.sharp          asm blocks
+ */
+
+/** the code of one statement: a `line` mark, then what its kind becomes */
+def generate_statement(g: generator, statement: bound_statement) {
+    kind : _int64 = statement.kind;
+    if(kind == BS_BLOCK) {
+        statements := (statement as bound_block).statements;
+        for(i : _int64 = 0; i < statements.size(); i++) { generate_statement(g, statements.at(i)); }
+        return;
+    }
+    if(kind == BS_EMPTY) { return; }
+    g.line_of_node(statement.unit, statement.node);
+    if(kind == BS_EXPRESSION_STATEMENT) { generate_expression_statement(g, statement as bound_expression_statement); return; }
+    if(kind == BS_LOCAL_DECLARATION) { generate_local_declaration(g, statement as bound_local_declaration); return; }
+    if(kind == BS_RETURN) { generate_return(g, statement as bound_return); return; }
+    if(kind == BS_IF) { generate_if(g, statement as bound_if); return; }
+    if(kind == BS_WHILE || kind == BS_DO_WHILE || kind == BS_FOR) { generate_loop(g, statement as bound_loop); return; }
+    if(kind == BS_FOREACH) { generate_foreach(g, statement as bound_foreach); return; }
+    if(kind == BS_BREAK || kind == BS_CONTINUE) { generate_jump(g, statement); return; }
+    if(kind == BS_WHEN) { generate_when(g, statement as bound_when); return; }
+    if(kind == BS_TRY) { generate_try(g, statement as bound_try); return; }
+    if(kind == BS_THROW) { generate_throw(g, statement as bound_throw); return; }
+    if(kind == BS_LOCK) { generate_lock(g, statement as bound_lock); return; }
+    if(kind == BS_ASM) { generate_asm(g, statement as bound_asm); return; }
+    g.stop(statement_kind_text(kind), statement.unit, statement.node);
+}
+
+/** an expression for what it does: a call's unused result is dropped; a lambda's one expression is its result */
+def generate_expression_statement(g: generator, statement: bound_expression_statement) {
+    e := statement.expression;
+    if(statement.is_result == 1 && g.made.returns_value()) {
+        value : _int64 = value_of(g, e);
+        returned := g.b.emit(IR_RETURN_VALUE);
+        returned.first = value;
+        returned.number = narrowing_of(g.made.of.result_type);
+        return;
+    }
+    effect_of(g, e);
+}
+
+/**
+ * An expression run for what it DOES, its value thrown away: an expression
+ * statement, the step of a `for`. A call's result is dropped on the operand
+ * stack (`pop`) instead of being taken into a slot first; a `?.` chain is
+ * generated as a statement (`listener?.notify();` - there may be no value at
+ * all); anything else is computed and its slot given back.
+ */
+def effect_of(g: generator, e: bound_expression) {
+    if(e.kind == BX_CALL) { call_value(g, e as bound_call, 0); }
+    else if(e.kind == BX_VALUE_CALL) { value_call_value(g, e as bound_value_call, 0); }
+    else if(e.kind == BX_SAFE_NAVIGATION) { safe_navigation_value(g, e as bound_safe_navigation, 0); }
+    else { g.b.release(value_of(g, e)); }
+}
+
+/** `x : t = v;` stores v; `n : int;` makes its start object; `x : t;` is given 0, 0.0 or null */
+def generate_local_declaration(g: generator, declaration: bound_local_declaration) {
+    variable := declaration.variable;
+    if(declaration.is_injected == 1) {
+        // `inject x : t;` - the value a component definition gives (setup/components.sharp)
+        if(declaration.injected_from == null) { g.stop("an injected local that no definition gives", declaration.unit, declaration.node); }
+        given : _int64 = component_value(g, declaration.injected_from!!, declaration.unit, declaration.node);
+        store_local(g, variable, given, declaration.unit, declaration.node);
+        g.b.release(given);
+        return;
+    }
+    if(declaration.value != null) {
+        value : _int64 = value_of(g, declaration.value!!);
+        store_local(g, variable, value, declaration.unit, declaration.node);
+        g.b.release(value);
+        return;
+    }
+    // a captured or `localized` local is not a slot of the frame: its start value is made in a slot
+    // of its own and stored where it lives (generation/closures)
+    slot : _int64 = 0 - 1;
+    if(lives_in_frame(variable) == 1) { slot = g.slot_of(variable, declaration.unit, declaration.node); }
+    else { slot = g.temp_for(variable.type); }
+    if(declaration.default_constructor != null) {
+        // `n : int;` starts as a new `int()`
+        constructor := declaration.default_constructor!!;
+        if(constructor.owner == null || constructor.address < 0) { g.stop("a start object", declaration.unit, declaration.node); }
+        g.b.new_object(slot, constructor.owner!!);
+        arguments := new number_list();
+        arguments.add(slot);
+        g.b.call(0 - 1, constructor, arguments, CALL_HOW_DIRECT);
+    } else {
+        start_value(g, slot);
+    }
+    if(lives_in_frame(variable) == 0) {
+        store_local(g, variable, slot, declaration.unit, declaration.node);
+        g.b.release(slot);
+    }
+}
+
+/** the start value of a slot: 0, 0.0 or null by its kind */
+def start_value(g: generator, slot: _int64) {
+    kind : _int64 = g.b.kind_of(slot);
+    if(kind == SLOT_INT) { g.b.int_constant(slot, 0); }
+    else if(kind == SLOT_DEC) { g.b.decimal_constant(slot, 0, null); }
+    else { g.b.null_constant(slot); }
+}
+
+/**
+ * `return;` and `return v;` (the value cut to the function's result type).
+ * One that leaves a lock or a try with a finally goes out through them
+ * (exits.sharp): its value is computed first and kept in the function's
+ * hidden return slot while the finally blocks run.
+ */
+def generate_return(g: generator, statement: bound_return) {
+    if(statement.broken == 1) { g.stop("a `return` reported as wrong", statement.unit, statement.node); }
+    if(statement.leaves.size() > 0) {
+        if(statement.value != null) {
+            value : _int64 = value_of(g, statement.value!!);
+            g.b.copy(g.return_slot_for(statement.unit, statement.node), value, NARROW_NONE);
+            g.b.release(value);
+        }
+        leave_by(g, WAY_RETURN, null, statement.leaves, 0, statement.unit, statement.node);
+        return;
+    }
+    if(statement.value == null) {
+        g.b.emit(IR_RETURN);
+        return;
+    }
+    value : _int64 = value_of(g, statement.value!!);
+    returned := g.b.emit(IR_RETURN_VALUE);
+    returned.first = value;
+    returned.number = narrowing_of(g.made.of.result_type);
+    g.b.release(value);
+}

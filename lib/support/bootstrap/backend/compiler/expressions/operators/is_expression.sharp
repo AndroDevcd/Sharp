@@ -1,0 +1,85 @@
+mod backend.compiler.expressions.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.inheritance,
+    backend.compiler.context,
+    backend.compiler.expressions
+)
+
+/**
+ * A TYPE TEST:  value is type
+ *
+ *      if(shape is circle) { ... }
+ *
+ * The result is a number, 1 or 0 (an `_int8`). Any value may be tested
+ * against any type, also one that may be null. When the answer is certain
+ * while compiling - the value's class IS the tested class or one below it,
+ * and the value cannot be null - the node carries the constant 1; otherwise
+ * the VM looks at the object when the program runs.
+ *
+ * A plain NUMBER tested against a number type is always 1: `count is
+ * decimal` is 1 for an `_int64` count too. That is what the C++ compiler
+ * makes of it (a number converts to every number type, so its test is
+ * "certain"; probed: `n is decimal`, `b is _int64` with `b : _int8` all give
+ * 1), and the library relies on it (`number<T>.parse` asks `number is
+ * decimal`). No instruction could test it anyway: a number in a register
+ * carries no type.
+ *
+ * A plain number is never an object and an object never a plain number, so
+ * `count is string`, `count is object` and `thing is _int64` are the
+ * constant 0 (probed: 0 in the C++-built program too).
+ *
+ * `x is object` and `x is object[]` ask only "is there an object": `object`
+ * is every object and every array, and the VM has no test that tells an
+ * array of objects from anything else (the C++ compiler answers 1 for both,
+ * whatever `x` holds). So it is the constant 1 for a value that cannot be
+ * null, and otherwise the generator tests for null (doc/codegen.md 6.8).
+ *
+ *      answer known here       constant
+ *      ----------------------  --------
+ *      a_dog is animal         1       the class itself or one above it; the value cannot be null
+ *      count is decimal        1       number against number type
+ *      count is string         0       number against anything else
+ *      thing is _int64         0       an object against a plain number type
+ *      a_dog is object         1       any value that cannot be null, against `object` / `object[]`
+ *
+ *      C++ comparison: primary/is_expression.cpp.
+ */
+def analyse_is(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    value_node : _int64 = tree.first_child!![node];
+    type_node : _int64 = tree.child_of_kind(node, N_TYPE);
+    types : type_table = context.session.types;
+    if(value_node < 0 || type_node < 0) { return new bound_error(context.unit, node, types.error_type); }
+
+    value := analyse_value(context, value_node, null);
+    tested := resolve_type_at(context, type_node);
+    result := new bound_is(context.unit, node, value, tested, types.int8);
+
+    from : resolved_type = value.type;
+    if(from.kind == RT_CLASS && tested.kind == RT_CLASS && from.is_array == tested.is_array && from.is_nullable == 0
+       && inherits_from(context.prog, from.class_of!!, tested.class_of!!)) {
+        result.constant = integer_constant(1);
+    } else if(from.is_number() && tested.is_number()) {
+        result.constant = integer_constant(1);
+    } else if(from.is_number() || tested.is_number()) {
+        result.constant = integer_constant(0);
+    } else if(tested.kind == RT_OBJECT && cannot_be_null(from)) {
+        result.constant = integer_constant(1);
+    }
+    return result;
+}
+
+/** a value of this type always holds an object: not `t?`, not `null`, and not `object`, which may hold null without the `?` */
+def cannot_be_null(type: resolved_type) : _int64 {
+    if(type.kind == RT_ERROR || type.kind == RT_NULL || type.kind == RT_NIL || type.kind == RT_OBJECT) { return 0; }
+    return type.is_nullable == 0;
+}

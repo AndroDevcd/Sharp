@@ -1,0 +1,13 @@
+// expect: E0366
+// help: mutate money { def operator+(other: money) : money { ... } }
+// replace: def operator+(a: money) : money { return a; }
+// dots: return self;
+mod tests.helps;
+import (std, std.io);
+
+class money { }
+def operator+(a: money) : money { return a; }
+
+def main() {
+    x := new money();
+}

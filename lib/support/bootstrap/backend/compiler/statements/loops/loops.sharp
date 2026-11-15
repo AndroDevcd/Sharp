@@ -1,0 +1,43 @@
+mod backend.compiler.statements.loops;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * LOOPS: statements that repeat their body
+ *
+ *      while(more()) { ... }               the condition first, every round
+ *      do { ... } while(more());           the body first: it runs at least once
+ *      for(i := 0; i < n; i++) { ... }     a start, a condition, a step; each may be missing
+ *      foreach(name in names) { ... }      once per item of an array or of a `loopable` object
+ *
+ * While the body of a loop is analysed the loop is on the context's stack of
+ * jump frames (context/jump_frames.sharp), so a `break` or `continue` inside
+ * it knows its loop.
+ *
+ * An ENDLESS loop - no condition, or the constant `true` - is marked
+ * (`bound_loop.is_endless`): the flow analysis knows that only a `break`
+ * gets past it. Only a LITERAL counts: `while(true)`, `while(1)`, `for(;;)`.
+ * `while(running)` may stop whatever `running` is.
+ *
+ * The files of this package (module `backend.compiler.statements.loops`):
+ *
+ *      loops.sharp             this front door; is_constant_true
+ *      while_statement.sharp   while, do-while
+ *      for_statement.sharp     for (the three parts, each optional)
+ *      foreach_statement.sharp foreach: the variable, its type, the hidden array and position (E0610)
+ *      iterable.sharp          what can be looped over: an array, or an object whose class is
+ *                              `loopable<t>` (through its get_elements()) - E0609
+ */
+
+/** is the condition the literal `true` (or any other literal number but 0)? Only a literal counts */
+def is_constant_true(condition: bound_expression?) : _int64 {
+    if(condition == null) { return 0; }
+    value : bound_expression = condition!!;
+    if(value.literal == LIT_NONE || value.constant == null) { return 0; }
+    if(value.constant!!.kind == CONST_DECIMAL) { return value.constant!!.number != 0; }
+    return value.constant!!.integer != 0;
+}

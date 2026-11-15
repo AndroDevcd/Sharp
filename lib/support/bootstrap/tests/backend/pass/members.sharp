@@ -1,0 +1,141 @@
+mod member_forms;
+
+import ( std.io )
+
+/*
+ * Stage 5 (generics and members): every correct form of a member
+ * declaration and of the words in front of one.
+ */
+
+// ---- modifiers, in the order the language wants them
+public stable class settings {
+    public static const limit : decimal = 10;
+    private excuse static cache : settings?;
+    protected const name : string = "";
+    public excuse helper : settings?;
+    localized turn : decimal;
+
+    private static def reset() { }
+    protected def rename(to: string) { }
+    public static native def clock() : _int64;
+    native def ticks() : _int64;
+}
+
+local class only_here { }
+private class hidden { }
+ext class made_by_the_compiler { }
+
+local counter : decimal = 0;
+const greeting : string = "";
+private def helper() { }
+local def file_only() { }
+private alias list<string> as names;
+
+// ---- constructors and init blocks
+class point {
+    x : decimal = 0;
+    y : decimal = 0;
+
+    point(x: decimal, y: decimal) { self->x = x; self->y = y; }     // (the constructor without parameters is added)
+    private point(both: decimal) { x = both; y = both; }
+
+    init { x = 1; }                     // runs for every new object
+    static init { }                     // runs once for the class
+    init(text: string) { x = 2; }       // a conversion: point from string
+}
+
+class point3 base point {
+    z : decimal = 0;
+    point3() -> base(0, 0) { }
+    protected point3(z: decimal) -> base(z) { self->z = z; }
+}
+
+// ---- getters and setters
+class account {
+    balance : decimal = 0;
+        get { return balance; }
+        private set amount -> { balance = amount; }     // read by everybody, changed by the class
+
+    private owner : string = "";
+        get { return owner; }
+        set who -> { owner = who; }
+
+    static total : decimal = 0;
+        get { return total; }
+}
+
+rate : decimal = 1;
+    get { return rate; }
+    set value -> { rate = value; }
+
+// ---- operators
+class money {
+    amount : decimal = 0;
+
+    def operator+(other: money) : money { return self; }
+    def operator+(other: decimal) : money { return self; }
+    def operator-(other: money) : money { return self; }
+    def operator-() : money { return self; }
+    def operator!() : _int64 { return amount == 0; }
+    def operator++() : money { return self; }
+    def operator++(marker: _int64) : money { return self; }
+    def operator==(other: money) : _int64 { return amount == other.amount; }
+    def operator[](index: int) : decimal { return amount; }
+    def operator=(value: decimal) { amount = value; }
+    def operator+=(value: decimal) { amount = amount + value; }
+}
+
+// ---- interfaces; inherited members; shadowing
+interface printable2 {
+    def show() : string;
+}
+
+class base_thing {
+    id : decimal = 0;
+    label : string = "";
+    def id_text() : string { return ""; }
+    def area() : decimal { return 0; }
+    def outline() : decimal;            // left for the classes below
+}
+
+class thing base base_thing : printable2 {
+    label : string = "";                // shadows the field of base_thing
+    def area(scale: decimal) : decimal { return scale; }    // an overload beside the inherited one
+    override def outline() : decimal { return 0; }
+    override def show() : string { return label; }
+}
+
+// ---- extension functions: on a library class, on a class of our own, an operator
+def string.shout() : string { return self; }
+def point.swapped() : point { return new point(y, x); }
+def money.operator*(by: decimal) : money { return self; }
+
+// ---- enums
+enum color { red, green = 5, blue }
+class palette {
+    enum mode { light, dark }
+    current : mode?;
+    chosen : color?;
+}
+
+// ---- mutate: members, and an interface
+interface counted { def count() : decimal; }
+mutate thing : counted {
+    extra : decimal = 0;
+    override def count() : decimal { return extra; }
+}
+
+// ---- components and injection
+component app {
+    single { new account() }
+    factory { new point(1, 2) }                 // without a name: found by its type, which `inject` asks by
+    factory("fresh") { new point(3, 4) }        // with a name: only `get<point>("fresh")` finds it
+}
+
+class report {
+    inject source : account;
+    inject(app) origin : point;
+}
+
+def main() {
+}

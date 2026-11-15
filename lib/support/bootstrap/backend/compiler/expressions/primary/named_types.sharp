@@ -1,0 +1,53 @@
+mod backend.compiler.expressions.primary;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * A TYPE NAMED IN AN EXPRESSION
+ *
+ *      point.count         a class in front of `.`
+ *      list<int>.make()    a generic class with its type arguments
+ *      names.first()       ... where `names` is an alias
+ *      T.make()            a type parameter: inside list<string> it is `string`
+ *
+ * Name lookup found a DECLARATION (a class, an alias, a type parameter).
+ * This turns it into the resolved type meant here: with the type arguments
+ * written after the name, under the environment of the code (so `T` and the
+ * generic class's own name mean the instance being analysed).
+ *
+ * It goes the same way every written type goes - a sharp_type handed to
+ * `resolve_written_type` - so a generic class used with the wrong number of
+ * arguments, or without any, gets the same messages (E0350, E0354) wherever
+ * it is written.
+ */
+def type_named_by(context: analysis_context, declared: sharp_declaration, node: _int64) : resolved_type {
+    kind : _int64 = declared.kind;
+    is_class : _int64 = kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM;
+    first_argument : _int64 = context.tree.child_of_kind(node, N_TYPE);
+
+    // an ordinary class with nothing after its name: the common case, and no lookup is needed
+    if(is_class == 1 && first_argument < 0) {
+        named : sharp_class = declared as sharp_class;
+        if(!named.is_open()) { return type_of_class(named); }
+    }
+
+    written := new sharp_type(TYPE_NAMED, context.unit, node);
+    written.declaration = declared;
+    argument : _int64 = first_argument;
+    while(argument >= 0) {
+        if(context.tree.kinds!![argument] == N_TYPE) { written.arguments.add(written_type_at(context, argument)); }
+        argument = context.tree.next_sibling!![argument];
+    }
+    return resolve_written_type(context.prog, written, context.environment, context.session.problems);
+}

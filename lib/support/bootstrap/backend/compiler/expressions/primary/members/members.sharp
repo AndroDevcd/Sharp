@@ -1,0 +1,25 @@
+mod backend.compiler.expressions.primary.members;
+
+/**
+ * MEMBER ACCESS:  a.b   a->b   a?.b   a!!.b   point.count   base->area
+ *
+ * What stands after the dot is looked up in the CLASS of what stands before
+ * it (backend/compiler/names/class_members.sharp); this package decides what
+ * the access then is - a field read, a getter call, a function name waiting
+ * for its call, a static member reached through the class name - and checks
+ * the rules of the dot itself: an object that may be null, an instance field
+ * through the class name, something that has no members at all.
+ *
+ * The files of this package (module `backend.compiler.expressions.primary.members`):
+ *
+ *      members.sharp            this front door
+ *      member_expression.sharp  analyse_member: `value.name` and `type.name`
+ *      member_receiver.sharp    the null rule of `.`: E0722, `?.` and `!!.`, W1005
+ *      safe_navigation.sharp    `a?.b.c`: one safe navigation that reaches to the end of the chain (E0725)
+ *      member_messages.sharp    E0405 "has no members", W1012 a static localized field through an object
+ *
+ * It uses the pieces of backend/compiler/expressions/primary (reading a
+ * field, turning a found name into a tree node).
+ *
+ * This file is the package's front door: it only says what is where.
+ */

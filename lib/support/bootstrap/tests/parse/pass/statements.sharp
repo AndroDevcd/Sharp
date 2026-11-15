@@ -1,0 +1,72 @@
+mod tests.statements;
+
+def all_statements(items: list<int>, limit: decimal) : decimal {
+    // ---- declarations
+    total : decimal = 0;
+    text := "x";
+    const fixed := 3;
+    i : decimal = 0, j = 1;
+    alias list<string> as names;
+
+    // ---- if
+    if(total > 0) { total = 1; }
+    if(total > 0) total = 1; else total = 2;
+    if(total == 1) {
+        total = 2;
+    } else if(total == 2) {
+        total = 3;
+    } else {
+        total = 4;
+    }
+
+    // ---- loops
+    while(total < limit) { total++; }
+    while(total < limit) total++;
+    do { total--; } while(total > 0);
+    for(k : decimal = 0; k < limit; k++) { total += k; }
+    for(k := 0, n = 5; k < n; k++) total += 1;
+    for( ;; ) { break; }
+    for(total = 0; total < 3; total++) { continue; }
+    for() { break; }
+    for { break; }
+    foreach(item in items) { total += 1; }
+    foreach(item: int in items) total += 1;
+
+    // ---- when
+    when(total) {
+        1 -> { total = 10; }
+        2, 3, 4 -> total = 20;
+        else -> { total = 30; }
+    }
+    when {
+        total < 10 -> total = 1;
+        total < 100 -> { total = 2; }
+        else -> total = 3;
+    }
+
+    // ---- exceptions
+    try {
+        throw new exception("no");
+    } catch(e: exception) {
+        total = 0;
+    } catch(throwable) {
+        total = 1;
+    } finally {
+        total = 2;
+    }
+    try { total = 1; } finally { total = 2; }
+
+    // ---- the rest
+    lock(items) { total = 3; }
+    {
+        nested : decimal = 1;
+        total += nested;
+    }
+    ;
+    all_statements(items, limit - 1);
+    return total;
+}
+
+def no_value() {
+    return;
+}

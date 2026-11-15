@@ -1,0 +1,78 @@
+mod main;
+
+// output:
+// ab|ab!|ab?ab!
+// q-q-qxqxq-q-qxqx
+// n=42 small= d=2.5000000000000000 nothing=null e=[] end
+// <k yes k>1 <k no>0
+// 0,0;1,1;2,4;3,9;4,16;
+// size 6 0
+// hello x you are 4 today, <thing> and xx
+// one/one two/one two three four
+
+/*
+ * THE OPTIMIZER: STRING CONCATENATION FLATTENING (doc/codegen.md 7.2, doc/optimizations.md 3a step 7)
+ *
+ * Like cases/optimizer.sharp: built plain and with -O, both must print the block above (what the
+ * C++-built program prints). In `a + b + c` every `+` after the first appends to the temporary
+ * string in place; what must NOT change:
+ *
+ *   - a variable on the left of `+` keeps its text (`s + x` never appends to `s`), also when the
+ *     variable was itself just made by a `+`;
+ *   - a string added to itself, the same sub-expression twice, a piece that is the chain so far;
+ *   - null, empty text, numbers of every width, decimals, characters as pieces;
+ *   - a chain broken by a `? :` in the middle, a chain in a loop, a chain as an argument;
+ *   - a string template is the same chain written differently.
+ */
+
+class named { label : string = "thing"; def to_text() : string { return "<" + label + ">"; } }
+
+def keep(a: string, b: string) : string {
+    s := a + b;
+    t := s + "!";                       // s must stay "ab"
+    u := s + "?" + t;                   // ... and t "ab!"
+    return s + "|" + t + "|" + u;
+}
+
+def doubled(a: string) : string {
+    s := a + "-";
+    s = s + s;                          // the text added to itself
+    both := (a + "x") + (a + "x");
+    return s + both + (s + both);
+}
+
+def pieces(n: _int64, small: _int8, d: decimal, nothing: string?, e: string) : string {
+    return "n=" + n + " small=" + small + " d=" + d + " nothing=" + nothing + " e=[" + e + "]" + "" + " end";
+}
+
+def choice(flag: _int64, a: string) : string {
+    return "<" + a + (flag == 1 ? " yes " + a : " no") + ">" + flag;
+}
+
+def counting(n: _int64) : string {
+    all := "";
+    for(i : _int64 = 0; i < n; i++) {
+        all = all + i + "," + (i * i) + ";";
+    }
+    return all;
+}
+
+def size_of(s: string) : _int64 { return sizeof(s.data); }
+
+def template(n: _int64, who: string, thing: named) : string {
+    return "hello $who you are ${n + 1} today, ${thing.to_text()} and ${who + who}";
+}
+
+def main(args: string[]) {
+    println(keep("a", "b"));
+    println(doubled("q"));
+    println(pieces(42, 7, 2.5, null, ""));
+    println(choice(1, "k") + " " + choice(0, "k"));
+    println(counting(5));
+    println("size " + size_of("ab" + "cd" + 12) + " " + size_of("" + ""));
+    println(template(3, "x", new named()));
+    first := "one";
+    second := first + " two";
+    third := second + " three" + " four";
+    println(first + "/" + second + "/" + third);
+}

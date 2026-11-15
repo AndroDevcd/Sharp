@@ -1,0 +1,72 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.typed_tree
+)
+
+/**
+ * THE PLAIN STATEMENTS: blocks, local variables, expressions
+ *
+ *      { ... }                     bound_block
+ *      total : int = 5;            bound_local_declaration
+ *      n : int;                    bound_local_declaration with a default_constructor
+ *      print(total);               bound_expression_statement
+ *      ;   alias t as name;        bound_empty (an alias only adds a name to the scope)
+ */
+
+/** `{ ... }`: statements carried out in order. The variables declared in it are gone when it ends */
+class bound_block base bound_statement {
+    statements : list<bound_statement>;
+
+    bound_block(unit: source_unit, node: _int64) -> base(BS_BLOCK, unit, node) {
+        statements = new list<bound_statement>();
+    }
+}
+
+/**
+ * `name : type = value;`, `name := value;` or `name : type;` - one variable.
+ * `a : int = 1, b = 2;` is two of these in a row.
+ *
+ * Without a value the variable starts as the language says (doc/backend.md
+ * 7.3): a number is 0, a nullable type null, and a number class or `string`
+ * that is neither nullable nor an array holds a new object made by its
+ * constructor without parameters - `default_constructor` names it.
+ */
+class bound_local_declaration base bound_statement {
+    variable : local_variable;
+    value : bound_expression?;                  // already converted to the variable's type; null when no value is written
+    default_constructor : sharp_function?;      // `n : int;`: the `int()` that makes its start value; null otherwise
+    is_injected : _int64 = 0;                   // `inject x : t;` - the value comes from a component
+    injected_from : type_definition?;           // ... the definition that gives it; null when none does (E0906)
+
+    bound_local_declaration(unit: source_unit, node: _int64, variable: local_variable, value: bound_expression?)
+            -> base(BS_LOCAL_DECLARATION, unit, node) {
+        self->variable = variable;
+        self->value = value;
+    }
+}
+
+/**
+ * An expression carried out for what it does: `print(total);`, `count++;`.
+ * `is_result` marks the single expression of a lambda written without
+ * `return` (`{ x -> x * 2 }`), whose value is the lambda's result (the lambda
+ * stage sets it).
+ */
+class bound_expression_statement base bound_statement {
+    expression : bound_expression;
+    is_result : _int64 = 0;
+
+    bound_expression_statement(unit: source_unit, node: _int64, expression: bound_expression)
+            -> base(BS_EXPRESSION_STATEMENT, unit, node) {
+        self->expression = expression;
+    }
+}
+
+/** `;` on its own, a local alias (it only adds a name to the scope), a statement the parser gave up on */
+class bound_empty base bound_statement {
+    bound_empty(unit: source_unit, node: _int64) -> base(BS_EMPTY, unit, node) {
+    }
+}

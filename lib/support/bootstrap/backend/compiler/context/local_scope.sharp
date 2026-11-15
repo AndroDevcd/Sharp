@@ -1,0 +1,150 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * THE SCOPE CHAIN: which local variables a piece of code can see
+ *
+ *      def f(a: _int64) {          scope 1: a
+ *          b := 1;                          b
+ *          if(a > 0) {             scope 2 (outer: scope 1): c
+ *              c := 2;
+ *          }
+ *          // c is gone here
+ *      }
+ *
+ * Every block, `for`, `foreach`, `catch` and function body opens a scope and
+ * closes it when it ends. A scope knows the variables declared IN it and the
+ * scope around it (`outer`). Looking a name up asks each scope in turn,
+ * innermost first - the textbook "symbol table as a chain of scopes".
+ *
+ * `function` says whose scope it is. A lambda is a function of its own whose
+ * first scope continues into the scope it is written in; when a lookup
+ * crosses from one function into another on its way out, it has found a
+ * variable of the enclosing function: a CAPTURE (closures.sharp records it).
+ *
+ * The lists are made when the first variable is declared: most blocks declare
+ * none. A block holds a handful of variables, so they are kept in a LIST with
+ * a number worked out from each name (`name_hash`, declarations/name_table.sharp): a lookup compares numbers
+ * and only compares the text of a name whose number is the same. (It was a
+ * `hash_map<string, ...>` per block; on the VM the library's string hash cost
+ * about 6 microseconds per block asked - the largest part of looking up a
+ * name. See doc/backend.md 10.6, "Speed".)
+ *
+ *      C++ comparison: `stored_block_info` in backend/context/context.h -
+ *      a block id per local and a search through all locals of the function.
+ */
+class local_scope {
+    outer : local_scope?;
+    function : sharp_function?;                         // null: the value of a field
+    variables : list<local_variable>?;                  // declared HERE, in order
+    hashes : _int64[]?;                                 // name_hash of each one's name, at the same position
+    aliases : hash_map<string, resolved_type>?;         // `alias list<int> as numbers;` written in this block
+    names : list<string>?;                              // the names declared here, in order (for did-you-mean)
+
+    local_scope(outer: local_scope?, function: sharp_function?) {
+        self->outer = outer;
+        self->function = function;
+    }
+
+    /** a variable declared in this very block */
+    def declare(variable: local_variable) {
+        if(variables == null) {
+            variables = new list<local_variable>();
+            names = new list<string>();
+            hashes = new _int64[4];
+        }
+        count : _int64 = variables!!.size().value as _int64;
+        if(count >= sizeof(hashes!!)) {
+            grown := new _int64[count * 2];
+            for(i : _int64 = 0; i < count; i++) { grown[i] = hashes!![i]; }
+            hashes = grown;
+        }
+        hashes!![count] = name_hash(variable.name);
+        variables!!.add(variable);
+        names!!.add(variable.name);
+    }
+
+    /** the variable of this very block called `name` (whose name_hash is `hash`); null when none */
+    def declared_here(name: string, hash: _int64) : local_variable? {
+        if(variables == null) { return null; }
+        known : _int64[] = hashes!!;
+        for(i : _int64 = (variables!!.size().value as _int64) - 1; i >= 0; i--) {
+            if(known[i] == hash) {
+                candidate := variables!!.at(i);
+                if(candidate.name == name) { return candidate; }
+            }
+        }
+        return null;
+    }
+
+    /** `alias t as name;` written in this block */
+    def declare_alias(name: string, type: resolved_type) {
+        if(aliases == null) { aliases = new hash_map<string, resolved_type>(); }
+        aliases!!.put(name, type);
+    }
+
+    /** the variable called `name` that code in this scope sees; null when there is none */
+    def find(name: string) : local_variable? {
+        hash : _int64 = name_hash(name);
+        current : local_scope? = self;
+        while(current != null) {
+            if(current!!.variables != null) {
+                found := current!!.declared_here(name, hash);
+                if(found != null) { return found; }
+            }
+            current = current!!.outer;
+        }
+        return null;
+    }
+
+    /**
+     * The variable called `name` of the SAME function, in this scope or one
+     * around it: what a new declaration of that name would collide with
+     * (E0600). A local of an enclosing function is not a collision - inside
+     * a lambda the lambda's own name simply wins.
+     */
+    def find_in_same_function(name: string) : local_variable? {
+        hash : _int64 = name_hash(name);
+        current : local_scope? = self;
+        while(current != null && current!!.function == function) {
+            if(current!!.variables != null) {
+                found := current!!.declared_here(name, hash);
+                if(found != null) { return found; }
+            }
+            current = current!!.outer;
+        }
+        return null;
+    }
+
+    /** the type a local alias called `name` stands for; null when there is none */
+    def find_alias(name: string) : resolved_type? {
+        current : local_scope? = self;
+        while(current != null) {
+            if(current!!.aliases != null) {
+                found := current!!.aliases!!.at(name);
+                if(found != null) { return found; }
+            }
+            current = current!!.outer;
+        }
+        return null;
+    }
+
+    /** the names of every variable visible from here, for did-you-mean */
+    def add_visible_names(known: list<string>) {
+        current : local_scope? = self;
+        while(current != null) {
+            if(current!!.names != null) {
+                for(i : _int64 = 0; i < current!!.names!!.size(); i++) { known.add(current!!.names!!.at(i)); }
+            }
+            current = current!!.outer;
+        }
+    }
+}
+

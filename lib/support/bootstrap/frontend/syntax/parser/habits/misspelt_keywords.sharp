@@ -1,0 +1,256 @@
+mod frontend.syntax.parser.habits;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    frontend.syntax.parser
+)
+
+/**
+ * A KEYWORD WITH A SLIP IN IT (see habits.sharp for the idea)
+ *
+ *      retrun total;               return total;
+ *      thorw new oops();           throw new oops();
+ *      fro(i := 0; i < 3; i++)     for(i := 0; i < 3; i++)
+ *      foreahc(x in items) { }     foreach(x in items) { }
+ *      whlie(x < 3) x++;           while(x < 3) x++;
+ *      if(a) { } esle if(b) { }    if(a) { } else if(b) { }
+ *      calss point { }             class point { }
+ *      dfe helper() { }            def helper() { }
+ *      improt (std, std.io);       import (std, std.io);
+ *
+ * To the tokenizer a misspelt keyword is a NAME, so a plain parser reads
+ * `retrun total;` as two names in a row and says "expected `;`" - or, worse,
+ * takes it for a C declaration and offers `total : retrun;`. Here the
+ * parser asks, before it reports anything: is this name one slip away from
+ * the keyword that would make this line right?
+ *
+ * TWO THINGS MUST HOLD, so that correct code is never touched:
+ *
+ *   1. the SHAPE is one no correct program has: two names in a row at the
+ *      start of a statement, a `;` between the parentheses of a "call", a
+ *      statement right after a call's `)` ... (each function says which);
+ *   2. the name is close to the keyword: one typing mistake, or the same
+ *      letters in another order (`keyword_meant`).
+ *
+ * The slip is reported once (E0100, "did you mean the keyword ...?") and the
+ * token is then READ AS that keyword, so the statement or declaration is
+ * parsed as what was meant and nothing else is reported for it.
+ *
+ * A misspelt keyword in a form that DOES parse - `whlie(x) { }` is a call
+ * with a trailing lambda, `brek;` a name alone - is not seen here; the name
+ * stage translates those (backend/compiler/names/other_language_habits.sharp).
+ *
+ *      C++ comparison: none; the C++ parser says "expected `;`".
+ */
+
+/**
+ * The keyword among `candidates` that `word` was most likely meant to be;
+ * "" when none is close. Close is: one typing mistake (the did-you-mean
+ * rule of frontend/diagnostics/similar_names.sharp), or the same letters in
+ * another order (`retrun`).
+ */
+def keyword_meant(word: string, candidates: list<string>) : string {
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        if(same_letters(word, candidates.at(i))) { return candidates.at(i); }
+    }
+    close := closest_names(word, candidates, 1);
+    if(close.size() == 0) { return ""; }
+    return close.at(0);
+}
+
+/**
+ * The same for the start of a DECLARATION, where two names in a row can
+ * also be C's `type name` (`dec total;`, with a class `dec`): a keyword of
+ * three letters (`def`, `mod`) is only taken for the same letters or
+ * another case - `dfe`, `Def` - never for one changed letter.
+ */
+def declaration_keyword_meant(word: string, candidates: list<string>) : string {
+    meant := keyword_meant(word, candidates);
+    if(sizeof(meant.data) > 3 || same_letters(word, meant) || word.to_lower() == meant) { return meant; }
+    return "";
+}
+
+/** the keywords, as text, that the functions below choose between */
+def words(first: string, second: string, third: string, fourth: string) : list<string> {
+    list_of := new list<string>();
+    if(sizeof(first.data) > 0) { list_of.add(first); }
+    if(sizeof(second.data) > 0) { list_of.add(second); }
+    if(sizeof(third.data) > 0) { list_of.add(third); }
+    if(sizeof(fourth.data) > 0) { list_of.add(fourth); }
+    return list_of;
+}
+
+/** the token kind of a keyword given as text (only the keywords this file repairs) */
+def kind_of_keyword(word: string) : _int64 {
+    if(word == "return") { return K_RETURN; }
+    if(word == "throw") { return K_THROW; }
+    if(word == "for") { return K_FOR; }
+    if(word == "foreach") { return K_FOREACH; }
+    if(word == "while") { return K_WHILE; }
+    if(word == "if") { return K_IF; }
+    if(word == "when") { return K_WHEN; }
+    if(word == "lock") { return K_LOCK; }
+    if(word == "else") { return K_ELSE; }
+    if(word == "class") { return K_CLASS; }
+    if(word == "interface") { return K_INTERFACE; }
+    if(word == "enum") { return K_ENUM; }
+    if(word == "def") { return K_DEF; }
+    if(word == "mutate") { return K_MUTATE; }
+    if(word == "component") { return K_COMPONENT; }
+    if(word == "alias") { return K_ALIAS; }
+    if(word == "mod") { return K_MOD; }
+    if(word == "import") { return K_IMPORT; }
+    return 0;
+}
+
+/**
+ * Report the current token as a slip for `keyword`, and make it that
+ * keyword: from here on the parser reads the line as it was meant. (The
+ * token's KIND is changed, in the token table - not the tree, and not the
+ * source text; the file has an error, so nothing after the parser reads it.)
+ */
+def read_as_keyword(p: parse_state, keyword: string) {
+    written := p.current_text();
+    d := report_habit(p, p.position, p.position, "`" + written + "` is not a word of Sharp: did you mean the keyword `" + keyword + "`?");
+    d.with_label("a name where `" + keyword + "` belongs");
+    d.with_help("write `" + keyword + "`");
+    p.kinds[p.position] = kind_of_keyword(keyword);
+}
+
+/** the index of the `)` that closes the `(` at token `opening`; -1 when it is not closed before a `{`, a `}` or the end */
+def closing_parenthesis(p: parse_state, opening: _int64) : _int64 {
+    depth : _int64 = 0;
+    for(i : _int64 = opening; i < p.count; i++) {
+        kind : _int64 = p.kinds[i];
+        if(kind == P_LPAREN) { depth++; }
+        else if(kind == P_RPAREN) {
+            depth--;
+            if(depth == 0) { return i; }
+        }
+        else if(kind == P_LBRACE || kind == P_RBRACE) { return 0 - 1; }
+    }
+    return 0 - 1;
+}
+
+/** is there a `;` directly between the parentheses `opening` .. `closing` (not inside inner ones)? */
+def semicolon_between(p: parse_state, opening: _int64, closing: _int64) : _int64 {
+    depth : _int64 = 0;
+    for(i : _int64 = opening + 1; i < closing; i++) {
+        kind : _int64 = p.kinds[i];
+        if(kind == P_LPAREN || kind == P_LBRACKET) { depth++; }
+        else if(kind == P_RPAREN || kind == P_RBRACKET) { depth--; }
+        else if(kind == P_SEMICOLON && depth == 0) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * A statement that starts with a NAME (the current token): is the name a
+ * misspelt statement keyword? The shapes, none of which a correct statement
+ * has:
+ *
+ *      retrun total;   thorw new oops();   a name, then a value on the same line     return, throw
+ *      fro(i := 0; i < 3; i++)             a `;` between a call's parentheses        for
+ *      foreahc(x in items)                 `name in` right after the `(`             foreach, for
+ *      whlie(x < 3) x++;                   a statement right after a call's `)`      while, if, for, foreach
+ *
+ * The cheap tests on token kinds come first; the text of the name is only
+ * compared when the shape is already wrong, so correct code pays for one
+ * look along the tokens of a call statement and nothing more.
+ *
+ * @return 1 when it was one: reported, and the token now IS the keyword -
+ *         the caller reads the statement again
+ */
+def read_misspelt_statement_keyword(p: parse_state) : _int64 {
+    next : _int64 = p.peek(1);
+    meant := "";
+    if(next != P_LPAREN) {
+        if(!starts_a_plain_value(next) || next == P_MINUS || next == P_NOT || !p.same_line(p.position, p.position + 1)) { return 0; }
+        meant = keyword_meant(p.current_text(), words("return", "throw", "", ""));
+    } else if(p.peek(2) == T_IDENTIFIER && p.peek(3) == K_IN) {
+        meant = keyword_meant(p.current_text(), words("foreach", "for", "", ""));
+    } else {
+        closing : _int64 = closing_parenthesis(p, p.position + 1);
+        if(closing < 0 || closing + 1 >= p.count) { return 0; }
+        if(semicolon_between(p, p.position + 1, closing)) {
+            meant = keyword_meant(p.current_text(), words("for", "", "", ""));
+        } else {
+            after : _int64 = p.kinds[closing + 1];
+            starts_statement : _int64 = after == T_IDENTIFIER || after == K_RETURN || after == K_BREAK || after == K_CONTINUE || after == K_THROW;
+            if(starts_statement == 0 || !p.same_line(closing, closing + 1)) { return 0; }
+            // (`f(a) and b`, `f(a) instanceof t`: a word operator of another language, operator_habits.sharp)
+            if(token_is_word(p, closing + 1, "and") || token_is_word(p, closing + 1, "or") || token_is_word(p, closing + 1, "instanceof")) { return 0; }
+            meant = keyword_meant(p.current_text(), words("while", "if", "for", "foreach"));
+        }
+    }
+    if(sizeof(meant.data) == 0) { return 0; }
+    read_as_keyword(p, meant);
+    return 1;
+}
+
+/**
+ * `if(a) { } esle if(b) { }`: after the body of an `if`, a name close to
+ * `else` with an `if` after it - a name followed by `if` is never correct.
+ * The current token is that name. (`esle { ... }` is not taken here: a name
+ * and a block is a call with a trailing lambda, which is correct Sharp when
+ * a function of that name exists. The name stage says "did you mean `else`"
+ * when none does.)
+ * @return 1 when it was one: reported and read past, as `else` would be
+ */
+def read_misspelt_else(p: parse_state) : _int64 {
+    if(!p.at(T_IDENTIFIER) || p.peek(1) != K_IF) { return 0; }
+    if(sizeof(keyword_meant(p.current_text(), words("else", "", "", "")).data) == 0) { return 0; }
+    read_as_keyword(p, "else");
+    p.advance();
+    return 1;
+}
+
+/**
+ * A declaration that starts with a NAME (the current token): is the name a
+ * misspelt declaration keyword? The shapes:
+ *
+ *      calss point {       intreface shape {   enmu colour {       a name, a name, then `{`, `base`, `:` or `<`
+ *      dfe helper() { }    dfe point.len()     dfe first<T>()      a name, a name, then `(`, `.` or `<`
+ *      alais _int64 as id;                                         a name, a type, then `as`
+ *      mdo app;    improt std.io;  improt (std, std.io);           at the top of a file only
+ *
+ * Two names in a row never start a correct declaration (C's `int count;`
+ * has that shape too, which is why what FOLLOWS the second name is looked
+ * at: a C variable goes on with `;` or `=`).
+ *
+ * @param in_class  1 between the braces of a class: no `mod` / `import` / `component` there
+ * @return 1 when it was one: reported, and the token now IS the keyword
+ */
+def read_misspelt_declaration_keyword(p: parse_state, in_class: _int64) : _int64 {
+    next : _int64 = p.peek(1);
+    after : _int64 = p.peek(2);
+    meant := "";
+    if(next == P_LPAREN) {
+        if(in_class == 1) { return 0; }                 // a constructor
+        meant = declaration_keyword_meant(p.current_text(), words("import", "", "", ""));
+    } else if(next == T_IDENTIFIER || is_native_type(next)) {
+        if(after == K_AS) {
+            meant = declaration_keyword_meant(p.current_text(), words("alias", "", "", ""));
+        } else if(next != T_IDENTIFIER) {
+            return 0;
+        } else if(after == P_LBRACE || after == K_BASE || after == P_COLON || after == P_LESS) {
+            meant = declaration_keyword_meant(p.current_text(), words("class", "interface", "enum", "mutate"));
+            if(sizeof(meant.data) == 0 && in_class == 0 && after == P_LBRACE) { meant = declaration_keyword_meant(p.current_text(), words("component", "", "", "")); }
+            if(sizeof(meant.data) == 0 && after == P_LESS) { meant = declaration_keyword_meant(p.current_text(), words("def", "", "", "")); }
+        } else if(after == P_LPAREN) {
+            meant = declaration_keyword_meant(p.current_text(), words("def", "", "", ""));
+        } else if(after == P_DOT) {
+            // `dfe point.len()` - or, at the top of a file, `improt std.io;`
+            meant = declaration_keyword_meant(p.current_text(), words("def", "", "", ""));
+            if(sizeof(meant.data) == 0 && in_class == 0) { meant = declaration_keyword_meant(p.current_text(), words("import", "mod", "", "")); }
+        } else if(in_class == 0 && (after == P_SEMICOLON || !p.same_line(p.position + 1, p.position + 2))) {
+            meant = declaration_keyword_meant(p.current_text(), words("mod", "import", "", ""));
+        }
+    }
+    if(sizeof(meant.data) == 0) { return 0; }
+    read_as_keyword(p, meant);
+    return 1;
+}

@@ -1,0 +1,111 @@
+mod backend.postprocessor.checks;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * ONE NAME FOR TWO KINDS OF THING
+ * (the C++ compiler: check_decl_conflicts in preprocessor/class_preprocessor.cpp)
+ *
+ *      class shape {
+ *          area : decimal;
+ *          def area() : decimal { ... }        a field and a function called `area`
+ *      }
+ *
+ * This is allowed - `shape.area` is the field and `shape.area()` the
+ * function - but it is rarely meant, and what a plain `area` means then
+ * depends on where it stands. So it is a warning, once per name and place:
+ *
+ *      W1001   a field, a function, an alias and a class (any two of them)
+ *              share a name in one class or module
+ *
+ * (Two of the SAME kind are errors, found earlier: E0302, E0330, E0331.)
+ * A constructor shares its name with its class by definition and is not
+ * counted; neither are type parameters.
+ */
+def check_name_conflicts(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        check_conflicts_in(prog.module_list.at(i).declared, problems);
+    }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        check_conflicts_in(declared.members!!, problems);
+        check_conflicts_with_module_classes(declared, problems);
+    }
+}
+
+/**
+ * A member with the name of a CLASS of its module:
+ *
+ *      class path { }
+ *      class file { path : string; }       inside `file`, `path` now means the field
+ *
+ * Also W1001 (the C++ compiler warns about this pair too).
+ */
+def check_conflicts_with_module_classes(declared: sharp_class, problems: list<diagnostic>) {
+    names : scope = declared.members!!;
+    for(i : _int64 = 0; i < names.ordered.size(); i++) {
+        member := names.ordered.at(i);
+        group : _int64 = conflict_group(member.kind);
+        if(group == 0 || group == 4 || member.has(FLAG_MUTATED)) { continue; }
+        if(names.find(member.name)!!.at(0) != member) { continue; }        // once per name
+
+        same := declared.module.declared.find_type(member.name);
+        if(same == null || conflict_group(same!!.kind) != 4 || same == declared) { continue; }
+
+        problems.add(error_at_node("W1001", "the " + declaration_kind_name(member.kind) + " `" + member.name + "` of `" + declared.name
+                                   + "` has the name of the " + declaration_kind_name(same!!.kind) + " `" + same!!.name + "`",
+                                   member.unit, member.node)
+            .with_label("inside `" + declared.name + "`, `" + member.name + "` means this " + declaration_kind_name(member.kind))
+            .with_related_place(place_of_node(same!!.unit, same!!.node, "the " + declaration_kind_name(same!!.kind) + " is declared here"))
+            .with_note("the " + declaration_kind_name(same!!.kind) + " can still be named with its module:  " + declared.module.name + "#" + same!!.name)
+            .with_help("rename one of them if the " + declaration_kind_name(same!!.kind) + " is needed inside `" + declared.name + "`")
+            .as_warning());
+    }
+}
+
+/** the group a kind belongs to for this check: 1 value, 2 function, 3 alias, 4 class; 0 not counted */
+def conflict_group(kind: _int64) : _int64 {
+    if(kind == D_FIELD || kind == D_ENUM_VALUE) { return 1; }
+    if(kind == D_FUNCTION) { return 2; }
+    if(kind == D_ALIAS) { return 3; }
+    if(kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM) { return 4; }
+    return 0;
+}
+
+/** W1001 for the names of one place (a module, or a class) that stand for two kinds of thing */
+def check_conflicts_in(names: scope, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < names.ordered.size(); i++) {
+        first := names.ordered.at(i);
+        same_name : list<sharp_declaration> = names.find(first.name)!!;
+        if(same_name.size() < 2 || same_name.at(0) != first) { continue; }     // looked at once, at the first of them
+
+        first_group : _int64 = conflict_group(first.kind);
+        if(first_group == 0) { continue; }
+        for(j : _int64 = 1; j < same_name.size(); j++) {
+            other := same_name.at(j);
+            group : _int64 = conflict_group(other.kind);
+            if(group == 0 || group == first_group) { continue; }
+            // an alias and a class are both TYPES: two types with one name are E0302 already
+            // (declare.sharp, D43) - the warning would say the same thing a second time
+            if(first_group >= 3 && group >= 3) { continue; }
+
+            problems.add(error_at_node("W1001", "`" + other.name + "` is the name of " + a_or_an(declaration_kind_name(other.kind))
+                                       + " and of " + a_or_an(declaration_kind_name(first.kind)), other.unit, other.node)
+                .with_label("the " + declaration_kind_name(other.kind) + " `" + other.name + "`")
+                .with_related_place(place_of_node(first.unit, first.node, "the " + declaration_kind_name(first.kind)
+                                                  + " `" + first.name + "` is declared here"))
+                .with_note("both can be used, but which one a plain `" + other.name + "` means depends on how it is written; a reader has to know the rule")
+                .with_help("rename one of them")
+                .as_warning());
+            break;      // one warning per name
+        }
+    }
+}

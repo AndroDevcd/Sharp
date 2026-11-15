@@ -1,0 +1,242 @@
+mod backend.compiler.expressions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.expressions.literals,
+    backend.compiler.expressions.primary,
+    backend.compiler.expressions.primary.members,
+    backend.compiler.expressions.operators,
+    backend.compiler.expressions.collections,
+    backend.compiler.expressions.calls,
+    backend.compiler.expressions.arithmetic,
+    backend.compiler.expressions.assignment,
+    backend.compiler.lambdas,
+    backend.compiler.components
+)
+
+/**
+ * EXPRESSIONS: from a syntax node to a typed-tree expression
+ *
+ * `analyse_expression` is the one entry: it looks at the kind of the syntax
+ * node and hands it to the file that knows that kind. Those files call back
+ * into it for their operands - the textbook recursive walk ("syntax-directed
+ * translation"): the type of `a.b[i]` is worked out from the type of `a.b`,
+ * which is worked out from the type of `a`.
+ *
+ * The packages below this one, each a family of expressions:
+ *
+ *      expressions/            this front door; what callers use to ask for a VALUE of a certain
+ *                              type (values.sharp)
+ *      expressions/literals    5  1.5  'a'  "text"  true  null  "template ${x}"
+ *      expressions/primary     names, module#name, self, base
+ *      expressions/primary/members   a.b, a->b, x?.y, x!!.y
+ *      expressions/operators   as  is  !!  ?:  ? :  sizeof
+ *      expressions/collections a[i]  new t[n]  { a, b }  { "k" : v }
+ *      expressions/calls       f(x)  a.f(x)  new t(x)  t(x)  f-value(x): calls and overload resolution
+ *      expressions/arithmetic  a + b  a == b  a && b  -a  !a: operators
+ *      expressions/assignment  a = b  a += b  a++  --a
+ *
+ * The files of this package (module `backend.compiler.expressions`):
+ *
+ *      expressions.sharp       analyse_expression: picks the function by node kind
+ *      values.sharp            analyse_value / analyse_converted / analyse_condition: an expression
+ *                              that must be a value, of a type, a truth value
+ *
+ * Two kinds of expression have packages of their own beside this one:
+ * lambdas (backend/compiler/lambdas) and `get<t>()` (backend/compiler/components).
+ *
+ * Because an expression contains expressions, these packages call each other
+ * in a circle (this dispatcher -> a family -> this dispatcher). That is the
+ * nature of a recursive walk, not an accident of the layout.
+ *
+ *      C++ comparison: `compile_expression` in
+ *      compiler/expressions/expression.cpp.
+ */
+
+/**
+ * Analyse the expression at `node`.
+ *
+ * The result may be something that is not a value yet - a type name
+ * (`string` in `string.format(...)`), a function name, `base`. A caller that
+ * needs a VALUE uses `analyse_value` (values.sharp), which reports those.
+ *
+ * @param wanted  the type the surroundings expect, when they expect one; it
+ *                only matters to expressions that have no type of their own
+ *                (`{ 1, 2 }` given to a decimal[] is an array of decimals).
+ *                Null: nothing is expected.
+ */
+def analyse_expression(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    kind : _int64 = context.tree.kinds!![node];
+    context.session.counters.expressions++;
+    if(node == context.ready_node) {
+        // a link of a long chain, already analysed (analyse_chain_from_front)
+        ready : bound_expression = context.ready_value!!;
+        context.ready_node = 0 - 1;
+        context.ready_value = null;
+        return ready;
+    }
+
+    if(kind == N_IDENTIFIER) { return analyse_identifier(context, node, 0); }
+    if(kind == N_LITERAL) { return analyse_literal(context, node); }
+    if(kind == N_MEMBER || kind == N_INDEX || kind == N_CALL) { return analyse_chain_link(context, node, wanted); }
+    if(kind == N_PAREN) { return analyse_expression(context, context.tree.first_child!![node], wanted); }
+    if(kind == N_NULL) { return new bound_null(context.unit, node, context.session.types.null_type); }
+    if(kind == N_SELF) { return analyse_self(context, node); }
+    if(kind == N_BASE_VALUE) { return analyse_base(context, node); }
+    if(kind == N_MODULE_NAME) { return analyse_module_name(context, node, 0); }
+    if(kind == N_STRING_TEMPLATE) { return analyse_string_template(context, node); }
+    if(kind == N_CAST) { return analyse_cast(context, node); }
+    if(kind == N_IS) { return analyse_is(context, node); }
+    if(kind == N_NOT_NULL) { return analyse_not_null(context, node); }
+    if(kind == N_ELVIS) { return analyse_elvis(context, node); }
+    if(kind == N_TERNARY) { return analyse_ternary(context, node, wanted); }
+    if(kind == N_SIZEOF) { return analyse_sizeof(context, node); }
+    if(kind == N_NEW) { return analyse_new(context, node); }
+    if(kind == N_BINARY) { return analyse_binary(context, node); }
+    if(kind == N_DICTIONARY) { return analyse_dictionary(context, node); }
+    if(kind == N_ASSIGN) { return analyse_assign(context, node); }
+    if(kind == N_POSTFIX) { return analyse_increment(context, node, 1); }
+    if(kind == N_UNARY && is_step(context, node)) { return analyse_increment(context, node, 0); }
+    if(kind == N_UNARY && !is_step(context, node)) { return analyse_unary(context, node); }
+    if(kind == N_NEW_ARRAY) { return analyse_new_array(context, node); }
+    if(kind == N_ARRAY_LITERAL) { return analyse_array_literal(context, node, wanted); }
+    if(kind == N_LAMBDA) { return analyse_lambda(context, node, wanted); }
+    if(kind == N_GET_COMPONENT) { return analyse_get(context, node, wanted); }
+
+    // the parser gave up on this piece and has said so
+    if(kind == N_ERROR) { return new bound_error(context.unit, node, context.session.types.error_type); }
+    return report_not_an_expression(context, node);
+}
+
+/**
+ * `a.b`, `a[i]` and `a(...)` are the links of a CHAIN: `user?.address.city`.
+ * A `?.` somewhere in it makes the whole rest of the chain depend on its
+ * receiver, so the chain has to know where it ENDS: at the link that is not
+ * itself the front of another link. There the open `?.`s are closed
+ * (primary/members/safe_navigation.sharp).
+ */
+def analyse_chain_link(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    if(continues_in_parent(context, node)) { return analyse_link(context, node, wanted); }
+
+    around := context.navigation;
+    context.navigation = null;
+    result := analyse_chain_from_front(context, node, wanted);
+    result = close_safe_navigation(context, result);
+    context.navigation = around;
+    return result;
+}
+
+/**
+ * A whole chain, `node` being its last link. `new b().next().next()...`
+ * nests one link inside the next, and analysing the last link recursively
+ * asks for its receiver, which asks for ITS receiver, and so on: for a
+ * builder chain of a hundred calls that is several hundred levels of
+ * recursion, more than the VM's stack holds. So the links are analysed in a
+ * loop instead, from the first (innermost) to the last, each one handed to
+ * the link above it as its receiver through `context.ready_node` - the
+ * recursion along the chain becomes iteration (as for `a + b + c`,
+ * arithmetic.sharp). The order of the work, and so of the messages, is the
+ * same as the recursion's.
+ */
+def analyse_chain_from_front(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    depth : _int64 = 0;
+    for(front : _int64 = front_link_of(context, node); front >= 0; front = front_link_of(context, front)) { depth++; }
+    if(depth == 0) { return analyse_link(context, node, wanted); }
+
+    links := new _int64[depth + 1];         // links[0] is `node`, links[depth] the first link of the chain
+    links[0] = node;
+    for(i : _int64 = 1; i <= depth; i++) { links[i] = front_link_of(context, links[i - 1]); }
+
+    for(i : _int64 = depth; i >= 1; i--) {
+        value := analyse_link(context, links[i], null);     // (a receiver is analysed with nothing expected)
+        context.ready_node = links[i];
+        context.ready_value = value;
+    }
+    result := analyse_link(context, node, wanted);
+    context.ready_node = 0 - 1;             // (taken by the link above it; cleared in case it was not)
+    context.ready_value = null;
+    return result;
+}
+
+/**
+ * The link of the chain that `node` (a link) is worked out on - the
+ * receiver it analyses first: `a.b` -> `a`, `a[i]` -> `a`, `a.f(x)` -> `a`,
+ * `g(x)(y)` -> `g(x)`. -1 when that is not a link (a name, `new t()`, a
+ * literal: the start of the chain).
+ */
+def front_link_of(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    kind : _int64 = tree.kinds!![node];
+    front : _int64 = tree.first_child!![node];
+    if(front < 0) { return 0 - 1; }
+    if(kind == N_CALL) {
+        callee_kind : _int64 = tree.kinds!![front];
+        if(callee_kind == N_IDENTIFIER || callee_kind == N_MODULE_NAME) { return 0 - 1; }
+        if(callee_kind == N_MEMBER) {
+            // a.f(x): the callee `a.f` is part of this link; its object is the receiver
+            front = tree.first_child!![front];
+            if(front < 0 || tree.next_sibling!![front] < 0) { return 0 - 1; }
+        }
+    }
+    if(kind == N_MEMBER && tree.next_sibling!![front] < 0) { return 0 - 1; }     // (no name: reported by the parser)
+    if(!is_link_kind(tree.kinds!![front])) { return 0 - 1; }
+    return front;
+}
+
+/** a node that is a link of a chain: `a.b`, `a[i]`, `a(...)` */
+def is_link_kind(kind: _int64) : _int64 {
+    return kind == N_MEMBER || kind == N_INDEX || kind == N_CALL;
+}
+
+/** one link of a chain, by kind */
+def analyse_link(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    kind : _int64 = context.tree.kinds!![node];
+    if(kind == N_MEMBER) { return analyse_member(context, node, 0); }
+    if(kind == N_INDEX) { return analyse_index(context, node); }
+    return analyse_call(context, node);
+}
+
+/** is this node the front of a longer chain: the `a.b` of `a.b.c`, of `a.b[i]`, of `a.b(...)`? */
+def continues_in_parent(context: analysis_context, node: _int64) : _int64 {
+    parent : _int64 = context.tree.parents!![node];
+    if(parent < 0) { return 0; }
+    kind : _int64 = context.tree.kinds!![parent];
+    if(kind != N_MEMBER && kind != N_INDEX && kind != N_CALL) { return 0; }
+    return context.tree.first_child!![parent] == node;
+}
+
+/**
+ * Something that is not an expression stands where one is expected. The
+ * parser lets a type through in a few places (`_int8;` as a statement); any
+ * other kind here means this stage has no rule for a node the parser makes -
+ * an internal error that must be visible, never silent.
+ */
+def report_not_an_expression(context: analysis_context, node: _int64) : bound_expression {
+    kind : _int64 = context.tree.kinds!![node];
+    if(kind == N_TYPE || kind == N_NATIVE_TYPE || kind == N_FUNCTION_TYPE || kind == N_TYPE_NAME) {
+        d := problem_over(context, "E0404", "a type stands where a value is needed", node);
+        d.with_label("this names a type");
+        d.with_help("to make an object write `new <type>(...)`; to declare a variable write `name : <type>;`");
+        report(context, d);
+    } else {
+        d := problem_at(context, "E0990", "internal: the analysis has no rule for a `" + node_kind_name(kind) + "` node here", node);
+        d.with_label("not analysed");
+        d.with_note("this is a gap in the compiler, not a mistake in the program; please report it");
+        report(context, d);
+    }
+    return new bound_error(context.unit, node, context.session.types.error_type);
+}
+
+/** is the operator at `node` a `++` or `--`? (those are assignments, the others `-x` and `!x` are not) */
+def is_step(context: analysis_context, node: _int64) : _int64 {
+    operation : _int64 = token_kind_at(context, node);
+    return operation == P_INC || operation == P_DEC;
+}

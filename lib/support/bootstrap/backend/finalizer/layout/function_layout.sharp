@@ -1,0 +1,177 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.ir
+)
+
+/**
+ * ONE FUNCTION AS THE EXECUTABLE HAS IT
+ *
+ * Everything the function record of the file says (doc/codegen.md 3.7), and
+ * the code the later steps make for it:
+ *
+ *      address         its position in the VM's method table (= its record's position)
+ *      name, full_name `append`, `std#string.append` - what stack traces and reflection read
+ *      kind            FUNCTION_...: normal, constructor, initializer, operator, delegate, native
+ *      vm_flags        the modifiers as the VM numbers them (vm_flags_of)
+ *      made_from       MADE_...: what the generator makes its code from - its typed body, or
+ *                      a body the generator writes itself (init<C>, static_init<C>, the
+ *                      platform's start-up functions), or nothing (a body-less function)
+ *      delegate_address    for a function with a body in an override family: the address of
+ *                      the family root, which a virtual call names (codegen.md 4.6); -1 otherwise
+ *      ir, code        the intermediate form and the bytecode (backend/finalizer/generation, .../bytecode)
+ *      encoding_problem    an operand that does not fit the encoding (E0972)
+ *      selection_problem   an IR instruction without a VM sequence: a bug of the compiler (E0970)
+ *
+ * The function itself is `of`. For a function the generator adds (init<C>,
+ * static_init<C>), `of` is a sharp_function made for it (synthesized.sharp),
+ * so that every function of the executable is one kind of object.
+ */
+
+// ---- the kinds of function as the VM numbers them (the record's "function kind")
+const FUNCTION_NORMAL      : _int64 = 1;
+const FUNCTION_CONSTRUCTOR : _int64 = 2;
+const FUNCTION_INITIALIZER : _int64 = 3;   // init<C>, static_init<C>, init(x)
+const FUNCTION_OPERATOR    : _int64 = 4;
+const FUNCTION_DELEGATE    : _int64 = 5;   // no body: a function of an interface, or one only promised
+const FUNCTION_NATIVE      : _int64 = 7;
+
+// ---- what the code of a function is made from
+const MADE_FROM_BODY            : _int64 = 0;   // its typed body (sharp_function.bound_body)
+const MADE_OBJECT_INIT          : _int64 = 1;   // init<C>: the field values and init { } blocks of one object
+const MADE_STATIC_INIT          : _int64 = 2;   // static_init<C>: the static part of a class, once
+const MADE_PLATFORM_STATIC_INIT : _int64 = 3;   // platform.static_init: every static part, and the `main` value
+const MADE_PLATFORM_TLS_INIT    : _int64 = 4;   // platform.tls_init: the localized values of a new fiber
+const MADE_NOTHING              : _int64 = 5;   // no code: a delegate or a native function
+const MADE_COMPONENT            : _int64 = 6;   // @sub_component_init_<n>: the object a component definition gives
+
+// ---- the modifiers as the VM numbers them (lib/core/access_flag.h; codegen.md 3.5.1)
+const VM_PUBLIC    : _int64 = 1;
+const VM_PRIVATE   : _int64 = 2;
+const VM_PROTECTED : _int64 = 4;
+const VM_OVERRIDE  : _int64 = 8;
+const VM_EXCUSE    : _int64 = 16;
+const VM_LOCAL     : _int64 = 32;
+const VM_CONST     : _int64 = 64;
+const VM_STATIC    : _int64 = 128;
+const VM_STABLE    : _int64 = 256;
+const VM_EXTENSION : _int64 = 1024;
+const VM_NATIVE    : _int64 = 2048;
+
+/** one function of the executable (the fields are described at the top of this file) */
+class function_layout {
+    of : sharp_function;
+    owner : class_layout;
+    address : _int64 = 0 - 1;
+    name : string;
+    full_name : string;
+    kind : _int64 = FUNCTION_NORMAL;
+    made_from : _int64 = MADE_FROM_BODY;
+    is_static : _int64 = 0;
+    vm_flags : _int64 = 0;
+    delegate_address : _int64 = 0 - 1;
+    file_index : _int64 = 0;            // its source file in the meta section (3.9)
+    position : _int64 = 0;              // where it is written (for the order of the method table)
+    definition : type_definition?;      // MADE_COMPONENT: the `single { }` / `factory { }` it gives the object of
+
+    // what the later steps make
+    ir : ir_function?;
+    code : function_code?;
+    encoding_problem : string?;         // an operand too large for its field (E0972); null when none
+    selection_problem : string?;        // an IR instruction selection has no VM sequence for (E0970); null when none
+
+    function_layout(of: sharp_function, owner: class_layout, name: string) {
+        self->of = of;
+        self->owner = owner;
+        self->name = name;
+        full_name = owner.full_name + "." + name;
+    }
+
+    /**
+     * The number of parameters as the frame counts them (codegen.md 4.4): a
+     * lambda that is handed a closure record has one more, the record, after
+     * the written ones (`calld` pushes it there: 4.6, 6.12).
+     */
+    def parameter_count() : _int64 {
+        return (of.parameters.size().value as _int64) + of.takes_record;
+    }
+
+    /** the closure record class a lambda's hidden last parameter holds; null when it has none */
+    def record_parameter_class() : sharp_class? {
+        if(of.takes_record == 0) { return null; }
+        handed := handed_record(of);
+        if(handed == null) { return null; }
+        return handed!!.record_class;
+    }
+
+    /** does it give back a value? */
+    def returns_value() : _int64 {
+        result := of.result_type;
+        return result != null && !result!!.is_nil();
+    }
+}
+
+/**
+ * The modifiers of a declaration as the VM numbers them. A declaration of a
+ * module (a global function or variable) is a static member of its module's
+ * class `__srt_global` and is written `public static` when nothing else is
+ * said, as the C++ compiler writes it (decoded: 0x81, codegen.md 3.5.1).
+ */
+def vm_flags_of(flags: _int64, is_global: _int64) : _int64 {
+    made : _int64 = 0;
+    if((flags & FLAG_PUBLIC) != 0) { made = made | VM_PUBLIC; }
+    if((flags & FLAG_PRIVATE) != 0) { made = made | VM_PRIVATE; }
+    if((flags & FLAG_PROTECTED) != 0) { made = made | VM_PROTECTED; }
+    if((flags & FLAG_OVERRIDE) != 0) { made = made | VM_OVERRIDE; }
+    if((flags & FLAG_EXCUSE) != 0) { made = made | VM_EXCUSE; }
+    if((flags & FLAG_LOCAL) != 0) { made = made | VM_LOCAL; }
+    if((flags & FLAG_CONST) != 0) { made = made | VM_CONST; }
+    if((flags & FLAG_STATIC) != 0) { made = made | VM_STATIC; }
+    if((flags & FLAG_STABLE) != 0) { made = made | VM_STABLE; }
+    if((flags & FLAG_NATIVE) != 0) { made = made | VM_NATIVE; }
+    if(is_global == 1) {
+        made = made | VM_STATIC;
+        if((made & (VM_PRIVATE | VM_PROTECTED)) == 0) { made = made | VM_PUBLIC; }
+    }
+    return made;
+}
+
+/**
+ * The name a function has in the executable (C++ names, decoded from its
+ * output, codegen.md 5.6): a getter is `get_<field>`, a setter `set_<field>`,
+ * an `init(x)` conversion `init<class>`, a lambda `@anonymous_fun_<k>` (k
+ * counts the lambdas, `lambda_number`); everything else is named as written.
+ */
+def name_in_executable(function: sharp_function, lambda_number: _int64) : string {
+    if(function.kind == D_GETTER && function.field != null) { return "get_" + function.field!!.name; }
+    if(function.kind == D_SETTER && function.field != null) { return "set_" + function.field!!.name; }
+    if(function.kind == D_INIT && function.owner != null) { return "init<" + function.owner!!.name + ">"; }
+    if(function.is_lambda == 1) { return "@anonymous_fun_" + lambda_number; }
+    return function.name;
+}
+
+/**
+ * The closure record a lambda is handed (its hidden last parameter, codegen.md
+ * 6.12): the record of the function it is written in, or of the field whose
+ * value it is written in. Null for a lambda that is handed none.
+ */
+def handed_record(function: sharp_function) : closure_record? {
+    if(function.takes_record == 0) { return null; }
+    if(function.enclosing != null) { return function.enclosing!!.closure; }
+    if(function.enclosing_field != null) { return function.enclosing_field!!.closure; }
+    return null;
+}
+
+/** FUNCTION_...: the kind the record says (codegen.md 3.7) */
+def function_kind_of(function: sharp_function) : _int64 {
+    if(function.has(FLAG_NATIVE)) { return FUNCTION_NATIVE; }
+    if(function.bound_body == null && !function.has_body()) { return FUNCTION_DELEGATE; }
+    if(function.kind == D_CONSTRUCTOR) { return FUNCTION_CONSTRUCTOR; }
+    if(function.kind == D_INIT) { return FUNCTION_INITIALIZER; }
+    if(function.is_operator == 1) { return FUNCTION_OPERATOR; }
+    return FUNCTION_NORMAL;
+}

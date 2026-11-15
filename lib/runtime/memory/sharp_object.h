@@ -186,6 +186,7 @@ sharp_object* create_object(sharp_class* sc, bool unsafe = false);
 sharp_object* create_object(sharp_class* sc, Int size, bool unsafe = false);
 sharp_object* create_static_object(sharp_class* sc, bool unsafe = false);
 sharp_object* create_object(Int size, data_type type, bool unsafe = false);
+sharp_object* create_empty_array(data_type type);   // length 0, but an object (an empty command-line argument)
 sharp_object* create_object(Int size, bool unsafe = false);
 void realloc_object(sharp_object *, Int size, bool unsafe = false);
 Int sizeof_object(sharp_object *o);

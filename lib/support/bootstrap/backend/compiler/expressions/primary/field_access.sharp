@@ -1,0 +1,76 @@
+mod backend.compiler.expressions.primary;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.driver
+)
+
+/**
+ * READING A FIELD
+ *
+ *      width : decimal get { return width * scale; }
+ *
+ *      w := box.width;             calls the GETTER       bound_call, written_as AS_GETTER
+ *      get { return width ... }    the STORED value       bound_field
+ *
+ * A field with a getter is read through the getter everywhere - also from
+ * the other functions of its own class - except inside its own getter and
+ * setter, where the field's name means the value that is stored. (Otherwise
+ * a getter could not read what it is the getter of.)
+ *
+ * The type of a field declared `name := value;` is the type of its value. It
+ * may be needed before the driver has come to that field; `type_of_field`
+ * (driver/lazy_types.sharp) works it out at that moment. A field whose
+ * written type refused its value (`ages : _int64 = { 1, 2 };`, reported at
+ * the value) is read as the error type, so its uses add no message.
+ *
+ *      C++ comparison: `resolve_field` in dependency.cpp, which inlines
+ *      the getter call into the generated code.
+ */
+
+/**
+ * The node for reading `field`.
+ *
+ * @param on  the object it is read from; null for a static field or a global
+ */
+def read_field(context: analysis_context, field: sharp_field, on: bound_expression?, node: _int64) : bound_expression {
+    type := type_of_field(context, field, node);
+    // (declared with a value its written type refused, and reported there: its
+    // uses say nothing more - driver/lazy_types.sharp `field_value_refused`)
+    if(field_value_refused(context, field)) { type = context.session.types.error_type; }
+
+    if(field.getter != null && context.accessor_of != field) {
+        through_getter := new bound_call(context.unit, node, field.getter!!, on, type);
+        through_getter.written_as = AS_GETTER;
+        if(on == null) { through_getter.dispatch = CALL_STATIC; }
+        else { through_getter.dispatch = CALL_DIRECT; }
+        return through_getter;
+    }
+    read := new bound_field(context.unit, node, on, field, type);
+    read.constant = constant_of_field(context, field);
+    return read;
+}
+
+/**
+ * The value of a `const` field when the compiler knows it: `const limit :
+ * _int64 = 10 * 2;` read anywhere is the constant 20, so `= limit + 1` in an
+ * enum, or `x % limit`, can be worked out while compiling. The value is
+ * analysed on demand when the driver has not come to it yet; a const whose
+ * value is still being worked out (a circle) or is no constant has none.
+ * (`const` is never enforced - W1021 - so this is only used for what folding
+ * can use, never to replace a read.)
+ */
+def constant_of_field(context: analysis_context, field: sharp_field) : constant_value? {
+    if(!field.has(FLAG_CONST) || !field.has_initializer()) { return null; }
+    if(field.value_state == TYPE_UNKNOWN) { analyse_field_value(context.session, field); }
+    if(field.value_state != TYPE_KNOWN || field.bound_initializer == null) { return null; }
+    return field.bound_initializer!!.constant;
+}

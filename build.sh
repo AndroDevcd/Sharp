@@ -127,7 +127,7 @@ install_files() {
     echo "Installing standard library..."
     sudo rm -rf $INSTALL_INCLUDE_DIR
     sudo mkdir -p $INSTALL_INCLUDE_DIR
-    sudo cp -r lib/support/0.3.0/ $INSTALL_INCLUDE_DIR
+    sudo cp -r lib/support/0.4.0/ $INSTALL_INCLUDE_DIR
 
     echo "Sharp installed!"
 }

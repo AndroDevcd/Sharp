@@ -1,0 +1,69 @@
+mod backend.finalizer.generation.null_safety;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation
+)
+
+/**
+ * NULL SAFETY: `!!`, `?:` and `?.` (doc/codegen.md 6.4, 6.5)
+ *
+ * The three ways the language lets a program speak about a value that may be
+ * null:
+ *
+ *      name!!              "it is not null here": the value itself, nothing is tested (below)
+ *      name ?: "nobody"    the value, or the fallback when it is null (below)
+ *      user?.address.city  the whole chain, or null when `user` is null (safe_navigation.sharp)
+ *
+ * `!!` TESTS NOTHING. The C++ compiler emits no test for it
+ * (`force_non_null_expression.cpp`): a null shows where the value is USED -
+ * a field access, a call - as a nullptr_exception there. Probed (Q2): `y :=
+ * h!!;` with a null `h` raises nothing. The bootstrap does the same, because
+ * the oracle is the C++-built program (codegen.md 6.5).
+ *
+ * The files of this package (module `backend.finalizer.generation.null_safety`):
+ *
+ *      null_safety.sharp       this front door: `!!` and `?:`
+ *      safe_navigation.sharp   `?.`, chains of them, and the receiver inside the chain
+ */
+
+/** `x!!`: the value of x, untested (above) */
+def not_null_value(g: generator, e: bound_not_null) : _int64 {
+    return value_of(g, e.operand);
+}
+
+/**
+ * `value ?: fallback` (6.4, "bound_elvis"): the value, unless it is null -
+ * then the fallback, which runs only in that case.
+ *
+ *      %d = value
+ *      n = is_null %d;  jump_unless n, end
+ *      %d = fallback
+ *      end:
+ *
+ * The value always holds a reference (a plain number is never null, so
+ * analysis never makes an elvis of one); the fallback is already converted
+ * to the elvis's type.
+ */
+def elvis_value(g: generator, e: bound_elvis) : _int64 {
+    value : _int64 = value_of(g, e.value);
+    if(g.b.kind_of(value) != SLOT_REF) { g.stop("`?:` on a value that is not a reference", e.unit, e.node); }
+    target : _int64 = g.b.temp(SLOT_REF);
+    g.b.copy(target, value, NARROW_NONE);
+    g.b.release(value);
+    finish : _int64 = g.b.new_label();
+    missing : _int64 = g.b.temp(SLOT_INT);
+    test := g.b.emit(IR_IS_NULL);
+    test.target = missing;
+    test.first = target;
+    g.b.jump_unless(missing, finish);
+    g.b.release(missing);
+    fallback : _int64 = value_of(g, e.fallback);
+    g.b.copy(target, fallback, NARROW_NONE);
+    g.b.release(fallback);
+    g.b.place(finish);
+    return target;
+}

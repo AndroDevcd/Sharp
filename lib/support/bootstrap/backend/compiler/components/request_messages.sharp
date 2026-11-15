@@ -1,0 +1,373 @@
+mod backend.compiler.components;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.postprocessor.inheritance,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * THE MESSAGES OF REQUESTS THAT FAILED
+ *
+ * A `get` or `inject` that finds nothing is nearly always one of a few
+ * slips, and the definitions that DO exist say which: the type is provided,
+ * but under a name; the name exists in another component; the name is
+ * misspelled; a class below the one asked for is provided. Each message
+ * here looks at what the program defines and says what to write.
+ *
+ *      E0903 / E0906   nothing answers a `get` / an `inject`
+ *      E0904           the named definition provides another type
+ *      E0908           definitions that need each other in a circle
+ *      E0909           the component named does not exist
+ *      W1013           several components answer and none is named
+ */
+
+/** "a `database`", "the definition named \"fast\"": what a request asks for, in words */
+def asked_for(request: component_request) : string {
+    if(request.name != null && request.type != null) {
+        return a_type(request.type!!) + " named \"" + request.name!! + "\"";
+    }
+    if(request.name != null) { return "a definition named \"" + request.name!! + "\""; }
+    if(request.type != null) { return a_type(request.type!!); }
+    return "a value";
+}
+
+/** "a `database`", "an `engine`" */
+def a_type(type: resolved_type) : string {
+    text := type.to_text();
+    first : _int64 = 0;
+    if(sizeof(text.data) > 0) { first = text.data[0]; }
+    if(first == 'a' || first == 'e' || first == 'i' || first == 'o' || first == 'u') { return "an `" + text + "`"; }
+    return "a `" + text + "`";
+}
+
+/** "`get<worker>(\"fast\", app)`": how to ask for a definition, ready to paste */
+def how_to_get(definition: type_definition) : string {
+    type_text := "?";
+    if(definition.provides != null) { type_text = definition.provides!!.to_text(); }
+    text := "get<" + type_text + ">(";
+    if(definition.name != null) { text = text + "\"" + definition.name!! + "\""; }
+    if(!definition.owner.is_main()) {
+        if(definition.name != null) { text = "get(\"" + definition.name!! + "\", " + definition.owner.name; }
+        else { text = text + definition.owner.name; }
+    }
+    return text + ")";
+}
+
+/** E0903 / E0906: no definition answers */
+def report_nothing_answers(context: analysis_context, request: component_request, search: definition_search, code: string) {
+    message := "no component provides " + asked_for(request);
+    if(request.component_name != null) { message = "the component `" + request.component_name!! + "` does not provide " + asked_for(request); }
+
+    d := problem_over(context, code, message, request.node);
+    if(code == "E0906") { d.with_label("nothing to inject here"); }
+    else { d.with_label("nothing answers this `get`"); }
+
+    all : list<sharp_component> = context.prog.components;
+    if(all.size() == 0) {
+        d.with_note("this program declares no component at all");
+        d.with_help("declare what provides it: `component { single { new " + type_word(request) + "(...) } }`");
+        report(context, d);
+        return;
+    }
+
+    // what the other definitions provide is part of the answer: have them all analysed
+    // (one that is being analysed right now stays unknown and is passed over)
+    analyse_definitions(context.session);
+    if(search.unknown_by_waiting.size() > 0) { add_asks_for_itself(d, request, search.unknown_by_waiting); }
+    hint : _int64 = add_near_miss(context, d, request, search);
+    if(hint == 0) {
+        d.with_note(what_is_provided(search.searched, request));
+        if(request.name != null) {
+            if(has_named_definitions(all) == 1) {
+                d.with_help("add `single(\"" + request.name!! + "\") { ... }` to a component, or ask for one of the names that exist");
+            } else if(request.type != null) {
+                d.with_help("no definition has a name: ask by the type alone, `get<" + type_word(request) + ">()`, or name one: `single(\""
+                            + request.name!! + "\") { ... }`");
+            } else {
+                d.with_help("add `single(\"" + request.name!! + "\") { ... }` to a component");
+            }
+        } else if(can_be_made_with_new(request)) {
+            d.with_help("add a definition without a name that makes one: `single { new " + type_word(request) + "(...) }`");
+        } else {
+            // `new clock(...)` of an interface is itself an error: name what CAN be made
+            d.with_help("add a definition without a name that makes an object of a class that implements `" + type_word(request)
+                        + "`, as a `" + type_word(request) + "`: `single { new <class>(...) as " + type_word(request) + " }`");
+        }
+    }
+    report(context, d);
+}
+
+/** can the type a request asks for be made with `new`? (not an interface, not a number or an array) */
+def can_be_made_with_new(request: component_request) : _int64 {
+    if(request.type == null) { return 1; }
+    type : resolved_type = request.type!!;
+    if(type.kind != RT_CLASS || type.class_of == null) { return 1; }
+    return !type.class_of!!.is_interface();
+}
+
+/**
+ * A definition WITHOUT a name whose class is below the one asked for: it
+ * provides a `fixed_clock`, the request wants a `clock`. A request is
+ * answered by the exact type only (as in the C++ compiler), so it does not
+ * count - but it is almost always the definition that was meant, and `as`
+ * makes it provide the type asked for.
+ */
+def provided_below(context: analysis_context, definition: type_definition, request: component_request) : _int64 {
+    if(definition.name != null || request.name != null || request.type == null) { return 0; }
+    given : resolved_type = definition.provides!!;
+    wanted : resolved_type = request.type!!.as_non_null();
+    if(given.kind != RT_CLASS || wanted.kind != RT_CLASS || given.class_of == null || wanted.class_of == null) { return 0; }
+    if(given.class_of!! == wanted.class_of!!) { return 0; }
+    return inherits_from(context.prog, given.class_of!!, wanted.class_of!!);
+}
+
+/** E0903 / E0906 with a definition of a class below the requested one: say why it does not answer, and the `as` that makes it */
+def explain_provided_below(d: diagnostic, definition: type_definition, request: component_request) {
+    given := definition.provides!!.to_text();
+    wanted := type_word(request);
+    d.with_related_place(place_of_node(definition.unit, definition.node, "this provides a `" + given + "`, not a `" + wanted + "`"));
+    d.with_note("a request is answered by a definition of exactly the type it asks for; a `" + given
+                + "` is a `" + wanted + "`, but its definition provides a `" + given + "`");
+    value := written_text(definition.unit.parsed!!, definition.value_node);
+    if(value == "<value>") { value = "new " + given + "(...)"; }
+    d.with_help("make the definition provide a `" + wanted + "`: `" + value + " as " + wanted + "`");
+}
+
+/**
+ * The definitions in reach that have no type because their value IS a
+ * request (`factory { get<holder>() }`): they cannot be the answer, since
+ * what they provide is what they ask for. Shown so the reader sees why the
+ * definition that looks like the answer is not one.
+ */
+def add_asks_for_itself(d: diagnostic, request: component_request, definitions: list<type_definition>) {
+    for(i : _int64 = 0; i < definitions.size(); i++) {
+        link := definitions.at(i);
+        d.with_related_place(place_of_node(link.unit, link.node, "this definition gets its type from a `get` - it provides nothing of its own"));
+    }
+    d.with_note("a definition provides the type of its expression; one that only asks for " + asked_for(request)
+                + " provides nothing by itself: something else must make " + asked_for(request));
+}
+
+/** 1 when some definition of the program has a name */
+def has_named_definitions(all: list<sharp_component>) : _int64 {
+    for(c : _int64 = 0; c < all.size(); c++) {
+        definitions := all.at(c).definitions;
+        for(i : _int64 = 0; i < definitions.size(); i++) {
+            if(definitions.at(i).name != null) { return 1; }
+        }
+    }
+    return 0;
+}
+
+/** the class name to write in a suggested definition */
+def type_word(request: component_request) : string {
+    if(request.type == null) { return "<class>"; }
+    return request.type!!.as_non_null().to_text();
+}
+
+/**
+ * The definition the request most likely meant, when there is one: the type
+ * under a name, the name or type in another component, a name one slip
+ * away. Adds the note and help for it; returns 1 when it did.
+ */
+def add_near_miss(context: analysis_context, d: diagnostic, request: component_request, search: definition_search) : _int64 {
+    all : list<sharp_component> = context.prog.components;
+    names := new list<string>();
+    under_a_name : type_definition? = null;
+    for(c : _int64 = 0; c < all.size(); c++) {
+        definitions := all.at(c).definitions;
+        for(i : _int64 = 0; i < definitions.size(); i++) {
+            definition := definitions.at(i);
+            if(definition.name != null) { names.add(definition.name!!); }
+            if(!provides_a_type(definition)) { continue; }
+
+            // the right definition in a component the request did not look in
+            if(request.component_name != null && !(definition.owner.name == request.component_name!!) && fits_apart_from_component(definition, request)) {
+                d.with_related_place(place_of_node(definition.unit, definition.node, definition.owner.described() + " provides it here"));
+                if(request.missing_code == "E0906" && definition.owner.is_main()) { d.with_help("leave the component out: `inject`"); }
+                else if(request.missing_code == "E0906") { d.with_help("name that component: `inject(" + definition.owner.name + ")`"); }
+                else { d.with_help("ask that component: `" + how_to_get(definition) + "`"); }
+                return 1;
+            }
+            // a class below the one asked for: exact types only
+            if(provided_below(context, definition, request)) {
+                explain_provided_below(d, definition, request);
+                return 1;
+            }
+            // the same type, but only reachable by its name
+            if(under_a_name == null && request.name == null && request.type != null && definition.name != null
+               && same_or_nullable_of(definition.provides!!, request.type!!)) {
+                under_a_name = definition;
+            }
+        }
+    }
+    if(under_a_name != null) {
+        definition : type_definition = under_a_name!!;
+        d.with_related_place(place_of_node(definition.unit, definition.node, "this provides it, but under the name \""
+                                           + definition.name!! + "\""));
+        d.with_note("a definition with a name is found only by that name, never by its type alone");
+        if(request.missing_code == "E0906") { d.with_help("`inject` asks by type only: take the name off the definition, or fill the field yourself with `" + how_to_get(definition) + "`"); }
+        else { d.with_help("ask for it by name: `" + how_to_get(definition) + "`"); }
+        return 1;
+    }
+    if(request.name != null) {
+        close := closest_names(request.name!!, names, 3);
+        if(close.size() > 0) {
+            d.with_help("a definition with a similar name exists - " + did_you_mean(close));
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** would `definition` answer the request if the request had not named a component? */
+def fits_apart_from_component(definition: type_definition, request: component_request) : _int64 {
+    if(request.name != null) {
+        if(definition.name == null) { return 0; }
+        if(!(definition.name!! == request.name!!)) { return 0; }
+    } else if(definition.name != null) {
+        return 0;
+    }
+    if(request.type == null) { return 1; }
+    return same_or_nullable_of(definition.provides!!, request.type!!);
+}
+
+/** "`app` provides: `database`, `logger`; by name: \"fast\"": what the components searched have */
+def what_is_provided(searched: list<sharp_component>, request: component_request) : string {
+    by_type := new string_builder("");
+    by_name := new string_builder("");
+    types : _int64 = 0;
+    names : _int64 = 0;
+    listed := new list<string>();           // each type and name is said once
+    for(c : _int64 = 0; c < searched.size(); c++) {
+        definitions := searched.at(c).definitions;
+        for(i : _int64 = 0; i < definitions.size(); i++) {
+            definition := definitions.at(i);
+            if(definition.name != null) {
+                word := "\"" + definition.name!! + "\"";
+                if(already_listed(listed, word)) { continue; }
+                listed.add(word);
+                if(names > 0 && names < 8) { by_name.append(", "); }
+                if(names < 8) { by_name.append(word); }
+                names++;
+            } else if(provides_a_type(definition)) {
+                word := "`" + definition.provides!!.to_text() + "`";
+                if(already_listed(listed, word)) { continue; }
+                listed.add(word);
+                if(types > 0 && types < 8) { by_type.append(", "); }
+                if(types < 8) { by_type.append(word); }
+                types++;
+            }
+        }
+    }
+    who := "the components of this program provide";
+    if(request.component_name != null) { who = "`" + request.component_name!! + "` provides"; }
+    if(types == 0 && names == 0) { return who + " nothing yet"; }
+    text := who;
+    if(types > 0) { text = text + " by type: " + by_type.build(); }
+    if(types > 8) { text = text + " and " + (types - 8) + " more"; }
+    if(names > 0 && types > 0) { text = text + "; and"; }
+    if(names > 0) { text = text + " by name: " + by_name.build(); }
+    return text;
+}
+
+/** is the word in the list already? */
+def already_listed(listed: list<string>, word: string) : _int64 {
+    for(i : _int64 = 0; i < listed.size(); i++) {
+        if(listed.at(i) == word) { return 1; }
+    }
+    return 0;
+}
+
+/** E0904: `get<worker>("main")` where "main" makes a database */
+def report_other_type(context: analysis_context, request: component_request, definition: type_definition) {
+    d := problem_over(context, "E0904", "the definition named \"" + request.name!! + "\" provides " + a_type(definition.provides!!)
+                      + ", not " + a_type(request.type!!), request.node);
+    d.with_label("asks for " + a_type(request.type!!));
+    d.with_related_place(place_of_node(definition.unit, definition.node, "\"" + request.name!! + "\" is defined here"));
+    d.with_note("the type written in `get<...>` must be exactly the type of the definition's expression");
+    d.with_help("ask for what it provides: `" + how_to_get(definition) + "`");
+    report(context, d);
+}
+
+/** E0909: `get<database>(ap)` */
+def report_no_such_component(context: analysis_context, request: component_request) {
+    wanted : string = request.component_name!!;
+    d := problem_over(context, "E0909", "there is no component named `" + wanted + "`", request.node);
+    d.with_label("looks in `" + wanted + "`");
+    names := new list<string>();
+    all : list<sharp_component> = context.prog.components;
+    for(i : _int64 = 0; i < all.size(); i++) {
+        if(!all.at(i).is_main()) { names.add(all.at(i).name); }
+    }
+    close := closest_names(wanted, names, 3);
+    if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+    else if(names.size() == 0) {
+        d.with_note("this program has no component with a name; a `component { }` block without one is the main component");
+        d.with_help("leave the component out to search every component, or declare `component " + wanted + " { ... }`");
+    } else {
+        d.with_help("declare `component " + wanted + " { ... }`, or leave the component out to search every component");
+    }
+    report(context, d);
+}
+
+/** W1013: two components answer and the request names none */
+def warn_several_components(context: analysis_context, request: component_request, search: definition_search) {
+    found : type_definition = search.found!!;
+    others := new string_builder("");
+    for(i : _int64 = 0; i < search.also_in.size(); i++) {
+        if(i > 0) { others.append(", "); }
+        others.append(search.also_in.at(i).described());
+    }
+    d := problem_over(context, "W1013", "several components provide " + asked_for(request) + "; the one of "
+                      + found.owner.described() + " is taken", request.node);
+    d.with_label("no component is named here");
+    d.with_related_place(place_of_node(found.unit, found.node, "this definition is taken"));
+    d.with_note("also provided by " + others.build() + "; components are searched in the order they are declared, and the first answer wins");
+    if(found.owner.is_main()) { d.with_help("name the component you mean, or keep only one definition of it"); }
+    else { d.with_help("say which one: `" + how_to_get(found) + "`"); }
+    report(context, d);
+}
+
+/**
+ * E0908: the request is answered by a definition that needs, directly or
+ * through others, the very definition the request is written in. `chain` is
+ * the circle: the answer first, the definition of the request last
+ * (requests.sharp, `path_of_needs`); one entry when a definition asks for itself.
+ * A request written in a lambda is reported only in that last form.
+ */
+def report_circle(context: analysis_context, request: component_request, chain: list<type_definition>) {
+    start : _int64 = 0;
+
+    d := problem_over(context, "E0908", "component definitions need each other in a circle", request.node);
+    d.with_label("asks for " + asked_for(request) + ", whose definition is the one that needs this");
+    for(i : _int64 = start; i < chain.size(); i++) {
+        link := chain.at(i);
+        text := "... and making that needs this definition";
+        if(start + 1 == chain.size()) { text = "making " + provided_words(link) + " asks for the very thing this definition makes"; }
+        else if(i == start) { text = "making " + provided_words(link) + " needs ..."; }
+        else if(i + 1 < chain.size()) { text = "... " + provided_words(link) + ", which needs ..."; }
+        d.with_related_place(place_of_node(link.unit, link.node, text));
+    }
+    if(request.in_lambda == 1) {
+        // (only a lambda that asks for its OWN definition gets here: requests.sharp)
+        d.with_note("a `get` in a lambda is carried out when the lambda is called, which is fine - but what it asks for is the type of this very definition, and that type is worked out from the expression the lambda is part of");
+        d.with_help("ask through a function that states the type, and call that in the lambda: `def the_object() : <type> { return get<<type>>(); }`");
+    } else {
+        d.with_note("a definition is carried out to make its object; one that asks for itself, directly or through others, would never finish");
+        d.with_help("break the circle: let one of them be made without the other, and hand the other over afterwards (a field set later, a function parameter, or a `get` inside a lambda, which runs only when the lambda is called)");
+    }
+    report(context, d);
+}
+
+/** "a `car`" / "this definition": what a definition makes, for the circle message */
+def provided_words(definition: type_definition) : string {
+    if(!provides_a_type(definition)) { return "this"; }
+    return a_type(definition.provides!!);
+}

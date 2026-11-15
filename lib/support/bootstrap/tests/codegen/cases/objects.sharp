@@ -1,0 +1,95 @@
+mod main;
+
+// output:
+// 14
+// 101
+// 102
+// 4
+// 3
+// 8
+// 2
+// 6
+
+/*
+ * Objects (doc/codegen.md 6.2, 6.6, 6.14): fields with values and an
+ * `init { }` block (init<C>), a static field with a value (static_init<C>,
+ * run by the first constructor), `-> base(...)`, direct calls of a class's
+ * functions, and virtual calls through an interface (`invoke_delegate`: the
+ * object's class decides which `sides` runs).
+ */
+class counter {
+    count : _int64 = 10;
+    static made : _int64 = 100;
+    step : _int64;
+
+    init {
+        step = 2;
+    }
+
+    counter() {
+        made++;
+    }
+
+    def add() {
+        count += step;
+    }
+
+    def value() : _int64 {
+        return count;
+    }
+}
+
+interface figure {
+    def sides() : _int64;
+}
+
+class square : figure {
+    override def sides() : _int64 { return 4; }
+}
+
+class triangle : figure {
+    override def sides() : _int64 { return 3; }
+}
+
+class base_thing {
+    id : _int64;
+
+    base_thing(id: _int64) {
+        self->id = id;
+    }
+}
+
+class thing base base_thing {
+    thing() -> base(7) { }
+
+    def id_plus(n: _int64) : _int64 {
+        return id + n;
+    }
+}
+
+def describe(f: figure) {
+    show(f.sides());
+}
+
+def main() {
+    c := new counter();
+    c.add();
+    c.add();
+    show(c.value());
+    show(counter.made);
+    d := new counter();
+    show(counter.made);
+    describe(new square());
+    describe(new triangle());
+    t := new thing();
+    show(t.id_plus(1));
+    show(d.step);
+    shapes := new figure[2];
+    shapes[0] = new square();
+    shapes[1] = new triangle();
+    total : _int64 = 0;
+    foreach(s in shapes) {
+        total += s.sides();
+    }
+    show(total - 1);
+}

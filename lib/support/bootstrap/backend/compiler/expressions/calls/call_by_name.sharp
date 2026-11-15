@@ -1,0 +1,264 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.names,
+    backend.compiler.overloads,
+    backend.compiler.lambdas,
+    backend.compiler.expressions,
+    backend.compiler.expressions.primary
+)
+
+/**
+ * A CALL BY A PLAIN NAME:  name(args)
+ *
+ * What `name` is tried as, in this order (doc/backend.md 7.7.1); the first
+ * that fits the call wins:
+ *
+ *   1. a local variable or parameter: it must hold a function value (else E0504)
+ *   2. inside class `point`, `point(...)` makes a point
+ *   3. a field of the class (or a class above it) that holds a function value
+ *   4. the functions of the class, its base classes and interfaces - overload
+ *      resolution; an instance function needs `self` (E0704 in static code)
+ *   5. a global variable that holds a function value
+ *   6. the global functions, module by module in the order the file sees them
+ *      (its own module first): the first module with a function that FITS
+ *      decides - a nearer module hides the name of a farther one only when it
+ *      has something that takes these arguments
+ *   7. a class of that name: `point(1, 2)` is `new point(1, 2)`
+ *
+ * When steps 4 and 6 found functions of that name but none fits, the
+ * message (E0501) lists every one of them with its reason.
+ *
+ *      C++ comparison: `resolve_function_reference_item` in
+ *      dependency/dependency.cpp.
+ */
+
+/** what a call search met on its way: the candidates that did not fit, for the message */
+class call_search {
+    rejected : list<call_candidate>;
+    type_argument_problem : string = "";
+
+    call_search() { rejected = new list<call_candidate>(); }
+
+    /** keep what a scope that had the name but nothing fitting said */
+    def remember(result: overload_result) {
+        for(i : _int64 = 0; i < result.rejected.size(); i++) { rejected.add(result.rejected.at(i)); }
+        if(type_argument_problem.size() == 0) { type_argument_problem = result.type_argument_problem; }
+    }
+}
+
+/**
+ * `name(arguments)` at `node`: the steps of the list above, in order.
+ *
+ * @param callee_node  the name (an N_IDENTIFIER, with the type arguments written after it)
+ */
+def call_by_name(context: analysis_context, node: _int64, callee_node: _int64, arguments: list<call_argument>) : bound_expression {
+    name := name_at(context, callee_node);
+    type_arguments := type_arguments_at(context, callee_node);
+    if(has_error_type(type_arguments) == 1) { return failed_call(context, node, null, arguments); }
+    search := new call_search();
+
+    // 1. a local variable (also one of a function around a lambda)
+    if(context.scope != null) {
+        as_local := new lookup_result();
+        find_local(context, name, as_local);
+        if(as_local.kind == FOUND_LOCAL) {
+            return call_function_value(context, expression_for_found(context, as_local, callee_node, name), arguments, node);
+        }
+        if(as_local.kind == FOUND_TYPE && as_local.type != null) {
+            return construct(context, as_local.type!!, arguments, node, callee_node, 1);
+        }
+    }
+
+    // 2. the class's own name: make one
+    if(context.class_of != null && type_arguments == null && name == context.class_of!!.written.name) {
+        return construct(context, type_of_class(context.class_of!!), arguments, node, callee_node, 1);
+    }
+
+    // 3. and 4. a member of the class
+    if(context.class_of != null) {
+        member := new lookup_result();
+        find_class_member(context.prog, context.class_of!!, name, member);
+        if(member.kind == FOUND_FIELD && field_holds_function(context, member.field!!)) {
+            return call_function_value(context, expression_for_found(context, member, callee_node, name), arguments, node);
+        }
+        if(member.kind == FOUND_FUNCTIONS) {
+            made := call_in_scope(context, member.functions!!, arguments, type_arguments, context.class_of, null, 1,
+                                  node, callee_node, name, search);
+            if(made != null) { return made!!; }
+        }
+    }
+
+    // 5. and 6. the modules the file sees, nearest first
+    found := call_in_modules(context, context.file.imports, name, arguments, type_arguments, node, callee_node, search);
+    if(found != null) { return found!!; }
+
+    // 7. a class of that name: an object made without `new`
+    named := look_up_name(context, name, callee_node);
+    if(named.kind == FOUND_TYPE) {
+        type : resolved_type = context.session.types.error_type;
+        if(named.type != null) { type = named.type!!; }
+        else {
+            check_access(context, named.declaration!!, callee_node);
+            type = type_named_by(context, named.declaration!!, callee_node);
+        }
+        if(type.kind == RT_CLASS || type.kind == RT_ERROR) { return construct(context, type, arguments, node, callee_node, 1); }
+    }
+    return report_failed_search(context, search, named, name, node, callee_node, arguments);
+}
+
+/**
+ * Steps 5 and 6 over a list of modules (the file's, or the one named before
+ * `#`): a global variable holding a function value, then the global
+ * functions; the first module with something that fits decides.
+ */
+def call_in_modules(context: analysis_context, modules: list<sharp_module>, name: string, arguments: list<call_argument>,
+                    type_arguments: list<resolved_type>?, node: _int64, callee_node: _int64, search: call_search) : bound_expression? {
+    for(i : _int64 = 0; i < modules.size(); i++) {
+        module := modules.at(i);
+        same_name := module.declared.find(name);
+        if(same_name == null) { continue; }
+        functions := new list<sharp_function>();
+        for(j : _int64 = 0; j < same_name!!.size(); j++) {
+            declared := same_name!!.at(j);
+            if(declared.kind == D_FIELD && field_holds_function(context, declared as sharp_field)) {
+                found := new lookup_result();
+                found.kind = FOUND_FIELD;
+                found.field = declared as sharp_field;
+                found.in_module = module;
+                return call_function_value(context, expression_for_found(context, found, callee_node, name), arguments, node);
+            }
+            if(declared.kind == D_FUNCTION && declared.owner == null) { functions.add(declared as sharp_function); }
+        }
+        if(functions.size() == 0) { continue; }
+        made := call_in_scope(context, functions, arguments, type_arguments, null, null, 0, node, callee_node, name, search);
+        if(made != null) { return made; }
+    }
+    return null;
+}
+
+/** does the field hold a function value? (its type is worked out now if it is written `name := ...`) */
+def field_holds_function(context: analysis_context, field: sharp_field) : _int64 {
+    if(field.value_type != null) { return field.value_type!!.kind == RT_FUNCTION; }
+    if(field.type != null) { return field.type!!.form == TYPE_FUNCTION; }
+    return 0;
+}
+
+/**
+ * Overload resolution among the functions of ONE scope. Returns the call,
+ * an error node (ambiguous: reported) -
+ * or null when nothing of the scope fits, so the caller tries the next scope.
+ *
+ * @param receiver_class  the class of the object (for "nearer class wins")
+ * @param on              the object, when written (`a.f()`); null otherwise
+ * @param by_plain_name   1: written `f()` inside a class: an instance function is
+ *                        called on `self`, which static code does not have
+ */
+def call_in_scope(context: analysis_context, functions: list<sharp_function>, arguments: list<call_argument>,
+                  type_arguments: list<resolved_type>?, receiver_class: sharp_class?, on: bound_expression?,
+                  by_plain_name: _int64, node: _int64, name_node: _int64, name: string, search: call_search) : bound_expression? {
+    result := resolve_overload(context, functions, arguments, type_arguments, receiver_class);
+    if(result.tied.size() > 0) {
+        if(has_error_argument(arguments) == 0) { report_ambiguous(context, name, name_node, result.tied, arguments); }
+        return failed_call(context, node, on, arguments);
+    }
+    if(result.best == null) {
+        search.remember(result);
+        return null;
+    }
+
+    chosen : call_candidate = result.best!!;
+    function : sharp_function = chosen.function;
+    receiver : bound_expression? = on;
+    if(by_plain_name == 1 && function.owner != null && !function.has(FLAG_STATIC)) {
+        if(context.is_static == 1 || context.class_of == null) {
+            report_instance_function_without_object(context, function, name_node, 0);
+            return failed_call(context, node, null, arguments);
+        }
+        receiver = implied_self(context, name_node);
+    }
+    return bind_call(context, chosen, receiver, arguments, node, name_node);
+}
+
+/**
+ * Nothing fit. The message depends on what WAS found: functions that do not
+ * fit (E0501, or a problem with the type arguments), a variable that is not a
+ * function (E0504), something that cannot be called at all (E0500), or
+ * nothing of the name (E0400, with the closest names).
+ */
+def report_failed_search(context: analysis_context, search: call_search, named: lookup_result, name: string, node: _int64,
+                         callee_node: _int64, arguments: list<call_argument>) : bound_expression {
+    if(search.rejected.size() > 0) {
+        if(has_error_argument(arguments) == 0) { report_rejected(context, search, name, callee_node, arguments); }
+        return failed_call(context, node, null, arguments);
+    }
+    if(named.kind == FOUND_NOTHING) {
+        report_unknown_name(context, name, callee_node, 1);
+        return failed_call(context, node, null, arguments);
+    }
+    if(named.kind == FOUND_FIELD || named.kind == FOUND_LOCAL || named.kind == FOUND_ENUM_VALUE) {
+        report_not_callable(context, expression_for_found(context, named, callee_node, name), node);
+        return failed_call(context, node, null, arguments);
+    }
+    d := problem_at(context, "E0500", "`" + name + "` cannot be called", callee_node);
+    d.with_label("not a function and not a class that can be made");
+    d.with_note("a call needs a function, a class (`point(1, 2)` makes a point) or a value of a function type");
+    report(context, d);
+    return failed_call(context, node, null, arguments);
+}
+
+/** E0501, or E0515 / E0516 / E0517 / E0518 when the type arguments are all that is wrong */
+def report_rejected(context: analysis_context, search: call_search, name: string, name_node: _int64, arguments: list<call_argument>) {
+    problem := search.type_argument_problem;
+    if(problem.size() > 0 && only_type_argument_problems(search)) {
+        report_type_arguments(context, problem, name, name_node, search.rejected, arguments);
+        return;
+    }
+    if(search.rejected.size() == 1 && report_lambda_against_parameter(context, search.rejected.at(0), arguments, name) == 1) { return; }
+    report_no_fit(context, "E0501", "no `" + name + "` takes " + argument_types_text(arguments), name_node, search.rejected, arguments);
+}
+
+/**
+ * One function of that name, and the argument that does not fit it is a
+ * lambda written right there: `apply({ x: string -> ... }, 9)` where
+ * `apply(f: (decimal)(decimal), x: decimal)`. "No `apply` takes ..." would
+ * send the reader to the overload list; the useful message is the lambda
+ * rule's own - E0801 / E0802 at the parameter of the lambda that is wrong,
+ * with what to write. So the lambda is analysed against the parameter's
+ * function type, which reports it. Returns 1 when that reported something;
+ * 0 leaves the E0501.
+ */
+def report_lambda_against_parameter(context: analysis_context, candidate: call_candidate, arguments: list<call_argument>, name: string) : _int64 {
+    position : _int64 = candidate.failed_argument;
+    if(position < 0 || position >= arguments.size() || position >= candidate.function.parameters.size()) { return 0; }
+    argument := arguments.at(position);
+    wanted : resolved_type? = candidate.function.parameters.at(position).value_type;
+    if(wanted == null || wanted!!.kind != RT_FUNCTION || wanted!!.is_array == 1 || wanted!!.is_open_type == 1) { return 0; }
+    if(argument.is_lambda == 0 && argument.value.kind == BX_LAMBDA) {
+        // fully typed where it is written: already analysed, so compared as it is
+        return report_written_lambda_against(context, argument.value as bound_lambda, wanted!!, "`" + name + "`");
+    }
+    if(argument.is_lambda == 0 || argument.named != null || argument.request_node >= 0) { return 0; }
+
+    before : decimal = count_errors(context.session.problems);
+    finish_argument(context, argument, wanted!!, "argument " + (position + 1) + " of `" + name + "`");
+    return count_errors(context.session.problems) > before;
+}
+
+/** did every candidate fail on its type arguments (and none on its arguments)? */
+def only_type_argument_problems(search: call_search) : _int64 {
+    for(i : _int64 = 0; i < search.rejected.size(); i++) {
+        if(search.rejected.at(i).type_argument_code.size() == 0) { return 0; }
+    }
+    return 1;
+}

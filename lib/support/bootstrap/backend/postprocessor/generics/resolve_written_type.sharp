@@ -1,0 +1,399 @@
+mod backend.postprocessor.generics;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * FROM A WRITTEN TYPE TO WHAT IT MEANS
+ *
+ *      resolve_written_type(prog, written, environment, problems) : resolved_type
+ *
+ * is the ONE way from a sharp_type (a place in the source where a type is
+ * written) to a resolved_type (what a value there is). It
+ *
+ *   1. looks through aliases:              alias list<string> as names;   names -> list<string>
+ *   2. replaces type parameters by what the environment says they stand for
+ *      (type_environment.sharp):           T -> string   inside box<string>
+ *   3. finds - or makes - the instance of a generic class:
+ *                                          list<string> -> the class list<string>
+ *                                          (generic_classes.sharp: this is where instances are born)
+ *   4. adds `[]`, `?` and `??`, and refuses the combinations that mean nothing.
+ *
+ * THE SAME WRITTEN TYPE IN MANY INSTANCES
+ * `item : T` in class box<T> is one sharp_type that every instance of box
+ * shares. So the answer cannot simply be stored in it. What is stored is the
+ * answer when NOTHING is known about type parameters (`written.resolved`):
+ *
+ *      string, list<string>, _int64[]      a real type. No type parameter in it, so this is
+ *                                          the answer in every instance too (`is_closed`)
+ *      T, list<T>, (T)(bool)               an "open" type (RT_TYPE_PARAMETER). The answer for
+ *                                          an instance is worked out under its environment,
+ *                                          and kept by whoever asked (the instance's member)
+ *
+ * WHEN A MISTAKE IS REPORTED
+ * A mistake that does not depend on any type parameter - `list<int, int>`,
+ * `string<int>`, `_int64?` - is reported when the type is first resolved,
+ * once. A mistake that only exists in an instance - `T?` where T turned out
+ * to be `_int64` - is reported the first time an instance shows it, with a
+ * note saying which instance.
+ *
+ *      E0350   wrong number of type arguments              list<int, int>
+ *      E0351   a type argument breaks `T base x`           (reported in generic_classes.sharp)
+ *      E0352   generic instances nest without end          (generic_classes.sharp)
+ *      E0353   type arguments on something not generic     string<int>
+ *      E0354   a generic class without type arguments      names : list;
+ *      E0355   a plain number cannot be nullable           count : _int64?
+ *      E0356   `??` on something that is not an array of objects
+ *      E0357   an array of arrays                          alias int[] as row;  grid : row[];
+ *      E0368   a class inside a generic class, named       class list<T> { class node { } }
+ *              where its instance is not known             x : list.node;   (outside list)
+ *
+ * The messages themselves are written in type_use_messages.sharp.
+ *
+ *      C++ comparison: `resolve()` in dependency.cpp with its resolve_* flags,
+ *      plus the checks at the end of it ("array arrays are not supported",
+ *      "cannot be nullable") and in ast_parser.cpp.
+ */
+def resolve_written_type(prog: sharp_program, written: sharp_type, environment: type_environment?,
+                         problems: list<diagnostic>) : resolved_type {
+    if(written.resolved != null && (environment == null || written.is_closed == 1)) {
+        return written.resolved!!;
+    }
+
+    if(written.resolved == null) {
+        // first: what can be said without knowing any type parameter
+        general := work_out_type(prog, written, null, problems);
+        written.resolved = general;
+        written.is_closed = general.is_open() == 0;
+        if(environment == null || written.is_closed == 1) { return general; }
+    }
+
+    // A type that depends on a type parameter, under one environment: the body of
+    // every member of `list<string>` is analysed in a row, so the answer for the
+    // environment asked last is kept (a one-entry cache per written type). Working it
+    // out again would build the instance key text and look it up each time.
+    if(written.last_environment == environment && written.last_resolved != null) { return written.last_resolved!!; }
+    answer := work_out_type(prog, written, environment, problems);
+    written.last_environment = environment;
+    written.last_resolved = answer;
+    return answer;
+}
+
+/** the work of resolve_written_type for one written type under one environment, without the cache */
+def work_out_type(prog: sharp_program, written: sharp_type, environment: type_environment?,
+                  problems: list<diagnostic>) : resolved_type {
+    types : type_table = prog.types;
+
+    if(written.form == TYPE_NIL) { return types.nil_type; }
+
+    plain : resolved_type = types.error_type;
+    if(written.form == TYPE_NATIVE) {
+        plain = types.native_type(written.native_kind);
+    } else if(written.form == TYPE_FUNCTION) {
+        parameters := new list<resolved_type>();
+        for(i : _int64 = 0; i < written.parameters.size(); i++) {
+            parameters.add(resolve_written_type(prog, written.parameters.at(i), environment, problems));
+        }
+        result : resolved_type = types.nil_type;
+        if(written.result != null) { result = resolve_written_type(prog, written.result!!, environment, problems); }
+        plain = function_type_of(parameters, result);
+    } else {
+        if(written.declaration == null) { return types.error_type; }     // the name was not found: reported by stage 3
+        declared : sharp_declaration = written.declaration!!;
+
+        if(declared.kind == D_TYPE_PARAMETER) {
+            if(written.arguments.size() > 0) {
+                if(environment == null) { report_arguments_on_non_generic(written, declared, problems); }
+                return types.error_type;
+            }
+            bound : resolved_type? = null;
+            if(environment != null) { bound = environment!!.lookup(declared); }
+            if(bound != null) { plain = bound!!; }
+            else { plain = type_of_parameter(declared as sharp_type_parameter); }
+        } else if(declared.kind == D_ALIAS) {
+            plain = type_behind_alias(prog, declared as sharp_alias, environment, problems);
+            if(written.arguments.size() > 0) {
+                // (an alias that is itself broken was reported; `broken<int>` is not a second mistake)
+                if(environment == null && !plain.is_error()) { report_arguments_on_non_generic(written, declared, problems); }
+                return types.error_type;
+            }
+        } else {
+            plain = resolve_class_use(prog, written, declared as sharp_class, environment, problems);
+        }
+    }
+    return add_marks(prog, plain, written, environment, problems);
+}
+
+/** what an alias stands for; the error type for an alias that stands for itself (E0310, reported by stage 4) */
+def type_behind_alias(prog: sharp_program, declared: sharp_alias, environment: type_environment?,
+                      problems: list<diagnostic>) : resolved_type {
+    if(declared.target == null || declared.being_resolved == 1) { return prog.types.error_type; }
+
+    declared.being_resolved = 1;
+    result := resolve_written_type(prog, declared.target!!, environment, problems);
+    declared.being_resolved = 0;
+    return result;
+}
+
+/**
+ * A class, interface or enum named as a type: the class itself, or for a
+ * generic class the instance its type arguments ask for.
+ */
+def resolve_class_use(prog: sharp_program, written: sharp_type, declared: sharp_class, environment: type_environment?,
+                      problems: list<diagnostic>) : resolved_type {
+    types : type_table = prog.types;
+
+    // A class written inside a generic class exists once per instance of
+    // that class: inside list<string>, `node` means list<string>.node.
+    holder : sharp_class = declared;
+    if(declared.owner != null && declared.owner!!.is_open()) {
+        made := class_in_environment(declared, environment);
+        if(made == null) {
+            // inside the blueprint itself: which instance is not known yet
+            if(is_written_inside_an_owner(written, declared)) { return open_use_of(declared); }
+
+            // anywhere else there is no telling which instance is meant
+            if(written.instance_problem_reported == 0) {
+                written.instance_problem_reported = 1;
+                report_class_of_unknown_instance(written, declared, problems);
+            }
+            return types.error_type;
+        }
+        holder = made!!;
+    }
+
+    if(holder.type_parameters.size() == 0) {
+        if(written.arguments.size() > 0) {
+            if(environment == null) { report_arguments_on_non_generic(written, declared, problems); }
+            return types.error_type;
+        }
+        return type_of_class(holder);
+    }
+
+    // ---- a generic class
+    if(written.arguments.size() == 0) {
+        // inside the class its own name means "this instance":  class gen<T> { def me() : gen { ... } }
+        if(environment != null) {
+            own := environment!!.class_made_from(declared);
+            if(own != null && own!!.is_instance()) { return type_of_class(own!!); }
+        }
+        if(is_written_inside(written, declared)) { return open_use_of(declared); }
+
+        if(environment == null) { report_generic_without_arguments(written, declared, problems); }
+        return types.error_type;
+    }
+
+    if(written.arguments.size() != holder.type_parameters.size()) {
+        if(environment == null) { report_argument_count(written, declared, problems); }
+        return types.error_type;
+    }
+
+    arguments := new list<resolved_type>();
+    is_open : _int64 = 0;
+    for(i : _int64 = 0; i < written.arguments.size(); i++) {
+        argument := resolve_written_type(prog, written.arguments.at(i), environment, problems);
+        if(argument.is_error()) { return types.error_type; }     // reported where it went wrong
+        if(argument.is_nil()) { return types.error_type; }
+        if(argument.is_open()) { is_open = 1; }
+        arguments.add(argument);
+    }
+    if(is_open == 1) {
+        // list<T> inside a blueprint: not a class yet
+        return open_use_of(holder);
+    }
+
+    instance := instantiate(prog, holder, arguments, written, environment, problems);
+    if(instance == null) { return types.error_type; }
+    if(environment != null && instance!!.failed_constraint < 0 && is_inside_refused_instance(environment!!)) {
+        instance!!.inside_refused_instance = 1;
+    }
+
+    // `class box<T base shape>`: is every argument what its parameter asks for?
+    // Reported at every place that names such an instance.
+    if(instance!!.failed_constraint >= 0 && (environment == null || written.instance_problem_reported == 0)) {
+        if(environment != null) { written.instance_problem_reported = 1; }
+        report_constraint(prog, written, instance!!, environment, problems);
+    }
+    return type_of_class(instance!!);
+}
+
+/** the type "some instance of this generic class": what list<T> is inside a blueprint */
+def open_use_of(blueprint: sharp_class) : resolved_type {
+    made := new resolved_type(RT_TYPE_PARAMETER);
+    made.class_of = blueprint;
+    made.is_open_type = 1;
+    return made;
+}
+
+/**
+ * The class that `declared` - a class written inside a generic class - is in
+ * this environment: the copy that belongs to the instance we are inside of.
+ * Null when the environment does not lead to one.
+ */
+def class_in_environment(declared: sharp_class, environment: type_environment?) : sharp_class? {
+    if(environment == null) { return null; }
+
+    // are we inside it?
+    inside := environment!!.class_made_from(declared);
+    if(inside != null) {
+        // (inside an instance of a generic nested class, the class before its arguments is meant)
+        if(inside!!.is_instance()) { return inside!!.blueprint; }
+        return inside;
+    }
+
+    // otherwise it is found in the copy of the class it is written in
+    around : sharp_class? = environment!!.class_made_from(declared.owner!!);
+    if(around == null && declared.owner!!.owner != null && declared.owner!!.type_parameters.size() == 0) {
+        around = class_in_environment(declared.owner!!, environment);
+    }
+    if(around == null) { return null; }
+
+    for(i : _int64 = 0; i < around!!.classes.size(); i++) {
+        if(around!!.classes.at(i).written == declared) { return around!!.classes.at(i); }
+    }
+    return null;
+}
+
+/**
+ * Is this type written inside the declaration of `declared` - in the class
+ * body, in a `mutate` block for it, or in an extension function of it?
+ * There a generic class may be named without arguments: it means itself.
+ */
+def is_written_inside(written: sharp_type, declared: sharp_class) : _int64 {
+    if(written.node < 0) { return 0; }
+    tree : syntax_tree = written.unit.parsed!!.tree;
+
+    up : _int64 = tree.parents!![written.node];
+    while(up >= 0) {
+        kind : _int64 = tree.kinds!![up];
+        if(up == declared.node && written.unit == declared.unit) { return 1; }
+        if(kind == N_MUTATE || kind == N_FUNCTION) {
+            target : _int64 = tree.child_of_kind(up, N_TYPE_NAME);
+            if(target >= 0 && target != written.node && last_name_of(written.unit, target) == declared.name) { return 1; }
+        }
+        up = tree.parents!![up];
+    }
+    return 0;
+}
+
+/** is this type written inside one of the classes `declared` is declared in (or a `mutate` / extension function of one)? */
+def is_written_inside_an_owner(written: sharp_type, declared: sharp_class) : _int64 {
+    if(written.node < 0) { return 1; }      // made by the compiler: nothing to point at, nothing to refuse
+    around : sharp_class? = declared.owner;
+    while(around != null) {
+        if(is_written_inside(written, around!!.written)) { return 1; }
+        around = around!!.owner;
+    }
+    return 0;
+}
+
+/** the nearest class around `declared` that is generic itself: `list` for list<T>.node */
+def generic_class_around(declared: sharp_class) : sharp_class {
+    around : sharp_class? = declared.owner;
+    while(around != null) {
+        if(around!!.written.is_generic()) { return around!!.written; }
+        around = around!!.owner;
+    }
+    return declared;
+}
+
+/** the last name of a type name node: `inner` of `outer.inner` */
+def last_name_of(unit: source_unit, name_node: _int64) : string {
+    tree : syntax_tree = unit.parsed!!.tree;
+    name : string = "";
+    part : _int64 = tree.first_child!![name_node];
+    while(part >= 0) {
+        if(tree.kinds!![part] == N_TYPE_PART) { name = node_text(unit, part); }
+        part = tree.next_sibling!![part];
+    }
+    return name;
+}
+
+/**
+ * Step 4: the `[]`, `?` and `??` written after the type, on top of whatever
+ * the type itself brought along (an alias for `string[]`, a `T` that stands
+ * for `shape?`).
+ */
+def add_marks(prog: sharp_program, plain: resolved_type, written: sharp_type, environment: type_environment?,
+              problems: list<diagnostic>) : resolved_type {
+    if(plain.is_error() || plain.is_nil()) { return plain; }
+    if(written.is_array == 0 && written.is_nullable == 0 && written.has_nullable_items == 0) { return plain; }
+
+    // An open type cannot be checked: whether `T?` is a mistake depends on T.
+    // In an instance the mistake is reported once, however many instances show it.
+    can_check : _int64 = plain.is_open() == 0;
+    may_report : _int64 = can_check;
+    if(environment != null && can_check == 1) {
+        may_report = written.instance_problem_reported == 0;
+    }
+
+    array : _int64 = plain.is_array;
+    nullable : _int64 = plain.is_nullable;
+    nullable_items : _int64 = plain.has_nullable_items;
+
+    if(written.is_array == 1) {
+        if(plain.is_array == 1 && can_check == 1) {
+            if(may_report == 1) {
+                written.instance_problem_reported = environment != null;
+                report_array_of_arrays(written, plain, environment, problems);
+            }
+            return prog.types.error_type;
+        }
+        array = 1;
+        // an array of `shape?` values is an array whose items may be null
+        nullable_items = nullable;
+        nullable = 0;
+    }
+    if(written.is_nullable == 1) { nullable = 1; }
+    if(written.has_nullable_items == 1) {
+        is_number : _int64 = plain.kind == RT_INTEGER || plain.kind == RT_DECIMAL;
+        if(can_check == 1 && (array == 0 || is_number == 1)) {
+            if(may_report == 1) {
+                written.instance_problem_reported = environment != null;
+                report_nullable_items(written, plain, array, environment, problems);
+            }
+            return prog.types.error_type;
+        }
+        nullable_items = 1;
+    }
+
+    if(nullable == 1 && array == 0 && can_check == 1 && (plain.kind == RT_INTEGER || plain.kind == RT_DECIMAL)) {
+        if(may_report == 1) {
+            written.instance_problem_reported = environment != null;
+            report_nullable_number(written, plain, environment, problems);
+        }
+        return prog.types.error_type;
+    }
+    return plain.with_marks(array, nullable, nullable_items);
+}
+
+/**
+ * Is this environment (or one around it) that of an instance whose type
+ * arguments were refused by a bound (E0351), or of one made inside such?
+ *
+ *      new hash_map<string, (decimal)(decimal)>()      E0351: `v base _object_`
+ *
+ * The refused instance itself is never analysed (its `failed_constraint`).
+ * But resolving its members makes the instances THEY name - here
+ * `entry<string, (decimal)(decimal)?>` for its `data` field - and those have no
+ * bound of their own to refuse the type. Analysed, their bodies would report
+ * what the bound was there to prevent, inside the library, about code the
+ * programmer cannot change: one mistake, many messages. So they are marked
+ * and left alone too (driver/class_bodies.sharp).
+ */
+def is_inside_refused_instance(environment: type_environment) : _int64 {
+    current : type_environment? = environment;
+    while(current != null) {
+        made := current!!.instance;
+        if(made != null && (made!!.failed_constraint >= 0 || made!!.inside_refused_instance == 1)) { return 1; }
+        current = current!!.outer;
+    }
+    return 0;
+}

@@ -1,0 +1,71 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * WHAT THE OPTIMIZER KNOWS ABOUT A FUNCTION: the analyses its passes share
+ *
+ * A pass changes code; an ANALYSIS only looks at it and says something true
+ * about every point of it - which blocks follow which, which slots will
+ * still be read. Every pass of passes/ is built on these:
+ *
+ *      instruction_facts.sharp   what each IR instruction reads, writes, may raise, has as an effect
+ *      control_flow.sharp        basic blocks and the edges between them, with the edges of `try`
+ *      liveness.sharp            which slots are live at the start and end of every block
+ *      loops.sharp               the loops of the function: dominators, back edges, natural loops
+ *      object_paths.sharp        where an object comes from and where it goes: reaching definitions and a
+ *                                small escape walk, for one value at a time
+ *      expressions.sharp         which instructions compute "the same thing", numbered; what ends one
+ *      not_null.sharp            which slots cannot hold null at each point
+ *      slot_set.sharp            a set of slots as bits (what liveness is made of)
+ *      labels.sharp              which labels a `try` needs where they are; where each label is
+ *      analysis.sharp            this front door: the analyses of one function, made once and
+ *                                shared until a pass changes the code
+ *
+ * Making the graph and the liveness of a function is most of what the
+ * optimizer spends its time on, and every pass wants them. So they are kept
+ * here between passes: a pass asks `graph()` / `live()`, and says what it
+ * changed - `changed_reads()` when it only made instructions read other slots
+ * (copy propagation: the blocks are the same, liveness is not), `changed()`
+ * for anything else. Whatever is no longer true is made again on the next
+ * question.
+ *
+ *      C++ comparison: function_ir.h of the C++ optimizer keeps its analyses
+ *      with the function the same way (`invalidate`).
+ */
+class function_analyses {
+    code : ir_function;
+    parameters : _int64 = 0;        // how many of its first slots the caller fills (self and the parameters)
+    made_graph : flow_graph?;
+    made_live : liveness?;
+
+    function_analyses(code: ir_function) {
+        self->code = code;
+    }
+
+    /** the control-flow graph of the code as it is now */
+    def graph() : flow_graph {
+        if(made_graph == null) { made_graph = build_flow_graph(code); }
+        return made_graph!!;
+    }
+
+    /** the liveness of the code as it is now */
+    def live() : liveness {
+        if(made_live == null) { made_live = compute_liveness(graph()); }
+        return made_live!!;
+    }
+
+    /** a pass changed only which slots instructions read or write: the blocks still stand */
+    def changed_reads() {
+        made_live = null;
+    }
+
+    /** a pass changed the code in any other way */
+    def changed() {
+        made_graph = null;
+        made_live = null;
+    }
+}

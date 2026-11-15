@@ -1,0 +1,216 @@
+mod backend.finalizer.obfuscation;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.layout
+)
+
+/**
+ * OBFUSCATION: THE NAMES IN THE EXECUTABLE REPLACED BY MEANINGLESS ONES (doc/codegen.md 6.17)
+ *
+ *      class point { x : decimal; def move(...) }        class   main#b    (was main#point)
+ *      obfuscate { point }                                field   b.c       (was point.x)
+ *                                                         function b.d      (was point.move)
+ *
+ * An executable carries the names of its classes, fields and functions (for
+ * stack traces and reflection). With `-obf`, or for what an `obfuscate { }`
+ * block lists, those names are replaced by short generated ones, so the file
+ * says less about how the program is built. Only names in the file change:
+ * the code is the same, and the TEXTS of the program (the string section) are
+ * never touched.
+ *
+ * What is renamed is decided per name (modifiers.sharp): the default (-obf
+ * renames everything), then the rules of the `obfuscate` blocks in order. The
+ * library's own blocks (platform/dependencies.sharp) keep the modules and
+ * classes the VM and the platform need.
+ *
+ * NEVER RENAMED, whatever the rules say: what the VM finds BY NAME when it
+ * runs - the classes it looks up when it starts (`vm_named_classes`: the
+ * exceptions it throws, `std#string`, the number classes, threads, fibers,
+ * reflection, function values) with all their fields (it reads `message`,
+ * `data`, `address` ... by name), and native functions with their classes
+ * (a native function is linked by its full name). Under -obf they keep their
+ * names quietly; a rule that ASKS for one of them to be renamed is E0971.
+ * Enum values keep their names too (an enum's value text is the string its
+ * object holds, which renaming could not reach anyway).
+ *
+ * The files of this package (module `backend.finalizer.obfuscation`):
+ *
+ *      obfuscation.sharp   this front door: rename_for_obfuscation - classes, fields, functions,
+ *                          files, in a fixed order; what must keep its name; E0971
+ *      modifiers.sharp     what each name is told: the default and the rules, last one wins
+ *      names.sharp         the generated names (a, b, ... aa ...) and the map back (`<output>.names`)
+ *
+ *      C++ comparison: finalizer/generation/obfuscation/obfuscator.cpp (the
+ *      renaming), compiler/obfuscate_compiler.cpp (the modifiers),
+ *      generator.cpp (files when -obf; then every class, then the functions).
+ */
+
+/** what obfuscation did: the renamings (for the map), and the messages */
+class obfuscation_result {
+    names : name_maker;
+    problems : list<diagnostic>;
+
+    obfuscation_result() {
+        names = new name_maker();
+        problems = new list<diagnostic>();
+    }
+}
+
+/**
+ * Rename what is to be renamed in a laid-out program. `everything` is -obf.
+ * Without -obf and without a rule that renames, nothing changes.
+ */
+def rename_for_obfuscation(layout: program_layout, everything: _int64) : obfuscation_result {
+    result := new obfuscation_result();
+    rules : list<obfuscation_rule> = layout.analysed.prog.obfuscation_rules;
+    if(everything == 0 && !any_rule_renames(rules)) { return result; }
+    required := required_classes(layout);
+    refuse_renaming_required(rules, required, result);
+
+    // ---- the files (only with -obf, as in the C++ compiler): stack traces then name no source file
+    if(everything == 1) {
+        files := layout.files.texts;
+        for(i : _int64 = 0; i < files.size(); i++) { files.put(i, result.names.rename("file", files.at(i))); }
+    }
+
+    // ---- the classes, each with its own fields, in address order (a class nested in another comes after it)
+    module_names := new name_table<string>();
+    for(i : _int64 = 0; i < layout.classes.size(); i++) {
+        made := layout.classes.at(i);
+        written_as : string = made.full_name;       // the map names what was written, not the new name
+        is_required : _int64 = required.at(written_as) != null;
+        modifier : _int64 = class_modifier(made.of, rules, everything);
+        if(is_required == 0 && renames(modifier) == 1) { rename_class(layout, made, rules, everything, module_names, result); }
+        if(is_required == 0) { rename_fields(made, written_as, modifier, rules, everything, result); }
+    }
+
+    // ---- the functions, in address order
+    for(i : _int64 = 0; i < layout.functions.size(); i++) {
+        made := layout.functions.at(i);
+        if(made.of.has(FLAG_NATIVE)) { continue; }
+        holder : _int64 = class_modifier(made.owner.of, rules, everything);
+        if(made.owner.is_module_globals == 1 || made.owner.is_closure_record == 1) { holder = default_class_modifier(everything); }
+        if(should_rename_member(member_modifier(made.of, rules, everything), holder) == 1) {
+            made.name = result.names.rename("function", made.full_name);
+        }
+        made.full_name = made.owner.full_name + "." + made.name;
+    }
+    return result;
+}
+
+/** a class gets a new name; its full name is its new module name (or the class around it) and the new name */
+def rename_class(layout: program_layout, made: class_layout, rules: list<obfuscation_rule>, everything: _int64,
+                 module_names: name_table<string>, result: obfuscation_result) {
+    old_full_name : string = made.full_name;
+    made.name = result.names.rename("class", old_full_name);
+    if(made.owner_layout != null && made.owner_layout!!.is_module_globals == 0) {
+        made.full_name = made.owner_layout!!.full_name + "." + made.name;
+        return;
+    }
+    made.full_name = module_name_of(made.module, rules, everything, module_names, result) + "#" + made.name;
+}
+
+/** the name of a module in the full names of renamed classes: its own, or (when it is renamed) a new one, once */
+def module_name_of(module: sharp_module, rules: list<obfuscation_rule>, everything: _int64,
+                   module_names: name_table<string>, result: obfuscation_result) : string {
+    given := module_names.at(module.name);
+    if(given != null) { return given!!; }
+    name : string = module.name;
+    if(renames(module_modifier(module, rules, everything)) == 1) { name = result.names.rename("module", module.name); }
+    module_names.put(module.name, name);
+    return name;
+}
+
+/** the fields a class declares itself (a module's globals for its __srt_global class), renamed where they are to be */
+def rename_fields(made: class_layout, written_as: string, holder: _int64, rules: list<obfuscation_rule>,
+                  everything: _int64, result: obfuscation_result) {
+    own : list<sharp_field> = made.of.fields;
+    if(made.is_module_globals == 1) {
+        own = made.module.fields;
+        holder = default_class_modifier(everything);
+    }
+    if(made.is_closure_record == 1) { holder = default_class_modifier(everything); }
+    for(i : _int64 = 0; i < own.size(); i++) {
+        field := own.at(i);
+        if(field.kept == 0) { continue; }
+        if(should_rename_member(member_modifier(field, rules, everything), holder) == 1) {
+            field.name_in_executable = result.names.rename("field", written_as + "." + field.name);
+        }
+    }
+}
+
+/** the modifier of a class no rule can name (a module's __srt_global, a closure record's class) */
+def default_class_modifier(everything: _int64) : _int64 {
+    if(everything == 1) { return MODIFIER_INCLUSIVE; }
+    return MODIFIER_NONE;
+}
+
+/** does any rule ask for a name to be renamed (`obfuscate { }` or `-inclusive`)? */
+def any_rule_renames(rules: list<obfuscation_rule>) : _int64 {
+    for(i : _int64 = 0; i < rules.size(); i++) {
+        if(renames(rules.at(i).mode) == 1) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * The classes that keep their names (by full name): the ones the VM looks up
+ * by name, the classes above them, and every class with a native function.
+ */
+def required_classes(layout: program_layout) : name_table<numbered> {
+    named := vm_named_classes();
+    required := new name_table<numbered>();
+    for(i : _int64 = 0; i < layout.classes.size(); i++) {
+        made := layout.classes.at(i);
+        if(named.at(made.full_name) != null || has_native_function(made)) {
+            current : class_layout? = made;
+            for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+                required.put(current!!.full_name, new numbered(1));
+                current = current!!.base_layout;
+            }
+        }
+    }
+    return required;
+}
+
+/** does a class declare a native function (linked by its full name)? */
+def has_native_function(made: class_layout) : _int64 {
+    for(i : _int64 = 0; i < made.methods.size(); i++) {
+        if(made.methods.at(i).of.has(FLAG_NATIVE)) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * E0971: a rule asks for a name to be renamed that the VM needs: a class it
+ * looks up by name, or a field of one. The program would load and then fail
+ * as soon as the VM looked for it.
+ */
+def refuse_renaming_required(rules: list<obfuscation_rule>, required: name_table<numbered>, result: obfuscation_result) {
+    for(i : _int64 = 0; i < rules.size(); i++) {
+        rule := rules.at(i);
+        if(renames(rule.mode) == 0 || rule.declaration == null) { continue; }
+        named : sharp_declaration = rule.declaration!!;
+        holder : sharp_class? = null;
+        what : string = "";
+        if(named.kind == D_CLASS || named.kind == D_INTERFACE || named.kind == D_ENUM) {
+            holder = named as sharp_class;
+            what = "the class `" + named.name + "`";
+        } else if(named.kind == D_FIELD && named.owner != null) {
+            holder = named.owner;
+            what = "the field `" + named.owner!!.name + "." + named.name + "`";
+        }
+        if(holder == null || holder!!.is_open() == 1 || required.at(class_key(holder!!)) == null) { continue; }
+        d := error_at_node("E0971", what + " cannot be renamed: the VM finds it by its name", rule.unit, rule.node);
+        d.with_label("this asks for it to be renamed");
+        d.with_note("the VM looks up `" + class_key(holder!!) + "` and reads its fields by name when the program runs "
+                    + "(the exceptions it throws, strings, threads, function values ...); renamed, the program would fail there");
+        d.with_help("leave it out of the `obfuscate` block; under -obf it keeps its name by itself");
+        result.problems.add(d);
+    }
+}

@@ -1,0 +1,176 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.names,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * BASE CLASSES
+ * (the C++ compiler: postprocessor/base_class_processor.cpp)
+ *
+ *      class circle base shape { }
+ *
+ * The name after `base` has been looked up already (declared_types.sharp).
+ * Here it is CHECKED, and the class is given its base class as an object:
+ *
+ *      sharp_class.base_class      the class it inherits from
+ *      sharp_class.base_bindings   for a generic base, what its type parameters stand for:
+ *                                  `class names base list<string>` -> list's T is string
+ *
+ * What can be wrong, each with its own message:
+ *
+ *      E0320   the base is not a class at all          class a base decimal
+ *      E0321   a class has an interface as its base    (interfaces go after the `:`)
+ *      E0322   the base is an enum
+ *      E0323   a class inherits from itself            a base b, b base a
+ *
+ * A TYPE PARAMETER AS THE BASE - `class mixin<T> base T { }` - is allowed:
+ * mixin<shape> inherits from shape, mixin<account> from account. Which class
+ * that is, and whether it can be a base class at all, is only known when an
+ * instance is made; class_bases.sharp (stage 5) does the checks of this file
+ * again there. Here the class is only marked (`base_is_parameter`).
+ *
+ * A class that names no base gets the one every class has: `std#_object_`
+ * (an enum: `std#_enum_`). So every class can be asked for the functions any
+ * object has, without each stage treating "no base" as a special case.
+ */
+def link_base_classes(prog: sharp_program, problems: list<diagnostic>) {
+    classes := prog.all_classes;
+
+    // 1. the base each class names
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        set_named_base(classes.at(i), problems);
+    }
+
+    // 2. no class may be its own ancestor. Done before the bases every class
+    //    gets are added, and the chain is CUT where a circle is found, so the
+    //    stages after this can walk any base chain to its end.
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        report_if_own_ancestor(classes.at(i), problems);
+    }
+
+    // 3. the base of a class that names none
+    object_class := standard_class(prog, "_object_");
+    enum_class := standard_class(prog, "_enum_");
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        declared := classes.at(i);
+        if(declared.base_class != null) { continue; }
+
+        if(declared.kind == D_ENUM) {
+            if(enum_class != null && declared != enum_class) { declared.base_class = enum_class; }
+        } else {
+            if(object_class != null && declared != object_class) { declared.base_class = object_class; }
+        }
+    }
+}
+
+/** a class of the module `std` the language itself relies on; null when the standard library is not part of the build */
+def standard_class(prog: sharp_program, name: string) : sharp_class? {
+    module := prog.find_module("std");
+    if(module == null) { return null; }
+
+    found := module!!.declared.find_type(name);
+    if(found != null && is_class_kind(found!!.kind)) {
+        return found as sharp_class;
+    }
+    return null;
+}
+
+/** check what is written after `base` and set base_class / base_bindings from it */
+def set_named_base(declared: sharp_class, problems: list<diagnostic>) {
+    declared.base_known = 1;
+    declared.base_class = null;
+    if(declared.base_type == null) { return; }
+
+    written : sharp_type = declared.base_type!!;
+    seen := look_through(written, null);            // an alias counts as what it stands for
+    if(seen.is_unknown()) {                         // the name was not found: reported already
+        declared.members_uncertain = 1;
+        return;
+    }
+
+    named := seen.type.declaration;
+    if(names_type_parameter(written)) {
+        // class mixin<T> base T: decided per instance (class_bases.sharp)
+        declared.base_is_parameter = 1;
+        declared.inherits_from_parameter = 1;
+        return;
+    }
+    if(seen.type.form != TYPE_NAMED || seen.is_array == 1 || !is_class_kind(named!!.kind)) {
+        problems.add(error_at_node("E0320", "the base of `" + declared.name + "` must be a class", written.unit, written.node)
+            .with_label("`" + written.to_text() + "` is not a class")
+            .with_help("name a class after `base`, or remove `base " + written.to_text() + "`"));
+        declared.members_uncertain = 1;
+        return;
+    }
+
+    parent : sharp_class = named as sharp_class;
+
+    if(parent.kind == D_INTERFACE && declared.kind != D_INTERFACE) {
+        problems.add(error_at_node("E0321", "`" + parent.name + "` is an interface; it cannot be the base class of `"
+                                   + declared.name + "`", written.unit, written.node)
+            .with_label("`base` is for the one class a class inherits from")
+            .with_related_place(place_of_node(parent.unit, parent.node, "`" + parent.name + "` is declared as an interface here"))
+            .with_help("interfaces are listed after a `:`  ->  class " + declared.name + " : " + written.to_text() + " { ... }"));
+        declared.members_uncertain = 1;
+        return;
+    }
+
+    if(parent.kind == D_ENUM) {
+        problems.add(error_at_node("E0322", "`" + parent.name + "` is an enum; nothing can inherit from an enum",
+                                   written.unit, written.node)
+            .with_label("an enum is a fixed list of values")
+            .with_related_place(place_of_node(parent.unit, parent.node, "`" + parent.name + "` is declared here"))
+            .with_help("remove `base " + written.to_text() + "`; to use its values, give `" + declared.name
+                       + "` a field of type `" + parent.name + "`"));
+        return;
+    }
+
+    declared.base_class = parent;
+    declared.base_bindings = new type_bindings(parent.type_parameters, seen.type.arguments);
+}
+
+/**
+ * a base b, b base c, c base a: following the bases of `declared` leads back
+ * to it. Reported once, at the class where the circle is found first; that
+ * class loses its base, which breaks the circle for the others.
+ */
+def report_if_own_ancestor(declared: sharp_class, problems: list<diagnostic>) {
+    chain := new string_builder(declared.name);
+
+    up : sharp_class? = declared.base_class;
+    for(depth : _int64 = 0; up != null && depth < 256; depth++) {
+        chain.append(" -> " + up!!.name);
+        if(up == declared) {
+            written : sharp_type = declared.base_type!!;
+            d := error_at_node("E0323", "`" + declared.name + "` inherits from itself", written.unit, written.node)
+                .with_note("the chain of base classes goes round in a circle:  " + chain.build());
+            if(depth == 0) {
+                d.with_label("a class cannot be its own base");
+                d.with_help("remove `base " + written.to_text() + "`");
+            } else {
+                d.with_label("`" + declared.base_class!!.name + "` inherits from `" + declared.name + "` in turn");
+                d.with_help("one of these classes must stop inheriting from the next; decide which is the most general and remove its `base`");
+            }
+            problems.add(d);
+
+            declared.base_class = null;
+            declared.base_bindings = null;
+            return;
+        }
+        up = up!!.base_class;
+    }
+}
+
+/** is this written type one type parameter and nothing else - `T`, not `T[]` or `list<T>`? (aliases looked through) */
+def names_type_parameter(written: sharp_type) : _int64 {
+    seen := look_through(written, null);
+    if(seen.type.form != TYPE_NAMED || seen.is_array == 1 || seen.type.declaration == null) { return 0; }
+    return seen.type.declaration!!.kind == D_TYPE_PARAMETER;
+}

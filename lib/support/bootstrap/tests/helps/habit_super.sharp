@@ -1,0 +1,12 @@
+// expect: E0100
+// help: -> base(1)
+// replace: -> super(1)
+mod tests.helps;
+import (std, std.io);
+
+class a { a(n: decimal) { } }
+class b base a { b() -> super(1) { } }
+
+def main() {
+    x := new b();
+}

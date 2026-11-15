@@ -1,0 +1,170 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics
+)
+
+/**
+ * REPORTING A PROBLEM FOUND IN A BODY
+ *
+ * Analysis functions make a diagnostic with `problem_at` (marks one token) or
+ * `problem_over` (marks a whole expression), add its label, notes and helps,
+ * and hand it to `report`:
+ *
+ *      d := problem_at(context, "E0400", "there is no `" + name + "` here", node);
+ *      d.with_label("not found").with_help("...");
+ *      report(context, d);
+ *
+ * `report` is the "diagnostics sink" of the design: it is the ONE place a
+ * body problem passes through, and it enforces two rules:
+ *
+ *   - the same problem is reported once. The body of a function of a generic
+ *     class is analysed for every instance (list<string>, list<int> ...); a
+ *     mistake in it would otherwise be printed once per instance. A problem
+ *     is "the same" when its code and its place are the same.
+ *   - a code that starts with `W` is a warning. Some rules are warnings
+ *     because the C++ compiler accepts the code and gives it a meaning
+ *     (`leniency`: section 5 of doc/backend.md); making one an error later is
+ *     a change of its code in one place.
+ *
+ * For a problem inside a generic instance the message also says which
+ * instance was being checked and where that instance is used.
+ */
+
+/** a diagnostic that marks the token of one tree node */
+def problem_at(context: analysis_context, code: string, message: string, node: _int64) : diagnostic {
+    p : parse_state = context.state;
+    token : _int64 = context.tree.tokens!![node];
+    return new_error(code, message, context.unit.file, p.source, p.table, p.start_of(token), p.end_of(token));
+}
+
+/** a diagnostic that marks a whole expression: from its first token to its last */
+def problem_over(context: analysis_context, code: string, message: string, node: _int64) : diagnostic {
+    p : parse_state = context.state;
+    return new_error(code, message, context.unit.file, p.source, p.table,
+                     p.start_of(first_token_of(context.tree, node)), p.end_of(last_token_of(context.tree, node)));
+}
+
+/** the first token of everything below a node (for `a + b` the token of `a`, not the `+`) */
+def first_token_of(tree: syntax_tree, node: _int64) : _int64 {
+    first : _int64 = tree.tokens!![node];
+    current : _int64 = tree.first_child!![node];
+    while(current >= 0) {
+        if(tree.tokens!![current] < first) { first = tree.tokens!![current]; }
+        current = tree.first_child!![current];
+    }
+    return first;
+}
+
+/** the last token of everything below a node */
+def last_token_of(tree: syntax_tree, node: _int64) : _int64 {
+    last : _int64 = tree.tokens!![node];
+    current : _int64 = tree.last_child!![node];
+    while(current >= 0) {
+        if(tree.tokens!![current] > last) { last = tree.tokens!![current]; }
+        current = tree.last_child!![current];
+    }
+    return last;
+}
+
+/** "declared here": the place of a declaration, to show beside a message */
+def place_of_declaration(declared: sharp_declaration, label: string) : related_place {
+    return place_of_node(declared.unit, declared.node, label);
+}
+
+/**
+ * Hand a problem over. Returns 1 when it was new, 0 when the same problem
+ * (code and place) was reported before and this one was dropped.
+ */
+def report(context: analysis_context, d: diagnostic) : _int64 {
+    session : analysis_session = context.session;
+    key := d.code + "@" + d.from + "@" + d.file;
+    if(session.reported.at(key) != null) { return 0; }
+    session.reported.put(key, d);
+
+    if(d.code.at(0) == 'W') { d.as_warning(); }
+
+    // found in the copy of a generic class made for particular types: say
+    // which, and show where the program asks for that copy
+    if(context.environment != null) {
+        instance := context.environment!!.described_instance();
+        if(instance != null) {
+            d.with_note("found while checking `" + shortened(instance!!.qualified_name(), 72) + "`");
+            add_first_use(d, instance);
+        }
+    }
+    session.problems.add(d);
+    return 1;
+}
+
+/**
+ * Take back a problem reported earlier at the place of `d`, under `code`:
+ * for the rare case where a later pass finds the real cause of what an
+ * earlier one said (`return; 5;` - the flow analysis says "never reached"
+ * (W1002), which is why the statement "does nothing" (W1018) does not
+ * matter). One statement, one message.
+ */
+def withdraw_earlier(context: analysis_context, code: string, d: diagnostic) {
+    session : analysis_session = context.session;
+    earlier := session.reported.at(code + "@" + d.from + "@" + d.file);
+    if(earlier == null) { return; }
+    session.problems.remove(earlier!!);
+}
+
+/** has a problem with this code been reported at this node already? (saves building a long message twice) */
+def already_reported(context: analysis_context, code: string, node: _int64) : _int64 {
+    p : parse_state = context.state;
+    key := code + "@" + p.start_of(context.tree.tokens!![node]) + "@" + context.unit.file;
+    return context.session.reported.at(key) != null;
+}
+
+/**
+ * THE NESTING LIMIT OF THE ANALYSIS: how many statements of a body may be
+ * open inside one another (`if { while { try { ...`): 150. A body that goes
+ * deeper gets E0992. It is counted for the reason the parser's limit is
+ * (frontend/syntax/tree/parse_state.sharp, PARSER_NESTING_LIMIT): how far
+ * the stack reaches depends on how this compiler was built and started, a
+ * count does not. With the runtime's default stack the stack runs out
+ * first (at about 130 `if`s in the compiler the C++ compiler built) and the
+ * same message is given.
+ */
+const ANALYSIS_NESTING_LIMIT : _int64 = 150;
+
+/**
+ * E0992: a body nests deeper than a pass over it can follow on the VM's
+ * stack - a hundred and more `if` blocks one inside the other, written out
+ * by a program. (Long chains, `a + b + ... + z` and `x.f().g()...`, are
+ * worked through in a loop and never get here.) Each pass that walks a
+ * body catches the stack_overflow_exception and calls this; it is a limit
+ * of this compiler, not a mistake in the program, and the message says so
+ * instead of the crash it would otherwise be. Several passes giving up on
+ * one function make one message (same code, same place).
+ *
+ * @param pass  what ran out: "the analysis", "the flow analysis" ...
+ */
+def report_nested_too_deeply(context: analysis_context, function: sharp_function, pass: string) {
+    context.ready_node = 0 - 1;         // (a chain that was cut off may have left a link waiting)
+    context.ready_value = null;
+    d := problem_at(context, "E0992", "the body of `" + function.name + "` is nested too deeply for this compiler to analyse",
+                    function.node);
+    if(context.statement_depth > ANALYSIS_NESTING_LIMIT) {
+        // the counted limit: the same in every build of the compiler
+        d.with_label("statements are nested more than " + ANALYSIS_NESTING_LIMIT + " deep inside this body");
+        d.with_note("each block inside another takes the compiler one level deeper; it follows " + ANALYSIS_NESTING_LIMIT + " levels");
+    } else {
+        d.with_label(pass + " ran out of stack inside this body");
+        d.with_note("each block or expression inside another takes the compiler one level deeper; this body goes deeper than its stack holds");
+        d.with_note("with more stack the compiler follows deeper code: start it as `sharp -istack 1mb sharpc ...`");
+    }
+    context.statement_depth = 0;
+    d.with_help("move the inner blocks into functions of their own, or join nested `if`s into one condition with `&&`");
+    report(context, d);
+}

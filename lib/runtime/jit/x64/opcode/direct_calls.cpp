@@ -46,7 +46,8 @@ static void frame_address(x86::Assembler &a) {
 /**
  * CALL address        (see prepare_method() in virtual_machine.cpp)
  *
- *      if(!callee->isHighFrequency || no room on the stack || no room in frames)
+ *      if(!callee->isHighFrequency || no room on the stack || no room in frames
+ *              || the thread's machine stack is nearly used up)
  *          -> the slow way                                  (slow_call)
  *      task->calls++;
  *      frame *f = task->frames + ++task->callFramePtr;
@@ -81,6 +82,12 @@ void X64Generator::direct_call(Int address) {
     a.inc(rcx);
     a.cmp(rcx, fiber_field(offsetof(fiber, frameSize)));
     a.jae(slowCall);
+
+    // if(rsp < thread->nativeStackFloor) -> the slow way, which raises
+    // stack_overflow_exception: the call below is a real machine call, and the
+    // thread's machine stack is nearly used up (sharp_thread.nativeStackFloor)
+    a.cmp(x86::rsp, x86::qword_ptr(THREAD, offsetof(sharp_thread, nativeStackFloor)));
+    a.jb(slowCall);
 
     // ---- record how to get back
     a.inc(fiber_field(offsetof(fiber, calls)));

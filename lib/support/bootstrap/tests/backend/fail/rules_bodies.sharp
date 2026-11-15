@@ -1,0 +1,85 @@
+// expect: E0923 E0923 E0923 W1042 E0805 E0805 E0501 E0721 W1021 W1021 W1043 W1043 W1043 W1043 W1043 W1045 W1045 W1045 W1044 W1044 W1044 W1044 E0427 E0711 E0711 E0711 E0510 W1002 E0606 E0952
+mod app;
+
+// The "Leftovers: rules" stage: mistakes inside bodies that used to be
+// accepted, given the wrong code, or reported more than once.
+
+import ( std, std.io )
+
+def helper() { }
+def overloaded(a: _int64) { }
+def overloaded(b: string) { }
+def generic<T>(x: T) { }
+
+// asm: the globals of a module are `$module#__srt_global[name]`
+def assembly() {
+    asm {
+        movi adx, $app#__srt_global[helper]
+        movi adx, $app#__srt_global[nope]           // E0923: app has no global `nope`
+        movi adx, $std.io#__srt_global[println]     // E0923: println is in std.io.console
+        movi adx, $app#__srt_global                 // E0923: not a class
+        movi adx, [overloaded]                      // W1042: which `overloaded`?
+        movi adx, [generic]                         // E0805: a generic function has no one address
+        movi adx, $app#__srt_global[generic]        // E0805
+    }
+}
+
+// a nullable value never becomes a NEW object through a constructor that takes `object`
+class item { owner : object; item(owner: object) { self->owner = owner; } }
+class box { def add(i: item) { } }
+def nullable_through_object() {
+    b := new box();
+    w : item? = null;
+    b.add(w);                                       // E0501 (with the `w!!` help), not `new item(w)`
+    s : item = w;                                   // E0721
+}
+
+// `const` in front of the first name is for every name of the statement
+def constants() { const c : _int64 = 1, d = 2; d = 5; c = 6; }     // W1021 W1021
+
+// whole numbers that do not fit a narrower type
+def narrow() {
+    a : _int8 = 127 + 1;                            // W1043 (folded: 128)
+    b : _int8 = 200;                                // W1043
+    c : _uint8 = 256;                               // W1043
+    d : _int16 = 70000;                             // W1043
+    e : _int32 = 5000000000;                        // W1043
+    fits : _int8 = 0 - 128;                         // quiet
+    meant : _int8 = 300 as _int8;                   // quiet: a cast says it is meant
+}
+
+// an assignment as the whole condition; a division by a constant zero
+def conditions() {
+    x : _int64 = 0;
+    if(x = 5) { }                                   // W1045
+    while(x = 0) { }                                // W1045
+    for(; x = 1; ) { break; }                       // W1045
+    if((x = 3)) { }                                 // quiet: the parentheses say it is meant
+    y : decimal = x / 0;                            // W1044
+    z : decimal = 4 / 0;                            // W1044
+    whole : _int64 = 4 / 0;                         // W1044 alone (not "infinity does not fit `_int64`" as well)
+    x /= 0;                                         // W1044: the same division
+    x %= 0;                                         // E0427, as for `x % 0`
+}
+
+// an enum value is a constant: `++` and `+=` on it are E0711 like `=`
+enum colour { red, green }
+def enums() { colour.red = colour.green; colour.red++; colour.red += 1; }    // E0711 E0711 E0711
+
+// a static function without a body cannot be a value: there is nothing to call
+class tool { static def promise(); }
+def values_of_promises() {
+    f := tool.promise;                              // E0510
+    return;
+    5;                                              // W1002 alone (not W1018 "does nothing" as well)
+}
+
+// a function that returns values but declares no result type: ONE message, at the function
+def total(n: _int64) { if(n == 0) return 0; return n + total(n - 1); }     // E0606
+def uses_total() { a : _int64 = total(3); b : _int64 = total(4); println("${total(5)}"); }    // quiet
+
+// a generic function in an obfuscate block
+def twice<T>(x: T) : T { return x; }
+obfuscate { twice<int>(x: int) }                    // E0952
+
+def main() { twice<int>(new int(1)); }

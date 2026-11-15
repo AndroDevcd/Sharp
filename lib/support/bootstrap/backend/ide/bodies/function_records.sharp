@@ -1,0 +1,196 @@
+mod backend.ide.bodies;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.ide.files,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * THE FUNCTIONS OF A FILE THAT HAVE A TYPED BODY
+ *
+ * What the editor wants to know about code is worked out by the body stages:
+ * after them every function has a typed tree (`bound_body`) and a list of
+ * `locals`. This file finds, for every file that was asked for, the functions
+ * that have them, and gives each a number: its place in the file's
+ * `functions` list, which the other tables of the bodies file point to.
+ *
+ * The functions are found from the declarations and not from the analysis
+ * session, because the session is null when the program has a declaration
+ * error (doc/ide.md 4.2) although the bodies were analysed all the same:
+ *
+ *      every module's functions and globals       (`owner == null`: global code)
+ *      every class's functions, constructors, init blocks, and the getter and setter of its fields
+ *      the instances of generic classes           (`sharp_program.generic_instances`)
+ *      the instances of generic functions         (`sharp_program.pending_functions`)
+ *      every lambda                               (`sharp_program.lambdas`)
+ *
+ * GENERIC CODE. A generic class as written has no typed bodies; each of its
+ * INSTANCES (`box<string>`, `box<int>`) has. The editor needs one account of
+ * the function, not one per instance: the FIRST instance met wins (the key of
+ * a function is its file and node, which every instance of it shares) and its
+ * `instance` field says which one it was. What is true only of another
+ * instance is not written (doc/ide.md limit 5).
+ *
+ * Each entry also records, for every variable in the function's `locals`, the
+ * number it gets in the file's `locals` list (-1 for a hidden variable the
+ * compiler made, and for a captured variable that belongs to the function
+ * around a lambda): a use of a variable says WHICH variable by that number.
+ */
+class function_entry {
+    function : sharp_function;
+    key : string;                       // file and node: what two instances of one function have in common
+    number : _int64;                    // its place in the file's `functions`
+    local_numbers : _int32[]?;          // per variable of `function.locals`: its number in the file's `locals`, or -1
+    enclosing_number : _int64 = 0 - 1;  // for a lambda: the number of the function it is written in
+
+    function_entry(function: sharp_function, key: string, number: _int64) {
+        self->function = function;
+        self->key = key;
+        self->number = number;
+    }
+}
+
+/** everything collected for ONE file that is written */
+class file_bodies {
+    file : ide_file;
+    functions := new list<function_entry>();
+    by_key := new name_table<function_entry>();
+    initializers := new list<sharp_field>();        // fields with a value: their typed tree has uses too
+    seen_initializers := new name_table<sharp_field>();
+    local_count : _int64 = 0;
+    use_data : _int32[];                            // the uses, six numbers each: from byte, to byte, kind, file, node, type
+    use_count : _int64 = 0;
+    seen : _int8[]?;                                // seen[byte] = 1 once a use starts there (two entries never share a start)
+
+    file_bodies(file: ide_file) {
+        self->file = file;
+        use_data = new _int32[1024];
+    }
+}
+
+/** the key two instances of one function share */
+def function_key(unit_path: string, node: _int64) : string {
+    return unit_path + "@" + node;
+}
+
+/** every wanted file's collector, found by the file's number */
+class bodies_job {
+    files : ide_files;
+    slots : file_bodies[]??;
+
+    bodies_job(files: ide_files) {
+        self->files = files;
+        slots = new file_bodies[files.count()];
+        for(i : _int64 = 0; i < files.count(); i++) {
+            if(files.at(i).wanted == 1) { slots!![i] = new file_bodies(files.at(i)); }
+        }
+    }
+
+    /** the collector of the file a unit is, or null when that file was not asked for */
+    def slot_of(unit: source_unit) : file_bodies? {
+        return slots!![files.index_of(unit)];
+    }
+}
+
+/** the program's functions that have a typed body, collected for every wanted file */
+def gather_functions(prog: sharp_program, job: bodies_job) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.fields.size(); j++) { consider_field(job, module.fields.at(j)); }
+        for(j : _int64 = 0; j < module.functions.size(); j++) {
+            if(module.functions.at(j).owner == null) { consider_function(job, module.functions.at(j)); }
+        }
+        for(j : _int64 = 0; j < module.classes.size(); j++) { gather_class(job, module.classes.at(j), 1); }
+    }
+    // the classes inside an instance are instances in this list themselves: no recursion
+    for(i : _int64 = 0; i < prog.generic_instances.size(); i++) { gather_class(job, prog.generic_instances.at(i), 0); }
+    for(i : _int64 = 0; i < prog.pending_functions.size(); i++) { consider_function(job, prog.pending_functions.at(i)); }
+    for(i : _int64 = 0; i < prog.lambdas.size(); i++) { consider_function(job, prog.lambdas.at(i)); }
+
+    // a lambda knows the function it is written in
+    for(i : _int64 = 0; i < job.files.count(); i++) {
+        slot := job.slots!![i];
+        if(slot == null) { continue; }
+        entries : list<function_entry> = slot!!.functions;
+        for(j : _int64 = 0; j < entries.size(); j++) {
+            around := entries.at(j).function.enclosing;
+            if(around == null) { continue; }
+            found := slot!!.by_key.at(function_key(around!!.unit.file, around!!.node));
+            if(found != null) { entries.at(j).enclosing_number = found!!.number; }
+        }
+    }
+}
+
+private def gather_class(job: bodies_job, declared: sharp_class, with_nested: _int64) {
+    for(i : _int64 = 0; i < declared.fields.size(); i++) { consider_field(job, declared.fields.at(i)); }
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) { consider_function(job, declared.constructors.at(i)); }
+    for(i : _int64 = 0; i < declared.init_blocks.size(); i++) { consider_function(job, declared.init_blocks.at(i)); }
+    for(i : _int64 = 0; i < declared.functions.size(); i++) { consider_function(job, declared.functions.at(i)); }
+    if(with_nested == 0) { return; }
+    for(i : _int64 = 0; i < declared.classes.size(); i++) { gather_class(job, declared.classes.at(i), 1); }
+}
+
+/** a field: its value's typed tree, its getter and its setter */
+private def consider_field(job: bodies_job, field: sharp_field) {
+    if(field.getter != null) { consider_function(job, field.getter!!); }
+    if(field.setter != null) { consider_function(job, field.setter!!); }
+    if(field.bound_initializer == null) { return; }
+
+    slot := job.slot_of(field.unit);
+    if(slot == null) { return; }
+    key : string = function_key(field.unit.file, field.node);
+    if(slot!!.seen_initializers.at(key) != null) { return; }       // an instance of a generic class: the first one is enough
+    slot!!.seen_initializers.put(key, field);
+    slot!!.initializers.add(field);
+}
+
+/** a function with a typed body in a wanted file becomes an entry (the first instance of it only) */
+private def consider_function(job: bodies_job, function: sharp_function) {
+    if(function.bound_body == null || function.is_synthesized == 1) { return; }
+    slot := job.slot_of(function.unit);
+    if(slot == null) { return; }
+
+    bodies : file_bodies = slot!!;
+    key : string = function_key(function.unit.file, function.node);
+    if(bodies.by_key.at(key) != null) { return; }
+
+    entry := new function_entry(function, key, bodies.functions.size().value as _int64);
+    if(function.locals != null) {
+        variables : list<local_variable> = function.locals!!;
+        numbers := new _int32[variables.size().value as _int64];
+        for(i : _int64 = 0; i < variables.size(); i++) {
+            variable := variables.at(i);
+            numbers[i] = 0 - 1;
+            if(variable.is_hidden == 1 || variable.function != function) { continue; }
+            numbers[i] = bodies.local_count;
+            bodies.local_count++;
+        }
+        entry.local_numbers = numbers;
+    }
+    bodies.by_key.put(key, entry);
+    bodies.functions.add(entry);
+}
+
+/** 1 when any function of the program has a typed body: the program was analysed (level `full`) */
+def program_has_typed_bodies(prog: sharp_program) : _int64 {
+    if(prog.lambdas.size() > 0) { return 1; }
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.functions.size(); j++) {
+            if(module.functions.at(j).bound_body != null) { return 1; }
+        }
+    }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        for(j : _int64 = 0; j < declared.functions.size(); j++) {
+            if(declared.functions.at(j).bound_body != null) { return 1; }
+        }
+        for(j : _int64 = 0; j < declared.constructors.size(); j++) {
+            if(declared.constructors.at(j).bound_body != null) { return 1; }
+        }
+    }
+    return 0;
+}

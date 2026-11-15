@@ -1,0 +1,79 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions
+)
+
+/**
+ * `a && b` AND `a || b`
+ *
+ * Each side is a truth value: a plain number (0 is false) or a number object
+ * - a `bool`, an `int` ... - whose number is taken (doc/backend.md 7.5.6).
+ * The right side runs only when the left does not decide ("short-circuit
+ * evaluation"). The result is an _int32, 1 or 0; on two literals it is
+ * folded (`true && false` is the literal 0).
+ *
+ * A left side that is some other object uses its class's `operator&&` /
+ * `operator||` if it has one (the C++ compiler does the same); otherwise it
+ * is E0511.
+ *
+ * Both sides are analysed by `analyse_binary` (arithmetic.sharp), which
+ * walks a long `a || b || c || ...` in a loop and hands each `||` its two
+ * sides here.
+ *
+ *      C++ comparison: `create_and_and_operation` / `create_or_or_operation`
+ *      in binary/binary_expression.cpp.
+ */
+def logical_operation(context: analysis_context, node: _int64, operation: _int64, left: bound_expression,
+                      right: bound_expression) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    if(left.type.kind == RT_ERROR || right.type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+
+    left_number := as_plain_number(context, left, 0);
+    if(left_number == null) {
+        if(left.type.kind == RT_CLASS && left.type.is_array == 0) {
+            called := call_operator(context, node, left, "operator" + name_at(context, node), one_argument(right));
+            if(called != null) { return called!!; }
+        }
+        report_not_a_truth_value(context, node, left);
+        return new bound_error(context.unit, node, error_type);
+    }
+    right_number := as_plain_number(context, right, 0);
+    if(right_number == null) {
+        report_not_a_truth_value(context, node, right);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    if(is_number_literal(left_number!!) && is_number_literal(right_number!!)) {
+        folded := fold_literals(context, node, operation, left_number!!, right_number!!);
+        if(folded != null) { return folded!!; }
+    }
+    made := new bound_logical(context.unit, node, operation == P_OROR, left_number!!, right_number!!, context.session.types.int32);
+    made.constant = folded_constant(operation, left_number!!, right_number!!, OPERANDS_INTEGER);
+    return made;
+}
+
+/** E0511: one side of `&&` / `||` is not a truth value */
+def report_not_a_truth_value(context: analysis_context, node: _int64, side: bound_expression) {
+    text := name_at(context, node);
+    written := source_text_of(context, side.node);
+    d := problem_over(context, "E0511", "`" + text + "` needs a number on both sides, but `" + written + "` is "
+                      + described_value(side), side.node);
+    d.with_label("not a truth value");
+    d.with_note("Sharp has no truth type of its own: a condition is a number (0 is false) or a number object such as `bool`");
+    if(side.type.can_be_null() && side.type.is_number() == 0) {
+        d.with_help("to ask \"is there one?\" write `" + written + " != null`");
+    }
+    report(context, d);
+}

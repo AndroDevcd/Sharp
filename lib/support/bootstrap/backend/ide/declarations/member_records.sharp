@@ -1,0 +1,219 @@
+mod backend.ide.declarations;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.ide.output,
+    backend.ide.positions,
+    backend.ide.types,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * THE MEMBERS: FIELDS, FUNCTIONS, ALIASES, ENUM VALUES
+ *
+ * One record each, in the format of doc/ide.md 4.6. They share three habits:
+ *
+ *      "at"     [from, to, line, column] of the declaration's NAME token: where go-to-declaration jumps
+ *      "file"   the manifest number of the file the member is written in; left out when it is the
+ *               same as its class's (a member added by `mutate` and an extension function are
+ *               written elsewhere than their class)
+ *      "type"   a type id (types.json); the field is left out when no type is known
+ *
+ * A member is looked at in the form it was WRITTEN: a field `item : T?` of
+ * a generic class keeps its `T`.
+ *
+ * The standard library has some 6,500 members, written on every run, so the
+ * code here makes as few objects as it can: the words of the modifiers are
+ * remembered per combination, and a signature is written in pieces straight
+ * into the output instead of being glued together as a string first.
+ */
+
+/** what the writers of this package share: the files, the type table, and the modifier words already made */
+class declaration_job {
+    files : ide_files;
+    types : ide_types;
+    flag_texts : string[]??;            // flags (below FLAG_MUTATED) -> their words, made on first use
+
+    declaration_job(files: ide_files, types: ide_types) {
+        self->files = files;
+        self->types = types;
+        flag_texts = new string[4096];
+    }
+
+    /** the modifiers as words: `public static`, without the trailing space and without the `mutate` mark */
+    def flags_words(flags: _int64) : string {
+        which : _int64 = flags & 4095;          // 4095: every flag below FLAG_MUTATED
+        known := flag_texts!![which];
+        if(known != null) { return known!!; }
+
+        text : string = flags_text(which);
+        n : _int64 = sizeof(text.data);
+        if(n > 0) { text = new string(text.data!!, 0, n - 1); }
+        flag_texts!![which] = text;
+        return text;
+    }
+}
+
+/** `"at": [from, to, line, column]` of the name token of a declaration */
+def write_at(w: json_writer, job: declaration_job, declared: sharp_declaration) {
+    where : place = job.files.of_unit(declared.unit).place_of_node(declared.node);
+    w.key(KEY_AT);
+    w.quad(where.from, where.to, where.line, where.column);
+}
+
+/** the identity of a declaration: `file` (unless it is the class's) and `node` */
+def write_identity(w: json_writer, job: declaration_job, declared: sharp_declaration, class_file: _int64) {
+    index : _int64 = job.files.index_of(declared.unit);
+    if(index != class_file) { w.key(KEY_FILE); w.number(index); }
+    w.key(KEY_NODE);  w.number(declared.node);
+}
+
+/** a field of a class, or a global variable */
+def write_field(w: json_writer, job: declaration_job, class_file: _int64, field: sharp_field) {
+    w.begin_object();
+    w.key(KEY_NAME);  w.text(field.name);
+    w.key(KEY_FLAGS);  w.text(job.flags_words(field.flags));
+    write_identity(w, job, field, class_file);
+    write_at(w, job, field);
+
+    // the written type; for `x := value` the type of the value once it was worked out
+    id : _int64 = written_type_id(job.types, field.type);
+    if(id < 0 && field.type == null) { id = resolved_type_id(job.types, field.value_type); }
+    if(id >= 0) { w.key(KEY_TYPE);  w.number(id); }
+
+    w.key(KEY_GETTER);
+    if(field.getter != null) { w.flag(1); } else { w.flag(0); }
+    w.key(KEY_SETTER);
+    if(field.setter != null) { w.flag(1); } else { w.flag(0); }
+    w.end_object();
+}
+
+/** a type parameter list `<T, U base x>`: name, identity, place and (for a class) the bound's type id */
+def write_type_parameters(w: json_writer, job: declaration_job, parameters: list<sharp_type_parameter>, with_bound: _int64) {
+    if(parameters.size() == 0) { return; }
+    w.key(KEY_TPARAMS);
+    w.begin_array();
+    for(i : _int64 = 0; i < parameters.size(); i++) {
+        parameter := parameters.at(i);
+        where : place = job.files.of_unit(parameter.unit).place_of_node(parameter.node);
+        w.begin_object();
+        w.key(KEY_NAME);  w.text(parameter.name);
+        w.key(KEY_NODE);  w.number(parameter.node);
+        w.key(KEY_AT);  w.quad(where.from, where.to, where.line, where.column);
+        if(with_bound == 1 && parameter.constraint != null) {
+            bound : _int64 = written_type_id(job.types, parameter.constraint);
+            if(bound >= 0) { w.key(KEY_BOUND);  w.number(bound); }
+        }
+        w.end_object();
+    }
+    w.end_array();
+}
+
+/**
+ * What a function returns, as a type id: -2 when it returns nothing (`result` is then left out),
+ * -1 when the type is not known. The rule, in the order it is decided: a written result type;
+ * `: nil` or nothing at all - nothing; `def f() := value` - the type the value turned out to have.
+ */
+def result_id_of(job: declaration_job, function: sharp_function) : _int64 {
+    if(function.kind == D_CONSTRUCTOR) { return 0 - 2; }
+    if(function.return_type != null) {
+        if(function.return_type!!.form == TYPE_NIL) { return 0 - 2; }
+        return written_type_id(job.types, function.return_type);
+    }
+    if(function.returns_nil == 1 || function.expression < 0) { return 0 - 2; }
+    return resolved_type_id(job.types, function.result_type);
+}
+
+/**
+ * The signature as a tooltip shows it: `name(a: t, b: t) : result`. A function that
+ * returns nothing has no `: result`. Written in pieces: the type texts come from the
+ * type table, where they are already made, and the punctuation is put character by
+ * character (a string literal such as ", " would make a new string object each time). (A type the table has no entry for - a name
+ * that was not found - is written as the programmer wrote it.)
+ */
+def write_signature(w: json_writer, job: declaration_job, function: sharp_function, parameter_ids: _int64[], result_id: _int64) {
+    w.key(KEY_SIG);
+    w.begin_string();
+    w.put_escaped(function.name);
+    w.put('(');
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        if(i > 0) { w.put(',');  w.put(' '); }
+        parameter := function.parameters.at(i);
+        w.put_escaped(parameter.name);
+        if(parameter.type != null) {
+            w.put(':');  w.put(' ');
+            if(parameter_ids[i] >= 0) { w.put_escaped(job.types.text_of(parameter_ids[i])); }
+            else { w.put_escaped(parameter.type!!.to_text()); }
+        }
+    }
+    w.put(')');
+    if(result_id >= 0) {
+        w.put(' ');  w.put(':');  w.put(' ');
+        w.put_escaped(job.types.text_of(result_id));
+    } else if(result_id == 0 - 1 && function.return_type != null) {
+        w.put(' ');  w.put(':');  w.put(' ');
+        w.put_escaped(function.return_type!!.to_text());
+    }
+    w.end_string();
+}
+
+/** a function, constructor, extension function or operator */
+def write_function(w: json_writer, job: declaration_job, class_file: _int64, function: sharp_function) {
+    w.begin_object();
+    w.key(KEY_NAME);  w.text(function.name);
+    w.key(KEY_FLAGS);  w.text(job.flags_words(function.flags));
+    write_identity(w, job, function, class_file);
+    write_at(w, job, function);
+
+    count : _int64 = function.parameters.size().value as _int64;
+    parameter_ids := new _int64[count];
+    for(i : _int64 = 0; i < count; i++) {
+        parameter_ids[i] = written_type_id(job.types, function.parameters.at(i).type);
+    }
+    result_id : _int64 = result_id_of(job, function);
+    write_signature(w, job, function, parameter_ids, result_id);
+
+    w.key(KEY_PARAMS);
+    w.begin_array();
+    for(i : _int64 = 0; i < count; i++) {
+        w.begin_object();
+        w.key(KEY_NAME);  w.text(function.parameters.at(i).name);
+        if(parameter_ids[i] >= 0) { w.key(KEY_TYPE);  w.number(parameter_ids[i]); }
+        w.end_object();
+    }
+    w.end_array();
+
+    // `result`: absent = returns nothing, -1 = unknown
+    if(result_id != 0 - 2) { w.key(KEY_RESULT);  w.number(result_id); }
+
+    write_type_parameters(w, job, function.type_parameters, 0);
+    w.key(KEY_OPERATOR);  w.flag(function.is_operator);
+    if(function.extension_of != null) {
+        w.key(KEY_EXTENSION);  w.flag(1);
+        w.key(KEY_EXTENDS);  w.number(written_type_id(job.types, function.extends));
+    }
+    w.end_object();
+}
+
+/** `alias list<string> as names;` */
+def write_alias(w: json_writer, job: declaration_job, class_file: _int64, synonym: sharp_alias) {
+    w.begin_object();
+    w.key(KEY_NAME);  w.text(synonym.name);
+    write_identity(w, job, synonym, class_file);
+    write_at(w, job, synonym);
+    id : _int64 = written_type_id(job.types, synonym.target);
+    if(id >= 0) { w.key(KEY_TYPE);  w.number(id); }
+    w.end_object();
+}
+
+/** one value of an enum, with its number when the declaration fixes one */
+def write_enum_value(w: json_writer, job: declaration_job, class_file: _int64, value: sharp_enum_value) {
+    w.begin_object();
+    w.key(KEY_NAME);  w.text(value.name);
+    write_identity(w, job, value, class_file);
+    write_at(w, job, value);
+    if(value.has_number == 1) { w.key(KEY_NUMBER);  w.number(value.number); }
+    w.end_object();
+}

@@ -1,0 +1,224 @@
+mod backend.finalizer.generation.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.values
+)
+
+/**
+ * OPERATORS THE VM DOES ITSELF (doc/codegen.md 6.4)
+ *
+ *      a + b, a < b, a == b    bound_binary     the right operand FIRST (6.0), then the left
+ *      a && b, a || b          bound_logical    the right only when the left does not decide
+ *      c ? a : b               bound_ternary    one of the two, after the condition
+ *      -a, !a                  bound_unary
+ *
+ * Every number operator works on whole numbers (64-bit, wrapping around) or
+ * on decimals (IEEE doubles), as analysis decided (`operands`); `/` and `**`
+ * always on decimals, `%`, the shifts and the bit operators always on whole
+ * numbers - the same instructions the C++ compiler writes, so the results
+ * are the same to the bit. An operator on an object (`a + b` with `a :
+ * money`) is a call of its operator function in the typed tree already
+ * (package calls).
+ *
+ * The files of this package (module `backend.finalizer.generation.operators`):
+ *
+ *      operators.sharp         this front door: the binary operators on numbers and references
+ *      logical.sharp           `&&`, `||` and `? :`: values that choose a path
+ *      unary.sharp             `-a`, `!a`
+ */
+
+/**
+ * `left op right` done by the VM (6.4): the right operand FIRST (6.0), then
+ * the left, then the operation on integers or on decimals as analysis decided
+ * (`operands`). `==` / `!=` on references asks whether they are the same
+ * object; against `null`, whether there is one.
+ *
+ * A CHAIN `a + b + c + d` is the tree `((a + b) + c) + d`: each operator is
+ * the left operand of the next. It is followed in a LOOP - down the left
+ * side taking each right operand, then back up doing the operations - and
+ * not by one call of this function per operator: a sum of some hundred terms
+ * is ordinary code, and a level of recursion per term would run the compiler
+ * out of stack (backend.md D103). The instructions are the same, in the
+ * same order, as the recursion would write:
+ *
+ *      %d = d;  %c = c;  %b = b;  %a = a;          every right operand, outermost first; then the innermost left
+ *      %t = %a + %b;  %t = %t + %c;  %t = %t + %d
+ */
+def binary_value(g: generator, e: bound_binary) : _int64 {
+    if(e.operands == OPERANDS_NULL_TEST) { return null_test_value(g, e); }
+    if(!continues_chain(e.left)) {
+        // one operator, the usual case: nothing to remember
+        right : _int64 = held_over(g, value_of(g, e.right), e.left);
+        return operation_value(g, e, value_of(g, e.left), right);
+    }
+
+    // down the left side: every operator of the chain, the outermost first, and its right operand's value
+    chain := new list<bound_binary>();
+    rights := new number_list();
+    link : bound_binary = e;
+    while(true) {
+        chain.add(link);
+        rights.add(held_over(g, value_of(g, link.right), link.left));
+        if(!continues_chain(link.left)) { break; }
+        link = link.left as bound_binary;
+    }
+
+    // back up: the innermost left operand, then each operation with the result so far as its left side
+    value : _int64 = value_of(g, link.left);
+    for(i : _int64 = (chain.size().value as _int64) - 1; i >= 0; i--) {
+        value = operation_value(g, chain.at(i), value, rights.at(i));
+    }
+    return value;
+}
+
+/**
+ * Is this left operand the next operator of a chain - a `bound_binary` that
+ * `value_of` would hand straight to `binary_value`? Not one whose value is
+ * known (value_of writes the constant) and not a test against `null`.
+ */
+def continues_chain(left: bound_expression) : _int64 {
+    if(left.kind != BX_BINARY || left.constant != null) { return 0; }
+    return (left as bound_binary).operands != OPERANDS_NULL_TEST;
+}
+
+/** `x == null` / `x != null`: is there an object? */
+def null_test_value(g: generator, e: bound_binary) : _int64 {
+    tested : bound_expression = e.left;
+    if(e.left.kind == BX_NULL) { tested = e.right; }
+    value : _int64 = value_of(g, tested);
+    target : _int64 = g.b.temp(SLOT_INT);
+    test := g.b.emit(IR_IS_NULL);
+    test.target = target;
+    test.first = value;
+    g.b.release(value);
+    if(e.operation == P_NOTEQ) { return negated(g, target); }
+    return target;
+}
+
+/**
+ * One operation of `binary_value`, its two operands already in slots.
+ *
+ * The operands' slots are given back BEFORE the result's slot is taken, so
+ * the result may land in the slot of one of its operands (an instruction
+ * reads all its operands before it writes its result: bytecode/selection.sharp).
+ * That keeps frames small, and the VM's stack is small: 4096 slots for all
+ * the frames of a fiber, so every slot of a frame costs recursion depth
+ * (codegen.md 11.8).
+ */
+def operation_value(g: generator, e: bound_binary, left_value: _int64, right_value: _int64) : _int64 {
+    operation : _int64 = e.operation;
+    left : _int64 = left_value;
+    right : _int64 = right_value;
+    if(e.operands == OPERANDS_DECIMAL || e.operands == OPERANDS_INTEGER) {
+        right = as_operand(g, right, e.operands);
+        left = as_operand(g, left, e.operands);
+    }
+    compare : _int64 = compare_of(operation);
+    g.b.release(left);
+    g.b.release(right);
+    target : _int64 = 0;
+    if(compare > 0 || e.operands == OPERANDS_REFERENCE) { target = g.b.temp(SLOT_INT); }     // 1 or 0
+    else { target = g.temp_for(e.type); }
+    if(e.operands == OPERANDS_REFERENCE) {
+        same := g.b.emit(IR_SAME_OBJECT);
+        same.target = target;
+        same.first = left;
+        same.second = right;
+        if(operation == P_NOTEQ) { return negated(g, target); }
+        return target;
+    }
+    decimals : _int64 = e.operands == OPERANDS_DECIMAL;
+    if(compare > 0) {
+        if(decimals == 1) { g.b.binary(IR_DECIMAL_COMPARE, compare, target, left, right); }
+        else { g.b.binary(IR_INT_COMPARE, compare, target, left, right); }
+    } else {
+        arithmetic : _int64 = arithmetic_of(operation);
+        if(arithmetic == 0) { g.stop("the operator of this expression", e.unit, e.node); }
+        if(decimals == 0) { g.b.binary(IR_INT_BINARY, arithmetic, target, left, right); }
+        else if(g.b.kind_of(target) == SLOT_DEC) { g.b.binary(IR_DECIMAL_BINARY, arithmetic, target, left, right); }
+        else { whole_result_of_decimals(g, arithmetic, target, left, right); }
+    }
+    return target;
+}
+
+/**
+ * `count ** 2` with two whole numbers: the power is worked out on decimals
+ * (the VM has no whole-number power) and the result is a whole number again
+ * (backend.md 7.8.1: "calculated with pow and cut back") - 7 ** 2 is the
+ * whole number 49, as in the C++-built program. The decimal result gets a
+ * slot of its own kind and is then cut (`d2i`) into the whole-number target.
+ */
+def whole_result_of_decimals(g: generator, arithmetic: _int64, target: _int64, left: _int64, right: _int64) {
+    worked_out : _int64 = g.b.temp(SLOT_DEC);
+    g.b.binary(IR_DECIMAL_BINARY, arithmetic, worked_out, left, right);
+    g.b.convert(target, worked_out, CONVERT_DECIMAL_TO_INT, NARROW_NONE);
+    g.b.release(worked_out);
+}
+
+/**
+ * An operand as the operation works on it. Analysis decides per OPERATION
+ * whether it is done on integers or on decimals (`operands`, backend.md
+ * 7.8.1) and does not wrap the integer side of `d * 4` in a conversion: the
+ * 4 is still an integer here, and must become 4.0 before `dmul` sees it.
+ */
+def as_operand(g: generator, value: _int64, operands: _int64) : _int64 {
+    kind : _int64 = g.b.kind_of(value);
+    if(operands == OPERANDS_DECIMAL && kind == SLOT_INT) {
+        target : _int64 = g.b.temp(SLOT_DEC);
+        g.b.convert(target, value, CONVERT_INT_TO_DECIMAL, NARROW_NONE);
+        g.b.release(value);
+        return target;
+    }
+    if(operands == OPERANDS_INTEGER && kind == SLOT_DEC) {
+        target : _int64 = g.b.temp(SLOT_INT);
+        g.b.convert(target, value, CONVERT_DECIMAL_TO_INT, NARROW_NONE);
+        g.b.release(value);
+        return target;
+    }
+    return value;
+}
+
+/** 1 - x for a 0 / 1 value */
+def negated(g: generator, value: _int64) : _int64 {
+    g.b.release(value);
+    target : _int64 = g.b.temp(SLOT_INT);
+    made := g.b.emit(IR_NOT);
+    made.target = target;
+    made.first = value;
+    return target;
+}
+
+/** CMP_... for a comparison token; 0 for anything else */
+def compare_of(operation: _int64) : _int64 {
+    if(operation == P_LESS) { return CMP_LT; }
+    if(operation == P_GREATER) { return CMP_GT; }
+    if(operation == P_LTE) { return CMP_LE; }
+    if(operation == P_GTE) { return CMP_GE; }
+    if(operation == P_EQEQ) { return CMP_EQ; }
+    if(operation == P_NOTEQ) { return CMP_NE; }
+    return 0;
+}
+
+/** OP_... for an arithmetic token (also the arithmetic of `+=` ...); 0 for anything else */
+def arithmetic_of(operation: _int64) : _int64 {
+    if(operation == P_PLUS || operation == P_PLUSEQ) { return ARITH_ADD; }
+    if(operation == P_MINUS || operation == P_MINUSEQ) { return ARITH_SUB; }
+    if(operation == P_STAR || operation == P_MULTEQ) { return ARITH_MUL; }
+    if(operation == P_SLASH || operation == P_DIVEQ) { return ARITH_DIV; }
+    if(operation == P_PERCENT || operation == P_MODEQ) { return ARITH_REM; }
+    if(operation == P_AND || operation == P_ANDEQ) { return ARITH_AND; }
+    if(operation == P_OR || operation == P_OREQ) { return ARITH_OR; }
+    if(operation == P_XOR || operation == P_XOREQ) { return ARITH_XOR; }
+    if(operation == P_SHL) { return ARITH_SHL; }
+    if(operation == P_SHR) { return ARITH_SHR; }
+    if(operation == P_EXPONENT) { return ARITH_POW; }
+    return 0;
+}

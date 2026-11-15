@@ -1,0 +1,10 @@
+// expect: E0100
+// help: total := 0;
+// replace: var total = 0;
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    var total = 0;
+    println("" + total);
+}

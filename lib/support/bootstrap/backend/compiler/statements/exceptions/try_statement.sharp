@@ -1,0 +1,53 @@
+mod backend.compiler.statements.exceptions;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.statements
+)
+
+/**
+ * `try body catch(...) body ... finally body`
+ *
+ * The body runs; an object thrown inside it (or in anything it calls) is
+ * offered to the catch clauses in the order written, and the first whose
+ * class takes it runs (catch_clause.sharp). The finally block runs at the
+ * end whatever happened: after the body, after a catch, before a `return`
+ * or `break` leaves, and before an exception nobody here caught travels on.
+ *
+ * For the jumps inside it this means (context/jump_frames.sharp):
+ *
+ *      in the body or a catch of a try WITH a finally   a jump out runs the finally first
+ *                                                       (a "guarded" frame)
+ *      in the finally block itself                       a jump out is E0604
+ *
+ * At least one catch or a finally must be written; the parser insists.
+ *
+ *      C++ comparison: compiler/functions/statements/try_catch_statement.cpp.
+ */
+def analyse_try(context: analysis_context, node: _int64) : bound_statement {
+    tree : syntax_tree = context.tree;
+    statement := new bound_try(context.unit, node);
+    finally_node : _int64 = tree.child_of_kind(node, N_FINALLY);
+    guarded : _int64 = finally_node >= 0;
+
+    if(guarded == 1) { context.enter_frame(FRAME_GUARDED, statement); }
+    statement.body = analyse_part(context, tree.first_child!![node]);
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_CATCH) { statement.catches.add(analyse_catch(context, child, statement)); }
+        child = tree.next_sibling!![child];
+    }
+    if(guarded == 1) { context.leave_frame(); }
+
+    if(finally_node >= 0) {
+        context.enter_frame(FRAME_FINALLY, statement);
+        statement.finally_part = analyse_part(context, tree.first_child!![finally_node]);
+        context.leave_frame();
+    }
+    return statement;
+}

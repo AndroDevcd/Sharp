@@ -1,0 +1,55 @@
+mod backend.finalizer.generation.assignment;
+
+import (
+    std.io,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation
+)
+
+/**
+ * `x++`, `x--`, `++x`, `--x` (doc/codegen.md 6.4)
+ *
+ *      parts of the target -> slots            (once)
+ *      %old = the target's value               (a property: its getter)
+ *      %new = %old + 1  (or - 1)               (whole numbers: add; decimals: dadd 1.0)
+ *      the target = %new, cut to its type      (a property: its setter)
+ *      the value: %new, or %old for x++ / x--
+ */
+
+/**
+ * `x++`, `--x` (6.4): the parts of the target once; the old value; one more
+ * or one less; stored back (cut to the target's type). The value is the new
+ * one, or for the postfix form the old one.
+ */
+def increment_value(g: generator, e: bound_increment) : _int64 {
+    place := place_of(g, e.target, e, e.getter, e.setter);
+    old : _int64 = read_place(g, place, e);
+    is_decimal : _int64 = g.b.kind_of(old) == SLOT_DEC;
+    one : _int64 = 0 - 1;
+    updated : _int64 = 0 - 1;
+    operation : _int64 = ARITH_ADD;
+    if(e.is_decrement == 1) { operation = ARITH_SUB; }
+    if(is_decimal == 1) {
+        one = g.b.temp(SLOT_DEC);
+        g.b.decimal_constant(one, 1, null);
+        updated = g.b.temp(SLOT_DEC);
+        g.b.binary(IR_DECIMAL_BINARY, operation, updated, old, one);
+    } else {
+        one = g.b.temp(SLOT_INT);
+        g.b.int_constant(one, 1);
+        updated = g.b.temp(SLOT_INT);
+        g.b.binary(IR_INT_BINARY, operation, updated, old, one);
+        narrowing : _int64 = narrowing_of(place.type);
+        if(narrowing != NARROW_NONE) { g.b.convert(updated, updated, CONVERT_NARROW, narrowing); }
+    }
+    g.b.release(one);
+    write_place(g, place, updated, e);
+    release_place(g, place);
+    if(e.is_postfix == 1) {
+        g.b.release(updated);
+        return old;
+    }
+    g.b.release(old);
+    return updated;
+}

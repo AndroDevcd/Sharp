@@ -188,6 +188,33 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
     return nullptr;
 }
 
+/*
+ * A number array of length 0 that IS an object (create_object() above gives
+ * null for size 0, which is how a program's own `new _int8[0]` is held).
+ * Needed only where the library insists on an object: platform.srt_init
+ * turns every command-line argument into a string with `args[i] as _int8[]`,
+ * and a cast of null raises nullptr_exception - so an empty argument
+ * (`sharp prog ""`) stopped every program before main. `data` stays null: the
+ * collector frees it with free(nullptr) and counts 0 bytes, and every access
+ * is out of bounds, as it should be for length 0.
+ *
+ * C++ comparison: `new char[0]` - a real, empty array.
+ */
+sharp_object* create_empty_array(data_type type) {
+    TELEMETRY_COUNT(tm_objects_created)
+    auto o = malloc_mem<sharp_object>(sizeof(sharp_object), false);
+
+    init_struct(o);
+    o->size = 0;
+    o->type = type;
+    o->arrayFlag = 1;
+    SET_GENERATION(o->info, gc_normal);
+    o->data = nullptr;
+
+    push_object(o);
+    return o;
+}
+
 void cast_object(object *from, Int toClass) {
     if(!(from->o->type == type_class && is_type(from, toClass))) {
         stringstream ss;

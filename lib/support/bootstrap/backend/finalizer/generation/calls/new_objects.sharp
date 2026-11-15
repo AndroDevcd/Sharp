@@ -1,0 +1,35 @@
+mod backend.finalizer.generation.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation
+)
+
+/**
+ * `new c(arguments)` (doc/codegen.md 4.5, 6.6)
+ *
+ *      %o = new_object c                   newclass c: every field 0 / null, nothing runs
+ *      arguments -> slots
+ *      call c(%o, arguments)               the constructor: its prologue (base constructor,
+ *                                          static part, init<c>) and its body
+ *      the value is %o
+ *
+ * A constructor returns nothing, so the object stays in its slot.
+ */
+
+/** `new c(arguments)`: a new object, then its constructor run on it; the value is the object */
+def new_value(g: generator, e: bound_new) : _int64 {
+    if(e.class_of.address < 0 || e.constructor.address < 0) { g.stop("`new` of a class that is not kept", e.unit, e.node); }
+    made : _int64 = g.b.temp(SLOT_REF);
+    g.b.new_object(made, e.class_of);
+    arguments := new number_list();
+    arguments.add(made);
+    add_arguments(g, arguments, e.arguments);
+    g.line_of_node(e.unit, e.node);
+    g.b.call(0 - 1, e.constructor, arguments, CALL_HOW_DIRECT);
+    for(i : _int64 = 1; i < arguments.count; i++) { g.b.release(arguments.at(i)); }
+    return made;
+}

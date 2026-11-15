@@ -1,0 +1,44 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.generation
+)
+
+/**
+ * `lock(o) { ... }` (doc/codegen.md 4.8, 6.11)
+ *
+ *      lock(table) { body }        %held = table           (its hidden local: the SAME object is unlocked)
+ *                                  lock %held              movl held; lock
+ *                                  body
+ *                                  unlock %held            movl held; ulock
+ *
+ * A `lock` that has to wait gives up the thread, and the VM runs the same
+ * instruction again later; a fiber may enter a lock it already holds (the VM
+ * counts). How the block is left decides who unlocks:
+ *
+ *      the end of the block            the `unlock` above
+ *      return / break / continue       the jump unlocks on its way out (exits.sharp)
+ *      an exception                    the VM: it notes each lock with the pc it was
+ *                                      taken at, and gives back those a handled
+ *                                      exception leaves (`release_locks_left_by_exception`)
+ *
+ * A null object raises nullptr_exception at the `lock`, as in the C++-built program.
+ *
+ *      C++ comparison: lock_statement.cpp in compiler/functions/statements.
+ *      It evaluates the expression a second time for the unlock, so
+ *      `lock(next_guard()) { }` calls next_guard() twice there and once here
+ *      (codegen.md 10, G32).
+ */
+def generate_lock(g: generator, statement: bound_lock) {
+    held : _int64 = g.slot_of(statement.held, statement.unit, statement.node);
+    value : _int64 = value_of(g, statement.locked);
+    g.b.copy(held, value, NARROW_NONE);
+    g.b.release(value);
+    g.b.lock_object(IR_LOCK, held);
+    generate_statement(g, statement.body);
+    g.b.lock_object(IR_UNLOCK, held);
+}

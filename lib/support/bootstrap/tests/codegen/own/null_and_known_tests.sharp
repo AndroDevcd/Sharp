@@ -1,0 +1,70 @@
+mod main;
+
+// output:
+// 1
+// 1
+// 1
+// 0
+// 0
+// 0
+// 0
+// 0
+// 7
+// 1
+// 7
+// 1
+// 8
+// 1
+// 8
+// 0
+
+/*
+ * Where this compiler deliberately does NOT do what the C++-built program
+ * does (doc/codegen.md section 10), so the output block is the rule of the
+ * language worked out by hand:
+ *
+ *   - G27: `z?.follow()` with a null `z` gives null - the whole chain does,
+ *     also when it ends in a call (the C++-built program: `== null` is 0);
+ *   - G29: `is` on a value that holds null is 0, also against the value's
+ *     own class, a class above it, `object` and `object[]` (the C++ compiler
+ *     answers 1 from the declared type without looking at the value);
+ *   - G25: an `is` whose answer is known while compiling still RUNS its
+ *     operand (the C++ compiler drops the call).
+ */
+class animal {
+    next : animal?;
+    def follow() : animal? { return next; }
+}
+class dog base animal { }
+
+def give(d: dog) : dog {
+    show(7);
+    return d;
+}
+
+def count() : _int64 {
+    show(8);
+    return 4;
+}
+
+def main() {
+    z : animal? = null;
+    a : animal? = new animal();
+    show(z?.follow() == null);
+    show(a?.follow() == null);
+    show(a?.follow()?.follow() == null);
+
+    d : dog? = null;
+    show(d is animal);
+    show(d is dog);
+    show(d is object);
+    o : object? = null;
+    show(o is object);
+    show(o is object[]);
+
+    e : dog = new dog();
+    show(give(e) is animal);
+    show(give(e) is object);
+    show(count() is decimal);
+    show(count() is string);
+}

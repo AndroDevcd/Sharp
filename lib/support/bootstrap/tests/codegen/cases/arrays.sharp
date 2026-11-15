@@ -1,0 +1,58 @@
+mod main;
+
+// output:
+// 14
+// 4
+// -56
+// 9
+// 3
+// 1.5
+// 2
+// 0
+// 11
+
+/*
+ * Arrays (doc/codegen.md 6.7): new arrays of numbers and of objects, array
+ * literals, reading and writing elements (an _int8 element holds 200 as -56),
+ * sizeof, and foreach - which runs no round for a null array (probed, Q4).
+ */
+def main() {
+    numbers := new _int64[4];
+    for(i : _int64 = 0; i < sizeof(numbers); i++) {
+        numbers[i] = i * i;
+    }
+    sum : _int64 = 0;
+    foreach(n in numbers) {
+        sum += n;
+    }
+    show(sum);
+    show(sizeof(numbers));
+
+    bytes := new _int8[2];
+    bytes[0] = 200 as _int8;
+    show(bytes[0]);
+
+    listed := new _int64[] { 7, 8, 9 };
+    show(listed[2]);
+    show(sizeof(listed));
+
+    halves := new decimal[2];
+    halves[1] = 1.5;
+    show_decimal(halves[1] + halves[0]);
+
+    words := new string[2];
+    words[0] = "a";
+    show(sizeof(words));
+
+    nothing : _int64[]? = null;
+    show(sizeof(nothing));
+    foreach(x in nothing) {
+        show(99);
+    }
+
+    counts := new _int64[3];
+    counts[1] += 5;
+    counts[1]++;
+    counts[1] += counts[1] - 1;
+    show(counts[1]);
+}

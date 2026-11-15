@@ -59,6 +59,8 @@ int jit_enter_loop(Int targetPc);
         if(data == 1) { check_state(0) }    /* compiled code ran, continue wherever task->pc is now */ \
     }
 
+static bool continues_in_machine_code(fiber *task, sharp_function *function);    // below, with the rebuild walk
+
 void main_vm_loop(sharp_function *frame)
 {
     setupOpcodeTable
@@ -70,13 +72,14 @@ void main_vm_loop(sharp_function *frame)
     Int data;
 
     // Continuing a fiber after a context switch: walk up its call stack and
-    // give every JIT compiled function its machine frame back. (By call depth,
-    // not by function - see next_rebuild_frame().)
+    // give every function that was running as machine code its machine frame
+    // back. (By call depth, not by function - see next_rebuild_frame(). Which
+    // functions: see continues_in_machine_code().)
     while(thread_self->task->rebuilding) {
         frame = next_rebuild_frame();
         if(frame == nullptr) break;
 
-        if(frame->isHighFrequency && frame->jfunc != nullptr) {
+        if(continues_in_machine_code(thread_self->task, frame)) {
             // The compiled frame rebuilds and runs everything above it. Once it
             // comes back the call stack has changed, so stop walking and let the
             // interpreter continue from wherever task->pc is now.
@@ -197,9 +200,12 @@ void main_vm_loop(sharp_function *frame)
                 regs[dual_arg1].i = (uint64_t)regs[dual_arg2].i;
                 branch
             RSTORE:
-                TC(TC_ST(task->sp + 1) = TC_RT(single_arg);)
+                // (the tag of the new top is set AFTER grow_stack: when this push is the one that grows the
+                // stack, sp + 1 is past the end of the tag array before it - a heap overflow by one byte in
+                // the kind-check build, found with the bootstrap's -O builds; the same in the pushes below)
                 grow_stack
                 stack_overflow_check
+                TC(TC_ST(task->sp + 1) = TC_RT(single_arg);)
                 push_stack_number = regs[single_arg];
                 branch
             ADD:
@@ -600,9 +606,9 @@ void main_vm_loop(sharp_function *frame)
                 task->fp->var = regs[single_arg];
                 branch
             ISTORE:
-                TC(TC_ST(task->sp + 1) = tk_int;)
                 grow_stack
                 stack_overflow_check
+                TC(TC_ST(task->sp + 1) = tk_int;)
                 push_stack_number.i = raw_arg2;
                 branch_for(2)
             ISTOREL:
@@ -615,9 +621,9 @@ void main_vm_loop(sharp_function *frame)
                 copy_object(&push_stack_object, (sharp_object*) nullptr);
                 branch
             IPUSHL:
-                TC(TC_ST(task->sp + 1) = TC_ST(task->fp + single_arg);)
                 grow_stack
                 stack_overflow_check
+                TC(TC_ST(task->sp + 1) = TC_ST(task->fp + single_arg);)
                 push_stack_number = (task->fp + single_arg)->var;
                 branch
             PUSHL:
@@ -807,9 +813,9 @@ void main_vm_loop(sharp_function *frame)
                 (task->sp + single_arg)->var.d += raw_arg2;
                 branch_for(2)
             DISTORE:
-                TC(TC_ST(task->sp + 1) = tk_dec;)
                 grow_stack
                 stack_overflow_check
+                TC(TC_ST(task->sp + 1) = tk_dec;)
                 push_stack_number.d = raw_arg2;
                 branch_for(2)
             DISTOREL:
@@ -1174,6 +1180,19 @@ void prepare_method(Int address) {
     auto task = thread_self->task;
     auto inNative = task->current && (task->current->nativeFunc || task->current->isHighFrequency);
     auto function = vm.methods + address;
+
+    // THE MACHINE STACK. The interpreter keeps every Sharp call in the fiber's
+    // own stack, but compiled code calls compiled code as real machine calls
+    // (about 32 bytes of the thread's stack each). A recursion deep enough to
+    // use that up used to end in a segmentation fault long before the fiber's
+    // stack was full; now it ends like any other runaway recursion. `inNative`
+    // is the only case that nests, so only it is tested. (Compiled code makes
+    // the same test before a direct call and comes here when it fails.)
+    if(inNative) {
+        char here;
+        if((uintptr_t) &here < thread_self->nativeStackFloor)
+            throw vm_exception(vm.stack_overflow_except, "");
+    }
     
     function->callCount++;
     TELEMETRY_COUNT(tm_calls_total)
@@ -1195,8 +1214,20 @@ void prepare_method(Int address) {
     grow_stack_for(function->stackSize)
     stack_overflow_check_for(function->stackSize)
 
-    if((task->callFramePtr + 1) >= task->frameSize)
+    if((task->callFramePtr + 1) >= task->frameSize) {
         task->growFrame();
+
+        // The list of call frames has a ceiling too (frameLimit), and growFrame
+        // does nothing once it is reached. Without this test the frame below was
+        // written past the end of the list: a function with no parameters and no
+        // locals that calls itself (`def f() { f(); }`) uses no stack slots at
+        // all, so the stack check above never stops it, and the program died of
+        // a segmentation fault instead of a stack_overflow_exception.
+        // (Compiled code comes here as well: its fast path leaves to the slow
+        // call whenever the list is full, jit/x64/opcode/direct_calls.cpp.)
+        if((task->callFramePtr + 1) >= task->frameSize)
+            throw vm_exception(vm.stack_overflow_except, "");
+    }
 
     task->calls++;
     if(task->calls > 1) {
@@ -1404,11 +1435,70 @@ sharp_function* get_next_frame(sharp_function *current) {
                 fun = vm.methods + callStack[i+1].returnAddress;
             }
 
+            // the depth of the function handed out, as next_rebuild_frame()
+            // keeps it (continues_in_machine_code() reads it)
+            thread_self->task->rebuildDepth = i + 1;
             return fun;
         }
     }
 
     return nullptr;
+}
+
+/**
+ * While a fiber is being continued: may `function`, the one the walk just
+ * handed out (it is at call depth task->rebuildDepth), be continued in its
+ * compiled code?
+ *
+ * Only if it was running as machine code when it made the call it is waiting
+ * in. That is what the frame of that call says: frames[depth].native was
+ * set by prepare_method() / a direct call to "the caller is native or
+ * compiled code, it expects the callee to come back to it when it returns".
+ * Being compiled NOW is not enough. A function the interpreter was running
+ * when it made its call can be compiled since - by another thread that
+ * called it often enough while this fiber was switched out. Its callee's
+ * frame says native = false, so when the callee returns, return_method()
+ * does not hand control back to the caller's machine code: the interpreter
+ * loop simply carries on with the caller's bytecode. If the walk had entered
+ * the caller's machine code, that interpreter loop is a NESTED one, started
+ * from inside it (jit_rt_rebuild_above), and it carries on past the caller,
+ * through every interpreted function below, possibly to the end of the
+ * fiber - while the machine code and the outer interpreter loop that called
+ * it still believe they are in the middle. The outer loop then went on at a
+ * pc that was no longer valid: past the last instruction of fiber_main.
+ *
+ *      fiber_main   (interpreted: a fiber's main function is never compiled)
+ *        body       (interpreted when it called; compiled since by another thread)
+ *          ...      lock(x) taken by someone else: context switch, and the
+ *                   fiber is continued later, on another thread
+ *
+ *      before: the walk entered body's machine code, which interpreted the
+ *              rest of body AND of fiber_main in a nested loop - the fiber
+ *              ended in there - and then the outer loop dispatched at
+ *              fiber_main's pc 36 of 36 (heap-buffer-overflow under the
+ *              address sanitizer, "(SIGSEGV) found" now and then without it;
+ *              found with several bootstrap compilers running at once)
+ *      after:  body is left to the interpreter, as it was when it made the
+ *              call; nothing changes for frames that called from machine code
+ *
+ * The function on top of the stack has no call of its own to come back to,
+ * and compiled code can be entered at any instruction: it may always continue
+ * in machine code.
+ *
+ *      C++ comparison: resuming a coroutine must restore each frame in the
+ *      form it was suspended in - a frame cannot be suspended as one kind
+ *      (interpreted) and resumed as another (native) when its callee will
+ *      return to the first kind.
+ */
+static bool continues_in_machine_code(fiber *task, sharp_function *function) {
+    if(!(function->isHighFrequency && function->jfunc != nullptr))
+        return false;
+
+    Int depth = task->rebuildDepth;
+    if(depth >= 0 && depth <= task->callFramePtr)
+        return task->frames[depth].native;
+
+    return true;    // the function on top of the stack
 }
 
 void invoke_next_frame(sharp_function *frame, bool isInterpreter) {
@@ -1417,7 +1507,7 @@ void invoke_next_frame(sharp_function *frame, bool isInterpreter) {
         return;
     }
 
-    if(frame->isHighFrequency && frame->jfunc != nullptr) {
+    if(continues_in_machine_code(thread_self->task, frame)) {
         TELEMETRY_COUNT(tm_calls_into_jit)
         TELEMETRY_SCOPE(tm_mode_jit)
         int jitResult = frame->jfunc->compiledCode(thread_self, frame->jfunc, registers);

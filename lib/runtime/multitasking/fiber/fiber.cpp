@@ -49,13 +49,20 @@ void fiber::growFrame() {
     TELEMETRY_COUNT(tm_frame_grows)
     guard_mutex(mut)
 
-    if(frameSize + FRAME_GROW_SIZE < frameLimit) {
+    // The list of call frames DOUBLES (at least FRAME_GROW_SIZE more), like the
+    // stack in growStack below and for the same reason: with a ceiling of a
+    // million frames, growing by a fixed 150 would copy the list thousands of
+    // times on the way up. Doubling copies it about a dozen times.
+    //      C++ comparison: how std::vector grows on push_back.
+    uInt more = frameSize > FRAME_GROW_SIZE ? frameSize : FRAME_GROW_SIZE;
+
+    if(frameSize + more < frameLimit) {
         frames = realloc_mem<frame>(
-                frames, sizeof(frame) * (frameSize + FRAME_GROW_SIZE),
+                frames, sizeof(frame) * (frameSize + more),
                 sizeof(frame) * frameSize
         );
 
-        frameSize += FRAME_GROW_SIZE;
+        frameSize += more;
     }
     else if(frameSize != frameLimit) {
         frames = realloc_mem<frame>(
@@ -153,6 +160,17 @@ void fiber::growStack(Int requiredSize) {
     if(requiredSize < STACK_GROW_SIZE)
       requiredSize = STACK_GROW_SIZE;
     else requiredSize += STACK_GROW_SIZE;
+
+    // The stack DOUBLES: it grows by at least as many slots as it has. With
+    // the ceiling at a million slots (INTERNAL_STACK_SIZE), growing 512 slots
+    // at a time would copy the whole stack two thousand times on the way up -
+    // each copy longer than the last. Doubling gets from 200 slots to the
+    // ceiling in thirteen copies, and a fiber that never recurses deeply still
+    // never grows at all.
+    //      C++ comparison: how std::vector grows on push_back; Go grows a
+    //      goroutine's stack the same way.
+    if(requiredSize < stackSize)
+      requiredSize = stackSize;
 
     if(stackSize + requiredSize < stackLimit) {
         Int spIdx = sp-stack, fpIdx = fp-stack, ptrIdx = -1;

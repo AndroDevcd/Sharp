@@ -1,0 +1,133 @@
+mod main;
+
+// output:
+// 110
+// 210
+// 711
+// 110
+// 103
+// 1010
+// 2010
+// 7011
+// 1010
+// 1003
+// 9099
+// 4
+// 3
+// 2
+// 7
+// 11
+// 1
+// 2
+// 7
+// 3
+// 2
+// 2
+// 3
+// 1
+// 1414
+// 7
+// 40
+// 46
+// 4
+// 3
+// 2
+// 40
+// 40
+// 103
+// 3
+
+/*
+ * Which body a call runs (doc/codegen.md 4.6, 6.6): overrides down a chain of
+ * classes (an `animal` variable holding a `puppy` runs puppy's `sound`),
+ * `base->f()`, a function a class in between does not write again (cat,
+ * kitten), plain functions that only hide (kind: the variable's type
+ * decides), calls through interfaces, generic classes that implement one.
+ * A virtual call goes straight to a body only when no class below has
+ * another one (`called_directly`, generation/calls.sharp).
+ */
+interface speaker {
+    def sound() : _int64;
+    def volume() : _int64;
+}
+
+interface walker {
+    def legs() : _int64;
+}
+
+class animal : speaker {
+    override def sound() : _int64 { return 1; }
+    override def volume() : _int64 { return 10; }
+    def both() : _int64 { return sound() * 100 + volume(); }
+    def kind() : _int64 { return 1; }
+    def kind_twice() : _int64 { return kind() * 2; }
+}
+
+class dog base animal : walker {
+    override def sound() : _int64 { return 2; }
+    override def legs() : _int64 { return 4; }
+    def kind() : _int64 { return 2; }
+}
+
+class puppy base dog {
+    override def sound() : _int64 { return base->sound() + 5; }
+    override def volume() : _int64 { return base->volume() + 1; }
+    override def legs() : _int64 { return base->legs() - 1; }
+}
+
+class cat base animal {
+}
+
+class kitten base cat {
+    override def volume() : _int64 { return 3; }
+}
+
+class robot : speaker, walker {
+    override def sound() : _int64 { return 9; }
+    override def volume() : _int64 { return 99; }
+    override def legs() : _int64 { return 2; }
+}
+
+class shelf<t> : walker {
+    held : t;
+    shelf(held: t) { self->held = held; }
+    override def legs() : _int64 { return 40; }
+    def take() : t { return held; }
+}
+
+def loud(s: speaker) : _int64 { return s.sound() * 1000 + s.volume(); }
+def steps(w: walker) : _int64 { return w.legs(); }
+
+def main() {
+    a := new animal();
+    d := new dog();
+    p := new puppy();
+    c := new cat();
+    k := new kitten();
+    r := new robot();
+    show(a.both()); show(d.both()); show(p.both()); show(c.both()); show(k.both());
+    show(loud(a)); show(loud(d)); show(loud(p)); show(loud(c)); show(loud(k)); show(loud(r));
+    show(steps(d)); show(steps(p)); show(steps(r));
+    as_animal : animal = p;
+    show(as_animal.sound()); show(as_animal.volume()); show(as_animal.kind()); show(as_animal.kind_twice());
+    as_dog : dog = p;
+    show(as_dog.sound()); show(as_dog.legs()); show(as_dog.kind()); show(as_dog.kind_twice());
+    as_cat : cat = k;
+    show(as_cat.volume()); show(as_cat.sound());
+    animals := new animal[] { a, d, p, c, k };
+    total : _int64 = 0;
+    foreach(one in animals) { total = total * 3 + one.sound() + one.volume(); }
+    show(total);
+    s := new shelf<animal>(p);
+    show(s.take().sound());
+    show(steps(s));
+    n := new shelf<_int64>(6);
+    show(n.take() + steps(n));
+    walkers := new walker[] { d, p, r, s, n };
+    foreach(w in walkers) { show(w.legs()); }
+    any : object = k;
+    back := any as animal;
+    show(back.both());
+    spoken := back as speaker;
+    show(spoken.volume());
+}

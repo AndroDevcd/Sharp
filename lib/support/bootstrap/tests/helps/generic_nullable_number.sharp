@@ -1,0 +1,12 @@
+// expect: E0355
+// help: pick<double>
+// replace: pick<decimal>
+mod tests.helps;
+import (std, std.io);
+
+def pick<T>(items: list<T>) : T? { return null; }
+
+def main() {
+    prices := new list<double>();
+    x := pick<decimal>(prices);
+}

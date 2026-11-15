@@ -213,7 +213,10 @@ int  str_start(int argc, const char* argv[]) {
                 }
             }
         }
-        else if(string(argv[i]).at(0) == '-'){
+        // argv[i][0] rather than string(argv[i]).at(0): an empty argument has no
+        // first character, and at(0) threw std::out_of_range (an abort, no message).
+        // "" is then taken as the program's name and reported as a missing file.
+        else if(argv[i][0] == '-'){
             error("invalid option `" + string(argv[i]) + "`, try sharp -h");
         }
         else {

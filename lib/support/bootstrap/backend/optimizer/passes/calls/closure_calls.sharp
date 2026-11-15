@@ -1,0 +1,134 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * CLOSURE ELIMINATION: a function value made here and called here is called by name
+ *
+ * A lambda is, at run time, an object: a `function_value` holding the
+ * address of the lambda's code and - when the lambda uses variables of the
+ * function around it - the RECORD those variables live in (codegen.md 6.12).
+ * Calling it (`call_value`, the VM's `calld`) reads the address out of the
+ * object, pushes the record as a hidden last argument, and calls:
+ *
+ *      new_object  %4, closure_main#run            the record of `run`'s captured variables
+ *      set_field   %4.k, %0
+ *      new_object  %1, function_value              add := { n -> n + k }
+ *      int_constant %6, 14
+ *      set_field   %1.address, %6
+ *      set_field   %1.captured, %4
+ *      ...
+ *      call_value  %7, %1(%5)                      add(5)
+ *
+ * When the value a `call_value` calls can only be ONE function value made in
+ * this function, everything `calld` looks up at run time is known now:
+ *
+ *      call        %7, @anonymous_fun_0(%5, %4)    the lambda's code, the record handed to it directly
+ *
+ * - a plain call. And a plain call of a small function is inlined (the next
+ * step of the same round, inline_calls.sharp); once every call of the value
+ * is one, nothing reads the function value any more and box elimination
+ * takes the object away, and then the record too (its only reader was the
+ * lambda's body, now part of this function). `list.for_each({ ... })` with a
+ * small `for_each` ends as a plain loop with no object and no call.
+ *
+ * WHAT IS CHECKED, for `call_value %d, %v(args)`:
+ *
+ *   - the only instruction that can have written %v as the call reads it is
+ *     one `new_object function_value` (reaching definitions);
+ *   - right behind that instruction, in the same block, the generator's
+ *     stores into the new object are found: `address` from a constant - the
+ *     lambda's (or named function's) address in the executable - and
+ *     `captured` when the lambda takes a record;
+ *   - the function at that address takes what the call passes (plus the
+ *     record), and has no `self`;
+ *   - the slot the record was stored from is not written again before the
+ *     function value is made anew - so it still holds that record at the call.
+ *
+ * The fields of a function value are written by the generator only, never
+ * by a program, so what the stores put there is what `calld` would read.
+ *
+ * Not for a function with a `try` (the walks do not follow handlers).
+ *
+ *      C++ comparison: the C++ optimizer has no such pass. Kotlin's and
+ *      Scala's compilers do this for lambdas passed to `inline` functions;
+ *      HotSpot gets there through inlining plus escape analysis.
+ */
+def eliminate_closure_calls(analyses: function_analyses, layout: program_layout) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0) { return 0; }
+    total : _int64 = code.instructions.size().value as _int64;
+    any : _int64 = 0;
+    for(i : _int64 = 0; i < total && any == 0; i++) {
+        if(code.instructions.at(i).kind == IR_CALL_VALUE) { any = 1; }
+    }
+    if(any == 0) { return 0; }
+    graph := analyses.graph();
+    found := new number_list();
+    done : _int64 = 0;
+    for(i : _int64 = 0; i < total; i++) {
+        call := code.instructions.at(i);
+        if(call.kind != IR_CALL_VALUE || call.first < 0) { continue; }
+        value : _int64 = call.first;
+        found.count = 0;
+        if(!reaching_definitions(code, graph, i, value, found) || found.count != 1) { continue; }
+        made_at : _int64 = found.at(0);
+        made := code.instructions.at(made_at);
+        if(made.kind != IR_NEW_OBJECT || made.declaration == null || made.declaration!!.name != "function_value") { continue; }
+
+        // ---- the stores right behind the `new_object`: the address, and the record
+        address : _int64 = 0 - 1;
+        record : _int64 = 0 - 1;
+        for(j : _int64 = made_at + 1; j < graph.ends[graph.block_of[made_at]]; j++) {
+            at := code.instructions.at(j);
+            if(at.kind == IR_SET_FIELD && at.first == value && at.declaration != null) {
+                if(at.declaration!!.name == "address") { address = constant_stored(code, graph, j, at.second); }
+                else if(at.declaration!!.name == "captured") { record = at.second; }
+                continue;
+            }
+            if(slot_written(at) == value || reads_slot(at, value) || is_jump(at) || at.kind == IR_LABEL) { break; }
+        }
+        if(address < 0 || address >= layout.functions.size()) { continue; }
+        callee := layout.functions.at(address);
+        if(callee.is_static == 0 || callee.kind == FUNCTION_NATIVE || callee.kind == FUNCTION_DELEGATE) { continue; }
+        passed : _int64 = 0;
+        if(call.arguments != null) { passed = call.arguments!!.count; }
+        if(passed + callee.of.takes_record != callee.parameter_count()) { continue; }
+        if(callee.of.takes_record == 1) {
+            // the record's slot must still hold that record at the call
+            if(record < 0 || written_after(code, graph, made_at, record)) { continue; }
+        }
+
+        // ---- the call by name
+        arguments := new number_list();
+        if(call.arguments != null) { arguments.add_all(call.arguments!!); }
+        if(callee.of.takes_record == 1) { arguments.add(record); }
+        call.kind = IR_CALL;
+        call.number = CALL_HOW_DIRECT;
+        call.declaration = callee.of;
+        call.arguments = arguments;
+        call.first = 0 - 1;
+        call.detail = 0 - 1;
+        done++;
+    }
+    // (an instruction reads other slots now: the blocks stand, liveness does not)
+    if(done > 0) { analyses.changed_reads(); }
+    return done;
+}
+
+/** the constant in `slot` as instruction `at` reads it, when the last write of it in the block is a constant; else -1 */
+def constant_stored(code: ir_function, graph: flow_graph, at: _int64, slot: _int64) : _int64 {
+    for(i : _int64 = at - 1; i >= graph.starts[graph.block_of[at]]; i--) {
+        made := code.instructions.at(i);
+        if(slot_written(made) != slot) { continue; }
+        if(made.kind == IR_INT_CONSTANT) { return made.number; }
+        return 0 - 1;
+    }
+    return 0 - 1;
+}

@@ -1,0 +1,76 @@
+mod backend.finalizer.obfuscation;
+
+import (
+    std.io
+)
+
+/**
+ * THE NEW NAMES, AND THE MAP BACK TO THE OLD ONES (doc/codegen.md 6.17)
+ *
+ *      0 -> a   1 -> b   ...   25 -> z   26 -> aa   27 -> ab   ...   52 -> ba ...
+ *
+ * The C++ compiler's kind of names (`generate_name`, finalizer/generation/
+ * obfuscation/obfuscator.cpp), but numbered by a counter in a fixed order -
+ * files, then classes by address with their fields, then functions by
+ * address - where the C++ compiler numbers by each declaration's unique id,
+ * which starts at a random offset (codegen.md 10, G9). Two compiles of one
+ * program therefore give the same names, which self-hosting needs (8.1).
+ *
+ * Every renaming is written down: `<output>.names` lists, one per line, what
+ * each new name stands for, so that a stack trace of an obfuscated program
+ * can be read back:
+ *
+ *      class  b        main#point
+ *      field  c        main#point.x
+ *      function  d     main#point.move
+ */
+class name_maker {
+    next : _int64 = 0;
+    lines : string_builder;
+    renamed : _int64 = 0;
+
+    name_maker() {
+        lines = new string_builder("");
+    }
+
+    /** the next new name, written into the map with what it stands for */
+    def rename(kind: string, old_name: string) : string {
+        made := generated_name(next);
+        next++;
+        renamed++;
+        lines.append(kind + "  " + made + "  " + old_name + "\n");
+        return made;
+    }
+}
+
+/**
+ * The name for number `id`: the letters counted the way spreadsheet columns
+ * are (a ... z, aa ... az, ba ... zz, aaa ...: "bijective base 26"), so every
+ * number has its own name and no name is used twice. (The C++ compiler means
+ * the same sequence; its arithmetic gives 26 -> `az`, 27 -> `aa`.)
+ */
+def generated_name(id: _int64) : string {
+    letters := "abcdefghijklmnopqrstuvwxyz".data!!;
+    backwards := new string_builder("");
+    rest : _int64 = id + 1;
+    while(rest > 0) {
+        rest = rest - 1;
+        backwards.append(letters[rest % 26]);
+        rest = rest / 26;
+    }
+    text := backwards.build().data!!;
+    made := new string_builder("");
+    for(i : _int64 = sizeof(text) - 1; i >= 0; i--) { made.append(text[i]); }
+    return made.build();
+}
+
+/** write the map of new names next to the executable; "" when it was written, else why not */
+def write_name_map(names: name_maker, path: string) : string {
+    try {
+        target := new file(path);
+        target.write("# the names obfuscation gave (kind, new name, what it stands for)\n" + names.lines.build());
+    } catch(e: exception) {
+        return "could not write the map of obfuscated names `" + path + "`: " + e.get_message();
+    }
+    return "";
+}

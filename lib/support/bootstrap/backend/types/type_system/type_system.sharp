@@ -1,0 +1,15 @@
+mod backend.types.type_system;
+
+/**
+ * TYPES: as written in the source, and as what a value is
+ *
+ * The files of this package (module `backend.types.type_system`):
+ *
+ *      sharp_type.sharp        a WRITTEN type: one place in the source where a type stands
+ *      type_compare.sharp      same_type on written types (declaration against declaration)
+ *      resolved_type.sharp     a RESOLVED type: what a value is; the table of built-in types
+ *      type_environment.sharp  "T is string": what the type parameters stand for in one generic instance
+ *      constant_value.sharp    a value the compiler knows while compiling (stage 6)
+ *
+ * This file is the package's front door: it only says what is where.
+ */

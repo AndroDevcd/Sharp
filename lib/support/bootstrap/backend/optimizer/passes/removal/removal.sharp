@@ -1,0 +1,26 @@
+mod backend.optimizer.passes.removal;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * THE PASSES THAT REMOVE: code whose work nobody sees
+ *
+ * Generated code is full of values made "just in case" - a constant loaded
+ * into a slot it is copied out of, a result nobody takes - and the value
+ * passes (passes/values) leave more of them behind each time they make a
+ * copy or a constant unnecessary. These passes take them away. They never
+ * remove anything the program can see: a store into a field or an element,
+ * a call, a jump, a return, anything that may raise an exception
+ * (analysis/instruction_facts.sharp, `has_effect`).
+ *
+ * The files of this package (module `backend.optimizer.passes.removal`):
+ *
+ *      removal.sharp               this front door
+ *      dead_stores.sharp           a value written where nobody reads it again (liveness)
+ *      dead_objects.sharp          an object that is made and filled but never read is not made
+ *      dead_code.sharp             values that only feed themselves ("mark and sweep")
+ *      unreachable_code.sharp      code control can never come to
+ */

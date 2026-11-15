@@ -1,0 +1,152 @@
+mod backend.postprocessor.imports;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.program,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * STAGE 2, IMPORTS: which modules each file sees
+ *
+ * The files of this package (module `backend.postprocessor.imports`):
+ *
+ *      imports.sharp        process_imports (the stage's driver): the import lines of every file
+ *      import_groups.sharp  import (a, b) as g
+ *      file_rules.sharp     the `mod` line: there is one and it is first
+ *
+ * This file is the package's front door and holds its driver.
+ */
+
+/**
+ * STAGE 2 OF THE BACKEND: IMPORTS
+ *
+ * Once every module is known (pre-processing), work out for each file which
+ * modules it can see.
+ *
+ * (The C++ compiler: postprocessor/import_processor.cpp.)
+ *
+ *      process_imports(prog, problems)     the way in
+ */
+def process_imports(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.files.size(); i++) {
+        resolve_imports(prog, prog.files.at(i), problems);
+    }
+}
+
+/** modules every file sees without importing them: the base classes, and print / println */
+def implicit_modules() : string[] {
+    return { "std", "std.io.console" };
+}
+
+/**
+ * Which modules can this file see?
+ *
+ *      its own module
+ *      std and std.io.console                  always, without an import
+ *      import ( std.io )                       that module
+ *      import ( std.io.* )                     std.io and every module whose name starts with "std.io."
+ *      import ( a.b, c.d ) as g                NOT visible by plain names: `g#name` looks in them (import_groups.sharp)
+ *
+ * A module that does not exist is an error, with the closest module names.
+ */
+def resolve_imports(prog: sharp_program, file: sharp_file, problems: list<diagnostic>) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+    file.imports.add(file.module);
+
+    always := implicit_modules();
+    for(i : _int64 = 0; i < sizeof(always); i++) {
+        found := prog.find_module(always[i]);
+        if(found != null && !file.imports_module(found!!)) {
+            file.imports.add(found!!);
+        }
+    }
+
+    statement : _int64 = tree.first_child!![0];
+    while(statement >= 0) {
+        if(tree.kinds!![statement] == N_IMPORT) {
+            group_name : _int64 = tree.child_of_kind(statement, N_NAME);
+            if(group_name >= 0) {
+                // import ( ... ) as name: a named list of modules, not visible by plain names (import_groups.sharp)
+                add_import_group(prog, file, statement, group_name, problems);
+            } else {
+                named := new list<string>();
+                item : _int64 = tree.first_child!![statement];
+                while(item >= 0) {
+                    if(tree.kinds!![item] == N_IMPORT_ITEM) {
+                        import_item(prog, file, item, problems);
+                        report_if_imported_twice(unit, item, named, problems);
+                    }
+                    item = tree.next_sibling!![item];
+                }
+            }
+        }
+        statement = tree.next_sibling!![statement];
+    }
+}
+
+/** one entry of an import list: `std.io` or `std.io.*` */
+def import_item(prog: sharp_program, file: sharp_file, item: _int64, problems: list<diagnostic>) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+    name := dotted_name(unit, item);
+    everything_under : _int64 = tree.child_of_kind(item, N_STAR) >= 0;
+
+    found_any : _int64 = 0;
+    exact := prog.find_module(name);
+    if(exact != null) {
+        found_any = 1;
+        if(!file.imports_module(exact!!)) { file.imports.add(exact!!); }
+    }
+
+    if(everything_under == 1) {
+        prefix := name + ".";
+        for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+            candidate := prog.module_list.at(i);
+            if(candidate.name.starts_with(prefix)) {
+                found_any = 1;
+                if(!file.imports_module(candidate)) { file.imports.add(candidate); }
+            }
+        }
+    }
+
+    if(found_any == 0) {
+        file.missing_imports.add(name);
+        report_unknown_module(prog, unit, item, name, everything_under, problems);
+    }
+}
+
+def report_unknown_module(prog: sharp_program, unit: source_unit, item: _int64, name: string,
+                          everything_under: _int64, problems: list<diagnostic>) {
+    known := new list<string>();
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        known.add(prog.module_list.at(i).name);
+    }
+
+    d := error_at_names("E0303", "there is no module named `" + name + "`", unit, item)
+        .with_label("no file that is being compiled starts with `mod " + name + ";`");
+
+    close := closest_names(name, known, 3);
+    suggestion := did_you_mean(close);
+    if(sizeof(suggestion.data) > 0) {
+        d.with_help(suggestion);
+    }
+    // what the import most likely meant: the names those modules declare are not reported
+    // as unknown in this file on top of this message (sharp_file.brought_by_a_misspelt_import)
+    file := prog.file_of(unit);
+    for(i : _int64 = 0; file != null && i < close.size(); i++) {
+        meant := prog.find_module(close.at(i));
+        if(meant != null) { file!!.meant_imports.add(meant!!); }
+    }
+    if(everything_under == 1) {
+        d.with_note("`" + name + ".*` imports `" + name + "` and every module whose name starts with `" + name + ".`; there is none");
+    } else {
+        d.with_note("a module exists when at least one of the compiled files declares it; check that the file is part of the build");
+    }
+    problems.add(d);
+}

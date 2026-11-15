@@ -1,0 +1,12 @@
+// expect: E0100
+// help: class circle base shape
+// replace: class circle extends shape
+mod tests.helps;
+import (std, std.io);
+
+class shape { }
+class circle extends shape { }
+
+def main() {
+    s : shape = new circle();
+}

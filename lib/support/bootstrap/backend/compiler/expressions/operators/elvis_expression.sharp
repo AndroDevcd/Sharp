@@ -1,0 +1,79 @@
+mod backend.compiler.expressions.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE ELVIS OPERATOR:  value ?: fallback
+ *
+ *      title := name ?: "untitled";        name when it is not null, else "untitled"
+ *
+ * The fallback must fit the type of the value (a `string` for a `string?`;
+ * built through the class like any conversion, so "untitled" works). The
+ * result has the value's type, and is non-null when the fallback is:
+ * `name ?: "x"` is a `string`, `name ?: other_maybe` is still a `string?`.
+ *
+ *      E0724   the fallback does not fit the value's type
+ *      W1006   the value is never null, so the fallback is never used
+ *
+ *      C++ comparison: compiler/expressions/elvis_expression.cpp.
+ */
+def analyse_elvis(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    value_node : _int64 = tree.first_child!![node];
+    fallback_node : _int64 = second_child_of(context, node);
+    error_type : resolved_type = context.session.types.error_type;
+    if(value_node < 0 || fallback_node < 0) { return new bound_error(context.unit, node, error_type); }
+
+    value := analyse_value(context, value_node, null);
+    type : resolved_type = value.type;
+    fallback := analyse_value(context, fallback_node, type);
+    if(type.kind == RT_ERROR || fallback.type.kind == RT_ERROR) {
+        return new bound_elvis(context.unit, node, value, fallback, error_type);
+    }
+
+    if(!type.can_be_null() && is_number_through_safe_navigation(value)) {
+        // `maybe?.x ?: -1` with a number `x`: W1027 at the `?.` has said it all, with the fix
+        return value;
+    }
+    if(!type.can_be_null()) {
+        d := problem_at(context, "W1006", "`?:` is not needed: `" + source_text_of(context, value_node) + "` is never null", node);
+        d.with_label("`" + type.to_text() + "` cannot be null, so the part after `?:` is never used");
+        d.with_help("remove `?: " + source_text_of(context, fallback_node) + "`");
+        report(context, d);
+        return value;
+    }
+
+    how := find_conversion(context.session, fallback.type, type, 1);
+    if(how.kind == CONV_NONE) {
+        d := problem_over(context, "E0724", "the fallback of `?:` must be a `" + type.as_non_null().to_text() + "`, but this is "
+                          + described_type(fallback.type), fallback_node);
+        d.with_label("does not fit `" + type.to_text() + "`");
+        d.with_note("`a ?: b` gives `a`, or `b` when `a` is null - so both must be the same kind of thing");
+        d.with_help("give a `" + type.as_non_null().to_text() + "` to fall back on; to do something else when `"
+                    + source_text_of(context, value_node) + "` is null, test it: `if(" + source_text_of(context, value_node) + " == null) { ... }`");
+        report(context, d);
+        return new bound_elvis(context.unit, node, value, fallback, error_type);
+    }
+
+    result_type : resolved_type = type;
+    if(!fallback.type.can_be_null()) { result_type = type.as_non_null(); }
+    if(how.kind != CONV_IDENTITY && how.kind != CONV_ERROR) { fallback = new bound_conversion(fallback, how); }
+    return new bound_elvis(context.unit, node, value, fallback, result_type);
+}
+
+/** is `value` a `?.` chain that ends in a plain number (the case W1027 warns about)? */
+def is_number_through_safe_navigation(value: bound_expression) : _int64 {
+    return value.kind == BX_SAFE_NAVIGATION && value.type.is_number();
+}

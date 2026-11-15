@@ -1,0 +1,82 @@
+mod backend.types.declarations;
+
+import (
+    std.io
+)
+
+/**
+ * A CLOSURE RECORD: the variables of one function that its lambdas use
+ *
+ *      def make_counter() : ()(int) {
+ *          total := 0;                                     captured: lives in the record of make_counter
+ *          return { -> (int) total++; return total; };     the lambda is handed that record
+ *      }
+ *
+ * A lambda may outlive the call of the function it was written in (here it
+ * is returned), and it must still reach `total`. So a captured variable does
+ * not live in the function's stack frame at all but in a small object made
+ * at the start of EVERY call of the function: its closure record. The
+ * textbook calls this "closure conversion". The lambda's function value
+ * carries the record, and the lambda receives it as a hidden last argument.
+ * One record per call means recursion and fibers each have their own
+ * variables.
+ *
+ *      function        the function whose variables these are; null for the
+ *                      value of a field (a lambda there can capture only
+ *                      `self`): then `field` says which
+ *      variables       the captured locals and parameters, in the order they were
+ *                      first captured. A captured parameter is copied into the
+ *                      record when the function is entered.
+ *      captures_self   1: a lambda inside uses `self` (or a field or function of
+ *                      the object), so the object is kept in the record too
+ *      parent          the record THIS function was handed, when it is itself a
+ *                      lambda and a lambda inside it reaches further out: a use
+ *                      two lambdas deep follows `parent` once
+ *
+ * Whether a variable is captured is a fact about the VARIABLE
+ * (`local_variable.is_captured`), final only when the whole function has been
+ * analysed - a lambda near the end of a function can capture a local used
+ * twenty lines earlier. Each USE says how far away its variable is
+ * (`bound_local.depth`, `bound_self.depth`); with these two a code generator
+ * finds every variable without another question:
+ *
+ *      depth 0, not captured     the stack frame
+ *      depth 0, captured         the record of this function
+ *      depth d > 0               the record this lambda was handed, then `parent`
+ *                                d - 1 times
+ *
+ *      C++ comparison: dependency/closure_capture.cpp - a class
+ *      `closure_<function>` per function, hidden locals `__closure` and
+ *      `__captured`, and a field `__parent`. The old compiler keeps a
+ *      captured local in the frame AND in the object and copies every write,
+ *      which works only for objects; here the record is the only home, so a
+ *      number can be captured too (D10).
+ */
+class closure_record {
+    function : sharp_function?;
+    field : sharp_field?;
+    variables : list<local_variable>;
+    captures_self : _int64 = 0;
+    parent : closure_record?;
+
+    // ---- set by code generation (backend/finalizer/layout/synthesized.sharp, doc/codegen.md 6.12):
+    // the record becomes a class of its own, `closure_<function>`, with one field per
+    // captured variable (`local_variable.storage`) and these two hidden ones
+    record_class : sharp_class?;
+    parent_field : sharp_field?;            // `@parent`: the record this function was handed (when `parent` is set)
+    self_field : sharp_field?;              // `@self`: the object (when `captures_self`)
+
+    closure_record(function: sharp_function?, field: sharp_field?) {
+        self->function = function;
+        self->field = field;
+        variables = new list<local_variable>();
+    }
+
+    /** `variable` lives in this record from now on (once, however often it is used) */
+    def add(variable: local_variable) {
+        for(i : _int64 = 0; i < variables.size(); i++) {
+            if(variables.at(i) == variable) { return; }
+        }
+        variables.add(variable);
+    }
+}

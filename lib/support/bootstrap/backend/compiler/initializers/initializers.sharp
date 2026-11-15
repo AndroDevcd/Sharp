@@ -1,0 +1,152 @@
+mod backend.compiler.initializers;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.compiler.context
+)
+
+/**
+ * STAGE 9, PART TWO: HOW OBJECTS, CLASSES AND THE PROGRAM ARE SET UP
+ *
+ *      class account base record {
+ *          static opened := 0;                 static part: once, before the class is first used
+ *          balance : decimal = 0;              instance part: for every new object
+ *          owner : string;                     (a string starts as "" - a default object)
+ *          init { opened++; }
+ *          account(o: string) -> base(o) { owner = o; }
+ *      }
+ *
+ * What runs when `new account("ann")` is evaluated (doc/backend.md 7.15.2):
+ *
+ *   1. the base constructor: `record(o)` here; with no `-> base(...)`
+ *      written, the base class's constructor without parameters
+ *      (base_calls.sharp; `sharp_function.bound_base_call`);
+ *   2. once per class, before its first object or static use, the class's
+ *      static part: `sharp_class.static_initializers`;
+ *   3. the instance part: `sharp_class.instance_initializers` - the fields
+ *      with a value or a default object, then the `init { }` blocks;
+ *   4. the constructor's own body.
+ *
+ * Analysis records each of these lists on the class, so that a code generator
+ * emits them without knowing the rule. The globals of a module run when the
+ * program starts (`sharp_module.global_initializers`); `localized` statics and
+ * globals once for every fiber (`fiber_initializers`). Field values are put
+ * in an order in which each comes after the values it reads
+ * (initialization_order.sharp).
+ *
+ * This front door holds the pass that builds the lists, `order_initializers`
+ * - a pass of its own over the finished bodies, with its own entry on the
+ * `time:` line. The rest of the package is used while bodies are analysed:
+ *
+ *      initializers.sharp          this front door: order_initializers, the lists of a class and a module
+ *      initialization_order.sharp  field values in an order in which each comes after what it reads (W1031)
+ *      base_calls.sharp            the implied `-> base()` of every constructor; constructors the compiler
+ *                                  added; W1024 (a `-> base(...)` argument reading a field)
+ *      enum_values.sharp           the numbers of enum values (E0940, W1030)
+ *
+ *      C++ comparison: compiler/functions/init_compiler.cpp (`init<C>`,
+ *      `static_init<C>`), compiler/field_compiler.cpp, the finalizer's
+ *      field_injector.cpp (field values injected in front of the init code)
+ *      and platform `static_init` / `tls_init`.
+ */
+def order_initializers(session: analysis_session) {
+    prog : sharp_program = session.prog;
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) { order_module(session, prog.module_list.at(i)); }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) { order_class(session, prog.all_classes.at(i)); }
+    for(i : _int64 = 0; i < prog.generic_instances.size(); i++) { order_class(session, prog.generic_instances.at(i)); }
+}
+
+/** the globals of one module: what runs when the program starts, and per fiber */
+def order_module(session: analysis_session, module: sharp_module) {
+    plain := new list<sharp_field>();
+    per_fiber := new list<sharp_declaration>();
+    for(i : _int64 = 0; i < module.fields.size(); i++) {
+        field := module.fields.at(i);
+        set_default_object(session, field);
+        if(!runs_at_start(field)) { continue; }
+        if(field.has(FLAG_LOCALIZED)) { per_fiber.add(field); }
+        else { plain.add(field); }
+    }
+    module.global_initializers = as_declarations(in_reading_order(session, plain, 0));
+    module.fiber_initializers = per_fiber;
+}
+
+/** the three lists of one class whose bodies were analysed */
+def order_class(session: analysis_session, declared: sharp_class) {
+    if(declared.bodies_analysed == 0 || declared.is_open() || declared.failed_constraint >= 0 || declared.inside_refused_instance == 1) { return; }
+    if(declared.instance_initializers != null) { return; }        // done (an instance is in both lists)
+
+    instance_fields := new list<sharp_field>();
+    static_fields := new list<sharp_field>();
+    per_fiber := new list<sharp_declaration>();
+    for(i : _int64 = 0; i < declared.fields.size(); i++) {
+        field := declared.fields.at(i);
+        set_default_object(session, field);
+        if(!runs_at_start(field)) { continue; }
+        if(!field.has(FLAG_STATIC)) { instance_fields.add(field); }
+        else if(field.has(FLAG_LOCALIZED)) { per_fiber.add(field); }
+        else { static_fields.add(field); }
+    }
+
+    instance := as_declarations(in_reading_order(session, instance_fields, 1));
+    statics := new list<sharp_declaration>();
+    for(i : _int64 = 0; i < declared.enum_values.size(); i++) { statics.add(declared.enum_values.at(i)); }
+    ordered_statics := in_reading_order(session, static_fields, 0);
+    for(i : _int64 = 0; i < ordered_statics.size(); i++) { statics.add(ordered_statics.at(i)); }
+
+    for(i : _int64 = 0; i < declared.init_blocks.size(); i++) {
+        block := declared.init_blocks.at(i);
+        if(block.parameters.size() > 0) { continue; }          // init(x): a conversion function, not part of setting up
+        if(block.has(FLAG_STATIC)) { statics.add(block); }
+        else { instance.add(block); }
+    }
+    declared.instance_initializers = instance;
+    declared.static_initializers = statics;
+    declared.fiber_initializers = per_fiber;
+}
+
+/**
+ * Does the field get something when its object, class or program is set up:
+ * a value, a default object, or - `inject db : database;` - what a component
+ * definition provides (`sharp_field.injected_from`, components/injections.sharp)?
+ */
+def runs_at_start(field: sharp_field) : _int64 {
+    return field.bound_initializer != null || field.default_constructor != null || field.injected_from != null;
+}
+
+/**
+ * `count : int;` `name : string;` as a field: written without a value, of a
+ * number class or `string`, neither nullable nor an array - it starts as an
+ * object made by the class's constructor without parameters, like a local
+ * (7.3). An injected field (`inject db : database;`) is filled by the
+ * component system instead.
+ *
+ * A field WRITTEN with a type parameter (`value : T;` in `class
+ * deferred_init<T>`) gets no default object in any instance, also where `T`
+ * is `string` or a number class: the generic class is written for every `T`,
+ * and its code tests such a field against null (the library's
+ * deferred_init<T> computes its value on the first read when `value ==
+ * null`). It starts null, as in the C++-built program (suite case
+ * std_misc_fixes; doc/codegen.md 13.3, G23).
+ */
+def set_default_object(session: analysis_session, field: sharp_field) {
+    if(field.has_initializer() || field.inject_node >= 0 || field.value_type == null) { return; }
+    if(field.origin != null && field.origin!!.value_type != null && field.origin!!.value_type!!.kind == RT_TYPE_PARAMETER) {
+        return;
+    }
+    type : resolved_type = field.value_type!!;
+    if(type.kind != RT_CLASS || type.is_array == 1 || type.is_nullable == 1) { return; }
+    made : sharp_class = type.class_of!!;
+    if(!session.known.is_box(made) && made != session.known.string_class) { return; }
+    field.default_constructor = made.default_constructor;
+}
+
+/** the fields as declarations (the lists also hold init blocks and enum values) */
+def as_declarations(fields: list<sharp_field>) : list<sharp_declaration> {
+    made := new list<sharp_declaration>();
+    for(i : _int64 = 0; i < fields.size(); i++) { made.add(fields.at(i)); }
+    return made;
+}

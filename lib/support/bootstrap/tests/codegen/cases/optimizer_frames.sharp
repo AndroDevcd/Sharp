@@ -1,0 +1,207 @@
+mod main;
+
+// output:
+// 9007584
+// 27946952
+// 47
+// 25
+// 0
+// -1
+// 51
+// 2500
+// 2.5
+// 5008
+// 40
+// 249
+// 7
+// 300073
+// 201110
+// 101181
+// 104
+// 100118
+// 31.75
+// 514586
+
+
+/*
+ * THE OPTIMIZER, SLOT PACKING (doc/codegen.md 7.2, 13.7; backend/optimizer/passes/registers/
+ * slot_packing.sharp): values that are never alive at the same time share one slot of the frame
+ *
+ * Like cases/optimizer.sharp, nothing here has a result of its own: codegen.sh builds the file
+ * plain and with -O, and both must print the block the C++-built program prints. Written by the
+ * verifier of the self-hosting stage; each part is a way a pass that renumbers slots goes wrong:
+ *
+ *   - two values that ARE alive at the same time put into one slot (the sums below would change);
+ *   - a local that is read before anything is written into it (it must be 0, 0.0 or null) sharing
+ *     with a value that was there earlier - also a parameter nobody reads;
+ *   - a value that is alive around a loop, and one that is only alive inside it;
+ *   - the slot the VM itself writes when a `catch` or a `finally` begins: what is read after the
+ *     handler was assigned before the instruction that raised, and must still be there;
+ *   - integers, decimals and references mixed: a slot keeps its kind;
+ *   - THE POINT OF THE PASS: a function that recurses deeply. Its frame with -O must not be
+ *     larger than without (it was 2.5 times as large before this pass, and `deep` below ran out
+ *     of stack with -O only).
+ */
+
+class pair {
+    left : _int64 = 0;
+    right : _int64 = 0;
+    weight : decimal = 0;
+    other : pair?;
+
+    pair(left: _int64, right: _int64) {
+        self->left = left;
+        self->right = right;
+    }
+
+    def get_left() : _int64 { return left; }
+    def get_right() : _int64 { return right; }
+    def sum() : _int64 { return left + right; }
+    def scaled(by: decimal) : decimal { return (left + right) * by; }
+}
+
+def add3(a: _int64, b: _int64, c: _int64) : _int64 { return a + b + c; }
+def twice(a: _int64) : _int64 { return a + a; }
+def fails(a: _int64) : _int64 {
+    if(a > 2) { throw new exception("too large"); }
+    return a;
+}
+
+/** many values alive at once: every one of them is read after all were made */
+def all_alive(n: _int64) : _int64 {
+    a : _int64 = n + 1;
+    b : _int64 = twice(n) + 2;
+    c : _int64 = add3(a, b, n);
+    d : _int64 = twice(c) - a;
+    e : _int64 = add3(d, c, b) * 2;
+    f : _int64 = e - d + twice(a);
+    return a + b * 10 + c * 100 + d * 1000 + e * 10000 + f * 100000;
+}
+
+/** values that follow each other: none is needed once the next is made */
+def one_after_the_other(n: _int64) : _int64 {
+    a : _int64 = twice(n);
+    b : _int64 = twice(a) + 1;
+    c : _int64 = twice(b) + 1;
+    d : _int64 = twice(c) + 1;
+    e : _int64 = twice(d) + 1;
+    return e;
+}
+
+/** locals nothing is written into on one path: 0, 0.0 and null, whatever was in the frame before */
+def unset_locals(n: _int64) : _int64 {
+    early : _int64 = add3(n, n, n) + twice(n);
+    show(early);
+    whole : _int64;
+    part : decimal;
+    thing : pair?;
+    if(n > 100) {
+        whole = 7;
+        part = 2.5;
+        thing = new pair(1, 2);
+    }
+    late : _int64 = twice(early) + 1;
+    show_decimal(part);
+    if(thing == null) { show(0 - 1); }
+    return whole + late;
+}
+
+/** parameters nobody reads: their slots may be used again, the ones that are read may not */
+def unread_parameters(a: _int64, b: _int64, c: decimal, d: pair?, e: _int64) : _int64 {
+    x : _int64 = twice(e) + 1;
+    y : _int64 = add3(x, x, e);
+    z : _int64 = twice(y) - x;
+    return z + e + a;
+}
+
+/** `total` and `p` live around the loop, `step` and the getters' values only inside it */
+def around_a_loop(count: _int64) : _int64 {
+    p := new pair(3, 4);
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        step : _int64 = p.get_left() * i + p.get_right();
+        if(step > 10) { total = total + twice(step); }
+        else { total = total + step; }
+        p.left = p.left + 1;
+    }
+    return total + p.sum();
+}
+
+/** what was assigned before the call that raises is read in the handler and after it */
+def around_a_catch(n: _int64) : _int64 {
+    before : _int64 = twice(n) + 5;
+    reached : _int64 = 0;
+    result : _int64 = 0;
+    try {
+        reached = 1;
+        first : _int64 = fails(n);
+        reached = 2;
+        second : _int64 = fails(n + 1);
+        reached = 3;
+        result = first + second;
+    } catch(e: exception) {
+        after : _int64 = twice(before) + reached;
+        result = after + 1000;
+    }
+    return result + before * 10 + reached * 100000;
+}
+
+/** a finally runs on both ways out; two handlers one inside the other */
+def around_a_finally(n: _int64) : _int64 {
+    steps : _int64 = 0;
+    kept : _int64 = add3(n, 10, 20);
+    try {
+        try {
+            steps = steps + 1;
+            fails(n);
+            steps = steps + 10;
+        } finally {
+            steps = steps + twice(kept);
+        }
+    } catch(e: exception) {
+        steps = steps + 100000;
+    }
+    return steps + kept;
+}
+
+/** integers, decimals and references made in turn */
+def mixed_kinds(n: _int64) : decimal {
+    p := new pair(n, n + 1);
+    half : decimal = p.scaled(0.5);
+    q := new pair(twice(n), 3);
+    q.other = p;
+    whole : _int64 = q.sum() + p.get_left();
+    third : decimal = q.scaled(0.25) + half;
+    r : pair = q.other!!;
+    return third + whole + r.get_right() + half;
+}
+
+/**
+ * Recursion: the frame of `deep` holds its locals and what the calls it takes in need. 450
+ * frames of it must fit the fiber's stack with -O as they do without.
+ */
+def deep(n: _int64, p: pair) : _int64 {
+    if(n == 0) { return p.sum(); }
+    a : _int64 = p.get_left() + twice(n);
+    b : _int64 = add3(a, p.get_right(), n);
+    below : _int64 = deep(n - 1, p);
+    return (below + a + b) % 1000003;
+}
+
+def main() {
+    show(all_alive(3));
+    show(all_alive(11));
+    show(one_after_the_other(1));
+    show(unset_locals(5));
+    show(unset_locals(500));
+    show(unread_parameters(1, 2, 3.5, null, 4));
+    show(around_a_loop(6));
+    show(around_a_loop(0));
+    show(around_a_catch(1));
+    show(around_a_catch(2));
+    show(around_a_catch(5));
+    show(around_a_finally(1));
+    show(around_a_finally(9));
+    show_decimal(mixed_kinds(4));
+    show(deep(450, new pair(5, 6)));
+}

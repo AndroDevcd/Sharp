@@ -1,0 +1,17 @@
+mod backend.reports;
+
+/**
+ * REPORTS: options that print what the backend worked out, for the owner to inspect
+ *
+ * The files of this package (module `backend.reports`):
+ *
+ *      declaration_printer.sharp  the -declarations option
+ *      analysis_printer.sharp     the -analysis option: the typed tree of a file's functions (stage 6) - the
+ *                                 walk over the declarations, the headings, the locals with their slots
+ *      expression_printer.sharp   ... the expressions of a tree, one line per node
+ *      statement_printer.sharp    ... and its statements (stage 8)
+ *      analysis_stats.sharp       the -analysis-stats option: how much was analysed (stage 6)
+ *      program_printer.sharp      the analysed program in a few lines: main, how much to generate, what is reached (stage 10)
+ *
+ * This file is the package's front door: it only says what is where.
+ */

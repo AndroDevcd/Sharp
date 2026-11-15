@@ -28,7 +28,8 @@ bool warning_options[] = {
 int supportedLibVersions = 2;
 string supported_versions[] = {
         "0.2.9",
-        "0.3.0"
+        "0.3.0",
+        "0.4.0"
 };
 
 void warning(string message) {

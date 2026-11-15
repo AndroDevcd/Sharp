@@ -1,0 +1,36 @@
+mod backend.compiler.expressions.primary;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.names
+)
+
+/**
+ * A PLAIN NAME:  total   print   string   red
+ *
+ * The name is looked up (backend/compiler/names/name_lookup.sharp: locals,
+ * the class and its bases, the modules the file sees) and what was found is
+ * turned into a tree node (found_names.sharp). Nothing found is E0400 with
+ * the closest names that exist, or E0407 when the name is a local declared
+ * further down.
+ *
+ * @param is_called  1: the name is followed by `(`. It changes only the
+ *                   wording of "not found" ("no function, class or variable").
+ */
+def analyse_identifier(context: analysis_context, node: _int64, is_called: _int64) : bound_expression {
+    name := name_at(context, node);
+    found := look_up_name(context, name, node);
+    if(found.kind == FOUND_NOTHING) {
+        report_unknown_name(context, name, node, is_called);
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    return expression_for_found(context, found, node, name);
+}

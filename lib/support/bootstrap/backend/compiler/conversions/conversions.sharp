@@ -1,0 +1,32 @@
+mod backend.compiler.conversions;
+
+/**
+ * THE CONVERSION RULES: which type can be given where which type is wanted
+ *
+ * Whenever a value is given to something that has a type - a variable, a
+ * field, a parameter, an array item, a `return` - the compiler asks ONE
+ * question, here: "does a value of type S become a T, and how?". The answer
+ * is a `conversion` object (backend/types/typed_tree/conversion.sharp):
+ *
+ *      the same            CONV_IDENTITY       nothing to do
+ *      implicitly          CONV_NUMERIC, CONV_UPCAST, CONV_NULL ...   the compiler does it unasked
+ *      only with a cast    CONV_NONE + WHY_NEEDS_CAST                  possible, but must be written `as`
+ *      impossible          CONV_NONE + another WHY_...                 with the reason, for the message
+ *
+ * The files of this package (module `backend.compiler.conversions`):
+ *
+ *      conversions.sharp           this front door
+ *      implicit_conversion.sharp   find_conversion: THE TABLE of what converts to what without being asked
+ *      class_conversion.sharp      classes: up and down the base chain, interfaces; through a constructor
+ *      explicit_conversion.sharp   find_cast: what `value as type` may do
+ *      number_classes.sharp        int, bool, char ... objects used as their number (conditions, indexes)
+ *      convert.sharp               convert: apply the table to a typed-tree expression, or report why not
+ *      conversion_messages.sharp   the messages: E0410, E0720, E0721, E0406, W1017
+ *      mismatch_explanations.sharp for E0410: the rule in the way and the text to write instead
+ *      inferred_types.sharp        the type of `x := value`: what a variable becomes without a written type
+ *
+ *      C++ comparison: types/sharp_type.cpp (`is_implicit_type_match`,
+ *      `is_explicit_type_match`, the match_* bits) and
+ *      compiler/numeric_conversion.cpp. The rules are the same; they are
+ *      written here as one table per question instead of one long function.
+ */

@@ -419,7 +419,7 @@ read them as null.)
 ## 13. Function values
 
 - Value. A function value is an OBJECT: an instance of
-  `platform.kernel#function_value` (`lib/support/0.3.0/platform/kernel/function_value.sharp`)
+  `platform.kernel#function_value` (`lib/support/0.4.0/platform/kernel/function_value.sharp`)
   with a number slot `address` (the function's index in the method table) and
   an object slot `captured` (the closure object of the function that made a
   lambda, or null). `process_get_static_function_address` builds one wherever
@@ -459,7 +459,15 @@ always called from Sharp code.
 
 When a thread continues a fiber after a context switch, the native side of the
 fiber's call stack is rebuilt from the bottom so JIT compiled frames get their
-machine frames back (`next_rebuild_frame`, by call depth).
+machine frames back (`next_rebuild_frame`, by call depth). Only functions that
+were RUNNING as machine code when they made their call are entered that way:
+the frame of the call says so (`frame.native`). A function that was
+interpreted then and has been compiled since - by another thread, while this
+fiber waited - stays in the interpreter until it returns
+(`continues_in_machine_code`, `virtual_machine.cpp`). Entering it as machine
+code let a nested interpreter loop run the rest of the fiber, and the outer
+loop dispatch past the end of `fiber_main` (fixed 2026-11-14,
+`tests/suite/cases/lib_coroutines_resume_after_compile.sharp`).
 
 Locks: every `lock(x) { }` block a fiber is inside of is recorded
 (`fiber::held`); `catch_exception` releases the blocks an exception leaves, and

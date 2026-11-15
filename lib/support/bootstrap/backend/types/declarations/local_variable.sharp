@@ -1,0 +1,68 @@
+mod backend.types.declarations;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system
+)
+
+/**
+ * A LOCAL VARIABLE: a parameter of a function, or a variable declared in its body
+ *
+ *      def area(width: decimal) : decimal {    width   a parameter
+ *          half := width / 2;                  half    a local
+ *          ...
+ *
+ * Fields and globals are declarations of the PROGRAM (sharp_field). A local
+ * belongs to one function; `sharp_function.locals` lists them, parameters
+ * first, then every local in the order it is declared - the position in that
+ * list (`index`) is what a code generator will use as its slot.
+ *
+ * The same function inside two instances of a generic class (box<string>,
+ * box<_int64>) is two sharp_function objects, so each has its own locals with
+ * its own types.
+ *
+ *      C++ comparison: a local is a sharp_field there too, kept in the
+ *      function's `locals` with a block id (`stored_block_info`). Here it is
+ *      its own small class, and the block it lives in is a local_scope
+ *      (backend/compiler/context/local_scope.sharp).
+ */
+class local_variable {
+    name : string;
+    type : resolved_type;
+    unit : source_unit;
+    node : _int64;                      // where it is declared (the N_VARIABLE or N_PARAMETER node)
+    function : sharp_function?;         // the function it belongs to; null in the value of a field
+    index : _int64 = 0;                 // its position in function.locals
+    is_parameter : _int64 = 0;
+    is_const : _int64 = 0;
+    is_localized : _int64 = 0;          // one value per fiber
+    is_hidden : _int64 = 0;             // made by the compiler, not written by the programmer
+    is_captured : _int64 = 0;           // a lambda inside the function uses it (set by the lambda stage)
+    reads : _int64 = 0;                 // how often it is read (for later warnings)
+    writes : _int64 = 0;
+    asm_operand : _int64 = 0 - 1;       // the first `[name]` of an asm block of its function that names it (the
+                                        // operand's node, in `unit`); -1 when no asm block does. asm needs the
+                                        // variable in the frame, a capture moves it out: E0925 (context/closures.sharp)
+    // One mistake, one message (statements/local_declaration.sharp, members/member_receiver.sharp):
+    value_refused : _int64 = 0;         // its written type refused the value it was declared with (reported):
+                                        // which of the two is wrong is not known, so it is READ as the error
+                                        // type and its uses say nothing more
+    null_reported : _int64 = 0;         // `.x` on it while it may be null was reported once; later uses are quiet
+    // set by code generation (backend/finalizer/generation): its slot in the frame of the function
+    // whose code holds it - `index` (+1 when there is a `self`), or later for an `init { }` block
+    // generated inside init<C> (doc/codegen.md 4.4, 6.14); -1 until then
+    slot : _int64 = 0 - 1;
+    // set by code generation for a variable that does NOT live in the frame (doc/codegen.md 6.12,
+    // 6.17): a captured variable's field in its function's closure record class, or for a
+    // `localized` variable a fiber-local field of its own (its slot at the bottom of every
+    // fiber's stack). Null for every other variable.
+    storage : sharp_field?;
+
+    local_variable(name: string, type: resolved_type, unit: source_unit, node: _int64) {
+        self->name = name;
+        self->type = type;
+        self->unit = unit;
+        self->node = node;
+    }
+}
