@@ -12,7 +12,7 @@ int str_start(int argc, const char* argv[]);
 void error(string message);
 
 #define progname "sharp"
-#define rev "r10"
+#define rev "r11"
 #define progvers "4.0.0" rev
 
 struct options {

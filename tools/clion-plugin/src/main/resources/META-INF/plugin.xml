@@ -19,8 +19,9 @@
         commenting, code folding and a colour settings page.</p>
         <p>The compiler's errors and warnings are shown in the editor after a save, and code completion,
         parameter hints, hover, go to declaration, the structure view and go to class / symbol answer from
-        the index the compiler writes on each run. This needs the Sharp compiler: set how to run it under
-        Settings &gt; Languages &amp; Frameworks &gt; Sharp. Highlighting works without it.</p>
+        the index the compiler writes on each run. A "Sharp Program" run configuration compiles a folder of
+        Sharp code and runs it, with the output in the Run console. All of this uses the installed Sharp
+        (the release's win-install / unix-install); highlighting works without it.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
@@ -65,6 +66,11 @@
         <!-- the standard library, when it lies outside the project, listed under External Libraries -->
         <additionalLibraryRootsProvider implementation="sharp.ide.library.SharpLibraryRootsProvider"/>
 
+        <!-- build and run: the "Sharp Program" run configuration, "Run" from a right-click, the program folder's mark -->
+        <configurationType implementation="sharp.ide.execution.SharpRunConfigurationType"/>
+        <runConfigurationProducer implementation="sharp.ide.execution.SharpRunConfigurationProducer"/>
+        <projectViewNodeDecorator implementation="sharp.ide.execution.SharpProgramFolderDecorator"/>
+
         <!-- settings: the page and the quiet notifications -->
         <projectConfigurable parentId="language" instance="sharp.ide.settings.SharpConfigurable"
                              id="sharp.settings" displayName="Sharp"/>
@@ -84,6 +90,14 @@
     </projectListeners>
 
     <actions>
+        <action id="Sharp.SetProgramFolder" class="sharp.ide.execution.SetSharpProgramFolderAction"
+                text="Set as Sharp Program Folder" description="The .sharp files of this folder are the program the IDE checks and runs">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="Sharp.NewProject" class="sharp.ide.execution.NewSharpProjectAction"
+                text="New Sharp Project Here" description="Make this folder a Sharp project: settings.json, src/main.sharp, build/">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
         <action id="Sharp.RunCheckNow" class="sharp.ide.run.RunSharpCheckNowAction"
                 text="Run Sharp Check Now" description="Run the Sharp compiler on the program now and show its errors">
             <add-to-group group-id="ToolsMenu" anchor="last"/>

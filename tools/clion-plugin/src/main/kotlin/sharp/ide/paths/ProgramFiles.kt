@@ -44,6 +44,8 @@ data class ProgramSettings(
     val sourceRoots: List<String>,
     val excludedFolders: List<String>,
     val libraryPath: String,
+    /** The library of the installed Sharp (sharp.ide.toolchain), "" when there is none: used when nothing else names one. */
+    val installedLibrary: String = "",
 )
 
 /** The program of a project: its library root and its source roots, after the automatic defaults are applied. */
@@ -60,7 +62,11 @@ object ProgramFiles {
         val library = settings.libraryPath.trim().let {
             when {
                 it.isNotEmpty() -> absolute(base, it)
+                // the project holds the library's own source (the Sharp repository): that copy is the one being worked on
                 base.isNotEmpty() && Files.isDirectory(Paths.get("$base/$LIBRARY_FOLDER")) -> "$base/$LIBRARY_FOLDER"
+                // any other project: the library that was installed with Sharp
+                settings.installedLibrary.isNotBlank() && Files.isDirectory(Paths.get(normalise(settings.installedLibrary))) ->
+                    normalise(settings.installedLibrary)
                 else -> null
             }
         }

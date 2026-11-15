@@ -45,10 +45,12 @@ class SharpConfigurable(private val project: Project) :
                     checkBox("Check the program with the compiler when a file is saved")
                         .bindSelected(projectState::enabled)
                 }
-                row("Source folders:") {
+                row("Program folder:") {
                     textArea()
                         .rows(3).columns(COLUMNS_LARGE)
-                        .comment("One folder per line, absolute or relative to the project folder. Empty: automatic (the project folder, or lib/support/bootstrap in the Sharp repository).")
+                        .comment("The folder whose .sharp files are the program (one per line for more than one; absolute or relative to the project folder). " +
+                            "Also set by right-clicking a folder in the Project view: Set as Sharp Program Folder. " +
+                            "Empty: automatic (the project folder, or lib/support/bootstrap in the Sharp repository).")
                         .bindText(
                             { projectState.sourceRoots.joinToString("\n") },
                             { projectState.sourceRoots = splitLines(it) },
@@ -66,7 +68,7 @@ class SharpConfigurable(private val project: Project) :
                 row("Standard library:") {
                     textField()
                         .columns(COLUMNS_LARGE)
-                        .comment("The folder of the standard library. Empty: lib/support/0.4.0 of the project.")
+                        .comment("The folder of the standard library. Empty: the one installed with Sharp (in the Sharp repository: lib/support/0.4.0 of the project).")
                         .bindText(projectState::libraryPath)
                 }
                 row {
@@ -82,14 +84,17 @@ class SharpConfigurable(private val project: Project) :
                         .bindText(projectState::extraArguments)
                 }
             }
-            group("How to run the compiler (this machine)") {
-                row("Sharp VM:") {
-                    textField().columns(COLUMNS_LARGE).bindText(appState::vm)
+            group("Sharp on this machine") {
+                row {
+                    checkBox("Use the installed Sharp")
+                        .comment(installedComment(appState.sharpHome) +
+                            " When it is not installed (or this is off), the launcher and script under Advanced are used instead.")
+                        .bindSelected(appState::useInstalledSharp)
                 }
-                row("Compiler:") {
+                row("Sharp folder:") {
                     textField().columns(COLUMNS_LARGE)
-                        .comment("The compiled Sharp compiler. The default is the development build that supports editor checks.")
-                        .bindText(appState::compiler)
+                        .comment("Where Sharp is installed. Empty: the usual place (" + sharp.ide.toolchain.SharpToolchains.defaultHome() + ").")
+                        .bindText(appState::sharpHome)
                 }
                 row("Time limit (seconds):") {
                     textField().columns(COLUMNS_MEDIUM).bindIntText(appState::timeoutSeconds)
@@ -106,6 +111,16 @@ class SharpConfigurable(private val project: Project) :
                 }
             }
             collapsibleGroup("Advanced") {
+                row("Sharp VM:") {
+                    textField().columns(COLUMNS_LARGE)
+                        .comment("For the script below ({vm}); not used with the installed Sharp.")
+                        .bindText(appState::vm)
+                }
+                row("Compiler:") {
+                    textField().columns(COLUMNS_LARGE)
+                        .comment("For the script below ({compiler}); not used with the installed Sharp.")
+                        .bindText(appState::compiler)
+                }
                 row("Launcher:") {
                     textArea().rows(4).columns(COLUMNS_LARGE)
                         .comment("One argument per line; {script} is the path of the script. Default on Windows starts bash inside WSL.")
@@ -143,9 +158,17 @@ class SharpConfigurable(private val project: Project) :
     override fun apply() {
         val libraryBefore = SharpLibraryRootsProvider.externalLibraryRoot(project)
         super.apply()
+        SharpApplicationSettings.forgetToolchain()      // the "Sharp folder" may have changed
         // the "Standard library" field may have changed: the External Libraries node follows it
         SharpLibraryRootsProvider.libraryRootsChanged(project, libraryBefore, SharpLibraryRootsProvider.externalLibraryRoot(project))
         AnalysisService.getInstance(project).requestRun(RunReason.SETTINGS)
+    }
+
+    /** What the page says about the installation it would use right now. */
+    private fun installedComment(home: String): String {
+        val found = sharp.ide.toolchain.SharpToolchains.find(home)
+        return if (found != null) "Found: Sharp ${found.version} in ${found.home}."
+        else "Not found in ${home.trim().ifEmpty { sharp.ide.toolchain.SharpToolchains.defaultHome() }}."
     }
 
     private fun splitLines(text: String): MutableList<String> =

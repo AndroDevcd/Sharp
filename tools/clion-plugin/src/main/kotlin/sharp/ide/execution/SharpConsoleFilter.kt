@@ -1,0 +1,50 @@
+/*
+ * THE COMPILER'S PLACES IN THE RUN CONSOLE ARE LINKS
+ *
+ * When a build fails, the console shows the compiler's messages. Each one names its place on a line
+ * of its own:
+ *
+ *     error[E0401]: `printn` is not known here
+ *       --> C:/work/shapes/main.sharp:12:5
+ *       ::: C:/work/shapes/area.sharp:3:9          (a related place)
+ *
+ * This filter turns `<file>:<line>:<column>` after `-->` or `:::` into a link that opens the file
+ * there. A place whose file does not exist (any more) is left as plain text.
+ *
+ * `placeIn` is the part without IDE classes: the test asks it directly.
+ */
+package sharp.ide.execution
+
+import com.intellij.execution.filters.Filter
+import com.intellij.execution.filters.OpenFileHyperlinkInfo
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
+
+/** A place found in one console line: where its text is in the line, and what it names. */
+data class ConsolePlace(val start: Int, val end: Int, val file: String, val line: Int, val column: Int)
+
+class SharpConsoleFilter(private val project: Project) : Filter {
+    override fun applyFilter(line: String, entireLength: Int): Filter.Result? {
+        val place = placeIn(line) ?: return null
+        val file = LocalFileSystem.getInstance().findFileByPath(place.file.replace('\\', '/')) ?: return null
+        val lineStart = entireLength - line.length
+        val link = OpenFileHyperlinkInfo(project, file, place.line - 1, place.column - 1)
+        return Filter.Result(lineStart + place.start, lineStart + place.end, link)
+    }
+
+    companion object {
+        // the file may hold colons (C:/...) and spaces; the two numbers at the end of the line decide
+        private val PLACE = Regex("""^\s*(?:-->|:::)\s+(.+?):(\d+):(\d+)\s*$""")
+
+        /** The place this line of compiler output names, or null. */
+        fun placeIn(line: String): ConsolePlace? {
+            val match = PLACE.find(line.trimEnd('\n', '\r')) ?: return null
+            val file = match.groups[1] ?: return null
+            val row = match.groupValues[2].toIntOrNull() ?: return null
+            val column = match.groupValues[3].toIntOrNull() ?: return null
+            if (row < 1 || column < 1) return null
+            val end = match.groups[3]!!.range.last + 1
+            return ConsolePlace(file.range.first, end, file.value, row, column)
+        }
+    }
+}

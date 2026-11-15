@@ -366,6 +366,116 @@ copies the stub `~/sharp_work/snap_ide` over it), and the gates run
   The frozen source copy `~/sharp_work/ide_src` and `STREAM=ide` are no longer
   needed.
 
+### 3.3a The installed Sharp, the program folder, build and run (plugin 0.2.0, 15 Nov 2026)
+
+**The plugin starts the installed Sharp directly.** A release installs into one
+folder (`%LOCALAPPDATA%\Sharp`, `~/.sharp`, or `SHARP_HOME`; build-scripts/release):
+`bin/sharp(.exe)`, `compiler/sharpc-v<version>`, `lib/`. `sharp.ide.toolchain`
+finds it, takes the newest compiler in it, and the check after a save becomes one
+process with no shell, no WSL and no script:
+
+```
+<home>/bin/sharp  <home>/compiler/sharpc-v0.4.0  -files <run folder>/files.txt  -ide <run folder>  <extra>
+```
+
+`-files <list>` is a compiler option added for this: the source files, one per
+line, in a text file - a command line has a length limit (32,767 characters on
+Windows) that a few hundred paths pass. Settings: "Use the installed Sharp" (on)
+and "Sharp folder" (empty = the usual place). When no Sharp is installed there,
+or the switch is off, the launcher and script of 3.3 are used as before, so a
+development build inside WSL still works. On Windows the compiler writes paths
+with backslashes and the editor names files with forward slashes; that is the
+whole of the path translation in this mode (`PathTranslator.forNativeWindows`).
+
+**The standard library**, in order: the folder of the project's settings; the
+project's own `lib/support/<version>` when the project is the Sharp repository
+(that copy is the one being edited); else the library installed with Sharp.
+
+**The program folder.** The plugin works on one folder whose `.sharp` files are
+the program - not on "the whole project". Right-click a folder in the Project
+view > *Set as Sharp Program Folder* (the same entry takes the mark off; the
+settings page has the same list). The folder then carries a module icon and the
+words "Sharp program" in the Project view, as Android Studio marks its modules.
+Not chosen: automatic, as before (the project folder; in the Sharp repository
+`lib/support/bootstrap`), shown as "Sharp program (automatic)".
+
+**Build and run** (`sharp.ide.execution`). A run configuration of the type
+*Sharp Program* names a program folder, compiler options (`-O`), program
+arguments, a working directory, "build only" and "use the unoptimized compiler".
+Run > Edit Configurations makes one; so does *Run* in the right-click menu of a
+folder that holds `.sharp` files, or of a `.sharp` file (it means the program
+folder the file is in). A run:
+
+1. saves every editor;
+2. lists the library and the folder's files (the excluded folders left out) into
+   `<program folder>/build/.sharp-run/files.txt`;
+3. writes and starts a small script beside it (`run.cmd` / `run.sh`,
+   `RunScript.kt`) that compiles to `<program folder>/build/<folder name>` and,
+   when that worked, runs the VM on it in the working directory.
+
+The Run console shows `Compiling <name> ...` and then only the program's own
+output; what is typed there goes to the program. When the build fails the
+compiler's messages are shown instead, and each ` --> file:line:column` is a
+link that opens the place (`SharpConsoleFilter`). The exit code shown at the end
+is the program's (1 for a failed build).
+
+Tests: `BuildAndRunTest` (no IDE: the installation is found, both scripts, the
+console's places, the plan of a run - and, where Sharp is installed, a real
+program is checked, built, run and broken exactly as the plugin does it) and
+`RunConfigurationInTheIdeTest` (the pieces are registered, a configuration keeps
+its fields, choosing a program folder, New Sharp Project Here). With Sharp
+installed the first also proves the two points below on real programs: an
+unchanged program is not compiled again and every kind of change is noticed; a
+project is built by `sharpc -P` to the name its settings.json gives, and again
+when that file changes. The tests run with `SHARP_HOME` set to an
+empty place so that the older, script-mode tests behave the same on a machine
+with Sharp installed.
+
+**Nothing changed: no compile** (`RunStamp.kt`). A build's result depends on the
+compiler, its options and every file it reads. Before a run the plugin writes
+that down as a text - the compiler's path, size and time; the command line; and
+`path size time` for the library's files, the program's files and
+`settings.json` - and compares it with the text kept from the last build that
+worked. The same text, and the program file still there: the compiler is not
+started, the console says `<name> is up to date` and the program runs. A file
+edited, added or removed, another option, another compiler, the program
+deleted, a failed build before: it compiles. The stamp is kept by the run
+script itself, only after a build that worked. "Rebuild every time" in the
+configuration switches the check off. (Size and time are read without opening
+the files: a few milliseconds for hundreds of files.)
+
+**Sharp projects: the compiler's project mode** (`sharp.ide.project`). A folder
+with a Sharp `settings.json` is a PROJECT, and everything the plugin does with it
+goes through what the file says:
+
+- *Build and run*: the build is `sharpc -P <folder>` - the compiler reads the
+  file for the output's name, the ignored folders, the libraries, the
+  optimization level - and the program is `<folder>/build/outputs/<output>`.
+  `-L <standard library>` is added only when the file names no library itself.
+  What the IDE builds is what `sharpc -P` builds on the command line.
+- *The checks after a save*: the file's `ignore_folders` are left out and its
+  `extern_lib` folders are part of the program, so the editor does not report
+  what the build would not see, nor miss a library the build has.
+- *The Project view*: a project folder carries a module icon and
+  "Sharp project" - "Sharp program · settings.json" when it is also the program
+  folder. Other projects in the same tree are marked too; they can be run from
+  their right-click menu, but only the program folder is checked while typing.
+- *New Sharp Project Here* (right-click a folder): writes `settings.json` (name
+  and output after the folder, `build` ignored), `build/`, and `src/main.sharp`
+  when the folder holds no Sharp code; makes it the program folder; opens
+  `main.sharp`. Nothing that exists is overwritten.
+
+`settings.json` is a common file name: one counts as Sharp's when it is a JSON
+object with a setting only the Sharp compiler has (`extern_lib`, `output`,
+`ignore_folders`, `optimize_level`, `target_api` ...), or an empty `{ }` in a
+folder that holds `.sharp` files. A folder WITHOUT such a file is built from the
+list of its files as described above, with the plugin's own excluded folders.
+
+Not done: a run icon in the editor's gutter beside `def main`; a debugger; a
+"Build" entry of its own (a configuration with "build only" does it); the
+compiler's own build cache does not yet skip work inside a compile - the check
+above is all-or-nothing.
+
 ### 3.4 Where the output goes
 
 `<system folder>/sharp-ide/<project key>/run-<n>/`, where the system folder is

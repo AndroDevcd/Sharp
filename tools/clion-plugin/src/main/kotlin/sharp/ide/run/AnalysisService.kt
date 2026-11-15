@@ -117,6 +117,9 @@ class AnalysisService(private val project: Project) : Disposable {
     // ---------------------------------------------------------------- asking for a run
 
     /** A run is wanted. Returns at once; the run happens later, in the background. */
+    /** Has the compiler answered for this project at least once (so: the project holds a Sharp program)? */
+    fun hasSharpProgram(): Boolean = latest != null
+
     fun requestRun(reason: RunReason) {
         if (reason == RunReason.MANUAL) manualRequested.set(true)
         scheduler.request(immediate = reason == RunReason.MANUAL)
@@ -176,6 +179,8 @@ class AnalysisService(private val project: Project) : Disposable {
             return RunReport.Skipped("the project has no Sharp source files")
         }
 
+        // the installed Sharp, started directly, when there is one; else the launcher and script of the settings
+        val toolchain = SharpApplicationSettings.getInstance().toolchain()
         val translator = translatorFor(app, project.basePath)
         val folder = RunFolders.create(runBase())
         val taken = takeSnapshots(files.toHashSet())
@@ -190,11 +195,12 @@ class AnalysisService(private val project: Project) : Disposable {
             openFiles = if (projectState.bodiesForEveryFile) files else taken.keys.sorted(),
             launcher = app.launcher,
             script = app.script,
-            vm = app.vm,
-            compiler = app.compiler,
+            vm = toolchain?.vm ?: app.vm,
+            compiler = toolchain?.compiler ?: app.compiler,
             extraArguments = CommandTemplate.splitExtraArguments(projectState.extraArguments),
             timeoutSeconds = app.timeoutSeconds,
             translator = translator,
+            direct = toolchain != null,
         )
 
         return when (val outcome = CompilerRunner(launcher).run(request, indicator)) {
@@ -385,6 +391,11 @@ class AnalysisService(private val project: Project) : Disposable {
 
         /** The translator for this setup, or null when paths go through untranslated. */
         fun translatorFor(app: SharpApplicationSettings.State, projectBase: String?): PathTranslator? {
+            // the installed Sharp runs where the IDE runs: its paths are the IDE's paths - on Windows with
+            // backslashes where the editor has forward slashes, which is all there is to translate
+            if (SharpApplicationSettings.toolchainOf(app) != null) {
+                return if (com.intellij.openapi.util.SystemInfo.isWindows) PathTranslator.forNativeWindows() else null
+            }
             val mode = TranslateMode.entries.firstOrNull { it.name == app.translateMode } ?: TranslateMode.AUTOMATIC
             val wanted = when (mode) {
                 TranslateMode.ALWAYS -> true

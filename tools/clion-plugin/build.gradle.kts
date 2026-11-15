@@ -63,6 +63,11 @@ intellijPlatform {
 tasks.test {
     // The tests read the standard library and the suite programs from the repository.
     systemProperty("sharp.repo", rootProject.projectDir.resolve("../..").canonicalPath)
+    // The older tests are about the SCRIPT way of starting the compiler (WSL). On a machine where Sharp is
+    // installed the plugin would start that one directly instead, and those tests would test something else
+    // there than on a machine without it. SHARP_HOME names a folder that holds no Sharp, so "the installed
+    // Sharp" is nothing in every test - except BuildAndRunTest, which looks in the real place on purpose.
+    environment("SHARP_HOME", layout.buildDirectory.dir("no-sharp-installed-here").get().asFile.path)
     // `gradlew test -PrequireRealCompiler`: the end-to-end test (EndToEndWithRealCompilerTest) then FAILS on a
     // machine where the real compiler cannot be run, instead of skipping silently.
     systemProperty("sharp.requireRealCompiler", providers.gradleProperty("requireRealCompiler").isPresent.toString())

@@ -35,7 +35,16 @@ package sharp.ide.paths
  * back into `\\wsl.localhost\Ubuntu\home\me\a.sharp`; when it is empty such a path has
  * no Windows form and `toWindows` answers null.
  */
-class PathTranslator(mountRoot: String = "/mnt", private val distro: String = "") {
+class PathTranslator(mountRoot: String = "/mnt", private val distro: String = "", private val nativeWindows: Boolean = false) {
+
+    companion object {
+        /**
+         * For the compiler that runs ON Windows (the installed Sharp, started directly): no WSL in between,
+         * but the compiler writes every path with backslashes while the editor names files with forward
+         * slashes. "The compiler's form" (`toWsl`, named for the other case) is then the backslash form.
+         */
+        fun forNativeWindows(): PathTranslator = PathTranslator(nativeWindows = true)
+    }
 
     /** The mount root without a trailing slash and with exactly one leading slash. */
     private val mount: String = "/" + mountRoot.trim().trim('/', '\\').replace('\\', '/')
@@ -50,6 +59,7 @@ class PathTranslator(mountRoot: String = "/mnt", private val distro: String = ""
      *   the slashes, since there is nothing sensible to do with it.
      */
     fun toWsl(path: String): String {
+        if (nativeWindows) return path.replace('/', '\\')
         val slashes = path.replace('\\', '/')
         val unc = parseWslUnc(slashes)
         if (unc != null) return unc.second
@@ -70,6 +80,7 @@ class PathTranslator(mountRoot: String = "/mnt", private val distro: String = ""
      *   not a WSL path, so it is probably a Windows path already.
      */
     fun toWindows(path: String, forwardSlashes: Boolean = false): String? {
+        if (nativeWindows) return if (forwardSlashes) path.replace('\\', '/') else path.replace('/', '\\')
         if (!path.startsWith("/")) return path
         val clean = stripTrailingSlash(path)
         val windows: String =
@@ -93,6 +104,7 @@ class PathTranslator(mountRoot: String = "/mnt", private val distro: String = ""
 
     /** The distribution name seen in the first `\\wsl...` path, so a Linux path can be turned back. */
     fun withDistroFrom(path: String): PathTranslator {
+        if (nativeWindows) return this
         val found = parseWslUnc(path.replace('\\', '/'))?.first ?: return this
         return if (found == distro) this else PathTranslator(mount, found)
     }

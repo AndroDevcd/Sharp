@@ -42,6 +42,12 @@ class RunRequest(
     val timeoutSeconds: Int,
     /** Null: paths are passed as they are (the compiler runs where the IDE runs). */
     val translator: PathTranslator?,
+    /**
+     * Not null: the INSTALLED Sharp is started directly - `vm compiler -files <list> -ide <folder> extra...` -
+     * and `launcher`, `script` and `translator` are not used. The file list goes through `-files` because a
+     * command line has a length limit (32,767 characters on Windows) that a few hundred paths pass.
+     */
+    val direct: Boolean = false,
 )
 
 /** What went wrong with a run, in words for the owner: shown once as a quiet notification. */
@@ -60,6 +66,7 @@ class CompilerRunner(private val launcher: ProcessLauncher) {
     private val graceSeconds = 10L
 
     fun run(request: RunRequest, indicator: ProgressIndicator): RunOutcome {
+        if (request.direct) return runDirectly(request, indicator)
         val toCompiler = { path: String -> request.translator?.toWsl(path) ?: path }
         val folder = request.folder
         val scriptFile = folder.resolve("run.sh")
@@ -100,6 +107,32 @@ class CompilerRunner(private val launcher: ProcessLauncher) {
                 } else {
                     RunOutcome.Finished(result.exitCode, tail(result.output), shown)
                 }
+        }
+    }
+
+    /** The installed compiler, started as a process of its own: no shell and no script in between. */
+    private fun runDirectly(request: RunRequest, indicator: ProgressIndicator): RunOutcome {
+        val folder = request.folder
+        val filesList = folder.resolve("files.txt")
+        // (on Windows the compiler names every file with backslashes: it is given them that way, so that
+        //  the path it reports is letter for letter the path it was given)
+        val toCompiler = { path: String -> request.translator?.toWsl(path) ?: path }
+        try {
+            Files.createDirectories(folder)
+            writeLines(filesList, request.files.map(toCompiler))
+            writeLines(folder.resolve("bodies_for.txt"), request.openFiles.map(toCompiler))
+        } catch (e: java.io.IOException) {
+            return RunOutcome.Failed(RunFailure("could not prepare the run folder $folder: ${e.message}", "", ""))
+        }
+        val command = listOf(request.vm, request.compiler, "-files", filesList.toString(), "-ide", folder.toString()) + request.extraArguments
+        val shown = command.joinToString(" ") { if (it.contains(' ')) "\"$it\"" else it }
+        return when (val result = launcher.launch(command, request.timeoutSeconds * 1000L, indicator)) {
+            is LaunchResult.CouldNotStart ->
+                RunOutcome.Failed(RunFailure("the compiler could not be started: ${result.message}", shown, ""))
+            is LaunchResult.TimedOut ->
+                RunOutcome.Failed(RunFailure("the compiler did not finish within ${request.timeoutSeconds} seconds", shown, tail(result.output)))
+            is LaunchResult.Cancelled -> RunOutcome.Cancelled
+            is LaunchResult.Finished -> RunOutcome.Finished(result.exitCode, tail(result.output), shown)
         }
     }
 

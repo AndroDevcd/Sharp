@@ -169,6 +169,11 @@ def read_command_line(args: string[]) {
             options.version = value_after(args, i, "the version of the application");
             i++;
         }
+        else if(arg == "-files"){
+            // the source files, named in a text file instead of on the command line
+            add_listed_files(value_after(args, i, "a text file that names the source files, one on each line"));
+            i++;
+        }
         else if(arg == "-ignore"){
             add_ignored_file(value_after(args, i, "the path of a file to leave out"));
             i++;
@@ -269,6 +274,44 @@ def read_command_line(args: string[]) {
 }
 
 /**
+ * `-files <list>`: every line of the text file `list` is the path of a source
+ * file, exactly as if it had been written on the command line (spaces and a
+ * `` around a line are not part of the path; an empty line is skipped).
+ *
+ * WHY IT EXISTS. A command line has a length limit - 32,767 characters on
+ * Windows - and a program of a few hundred files with long paths passes it.
+ * An editor that starts the compiler writes the list to a file instead (the
+ * CLion plugin does: tools/clion-plugin). Any number of `-files` may be
+ * given, with files on the command line beside them.
+ *
+ *      C++ comparison: the "response file" of gcc and MSVC (`@list.txt`).
+ */
+def add_listed_files(list_path: string) {
+    listing := new file(list_path);
+    if(!listing.exists())
+        error_with_help("the file list `$list_path` of option `-files` does not exist",
+                        "`-files` takes a text file with one source file on each line");
+    text : string? = listing.read();
+    if(text == null) { return; }                // an empty list names no file
+    data : _int8[]? = text!!.data;
+    size : _int64 = sizeof(data);
+    start : _int64 = 0;
+    for(i : _int64 = 0; i <= size; i++) {
+        if(i == size || data!![i] == 10) {
+            first : _int64 = start;
+            last : _int64 = i;
+            while(first < last && (data!![first] == ' ' || data!![first] == 13 || data!![first] == 9)) { first++; }
+            while(last > first && (data!![last - 1] == ' ' || data!![last - 1] == 13 || data!![last - 1] == 9)) { last--; }
+            if(last > first) {
+                named := new string(data!!, first, last);
+                if(!contains(options.source_files, named)) { options.source_files.add(named); }
+            }
+            start = i + 1;
+        }
+    }
+}
+
+/**
  * The value of the option at `args[at]`: the argument after it. The
  * compiler stops (exit code 1) with a message that names the option when
  * there is none, when it is empty, or when it is another option - which a
@@ -341,6 +384,7 @@ def help() {
     println(              "    -run              run the program after a successful compile (with `sharp` from the PATH)" );
     println(              "    -a                show every error (this compiler always does; accepted for scripts)" );
     println(              "    -L <path>         library directory path: every .sharp file in it and below" );
+    println(              "    -files <list>     more source files: a text file with one path on each line"  );
     println(              "    -j <amount>       how many threads parse the source files"                   );
     println(              "    -w                disable all warnings"                                      );
     println(              "    -g -green         run compiler in \"green\" mode to consume less power"      );

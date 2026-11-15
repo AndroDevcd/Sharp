@@ -53,11 +53,25 @@ class SharpProjectSettings(private val project: Project) : PersistentStateCompon
         loadState(State())
     }
 
-    /** A plain copy of what ProgramFiles needs. */
-    fun programSettings(): ProgramSettings = ProgramSettings(
-        baseDirectory = project.basePath ?: "",
-        sourceRoots = state.sourceRoots.toList(),
-        excludedFolders = state.excludedFolders.toList(),
-        libraryPath = state.libraryPath,
-    )
+    /**
+     * A plain copy of what ProgramFiles needs. Where a program folder is a Sharp PROJECT (it has a
+     * settings.json: sharp.ide.project), the file's ignored folders are left out as well and the
+     * libraries it names are part of the program - so the editor checks what `sharpc -P` builds.
+     */
+    fun programSettings(): ProgramSettings {
+        val plain = ProgramSettings(
+            baseDirectory = project.basePath ?: "",
+            sourceRoots = state.sourceRoots.toList(),
+            excludedFolders = state.excludedFolders.toList(),
+            libraryPath = state.libraryPath,
+            installedLibrary = SharpApplicationSettings.getInstance().toolchain()?.library ?: "",
+        )
+        val roots = sharp.ide.paths.ProgramFiles.layoutOf(plain).sourceRoots
+        val projects = roots.mapNotNull { sharp.ide.project.SharpProjectFiles.read(it) }
+        if (projects.isEmpty()) return plain
+        val libraries = projects.flatMap { it.externLibraryFolders() }.filter { it !in roots }
+        val ignored = projects.flatMap { it.ignoredInsideProject() }.filter { it !in plain.excludedFolders }
+        if (libraries.isEmpty() && ignored.isEmpty()) return plain
+        return plain.copy(sourceRoots = roots + libraries, excludedFolders = plain.excludedFolders + ignored)
+    }
 }
