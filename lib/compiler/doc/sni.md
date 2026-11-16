@@ -209,10 +209,26 @@ the line to add.
 |---|---|
 | `compiler` | g++ or clang++: a path, or a name looked up on the `PATH` |
 | `flags` | added after the flags Sharp needs, so yours win (`-std=c++20` replaces the default `-std=c++17`) |
-| `include` | more header folders (`-I`) |
+| `include` | folders that hold only headers (`-I`): another library's. The `sources` folders are searched for headers already - do not name them again |
 | `libraries` | more libraries to link (`-l`) |
-| `windows`, `linux` | the same four settings, read on top of the others on that system only |
-| `processor` | an object of processors - `arm` or `x86`, each covering 32 and 64 bit - each with `flags`, `include`, `libraries`. Added only when the C++ compiler builds for that processor. Written at the top it counts on every system; inside `windows` / `linux`, for that processor on that system. The system and the processor are separate because they are: ARM runs Linux and Windows. (This is how a project names the libraries of a Raspberry Pi's hardware and still builds on a PC.) |
+| `windows`, `linux` | the same four settings, read on top of the others on that system only - and `sources`: C++ for that system only |
+| `processor` | an object of processors - `arm` or `x86`, each covering 32 and 64 bit - each with `sources`, `flags`, `include`, `libraries`. Used only when the C++ compiler builds for that processor. Written at the top it counts on every system; inside `windows` / `linux`, for that processor on that system. The system and the processor are separate because they are: ARM runs Linux and Windows. |
+
+**`sources` is the one place a folder of C++ is named.** Wherever it is written - under `native`, in a system's block, in a processor's - the folder is compiled *and* searched for headers. So C++ written once per processor needs nothing else:
+
+```json
+"native": {
+  "sources": [ "native/common" ],
+  "toolchain": {
+    "processor": {
+      "arm": { "sources": [ "native/arm" ] },
+      "x86": { "sources": [ "native/x86" ] }
+    }
+  }
+}
+```
+
+On a Raspberry Pi `native/common` and `native/arm` are built; on a PC `native/common` and `native/x86`. The two folders may hold files of the same names. `include` is only for folders that hold nothing but headers - another library's.
 
 The flags Sharp always gives itself: `-shared`, `-std=c++17`, `-static` on Windows (the C++ runtime
 goes inside the library, so the `.dll` needs no other `.dll`), `-fPIC` elsewhere, and `-I` for the

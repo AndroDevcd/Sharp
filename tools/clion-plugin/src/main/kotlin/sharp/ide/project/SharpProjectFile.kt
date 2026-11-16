@@ -160,7 +160,7 @@ object SharpProjectFiles {
             output = text(json, "output") ?: text(json, "output_file") ?: "out",
             ignoreFolders = texts(json, "ignore_folders"),
             externLibraries = texts(json, "extern_lib") + texts(json, "extern_libs"),
-            nativeSources = json.get("native")?.takeIf { it.isJsonObject }?.asJsonObject?.let { texts(it, "sources") } ?: emptyList(),
+            nativeSources = json.get("native")?.takeIf { it.isJsonObject }?.asJsonObject?.let { everySources(it) } ?: emptyList(),
         )
     }
 
@@ -179,6 +179,21 @@ object SharpProjectFiles {
         val value = json.get(name) ?: return null
         if (!value.isJsonPrimitive || !value.asJsonPrimitive.isString) return null
         return value.asString.trim().takeIf { it.isNotEmpty() }
+    }
+
+    /**
+     * Every "sources" list at or below `json`: the one of "native" itself and the ones written for a
+     * system or a processor (`toolchain.linux.sources`, `toolchain.processor.arm.sources` ...). All of
+     * them, whatever machine this is: a change to C++ that another machine builds is still a change
+     * of the project, and building once too often is the harmless mistake.
+     */
+    private fun everySources(json: JsonObject): List<String> {
+        val found = ArrayList<String>()
+        found.addAll(texts(json, "sources"))
+        for ((_, value) in json.entrySet()) {
+            if (value.isJsonObject) found.addAll(everySources(value.asJsonObject))
+        }
+        return found.distinct()
     }
 
     private fun texts(json: JsonObject, name: String): List<String> {

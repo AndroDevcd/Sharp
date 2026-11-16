@@ -197,11 +197,12 @@ class options {
      *        "toolchain": {
      *          "compiler": "C:/msys64/ucrt64/bin/g++.exe", a path, or a name on the PATH
      *          "flags": [ "-O2" ],                         added after the flags Sharp needs
-     *          "include": [ "third_party/include" ],       more header folders
+     *          "include": [ "third_party/include" ],       folders of headers only (another library's);
+     *                                                      the "sources" folders are searched already
      *          "libraries": [ "ws2_32" ],                  more libraries to link (-l)
-     *          "windows": { ... }, "linux": { ... }        the same four, for one system only
-     *          "processor": {                              for one kind of processor only
-     *            "arm": { "flags", "include", "libraries" }      (arm or x86) -
+     *          "windows": { ... }, "linux": { ... }        the same four and "sources", for one system only
+     *          "processor": {                              for one kind of processor only (arm or x86):
+     *            "arm": { "sources", "flags", "include", "libraries" }
      *          }                                           at the top, or inside a system's block
      *        }
      *      }
@@ -229,7 +230,7 @@ class options {
      * installed one of that number is added to the sources when it is there
      * ("target_api" in settings.json; main.sharp, add_library_files).
      */
-    static library_version : string = "0.4.6";
+    static library_version : string = "0.4.7";
 
     /*
      * List of user defined library paths
@@ -257,6 +258,7 @@ class options {
  */
 class processor_settings {
     name : string;                              // arm or x86
+    sources := new list<string>();              // C++ for this processor only: compiled, and searched for headers
     flags := new list<string>();
     includes := new list<string>();
     libraries := new list<string>();
@@ -275,7 +277,8 @@ supported_versions := new string[] {
     "0.4.3",
     "0.4.4",
     "0.4.5",
-    "0.4.6"
+    "0.4.6",
+    "0.4.7"
 };
 
 // WARNING SWITCHES

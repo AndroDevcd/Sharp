@@ -75,7 +75,7 @@ class SettingsSchemaInTheIdeTest : BasePlatformTestCase() {
     fun testInsideASystemsBlockTheFourToolchainValuesAreOffered() {
         val offered = offeredAt(sharpProject("system"),
             "{\n  \"output\": \"app\",\n  \"native\": { \"toolchain\": { \"windows\": { \"|\" } } }\n}\n")
-        assertEquals(listOf("compiler", "flags", "include", "libraries", "processor"), offered.sorted())
+        assertEquals(listOf("compiler", "flags", "include", "libraries", "processor", "sources"), offered.sorted())
     }
 
     fun testAProcessorBlockOffersTheProcessorsAndThenTheirThreeSettings() {
@@ -84,7 +84,7 @@ class SettingsSchemaInTheIdeTest : BasePlatformTestCase() {
         assertEquals(listOf("arm", "x86"), processors.sorted())
         val inOne = offeredAt(sharpProject("one-processor"),
             "{\n  \"output\": \"app\",\n  \"native\": { \"toolchain\": { \"processor\": { \"arm\": { \"|\" } } } }\n}\n")
-        assertEquals("no compiler here: it is chosen before the processor is known", listOf("flags", "include", "libraries"), inOne.sorted())
+        assertEquals("no compiler here: it is chosen before the processor is known", listOf("flags", "include", "libraries", "sources"), inOne.sorted())
     }
 
     fun testASettingsFileThatIsNotASharpProjectsGetsNothingFromUs() {

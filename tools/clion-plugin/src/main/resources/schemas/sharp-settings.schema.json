@@ -23,7 +23,7 @@
       },
       "include": {
         "$ref": "#/definitions/texts",
-        "description": "More folders of header files (-I), as paths inside the project or absolute."
+        "description": "Folders that hold only header files (-I), as paths inside the project or absolute: another library's headers. The \"sources\" folders are searched for headers already - they are not named again here."
       },
       "libraries": {
         "$ref": "#/definitions/texts",
@@ -48,6 +48,10 @@
         },
         "processor": {
           "$ref": "#/definitions/processors"
+        },
+        "sources": {
+          "$ref": "#/definitions/texts",
+          "description": "C++ files or folders for this system only: compiled, and searched for header files."
         }
       }
     },
@@ -63,6 +67,10 @@
         },
         "libraries": {
           "$ref": "#/definitions/toolchainValues/libraries"
+        },
+        "sources": {
+          "$ref": "#/definitions/texts",
+          "description": "C++ files or folders for this processor only: compiled, and searched for header files. Two folders with the same file names - one per processor - do not meet."
         }
       }
     },
@@ -210,7 +218,7 @@
       "properties": {
         "sources": {
           "$ref": "#/definitions/texts",
-          "description": "The C++ files, or folders of them (their whole tree), as paths inside the project: [ \"src/cpp\" ]."
+          "description": "The C++ files, or folders of them (their whole tree), as paths inside the project: [ \"src/cpp\" ]. Each folder is also searched for header files."
         },
         "toolchain": {
           "type": "object",

@@ -15,6 +15,8 @@ import (
  *
  *      "native": { "sources": [ "src/cpp" ] }
  *
+ * ("sources" may also be written for one system or one processor - source_entries, below.)
+ *
  *      sharpc -P .
  *        1. the Sharp code           -> build/outputs/app
  *        2. the glue                 -> build/outputs/sni/foo_sni.h, foo_sni.cpp, sni.h
@@ -41,7 +43,7 @@ import (
  * THE FLAGS, in this order - the user's come last, so they win:
  *
  *      -shared -std=c++17 -static (Windows) | -fPIC (elsewhere)
- *      -I <the glue folder>  -I <each "include">
+ *      -I <the glue folder>  -I <each "sources" folder>  -I <each "include">
  *      <the sources>  <the group's glue file>
  *      -o build/outputs/<group>.dll|.so
  *      -l<each "libraries">  <each "flags">
@@ -197,12 +199,31 @@ def is_cxx_header(name: string) : _int64 {
 }
 
 /**
+ * EVERY "sources" ENTRY THAT COUNTS FOR THIS BUILD, as written in settings.json:
+ *
+ *      "native": { "sources": [...] }                          always
+ *      "windows" / "linux": { "sources": [...] }               on that system (added when the settings were read)
+ *      "processor": { "arm": { "sources": [...] } }            for that processor (the blocks in `fitting`)
+ *
+ * One rule for all of them: an entry is a C++ file or a folder of them, it is COMPILED, and its
+ * folder is SEARCHED FOR HEADERS. A folder of C++ is named once.
+ */
+def source_entries(fitting: list<processor_settings>) : list<string> {
+    entries := new list<string>();
+    foreach(written in options.native_sources) { entries.add(written); }
+    foreach(block in fitting) {
+        foreach(written in block.sources) { entries.add(written); }
+    }
+    return entries;
+}
+
+/**
  * The project's C++ files: every "sources" entry is a file, or a folder whose
  * whole tree is taken. `sources` gets the files to compile, `headers` the
  * ones that are only watched for changes. Returns "" or what is wrong.
  */
-def collect_cxx_files(sources: list<string>, headers: list<string>) : string {
-    foreach(written in options.native_sources) {
+def collect_cxx_files(entries: list<string>, sources: list<string>, headers: list<string>) : string {
+    foreach(written in entries) {
         path := project_path(written);
         entry := new file(path);
         if(!entry.exists()) {
@@ -300,12 +321,26 @@ def processors_for(choice: cxx_choice) : list<processor_settings> {
     return fitting;
 }
 
+/** the folder a "sources" entry stands for: the entry itself when it is a folder, the folder of a single file */
+def source_folder_of(path: string) : string {
+    entry := new file(path);
+    if(entry.is_directory()) { return path; }
+    return folder_of(path);
+}
+
 def cxx_command(choice: cxx_choice, fitting: list<processor_settings>, group: string, sources: list<string>, glue_folder: string, library: string) : string {
     line := new string_builder("");
     line.append(cxx_program(choice));
     line.append(" -shared -std=c++17");
     if(build.is_windows()) { line.append(" -static"); } else { line.append(" -fPIC"); }
     line.append(" -I " + process.quote(glue_folder));
+    // Every "sources" folder is searched for headers too: the headers of a project's C++ live with
+    // its C++, and naming the same folder a second time under "include" told the build nothing new.
+    // ("include" is for folders that hold ONLY headers - another library's.)
+    foreach(written in source_entries(fitting)) {
+        folder := source_folder_of(project_path(written));
+        if(folder != "") { line.append(" -I " + process.quote(folder)); }
+    }
     foreach(include in options.native_includes) { line.append(" -I " + process.quote(project_path(include))); }
     foreach(block in fitting) {
         foreach(include in block.includes) { line.append(" -I " + process.quote(project_path(include))); }
@@ -337,13 +372,7 @@ def build_native_libraries(groups: list<string>, glue_folder: string) : _int64 {
         return 1;
     }
 
-    sources := new list<string>();
-    headers := new list<string>();
-    problem := collect_cxx_files(sources, headers);
-    if(problem != "") {
-        println("error: " + problem);
-        return 0;
-    }
+    // (the compiler first: which "sources" count depends on the processor it builds for)
     choice := choose_cxx();
     if(choice.problem != "") {
         println("error: " + choice.problem);
@@ -354,6 +383,14 @@ def build_native_libraries(groups: list<string>, glue_folder: string) : _int64 {
     progress("C++ compiler: " + choice.compiler + "   (" + choice.said_by + ")");
     fitting := processors_for(choice);
     foreach(block in fitting) { progress("C++ compiler: the toolchain's settings for the processor `" + block.name + "` are added"); }
+
+    sources := new list<string>();
+    headers := new list<string>();
+    problem := collect_cxx_files(source_entries(fitting), sources, headers);
+    if(problem != "") {
+        println("error: " + problem);
+        return 0;
+    }
 
     outputs : string = options.project_dir + "/build/outputs";
     ending : string = ".so";

@@ -124,7 +124,7 @@ else fail "project: a project without native functions got an sni folder (or was
 #          folder (program_folder()), so it runs from anywhere; a second build compiles no C++ again;
 #          a C++ compiler that is not there is an error that says where it was named; a "processor"
 #          block is used for the processor the C++ compiler builds for and for no other
-W8="$OUT/autobuild/app"; mkdir -p "$W8/src/cpp"
+W8="$OUT/autobuild/app"; mkdir -p "$W8/src/cpp/deep"
 cat > "$W8/settings.json" <<'EOF'
 {
   "name": "app",
@@ -138,23 +138,34 @@ case "$("$CXX" -dumpmachine)" in
     aarch64*|arm*) mine=arm; other=x86 ;;
     *)             mine=x86; other=arm ;;
 esac
-sed -i "s/PROCESSORS/{ \"$mine\": { \"flags\": [ \"-DFOR_THIS_PROCESSOR\" ] }, \"$other\": { \"libraries\": [ \"a_library_that_is_not_there\" ] } }/" "$W8/settings.json"
+sed -i "s/PROCESSORS/{ \"$mine\": { \"flags\": [ \"-DFOR_THIS_PROCESSOR\" ], \"sources\": [ \"native\/$mine\" ] }, \"$other\": { \"libraries\": [ \"a_library_that_is_not_there\" ], \"sources\": [ \"native\/$other\" ] } }/" "$W8/settings.json"
+# C++ written once per processor, the same file names in both folders: only this machine's is compiled
+# (the other one would stop the build), and its header is found without an "include"
+mkdir -p "$W8/native/$mine" "$W8/native/$other"
+echo "int processor_bonus();" > "$W8/native/$mine/bonus.h"
+echo "int processor_bonus() { return 0; }" > "$W8/native/$mine/bonus.cpp"
+echo "#error the C++ of the OTHER processor was compiled" > "$W8/native/$other/bonus.cpp"
 cat > "$W8/src/main.sharp" <<'EOF'
 mod app;
 import ( platform )
 native "demo" { def add(a: _int32, b: _int32) : _int32; }
 def main(args: string[]) { load_library(program_folder() + "/demo"); println("add " + add(40, 2)); }
 EOF
-cat > "$W8/src/cpp/demo.cpp" <<'EOF'
+# (a header in the "sources" folder, used from a file in a folder BELOW it: found because every
+#  sources folder is searched for headers - no "include" names it)
+echo "#define THE_ANSWER_OFFSET 0" > "$W8/src/cpp/shared.h"
+cat > "$W8/src/cpp/deep/demo.cpp" <<'EOF'
 #include "demo_sni.h"
+#include "shared.h"
+#include "bonus.h"
 #ifndef FOR_THIS_PROCESSOR
 #error the "processor" block of settings.json for this machine was not used
 #endif
-int32_t demo_add(sni_env* env, int32_t a, int32_t b) { return a + b; }
+int32_t demo_add(sni_env* env, int32_t a, int32_t b) { return a + b + THE_ANSWER_OFFSET + processor_bonus(); }
 EOF
 ( cd "$OUT/autobuild" && "$SHARP" "$COMPILER" -P app -L "$LIBRARY" > first.txt 2>&1; echo "exit $?" >> first.txt
   "$SHARP" "$COMPILER" -P app -L "$LIBRARY" > second.txt 2>&1 )
-if [ -f "$W8/build/outputs/$(lib_file demo)" ] && grep -q "^C++ compiler: " "$OUT/autobuild/first.txt" && grep -q "native library: .* built from 1 C++ file" "$OUT/autobuild/first.txt" \
+if [ -f "$W8/build/outputs/$(lib_file demo)" ] && grep -q "^C++ compiler: " "$OUT/autobuild/first.txt" && grep -q "native library: .* built from 2 C++ file" "$OUT/autobuild/first.txt" \
    && grep -q "exit 0" "$OUT/autobuild/first.txt"; then pass
 else fail "autobuild: the project did not build its C++" "$(tail -8 "$OUT/autobuild/first.txt")"; fi
 if grep -q "is up to date" "$OUT/autobuild/second.txt"; then pass; else fail "autobuild: the second build compiled the C++ again" "$(tail -5 "$OUT/autobuild/second.txt")"; fi
@@ -162,11 +173,11 @@ if grep -q "is up to date" "$OUT/autobuild/second.txt"; then pass; else fail "au
 ( cd "$OUT" && "$SHARP" "autobuild/app/build/outputs/app" > "$OUT/autobuild/run.txt" 2>&1 )
 if grep -q "^add 42" "$OUT/autobuild/run.txt"; then pass; else fail "autobuild: the program did not load its library from its own folder" "$(head -8 "$OUT/autobuild/run.txt")"; fi
 # a changed C++ file is built again
-sleep 1; echo "// changed" >> "$W8/src/cpp/demo.cpp"
+sleep 1; echo "// changed" >> "$W8/src/cpp/deep/demo.cpp"
 ( cd "$OUT/autobuild" && "$SHARP" "$COMPILER" -P app -L "$LIBRARY" > third.txt 2>&1 )
-if grep -q "built from 1 C++ file" "$OUT/autobuild/third.txt"; then pass; else fail "autobuild: a changed C++ file was not built again" "$(tail -5 "$OUT/autobuild/third.txt")"; fi
+if grep -q "built from 2 C++ file" "$OUT/autobuild/third.txt"; then pass; else fail "autobuild: a changed C++ file was not built again" "$(tail -5 "$OUT/autobuild/third.txt")"; fi
 # a C++ mistake: the C++ compiler's message is shown, and the build fails
-echo "this is not C++" >> "$W8/src/cpp/demo.cpp"
+echo "this is not C++" >> "$W8/src/cpp/deep/demo.cpp"
 ( cd "$OUT/autobuild" && "$SHARP" "$COMPILER" -P app -L "$LIBRARY" > broken.txt 2>&1; echo "exit $?" >> broken.txt )
 if grep -q "demo.cpp" "$OUT/autobuild/broken.txt" && grep -q "did not build" "$OUT/autobuild/broken.txt" && ! grep -q "exit 0" "$OUT/autobuild/broken.txt"; then pass
 else fail "autobuild: a C++ error did not fail the build with the C++ compiler's message" "$(tail -8 "$OUT/autobuild/broken.txt")"; fi

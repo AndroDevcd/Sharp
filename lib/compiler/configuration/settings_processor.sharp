@@ -421,6 +421,8 @@ def read_native_setting(native_setting: json_value) {
    if(for_system != null) {
       if(!for_system!!.is_object()) { settings_error("`native.toolchain`: `$system_name` is an object with the same settings as the toolchain"); }
       read_toolchain(for_system!!, "native.toolchain." + system_name);
+      // C++ that is for this system only: more "sources" - compiled, and searched for headers
+      read_text_list(for_system!!, "sources", "native.toolchain." + system_name, options.native_sources);
       // (after the toolchain's own: what a system says about a processor is added last, so it wins)
       read_processors(for_system!!, "native.toolchain." + system_name);
    }
@@ -434,6 +436,13 @@ def read_native_setting(native_setting: json_value) {
  *        "processor": { "arm": { "flags": [ "-mfpu=neon" ] } },
  *        "linux": { "processor": { "arm": { "libraries": [ "rf24", "wiringPi" ] } } }
  *      }
+ *
+ * A block may also have "sources": C++ that exists for that processor only -
+ *
+ *      "processor": { "arm": { "sources": [ "native/arm" ] }, "x86": { "sources": [ "native/x86" ] } }
+ *
+ * - so two folders with the same files in them (one written for each processor) do not
+ * meet: only the one that fits is compiled, and searched for headers.
  *
  * The processor and the system are two different things (ARM runs Linux and Windows), so they
  * are two different places to write a setting, and they combine. There are two processors:
@@ -460,11 +469,12 @@ def read_processors(holder: json_value, where: string) {
          settings_error("`$where.processor`: `$name` is an object: \"$name\": { \"flags\": [ ... ], \"include\": [ ... ], \"libraries\": [ ... ] }");
       }
       foreach(setting_name in block!!.keys()) {
-         if(setting_name != "flags" && setting_name != "include" && setting_name != "libraries") {
-            warning("$settings_file_name: `$where.processor.$name` has no setting `$setting_name`; it has `flags`, `include` and `libraries` (the compiler is chosen before the processor is known)");
+         if(setting_name != "sources" && setting_name != "flags" && setting_name != "include" && setting_name != "libraries") {
+            warning("$settings_file_name: `$where.processor.$name` has no setting `$setting_name`; it has `sources`, `flags`, `include` and `libraries` (the compiler is chosen before the processor is known)");
          }
       }
       kept := new processor_settings(name);
+      read_text_list(block!!, "sources", "$where.processor.$name", kept.sources);
       read_text_list(block!!, "flags", "$where.processor.$name", kept.flags);
       read_text_list(block!!, "include", "$where.processor.$name", kept.includes);
       read_text_list(block!!, "libraries", "$where.processor.$name", kept.libraries);

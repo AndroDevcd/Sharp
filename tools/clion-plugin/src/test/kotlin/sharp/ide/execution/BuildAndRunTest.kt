@@ -178,16 +178,19 @@ class BuildAndRunTest {
     fun aProjectsCppFilesArePartOfWhatABuildDependsOn() {
         val folder = Files.createTempDirectory("sharp-native-project")
         Files.createDirectories(folder.resolve("src/cpp/inner"))
-        Files.write(folder.resolve("settings.json"), "{ \"output\": \"app\", \"native\": { \"sources\": [ \"src/cpp\" ] } }".toByteArray())
+        Files.createDirectories(folder.resolve("native/arm"))
+        Files.write(folder.resolve("native/arm/fast.cpp"), "// arm only\n".toByteArray())
+        Files.write(folder.resolve("settings.json"), ("{ \"output\": \"app\", \"native\": { \"sources\": [ \"src/cpp\" ], " +
+            "\"toolchain\": { \"processor\": { \"arm\": { \"sources\": [ \"native/arm\" ] } } } } }").toByteArray())
         Files.write(folder.resolve("src/main.sharp"), "mod main;\ndef main() { }\n".toByteArray())
         Files.write(folder.resolve("src/cpp/foo.cpp"), "// c++\n".toByteArray())
         Files.write(folder.resolve("src/cpp/inner/foo.h"), "// header\n".toByteArray())
         Files.write(folder.resolve("src/cpp/notes.txt"), "not C++\n".toByteArray())
 
         val project = sharp.ide.project.SharpProjectFiles.read(folder.toString())!!
-        assertEquals(listOf("src/cpp"), project.nativeSources)
+        assertEquals("the sources of a processor's block count too", listOf("src/cpp", "native/arm"), project.nativeSources)
         val names = project.nativeSourceFiles().map { it.substringAfterLast('/') }
-        assertEquals(listOf("foo.cpp", "foo.h"), names.sorted())
+        assertEquals(listOf("fast.cpp", "foo.cpp", "foo.h"), names.sorted())
     }
 
     // ---------------------------------------------------------------- the plan, and a real run
