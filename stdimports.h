@@ -81,15 +81,14 @@ using namespace std;
 #define DEBUGGING
 #endif
 
-#if _ARCH_BITS == 32
-typedef int32_t Int;
-typedef uint32_t uInt;
-#define _INT_MAX INT32_MAX
-#else
+// THE VM'S OWN WHOLE NUMBER IS 64 BITS ON EVERY MACHINE, 32-bit ones included (a Raspberry Pi 2).
+// Sharp's numbers are 64 bits wherever a program runs (vm_cell, below), and the VM counts things in
+// `Int` that do not fit 32 bits on any machine: nanoseconds, file sizes, memory limits. So `Int` is
+// not "the machine's word": on a 32-bit CPU it is simply done in two steps by the compiler.
+// (Until November 2026 it was 32 bits there, and clock values wrapped around after four seconds.)
 typedef int64_t Int;
 typedef uint64_t uInt;
 #define _INT_MAX INT64_MAX
-#endif
 
 /**
  * A number as the virtual machine stores it: in a register, in a stack slot, in

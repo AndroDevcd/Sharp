@@ -121,11 +121,7 @@ int32_t next_int32() {
 Int parse_int() {
     string s;
     next_string(s);
-#if _ARCH_BITS == 32
-    return strtol(s.c_str(), NULL, 0);
-#else
-    return strtoll(s.c_str(), NULL, 0);
-#endif
+    return strtoll(s.c_str(), NULL, 0);        // (64 bits on every machine: `long` is 32 on a 32-bit CPU and on Windows)
 }
 
 sharp_type *next_type() {

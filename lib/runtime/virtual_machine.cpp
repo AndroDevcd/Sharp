@@ -2038,7 +2038,7 @@ void exec_interrupt(Int interrupt)
                                 // char
                                 auto obj = create_object(vm.long_class);
                                 copy_object(&task->sp->obj, obj);
-                                assign_numeric_class_field(obj, (long)value);
+                                assign_numeric_class_field(obj, (int64_t)value);
                                 break;
                             }
                             case type_uint8: {
@@ -2066,14 +2066,14 @@ void exec_interrupt(Int interrupt)
                                 // char
                                 auto obj = create_object(vm.ulong_class);
                                 copy_object(&task->sp->obj, obj);
-                                assign_numeric_class_field(obj, (unsigned long)value);
+                                assign_numeric_class_field(obj, (uint64_t)value);
                                 break;
                             }
                             case type_function_ptr: {
                                 // char
                                 auto obj = create_object(vm.long_class);
                                 copy_object(&task->sp->obj, obj);
-                                assign_numeric_class_field(obj, (unsigned long)value);
+                                assign_numeric_class_field(obj, (uint64_t)value);
                                 break;
                             }
                             case type_var: {

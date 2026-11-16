@@ -15,9 +15,24 @@ struct sharp_class;
  * Loose representation of an object if this object drops its
  * reference the reference lives on until the gc kills it
  */
+/**
+ * A reference to an object - and ALWAYS 8 BYTES, also where a pointer is 4 (a 32-bit CPU).
+ *
+ * The fields of a class instance are one block of 8-byte slots (see THE SLOTS OF A CLASS INSTANCE
+ * below): a slot is a reference, or a number - a vm_cell, 8 bytes on every machine. The two kinds
+ * sit side by side in one array and are found by index, so they must be the same size. `whole`
+ * makes it so; nothing reads it.
+ *
+ *      32-bit:   [ o: 4 bytes ][ 4 unused ]        64-bit:   [ o: 8 bytes ]
+ */
 struct object {
-    sharp_object *o;
+    union {
+        sharp_object *o;
+        uint64_t whole;
+    };
 };
+static_assert(sizeof(object) == 8, "a reference slot is 8 bytes on every machine: number fields share the array");
+static_assert(sizeof(vm_cell) == 8, "a VM number is 8 bytes on every machine");
 
 struct sharp_object {
     union {
