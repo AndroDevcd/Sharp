@@ -162,6 +162,28 @@ def read_char() : char {
     return read_ch(true);
 }
 
+/**
+ * IS A KEY WAITING TO BE READ? - without waiting for one.
+ *
+ * `read_char()` waits until a key is pressed, which stops everything else the program does.
+ * A program that has to keep going - a game's loop, a machine's control loop - asks first:
+ *
+ *      if(key_waiting()) {
+ *          key := read_raw_char();         // comes back at once: the key is already there
+ *      }
+ *
+ * (C: kbhit(). Java has no such thing: System.in.available() is the nearest.)
+ * It is 0 when the input is not a console at all (a file, a pipe that has ended).
+ */
+def key_waiting() : _int64 {
+    result : _int64 = 0;
+    asm {
+        int 0x1b
+        smovr2 [result], cmt
+    }
+    return result != 0;
+}
+
 def read_raw_char() : char {
     return read_ch(false);
 }
@@ -338,8 +360,16 @@ local def print_chars(str: _int16[]) {
     print_chars(str);
 }
 
-local def read_ch(echo: decimal) : char {
-    result  : decimal = 0;
+/**
+ * One key from the console; `echo` says whether the console shows it.
+ *
+ * Both numbers are WHOLE numbers (`_int64`), because the VM's `get` instruction reads a whole
+ * number from `cmt` and puts a whole number into the register. They used to be `decimal`: the
+ * key's number, stored into a decimal as it was, read back as 0 - every key was the key 0, and
+ * read_line() never saw an Enter.
+ */
+local def read_ch(echo: _int64) : char {
+    result  : _int64 = 0;
 
     asm {
         loadl cmt, [echo]
