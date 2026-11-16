@@ -11,3 +11,6 @@ claude/
 !/releases/*.zip
 # ... and the archive of the C++ compiler (legacy/sharpc++.zip)
 !/legacy/*.zip
+
+# what build-scripts/build_linux_vm.sh and install_from_source.sh make
+/build/

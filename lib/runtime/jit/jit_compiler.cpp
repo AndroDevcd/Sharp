@@ -15,7 +15,7 @@
 #include "jit_compiler.h"
 #include "../main.h"
 
-#if defined(__x86_64__) && !defined(_WIN32) && !defined(SHARP_TYPE_CHECK)
+#if defined(SHARP_HAS_ASMJIT) && !defined(_WIN32) && !defined(SHARP_TYPE_CHECK)
 #define SHARP_JIT_X64
 #include "x64/x64_compiler.h"
 #endif

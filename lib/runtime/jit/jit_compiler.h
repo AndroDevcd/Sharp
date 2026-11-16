@@ -39,7 +39,13 @@
 
 #include "../../../stdimports.h"
 #include "../types/sharp_function.h"
+// WHICH MACHINES HAVE THE ASSEMBLER LIBRARY (AsmJit) IN THE BUILD: 64-bit x86. On every other CPU
+// (32-bit and 64-bit ARM, 32-bit x86: build-scripts/build_linux_vm.sh) the library and jit/x64 are
+// left out of the build, the VM is compiled with -DSHARP_NO_JIT, and the interpreter runs everything.
+#if defined(__x86_64__) && !defined(SHARP_NO_JIT)
+#define SHARP_HAS_ASMJIT
 #include "../../util/jit/asmjit/src/asmjit/core.h"
+#endif
 
 struct sharp_thread;
 struct jit_compiled_function;
@@ -80,6 +86,7 @@ struct jit_compiled_function {
  * one of these and refuses to install a function when `failed` is set.
  * Build with -DJIT_DEBUG to see which instruction was rejected.
  */
+#ifdef SHARP_HAS_ASMJIT
 class JitErrorHandler : public asmjit::ErrorHandler {
 public:
     bool failed = false;
@@ -90,6 +97,7 @@ public:
 #endif
     }
 };
+#endif
 
 /** A compiler for one CPU architecture. */
 class JitCompiler {
