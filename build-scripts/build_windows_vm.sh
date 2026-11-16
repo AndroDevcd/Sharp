@@ -32,9 +32,9 @@ ls main.cpp lib/runtime/error/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.c
    lib/Modules/math/*.cpp lib/Modules/std/*.cpp lib/Modules/std.io/*.cpp \
    lib/util/jit/asmjit/src/asmjit/core/*.cpp lib/util/jit/asmjit/src/asmjit/arm/*.cpp lib/util/jit/asmjit/src/asmjit/x86/*.cpp > "$OUT/files.txt" 2>/dev/null
 # a header changed -> everything older than the newest header is compiled again
-NEWEST_H=$(find lib/runtime lib/core stdimports.h -name '*.h' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+NEWEST_H=$(find lib/runtime lib/core lib/Modules lib/util stdimports.h -name '*.h' -not -path 'lib/util/jit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
 export OUT FLAGS NEWEST_H
-cat "$OUT/files.txt" | xargs -P $JOBS -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"; if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != lib/util/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then g++ $FLAGS -c "$f" -o "$o" 2>"$o.err" || { echo "FAILED: $f"; grep -m4 "error" "$o.err"; rm -f "$o"; }; fi'
+cat "$OUT/files.txt" | xargs -P $JOBS -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"; if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != lib/util/jit/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then g++ $FLAGS -c "$f" -o "$o" 2>"$o.err" || { echo "FAILED: $f"; grep -m4 "error" "$o.err"; rm -f "$o"; }; fi'
 # an object whose source file is no longer in the list (a file that was removed or renamed) must not be linked
 for o in "$OUT"/*.o; do n=$(basename "$o" .o); grep -qxF "$n" <(tr "/ " "__" < "$OUT/files.txt") || rm -f "$o"; done
 echo "objects: $(ls "$OUT"/*.o 2>/dev/null | wc -l) of $(wc -l < "$OUT/files.txt")"

@@ -7,6 +7,7 @@
 #     JOBS=<n>          how many files are compiled at once          (default: by cores AND memory, see below)
 #     CXX=<compiler>    the C++ compiler                              (default: g++)
 #     SHARP_NO_JIT=1    build without the machine-code compiler even where there is one
+#     LDFLAGS=<flags>   more flags for the link step (a memory checker: see the end of this comment)
 #     any arguments     more flags for the C++ compiler
 #
 # Needs: g++ with C++17 (g++ 8 or newer). On a Raspberry Pi:  sudo apt install g++
@@ -16,8 +17,16 @@
 #   64-bit x86 only. On every other CPU - 32-bit ARM, 64-bit ARM, 32-bit x86 - those files are left out
 #   and the interpreter runs everything. Nothing else in the VM is tied to a CPU.
 #
-# The build is incremental: a file is compiled again when it, or any header, is newer than its object.
-# Change the flags and everything is compiled again.
+# HUNTING A MEMORY BUG (a crash in a place that makes no sense): build a second VM with the address
+# sanitizer, which stops at the first write outside a block and says where it was allocated -
+#     OUT=build/linux-vm-asan LDFLAGS=-fsanitize=address bash build-scripts/build_linux_vm.sh -fsanitize=address -fno-omit-frame-pointer -g -O1
+#
+# The build is incremental: a file is compiled again when it, or ANY header of the VM (lib/runtime, lib/core,
+# lib/Modules, lib/util, stdimports.h), is newer than its object. Change the flags and everything is compiled
+# again. Only the third-party assembler library (lib/util/jit) is left alone when a VM header changes: it
+# includes none of them. (Until 16 Nov 2026 all of lib/util was left alone - so lib/util/File.cpp kept an old
+# layout after a header change, and the VM crashed reading files. A build that mixes old and new objects is
+# worse than a slow one.)
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 OUT=${OUT:-$HERE/build/linux-vm}; mkdir -p "$OUT"
 CXX=${CXX:-g++}
@@ -32,7 +41,7 @@ esac
 [ -n "$SHARP_NO_JIT" ] && JIT=0
 
 FLAGS="-std=c++17 -O2 -w -pthread $*"
-LINK="-pthread -ldl -lrt -lm"
+LINK="-pthread -ldl -lrt -lm $LDFLAGS"
 if [ $JIT = 1 ]; then
   FLAGS="$FLAGS -DASMJIT_STATIC"
 else
@@ -71,11 +80,11 @@ for o in "$OUT"/*.o; do
   n=$(basename "$o" .o); grep -qxF "$n" <(tr "/ " "__" < "$OUT/files.txt") || rm -f "$o"
 done
 
-NEWEST_H=$(find lib/runtime lib/core stdimports.h -name '*.h' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+NEWEST_H=$(find lib/runtime lib/core lib/Modules lib/util stdimports.h -name '*.h' -not -path 'lib/util/jit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
 export OUT FLAGS NEWEST_H CXX
 TOTAL=$(wc -l < "$OUT/files.txt")
 cat "$OUT/files.txt" | xargs -P "$JOBS" -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"
-  if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != lib/util/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then
+  if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != lib/util/jit/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then
     "$CXX" $FLAGS -c "$f" -o "$o" 2>"$o.err" || { echo "FAILED: $f"; grep -m8 "error" "$o.err"; rm -f "$o"; }
   fi'
 BUILT=$(ls "$OUT"/*.o 2>/dev/null | wc -l)
