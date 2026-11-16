@@ -13,6 +13,7 @@
 //
 
 #include "tracing_collector.h"
+#include "../sni/sni_runtime.h"
 #include "garbage_collector.h"
 #include "../virtual_machine.h"
 #include "../types/sharp_class.h"
@@ -442,6 +443,7 @@ static void mark_roots() {
         for(sharp_thread *thread : threads) {
             mark(thread->currentThread.o);
             mark(thread->args.o);
+            sni_mark_locals(thread, mark);      // objects a native function on this thread was given or made
         }
     }
 

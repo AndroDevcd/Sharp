@@ -5,7 +5,7 @@
 #     START-HERE.txt   VERSION.txt
 #     windows/   win-install.cmd  win-uninstall.cmd  sharp.exe  sharpc.cmd
 #     linux/     unix-install.sh  unix-uninstall.sh  sharp      sharpc
-#     shared/    compiler/sharpc-v<version>  compiler/sharpc-unoptimized-v<version>  lib/  examples/
+#     shared/    compiler/sharpc-v<version>  sharpc-unoptimized-v<version>  sharpc-debug-v<version>  lib/  examples/
 #
 # BEFORE this script, build the four things it packs:
 #   1. the Linux VM              bash ~/sharp_work/tools/sync.sh build       (-> ~/sharp_work/sharp_dev)
@@ -18,14 +18,17 @@
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 W=$HOME/sharp_work
 T="$REPO/build-scripts/release"
-V=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/lib/support/bootstrap/configuration/configuration.sharp" | cut -d'"' -f2)
+V=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/lib/compiler/configuration/configuration.sharp" | cut -d'"' -f2)
 VM_V=$(grep -o '#define progvers "[^"]*"' "$REPO/lib/runtime/main.h" | cut -d'"' -f2)$(grep -o '#define rev "[^"]*"' "$REPO/lib/runtime/main.h" | cut -d'"' -f2)
 [ -n "$V" ] || { echo "the compiler's version was not found"; exit 1; }
 LINUX_OBJECTS=${LINUX_OBJECTS:-$W/sharp_dev}
 WINDOWS_VM=${WINDOWS_VM:-$REPO/cmake-build-windows-vm/sharp.exe}
 COMPILERS=${COMPILERS:-$W/out/release_build}
 STAGE=$W/out/release; D=$STAGE/sharp-$V
-for need in "$LINUX_OBJECTS/sharp" "$WINDOWS_VM" "$COMPILERS/O/sharpc" "$COMPILERS/plain/sharpc" "$REPO/lib/support/$V"; do
+# the standard library's folder in the repository (lib/support/<number>): the newest one. Its NAME may be
+# an older number than the language version - the release ships its contents as `lib/`, without a number.
+LIB_SRC="$REPO/lib/support/$(ls "$REPO/lib/support" | sort -V | tail -1)"
+for need in "$LINUX_OBJECTS/sharp" "$WINDOWS_VM" "$COMPILERS/O/sharpc" "$COMPILERS/plain/sharpc" "$COMPILERS/debug/sharpc" "$LIB_SRC"; do
   [ -e "$need" ] || { echo "missing: $need   (see the top of this script for what to build first)"; exit 1; }
 done
 rm -rf "$STAGE"; mkdir -p "$D/windows" "$D/linux" "$D/shared/compiler" "$D/shared/examples"
@@ -40,9 +43,11 @@ cp "$WINDOWS_VM" "$D/windows/sharp.exe"
 # ---- the compilers and the library
 cp "$COMPILERS/O/sharpc" "$D/shared/compiler/sharpc-v$V"
 cp "$COMPILERS/plain/sharpc" "$D/shared/compiler/sharpc-unoptimized-v$V"
+cp "$COMPILERS/debug/sharpc" "$D/shared/compiler/sharpc-debug-v$V"
+[ "$("$D/linux/sharp" "$D/shared/compiler/sharpc-debug-v$V" -V 2>&1 | head -1)" = "sharpc $V (debug)" ] || { echo "the packed debug compiler is not 'sharpc $V (debug)': rebuild the release compilers"; exit 1; }
 said=$("$D/linux/sharp" "$D/shared/compiler/sharpc-v$V" -V 2>&1 | head -1)
 [ "$said" = "sharpc $V" ] || { echo "the packed compiler says '$said', not 'sharpc $V': rebuild the release compilers"; exit 1; }
-cp -r "$REPO/lib/support/$V" "$D/shared/lib"
+cp -r "$LIB_SRC" "$D/shared/lib"
 
 # ---- the scripts and texts: the version filled in; Windows files with Windows line ends, Unix files with Unix ones
 fill() {   # fill <template> <target> <crlf|lf>

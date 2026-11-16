@@ -1,8 +1,0 @@
-{
-  name: "basic-proj",
-  version: "1.0",
-  output: "basic-proj",
-  ignore_folders: [
-     "build"
-  ]
-}

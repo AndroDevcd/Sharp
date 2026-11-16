@@ -9,7 +9,7 @@ import com.intellij.psi.tree.IElementType
  * A lexer turns characters into tokens (a keyword, a name, a string ...). The
  * editor runs it while you type, to colour the text; it must be fast and must
  * never fail. This one follows `scan()` in
- * lib/support/bootstrap/frontend/lexer/lexer.sharp rule for rule, so the editor
+ * lib/compiler/frontend/lexer/lexer.sharp rule for rule, so the editor
  * and the compiler agree on where a token begins and ends. Where the two differ
  * it is only to be gentle (an editor shows half-typed text all the time):
  *

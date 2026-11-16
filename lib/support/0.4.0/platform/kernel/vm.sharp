@@ -15,14 +15,13 @@ class vm {
         }
     }
 
+    /**
+     * The path of a native library as the VM is handed it: exactly as written.
+     * The VM adds the system's ending when it is left off; it searches no
+     * folders (lib/runtime/sni/sni_runtime.cpp, places_for).
+     */
     private static def get_lib_path(name: string) : _int8[] {
-        if(build.is_windows()) {
-            name += ".dll";
-        } else {
-            name += ".so";
-        }
-
-        return new file(name).get_absolute_path().data!!;
+        return name.data!!;
     }
 
     static def load_library(name: string) {
@@ -32,6 +31,21 @@ class vm {
             pushl [lib_name]
             int 0x39
         }
+    }
+
+    /**
+     * The whole path of the file of the running program
+     * (`sharp build/outputs/app` -> C:/project/build/outputs/app).
+     */
+    static def program_path() : string {
+        path : _int8[];
+
+        asm {
+            int 0x53
+            popl [path]
+        };
+
+        return "$path";
     }
 
     static def free_library(name: string): int {
@@ -48,7 +62,7 @@ class vm {
     }
 
     static def link_func(name: string, library: string): int {
-        lib_name : _int8[] = get_lib_path(name);
+        lib_name : _int8[] = get_lib_path(library);
         func_name := name.data;
         result : _int64 = 0;
         asm {

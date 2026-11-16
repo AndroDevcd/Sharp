@@ -22,8 +22,11 @@
  *      overload chosen by argument types.
  *   3. NOTHING: an empty list rather than a wrong one.
  *
- *   NOT covered, so the answer is nothing: a parenthesised or operator expression `(a + b).`, a
- *   lambda parameter whose type is not written, a call through a function value.
+ *      A chain may BEGIN with a group in parentheses: `(apple()).fruit.eat().`,
+ *      `(new book("a")).title.`, `((owner)).`. What is inside the parentheses is read the same
+ *      way - a chain, or `value as type`, which gives the type - and the chain goes on from it.
+ *   NOT covered, so the answer is nothing: an operator expression `(a + b).`, a lambda parameter
+ *   whose type is not written, a call through a function value.
  */
 package sharp.ide.completion
 
@@ -54,6 +57,8 @@ class Segment(
     /** For `std.io#file`: the module (or group) before the `#`. */
     val qualifier: String?,
     val isStringLiteral: Boolean,
+    /** For a chain that begins with `( ... )`: the tokens between the parentheses. */
+    val group: List<Tok>? = null,
 )
 
 /** A function a call may mean, with its signature as seen on the receiver (type arguments put in). */
@@ -64,8 +69,17 @@ class Receiver(val type: SharpType?, val staticClass: ClassInfo?)
 
 object ChainParser {
 
+    /** A chain, and the index of its first token in the code it was read from. */
+    class Parsed(val segments: List<Segment>, val start: Int)
+
     /** Reads the chain that ENDS at `code[endExclusive - 1]`, going backwards. Null when the tokens are not a plain chain. */
-    fun parse(code: List<Tok>, endExclusive: Int): List<Segment>? {
+    fun parse(code: List<Tok>, endExclusive: Int): List<Segment>? = parseWithStart(code, endExclusive)?.segments
+
+    /** The chain when `code` is ONE chain from its first token to its last (`a.b(1).c`, not `x + a.b`); else null. */
+    fun parseWhole(code: List<Tok>): List<Segment>? = parseWithStart(code, code.size)?.takeIf { it.start == 0 }?.segments
+
+    fun parseWithStart(code: List<Tok>, endExclusive: Int): Parsed? {
+        var start = endExclusive
         var pos = endExclusive - 1
         val reversed = ArrayList<Segment>()
         var pendingIndexes = 0
@@ -88,11 +102,19 @@ object ChainParser {
                     argumentCount = countArguments(code, open, pos)
                     var nameAt = open - 1
                     if (nameAt >= 0 && (code[nameAt].isMark(">") || code[nameAt].isMark(">>"))) {
-                        val lt = matchAngleBack(code, nameAt) ?: return null
-                        generic = code.subList(lt, nameAt + 1).joinToString("") { it.text }
-                        nameAt = lt - 1
+                        val lt = matchAngleBack(code, nameAt)
+                        if (lt != null && lt >= 1 && code[lt - 1].isIdentifier) {
+                            generic = code.subList(lt, nameAt + 1).joinToString("") { it.text }
+                            nameAt = lt - 1
+                        }
                     }
-                    if (nameAt < 0 || !code[nameAt].isIdentifier) return null
+                    if (nameAt < 0 || !code[nameAt].isIdentifier) {
+                        // no name before the `(`: these are the parentheses of a GROUP, `(apple()).fruit` -
+                        // the chain begins here, with whatever stands between them
+                        if (pos == open + 1) return null                        // `()`: nothing inside
+                        reversed.add(Segment("", false, 0, pendingIndexes, false, null, null, false, code.subList(open + 1, pos)))
+                        return Parsed(reversed.reversed(), open)
+                    }
                     name = code[nameAt].text
                     called = true
                     pos = nameAt
@@ -100,7 +122,7 @@ object ChainParser {
                 t.isIdentifier || t.isKeyword("self") || t.isKeyword("base") -> name = t.text
                 t.type == SharpTokenKinds.STRING_TEXT && t.text.endsWith("\"") -> {
                     reversed.add(Segment("", false, 0, pendingIndexes, false, null, null, true))
-                    return reversed.reversed()
+                    return Parsed(reversed.reversed(), pos)
                 }
                 else -> return null
             }
@@ -120,11 +142,12 @@ object ChainParser {
             }
             reversed.add(Segment(name, called, argumentCount, pendingIndexes, isNew, generic, qualifier, false))
             pendingIndexes = 0
+            start = before + 1                                  // the first token of this segment (`new`, the module, or the name)
             if (continues && !isNew && qualifier == null) { pos = before - 1; continue }
             if (qualifier != null && before >= 0 && code[before].isDot) { pos = before - 1; continue }
             break
         }
-        return if (reversed.isEmpty()) null else reversed.reversed()
+        return if (reversed.isEmpty()) null else Parsed(reversed.reversed(), start)
     }
 
     /** The index of the bracket that opens the one closed at `closeAt`. */
@@ -204,8 +227,8 @@ class ReceiverResolver(
         }
     }
 
-    private fun evaluate(segments: List<Segment>): Value? {
-        var value = first(segments[0]) ?: return null
+    private fun evaluate(segments: List<Segment>, depth: Int = 0): Value? {
+        var value = first(segments[0], depth) ?: return null
         for (segment in segments.drop(1)) value = step(value, segment) ?: return null
         return value
     }
@@ -264,7 +287,39 @@ class ReceiverResolver(
 
     // ------------------------------------------------------------------ the first segment
 
-    private fun first(s: Segment): Value? {
+    /**
+     * What a group in parentheses stands for: `(apple())`, `(owner.title)`, `((owner))`, `(owner as item)`,
+     * `(maybe!!)`. A chain inside is evaluated like any chain; `value as type` IS the type. Anything
+     * else (`a + b`, a condition) has no answer here.
+     */
+    private fun groupValue(tokens: List<Tok>, depth: Int): Value? {
+        if (depth > 16) return null
+        var inner = tokens
+        while (inner.isNotEmpty() && inner.last().isMark("!!")) inner = inner.subList(0, inner.size - 1)
+        if (inner.isEmpty()) return null
+        // `value as type` at the top level of the group: the type after the last `as`
+        var level = 0
+        var castAt = -1
+        for (i in inner.indices) {
+            when (inner[i].type) {
+                SharpTokenKinds.LPAREN, SharpTokenKinds.LBRACKET, SharpTokenKinds.LBRACE -> level++
+                SharpTokenKinds.RPAREN, SharpTokenKinds.RBRACKET, SharpTokenKinds.RBRACE -> level--
+            }
+            if (level == 0 && inner[i].isKeyword("as")) castAt = i
+        }
+        if (castAt >= 0) {
+            val written = inner.subList(castAt + 1, inner.size).joinToString("") { it.text }.trimEnd('?', '!')
+            if (written.isEmpty()) return null
+            return lookup.resolveTypeName(written, scope, place.typeParameters)?.let { Value.Instance(it) }
+        }
+        val segments = ChainParser.parseWhole(inner) ?: return null
+        return evaluate(segments, depth + 1)
+    }
+
+    private fun first(s: Segment, depth: Int = 0): Value? {
+        if (s.group != null) return groupValue(s.group, depth)?.let { applyIndexes(it, s.indexed) }
+        // `new outer.inner()`: the name after `new` is where a class is looked for; `inner(...)` then makes the object
+        if (s.isNew && !s.called) return lookup.findClass(s.name, scope)?.let { Value.StaticOf(it) }
         if (s.isStringLiteral) return index.classesById["std#string"]?.let { applyIndexes(Value.Instance(lookup.typeOfClass(it)), s.indexed) }
         if (s.qualifier != null) return firstInModule(s)
         if (!s.called && !s.isNew) {
@@ -358,7 +413,12 @@ class ReceiverResolver(
         if (named.isEmpty()) return null
         if (s.called) {
             val functions = named.filter { it.declaration is FunctionInfo }
-            val chosen = functions.firstOrNull { (it.declaration as FunctionInfo).parameters.size == s.argumentCount } ?: functions.firstOrNull() ?: return null
+            val chosen = functions.firstOrNull { (it.declaration as FunctionInfo).parameters.size == s.argumentCount } ?: functions.firstOrNull()
+            if (chosen == null) {
+                // `outer.inner(...)`: no function of that name, but a class declared inside - an object of it
+                val made = named.firstOrNull { it.declaration is ClassInfo } ?: return null
+                return Value.Instance(lookup.typeOfClass(made.declaration as ClassInfo))
+            }
             return chosen.type?.let { Value.Instance(it) }
         }
         val entry = named.firstOrNull { it.declaration is FieldInfo || it.declaration is sharp.ide.index.EnumValueInfo }

@@ -9,3 +9,5 @@ mapping.txt
 claude/
 # the release archives ARE kept (releases/sharp-<version>.zip, made by build-scripts/make_release.sh)
 !/releases/*.zip
+# ... and the archive of the C++ compiler (legacy/sharpc++.zip)
+!/legacy/*.zip

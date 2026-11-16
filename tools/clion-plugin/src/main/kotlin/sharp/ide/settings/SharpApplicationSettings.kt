@@ -37,6 +37,12 @@ class SharpApplicationSettings : PersistentStateComponent<SharpApplicationSettin
         var useInstalledSharp: Boolean = true
         /** The folder Sharp is installed in; empty = the default place (%LOCALAPPDATA%\Sharp, ~/.sharp, or SHARP_HOME). */
         var sharpHome: String = ""
+        /**
+         * The C++ compiler this machine builds native libraries with (g++ or clang++: a path, or a name
+         * on the PATH). Handed to the compiler as the environment variable SHARP_CXX, so a project's
+         * own settings.json still wins. Empty: the compiler looks for one itself.
+         */
+        var cxxCompiler: String = ""
         /** One argument per line; `{script}` is replaced by the script's path. */
         var launcher: String = SharpDefaults.launcher()
         var script: String = SharpDefaults.SCRIPT

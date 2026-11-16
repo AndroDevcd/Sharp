@@ -153,6 +153,32 @@ class CompletionEngineTest {
         assertTrue("the result of a method: string", names(method).containsAll(listOf("shout", "size")))
     }
 
+    // ---------------------------------------------------------------- 3a: a chain that begins in parentheses
+
+    @Test
+    fun aChainMayBeginWithAGroupInParentheses() {
+        val q = '"'
+        val ofBook = listOf("pages", "summary", "label")
+        val ofString = listOf("shout", "size")
+        // the object a group stands for: a call, `new`, a class called like a function, a name, nested groups
+        for (code in listOf("(make_book()).", "(new book(${q}a${q})).", "(book(${q}a${q})).", "(owner).", "((owner)).", "x := (make_book()).", "println((owner).")) {
+            assertTrue("`$code` offers the members of book", names(stale(code)).containsAll(ofBook))
+        }
+        // ... and the chain goes on from it, link by link
+        for (code in listOf("(new book(${q}a${q})).title.", "(book(${q}a${q})).summary().", "(owner).title.", "(owner.title).", "(make_book()).summary().shout().")) {
+            assertTrue("`$code` offers the members of string", names(stale(code)).containsAll(ofString))
+        }
+        // `value as type` in a group IS the type: item has no `pages`
+        val cast = names(stale("(owner as item)."))
+        assertTrue(cast.containsAll(listOf("title", "label")))
+        assertFalse("a book seen as an item has no pages", "pages" in cast)
+        // a local made from a group is known by its type on the next line
+        assertTrue(names(stale("made_here := (make_book()); made_here.")).containsAll(ofBook))
+        // an operator expression has no sure answer: nothing, not something wrong
+        assertTrue(names(stale("(owner.title + owner.title).")).isEmpty())
+        assertTrue(names(stale("().")).isEmpty())
+    }
+
     // ---------------------------------------------------------------- 4: self
 
     @Test

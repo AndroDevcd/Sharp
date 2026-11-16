@@ -4,6 +4,8 @@
 #     sharpc main.sharp -o app          compile          (then:  sharp app)
 #     sharpc --unoptimized ...          use the compiler that was built without the optimizer
 #                                       (the same compiler; for when the optimized one misbehaves)
+#     sharpc --debug ...                the debug compiler: also prints how the compile went, stage by
+#                                       stage, and has -Oreport, -Otrace, -ir, -listing, -timings ...
 #
 # The compiler is itself a Sharp program: this starts the VM on it, and adds the standard
 # library that was installed beside it, so no -L is ever needed for it.
@@ -12,6 +14,9 @@ ROOT=$(dirname "$HERE")
 COMPILER="$ROOT/compiler/sharpc-v@VERSION@"
 if [ "$1" = "--unoptimized" ]; then
     COMPILER="$ROOT/compiler/sharpc-unoptimized-v@VERSION@"
+    shift
+elif [ "$1" = "--debug" ]; then
+    COMPILER="$ROOT/compiler/sharpc-debug-v@VERSION@"
     shift
 fi
 exec "$HERE/sharp" "$COMPILER" "$@" -L "$ROOT/lib"

@@ -36,6 +36,11 @@ set(CMAKE_CXX_FLAGS_RELEASE   "${REDZONE_FLAG} -pthread ${STDLIB_FLAG} -O3 -Ofas
 #set(LEGACY "build")
 
 # compiler
+# (The C++ compiler was archived on 15 Nov 2026: the compiler is now lib/compiler, written in Sharp.
+#  To build the old one again, unzip legacy/sharpc++.zip - it has lib/grammar and everything it needs.)
+if ((SHARPC OR LEGACY) AND NOT EXISTS "${CMAKE_SOURCE_DIR}/lib/grammar")
+    message(FATAL_ERROR "lib/grammar is not in the tree any more: the C++ compiler is in legacy/sharpc++.zip. Unzip it and build there, or build the VM (leave SHARPC and LEGACY unset).")
+endif()
 if (SHARPC)
     add_definitions(-DMAKE_COMPILER)
 
@@ -194,8 +199,8 @@ else()
             "lib/runtime/jit/x64/sections/*.cpp"
             "lib/runtime/telemetry/*.h"
             "lib/runtime/telemetry/*.cpp"
-            "lib/runtime/snb/*.h"
-            "lib/runtime/snb/*.cpp"
+            "lib/runtime/sni/*.h"
+            "lib/runtime/sni/*.cpp"
             "lib/runtime/multitasking/*/*.h"
             "lib/runtime/multitasking/*/*.cpp"
             "lib/runtime/types/*.h"

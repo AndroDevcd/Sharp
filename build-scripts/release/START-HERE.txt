@@ -42,6 +42,13 @@ IF THE COMPILER MISBEHAVES
     uses a second copy of the same compiler that was built without the optimizer. If that
     one works where the normal one does not, you have found a bug worth reporting.
 
+    sharpc --debug file.sharp -o name
+
+    uses the debug compiler. The normal compiler prints nothing when a compile goes well; the
+    debug one also prints how the compile went, stage by stage, and has the options that look
+    inside the compiler (-Oreport, -Otrace, -ir, -listing, -timings). It is for working on the
+    compiler itself.
+
 
 TO REMOVE SHARP
 

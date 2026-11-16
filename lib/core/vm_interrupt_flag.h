@@ -85,6 +85,7 @@ enum interrupt_flag
     OP_STRTOL = 0x50,
     OP_DESCRIBE_OBJECT = 0x51,
     OP_REFLECT_FIELD_VALUE = 0x52,
+    OP_PROGRAM_PATH = 0x53,          // push: the whole path of the program file the VM is running
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

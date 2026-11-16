@@ -50,7 +50,7 @@ class SharpConfigurable(private val project: Project) :
                         .rows(3).columns(COLUMNS_LARGE)
                         .comment("The folder whose .sharp files are the program (one per line for more than one; absolute or relative to the project folder). " +
                             "Also set by right-clicking a folder in the Project view: Set as Sharp Program Folder. " +
-                            "Empty: automatic (the project folder, or lib/support/bootstrap in the Sharp repository).")
+                            "Empty: automatic (the project folder, or lib/compiler in the Sharp repository).")
                         .bindText(
                             { projectState.sourceRoots.joinToString("\n") },
                             { projectState.sourceRoots = splitLines(it) },
@@ -95,6 +95,13 @@ class SharpConfigurable(private val project: Project) :
                     textField().columns(COLUMNS_LARGE)
                         .comment("Where Sharp is installed. Empty: the usual place (" + sharp.ide.toolchain.SharpToolchains.defaultHome() + ").")
                         .bindText(appState::sharpHome)
+                }
+                row("C++ compiler:") {
+                    textField().columns(COLUMNS_LARGE)
+                        .comment("For projects with native functions (\"native\" in settings.json): the g++ or clang++ that builds their C++ - " +
+                            "a path, or a name on the PATH. A project's own settings.json wins over this. " +
+                            "Empty: the compiler looks on the PATH and where MinGW is usually installed (CLion's own is found).")
+                        .bindText(appState::cxxCompiler)
                 }
                 row("Time limit (seconds):") {
                     textField().columns(COLUMNS_MEDIUM).bindIntText(appState::timeoutSeconds)

@@ -3,6 +3,7 @@
 //
 
 #include "thread_controller.h"
+#include "../../sni/sni_runtime.h"
 #include "stack_limits.h"
 #include "sharp_thread.h"
 #include "../../memory/memory_helpers.h"
@@ -777,9 +778,22 @@ void wait_for_thread_exit(sharp_thread* thread) {
     gc_safe_region waiting; // only waits, touches no objects
     const int sMaxRetries = 10000000;
     int retryCount = 0;
+    // THE STOP LADDER (sni/sni_runtime.h). The VM cannot interrupt C++. A thread that was asked to
+    // stop and is still inside a native function after the grace time is ABANDONED: nobody waits for
+    // it any more. It is never killed there - it may hold a lock or be half way through changing
+    // memory. If it ever comes back it stops at the boundary; else it ends with the process.
+    uint64_t waitingSince = Clock::realTimeInNSecs();
 
     while (!thread->exited)
     {
+        if(sni_was_abandoned(thread)) return;           // (said once already: nobody waits for it)
+        if(sni_in_native(thread) && NANO_TOMILL(Clock::realTimeInNSecs() - waitingSince) >= (uint64_t) sni_grace_millis) {
+            cerr << "sharp: warning: thread `" << thread->name << "` was asked to stop " << sni_grace_millis
+                 << " ms ago and is still inside the native function `" << sni_native_name(thread)
+                 << "`; not waiting for it any longer (a native loop should ask env->should_stop())" << endl;
+            sni_abandon(thread);
+            return;
+        }
         if (retryCount++ == sMaxRetries)
         {
             retryCount = 0;

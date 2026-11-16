@@ -1,0 +1,53 @@
+mod configuration;
+
+import (
+    std.io
+)
+
+/**
+ * WHICH COMPILER THIS IS: the standard one, or the debug one
+ *
+ * The same sources are built into two kinds of compiler:
+ *
+ *      STANDARD    what people compile their programs with (sharpc-v<version>,
+ *                  and sharpc-unoptimized-v<version>). It says what a compiler
+ *                  has to say - errors, warnings, what was built for a native
+ *                  library - and nothing else: a compile without a mistake
+ *                  prints nothing.
+ *
+ *      DEBUG       for working ON the compiler (sharpc-debug-v<version>;
+ *                  `sharpc --debug ...`). It also prints how the compile went,
+ *                  stage by stage -
+ *
+ *                      parsed 271 file(s), no errors
+ *                      names resolved in 19 module(s)
+ *                      analysis complete: no errors
+ *                      code generation: 162 functions, 81 classes, written to app
+ *
+ *                  - and has the options that look inside the compiler:
+ *                  -Oreport, -Otrace, -ir, -listing, -timings, -parsetree,
+ *                  -declarations, -analysis ... (`is_debug_option`, below).
+ *
+ * `debug_compiler` below decides, and it is TRUE in the repository: the
+ * compiler built while developing (bootc.sh, the gates, every test script
+ * that reads those lines) is the debug one. A release flips it to false for
+ * the two standard compilers - build-scripts/build_release_compilers.sh
+ * rewrites this one line in a copy of the sources. Nothing else differs.
+ *
+ *      C++ comparison: a -DDEBUG build. Sharp has no conditional compilation,
+ *      so the switch is a constant and the two builds differ in one line.
+ */
+debug_compiler : decimal = true;
+
+/** a line about how the compile is going: printed by the debug compiler only */
+def progress(text: string) {
+    if(debug_compiler) { println(text); }
+}
+
+/** is `option` one of those that look inside the compiler - the debug compiler's own? */
+def is_debug_option(option: string) : decimal {
+    return option == "-Oreport" || option == "-Otrace" || option == "-ir" || option == "-listing" || option == "-d"
+        || option == "-timings" || option == "-lexstats" || option == "-parsestats" || option == "-parsetree"
+        || option == "-declarations" || option == "-analysis" || option == "-analysis-stats"
+        || option == "-eager" || option == "-magic";
+}

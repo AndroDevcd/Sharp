@@ -1,6 +1,0 @@
-mod main;
-
-def main(args: object[]) : decimal {
-    println("Hello, world!");
-    return 0;
-}

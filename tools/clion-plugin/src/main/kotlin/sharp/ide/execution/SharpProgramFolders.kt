@@ -7,7 +7,7 @@
  *
  *     chosen by hand     right-click a folder in the Project view > "Set as Sharp Program Folder"
  *                        (the same menu takes the mark off again); or Settings > Sharp > Program folder
- *     not chosen         automatic: the project folder (in the Sharp repository: lib/support/bootstrap)
+ *     not chosen         automatic: the project folder (in the Sharp repository: lib/compiler)
  *
  * A folder with a Sharp settings.json is a Sharp PROJECT (sharp.ide.project): the compiler's project
  * mode builds it. "New Sharp Project Here" in the same right-click menu makes one: settings.json,

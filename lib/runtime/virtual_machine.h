@@ -9,7 +9,6 @@
 #include "exe/manifest.h"
 #include "types/sharp_type.h"
 #include "memory/sharp_object.h"
-#include "types/library.h"
 #include "error/vm_exception.h"
 
 extern thread_local vm_cell *registers;
@@ -33,8 +32,7 @@ struct virtual_machine {
             exitVal(0),
             mdata(),
             state(VM_CREATED),
-            nativeTypes(nullptr),
-            libs()
+            nativeTypes(nullptr)
     {}
 
     manifest mf;
@@ -47,7 +45,6 @@ struct virtual_machine {
     object memoryExcept;
     meta_data mdata;
     sharp_type *nativeTypes;
-    linkedlist<extern_lib*> libs;
     vm_state state;
 
     /**

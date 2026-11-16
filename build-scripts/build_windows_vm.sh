@@ -25,7 +25,7 @@ FLAGS="-std=c++17 -O3 -w -pthread -DASMJIT_STATIC -D__USE_MINGW_ANSI_STDIO=1 $*"
 echo "$FLAGS" > "$OUT/flags.new"
 if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/flags.new" "$OUT/flags.txt"; fi
 ls main.cpp lib/runtime/error/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
-   lib/runtime/snb/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
+   lib/runtime/sni/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
    lib/runtime/jit/arm/*.cpp lib/runtime/jit/arm/opcode/*.cpp lib/runtime/jit/arm/sections/*.cpp \
    lib/runtime/jit/x64/*.cpp lib/runtime/jit/x64/opcode/*.cpp lib/runtime/jit/x64/sections/*.cpp \
    lib/runtime/*.cpp lib/runtime/telemetry/*.cpp lib/core/*.cpp lib/core/opcode/*.cpp lib/util/*.cpp lib/util/zip/*.cpp \
@@ -35,6 +35,8 @@ ls main.cpp lib/runtime/error/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.c
 NEWEST_H=$(find lib/runtime lib/core stdimports.h -name '*.h' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
 export OUT FLAGS NEWEST_H
 cat "$OUT/files.txt" | xargs -P $JOBS -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"; if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != lib/util/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then g++ $FLAGS -c "$f" -o "$o" 2>"$o.err" || { echo "FAILED: $f"; grep -m4 "error" "$o.err"; rm -f "$o"; }; fi'
+# an object whose source file is no longer in the list (a file that was removed or renamed) must not be linked
+for o in "$OUT"/*.o; do n=$(basename "$o" .o); grep -qxF "$n" <(tr "/ " "__" < "$OUT/files.txt") || rm -f "$o"; done
 echo "objects: $(ls "$OUT"/*.o 2>/dev/null | wc -l) of $(wc -l < "$OUT/files.txt")"
 g++ -static -o "$OUT/sharp.exe" "$OUT"/*.o -pthread -lm -lpsapi 2>&1 | grep -v warning | head -20
 ls -la "$OUT/sharp.exe" 2>&1 | cut -c1-120

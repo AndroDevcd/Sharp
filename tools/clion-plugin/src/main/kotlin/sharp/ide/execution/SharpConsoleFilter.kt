@@ -36,9 +36,14 @@ class SharpConsoleFilter(private val project: Project) : Filter {
         // the file may hold colons (C:/...) and spaces; the two numbers at the end of the line decide
         private val PLACE = Regex("""^\s*(?:-->|:::)\s+(.+?):(\d+):(\d+)\s*$""")
 
+        // what g++ and clang++ print when a project's C++ does not build:
+        //     C:/work/app/src/cpp/foo.cpp:4:1: error: expected ...
+        private val CXX_PLACE = Regex("""^(.+?\.(?:cpp|cc|cxx|c|h|hpp|hh|hxx|inl)):(\d+):(\d+)(?=:)""", RegexOption.IGNORE_CASE)
+
         /** The place this line of compiler output names, or null. */
         fun placeIn(line: String): ConsolePlace? {
-            val match = PLACE.find(line.trimEnd('\n', '\r')) ?: return null
+            val text = line.trimEnd('\n', '\r')
+            val match = PLACE.find(text) ?: CXX_PLACE.find(text) ?: return null
             val file = match.groups[1] ?: return null
             val row = match.groupValues[2].toIntOrNull() ?: return null
             val column = match.groupValues[3].toIntOrNull() ?: return null

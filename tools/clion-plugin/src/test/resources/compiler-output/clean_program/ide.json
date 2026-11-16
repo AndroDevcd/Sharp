@@ -269,5 +269,5 @@
 ,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/support/0.4.0/std/util/ref.sharp","module":"std.util","library":true,"size":1711,"hash":"1e9e31aa","imports":["std.util","std","std.io.console"],"groups":[],"bodies":null}
 ,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/support/0.4.0/std/util/uuid.sharp","module":"std.util","library":true,"size":8268,"hash":"6d24c2ef","imports":["std.util","std","std.io.console"],"groups":[],"bodies":null}
 ,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/support/0.4.0/std/util/version.sharp","module":"std.util","library":true,"size":16219,"hash":"411f4468","imports":["std.util","std","std.io.console"],"groups":[],"bodies":null}
-,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/support/bootstrap/tests/ide/samples/shapes.sharp","module":"shapes","library":false,"size":1696,"hash":"d653efc4","imports":["shapes","std","std.io.console","std.io"],"groups":[],"bodies":null}
+,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/compiler/tests/ide/samples/shapes.sharp","module":"shapes","library":false,"size":1696,"hash":"d653efc4","imports":["shapes","std","std.io.console","std.io"],"groups":[],"bodies":null}
 ]}

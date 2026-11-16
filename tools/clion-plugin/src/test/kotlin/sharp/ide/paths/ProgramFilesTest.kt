@@ -58,16 +58,16 @@ class ProgramFilesTest {
 
     @Test fun theSharpRepositoryDefaultsToTheBootstrapCompiler() {
         val base = temp.newFolder("repo")
-        touch(base, "lib/support/bootstrap/main.sharp")
-        touch(base, "lib/support/bootstrap/backend/a.sharp")
-        touch(base, "lib/support/bootstrap/tests/skipped.sharp")
+        touch(base, "lib/compiler/main.sharp")
+        touch(base, "lib/compiler/backend/a.sharp")
+        touch(base, "lib/compiler/tests/skipped.sharp")
         touch(base, "tests/suite/case.sharp")
         touch(base, "lib/support/0.4.0/std/a.sharp")
         val layout = ProgramFiles.layoutOf(ProgramSettings(base.path, emptyList(), listOf("tests"), ""))
-        assertEquals(listOf(ProgramFiles.normalise(base.path) + "/lib/support/bootstrap"), layout.sourceRoots)
+        assertEquals(listOf(ProgramFiles.normalise(base.path) + "/lib/compiler"), layout.sourceRoots)
         assertEquals(ProgramFiles.normalise(base.path) + "/lib/support/0.4.0", layout.libraryRoot)
         val files = relative(base, ProgramFiles.list(ProgramSettings(base.path, emptyList(), listOf("tests"), "")))
-        assertEquals(listOf("lib/support/0.4.0/std/a.sharp", "lib/support/bootstrap/backend/a.sharp", "lib/support/bootstrap/main.sharp"), files)
+        assertEquals(listOf("lib/support/0.4.0/std/a.sharp", "lib/compiler/backend/a.sharp", "lib/compiler/main.sharp"), files)
     }
 
     @Test fun noLibraryFolderMeansNoLibraryRoot() {

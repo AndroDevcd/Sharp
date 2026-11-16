@@ -1,5 +1,0 @@
-mod std.export;
-
-class object_writer {
-
-}

@@ -1,0 +1,18 @@
+add 42
+half x10 25
+widths 4000065249
+narrow 44
+shout HELLO
+shout empty []
+sum 100
+double_all 3 5 8
+range 5 10
+fail code 3 is not allowed
+fail_unknown raised with a class the program does not have (native code asked for `nowhere#no_such_exception`, which this program does not have)
+nothing
+churn made 2999
+recall kept text
+pick 1 2
+plus 105
+twice 42
+version 1

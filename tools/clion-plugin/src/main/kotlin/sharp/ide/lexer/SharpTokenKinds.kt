@@ -12,7 +12,7 @@ import sharp.ide.language.SharpLanguage
  * colours by kind, the parser definition names the comment and string kinds, the
  * brace matcher names the bracket kinds.
  *
- * The compiler's lexer (lib/support/bootstrap/frontend/lexer) has one kind per
+ * The compiler's lexer (lib/compiler/frontend/lexer) has one kind per
  * keyword and per operator, because its parser needs them. The editor only needs
  * to know how to COLOUR, so related things share a kind: the 67 keywords fall
  * into six groups, all the operators into one.

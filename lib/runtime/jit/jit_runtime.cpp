@@ -8,6 +8,7 @@
 #include "jit_runtime.h"
 #include "jit_compiler.h"
 #include "../virtual_machine.h"
+#include "../sni/sni_runtime.h"
 #include "../error/vm_exception.h"
 #include "../memory/garbage_collector.h"
 #include "../memory/tracing_collector.h"
@@ -77,7 +78,7 @@ Int jit_rt_safepoint(sharp_thread *thread) {
         suspend_self();
     if(hasSignal(thread->signal, tsig_except))
         return jit_exception;
-    if(hasSignal(thread->signal, tsig_context_switch) && thread->nativeCalls == 0)
+    if(hasSignal(thread->signal, tsig_context_switch) && thread->nativeCalls == 0 && sni_may_switch_fiber(thread))
         return jit_switch;
     if(hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED)
         return jit_kill;

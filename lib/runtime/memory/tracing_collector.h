@@ -140,7 +140,7 @@ void tgc_enter_safe(sharp_thread *thread);
 void tgc_leave_safe(sharp_thread *thread);
 
 /**
- * Objects held by native code (the snb bridge) are not in any place the
+ * Objects held by native code (SNI: a kept reference, sni/sni.h) are not in any place the
  * collector looks at, so they are listed here while they are held.
  */
 void tgc_pin(sharp_object *o);

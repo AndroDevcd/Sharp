@@ -2,6 +2,7 @@
 // Created by bknun on 9/16/2022.
 //
 
+#include "../../sni/sni_runtime.h"
 #include "sharp_thread.h"
 #include "../../../core/thread_state.h"
 #include "thread_controller.h"
@@ -11,6 +12,7 @@
 
 void free_struct(sharp_thread *thread) {
     tgc_unregister_thread(thread); // the collector must not look at it any more
+    sni_free_thread_state(thread);
     release_bytes(sizeof(sharp_thread));
     copy_object(&thread->currentThread, (sharp_object*) nullptr);
     copy_object(&thread->args, (sharp_object*) nullptr);
@@ -24,6 +26,7 @@ void init_struct(sharp_thread *thread) {
     thread->id = 0;
     thread->stackSize = 0;
     thread->nativeStackFloor = 0;
+    thread->sni = nullptr;
     thread->priority = THREAD_PRIORITY_NORM;
     thread->daemon = false;
     thread->terminated = false;

@@ -14,7 +14,7 @@ import java.io.File
  */
 class SharpKeywordsTest {
     private fun compilerKeywords(): List<String> {
-        val source = File(repoRoot(), "lib/support/bootstrap/frontend/lexer/lexer.sharp").readText()
+        val source = File(repoRoot(), "lib/compiler/frontend/lexer/lexer.sharp").readText()
         val start = source.indexOf("def keyword_list()")
         assert(start >= 0) { "keyword_list() not found in lexer.sharp" }
         val body = source.substring(start, source.indexOf('}', source.indexOf("return {", start)))

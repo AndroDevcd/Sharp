@@ -1,0 +1,167 @@
+mod backend.finalizer.sni;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.layout
+)
+
+/**
+ * THE NATIVE FUNCTIONS OF A PROGRAM, BY LIBRARY (the Sharp Native Interface)
+ *
+ *      native "sensors" {                              the library "sensors"
+ *          def read(port: _int32) : decimal;
+ *      }
+ *      class motor { native def spin(speed: decimal); }    declared alone: the library
+ *                                                           named after its module
+ *
+ * A `native` function has no code in the program: its code is a C++ function
+ * in a library the PROGRAM loads while it runs - load_library("path"); the VM
+ * loads nothing on its own (lib/runtime/sni). The name of a native block only
+ * GROUPS functions: one group is one pair of generated C++ files. This file
+ * finds every native function the program keeps and says, for each:
+ *
+ *      which group         the name of its `native "name" { }` block; for one
+ *                          declared alone, the name of its module ("native"
+ *                          when the module has no name)
+ *      its C++ name        sensors_read, app_motor_spin: library, class, name
+ *      its signature       "(_int32)decimal", "(self,decimal)nil": what the VM
+ *                          compares with the library's table when it links
+ *
+ * THE SIGNATURE TEXT is built from the same facts the function record of the
+ * executable carries (output/sections.sharp, write_type), by the same rule
+ * the VM uses on its side (lib/runtime/sni/sni_runtime.cpp, signature_of):
+ *
+ *      a number                its Sharp name:  _int8 ... _uint64, decimal
+ *      an array of numbers     the name and []: _int32[]
+ *      anything else           ref              (text, an object, an array of objects)
+ *      no result               nil
+ *      the object of a function that belongs to a class comes first: self
+ *
+ * A program compiled against one declaration and a library built against
+ * another therefore do not meet in silence: the two texts differ, and the VM
+ * refuses the call with both in the message.
+ *
+ *      Java comparison: the JNI's method descriptors, "(I)D".
+ */
+class native_function {
+    made : function_layout;
+    cpp_name : string = "";         // sensors_read
+    signature : string = "";        // (_int32)decimal
+
+    native_function(made: function_layout) {
+        self->made = made;
+    }
+}
+
+/** one library: its name as the program says it, and the native functions it has to provide */
+class native_library {
+    name : string;                  // sensors
+    identifier : string;            // the name as a C++ identifier and file name: my-lib -> my_lib
+    functions : list<native_function>;
+
+    native_library(name: string) {
+        self->name = name;
+        identifier = identifier_of(name);
+        functions = new list<native_function>();
+    }
+}
+
+/** text -> the same text with everything that is not a letter, a digit or `_` turned into `_` */
+def identifier_of(text: string) : string {
+    made := new string_builder("");
+    size : _int64 = sizeof(text.data);
+    for(i : _int64 = 0; i < size; i++) {
+        ch : _int64 = text.data!![i];
+        if((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') { made.append_char(ch); }
+        else { made.append_char('_'); }
+    }
+    return made.build();
+}
+
+/** the library a native function belongs to */
+def library_name_of(function: sharp_function) : string {
+    if(sizeof(function.native_library.data) > 0) { return function.native_library; }
+    if(sizeof(function.module.name.data) > 0) { return function.module.name; }
+    return "native";
+}
+
+/** the Sharp name of a number type as signatures spell it; "" for what is not a number */
+def signature_number_name(type: resolved_type) : string {
+    if(type.kind == RT_DECIMAL) { return "decimal"; }
+    if(type.kind != RT_INTEGER) { return ""; }
+    name : string = "_int";
+    if(type.is_signed == 0) { name = "_uint"; }
+    return name + type.bits;
+}
+
+/** one type as a signature spells it */
+def signature_type_text(type: resolved_type?) : string {
+    if(type == null) { return "nil"; }
+    found : resolved_type = type!!;
+    if(found.kind == RT_NIL) { return "nil"; }
+    number := signature_number_name(found);
+    if(sizeof(number.data) == 0) { return "ref"; }
+    if(found.is_array == 1) { return number + "[]"; }
+    return number;
+}
+
+/** "(self,_int32,decimal[])ref" */
+def signature_text(made: function_layout) : string {
+    text := new string_builder("(");
+    first : _int64 = 1;
+    if(made.is_static == 0) {
+        text.append("self");
+        first = 0;
+    }
+    for(i : _int64 = 0; i < made.of.parameters.size(); i++) {
+        if(first == 0) { text.append(","); }
+        first = 0;
+        text.append(signature_type_text(made.of.parameters.at(i).value_type));
+    }
+    text.append(")");
+    text.append(signature_type_text(made.of.result_type));
+    return text.build();
+}
+
+/**
+ * Every native function the program keeps, grouped by library - the libraries
+ * in the order their first function is met (by function address), so two
+ * compiles of one program write the same files.
+ */
+def native_libraries_of(layout: program_layout) : list<native_library> {
+    libraries := new list<native_library>();
+    for(i : _int64 = 0; i < layout.functions.size(); i++) {
+        made := layout.functions.at(i);
+        if(!made.of.has(FLAG_NATIVE)) { continue; }
+
+        wanted := library_name_of(made.of);
+        library : native_library? = null;
+        for(j : _int64 = 0; j < libraries.size(); j++) {
+            if(libraries.at(j).name == wanted) { library = libraries.at(j); }
+        }
+        if(library == null) {
+            library = new native_library(wanted);
+            libraries.add(library!!);
+        }
+
+        entry := new native_function(made);
+        entry.signature = signature_text(made);
+        // sensors_read; app_motor_spin for a function of the class `motor`
+        made_name : string = library!!.identifier + "_";
+        if(made.of.owner != null) { made_name = made_name + identifier_of(made.of.owner!!.qualified_name()) + "_"; }
+        made_name = made_name + identifier_of(made.of.name);
+        // overloads share a name in Sharp; C++ names them apart: sensors_read, sensors_read_2 ...
+        same : _int64 = 1;
+        for(j : _int64 = 0; j < library!!.functions.size(); j++) {
+            other := library!!.functions.at(j).made.of;
+            if(other.name == made.of.name && other.owner == made.of.owner) { same++; }
+        }
+        if(same > 1) { made_name = made_name + "_" + same; }
+        entry.cpp_name = made_name;
+        library!!.functions.add(entry);
+    }
+    return libraries;
+}

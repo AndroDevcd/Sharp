@@ -1,0 +1,528 @@
+mod configuration;
+
+import (
+    std.io,
+    std.data,
+    platform,
+    frontend.diagnostics
+)
+
+/*
+ * SETTINGS.JSON: the options of a project, kept with the project.
+ *
+ *      {
+ *        "name": "demo",
+ *        "output": "demo",                 the executable: build/outputs/demo
+ *        "extern_lib": [ "/usr/include/sharp/0.4.0" ],
+ *        "ignore_folders": [ "build" ],
+ *        "optimize_level": 1,
+ *        "warnings_as_errors": true
+ *      }
+ *
+ * Every setting has the same effect as the option of the command line that
+ * names the same thing, and goes through the same setter (settings.sharp).
+ * The file is read AFTER the command line, so where both say something the
+ * file wins - as in the C++ compiler. A setting with the wrong kind of value
+ * (a text where true / false is wanted) is an error that names the setting
+ * and the kind of value it takes, and so is a file that is not JSON - an
+ * empty file included: a build must never quietly go on without the settings
+ * its project asks for. A name nobody knows is a warning with the nearest
+ * settings (`"ouptut"` - did you mean `output`?), not an error: a file
+ * written for a newer compiler still builds. A setting written twice is a
+ * warning too (the JSON parser keeps the last; which one was meant cannot be
+ * known).
+ *
+ * The settings (the names are the C++ compiler's; where this compiler had a
+ * second name of its own both are read):
+ *
+ *      name                        the project's name (only shown)
+ *      version                     -v: the version written into the executable
+ *      output, output_file         -o: the name of the executable in build/outputs
+ *      compile_only                -c
+ *      show_all_errors             -a
+ *      debug                       -dbg (true) / -R (false)
+ *      release, release_build      true: no source text in the file and the names
+ *                                  obfuscated (-R -obf), as the C++ compiler
+ *      obfuscate                   -obf
+ *      optimize_level              0: -O0; 1 or 2: -O
+ *      cache_files                 false: -cacheoff
+ *      target                      -target
+ *      target_api                  the version of the installed standard library ("0.4.0")
+ *      warnings, enable_warnings, disable_warnings, warnings_as_errors, error_limit
+ *      green_mode, magic_mode, compiler_debug_mode
+ *      ignore_files, ignore_folders        -ignore, -ignoredir: a path inside the project,
+ *                                          or else a path as written
+ *      extern_lib, extern_libs             -L: likewise
+ *      ignore_extern_files, ignore_extern_folders   -ignore, -ignoredir with paths as written
+ *      native                      the C++ of the project's native functions and the
+ *                                  compiler that builds it (read_native_setting, below)
+ *
+ *      C++ comparison: lib/grammar/settings/settings_processor.cpp,
+ *      process_settings().
+ */
+settings_file_name : string = "settings.json";
+project_name : string = "";
+
+/**
+ * A path a setting names: the one inside the project when that exists, else
+ * the text as it was written (an absolute path, or one relative to where the
+ * compiler was started) - the C++ compiler's rule.
+ */
+def project_path(written: string) : string {
+   inside := options.project_dir + "/" + written;
+   // (a local for the file: `if(new file(inside).exists())` stops the C++ compiler's code
+   //  generator with "incorrect operation_step" - a bug of the C++ compiler, worked around)
+   candidate := new file(inside);
+   if(candidate.exists()) { return inside; }
+   return written;
+}
+
+/**
+ * settings.json of the project, read with the library's JSON parser
+ * (std.data.json). null - after a warning - when the file is missing: the
+ * project is then built with the defaults. A file that is there but is not
+ * JSON stops the compiler (`error`), with the place the JSON parser gives;
+ * an EMPTY file is not JSON either (the build would go on without the
+ * library the project names, and fail with errors that do not say why).
+ */
+def read_settings(path: string) : json_value? {
+   source := new file(path);
+   if(!source.exists()) {
+      warning_with_help("$path does not exist: the project is built with the default settings",
+                        "`$program_name --new-project <name>` writes one; `{ }` is a settings.json with no settings");
+      return null;
+   }
+
+   text : string = "";
+   if(!source.is_empty()) { text = source.read_text(); }
+   if(is_blank(text) == 1) {
+      error_with_help("$path is empty, and an empty file is not JSON",
+                      "write `{ }` for a project with no settings, or for example `{ \"output\": \"app\", \"extern_lib\": [ \"/usr/include/sharp/0.4.0\" ] }`");
+   }
+   settings_text = text;
+
+   try {
+      return new json_parser().parse_text(text);
+   } catch(e: throwable) {
+      error("$path is not JSON: " + e.get_message());
+      return null;
+   }
+}
+
+// the text of settings.json as read: to see whether a setting is written twice
+settings_text : string = "";
+
+/** 1 when the text holds nothing but spaces, tabs and line ends */
+def is_blank(text: string) : _int64 {
+   foreach(c in text) {
+      if(c != ' ' && c != '\t' && c != '\n' && c != '\r') { return 0; }
+   }
+   return 1;
+}
+
+// the setting that is being looked at: for the messages of require_type()
+current_setting : string = "";
+
+/** the value of one setting, or null when settings.json does not have it */
+def setting(settings: json_value, name: string) : json_value? {
+   current_setting = name;
+   return settings.find(name);
+}
+
+def process_settings() {
+   jval := read_settings(options.project_dir + "/$settings_file_name");
+
+   if(jval != null) {
+      if(jval!!.is_object()) {
+         obj := jval!!;
+         member : json_value? = null;
+         warn_about_unknown_settings(obj);
+         warn_about_settings_given_twice(obj);
+
+         if((member = setting(obj, "version")) != null) {
+            require_type(member!!, json_value.kind_string);
+            options.version = member!!.as_string();
+         }
+
+         if((member = setting(obj, "compile_only")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            enable_compile_only(member!!.as_bool().value);
+         }
+
+         if((member = setting(obj, "name")) != null) {
+            require_type(member!!, json_value.kind_string);
+            project_name = member!!.as_string();
+         }
+
+         if((member = setting(obj, "show_all_errors")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            enable_show_all_errors(member!!.as_bool().value);
+         }
+
+         if((member = setting(obj, "output")) != null || (member = setting(obj, "output_file")) != null) {
+            require_type(member!!, json_value.kind_string);
+            // the file wins, as in the C++ compiler - but an option that is overruled says so
+            if(options.out_given && member!!.as_string() != options.out) {
+               warning_with_help("-o ${options.out} is overruled by settings.json: the executable is `build/outputs/"
+                                 + member!!.as_string() + "`",
+                                 "change \"output\" in settings.json, or leave -o out");
+            }
+            set_output_file(member!!.as_string());
+         }
+
+         if((member = setting(obj, "optimize_level")) != null) {
+            require_type(member!!, json_value.kind_number);
+
+            when (member!!.as_int()) {
+                // one switch, as on the command line: 0 is -O0, 1 and 2 are -O
+                0 -> { set_optimization_level(optimization_level.none); options.optimize = false; }
+                1 -> { set_optimization_level(optimization_level.basic); options.optimize = true; }
+                2 -> { set_optimization_level(optimization_level.high_performance); options.optimize = true; }
+                else -> settings_error("invalid optimize level " + (member!!.as_int() as _int64) + ", allowed values are [ 0, 1, 2 ]");
+            }
+         }
+
+         if((member = setting(obj, "release_build")) != null || (member = setting(obj, "release")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            if(member!!.as_bool().value) {
+               // (C++: enable_code_obfuscation(true); enable_app_debugging(false);)
+               enable_release_mode();
+               options.obfuscate_names = true;
+            }
+         }
+
+         if((member = setting(obj, "debug")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            options.debug_file = member!!.as_bool().value;
+         }
+
+         if((member = setting(obj, "obfuscate")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            options.obfuscate_names = member!!.as_bool().value;
+         }
+
+         if((member = setting(obj, "cache_files")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            options.file_caching = member!!.as_bool().value;
+         }
+
+         if((member = setting(obj, "magic_mode")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            enable_magic_mode(member!!.as_bool().value);
+         }
+
+         if((member = setting(obj, "compiler_debug_mode")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            enable_debug_mode(member!!.as_bool().value);
+         }
+
+         if((member = setting(obj, "target")) != null) {
+            require_type(member!!, json_value.kind_string);
+            set_target_platform(member!!.as_string());
+         }
+
+         if((member = setting(obj, "warnings")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            enable_warnings(member!!.as_bool().value);
+         }
+
+         if((member = setting(obj, "enable_warnings")) != null) {
+            require_type(member!!, json_value.kind_array);
+
+            for(n : decimal = 0; n < member!!.size(); n++) {
+               val := member!!.at(n);
+               if(!val.is_string()) {
+                  settings_error("array values in warnings setting must be of type string");
+               }
+
+               enable_warning_type(val.as_string(), true);
+            }
+         }
+
+         if((member = setting(obj, "disable_warnings")) != null) {
+            require_type(member!!, json_value.kind_array);
+
+            for(n : decimal = 0; n < member!!.size(); n++) {
+               val := member!!.at(n);
+               if(!val.is_string()) {
+                  settings_error("array values in warnings setting must be of type string");
+               }
+
+               enable_warning_type(val.as_string(), false);
+            }
+         }
+
+         if((member = setting(obj, "green_mode")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            enable_green_mode(member!!.as_bool().value);
+         }
+
+         if((member = setting(obj, "ignore_files")) != null) {
+            require_type(member!!, json_value.kind_array);
+
+            for(n : decimal = 0; n < member!!.size(); n++) {
+               val := member!!.at(n);
+               if(!val.is_string()) {
+                  settings_error("array values in file ignore setting must be of type string");
+               }
+
+               add_ignored_file(project_path(val.as_string()));
+            }
+         }
+
+         if((member = setting(obj, "ignore_folders")) != null) {
+            require_type(member!!, json_value.kind_array);
+
+            for(n : decimal = 0; n < member!!.size(); n++) {
+               val := member!!.at(n);
+               if(!val.is_string()) {
+                  settings_error("array values in folder ignore setting must be of type string");
+               }
+
+               add_ignored_directory(project_path(val.as_string()));
+            }
+         }
+
+         if((member = setting(obj, "extern_lib")) != null || (member = setting(obj, "extern_libs")) != null) {
+            require_type(member!!, json_value.kind_array);
+
+            for(n : decimal = 0; n < member!!.size(); n++) {
+               val := member!!.at(n);
+               if(!val.is_string()) {
+                  settings_error("array values in external libraries setting must be of type string");
+               }
+
+               add_library_path(project_path(val.as_string()));
+            }
+         }
+
+         if((member = setting(obj, "ignore_extern_files")) != null) {
+            require_type(member!!, json_value.kind_array);
+
+            for(n : decimal = 0; n < member!!.size(); n++) {
+               val := member!!.at(n);
+               if(!val.is_string()) {
+                  settings_error("array values in external file ignore setting must be of type string");
+               }
+
+               add_ignored_file(val.as_string());
+            }
+         }
+
+         if((member = setting(obj, "ignore_extern_folders")) != null) {
+            require_type(member!!, json_value.kind_array);
+
+            for(n : decimal = 0; n < member!!.size(); n++) {
+               val := member!!.at(n);
+               if(!val.is_string()) {
+                  settings_error("array values in external folder ignore setting must be of type string");
+               }
+
+               add_ignored_directory(val.as_string());
+            }
+         }
+
+         if((member = setting(obj, "warnings_as_errors")) != null) {
+            require_type(member!!, json_value.kind_bool);
+            if(member!!.as_bool().value) {
+               enable_warnings_as_errors();
+            }
+         }
+
+         if((member = setting(obj, "error_limit")) != null) {
+            if(member!!.is_number()) {
+               set_error_limit("" + (member!!.as_int() as _int64));    // "20", not "20.0000000000000000"
+            } else if(member!!.is_string()) {
+               set_error_limit(member!!.as_string());
+            } else
+               require_type(member!!, json_value.kind_number);
+         }
+
+         if((member = setting(obj, "native")) != null) {
+            require_type(member!!, json_value.kind_object);
+            read_native_setting(member!!);
+         }
+
+         if((member = setting(obj, "target_api")) != null) {
+            // the version of the installed standard library to build with (C++:
+            // process_library_files(<the text>)); main.sharp checks it is one this compiler knows
+            require_type(member!!, json_value.kind_string);
+            options.library_version = member!!.as_string();
+         }
+      } else {
+         settings_error("format is incorrect, initial type must be of type object");
+      }
+   }
+}
+
+/** the texts of a setting that is a list of texts, added to `into` */
+def read_text_list(holder: json_value, name: string, where: string, into: list<string>) {
+   member := holder.find(name);
+   if(member == null) { return; }
+   if(!member!!.is_array()) {
+      settings_error("`$where`: `$name` takes a list of texts, for example \"$name\": [ \"...\" ]");
+   }
+   for(n : decimal = 0; n < member!!.size(); n++) {
+      val := member!!.at(n);
+      if(!val.is_string()) { settings_error("`$where`: every value of `$name` is a text"); }
+      into.add(val.as_string());
+   }
+}
+
+/** one toolchain block: "compiler" replaces what was read before, the three lists add to it */
+def read_toolchain(block: json_value, where: string) {
+   compiler := block.find("compiler");
+   if(compiler != null) {
+      if(!compiler!!.is_string()) { settings_error("`$where`: `compiler` is a text: the path of g++ or clang++, or the name of one on the PATH"); }
+      options.native_compiler = compiler!!.as_string();
+   }
+   read_text_list(block, "flags", where, options.native_flags);
+   read_text_list(block, "include", where, options.native_includes);
+   read_text_list(block, "libraries", where, options.native_libraries);
+}
+
+/**
+ * "native": where the C++ of the project's native functions is, and how it is built
+ * (the whole shape is at `cxx` in options.sharp; the build is native_build.sharp).
+ *
+ *      "native": {
+ *        "sources": [ "src/cpp" ],
+ *        "toolchain": { "compiler": "g++", "flags": [ "-O2" ],
+ *                       "windows": { "compiler": "C:/msys64/ucrt64/bin/g++.exe" } }
+ *      }
+ *
+ * The toolchain's own values count on every system; then the block of the
+ * system the compiler runs on ("windows" or "linux") is read on top of them.
+ * A name that is not one of these is a warning with the names that are.
+ */
+def read_native_setting(native_setting: json_value) {
+   options.native_configured = true;
+   read_text_list(native_setting, "sources", "native", options.native_sources);
+   foreach(name in native_setting.keys()) {
+      if(name != "sources" && name != "toolchain") {
+         warning("$settings_file_name: `native` has no setting `$name`; it has `sources` and `toolchain`");
+      }
+   }
+
+   toolchain := native_setting.find("toolchain");
+   if(toolchain == null) { return; }
+   if(!toolchain!!.is_object()) { settings_error("`native`: `toolchain` is an object: \"toolchain\": { \"compiler\": \"g++\" }"); }
+   foreach(name in toolchain!!.keys()) {
+      if(name != "compiler" && name != "flags" && name != "include" && name != "libraries" && name != "windows" && name != "linux") {
+         warning("$settings_file_name: `native.toolchain` has no setting `$name`; it has `compiler`, `flags`, `include`, `libraries`, and `windows` / `linux` for one system");
+      }
+   }
+   read_toolchain(toolchain!!, "native.toolchain");
+   system_name : string = "linux";
+   if(build.is_windows()) { system_name = "windows"; }
+   for_system := toolchain!!.find(system_name);
+   if(for_system != null) {
+      if(!for_system!!.is_object()) { settings_error("`native.toolchain`: `$system_name` is an object with the same settings as the toolchain"); }
+      read_toolchain(for_system!!, "native.toolchain." + system_name);
+   }
+}
+
+/** every name settings.json may have (the table at the top of this file) */
+def known_settings() : list<string> {
+   names := new list<string>();
+   names.add("name");                   names.add("version");
+   names.add("output");                 names.add("output_file");
+   names.add("compile_only");           names.add("show_all_errors");
+   names.add("debug");                  names.add("release");
+   names.add("release_build");          names.add("obfuscate");
+   names.add("optimize_level");         names.add("cache_files");
+   names.add("target");                 names.add("target_api");
+   names.add("warnings");               names.add("enable_warnings");
+   names.add("disable_warnings");       names.add("warnings_as_errors");
+   names.add("error_limit");            names.add("green_mode");
+   names.add("magic_mode");             names.add("compiler_debug_mode");
+   names.add("ignore_files");           names.add("ignore_folders");
+   names.add("extern_lib");             names.add("extern_libs");
+   names.add("ignore_extern_files");    names.add("ignore_extern_folders");
+   names.add("native");
+   return names;
+}
+
+/**
+ * A name in settings.json that is not a setting is most likely a setting
+ * misspelt - and a misspelt setting silently does nothing, which is the
+ * worst thing a build file can do. Each is a warning that names the nearest
+ * settings; the build goes on.
+ */
+def warn_about_unknown_settings(settings: json_value) {
+   known := known_settings();
+   foreach(name in settings.keys()) {
+      if(contains(known, name)) { continue; }
+      hint := did_you_mean(closest_names(name, known, 3));
+      if(sizeof(hint.data) > 0) {
+         warning("$settings_file_name: unknown setting `$name` is ignored: $hint");
+      } else {
+         warning("$settings_file_name: unknown setting `$name` is ignored (the settings are listed at the top of configuration/settings_processor.sharp)");
+      }
+   }
+}
+
+/**
+ * The JSON parser keeps only the last of two members with one name, so
+ * `"output": "a", "output": "b"` silently builds `b`. The parsed object no
+ * longer shows it; the text does: a name of the object written as a member
+ * name (`"output"` followed by `:`) more than once.
+ */
+def warn_about_settings_given_twice(settings: json_value) {
+   foreach(name in settings.keys()) {
+      if(times_written_as_member(settings_text, name) > 1) {
+         warning_with_help("$settings_file_name: the setting `$name` is given more than once; only the last one counts",
+                           "keep one `\"$name\"`");
+      }
+   }
+}
+
+/** how often `"name"` stands in `text` with only spaces before a `:` after it */
+def times_written_as_member(text: string, name: string) : _int64 {
+   quoted : string = "\"" + name + "\"";
+   characters : _int8[] = text.data!!;
+   wanted : _int8[] = quoted.data!!;
+   count : _int64 = 0;
+   for(i : _int64 = 0; i + sizeof(wanted) <= sizeof(characters); i++) {
+      same : _int64 = 1;
+      for(k : _int64 = 0; k < sizeof(wanted) && same == 1; k++) {
+         if(characters[i + k] != wanted[k]) { same = 0; }
+      }
+      if(same == 0) { continue; }
+      after : _int64 = i + sizeof(wanted);
+      while(after < sizeof(characters) && (characters[after] == ' ' || characters[after] == '\t'
+            || characters[after] == '\n' || characters[after] == '\r')) { after++; }
+      if(after < sizeof(characters) && characters[after] == ':') { count++; }
+   }
+   return count;
+}
+
+def require_type(member: json_value, kind: _int64) {
+   if(member.kind() != kind) {
+      error_with_help("settings option: $current_setting has the wrong type of value (" + member.kind_name()
+                      + "): it takes " + a_kind(kind),
+                      "write for example `\"$current_setting\": " + example_of_kind(kind) + "`");
+   }
+}
+
+/** "a string", "an array of strings", ...: the kind of value a setting takes, for the message */
+def a_kind(kind: _int64) : string {
+   if(kind == json_value.kind_bool) { return "true or false"; }
+   if(kind == json_value.kind_number) { return "a number"; }
+   if(kind == json_value.kind_string) { return "a string"; }
+   if(kind == json_value.kind_array) { return "an array of strings"; }
+   return "an object";
+}
+
+/** a value of that kind, for the help */
+def example_of_kind(kind: _int64) : string {
+   if(kind == json_value.kind_bool) { return "true"; }
+   if(kind == json_value.kind_number) { return "1"; }
+   if(kind == json_value.kind_string) { return "\"text\""; }
+   if(kind == json_value.kind_array) { return "[ \"text\" ]"; }
+   return "{ }";
+}
+
+def settings_error(msg : string) {
+   error("$settings_file_name: $msg");
+}

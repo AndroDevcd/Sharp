@@ -25,6 +25,8 @@
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
+    <!-- completion inside a project's settings.json: only where the IDE has JSON support (sharp-json.xml) -->
+    <depends optional="true" config-file="sharp-json.xml">com.intellij.modules.json</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- the language and the .sharp file type -->

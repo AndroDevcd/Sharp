@@ -2,6 +2,9 @@
 #include "stdimports.h"
 #include "lib/util/time.h"
 
+// MAKE_COMPILER built the old C++ compiler from lib/grammar. That compiler was archived on 15 Nov 2026
+// (legacy/sharpc++.zip holds it with everything it needs); the compiler is now lib/compiler, written in
+// Sharp, and this file is built as the VM only. The branch stays so the archive's copy and this one match.
 #ifdef MAKE_COMPILER
     #include "lib/grammar/main.h"
 #endif

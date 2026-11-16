@@ -43,6 +43,9 @@ struct sharp_thread {
     // and prepare_method() raises stack_overflow_exception when it is passed.
     // 0: not a thread that runs Sharp code (nothing is tested).
     uintptr_t nativeStackFloor;
+    // What this thread keeps for its `native` calls (sni/sni_runtime.h): how deep it is inside C++,
+    // the objects C++ may be using, a problem C++ reported. Null until its first native call.
+    struct sni_thread_state *sni;
     Int signal;
     Int nativeCalls;
     int priority;

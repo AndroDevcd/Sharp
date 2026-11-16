@@ -3,7 +3,7 @@
  *
  * The compiler has a project mode: `sharpc -P <folder>` compiles every .sharp file of the folder
  * with the options written in the folder's `settings.json`, into `<folder>/build/outputs/<output>`
- * (lib/support/bootstrap/configuration/settings_processor.sharp lists every setting):
+ * (lib/compiler/configuration/settings_processor.sharp lists every setting):
  *
  *     {
  *       "name": "demo",
@@ -43,6 +43,11 @@ data class SharpProjectFile(
     /** As written: paths inside the project, or elsewhere. */
     val ignoreFolders: List<String>,
     val externLibraries: List<String>,
+    /**
+     * `"native": { "sources": [...] }`: the C++ files and folders the compiler builds into the
+     * project's native libraries (the Sharp Native Interface). As written.
+     */
+    val nativeSources: List<String> = emptyList(),
 ) {
     /** Where `sharpc -P` writes the program. */
     val outputPath: String get() = "$folder/build/outputs/$output"
@@ -54,6 +59,36 @@ data class SharpProjectFile(
     fun ignoredInsideProject(): List<String> =
         ignoreFolders.map { SharpProjectFiles.normalise(it) }.filter { it.isNotEmpty() && !isAbsolute(it) }
 
+    /**
+     * Every C++ file the project's native libraries are built from (sources and headers), as absolute
+     * paths, sorted. A change to one of them means the project has to be built again, though no
+     * .sharp file changed.
+     */
+    fun nativeSourceFiles(): List<String> {
+        val found = sortedSetOf<String>()
+        for (written in nativeSources) {
+            val path = Paths.get(resolve(written))
+            try {
+                if (Files.isRegularFile(path)) {
+                    found.add(SharpProjectFiles.normalise(path.toString()))
+                } else if (Files.isDirectory(path)) {
+                    Files.walk(path).use { stream ->
+                        stream.filter { Files.isRegularFile(it) && isCxxFile(it.fileName.toString()) }
+                            .forEach { found.add(SharpProjectFiles.normalise(it.toString())) }
+                    }
+                }
+            } catch (_: java.io.IOException) {
+                // a folder that cannot be read adds nothing; the compiler says what is wrong when it builds
+            }
+        }
+        return found.toList()
+    }
+
+    private fun isCxxFile(name: String): Boolean {
+        val lower = name.lowercase()
+        return CXX_ENDINGS.any { lower.endsWith(it) }
+    }
+
     private fun resolve(written: String): String {
         val clean = SharpProjectFiles.normalise(written)
         val inside = "$folder/$clean"
@@ -63,18 +98,21 @@ data class SharpProjectFile(
     private fun isAbsolute(path: String): Boolean = path.startsWith("/") || (path.length >= 2 && path[1] == ':')
 }
 
+/** The endings of the files a C++ build reads: sources and headers. */
+private val CXX_ENDINGS = listOf(".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".hh", ".hxx", ".inl")
+
 object SharpProjectFiles {
     const val FILE_NAME = "settings.json"
 
     /** Every setting the compiler reads: one of them makes a settings.json Sharp's. */
-    private val KNOWN = setOf(
+    val KNOWN_SETTINGS = setOf(
         "name", "version", "output", "output_file", "compile_only", "show_all_errors", "debug", "release", "release_build",
         "obfuscate", "optimize_level", "cache_files", "target", "target_api", "warnings", "enable_warnings", "disable_warnings",
         "warnings_as_errors", "error_limit", "green_mode", "magic_mode", "compiler_debug_mode", "ignore_files", "ignore_folders",
-        "extern_lib", "extern_libs", "ignore_extern_files", "ignore_extern_folders",
+        "extern_lib", "extern_libs", "ignore_extern_files", "ignore_extern_folders", "native",
     )
     /** `name` and `version` alone are in every package.json and the like: they do not decide. */
-    private val TELLING = KNOWN - setOf("name", "version", "debug", "target", "warnings", "release")
+    private val TELLING = KNOWN_SETTINGS - setOf("name", "version", "debug", "target", "warnings", "release")
 
     private class Kept(val size: Long, val time: Long, val project: SharpProjectFile?)
     private val kept = ConcurrentHashMap<String, Kept>()
@@ -114,7 +152,7 @@ object SharpProjectFiles {
         }
         val names = json.keySet()
         val telling = names.any { it in TELLING }
-        val plain = names.all { it in KNOWN }
+        val plain = names.all { it in KNOWN_SETTINGS }
         if (!telling && !(plain && holdsSharpCode(root))) return null
         return SharpProjectFile(
             folder = root,
@@ -122,6 +160,7 @@ object SharpProjectFiles {
             output = text(json, "output") ?: text(json, "output_file") ?: "out",
             ignoreFolders = texts(json, "ignore_folders"),
             externLibraries = texts(json, "extern_lib") + texts(json, "extern_libs"),
+            nativeSources = json.get("native")?.takeIf { it.isJsonObject }?.asJsonObject?.let { texts(it, "sources") } ?: emptyList(),
         )
     }
 

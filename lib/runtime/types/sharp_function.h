@@ -11,7 +11,7 @@
 #include "line_data.h"
 #include "try_catch_data.h"
 #include "../../util/linked_list.h"
-#include "../snb/snb_internal.h"
+#include "../sni/sni.h"
 
 struct sharp_class;
 struct sharp_type;
@@ -43,8 +43,9 @@ struct sharp_function {
     int fpOffset;
     int frameStackOffset;
     bool nativeFunc;
-    uint32_t linkAddr;
-    bridge_fun bridge;
+    // a `native` function's C++ side: the glue of its entry in a library's table (sni/sni_runtime.h);
+    // null until the function is first called and found
+    sni_glue nativeGlue;
     function_param *params;
     linkedlist<line_data> lineTable;
     linkedlist<try_catch_data> tryCatchTable;

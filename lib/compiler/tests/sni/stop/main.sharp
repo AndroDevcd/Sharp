@@ -1,0 +1,49 @@
+mod app;
+
+import ( std.io, platform )
+
+/**
+ * STOPPING A THREAD THAT IS INSIDE C++ (tests/sni.sh)
+ *
+ * The VM cannot interrupt C++. A native loop that asks `env->should_stop()`
+ * ends at once when its thread is interrupted (the polite one). One that
+ * never asks is waited for 2 seconds and then left behind with a warning (the
+ * stubborn one) - and the program still ends when `main` does.
+ */
+native "stop" {
+    def spin_politely() : _int64;
+    def spin_stubbornly();
+    def started() : _int32;
+}
+
+def polite(args: object[]) : decimal {
+    spin_politely();
+    return 0;
+}
+
+def stubborn(args: object[]) : decimal {
+    spin_stubbornly();
+    return 0;
+}
+
+/** wait until the C++ loop of the thread started last is running */
+def wait_until_started(count: _int32) {
+    while(started() < count) { thread.sleep(5); }
+}
+
+def main(args: string[]) {
+    load_library("stop");
+
+    first := new thread("polite", polite);
+    first.start();
+    wait_until_started(1);
+    first.interrupt();
+    println("polite: stopped");
+
+    second := new thread("stubborn", stubborn);
+    second.start();
+    wait_until_started(2);
+    second.interrupt();
+    println("stubborn: left behind");
+    println("main ends");
+}

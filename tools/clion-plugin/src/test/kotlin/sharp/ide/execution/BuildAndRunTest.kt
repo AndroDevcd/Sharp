@@ -161,6 +161,35 @@ class BuildAndRunTest {
         assertNull(SharpConsoleFilter.placeIn("time: 12:30:05"))
     }
 
+    @Test
+    fun aCppCompilersErrorLineIsAPlaceToo() {
+        // what g++ prints when a project's C++ (the native functions) does not build
+        val line = "C:/work/my app/src/cpp/foo.cpp:4:1: error: expected unqualified-id before 'this'"
+        val place = SharpConsoleFilter.placeIn(line)!!
+        assertEquals("C:/work/my app/src/cpp/foo.cpp", place.file)
+        assertEquals(4, place.line)
+        assertEquals(1, place.column)
+        assertEquals("C:/work/my app/src/cpp/foo.cpp:4:1", line.substring(place.start, place.end))
+        assertEquals("/home/me/x.h", SharpConsoleFilter.placeIn("/home/me/x.h:10:3: note: declared here")!!.file)
+        assertNull(SharpConsoleFilter.placeIn("native library: C:/work/app/build/outputs/foo.dll built from 1 C++ file(s)"))
+    }
+
+    @Test
+    fun aProjectsCppFilesArePartOfWhatABuildDependsOn() {
+        val folder = Files.createTempDirectory("sharp-native-project")
+        Files.createDirectories(folder.resolve("src/cpp/inner"))
+        Files.write(folder.resolve("settings.json"), "{ \"output\": \"app\", \"native\": { \"sources\": [ \"src/cpp\" ] } }".toByteArray())
+        Files.write(folder.resolve("src/main.sharp"), "mod main;\ndef main() { }\n".toByteArray())
+        Files.write(folder.resolve("src/cpp/foo.cpp"), "// c++\n".toByteArray())
+        Files.write(folder.resolve("src/cpp/inner/foo.h"), "// header\n".toByteArray())
+        Files.write(folder.resolve("src/cpp/notes.txt"), "not C++\n".toByteArray())
+
+        val project = sharp.ide.project.SharpProjectFiles.read(folder.toString())!!
+        assertEquals(listOf("src/cpp"), project.nativeSources)
+        val names = project.nativeSourceFiles().map { it.substringAfterLast('/') }
+        assertEquals(listOf("foo.cpp", "foo.h"), names.sorted())
+    }
+
     // ---------------------------------------------------------------- the plan, and a real run
 
     private fun fakeToolchain(): SharpToolchain {

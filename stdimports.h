@@ -20,7 +20,7 @@
 #include <atomic>
 #include <memory>
 #include "lib/core/architecture.h"
-#include "lib/grammar/platform.h"
+#include "lib/core/platform.h"
 
 using namespace std;
 

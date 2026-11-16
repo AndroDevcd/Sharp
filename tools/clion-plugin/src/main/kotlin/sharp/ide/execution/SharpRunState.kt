@@ -69,6 +69,8 @@ class RunPlan(
     val upToDate: Boolean,
     /** true: the folder has a settings.json and the build is the compiler's project mode (`-P`). */
     val projectMode: Boolean,
+    /** Environment variables the run adds (SHARP_CXX: the machine's C++ compiler, when the settings name one). */
+    val environment: Map<String, String> = emptyMap(),
 )
 
 class SharpRunState(environment: ExecutionEnvironment, private val configuration: SharpRunConfiguration) : CommandLineState(environment) {
@@ -97,11 +99,13 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             unoptimizedCompiler = configuration.fields.unoptimizedCompiler,
             windows = SystemInfo.isWindows,
             alwaysRebuild = configuration.fields.alwaysRebuild,
+            cxxCompiler = app.cxxCompiler,
         )
         write(plan)
         val commandLine = GeneralCommandLine(plan.command)
             .withWorkDirectory(plan.workingDirectory)
             .withCharset(StandardCharsets.UTF_8)
+            .withEnvironment(plan.environment)
         val handler = ProcessHandlerFactory.getInstance().createColoredProcessHandler(commandLine)
         ProcessTerminatedListener.attach(handler)      // "Process finished with exit code N" at the end
         return handler
@@ -137,6 +141,7 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             unoptimizedCompiler: Boolean,
             windows: Boolean,
             alwaysRebuild: Boolean = false,
+            cxxCompiler: String = "",
         ): RunPlan {
             val folder = ProgramFiles.normalise(programFolder)
             if (folder.isEmpty()) throw ExecutionException("No program folder is set: choose it in Run > Edit Configurations")
@@ -194,8 +199,12 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             }
 
             // ---- has anything the build depends on changed since the last good one?
-            val stampedFiles = if (project != null) files + "$folder/${SharpProjectFiles.FILE_NAME}" else files
-            val stampText = RunStamp.of(compiler, compileArguments.map { it.text } + "|" + compilerOptions, stampedFiles)
+            // (a project's C++ counts too: the compiler builds it into the native libraries, so a changed
+            //  .cpp is a reason to build although no .sharp file changed - and so is another C++ compiler)
+            val stampedFiles = if (project != null) files + "$folder/${SharpProjectFiles.FILE_NAME}" + project.nativeSourceFiles() else files
+            val cxx = cxxCompiler.trim()
+            val environment = if (cxx.isEmpty()) emptyMap() else mapOf("SHARP_CXX" to cxx)
+            val stampText = RunStamp.of(compiler, compileArguments.map { it.text } + "|" + compilerOptions + "|cxx=$cxx", stampedFiles)
             val keptStamp = runFolder.resolve("stamp.txt")
             val newStamp = runFolder.resolve("stamp.new.txt")
             val upToDate = !alwaysRebuild && RunStamp.isUpToDate(stampText, keptStamp.toString(), output)
@@ -218,11 +227,11 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             return if (windows) {
                 val script = runFolder.resolve("run.cmd")
                 RunPlan(runFolder, filesList, files, script, RunScript.windows(values), listOf("cmd.exe", "/d", "/c", script.toString()), folder,
-                    stampText, newStamp, upToDate, project != null)
+                    stampText, newStamp, upToDate, project != null, environment)
             } else {
                 val script = runFolder.resolve("run.sh")
                 RunPlan(runFolder, filesList, files, script, RunScript.unix(values), listOf("sh", script.toString()), folder,
-                    stampText, newStamp, upToDate, project != null)
+                    stampText, newStamp, upToDate, project != null, environment)
             }
         }
     }

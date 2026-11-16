@@ -1,7 +1,0 @@
-mod main;
-
-// This is a simple program that executed a command on the console inside the language
-def main() {
-   // call the echo command
-   sys("echo hello, World!");
-}

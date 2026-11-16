@@ -269,5 +269,5 @@
 ,{"path":"/home/braxton_nunnally/sharp_work/stdlib/std/util/ref.sharp","module":null,"library":false,"size":1711,"hash":"1e9e31aa","imports":[],"groups":[],"bodies":null}
 ,{"path":"/home/braxton_nunnally/sharp_work/stdlib/std/util/uuid.sharp","module":null,"library":false,"size":8268,"hash":"6d24c2ef","imports":[],"groups":[],"bodies":null}
 ,{"path":"/home/braxton_nunnally/sharp_work/stdlib/std/util/version.sharp","module":null,"library":false,"size":16219,"hash":"411f4468","imports":[],"groups":[],"bodies":null}
-,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/support/bootstrap/tests/ide/samples/syntax_error.sharp","module":null,"library":false,"size":292,"hash":"c6a9bbdc","imports":[],"groups":[],"bodies":null}
+,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/compiler/tests/ide/samples/syntax_error.sharp","module":null,"library":false,"size":292,"hash":"c6a9bbdc","imports":[],"groups":[],"bodies":null}
 ]}

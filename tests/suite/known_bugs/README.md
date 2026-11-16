@@ -51,14 +51,14 @@ sharp /tmp/bug
 
 ## Compiler
 
-Found on 2026-11-12 porting `lib/support/bootstrap` to the current language:
+Found on 2026-11-12 porting `lib/compiler` to the current language:
 
 | Bug | File |
 |---|---|
 | An error in the initializer of a global is reported in the files that IMPORT the module, with the importing file's text at that line; "could not locate main method" is reported against `std/io/atomic.sharp:0:0`. | not reduced |
 
 Found on 2026-11-15 by random programs built with both compilers (the verifier
-of the bootstrap's optimizer, `lib/support/bootstrap/doc/codegen.md` 13.6); the
+of the bootstrap's optimizer, `lib/compiler/doc/codegen.md` 13.6); the
 bootstrap compiler gives the right answer in each:
 
 | Bug | File |
@@ -66,8 +66,8 @@ bootstrap compiler gives the right answer in each:
 | A `? :` with a CONSTANT arm, compared or negated, gives the wrong answer when the other arm is taken: with `five : _int64 = 5; wide : _int64 = 0;` the program prints 0 for `((11 == five) ? 7 : 0) == 0`, for `((11 == five) ? 123456789 : wide) == 0` and for `!((11 == five) ? 123456789 : wide)` (each is 1). With two variables as arms (`((11 == five) ? five : wide) == 0`) it is right, and so is the value when it is only printed (`n3 : _uint8 = 0; show((11 == five) ? 123456789 : n3)` prints 0). Seen with and without the JIT; not tried with `-O`. | not reduced further |
 
 Found on 2026-11-15 while the bootstrap's driver was completed
-(`lib/support/bootstrap/doc/codegen.md` 13.7); worked around in
-`lib/support/bootstrap/configuration/settings_processor.sharp`, `project_path`,
+(`lib/compiler/doc/codegen.md` 13.7); worked around in
+`lib/compiler/configuration/settings_processor.sharp`, `project_path`,
 by putting the object in a local first. The bootstrap compiler builds the
 program as written:
 
@@ -87,10 +87,9 @@ mutating file imports may not resolve.
 | Bug | File |
 |---|---|
 | Seen with the JIT that was replaced in November 2026: a crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). A bug of exactly this shape was found and fixed on 2026-11-14 (see "Fixed" below: a fiber continued in the machine code of a function compiled while it waited); the warm-ups were left in place. Re-tested without them on 2026-11-14 (`lib_coroutines_core`, `_channels`, `_sync` with the `warm_up()` call taken out, plain and `-O`, 25 runs each, and 8 runs each under the address sanitizer): no failure, neither with the runtime from before that fix nor with the one after. So the warm-ups no longer guard anything that can be reproduced; they cost nothing and stay. | `cases/lib_coroutines_resume_after_compile.sharp` |
-| NOT REPRODUCED OUTSIDE THE BOOTSTRAP COMPILER: a plain `main` that `launch`ed one coroutine per source file (each read and parsed a file, then `send` its result on an unlimited channel) and then called `receive()` once per file hung about one run in three with 6 or more files, with and without the JIT; 4 or fewer files never hung. A small test of the same shape with a number loop instead of the file work ran 1,200 rounds without hanging, so the cause is something in the real work (file reads, large allocations during a collection) and is not found. `lib/support/bootstrap/main.sharp` now uses `run_blocking { coroutine_scope { launch_on(pool) } }` and a list, which has not hung. | first version of `parse_all` in `lib/support/bootstrap/main.sharp`, 2026-11-12 |
+| NOT REPRODUCED OUTSIDE THE BOOTSTRAP COMPILER: a plain `main` that `launch`ed one coroutine per source file (each read and parsed a file, then `send` its result on an unlimited channel) and then called `receive()` once per file hung about one run in three with 6 or more files, with and without the JIT; 4 or fewer files never hung. A small test of the same shape with a number loop instead of the file work ran 1,200 rounds without hanging, so the cause is something in the real work (file reads, large allocations during a collection) and is not found. `lib/compiler/main.sharp` now uses `run_blocking { coroutine_scope { launch_on(pool) } }` and a list, which has not hung. | first version of `parse_all` in `lib/compiler/main.sharp`, 2026-11-12 |
 | The JIT exists for x86-64 Linux / Intel macOS only; on arm64 and Windows everything is interpreted. | `lib/runtime/jit/jit_compiler.cpp` |
 | An integer constant above 2^53 written in source is loaded through a decimal constant (`ldc` + `d2i`) and loses its low bits. | needs an integer constant table |
-| The native bridge (`snb`) passes every number as a decimal. | `lib/runtime/snb` |
 | Deep recursion ends in SIGSEGV instead of a stack overflow exception. | described in `cases/recursion.sharp` |
 | The directory call returns only regular files of a whole tree and skips dot names; no environment-variable call; read-file returns null for empty and missing alike. | worked around in `std/io/files` |
 
@@ -275,7 +274,7 @@ Found while doing the fourth part:
 
 Found running several bootstrap compilers at once (2026-11-14):
 
-- **"(SIGSEGV) found" in about one run in 150** of `lib/support/bootstrap`,
+- **"(SIGSEGV) found" in about one run in 150** of `lib/compiler`,
   a different suite case each time, always passing when run again
   (`lib_coroutines_resume_after_compile`, and `lib_coroutines_resume_shapes`
   for the other mixes of frames). A fiber continued after a context
@@ -290,7 +289,7 @@ Found running several bootstrap compilers at once (2026-11-14):
   (`continues_in_machine_code`, `virtual_machine.cpp`). Found with a runtime
   built with `-fsanitize=address` (heap-buffer-overflow in `main_vm_loop`).
 
-Found porting `lib/support/bootstrap` (2026-11-12):
+Found porting `lib/compiler` (2026-11-12):
 
 - **`names[0] = other` on a list stopped the compiler** ("attempting to assign
   stack data!"), and with a literal it wrote into the object the list held

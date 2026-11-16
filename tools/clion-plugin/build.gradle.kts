@@ -23,6 +23,8 @@ repositories {
 dependencies {
     intellijPlatform {
         clion("2025.2")
+        // the JSON support the IDE brings: the schema of settings.json is handed to it (SharpSettingsSchema.kt)
+        bundledPlugin("com.intellij.modules.json")
         testFramework(TestFrameworkType.Platform)
     }
     testImplementation("junit:junit:4.13.2")
