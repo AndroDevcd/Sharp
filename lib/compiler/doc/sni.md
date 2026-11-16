@@ -198,7 +198,9 @@ the line to add.
     "include": [ "third_party/include" ],
     "libraries": [ "ws2_32" ],
     "windows": { "compiler": "C:/msys64/ucrt64/bin/g++.exe" },
-    "linux":   { "compiler": "g++", "flags": [ "-O2" ] }
+    "linux":   { "compiler": "g++", "flags": [ "-O2" ],
+                 "processor": { "arm": { "libraries": [ "wiringPi", "rf24" ] } } },
+    "processor": { "arm": { "flags": [ "-mfpu=neon" ] } }
   }
 }
 ```
@@ -210,6 +212,7 @@ the line to add.
 | `include` | more header folders (`-I`) |
 | `libraries` | more libraries to link (`-l`) |
 | `windows`, `linux` | the same four settings, read on top of the others on that system only |
+| `processor` | an object of processors - `arm` or `x86`, each covering 32 and 64 bit - each with `flags`, `include`, `libraries`. Added only when the C++ compiler builds for that processor. Written at the top it counts on every system; inside `windows` / `linux`, for that processor on that system. The system and the processor are separate because they are: ARM runs Linux and Windows. (This is how a project names the libraries of a Raspberry Pi's hardware and still builds on a PC.) |
 
 The flags Sharp always gives itself: `-shared`, `-std=c++17`, `-static` on Windows (the C++ runtime
 goes inside the library, so the `.dll` needs no other `.dll`), `-fPIC` elsewhere, and `-I` for the

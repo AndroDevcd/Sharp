@@ -388,7 +388,8 @@ def read_toolchain(block: json_value, where: string) {
  *      "native": {
  *        "sources": [ "src/cpp" ],
  *        "toolchain": { "compiler": "g++", "flags": [ "-O2" ],
- *                       "windows": { "compiler": "C:/msys64/ucrt64/bin/g++.exe" } }
+ *                       "windows": { "compiler": "C:/msys64/ucrt64/bin/g++.exe" },
+ *                       "linux": { "processor": { "arm": { "libraries": [ "wiringPi" ] } } } }
  *      }
  *
  * The toolchain's own values count on every system; then the block of the
@@ -408,17 +409,66 @@ def read_native_setting(native_setting: json_value) {
    if(toolchain == null) { return; }
    if(!toolchain!!.is_object()) { settings_error("`native`: `toolchain` is an object: \"toolchain\": { \"compiler\": \"g++\" }"); }
    foreach(name in toolchain!!.keys()) {
-      if(name != "compiler" && name != "flags" && name != "include" && name != "libraries" && name != "windows" && name != "linux") {
-         warning("$settings_file_name: `native.toolchain` has no setting `$name`; it has `compiler`, `flags`, `include`, `libraries`, and `windows` / `linux` for one system");
+      if(name != "compiler" && name != "flags" && name != "include" && name != "libraries" && name != "windows" && name != "linux" && name != "processor") {
+         warning("$settings_file_name: `native.toolchain` has no setting `$name`; it has `compiler`, `flags`, `include`, `libraries`, `windows` / `linux` for one system and `processor` for one kind of processor");
       }
    }
    read_toolchain(toolchain!!, "native.toolchain");
+   read_processors(toolchain!!, "native.toolchain");
    system_name : string = "linux";
    if(build.is_windows()) { system_name = "windows"; }
    for_system := toolchain!!.find(system_name);
    if(for_system != null) {
       if(!for_system!!.is_object()) { settings_error("`native.toolchain`: `$system_name` is an object with the same settings as the toolchain"); }
       read_toolchain(for_system!!, "native.toolchain." + system_name);
+      // (after the toolchain's own: what a system says about a processor is added last, so it wins)
+      read_processors(for_system!!, "native.toolchain." + system_name);
+   }
+}
+
+/**
+ * "processor": settings for one KIND OF PROCESSOR, whatever the system - or, written inside
+ * "windows" / "linux", for that processor on that system:
+ *
+ *      "toolchain": {
+ *        "processor": { "arm": { "flags": [ "-mfpu=neon" ] } },
+ *        "linux": { "processor": { "arm": { "libraries": [ "rf24", "wiringPi" ] } } }
+ *      }
+ *
+ * The processor and the system are two different things (ARM runs Linux and Windows), so they
+ * are two different places to write a setting, and they combine. There are two processors:
+ * `arm` (every ARM, 32 and 64 bit: a Raspberry Pi) and `x86` (every Intel / AMD, 32 and 64 bit:
+ * a PC).
+ *
+ * Which processor a build is for is not known here: it is what the C++ compiler builds for, and
+ * the compiler is chosen later. So the blocks are only kept (options.native_processors);
+ * native_build.sharp adds the ones that fit. A block cannot name a compiler for that reason.
+ */
+def read_processors(holder: json_value, where: string) {
+   processors := holder.find("processor");
+   if(processors == null) { return; }
+   if(!processors!!.is_object()) {
+      settings_error("`$where`: `processor` is an object of processors: \"processor\": { \"arm\": { \"libraries\": [ \"wiringPi\" ] } }");
+   }
+   foreach(name in processors!!.keys()) {
+      if(name != "arm" && name != "x86") {
+         warning("$settings_file_name: `$where.processor` has no processor `$name`; the processors are `arm` and `x86` (each 32 and 64 bit)");
+         continue;
+      }
+      block := processors!!.find(name);
+      if(block == null || !block!!.is_object()) {
+         settings_error("`$where.processor`: `$name` is an object: \"$name\": { \"flags\": [ ... ], \"include\": [ ... ], \"libraries\": [ ... ] }");
+      }
+      foreach(setting_name in block!!.keys()) {
+         if(setting_name != "flags" && setting_name != "include" && setting_name != "libraries") {
+            warning("$settings_file_name: `$where.processor.$name` has no setting `$setting_name`; it has `flags`, `include` and `libraries` (the compiler is chosen before the processor is known)");
+         }
+      }
+      kept := new processor_settings(name);
+      read_text_list(block!!, "flags", "$where.processor.$name", kept.flags);
+      read_text_list(block!!, "include", "$where.processor.$name", kept.includes);
+      read_text_list(block!!, "libraries", "$where.processor.$name", kept.libraries);
+      options.native_processors.add(kept);
    }
 }
 

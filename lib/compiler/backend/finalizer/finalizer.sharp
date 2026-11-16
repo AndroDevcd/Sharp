@@ -202,7 +202,16 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
     started = clock_ms();
     for(i : _int64 = 0; i < layout.functions.size(); i++) {
         made := layout.functions.at(i);
-        made.code = lower_function(made, layout.constants);
+        // The compiler must never END with a stack trace of its own: whatever goes wrong while the code of
+        // one function is made is reported as an internal error that names the function, and the others go on.
+        try {
+            made.code = lower_function(made, layout.constants);
+        } catch(e: exception) {
+            made.code = new function_code();
+            result.plain_errors.add("error[E0970]: internal error: the compiler failed while making the code of `" + made.full_name + "`: "
+                + e.get_message() + "\n  = note: this is a bug of the compiler, not of the program; -ir (debug compiler) shows the IR\n");
+            continue;
+        }
         if(made.selection_problem != null) {
             result.plain_errors.add("error[E0970]: internal error: the code of `" + made.full_name + "` could not be made: "
                 + made.selection_problem!! + "\n  = note: this is a bug of the compiler, not of the program; -ir shows the IR\n");

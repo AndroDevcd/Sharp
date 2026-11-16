@@ -153,6 +153,19 @@ def start_value(g: generator, slot: _int64) {
  */
 def generate_return(g: generator, statement: bound_return) {
     if(statement.broken == 1) { g.stop("a `return` reported as wrong", statement.unit, statement.node); }
+    // `return draw(x);` in a function that returns nothing, where `draw` returns nothing either: the
+    // expression is run for what it does, and then it is a plain `return;` (as in C++ and Java, where
+    // `return f();` is allowed for a void f). There is no value to hand back - asking for one used to
+    // stop the compiler with an exception of its own.
+    if(statement.value != null && !g.made.returns_value()) {
+        effect_of(g, statement.value!!);
+        if(statement.leaves.size() > 0) {
+            leave_by(g, WAY_RETURN, null, statement.leaves, 0, statement.unit, statement.node);
+            return;
+        }
+        g.b.emit(IR_RETURN);
+        return;
+    }
     if(statement.leaves.size() > 0) {
         if(statement.value != null) {
             value : _int64 = value_of(g, statement.value!!);

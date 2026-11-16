@@ -69,13 +69,22 @@ class SettingsSchemaInTheIdeTest : BasePlatformTestCase() {
     fun testInsideToolchainItsSixSettingsAreOffered() {
         val offered = offeredAt(sharpProject("toolchain"),
             "{\n  \"output\": \"app\",\n  \"native\": { \"sources\": [ \"src/cpp\" ], \"toolchain\": { \"|\" } }\n}\n")
-        assertEquals(listOf("compiler", "flags", "include", "libraries", "linux", "windows"), offered.sorted())
+        assertEquals(listOf("compiler", "flags", "include", "libraries", "linux", "processor", "windows"), offered.sorted())
     }
 
     fun testInsideASystemsBlockTheFourToolchainValuesAreOffered() {
         val offered = offeredAt(sharpProject("system"),
             "{\n  \"output\": \"app\",\n  \"native\": { \"toolchain\": { \"windows\": { \"|\" } } }\n}\n")
-        assertEquals(listOf("compiler", "flags", "include", "libraries"), offered.sorted())
+        assertEquals(listOf("compiler", "flags", "include", "libraries", "processor"), offered.sorted())
+    }
+
+    fun testAProcessorBlockOffersTheProcessorsAndThenTheirThreeSettings() {
+        val processors = offeredAt(sharpProject("processors"),
+            "{\n  \"output\": \"app\",\n  \"native\": { \"toolchain\": { \"linux\": { \"processor\": { \"|\" } } } }\n}\n")
+        assertEquals(listOf("arm", "x86"), processors.sorted())
+        val inOne = offeredAt(sharpProject("one-processor"),
+            "{\n  \"output\": \"app\",\n  \"native\": { \"toolchain\": { \"processor\": { \"arm\": { \"|\" } } } }\n}\n")
+        assertEquals("no compiler here: it is chosen before the processor is known", listOf("flags", "include", "libraries"), inOne.sorted())
     }
 
     fun testASettingsFileThatIsNotASharpProjectsGetsNothingFromUs() {
@@ -104,7 +113,7 @@ class SettingsSchemaInTheIdeTest : BasePlatformTestCase() {
         }
         val native = schema.getAsJsonObject("properties").getAsJsonObject("native").getAsJsonObject("properties")
         assertEquals(setOf("sources", "toolchain"), native.keySet())
-        assertEquals(setOf("compiler", "flags", "include", "libraries", "windows", "linux"),
+        assertEquals(setOf("compiler", "flags", "include", "libraries", "windows", "linux", "processor"),
             native.getAsJsonObject("toolchain").getAsJsonObject("properties").keySet())
     }
 }

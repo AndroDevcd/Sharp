@@ -1,0 +1,55 @@
+mod main;
+
+// `return f();` where neither the function nor `f` returns anything: `f()` is run for what it does,
+// then it is a plain `return;` (as in C++ and Java). Code generation used to ask for the VALUE of the
+// call - there is none - and the compiler ended with an exception of its own (found in a program
+// written for the old compiler: Project Dragonfly, ssd1306.draw_img).
+//
+// output:
+// say a
+// say b
+// say locked
+// say after the try
+// finally
+// done 4
+
+count : _int64 = 0;
+guard := new object_holder();
+
+class object_holder { n : _int64 = 0; }
+
+def say(text: string) {
+    println("say " + text);
+    count++;
+}
+
+def plain(which: _int64) {
+    if(which == 0) {
+        return say("a");
+    }
+    return say("b");
+}
+
+// the same out of a lock: the lock is given back on the way
+def in_lock() {
+    lock(guard) {
+        return say("locked");
+    }
+}
+
+// ... and out of a try with a finally: the finally runs after the call
+def in_try() {
+    try {
+        return say("after the try");
+    } finally {
+        println("finally");
+    }
+}
+
+def main(args: string[]) {
+    plain(0);
+    plain(1);
+    in_lock();
+    in_try();
+    println("done " + count);
+}

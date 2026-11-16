@@ -45,6 +45,8 @@ import (
  *      <the sources>  <the group's glue file>
  *      -o build/outputs/<group>.dll|.so
  *      -l<each "libraries">  <each "flags">
+ *      ... and after them the include folders, libraries and flags of every
+ *      "processor" block that fits what the compiler builds for (processors_for)
  *
  * `-static` on Windows puts the C++ runtime inside the library: without it
  * the .dll needs libstdc++-6.dll and friends at run time, which are on the
@@ -247,12 +249,12 @@ def build_record(command: string, inputs: list<string>) : string {
 }
 
 /**
- * The command that builds the library of one group. On Windows the folder of
- * a compiler given by its path goes on the PATH for the command: a MinGW g++
- * started by its path alone does not find its own programs and ends without
- * a word.
+ * The C++ compiler as a command: quoted, and - for one given by its path - with
+ * its folder put on the PATH first. A MinGW g++ started by its path alone does
+ * not find its own programs and ends without a word. (cxx_command, below,
+ * adds everything after it: the flags, the sources, the output.)
  */
-def cxx_command(choice: cxx_choice, group: string, sources: list<string>, glue_folder: string, library: string) : string {
+def cxx_program(choice: cxx_choice) : string {
     line := new string_builder("");
     folder : string = folder_of(choice.compiler);
     if(folder != "") {
@@ -265,15 +267,58 @@ def cxx_command(choice: cxx_choice, group: string, sources: list<string>, glue_f
         }
     }
     line.append(process.quote(choice.compiler));
+    return line.build();
+}
+
+/**
+ * THE PROCESSOR A BUILD IS FOR: "arm" or "x86", the two names a "processor" block may have
+ * (settings_processor.sharp, read_processors); "" for anything else. The C++ compiler is asked
+ * what it builds for (`-dumpmachine`: arm-linux-gnueabihf, aarch64-linux-gnu,
+ * x86_64-w64-mingw32 ...), so a cross compiler on a PC counts as what it produces and the PC's
+ * own does not.
+ *
+ *      arm..., aarch64, arm64          arm         (32 and 64 bit alike)
+ *      x86_64, amd64, i386 .. i686     x86         (32 and 64 bit alike)
+ */
+def processor_of(choice: cxx_choice) : string {
+    asked := process.run_merged(cxx_program(choice) + " -dumpmachine");
+    machine := asked.output().to_lower();
+    if(machine.starts_with("arm") || machine.starts_with("aarch64")) { return "arm"; }
+    if(machine.starts_with("x86_64") || machine.starts_with("amd64") || machine.starts_with("i386")
+       || machine.starts_with("i486") || machine.starts_with("i586") || machine.starts_with("i686")) { return "x86"; }
+    return "";
+}
+
+/** the "processor" blocks of settings.json that fit this build, in the order they were written */
+def processors_for(choice: cxx_choice) : list<processor_settings> {
+    fitting := new list<processor_settings>();
+    if(options.native_processors.size() == 0) { return fitting; }
+    name := processor_of(choice);
+    foreach(block in options.native_processors) {
+        if(block.name == name) { fitting.add(block); }
+    }
+    return fitting;
+}
+
+def cxx_command(choice: cxx_choice, fitting: list<processor_settings>, group: string, sources: list<string>, glue_folder: string, library: string) : string {
+    line := new string_builder("");
+    line.append(cxx_program(choice));
     line.append(" -shared -std=c++17");
     if(build.is_windows()) { line.append(" -static"); } else { line.append(" -fPIC"); }
     line.append(" -I " + process.quote(glue_folder));
     foreach(include in options.native_includes) { line.append(" -I " + process.quote(project_path(include))); }
+    foreach(block in fitting) {
+        foreach(include in block.includes) { line.append(" -I " + process.quote(project_path(include))); }
+    }
     foreach(source in sources) { line.append(" " + process.quote(source)); }
     line.append(" " + process.quote(glue_folder + "/" + group + "_sni.cpp"));
     line.append(" -o " + process.quote(library));
     foreach(linked in options.native_libraries) { line.append(" -l" + linked); }
     foreach(flag in options.native_flags) { line.append(" " + flag); }
+    foreach(block in fitting) {
+        foreach(linked in block.libraries) { line.append(" -l" + linked); }
+        foreach(flag in block.flags) { line.append(" " + flag); }
+    }
     return line.build();
 }
 
@@ -307,6 +352,8 @@ def build_native_libraries(groups: list<string>, glue_folder: string) : _int64 {
     // (which compiler, and a library that needed no work: the debug compiler says so; the standard one
     //  says only that a library was BUILT - and shows the C++ compiler when the C++ does not build)
     progress("C++ compiler: " + choice.compiler + "   (" + choice.said_by + ")");
+    fitting := processors_for(choice);
+    foreach(block in fitting) { progress("C++ compiler: the toolchain's settings for the processor `" + block.name + "` are added"); }
 
     outputs : string = options.project_dir + "/build/outputs";
     ending : string = ".so";
@@ -314,7 +361,7 @@ def build_native_libraries(groups: list<string>, glue_folder: string) : _int64 {
     ok : _int64 = 1;
     foreach(group in groups) {
         library : string = outputs + "/" + group + ending;
-        command := cxx_command(choice, group, sources, glue_folder, library);
+        command := cxx_command(choice, fitting, group, sources, glue_folder, library);
 
         // ---- is the library of the last build still right?
         inputs := new list<string>();

@@ -122,15 +122,23 @@ else fail "project: a project without native functions got an sni folder (or was
 # ---- 3e. A PROJECT BUILDS ITS C++ ITSELF: "native": { "sources": [...] } in settings.json. One command
 #          makes the executable, the glue and the library; the program loads the library from its own
 #          folder (program_folder()), so it runs from anywhere; a second build compiles no C++ again;
-#          a C++ compiler that is not there is an error that says where it was named
+#          a C++ compiler that is not there is an error that says where it was named; a "processor"
+#          block is used for the processor the C++ compiler builds for and for no other
 W8="$OUT/autobuild/app"; mkdir -p "$W8/src/cpp"
 cat > "$W8/settings.json" <<'EOF'
 {
   "name": "app",
   "output": "app",
-  "native": { "sources": [ "src/cpp" ], "toolchain": { "flags": [ "-O1" ] } }
+  "native": { "sources": [ "src/cpp" ], "toolchain": { "flags": [ "-O1" ], "processor": PROCESSORS } }
 }
 EOF
+# "processor" blocks: the one for THIS machine's processor must be used (the C++ refuses to compile without
+# its flag), and the ones for other processors must not (they name a library that does not exist)
+case "$("$CXX" -dumpmachine)" in
+    aarch64*|arm*) mine=arm; other=x86 ;;
+    *)             mine=x86; other=arm ;;
+esac
+sed -i "s/PROCESSORS/{ \"$mine\": { \"flags\": [ \"-DFOR_THIS_PROCESSOR\" ] }, \"$other\": { \"libraries\": [ \"a_library_that_is_not_there\" ] } }/" "$W8/settings.json"
 cat > "$W8/src/main.sharp" <<'EOF'
 mod app;
 import ( platform )
@@ -139,6 +147,9 @@ def main(args: string[]) { load_library(program_folder() + "/demo"); println("ad
 EOF
 cat > "$W8/src/cpp/demo.cpp" <<'EOF'
 #include "demo_sni.h"
+#ifndef FOR_THIS_PROCESSOR
+#error the "processor" block of settings.json for this machine was not used
+#endif
 int32_t demo_add(sni_env* env, int32_t a, int32_t b) { return a + b; }
 EOF
 ( cd "$OUT/autobuild" && "$SHARP" "$COMPILER" -P app -L "$LIBRARY" > first.txt 2>&1; echo "exit $?" >> first.txt

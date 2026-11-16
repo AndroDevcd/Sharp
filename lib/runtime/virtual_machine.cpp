@@ -1781,6 +1781,21 @@ void exec_interrupt(Int interrupt)
                 throw vm_exception(vm.nullptr_except, "");
             return;
         }
+        case OP_OS_NAME: {
+            // `build.os` of the library. It is ASKED FOR, not only handed to the program's start function,
+            // because classes decide things by it while their static parts are set up (the file class picks
+            // its file system) - and that runs before the start function has stored anything.
+#ifdef WIN32_
+            string name = "win";
+#else
+            string name = "posix";
+#endif
+            auto strObject = create_object(name.size(), type_int8);
+
+            copy_object(&push_stack_object, strObject);
+            if(strObject) assign_string_field(strObject, name);
+            return;
+        }
         case OP_PROGRAM_PATH: {
             // program_folder() of the library: a program finds what is installed beside it
             // (its native libraries: load_library(program_folder() + "/foo")) wherever it is started from

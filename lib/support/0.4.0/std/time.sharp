@@ -52,16 +52,21 @@ class time {
         if(time < 0)
             throw new error("cannot sleep for negative time: $time");
 
+        // The time is worked out in a plain number of its own, NOT in `time`. A `long` is an
+        // object, and `time *= 1000` changes that object in place: the caller's value - a
+        // constant like the 2 of `thread.sleep(2)` included. Every now and then (with the JIT)
+        // a call found the 2 already multiplied and slept two seconds instead of two
+        // milliseconds.
+        amount : _int64 = time.value;           // microseconds, once converted
         if(tm_unit == time_unit.seconds) {
-            time *= 1000000;
+            amount = amount * 1000000;
         } else if(tm_unit == time_unit.milliseconds) {
-            time *= 1000;
+            amount = amount * 1000;
         } else if(tm_unit == time_unit.nanoseconds) {
-            time /= 1000;
+            amount = amount / 1000;
         }
 
-        // todo: double check all asm statements
-        sleep_tm := time.value; // todo: add support for nanosecond sleeping
+        sleep_tm : _int64 = amount; // todo: add support for nanosecond sleeping
         asm {
             loadl ebx, [sleep_tm]
             sleep ebx
@@ -127,12 +132,15 @@ class time {
             if(time < 0)
                 throw new error("cannot sleep for negative time: $time");
 
+            // (the conversion is not used yet - the instruction below is switched off - and it must
+            //  never be done in `time` itself: see sleep() above)
+            amount : _int64 = time.value;
             if(tm_unit == time_unit.seconds) {
-                time *= 1000;
+                amount = amount * 1000;
             } else if(tm_unit == time_unit.microseconds) {
-                time /= 1000;
+                amount = amount / 1000;
             } else if(tm_unit == time_unit.nanoseconds) {
-                time /= 1000000;
+                amount = amount / 1000000;
             }
         }
 
