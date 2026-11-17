@@ -1,0 +1,139 @@
+mod std.guikit.navigation;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * route - where the app can go. Every screen of an app has a route class that
+ * extends this one; the route's fields are what that screen needs.
+ *
+ *      class to_home base route { }                    // a screen that needs nothing
+ *
+ *      class to_detail base route {                    // a screen that needs to know which item
+ *          id : _int64;
+ *          to_detail(n: _int64) { id = n; }
+ *      }
+ *
+ * Going somewhere is making a route and handing it to the navigator:
+ *
+ *      nav.go(to_detail(7));
+ *
+ * and the screen list (screens.sharp) says what is shown for each kind of
+ * route. The screen gets the route object back, so it reads its arguments as
+ * ordinary, typed fields (`it.id`) - there are no strings to parse and nothing
+ * to look up by name.
+ *
+ * WHY A BASE CLASS: the navigator only takes routes, and the screen list only
+ * registers screens for route classes. A route that is misspelt, or an object
+ * that is not a route at all, is caught by the compiler instead of showing up
+ * as a blank screen at run time. (Compose's typed navigation does the same
+ * with @Serializable route classes.)
+ *
+ * A route class is plain data: keep widgets and state out of it.
+ */
+stable class route {
+}
+
+/**
+ * What the navigator knows about one line of the screen list, without knowing
+ * the route type it was written for: can it show this route, and how.
+ */
+interface screen_kind {
+    /** is `where` a route this line of the screen list is for? */
+    def accepts(where: route) : _int64;
+
+    /** build the screen for `where`: the widgets are made into whichever container is open (scope.sharp) */
+    def fill(where: route);
+
+    /** the words on the tab bar - "" for a screen that is not a tab */
+    def title() : string;
+
+    /** 1 for a top-level screen written with tab<...>(...), 0 for one written with screen<...>() */
+    def is_tab() : _int64;
+
+    /**
+     * A tab's own route, made fresh: what opens the tab the first time the tab
+     * bar switches to it. null for a screen that is not a tab.
+     */
+    def first_route() : route?;
+}
+
+/**
+ * One line of the screen list: "a route of type t is shown by this function".
+ * Made by screen<t>() { } and tab<t>(title) { }.
+ *
+ * It is generic so that the function gets the route AS ITS OWN TYPE (`it.id`
+ * is a real field of to_detail), while the navigator keeps all the lines in
+ * one list as plain screen_kind. `where is t` is what matches a route to its
+ * line.
+ */
+stable class typed_screen<t base route> : screen_kind {
+    private make : (t)();
+
+    typed_screen(content: (t)()) {
+        make = content;
+    }
+
+    override def accepts(where: route) : _int64 {
+        if(where is t) { return 1; }
+        return 0;
+    }
+
+    override def fill(where: route) {
+        make(where as t);
+    }
+
+    override def title() : string {
+        return "";
+    }
+
+    override def is_tab() : _int64 {
+        return 0;
+    }
+
+    override def first_route() : route? {
+        return null;
+    }
+}
+
+/**
+ * A line of the screen list written with tab<t>(title) { }: a top-level
+ * screen, one of the places the tab bar switches between.
+ *
+ * A tab is opened by the tab bar, which has no route object to hand - so a
+ * tab makes its own (`new t()`). That is why A TAB'S ROUTE CLASS MUST BE
+ * MAKEABLE WITH NO ARGUMENTS: a tab is a place, not a particular item. (A
+ * route with arguments is for screen<...>(), which is always opened with a
+ * route someone made.)
+ */
+stable class typed_tab<t base route> : screen_kind {
+    private make : (t)();
+    private words : string = "";
+
+    typed_tab(caption: string, content: (t)()) {
+        words = caption;
+        make = content;
+    }
+
+    override def accepts(where: route) : _int64 {
+        if(where is t) { return 1; }
+        return 0;
+    }
+
+    override def fill(where: route) {
+        make(where as t);
+    }
+
+    override def title() : string {
+        return words;
+    }
+
+    override def is_tab() : _int64 {
+        return 1;
+    }
+
+    override def first_route() : route? {
+        return new t();
+    }
+}

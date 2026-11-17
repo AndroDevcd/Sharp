@@ -1,0 +1,143 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * tabs - a strip of titles, one of them chosen: the switch between the pages
+ * of a screen.
+ *
+ *      page := state(0);                       // which tab is chosen: 0 is the first
+ *
+ *      tabs(page) {
+ *          tab("Overview");
+ *          tab("Files");
+ *          tab("Settings");
+ *      }
+ *
+ *      if(page.value == 0) { overview(); }
+ *      else if(page.value == 1) { files(); }
+ *      else { settings(); }
+ *
+ * The strip only CHOOSES: it writes the number of the clicked tab into the
+ * state. Showing the right page for that number is ordinary code of yours, as
+ * above. (Compose: TabRow + Tab. Android: TabLayout.)
+ *
+ * tab(...) ONLY WORKS INSIDE tabs { }. A tab has no meaning anywhere else,
+ * and written elsewhere it stops the program with an error that says so
+ * (scope.inside).
+ *
+ * HOW IT WORKS: tab_strip is a row (it uses the same flex algorithm). Each
+ * tab is a small widget of its own; a tab's NUMBER is simply its position
+ * among the strip's children, worked out when it is clicked or painted, so
+ * tabs can be added in a loop or left out by an `if` without numbering them.
+ */
+stable class tab_strip base widget : behavior {
+    private bound : state<_int64>;
+
+    tab_strip(choice: state<_int64>) {
+        attach(self);
+        bound = choice;
+    }
+
+    /** the nested way to give the strip its tabs (scope.sharp) */
+    def content(block: ()()) : tab_strip {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** which tab is chosen right now */
+    def chosen() : _int64 {
+        return bound.value;
+    }
+
+    /** tab number `index` was clicked */
+    def choose(index: _int64) {
+        if(bound.value != index) {
+            bound.value = index;
+        }
+    }
+
+    /** the position of this tab among the strip's shown children */
+    def index_of(tab_view: view) : _int64 {
+        index : _int64 = 0;
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid == tab_view) { return index; }
+            if(kid.shown == 1) { index = index + 1; }
+        }
+        return 0 - 1;
+    }
+
+    override def kind() : string { return "tabs"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        flex.measure(me, 1, 0, ALIGN_STRETCH, min_w, max_w, min_h, max_h);
+    }
+
+    override def arrange() {
+        flex.arrange(me, 1, 0, ALIGN_STRETCH, JUSTIFY_START);
+    }
+
+    override def paint(p: painter) {
+        // the line the chosen tab's marker sits on, across the whole strip
+        t : theme = ui_host.current!!.look;
+        p.rect(me.x, me.y + me.h - 1, me.w, 1, t.border);
+    }
+}
+
+/** one title in a tab strip. Made with tab(...), inside tabs { }. */
+stable class tab_item base widget : behavior {
+    private words : string = "";
+
+    tab_item(title: string) {
+        attach(self);
+        words = title;
+        me.on_click = { -> pick(); };
+    }
+
+    /** the strip this tab is in */
+    private def strip() : tab_strip {
+        return me.parent!!.how as tab_strip;
+    }
+
+    private def pick() {
+        owner := strip();
+        owner.choose(owner.index_of(me));
+    }
+
+    override def kind() : string { return "tab"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        host := ui_host.current!!;
+        f : font = host.font_of(host.look.text_size);
+        me.content_w = f.width_of(words) + host.look.space * 4;
+        me.content_h = host.look.control_height + 4;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        owner := strip();
+        chosen : _int64 = 0;
+        if(owner.chosen() == owner.index_of(me)) { chosen = 1; }
+
+        if(me.hovered == 1 && chosen == 0) {
+            p.rect(me.x, me.y, me.w, me.h - 1, t.text.with_alpha(14));
+        }
+
+        f : font = host.font_of(t.text_size, chosen);           // the chosen tab's title is bold
+        ink : color = t.text_dim;
+        if(chosen == 1) { ink = t.primary; }
+        p.text(words, me.x + (me.w - f.width_of(words)) / 2, me.y + (me.h - f.line_height) / 2, f, ink);
+
+        if(chosen == 1) {
+            p.rect(me.x + 8, me.y + me.h - 3, me.w - 16, 3, 1.5, t.primary);
+        }
+    }
+}

@@ -1,0 +1,35 @@
+mod std.guikit.layout.flow;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * spacer - empty room.
+ *
+ *      gui.row().add(title).add(gui.spacer()).add(close_button)     // pushes them apart
+ *      gui.column().add(a).add(gui.gap(24)).add(b)                  // exactly 24 pixels between
+ *
+ * gui.spacer() takes all the leftover room of the row or column it is in (it
+ * is a child with grow(1) and nothing to paint). gui.gap(n) is a fixed amount
+ * of room. (Compose: Spacer. CSS: a flex: 1 div.)
+ */
+stable class spacer base widget : behavior {
+
+    spacer() {
+        attach(self);
+    }
+
+    override def kind() : string { return "spacer"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = 0;
+        me.content_h = 0;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+    }
+}

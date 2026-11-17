@@ -15,7 +15,7 @@
 #include "../types/sharp_type.h"
 #include "garbage_collector.h"
 #include "../../core/opcode/opcode_macros.h"
-#include "../interrupt_signatures.h"
+#include "../interrupts/interrupt_signatures.h"
 #include <cstring>
 #include <mutex>
 #include <set>

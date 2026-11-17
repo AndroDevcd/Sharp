@@ -1,0 +1,68 @@
+mod std.guikit.overlay;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * menu_box - the list of choices of a context menu: the thing that appears at
+ * the mouse when something is right-clicked. Made with menu(...).
+ *
+ *      opened := state(0);
+ *
+ *      row(modifier().right_click { opened.value = 1; }) { text(file.name); };
+ *
+ *      menu(opened) {
+ *          menu_item("Open") { open(file); };
+ *          menu_item("Rename") { rename(file); };
+ *          divider();
+ *          menu_item("Delete") { remove(file); };
+ *      }
+ *
+ * The menu is there while its state is not 0, at the place the mouse was when
+ * it opened. Choosing an item runs its action and closes the menu; a click
+ * anywhere else, or Escape, closes it without choosing.
+ * (Android: PopupMenu / a context menu. HTML: the contextmenu event.)
+ *
+ * menu_item(...) ONLY WORKS INSIDE menu { }: written anywhere else it stops
+ * the program with an error that says so (scope.inside). Other widgets - a
+ * divider, a caption - may sit between the items.
+ *
+ * HOW IT WORKS: menu(...) makes a popup placed at the mouse (popup.sharp,
+ * POPUP_AT_MOUSE) and, inside it, this box: a column with a border and a
+ * shadow. The box keeps the function that closes the menu, so that an item -
+ * which looks its menu up through the scope - can close it after running.
+ */
+stable class menu_box base widget : behavior {
+    private closer : ()();
+
+    menu_box(close: ()()) {
+        attach(self);
+        closer = close;
+    }
+
+    /** the nested way to give the menu its items (scope.sharp) */
+    def content(block: ()()) : menu_box {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** close the menu (an item calls this after its action) */
+    def close() {
+        closer();
+    }
+
+    override def kind() : string { return "menu"; }
+
+    // the items are laid out like a column, each as wide as the menu
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        flex.measure(me, 0, 0, ALIGN_STRETCH, min_w, max_w, min_h, max_h);
+    }
+
+    override def arrange() {
+        flex.arrange(me, 0, 0, ALIGN_STRETCH, JUSTIFY_START);
+    }
+
+    override def paint(p: painter) {
+    }
+}

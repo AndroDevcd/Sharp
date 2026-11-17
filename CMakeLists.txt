@@ -205,6 +205,8 @@ else()
             "lib/runtime/multitasking/*/*.cpp"
             "lib/runtime/types/*.h"
             "lib/runtime/types/*.cpp"
+            "lib/runtime/interrupts/*.h"
+            "lib/runtime/interrupts/*.cpp"
             "lib/runtime/*.h"
             "lib/runtime/*.cpp"
             "lib/core/*.cpp"

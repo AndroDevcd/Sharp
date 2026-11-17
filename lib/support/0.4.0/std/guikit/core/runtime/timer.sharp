@@ -1,0 +1,91 @@
+mod std.guikit.core.runtime;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * timer - run something later, or again and again.
+ *
+ *      gui.after(2) { banner.value = 0; };              // once, two seconds from now
+ *
+ *      tick := gui.every(1) { seconds.value += 1; };    // every second
+ *      ...
+ *      tick.cancel();                                   // stop it
+ *
+ * The function runs on the same thread as everything else in the UI, between
+ * frames - so it may change state freely, and the screen follows. A timer
+ * costs nothing while it waits: an idle app sleeps until the next one is due.
+ * (Android: Handler.postDelayed. JavaScript: setTimeout / setInterval.)
+ *
+ * Timers belong to the PROGRAM, not to a widget: one made by a composable
+ * keeps running after that composable has left the screen, until it is
+ * cancelled. Make them where things happen once (main, a click handler) -
+ * not as a field of a composable, which is made anew on every rebuild of its
+ * parent.
+ *
+ * HOW IT WORKS: every live timer is in one list (`all`). Once per turn of the
+ * host's loop, run_due() calls those whose time has come; a repeating one is
+ * given its next time, a one-shot is dropped. When the host is about to sleep
+ * it asks next_due_in() how long until the soonest timer, and sleeps no longer
+ * than that (host.sharp, "rest").
+ *
+ * A timer may be made before the window exists (before gui.run): it has no
+ * clock to read yet, so it only remembers its delay, and its first due time is
+ * worked out on the first turn of the loop.
+ */
+stable class timer {
+    private static all : list<timer> = new list<timer>();
+
+    private delay : decimal;            // seconds from "now" to the first run
+    private period : decimal;           // seconds between runs; 0: runs once
+    private due : decimal = 0 - 1;      // the host time of the next run; -1: not worked out yet
+    private action : ()();
+    private live : _int64 = 1;
+
+    timer(wait: decimal, again_every: decimal, what: ()()) {
+        delay = wait;
+        period = again_every;
+        action = what;
+        all.add(self);
+    }
+
+    /** stop the timer: it does not run again */
+    def cancel() {
+        live = 0;
+    }
+
+    /** run every timer whose time has come (`now`: the host's clock, in seconds). Called once per turn of the loop. */
+    static def run_due(now: decimal) {
+        // by index, and re-reading the size: a timer's function may start new timers
+        for(i : _int64 = 0; i < all.size().value; i++) {
+            t : timer = all.at(i);
+            if(t.live == 0) { continue; }
+            if(t.due < 0) { t.due = now + t.delay; }
+            if(now < t.due) { continue; }
+
+            if(t.period > 0) { t.due = now + t.period; }
+            else { t.live = 0; }
+            t.action();
+        }
+
+        // drop the finished and cancelled ones, last to first so the positions stay right
+        for(i : _int64 = all.size().value - 1; i >= 0; i--) {
+            if(all.at(i).live == 0) { all.remove_at(i); }
+        }
+    }
+
+    /** seconds until the soonest timer is due (0 when one is due already); -1 when there is none */
+    static def next_due_in(now: decimal) : decimal {
+        soonest : decimal = 0 - 1;
+        count : _int64 = all.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            t : timer = all.at(i);
+            if(t.live == 0) { continue; }
+            wait : decimal = t.delay;
+            if(t.due >= 0) { wait = num.larger(0, t.due - now); }
+            if(soonest < 0 || wait < soonest) { soonest = wait; }
+        }
+        return soonest;
+    }
+}

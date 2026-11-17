@@ -1,0 +1,78 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * checkbox - a box you tick, with words next to it. Made with checkbox(...).
+ *
+ *      agreed := state(0);                                     // 0 = off, 1 = on
+ *      checkbox("I agree to the terms", agreed)
+ *      button("Continue", modifier().enable(agreed.value)) { go(); }
+ *
+ * The checkbox is BOUND to the state: it shows the state's value, and a click
+ * flips it (0 <-> 1). Because the state changed, everything built from it is
+ * rebuilt - the button above enables itself. You never ask the checkbox
+ * whether it is ticked; you read the state. (This is "single source of truth":
+ * the value lives in ONE place, your state, and the widget is only a view of
+ * it. Compose: Checkbox(checked, onCheckedChange).)
+ */
+stable class checkbox base widget : behavior {
+    private words : string = "";
+    private bound : state<_int64>;
+
+    private static const BOX : decimal = 20;
+
+    checkbox(caption: string, value: state<_int64>) {
+        attach(self);
+        words = caption;
+        bound = value;
+        me.on_click = { -> flip(); };
+    }
+
+    private def flip() {
+        if(bound.value == 0) { bound.value = 1; }
+        else { bound.value = 0; }
+    }
+
+    override def kind() : string { return "checkbox"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        host := ui_host.current!!;
+        f : font = host.font_of(host.look.text_size);
+        me.content_w = BOX + host.look.space + f.width_of(words);
+        me.content_h = num.larger(BOX, f.line_height);
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        f : font = host.font_of(t.text_size);
+
+        left : decimal = me.inner_x();
+        top : decimal = me.inner_y() + (me.inner_h() - BOX) / 2;
+
+        if(bound.value != 0) {
+            fill : color = t.primary;
+            if(me.enabled == 0) { fill = t.surface_high; }
+            else if(me.hovered == 1) { fill = t.primary_high; }
+            p.rect(left, top, BOX, BOX, 5, fill);
+            // the tick: two strokes
+            p.line(left + 5, top + 10.5, left + 8.5, top + 14, 2, t.on_primary);
+            p.line(left + 8.5, top + 14, left + 15, top + 6.5, 2, t.on_primary);
+        } else {
+            edge : color = t.border;
+            if(me.hovered == 1 && me.enabled == 1) { edge = t.primary; }
+            p.rect(left, top, BOX, BOX, 5, t.surface);
+            p.outline(left, top, BOX, BOX, 5, 1.5, edge);
+        }
+
+        ink : color = t.text;
+        if(me.enabled == 0) { ink = t.text_dim; }
+        p.text(words, left + BOX + t.space, me.inner_y() + (me.inner_h() - f.line_height) / 2, f, ink);
+    }
+}

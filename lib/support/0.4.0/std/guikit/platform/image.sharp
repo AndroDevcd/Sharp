@@ -1,0 +1,29 @@
+mod std.guikit.platform;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * image - a picture loaded from a file (PNG, JPG, BMP, GIF), ready to draw.
+ *
+ *      logo := gui.image("assets/logo.png");
+ *      p.image(logo, 20, 20);                       // at its own size
+ *      p.image(logo, 20, 20, 64, 64);               // stretched to 64 x 64
+ *
+ * Load a picture ONCE (before the frame loop) and draw it as often as you
+ * like; loading the same file again hands back the one already loaded. PNG
+ * transparency is kept. A picture belongs to the open window and ends with it.
+ * Android comparison: a Bitmap; in a game: a sprite sheet or texture.
+ */
+stable class image {
+    id : _int64;            // the native side's number for this picture
+    width : _int32;         // its own size in pixels
+    height : _int32;
+
+    image(path: string) {
+        id = image_load(path);
+        width = image_width(id);
+        height = image_height(id);
+    }
+}

@@ -36,6 +36,28 @@ def program_folder() : string {
     return ".";
 }
 
+/** the whole path of the `sharp` runtime binary itself (not the program) */
+def runtime_path() : string {
+    return vm.runtime_path();
+}
+
+/**
+ * The folder the `sharp` runtime binary is in (no `/` at the end). Libraries
+ * that ship WITH the install live here, so std.gui loads its native backend
+ * from `runtime_folder() + "/sharpgui"` - found wherever the program runs from.
+ */
+def runtime_folder() : string {
+    path := vm.runtime_path();
+    size : _int64 = sizeof(path.data);
+    for(i : _int64 = size - 1; i >= 0; i--) {
+        ch : _int64 = path.data!![i];
+        if(ch == '/' || ch == '\\') {
+            return new string(path.data!!, 0, i);
+        }
+    }
+    return ".";
+}
+
 def load_library(name: string) {
     vm.load_library(name);
 }

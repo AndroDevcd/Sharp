@@ -48,6 +48,23 @@ class vm {
         return "$path";
     }
 
+    /**
+     * The whole path of the `sharp` runtime binary itself - NOT the program it
+     * is running. Libraries that ship with the install (the GUI's native
+     * backend) live beside this binary, so std.gui finds them here wherever the
+     * program is started from.
+     */
+    static def runtime_path() : string {
+        path : _int8[];
+
+        asm {
+            int 0x55
+            popl [path]
+        };
+
+        return "$path";
+    }
+
     static def free_library(name: string): int {
         lib_name : _int8[] = get_lib_path(name);
         result :_int64 = 0;

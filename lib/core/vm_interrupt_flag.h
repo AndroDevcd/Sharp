@@ -87,6 +87,7 @@ enum interrupt_flag
     OP_REFLECT_FIELD_VALUE = 0x52,
     OP_PROGRAM_PATH = 0x53,          // push: the whole path of the program file the VM is running
     OP_OS_NAME = 0x54,               // push: the operating system the VM runs on, "win" or "posix"
+    OP_RUNTIME_PATH = 0x55,          // push: the whole path of the `sharp` runtime binary itself (libs ship beside it)
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

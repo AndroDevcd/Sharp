@@ -92,7 +92,7 @@ struct virtual_machine {
 extern virtual_machine vm;
 
 void main_vm_loop(sharp_function *frame);
-void exec_interrupt(Int interrupt);
+void exec_interrupt(Int interrupt);         // interrupts/interrupt_table.cpp: dispatch an interrupt to its handler
 void prepare_method(Int address);
 void invoke_delegate(Int address, Int argSize, bool staticCall);
 bool catch_exception();

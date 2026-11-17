@@ -1,0 +1,602 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * text_field - a box to type one line of text into. Made with text_field(...).
+ *
+ *      name := state("");
+ *      text_field(name).hint("Your name").on_submit({ -> greet(); })
+ *      text("Hello, " + name.value)
+ *
+ *      text_field(secret).password()               // shows dots instead of the letters
+ *      text_field(amount).numbers_only().limit(8)  // digits, a point and a minus; at most 8 letters
+ *
+ *   .hint(words)           grey words shown while the field is empty
+ *   .on_submit(action)     run when Enter is pressed in the field
+ *   .password()            hide what is typed (and refuse to copy it)
+ *   .numbers_only()        take only what a number is written with
+ *   .limit(n)              at most n letters
+ *
+ * Bound to a text state: every key writes the new text into the state, so
+ * anything built from it follows as you type.
+ *
+ * EDITING, the way every text box works:
+ *
+ *      click                       put the cursor there
+ *      drag                        select from where the press began
+ *      double click                select the word
+ *      Left / Right / Home / End   move the cursor      (+ Shift: select as it moves)
+ *      Backspace / Delete          remove the selection, or one letter
+ *      typing                      replaces the selection
+ *      Ctrl+A                      select everything
+ *      Ctrl+C / Ctrl+X / Ctrl+V    copy / cut / paste - the system clipboard,
+ *                                  shared with every other program
+ *
+ * WHAT LIVES WHERE
+ *
+ *   The TEXT is yours: it is in your state, and the field never keeps a copy.
+ *   The CURSOR, the SELECTION and how far a long text is scrolled sideways
+ *   are the field's own memory. Typing changes your state, which rebuilds the
+ *   screen and makes a NEW field object - so the field is `stateful` and the
+ *   new one adopts those from the old. That, and the host moving the keyboard
+ *   focus across the rebuild, is why you can keep typing.
+ *
+ * THE SELECTION is two positions: `anchor`, where it began, and `cursor`,
+ * where it has got to. Everything between them is selected, whichever comes
+ * first; with no selection the anchor is -1. Shift+arrow moves the cursor and
+ * leaves the anchor; a plain arrow drops the anchor.
+ *
+ * POSITIONS are counted in BYTES into the text. Sharp strings are UTF-8,
+ * where a letter like an accented e takes two bytes; the cursor only ever
+ * stops BETWEEN letters, never inside one (step_back / step_forward skip the
+ * bytes that continue a letter).
+ * (Compose: TextField. Android: EditText. HTML: input type=text.)
+ */
+stable class text_field base widget : behavior, key_target, pointer_target, stateful {
+    private bound : state<string>;
+    private placeholder : string = "";
+    private submit : ()()?;
+    private secret : _int64 = 0;            // 1: a password field
+    private digits : _int64 = 0;            // 1: numbers only
+    private most : _int64 = 0;              // at most this many letters; 0: no limit
+    private caption : string = "";          // words above the box
+    private problem : string = "";          // what is wrong with the text ("" = nothing): shown red under the box
+    private note : string = "";             // a quiet explanation under the box
+
+    private cursor : _int64 = 0 - 1;        // bytes into the text; -1: not placed yet (goes to the end)
+    private anchor : _int64 = 0 - 1;        // where the selection began; -1: nothing is selected
+    private shift : decimal = 0;            // pixels the text is moved left so the cursor stays in view
+
+    private static const INSET : decimal = 10;      // room between the box's edge and the text
+
+    text_field(value: state<string>) {
+        attach(self);
+        bound = value;
+        me.fill_w = 1;
+    }
+
+    /** grey words shown while the field is empty */
+    def hint(words: string) : text_field {
+        placeholder = words;
+        return self;
+    }
+
+    /** words above the box that say what it is for */
+    def label(words: string) : text_field {
+        caption = words;
+        return self;
+    }
+
+    /**
+     * What is wrong with what was typed: shown in red under the box, which
+     * turns red too. "" means nothing is wrong - so the usual way to use it is
+     * with a state the logic sets: .error(model.title_problem.value)
+     * (Compose: isError + supportingText.)
+     */
+    def error(words: string) : text_field {
+        problem = words;
+        return self;
+    }
+
+    /** a quiet line under the box (an error, when there is one, is shown instead) */
+    def helper(words: string) : text_field {
+        note = words;
+        return self;
+    }
+
+    private def small_face() : font {
+        host := ui_host.current!!;
+        return host.font_of(host.look.small_size);
+    }
+
+    /** the height the label takes above the box (0 without one) */
+    private def label_tall() : decimal {
+        if(caption.size().value == 0) { return 0; }
+        return small_face().line_height + 6;
+    }
+
+    /** the height of the line under the box: the error, or the helper (0 without either) */
+    private def below_tall() : decimal {
+        if(problem.size().value == 0 && note.size().value == 0) { return 0; }
+        return small_face().line_height + 5;
+    }
+
+    /** run this when Enter is pressed in the field */
+    def on_submit(action: ()()) : text_field {
+        submit = action;
+        return self;
+    }
+
+    /** hide what is typed: every letter is shown as a dot, and the field will not copy or cut */
+    def password() : text_field {
+        secret = 1;
+        return self;
+    }
+
+    /** take only what a number is written with: digits, one point, a minus at the front */
+    def numbers_only() : text_field {
+        digits = 1;
+        return self;
+    }
+
+    /** at most this many letters */
+    def limit(letters: _int64) : text_field {
+        most = letters;
+        return self;
+    }
+
+    private def face() : font {
+        host := ui_host.current!!;
+        return host.font_of(host.look.text_size);
+    }
+
+    /** the cursor, kept inside the text as it is now (the state may have been changed from outside) */
+    private def place() : _int64 {
+        length : _int64 = bound.peek().size().value;
+        if(cursor < 0 || cursor > length) {
+            cursor = length;
+        }
+        if(anchor > length) {
+            anchor = 0 - 1;
+        }
+        return cursor;
+    }
+
+    override def kind() : string { return "text_field"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        t : theme = ui_host.current!!.look;
+        me.content_w = 160;
+        me.content_h = num.larger(face().line_height + 12, t.control_height) + label_tall() + below_tall();
+    }
+
+    override def arrange() {
+    }
+
+    // ------------------------------------------------------------ letters and positions
+
+    /** is this byte the continuation of a letter (not the start of one)? UTF-8: bytes 128..191 */
+    private static def continues_letter(byte: _int64) : _int64 {
+        if(byte >= 128 && byte < 192) { return 1; }
+        if(byte < 0 - 64) { return 1; }             // the same bytes when a byte is read as a signed number
+        return 0;
+    }
+
+    /** the position one letter before `at` */
+    private def step_back(words: string, at: _int64) : _int64 {
+        if(at <= 0) { return 0; }
+        to : _int64 = at - 1;
+        while(to > 0 && continues_letter(words.at(to).value) == 1) {
+            to = to - 1;
+        }
+        return to;
+    }
+
+    /** the position one letter after `at` */
+    private def step_forward(words: string, at: _int64) : _int64 {
+        length : _int64 = words.size().value;
+        if(at >= length) { return length; }
+        to : _int64 = at + 1;
+        while(to < length && continues_letter(words.at(to).value) == 1) {
+            to = to + 1;
+        }
+        return to;
+    }
+
+    /** how many letters (not bytes) the first `upto` bytes of `words` hold */
+    private def letters_in(words: string, upto: _int64) : _int64 {
+        count : _int64 = 0;
+        for(i : _int64 = 0; i < upto; i++) {
+            if(continues_letter(words.at(i).value) == 0) { count = count + 1; }
+        }
+        return count;
+    }
+
+    /** part of a word: a letter, a digit, an underscore, or any letter beyond plain English */
+    private static def in_word(byte: _int64) : _int64 {
+        if(byte >= 48 && byte <= 57) { return 1; }      // 0-9
+        if(byte >= 65 && byte <= 90) { return 1; }      // A-Z
+        if(byte >= 97 && byte <= 122) { return 1; }     // a-z
+        if(byte == 95) { return 1; }                    // _
+        if(byte >= 128 || byte < 0) { return 1; }       // a byte of a letter outside ASCII
+        return 0;
+    }
+
+    /**
+     * What is PAINTED for the text: the text itself, or one dot per letter for
+     * a password. Positions in it are worked out by shown_upto, so cursor and
+     * selection land in the right place either way.
+     */
+    private def shown_text(words: string) : string {
+        if(secret == 0) {
+            return words;
+        }
+        dots : string = "";
+        count : _int64 = letters_in(words, words.size().value);
+        for(i : _int64 = 0; i < count; i++) {
+            dots = dots + "*";
+        }
+        return dots;
+    }
+
+    /** the painted text up to position `at` of the real text (for measuring where the cursor is) */
+    private def shown_upto(words: string, at: _int64) : string {
+        if(secret == 0) {
+            return txt.slice(words, 0, at);
+        }
+        dots : string = "";
+        count : _int64 = letters_in(words, at);
+        for(i : _int64 = 0; i < count; i++) {
+            dots = dots + "*";
+        }
+        return dots;
+    }
+
+    // ------------------------------------------------------------ the selection
+
+    private def has_selection() : _int64 {
+        if(anchor >= 0 && anchor != place()) { return 1; }
+        return 0;
+    }
+
+    /** the earlier end of the selection (the cursor itself when nothing is selected) */
+    private def selection_start() : _int64 {
+        if(anchor >= 0 && anchor < cursor) { return anchor; }
+        return cursor;
+    }
+
+    /** the later end of the selection */
+    private def selection_end() : _int64 {
+        if(anchor >= 0 && anchor > cursor) { return anchor; }
+        return cursor;
+    }
+
+    /**
+     * Move the cursor to `to`. With Shift held (`keep` 1) the selection
+     * stretches from where it began; without, the selection is dropped.
+     */
+    private def move_to(to: _int64, keep: _int64) {
+        if(keep == 1) {
+            if(anchor < 0) { anchor = cursor; }     // a selection begins where the cursor was
+        } else {
+            anchor = 0 - 1;
+        }
+        cursor = to;
+    }
+
+    // ------------------------------------------------------------ changing the text
+
+    /** replace the text from `from` to `to` with `put`, and leave the cursor after what was put in */
+    private def replace_range(from: _int64, to: _int64, put: string) {
+        words : string = bound.peek();
+        length : _int64 = words.size().value;
+        fresh : string = txt.slice(words, 0, from) + put + txt.slice(words, to, length);
+        cursor = from + put.size().value;
+        anchor = 0 - 1;
+        bound.value = fresh;
+    }
+
+    /** put `words` in at the cursor - over the selection, if there is one - after the field's rules had their say */
+    private def insert(words: string) {
+        at : _int64 = place();
+        from : _int64 = at;
+        to : _int64 = at;
+        if(has_selection() == 1) {
+            from = selection_start();
+            to = selection_end();
+        }
+
+        allowed : string = filtered(words, from, to);
+        if(allowed.size().value == 0 && from == to) {
+            return;                                 // nothing may go in, and there is nothing to remove
+        }
+        replace_range(from, to, allowed);
+    }
+
+    /**
+     * What of `words` this field accepts, given that it will replace the text
+     * between `from` and `to`: only number characters in a numbers-only field,
+     * and no more letters than the limit leaves room for. Line feeds never go
+     * into a one-line field (a pasted paragraph becomes one line).
+     */
+    private def filtered(words: string, from: _int64, to: _int64) : string {
+        now : string = bound.peek();
+        kept : string = "";
+        room : _int64 = 0 - 1;                      // -1: no limit
+        if(most > 0) {
+            room = most - (letters_in(now, now.size().value) - (letters_in(now, to) - letters_in(now, from)));
+            if(room < 0) { room = 0; }
+        }
+
+        // a numbers-only field allows one point, and a minus only at the very front
+        has_point : _int64 = 0;
+        if(digits == 1) {
+            for(i : _int64 = 0; i < now.size().value; i++) {
+                if((i < from || i >= to) && now.at(i).value == 46) { has_point = 1; }
+            }
+        }
+
+        length : _int64 = words.size().value;
+        at : _int64 = 0;
+        while(at < length) {
+            next : _int64 = step_forward(words, at);
+            byte : _int64 = words.at(at).value;
+            ok : _int64 = 1;
+
+            if(byte == 10 || byte == 13) { ok = 0; }                    // line feed, carriage return
+            if(digits == 1 && ok == 1) {
+                ok = 0;
+                if(byte >= 48 && byte <= 57) { ok = 1; }                // a digit
+                if(byte == 46 && has_point == 0) { ok = 1; has_point = 1; }        // the one point
+                if(byte == 45 && from == 0 && kept.size().value == 0) { ok = 1; }  // a minus, only in front
+            }
+            if(ok == 1 && room == 0) { ok = 0; }
+
+            if(ok == 1) {
+                kept = kept + txt.slice(words, at, next);
+                if(room > 0) { room = room - 1; }
+            }
+            at = next;
+        }
+        return kept;
+    }
+
+    /** remove the selection, if there is one. Gives 1 when something was removed. */
+    private def remove_selection() : _int64 {
+        if(has_selection() == 0) {
+            return 0;
+        }
+        replace_range(selection_start(), selection_end(), "");
+        return 1;
+    }
+
+    // ------------------------------------------------------------ the keyboard
+
+    override def typed(words: string) {
+        insert(words);
+    }
+
+    override def key(e: event) : _int64 {
+        words : string = bound.peek();
+        at : _int64 = place();
+        length : _int64 = words.size().value;
+
+        keep : _int64 = 0;
+        if(e.has_shift()) { keep = 1; }
+
+        // ---- Ctrl + a letter: select all, copy, cut, paste
+        if(e.has_ctrl()) {
+            if(e.key == 97) {                                           // a
+                anchor = 0;
+                cursor = length;
+                return 1;
+            }
+            if(e.key == 99 || e.key == 120) {                           // c, x
+                if(has_selection() == 1 && secret == 0) {
+                    clipboard_write(txt.slice(words, selection_start(), selection_end()));
+                    if(e.key == 120) { remove_selection(); }
+                }
+                return 1;
+            }
+            if(e.key == 118) {                                          // v
+                insert(clipboard_read());
+                return 1;
+            }
+            // any other key with Ctrl held (Ctrl+Left, Ctrl+End ...) is treated as the plain key below
+        }
+
+        if(e.key == KEY_BACKSPACE) {
+            if(remove_selection() == 0 && at > 0) { replace_range(step_back(words, at), at, ""); }
+            return 1;
+        }
+        if(e.key == KEY_DELETE) {
+            if(remove_selection() == 0 && at < length) { replace_range(at, step_forward(words, at), ""); }
+            return 1;
+        }
+
+        // a plain Left / Right with something selected goes to that end of the selection
+        if(e.key == KEY_LEFT) {
+            if(keep == 0 && has_selection() == 1) { move_to(selection_start(), 0); }
+            else { move_to(step_back(words, at), keep); }
+            return 1;
+        }
+        if(e.key == KEY_RIGHT) {
+            if(keep == 0 && has_selection() == 1) { move_to(selection_end(), 0); }
+            else { move_to(step_forward(words, at), keep); }
+            return 1;
+        }
+        if(e.key == KEY_HOME)  { move_to(0, keep); return 1; }
+        if(e.key == KEY_END)   { move_to(length, keep); return 1; }
+
+        if(e.key == KEY_ENTER) {
+            if(submit != null) {
+                submit();
+                return 1;
+            }
+            return 0;
+        }
+        if(e.key == KEY_SPACE) {
+            return 1;               // the space itself arrives as typed text; do not let it "click" anything
+        }
+        return 0;
+    }
+
+    // ------------------------------------------------------------ the mouse
+
+    /** the position in the text nearest to the window point x */
+    private def position_at(x: decimal) : _int64 {
+        f : font = face();
+        words : string = bound.peek();
+        length : _int64 = words.size().value;
+        wanted : decimal = x - (me.inner_x() + INSET) + shift;
+
+        best : _int64 = 0;
+        best_miss : decimal = num.larger(wanted, 0 - wanted);
+        at : _int64 = 0;
+        while(at < length) {
+            at = step_forward(words, at);
+            miss : decimal = f.width_of(shown_upto(words, at)) - wanted;
+            if(miss < 0) { miss = 0 - miss; }
+            if(miss < best_miss) {
+                best_miss = miss;
+                best = at;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * press: the cursor goes there, and a selection may begin there.
+     * drag: the cursor follows, so the selection stretches.
+     * the second click of a double click: the word under it is selected.
+     */
+    override def pointer(what: _int64, x: decimal, y: decimal) {
+        if(what == POINTER_RELEASE) {
+            if(anchor == cursor) { anchor = 0 - 1; }       // a click without a drag selects nothing
+            return;
+        }
+        place();
+
+        if(what == POINTER_PRESS) {
+            cursor = position_at(x);
+            anchor = cursor;
+        } else if(what == POINTER_DRAG) {
+            cursor = position_at(x);
+        } else if(what == POINTER_DOUBLE) {
+            select_word_at(position_at(x));
+        }
+    }
+
+    /** select the run of word letters around `at` */
+    private def select_word_at(at: _int64) {
+        words : string = bound.peek();
+        length : _int64 = words.size().value;
+        if(secret == 1) {
+            anchor = 0;                                     // a password has no words to tell apart: all of it
+            cursor = length;
+            return;
+        }
+        from : _int64 = at;
+        while(from > 0 && in_word(words.at(from - 1).value) == 1) {
+            from = from - 1;
+        }
+        to : _int64 = at;
+        while(to < length && in_word(words.at(to).value) == 1) {
+            to = to + 1;
+        }
+        anchor = from;
+        cursor = to;
+    }
+
+    // ------------------------------------------------------------ painting
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        f : font = face();
+        focused : _int64 = host.has_focus(me);
+        words : string = bound.peek();
+        at : _int64 = place();
+
+        wrong : _int64 = 0;
+        if(problem.size().value > 0) { wrong = 1; }
+        small : font = small_face();
+
+        // the label above
+        if(caption.size().value > 0) {
+            label_ink : color = t.text_dim;
+            if(wrong == 1) { label_ink = t.danger; }
+            else if(focused == 1) { label_ink = t.primary; }
+            p.text(caption, me.x + 2, me.y, small, label_ink);
+        }
+
+        // the box: what is left of the widget between the label and the line below
+        box_y : decimal = me.y + label_tall();
+        box_h : decimal = num.larger(0, me.h - label_tall() - below_tall());
+        edge : color = t.border;
+        if(wrong == 1) { edge = t.danger; }
+        else if(focused == 1) { edge = t.primary; }
+        else if(me.hovered == 1 && me.enabled == 1) { edge = t.text_dim; }
+        p.rect(me.x, box_y, me.w, box_h, t.radius, t.surface);
+        thickness : decimal = 1;
+        if(focused == 1 || wrong == 1) { thickness = 2; }
+        p.outline(me.x, box_y, me.w, box_h, t.radius, thickness, edge);
+
+        // the line below: what is wrong, or the helper
+        if(wrong == 1) {
+            p.text(problem, me.x + 2, box_y + box_h + 4, small, t.danger);
+        } else if(note.size().value > 0) {
+            p.text(note, me.x + 2, box_y + box_h + 4, small, t.text_dim);
+        }
+
+        left : decimal = me.inner_x() + INSET;
+        room : decimal = num.larger(0, me.inner_w() - INSET * 2);
+        top : decimal = box_y + (box_h - f.line_height) / 2;
+
+        // keep the cursor in view: move the text sideways when it runs off either edge
+        painted : string = shown_text(words);
+        cursor_x : decimal = f.width_of(shown_upto(words, at));
+        if(cursor_x - shift > room) { shift = cursor_x - room; }
+        if(cursor_x - shift < 0) { shift = cursor_x; }
+        if(f.width_of(painted) <= room) { shift = 0; }
+
+        p.clip(left, box_y, room, box_h);
+
+        // the selection: a tinted box behind the selected letters
+        if(focused == 1 && has_selection() == 1) {
+            from_x : decimal = f.width_of(shown_upto(words, selection_start()));
+            to_x : decimal = f.width_of(shown_upto(words, selection_end()));
+            p.rect(left + from_x - shift, top, to_x - from_x, f.line_height, 3, t.primary.with_alpha(90));
+        }
+
+        if(words.size().value == 0) {
+            p.text(placeholder, left, top, f, t.text_dim);
+        } else {
+            ink : color = t.text;
+            if(me.enabled == 0) { ink = t.text_dim; }
+            p.text(painted, left - shift, top, f, ink);
+        }
+        p.unclip();
+
+        // the blinking cursor: on for half a second, off for half a second
+        if(focused == 1) {
+            half_seconds : _int64 = host.now * 2;
+            if(half_seconds % 2 == 0) {
+                p.rect(left + cursor_x - shift, top + 1, 1.5, f.line_height - 2, t.text);
+            }
+            host.wake_in(0.5);          // nothing else may happen for a while: wake up to blink
+        }
+    }
+
+    override def adopt(old: behavior) {
+        if(old is text_field) {
+            before := old as text_field;
+            cursor = before.cursor;
+            anchor = before.anchor;
+            shift = before.shift;
+        }
+    }
+}

@@ -1,0 +1,183 @@
+mod std.guikit.widgets.display;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * RICH TEXT - one piece of text with parts that look different: a bold word,
+ * a coloured number, a quiet aside.
+ *
+ *      text(rich {
+ *          plain("Due ");
+ *          bold("tomorrow");
+ *          plain(" at ");
+ *          colored("9:30", gui.current_theme().primary);
+ *          quiet("  (in 14 hours)");
+ *      });
+ *
+ * rich { } runs the block and gathers what plain / bold / colored / quiet
+ * said into one rich_text; text(...) shows it. The parts flow like one text:
+ * the line breaks between words wherever the width runs out, whichever part
+ * the word belongs to.
+ *
+ * plain, bold, colored and quiet only mean something inside rich { } -
+ * anywhere else they stop the program with a message that says so.
+ * (Compose: buildAnnotatedString with SpanStyle. Android: SpannableString.)
+ */
+stable class rich_text {
+    /** the rich text being gathered right now (rich { } sets it while its block runs) */
+    static gathering : rich_text?;
+
+    parts : list<rich_part> = new list<rich_part>();
+
+    /** the open rich text - or an error that says where the word belongs */
+    static def open(written: string) : rich_text {
+        if(gathering == null) {
+            throw new illegal_state_exception("`" + written + "` only works inside `rich { ... }` (it adds a part to a rich text)");
+        }
+        return gathering!!;
+    }
+
+    def add(words: string, heavy: _int64, dimmed: _int64, tint: color?) {
+        parts.add(new rich_part(words, heavy, dimmed, tint));
+    }
+}
+
+/** one part of a rich text: some words and how they look */
+local stable class rich_part {
+    words : string = "";
+    heavy : _int64 = 0;             // 1: bold
+    dimmed : _int64 = 0;            // 1: in the theme's quiet colour
+    tint : color?;                  // a colour of its own (null: the theme's)
+
+    rich_part(text: string, bold: _int64, dim: _int64, c: color?) {
+        words = new string(text);
+        heavy = bold;
+        dimmed = dim;
+        tint = c;
+    }
+}
+
+/**
+ * rich_label - shows a rich_text. Made with text(rich { ... }).
+ *
+ * HOW IT WORKS: every part is cut into WORDS (each with the spaces after it).
+ * While measuring, the words are laid out left to right and wrapped to the
+ * width; each word remembers its line and how far across it is. Painting then
+ * only draws each word where it was put.
+ */
+stable class rich_label base widget : behavior {
+    private pieces : list<rich_piece> = new list<rich_piece>();
+    private pixels : decimal = 0;               // 0: the theme's text size
+    private line_count : _int64 = 0;
+
+    rich_label(content: rich_text) {
+        attach(self);
+        count : _int64 = content.parts.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            cut_up(content.parts.at(i));
+        }
+    }
+
+    /** the size of the letters, for every part */
+    def size(px: decimal) : rich_label {
+        pixels = px;
+        return self;
+    }
+
+    /** one part into words: a word is its letters and the spaces after it; a line end is a piece of its own */
+    private def cut_up(part: rich_part) {
+        words : string = part.words;
+        length : _int64 = words.size().value;
+        at : _int64 = 0;
+        while(at < length) {
+            if(words.at(at).value == 10) {
+                pieces.add(new rich_piece("", part, 1));
+                at = at + 1;
+            } else {
+                stop : _int64 = at;
+                while(stop < length && words.at(stop).value != 32 && words.at(stop).value != 10) { stop = stop + 1; }
+                while(stop < length && words.at(stop).value == 32) { stop = stop + 1; }
+                pieces.add(new rich_piece(txt.slice(words, at, stop), part, 0));
+                at = stop;
+            }
+        }
+    }
+
+    private def face(heavy: _int64) : font {
+        host := ui_host.current!!;
+        px : decimal = pixels;
+        if(px <= 0) { px = host.look.text_size; }
+        return host.font_of(px, heavy);
+    }
+
+    override def kind() : string { return "rich_label"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        tall : decimal = face(0).line_height;
+        line : _int64 = 0;
+        across : decimal = 0;
+        widest : decimal = 0;
+
+        count : _int64 = pieces.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            piece : rich_piece = pieces.at(i);
+            if(piece.breaks == 1) {
+                line = line + 1;
+                across = 0;
+                piece.line = line;
+                continue;
+            }
+            piece.wide = face(piece.part.heavy).width_of(piece.words);
+            if(across > 0 && num.is_bounded(max_w) == 1 && across + piece.wide > max_w) {
+                line = line + 1;            // the word does not fit: it starts the next line
+                across = 0;
+            }
+            piece.line = line;
+            piece.across = across;
+            across = across + piece.wide;
+            widest = num.larger(widest, across);
+        }
+        line_count = line + 1;
+        me.content_w = widest;
+        me.content_h = line_count * tall;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        tall : decimal = face(0).line_height;
+
+        count : _int64 = pieces.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            piece : rich_piece = pieces.at(i);
+            if(piece.breaks == 1) {
+                continue;
+            }
+            ink : color = t.text;
+            if(piece.part.dimmed == 1) { ink = t.text_dim; }
+            if(piece.part.tint != null) { ink = piece.part.tint!!; }
+            p.text(piece.words, me.inner_x() + piece.across, me.inner_y() + piece.line * tall, face(piece.part.heavy), ink);
+        }
+    }
+}
+
+/** one word of a rich label (with the spaces after it), and where measuring put it */
+local stable class rich_piece {
+    words : string = "";
+    part : rich_part;               // the part it came from: how it looks
+    breaks : _int64 = 0;            // 1: not a word but a line end
+    wide : decimal = 0;
+    line : _int64 = 0;              // which line it is on (0 is the first)
+    across : decimal = 0;           // how far from the left edge
+
+    rich_piece(text: string, from: rich_part, line_end: _int64) {
+        words = text;
+        part = from;
+        breaks = line_end;
+    }
+}

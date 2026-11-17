@@ -1,0 +1,106 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * EFFECTS  -  the whole-box treatments and the shapes, each on its own:
+ *
+ *      row 1   shapes as backgrounds: rounded, pill, circle, triangle, diamond, hexagon, star, one of your own
+ *      row 2   the same card: as it is, turned, enlarged, blurred, turned AND cut to a circle
+ *      row 3   a picture cut to a circle and to a rounded box
+ *      row 4   rich text: parts of one text that look different, wrapping as one
+ *
+ * The "Tilt" button turns the second card a little more each time - with a
+ * number that glides, so it swings round instead of jumping.
+ */
+
+/** an arrow pointing right, as corners of the unit box */
+arrow := shape.corners { p: shape_path ->
+    p.to(0, 0.3); p.to(0.6, 0.3); p.to(0.6, 0); p.to(1, 0.5);
+    p.to(0.6, 1); p.to(0.6, 0.7); p.to(0, 0.7);
+};
+
+class effects_app base composable {
+    tilt := animated(8);                // degrees the second card is turned; set its target and it glides there
+    soft := state(0);                   // is the whole bottom panel blurred
+
+    override def build() : element {
+        t := gui.current_theme();
+
+        return column(modifier().fill().padding(20)) {
+            text("Shapes").bold();
+            row {
+                swatch(shape.rounded(10), t.primary);
+                swatch(shape.pill(), t.success);
+                swatch(shape.circle(), t.danger);
+                swatch(shape.triangle(), rgb(240, 180, 60));
+                swatch(shape.diamond(), rgb(160, 110, 240));
+                swatch(shape.hexagon(), rgb(70, 190, 200));
+                swatch(shape.star(), rgb(250, 210, 70));
+                swatch(arrow, t.text);
+            }.gap(14).align(ALIGN_CENTER);
+
+            text("One card, five ways").bold();
+            row {
+                sample("plain", modifier());
+                sample("rotate", modifier().rotate(tilt.value));
+                sample("scale", modifier().scale(1.25));
+                sample("blur", modifier().blur(3));
+                sample("cut", modifier().rotate(0 - 12).clip(shape.circle()));
+            }.gap(34).align(ALIGN_CENTER);
+
+            row {
+                button("Tilt") { tilt.go(tilt.target() + 35, 0.5); };
+                button("Blur the panel below") { soft.value = 1 - soft.value; }.outline();
+            }.gap(8);
+
+            panel(soft.value, t);
+        }.gap(16);
+    }
+
+    /** a box 64 x 48 filled in a shape */
+    def swatch(outline: shape, c: color) {
+        stack(modifier().size(64, 48).background(c, outline)) { };
+    }
+
+    /** the sample card, with whatever treatment the modifier adds */
+    def sample(caption: string, extra: modifier) {
+        t := gui.current_theme();
+        card(modifier().width(96).then(extra)) {
+            text(caption).bold();
+            stack(modifier().fill_width().height(6).background(t.primary, shape.pill())) { };
+            text("abc 123").dim().size(13);
+        };
+    }
+
+    /** pictures cut to shapes, and rich text - all of it blurred when `blurred` is 1 */
+    def panel(blurred: _int64, t: theme) {
+        look := modifier().fill_width().padding(16).background(t.surface, shape.rounded(14));
+        if(blurred == 1) { look = look.blur(5); }
+
+        column(look) {
+            row {
+                image("assets/logo.png", modifier().size(72, 72).clip(shape.circle()));
+                image("assets/logo.png", modifier().size(72, 72).clip(shape.rounded(18)));
+                image("assets/logo.png", modifier().size(72, 72));
+            }.gap(14);
+
+            text(rich {
+                plain("Due ");
+                bold("tomorrow");
+                plain(" at ");
+                colored("9:30", t.primary);
+                quiet("  (in fourteen hours) ");
+                plain("and this sentence goes on long enough that it has to wrap to the next line, ");
+                bold("bold words and all, ");
+                colored("without losing its colours.", t.success);
+            }, modifier().fill_width());
+        }.gap(14);
+    }
+}
+
+def main() {
+    gui.run("Sharp GUI - effects", 760, 620, effects_app());
+}

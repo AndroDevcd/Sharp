@@ -1,0 +1,111 @@
+mod std.guikit.platform;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * window - a real operating-system window you can paint and get events from.
+ *
+ * This is the BASE the whole GUI stands on: open it, read events, paint a
+ * frame, show it, repeat. The declarative layer (gui.column(), gui.button(),
+ * state()) and the game canvas both render onto exactly this; they add no new
+ * way to reach the screen, they only arrange what gets painted here.
+ *
+ * You do not load anything or manage any handle - make one through the front
+ * door and drive it:
+ *
+ *      w := gui.window("hello", 640, 400);
+ *      p := w.painter();
+ *      while(w.is_open()) {
+ *          e := w.next_event();
+ *          while(e.kind != EVENT_NONE) {
+ *              if(e.kind == EVENT_QUIT) { w.close(); }
+ *              e = w.next_event();
+ *          }
+ *          w.clear(gui.rgb(24, 28, 40));
+ *          p.circle(320, 200, 50, gui.rgb(255, 200, 0));
+ *          w.show();
+ *      }
+ *
+ * One window at a time for now. The user can resize it: ask width() and
+ * height() each frame (or watch for EVENT_RESIZE) rather than remembering the
+ * size you opened it with.
+ */
+stable class window {
+    // The native backend's id for this window (0 = not open). Private: the
+    // outside world speaks to a window through its methods, never its handle.
+    private handle : _int64 = 0;
+
+    // The one event object, refilled by next_event() (no garbage per event),
+    // and the one painter.
+    private current : event;
+    private brush : painter;
+
+    window(title: string, w: _int32, h: _int32) {
+        surface.ensure_loaded();                       // first window loads the native lib
+        current = new event();
+        brush = new painter();
+        handle = surface_open(title, w, h);
+    }
+
+    /** is the window still open? (false if it never opened, or was closed) */
+    def is_open() : bool {
+        return handle != 0;
+    }
+
+    /**
+     * The next thing that happened. When nothing is waiting, its kind is
+     * EVENT_NONE. The same event object is handed back every time, refilled.
+     */
+    def next_event() : event {
+        if(handle == 0) {
+            current.kind = EVENT_NONE;
+            return current;
+        }
+        current.refill();
+        return current;
+    }
+
+    /** what you draw with (see the painter class) */
+    def painter() : painter {
+        return brush;
+    }
+
+    /** the width of the drawing area right now, in pixels */
+    def width() : _int32 {
+        return surface_width();
+    }
+
+    /** the height of the drawing area right now, in pixels */
+    def height() : _int32 {
+        return surface_height();
+    }
+
+    /**
+     * Seconds since the window opened, as a decimal (1.5 = one and a half
+     * seconds). Animations and games measure with it: remember the last
+     * frame's time and move things by (now - last) * speed.
+     */
+    def time() : decimal {
+        return surface_time();
+    }
+
+    /** paint the whole window one colour: the start of every frame */
+    def clear(c: color) {
+        surface_fill(c.packed);
+    }
+
+    /** show the frame just painted. Waits for the screen's refresh (~60 fps). */
+    def show() {
+        surface_present();
+    }
+
+    /** take the window down. is_open() is false afterwards. */
+    def close() {
+        if(handle != 0) {
+            surface_close(handle);
+            handle = 0;
+        }
+    }
+}

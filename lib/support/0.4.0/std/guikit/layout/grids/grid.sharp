@@ -1,0 +1,168 @@
+mod std.guikit.layout.grids;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * grid - children in equal columns, filling row after row.
+ *
+ *      grid(3) {                                  // always three columns
+ *          for(i : _int64 = 0; i < count; i++) { photo_card(i); }
+ *      }.gap(12)
+ *
+ *      grid_fit(160) { ... }.gap(12)              // as many columns as fit, each at least 160 wide
+ *
+ * Every column is the same width: the grid's width, less the gaps, split
+ * evenly. Children in the same row are made the same height (the tallest
+ * one's), so a row of cards lines up. The grid is as tall as its rows.
+ *
+ *   .gap(n)      room between the cells, both ways
+ *
+ * grid_fit is the one to reach for when the window can be resized: a wide
+ * window shows five cards across, a narrow one two, with no code of yours.
+ *
+ * HOW THE COLUMN COUNT IS FOUND for grid_fit (the rule Compose's
+ * GridCells.Adaptive uses): with gaps of g between cells of at least m,
+ * n cells need n*m + (n-1)*g, so the most that fit in width w is
+ * (w + g) / (m + g), rounded down - and never fewer than one.
+ *
+ * A grid inside a scroller scrolls like anything else. It lays out ALL its
+ * children; it is not yet a "lazy" grid that only builds what is visible.
+ * (Android: GridLayout / RecyclerView with a GridLayoutManager. Compose:
+ * LazyVerticalGrid. CSS: display: grid with repeat(auto-fill, minmax()).)
+ */
+stable class grid base widget : behavior {
+    private fixed_columns : _int64 = 2;     // how many columns (when cell_least is 0)
+    private cell_least : decimal = 0;       // grid_fit: every column at least this wide; 0: fixed_columns is used
+    private space : decimal = 0;
+
+    // worked out by measure, used by arrange
+    private columns : _int64 = 1;
+    private cell_wide : decimal = 0;
+    private row_tall : decimal[]?;          // the height of each row
+
+    grid(across: _int64, least: decimal) {
+        attach(self);
+        fixed_columns = across;
+        if(fixed_columns < 1) { fixed_columns = 1; }
+        cell_least = least;
+    }
+
+    /** put a widget (or one of your composables) into the next free cell */
+    def add(child: element) : grid {
+        me.add_kid(child.node());
+        return self;
+    }
+
+    /** the nested way to fill the grid: every widget made in the block takes the next cell (scope.sharp) */
+    def content(block: ()()) : grid {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** room between the cells, both ways, in pixels */
+    def gap(pixels: decimal) : grid {
+        space = pixels;
+        return self;
+    }
+
+    override def kind() : string { return "grid"; }
+
+    /** the children that take a cell: the shown ones, in order */
+    private def cell_count() : _int64 {
+        shown : _int64 = 0;
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            if(me.kids.at(i).shown == 1) { shown = shown + 1; }
+        }
+        return shown;
+    }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        count : _int64 = me.kid_count();
+        cells : _int64 = cell_count();
+
+        // how many columns
+        columns = fixed_columns;
+        if(cell_least > 0 && num.is_bounded(max_w) == 1) {
+            fit : _int64 = (max_w + space) / (cell_least + space);
+            columns = fit;
+            if(columns < 1) { columns = 1; }
+        }
+
+        // how wide a column is: the width there is, split evenly - or, with no
+        // limit on the width, as wide as the widest child wants to be
+        if(num.is_bounded(max_w) == 1) {
+            cell_wide = num.whole((max_w - space * (columns - 1)) / columns);
+        } else {
+            cell_wide = cell_least;
+            for(i : _int64 = 0; i < count; i++) {
+                kid : view = me.kids.at(i);
+                if(kid.shown == 0) { continue; }
+                kid.measure(0, UNBOUNDED, 0, UNBOUNDED);
+                cell_wide = num.larger(cell_wide, kid.want_w);
+            }
+        }
+        if(cell_wide < 0) { cell_wide = 0; }
+
+        rows : _int64 = 0;
+        if(cells > 0) { rows = (cells + columns - 1) / columns; }
+        row_tall = new decimal[rows];
+
+        // first: every child at the column's width, as tall as it likes -> the tallest of each row
+        cell : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            kid.measure(cell_wide, cell_wide, 0, UNBOUNDED);
+            in_row : _int64 = cell / columns;
+            if(kid.want_h > row_tall!![in_row]) { row_tall!![in_row] = kid.want_h; }
+            cell = cell + 1;
+        }
+
+        // then: every child exactly as tall as its row, so a row of cards lines up
+        cell = 0;
+        total : decimal = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            in_row : _int64 = cell / columns;
+            kid.measure(cell_wide, cell_wide, row_tall!![in_row], row_tall!![in_row]);
+            cell = cell + 1;
+        }
+        for(r : _int64 = 0; r < rows; r++) {
+            total = total + row_tall!![r];
+        }
+        if(rows > 1) { total = total + space * (rows - 1); }
+
+        me.content_w = cell_wide * columns + space * (columns - 1);
+        me.content_h = total;
+    }
+
+    override def arrange() {
+        if(row_tall == null) {
+            return;
+        }
+        left : decimal = me.inner_x();
+        top : decimal = me.inner_y();
+
+        count : _int64 = me.kid_count();
+        cell : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+
+            in_row : _int64 = cell / columns;
+            in_column : _int64 = cell - in_row * columns;
+            if(in_column == 0 && in_row > 0) {
+                top = top + row_tall!![in_row - 1] + space;         // a new row starts under the one before
+            }
+            kid.arrange(num.nearest(left + in_column * (cell_wide + space)), num.nearest(top), kid.want_w, kid.want_h);
+            cell = cell + 1;
+        }
+    }
+
+    override def paint(p: painter) {
+    }
+}

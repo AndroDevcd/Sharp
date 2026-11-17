@@ -1,0 +1,50 @@
+mod std.guikit.platform;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * color - how much red, green and blue a thing is, and how solid it is
+ * (alpha). Every channel is 0..255; alpha 255 is fully solid, 0 is invisible.
+ *
+ * Like java.awt.Color or Compose's Color. Make one through the front door so
+ * your code reads in one voice:
+ *
+ *      p.rect(10, 10, 200, 80, gui.rgb(24, 28, 40));          // solid dark blue
+ *      p.rect(10, 10, 200, 80, gui.rgba(0, 0, 0, 128));       // half see-through black
+ *
+ * A colour is made once and then only read, so keep the ones you use often in
+ * variables instead of making them again every frame.
+ *
+ * `packed` is all four channels in ONE whole number (0xRRGGBBAA). That single
+ * number is what crosses over to the native side on every drawing call - one
+ * argument instead of four. C++ comparison: a uint32_t RGBA colour.
+ */
+stable class color {
+    red   : _int32;
+    green : _int32;
+    blue  : _int32;
+    alpha : _int32;
+    packed : _int64;        // 0xRRGGBBAA, worked out once here
+
+    color(r: _int32, g: _int32, b: _int32, a: _int32) {
+        red = clamp(r);
+        green = clamp(g);
+        blue = clamp(b);
+        alpha = clamp(a);
+        packed = ((red * 256 + green) * 256 + blue) * 256 + alpha;
+    }
+
+    /** the same colour, more or less see-through: c.with_alpha(128) */
+    def with_alpha(a: _int32) : color {
+        return new color(red, green, blue, a);
+    }
+
+    // keep a channel inside 0..255 so a wrong number can never spill into its neighbour
+    private static def clamp(value: _int32) : _int32 {
+        if(value < 0) { return 0; }
+        if(value > 255) { return 255; }
+        return value;
+    }
+}

@@ -1,0 +1,31 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * COUNTER  -  the "hello world" of a declarative UI.
+ *
+ * There is one piece of state (count), and build() says what the screen looks
+ * like for whatever count is right now. The buttons only change the state;
+ * nobody ever tells the text to update. That is the whole idea.
+ */
+class counter base composable {
+    count := state(0);
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            text("count: " + count.value).size(32);
+            row {
+                button("-") { count.value -= 1; }.outline();
+                button("Reset") { count.value = 0; }.plain();
+                button("+") { count.value += 1; };
+            }.gap(8);
+        }.center().gap(16);
+    }
+}
+
+def main() {
+    gui.run("Counter", 360, 240, counter());
+}

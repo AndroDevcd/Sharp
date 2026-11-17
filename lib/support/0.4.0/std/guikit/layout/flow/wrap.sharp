@@ -1,0 +1,126 @@
+mod std.guikit.layout.flow;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * wrap - children side by side like words in a paragraph: when the line is
+ * full, the next child starts a new line.
+ *
+ *      wrap {
+ *          for(i : _int64 = 0; i < tags.size().value; i++) { tag_chip(tags.at(i)); }
+ *      }.gap(8)
+ *
+ * Unlike a grid, the children keep their OWN widths - a short tag takes little
+ * room, a long one more - so it is the layout for tags, chips, a toolbar that
+ * should fold onto a second line in a narrow window.
+ *
+ *   .gap(n)      room between children on a line, and between lines
+ *
+ * Each line is as tall as its tallest child, and shorter children sit in the
+ * middle of the line. (Android: FlexboxLayout with flexWrap. Compose: FlowRow.
+ * CSS: flex-wrap: wrap.)
+ *
+ * HOW IT WORKS: one walk over the children, keeping a pen position. A child
+ * that does not fit on the current line (and is not the first on it) moves the
+ * pen to the start of the next line. measure() does the walk to learn how tall
+ * the whole thing is; arrange() does the same walk again to place the
+ * children - the same code (`flow`), so the two can never disagree.
+ */
+stable class wrap base widget : behavior {
+    private space : decimal = 0;
+
+    wrap() {
+        attach(self);
+    }
+
+    /** put a widget after the ones already there */
+    def add(child: element) : wrap {
+        me.add_kid(child.node());
+        return self;
+    }
+
+    /** the nested way to fill it: every widget made in the block follows the one before (scope.sharp) */
+    def content(block: ()()) : wrap {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** room between children on a line, and between lines, in pixels */
+    def gap(pixels: decimal) : wrap {
+        space = pixels;
+        return self;
+    }
+
+    override def kind() : string { return "wrap"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 1) { kid.measure(0, max_w, 0, UNBOUNDED); }
+        }
+        flow(max_w, 0, 0, 0);
+    }
+
+    override def arrange() {
+        flow(me.inner_w(), me.inner_x(), me.inner_y(), 1);
+    }
+
+    /**
+     * Walk the children line by line in a width of `room`. With `place` 1 each
+     * child is put at its position (starting from left, top); either way the
+     * size of the whole flow ends up in me.content_w / content_h.
+     *
+     * A line is finished when the next child would not fit: only then is its
+     * height known, and its children can be centred in it.
+     */
+    private def flow(room: decimal, left: decimal, top: decimal, place: _int64) {
+        count : _int64 = me.kid_count();
+        pen_x : decimal = 0;                // where the next child goes on the current line
+        pen_y : decimal = 0;                // the top of the current line
+        line_tall : decimal = 0;            // the tallest child on the current line so far
+        line_first : _int64 = 0;            // the index of the first child on the current line
+        widest : decimal = 0;
+
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+
+            // does it fit after the ones already on this line?
+            if(pen_x > 0 && pen_x + kid.want_w > room) {
+                if(place == 1) { place_line(line_first, i, left, top + pen_y, line_tall); }
+                pen_y = pen_y + line_tall + space;
+                pen_x = 0;
+                line_tall = 0;
+                line_first = i;
+            }
+
+            pen_x = pen_x + kid.want_w;
+            widest = num.larger(widest, pen_x);
+            line_tall = num.larger(line_tall, kid.want_h);
+            pen_x = pen_x + space;
+        }
+        if(place == 1) { place_line(line_first, count, left, top + pen_y, line_tall); }
+
+        if(place == 0) {
+            me.content_w = widest;
+            me.content_h = pen_y + line_tall;
+        }
+    }
+
+    /** put the children from index `first` up to (not including) `end` on one line at `top`, centred in its height */
+    private def place_line(first: _int64, end: _int64, left: decimal, top: decimal, tall: decimal) {
+        at : decimal = left;
+        for(i : _int64 = first; i < end; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            kid.arrange(num.nearest(at), num.nearest(top + (tall - kid.want_h) / 2), kid.want_w, kid.want_h);
+            at = at + kid.want_w + space;
+        }
+    }
+
+    override def paint(p: painter) {
+    }
+}

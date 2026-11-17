@@ -272,12 +272,17 @@ local def print_chars(str: char_array) {
     flush();
 }
 
+/**
+ * Print a decimal. `dput` is the instruction that prints a register AS A
+ * DECIMAL; the plain `put` prints it as a whole number and would show the raw
+ * bits of the decimal instead (println(5) used to print 4617315517961601024).
+ */
 local def print_num(val: double) {
-    _val := val.value;
+    _val : decimal = val.value;
 
     asm {
         loadl ebx, [_val]
-        put ebx
+        dput ebx
     }
 
     flush();

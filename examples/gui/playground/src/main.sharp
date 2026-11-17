@@ -1,0 +1,138 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * PLAYGROUND  -  gestures, animation, text editing and the things that float.
+ *
+ *   gestures     click, double click, long press, right click (opens a menu), a box you can drag
+ *   animation    a panel that fades in and out, a bar that glides, boxes at different opacity
+ *   text         select with the mouse or Shift+arrows, Ctrl+C / X / V, a password field,
+ *                a numbers-only field
+ *   floating     tooltips (rest the mouse on a pad), toasts, a context menu
+ *   lifecycle    the counter in the corner ticks only while this composable is on screen
+ *
+ * Every gesture is one word on a modifier; nothing here talks to the mouse directly.
+ */
+class playground base composable {
+    note := state("Try the pads below.");
+    panel := state(1);                  // is the fading panel wanted
+    box_x := state(20.0);               // where the draggable box is
+    box_y := state(20.0);
+    menu_open := state(0);
+    name := state("Select me and copy me");
+    pin := state("");
+    amount := state("");
+    seconds := state(0);
+    bar := animated(40);                // the width of the gliding bar
+
+    playground() {
+        // belongs to this composable: starts when it appears, stops when it is gone
+        every(1) { seconds.value += 1; };
+    }
+
+    override def build() : element {
+        t := gui.current_theme();
+        card := modifier().fill_width().padding(14).background(t.surface).corner(10);
+
+        return column(modifier().fill().padding(16)) {
+            row(modifier().fill_width()) {
+                text("Playground").size(22).bold();
+                spacer();
+                text("on screen for " + seconds.value + " s").dim();
+            };
+            text(note.value, modifier().fill_width()).color(t.primary);
+
+            // ---- gestures
+            column(card) {
+                text("Gestures").bold();
+                row {
+                    pad("Click", modifier().click { note.value = "click"; }.tooltip("a plain click"));
+                    pad("Double click", modifier().double_click { note.value = "double click"; }.tooltip("click twice quickly"));
+                    pad("Long press", modifier().long_press { note.value = "long press"; gui.toast("Long press!"); }.tooltip("press and hold"));
+                    pad("Right click", modifier().right_click { menu_open.value = 1; }.tooltip("opens a menu"));
+                }.gap(10);
+
+                // a box that follows the mouse while it is dragged
+                stack(modifier().fill_width().height(120).background(t.background).corner(8)) {
+                    stack(modifier().size(64, 64).margin(box_x.value, box_y.value, 0, 0)
+                                    .background(t.primary).corner(12).shadow(8)
+                                    .drag { dx: decimal, dy: decimal -> move_box(dx, dy); }
+                                    .drag_end { note.value = "dropped the box"; }) {
+                        text("drag", modifier().place(ALIGN_CENTER, ALIGN_CENTER)).color(t.on_primary);
+                    };
+                };
+            }.gap(10);
+
+            // ---- animation
+            column(card) {
+                text("Animation").bold();
+                row {
+                    button("Fade the panel") { panel.value = 1 - panel.value; }.outline();
+                    button("Glide the bar") { glide(); }.outline();
+                    spacer();
+                    text("opacity").dim();
+                    stack(modifier().size(28, 28).background(t.primary).corner(6).opacity(0.25)) { };
+                    stack(modifier().size(28, 28).background(t.primary).corner(6).opacity(0.6)) { };
+                    stack(modifier().size(28, 28).background(t.primary).corner(6)) { };
+                }.gap(8);
+
+                stack(modifier().width(bar.value).height(12).background(t.success).corner(6)) { };
+
+                fade(panel.value, modifier().fill_width()) {
+                    text("This panel fades in and out. Faded out, it takes no room.",
+                         modifier().fill_width().padding(10).background(t.surface_high).corner(8));
+                };
+            }.gap(10);
+
+            // ---- text
+            column(card) {
+                text("Text").bold();
+                text_field(name);
+                row {
+                    text_field(pin, modifier().grow(1)).password().hint("Password");
+                    text_field(amount, modifier().grow(1)).numbers_only().limit(8).hint("Amount (numbers only)");
+                }.gap(8);
+                row {
+                    button("Copy the first field") { gui.copy(name.value); gui.toast("Copied"); }.outline();
+                    button("Paste into it") { name.value = gui.paste(); }.outline();
+                }.gap(8);
+            }.gap(10);
+
+            menu(menu_open) {
+                menu_item("Say hello") { note.value = "hello from the menu"; };
+                menu_item("Show a toast") { gui.toast("From the menu"); };
+                divider();
+                menu_item("Reset the box") { box_x.value = 20; box_y.value = 20; };
+            };
+        }.gap(12);
+    }
+
+    /** one of the gesture pads: a labelled box that takes whatever gesture its modifier carries */
+    def pad(label: string, gesture: modifier) {
+        t := gui.current_theme();
+        look := modifier().size(132, 56).background(t.surface_high).corner(10).then(gesture);
+        stack(look) {
+            text(label, modifier().place(ALIGN_CENTER, ALIGN_CENTER));
+        };
+    }
+
+    def move_box(dx: decimal, dy: decimal) {
+        box_x.value = box_x.value + dx;
+        box_y.value = box_y.value + dy;
+        if(box_x.value < 0) { box_x.value = 0; }
+        if(box_y.value < 0) { box_y.value = 0; }
+        if(box_y.value > 56) { box_y.value = 56; }
+    }
+
+    def glide() {
+        if(bar.target() < 100) { bar.go(420, 0.5); }
+        else { bar.go(40, 0.5); }
+    }
+}
+
+def main() {
+    gui.run("Sharp GUI - playground", 760, 720, playground());
+}

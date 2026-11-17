@@ -1,0 +1,162 @@
+mod std.guikit.animation;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * animated - a number that GLIDES to a new value instead of jumping there.
+ *
+ *      class drawer base composable {
+ *          width := animated(0);                       // starts at 0, not moving
+ *
+ *          override def build() : element {
+ *              return row(modifier().fill()) {
+ *                  column(modifier().width(width.value).fill_height()) { ... }
+ *                  button("Menu") { toggle(); };
+ *              };
+ *          }
+ *
+ *          def toggle() {
+ *              if(width.target() == 0) { width.go(240, 0.25); }    // glide to 240 over a quarter second
+ *              else { width.go(0, 0.25); }
+ *          }
+ *      }
+ *
+ * Read .value wherever a number is wanted - a size, a position, an opacity,
+ * a colour channel - and call .go(to, seconds) to send it somewhere. While it
+ * moves, whatever was built from it is rebuilt every frame; when it arrives
+ * the rebuilding stops.
+ *
+ *   .value               where it is now
+ *   .go(to, seconds)     glide there (from wherever it is, also mid-flight)
+ *   .jump(to)            be there at once
+ *   .target()            where it is heading (or resting)
+ *   .moving()            1 while it is on its way
+ *
+ * The movement eases out: quick at first, settling gently - how things that
+ * come to rest look. (Compose: Animatable / animateFloatAsState. Android:
+ * ValueAnimator. CSS: a transition.)
+ *
+ * HOW IT WORKS
+ *
+ *   Inside, the current value is an ordinary state<decimal> (`shown`) - so
+ *   "who rebuilds when it changes" is the same machinery as for any state:
+ *   the composables whose build() read it.
+ *
+ *   An animated that is on its way is in one list (`running`). Once per turn
+ *   of the host's loop, step_all() works out where each of them is for the
+ *   current time and writes that into its state, which rebuilds its readers.
+ *   While the list is not empty the host keeps producing frames.
+ *
+ *   Made with a composable's own animated(...), it is remembered like a
+ *   state: when a parent rebuilds and makes the composable again, the new
+ *   animated takes over where the old one was - mid-flight included.
+ */
+stable class animated : state_cell {
+    private static running : list<animated> = new list<animated>();
+
+    private shown : state<decimal>;         // the current value; reading it signs the reader up
+    private from : decimal = 0;             // where the current glide started
+    private to : decimal = 0;               // where it is heading
+    private started : decimal = 0 - 1;      // the host time the glide started; -1: starts on the next turn
+    private seconds : decimal = 0;          // how long the glide takes
+    private active : _int64 = 0;            // 1 while on the way (and in `running`)
+
+    animated(first: decimal) {
+        shown = new state<decimal>(first);
+        from = first;
+        to = first;
+    }
+
+    /** where it is now. Read while building, it rebuilds the reader as it moves. */
+    value : decimal;
+        get { return shown.value; }
+        set next -> { jump(next); }
+
+    /** where it is heading - or resting, when it is not moving */
+    def target() : decimal {
+        return to;
+    }
+
+    /** 1 while it is on its way */
+    def moving() : _int64 {
+        return active;
+    }
+
+    /** glide to `goal` over `duration` seconds, starting from wherever it is now */
+    def go(goal: decimal, duration: decimal) {
+        if(duration <= 0) {
+            jump(goal);
+            return;
+        }
+        from = shown.peek();
+        to = goal;
+        seconds = duration;
+        started = 0 - 1;                    // "now", as soon as the host says what time it is
+        if(active == 0) {
+            active = 1;
+            running.add(self);
+        }
+        if(ui_host.current != null) {
+            ui_host.current!!.request_frame();
+        }
+    }
+
+    /** be at `goal` at once, with no glide */
+    def jump(goal: decimal) {
+        from = goal;
+        to = goal;
+        active = 0;                         // step_all drops it from the list
+        shown.value = goal;
+    }
+
+    /**
+     * Move every animated that is on its way to where it should be at time
+     * `now`. Returns 1 while any of them is still moving (the host then asks
+     * for another frame). Called once per turn of the host's loop.
+     */
+    static def step_all(now: decimal) : _int64 {
+        still : _int64 = 0;
+        // by index, re-reading the size: a rebuild caused here may start more animations
+        for(i : _int64 = 0; i < running.size().value; i++) {
+            a : animated = running.at(i);
+            if(a.active == 0) { continue; }
+            if(a.started < 0) { a.started = now; }
+
+            done : decimal = (now - a.started) / a.seconds;
+            if(done >= 1) {
+                a.active = 0;
+                a.shown.value = a.to;
+            } else {
+                // ease out: 1 - (1 - t) cubed
+                left : decimal = 1 - done;
+                eased : decimal = 1 - left * left * left;
+                a.shown.value = a.from + (a.to - a.from) * eased;
+                still = 1;
+            }
+        }
+        for(i : _int64 = running.size().value - 1; i >= 0; i--) {
+            if(running.at(i).active == 0) { running.remove_at(i); }
+        }
+        return still;
+    }
+
+    /** take over from the animated this one replaces after a parent rebuilt: its value, and its glide if it is in one */
+    override def take_from(other: state_cell) {
+        if(!(other is animated)) {
+            return;
+        }
+        before := other as animated;
+        shown.take_from(before.shown);
+        from = before.from;
+        to = before.to;
+        started = before.started;
+        seconds = before.seconds;
+        if(before.active == 1) {
+            before.active = 0;              // the old one stops; this one carries the glide on
+            active = 1;
+            running.add(self);
+        }
+    }
+}

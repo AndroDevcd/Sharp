@@ -1,0 +1,330 @@
+mod std.guikit.core.model;
+
+import (
+    std.guikit.*,
+    std.io,
+    std.system,
+    std.text
+)
+
+/**
+ * SAVED STATE - values that are still there the next time the program runs.
+ *
+ *      theme_choice := saved("theme", 0);          // a whole number
+ *      text_size    := saved("text_size", 16.0);   // a decimal number
+ *      user_name    := saved("user_name", "");     // text
+ *
+ * saved(key, first) gives an ordinary state: read it and set it like any
+ * other, and screens follow it. The difference is that every change is
+ * written to a small file, and the next run starts with what was written
+ * instead of with `first`.
+ *
+ * A whole list, with two functions that turn an item into text and back:
+ *
+ *      tasks := saved_list<task>("tasks",
+ *                  { t: task -> return t.to_text(); },
+ *                  { s: string -> return task.from_text(s); });
+ *
+ * (Android: DataStore / SharedPreferences. Compose: rememberSaveable is the
+ * same idea for the length of one run.)
+ *
+ * WHERE THE FILES ARE
+ *
+ *   One plain text file per key, named after the key, in the app's data
+ *   folder:
+ *
+ *      Linux       ~/.local/share/<app>/        (or $XDG_DATA_HOME/<app>/)
+ *      Windows     %APPDATA%\<app>\
+ *
+ *   <app> is the window title given to gui.run, in small letters with
+ *   anything that is not a letter or digit turned into "_"
+ *   ("Sharp GUI - tasks" -> "sharp_gui_tasks"). gui.data_name("tasks") sets
+ *   another name; call it before gui.run.
+ *
+ *   The files are plain text on purpose: you can read them, edit them, and
+ *   delete one to reset a setting.
+ *
+ * WHEN THE VALUE IS READ
+ *
+ *   A saved state is usually a field of the app's root composable, and that
+ *   object is made BEFORE gui.run(...) is called - before the app's name is
+ *   known. So a saved state made early simply waits: gui.run opens the
+ *   store, and every waiting state then takes its value from its file,
+ *   before the first screen is built. One made later reads its file at once.
+ */
+stable class saved_store {
+    private static folder : string = "";
+    private static name_wanted : string = "";       // set by gui.data_name
+    private static is_open : _int64 = 0;
+    private static waiting : list<saved_entry> = new list<saved_entry>();
+
+    /** use this name for the app's data folder instead of the window title (before gui.run) */
+    static def use_name(name: string) {
+        name_wanted = new string(name);
+    }
+
+    /** gui.run calls this with the window title: the folder is settled and every waiting state reads its file */
+    static def open(title: string) {
+        if(is_open == 1) {
+            return;
+        }
+        name : string = title;
+        if(name_wanted.size().value > 0) { name = name_wanted; }
+        folder = base_folder() + separator() + plain_name(name);
+        is_open = 1;
+
+        count : _int64 = waiting.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            waiting.at(i).load();
+        }
+        waiting.clear();
+    }
+
+    /** a saved state was made: it reads its file now, or as soon as the store opens */
+    static def join(entry: saved_entry) {
+        if(is_open == 1) {
+            entry.load();
+        } else {
+            waiting.add(entry);
+        }
+    }
+
+    /** the text kept under `key`, or null when nothing was ever saved under it */
+    static def read(key: string) : string? {
+        if(is_open == 0) {
+            return null;
+        }
+        path : string = path_of(key);
+        if(!file_utils.exists(path)) {
+            return null;
+        }
+        return file_utils.read_text(path);
+    }
+
+    /** keep `text` under `key` (nothing happens before the store is open: the value was not loaded yet) */
+    static def keep(key: string, text: string) {
+        if(is_open == 0) {
+            return;
+        }
+        file_utils.write_text(path_of(key), text);      // makes the folder too
+    }
+
+    /** the file a key is kept in */
+    static def path_of(key: string) : string {
+        return folder + separator() + plain_name(key) + ".txt";
+    }
+
+    /** the folder the app's files are kept in ("" before gui.run) */
+    static def data_folder() : string {
+        return folder;
+    }
+
+    /** the text of a number file without spaces and line ends around it (someone may have edited the file by hand) */
+    static def number_text(kept: string) : string {
+        made : string = "";
+        for(i : _int64 = 0; i < kept.size().value; i++) {
+            byte : _int64 = kept.at(i).value;
+            if(byte != 32 && byte != 9 && byte != 10 && byte != 13) { made = made + txt.slice(kept, i, i + 1); }
+        }
+        return made;
+    }
+
+    private static def separator() : string {
+        if(platform_info.is_windows()) { return "\\"; }
+        return "/";
+    }
+
+    /** where programs keep their data on this system */
+    private static def base_folder() : string {
+        if(platform_info.is_windows()) {
+            return platform_info.environment_or("APPDATA", platform_info.home_directory());
+        }
+        return platform_info.environment_or("XDG_DATA_HOME", platform_info.home_directory() + "/.local/share");
+    }
+
+    /** a name that is safe as a file or folder name: small letters and digits, everything else "_" */
+    private static def plain_name(name: string) : string {
+        made : string = "";
+        lowered : string = name.to_lower();
+        last_was_gap : _int64 = 1;                  // no "_" at the front, and never two in a row
+        for(i : _int64 = 0; i < name.size().value; i++) {
+            byte : _int64 = name.at(i).value;
+            if(byte >= 65 && byte <= 90) { byte = byte + 32; }      // A-Z -> a-z
+            if(byte >= 97 && byte <= 122 || byte >= 48 && byte <= 57) {
+                made = made + txt.slice(lowered, i, i + 1);
+                last_was_gap = 0;
+            } else if(last_was_gap == 0) {
+                made = made + "_";
+                last_was_gap = 1;
+            }
+        }
+        if(made.size().value == 0) { made = "app"; }
+        return made;
+    }
+}
+
+/** something that takes its value from its file when the store opens */
+interface saved_entry {
+    def load();
+}
+
+/** a saved whole number */
+local stable class saved_whole : saved_entry {
+    private key : string = "";
+    private cell : state<_int64>;
+
+    saved_whole(name: string, target: state<_int64>) {
+        key = name;
+        cell = target;
+        cell.on_change({ -> saved_store.keep(key, "" + cell.peek()); });
+    }
+
+    override def load() {
+        kept : string? = saved_store.read(key);
+        if(kept != null) {
+            number := number_parser.parse_double_or_null(saved_store.number_text(kept!!));
+            if(number != null) { cell.restore(number!!.value); }
+        }
+    }
+}
+
+/** a saved decimal number */
+local stable class saved_number : saved_entry {
+    private key : string = "";
+    private cell : state<decimal>;
+
+    saved_number(name: string, target: state<decimal>) {
+        key = name;
+        cell = target;
+        cell.on_change({ -> saved_store.keep(key, "" + cell.peek()); });
+    }
+
+    override def load() {
+        kept : string? = saved_store.read(key);
+        if(kept != null) {
+            number := number_parser.parse_double_or_null(saved_store.number_text(kept!!));
+            if(number != null) { cell.restore(number!!.value); }
+        }
+    }
+}
+
+/** saved text */
+local stable class saved_text : saved_entry {
+    private key : string = "";
+    private cell : state<string>;
+
+    saved_text(name: string, target: state<string>) {
+        key = name;
+        cell = target;
+        cell.on_change({ -> saved_store.keep(key, cell.peek()); });
+    }
+
+    override def load() {
+        kept : string? = saved_store.read(key);
+        if(kept != null) {
+            cell.restore(new string(kept!!));
+        }
+    }
+}
+
+/**
+ * A saved list: one item per line of the file. An item's own text may hold
+ * line ends and backslashes; they are written as two characters each (a
+ * backslash and "n", two backslashes) so that a line of the file is always
+ * exactly one item.
+ */
+stable class saved_items<t> : saved_entry {
+    private key : string = "";
+    private items : state_list<t>;
+    private to_text : (t)(string);
+    private from_text : (string)(t);
+
+    saved_items(name: string, target: state_list<t>, write_item: (t)(string), read_item: (string)(t)) {
+        key = name;
+        items = target;
+        to_text = write_item;
+        from_text = read_item;
+        items.on_change({ -> save(); });
+    }
+
+    private def save() {
+        all : string = "";
+        count : _int64 = items.size();
+        for(i : _int64 = 0; i < count; i++) {
+            all = all + guarded(to_text(items.at(i))) + "\n";
+        }
+        saved_store.keep(key, all);
+    }
+
+    override def load() {
+        kept : string? = saved_store.read(key);
+        if(kept == null) {
+            return;
+        }
+        text : string = kept!!;
+        found : list<t> = new list<t>();
+        start : _int64 = 0;
+        for(i : _int64 = 0; i < text.size().value; i++) {
+            if(text.at(i).value == 10) {
+                found.add(from_text(plain(txt.slice(text, start, i))));
+                start = i + 1;
+            }
+        }
+        if(start < text.size().value) {
+            found.add(from_text(plain(txt.slice(text, start, text.size().value))));
+        }
+        items.restore(found);
+    }
+
+    /** an item's text as one line: backslash -> two backslashes, line end -> backslash n */
+    private static def guarded(words: string) : string {
+        made : string = "";
+        for(i : _int64 = 0; i < words.size().value; i++) {
+            byte : _int64 = words.at(i).value;
+            if(byte == 92) { made = made + "\\\\"; }
+            else if(byte == 10) { made = made + "\\n"; }
+            else if(byte != 13) { made = made + txt.slice(words, i, i + 1); }
+        }
+        return made;
+    }
+
+    /** the other way round */
+    private static def plain(line: string) : string {
+        made : string = "";
+        i : _int64 = 0;
+        while(i < line.size().value) {
+            byte : _int64 = line.at(i).value;
+            if(byte == 92 && i + 1 < line.size().value) {
+                after : _int64 = line.at(i + 1).value;
+                if(after == 110) { made = made + "\n"; }
+                else { made = made + "\\"; }
+                i = i + 2;
+            } else {
+                if(byte != 13) { made = made + txt.slice(line, i, i + 1); }
+                i = i + 1;
+            }
+        }
+        return made;
+    }
+}
+
+/** the makers behind saved(...) and saved_list(...): FRAMEWORK USE (gui.sharp calls them) */
+stable class saved_maker {
+    static def whole(key: string, first: _int64) : state<_int64> {
+        cell := new state<_int64>(first);
+        saved_store.join(new saved_whole(key, cell));
+        return cell;
+    }
+
+    static def number(key: string, first: decimal) : state<decimal> {
+        cell := new state<decimal>(first);
+        saved_store.join(new saved_number(key, cell));
+        return cell;
+    }
+
+    static def text(key: string, first: string) : state<string> {
+        cell := new state<string>(new string(first));
+        saved_store.join(new saved_text(key, cell));
+        return cell;
+    }
+}

@@ -1,0 +1,76 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * fab - the floating action button: a round button that floats over the page,
+ * for THE thing people do on this screen ("new task"). Made with fab(...).
+ *
+ *      stack(modifier().fill()) {
+ *          task_list();
+ *          fab("+") { adding.value = 1; };
+ *      }
+ *
+ * Put it in a stack, after the content it floats over: it places itself in
+ * the bottom right corner, a little in from the edges. A modifier's place(...)
+ * and margin(...) move it somewhere else.
+ *
+ * With a single character it is a circle; with more words ("+ New") it grows
+ * into a pill.
+ * (Android / Compose: FloatingActionButton, ExtendedFloatingActionButton.)
+ */
+stable class fab base widget : behavior {
+    private words : string = "";
+
+    private static const SIZE : decimal = 56;       // across, and the height of the pill
+
+    fab(caption: string, action: ()()) {
+        attach(self);
+        words = caption;
+        me.on_click = action;
+
+        // in a stack: bottom right, in from the edges (a modifier may say otherwise)
+        me.self_across = ALIGN_END;
+        me.self_down = ALIGN_END;
+        me.mar_right = 20;
+        me.mar_bottom = 20;
+        me.shadow = 10;
+        me.corner = SIZE / 2;               // the shadow under it is as round as the button
+    }
+
+    override def kind() : string { return "fab"; }
+
+    /** the font of the words: a single sign ("+") is drawn large, words at the ordinary size */
+    private def face() : font {
+        host := ui_host.current!!;
+        if(words.size().value <= 1) {
+            return host.font_of(26);
+        }
+        return host.font_of(host.look.text_size, 1);
+    }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_h = SIZE;
+        me.content_w = SIZE;
+        if(words.size().value > 1) {
+            me.content_w = face().width_of(words) + 40;
+        }
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        t : theme = ui_host.current!!.look;
+        f : font = face();
+
+        fill : color = t.primary;
+        if(me.pressed == 1) { fill = t.primary_low; }
+        else if(me.hovered == 1) { fill = t.primary_high; }
+
+        p.rect(me.x, me.y, me.w, me.h, me.h / 2, fill);     // half the height as radius: a circle, or a pill
+        p.text(words, me.x + (me.w - f.width_of(words)) / 2, me.y + (me.h - f.line_height) / 2, f, t.on_primary);
+    }
+}

@@ -1,0 +1,160 @@
+mod std.guikit.animation;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * fader - content that fades in when it should be seen and fades out when it
+ * should not. Made with fade(...).
+ *
+ *      saved := state(0);
+ *
+ *      fade(saved.value) {                         // there while saved.value is not 0
+ *          text("Saved!").color(t.success);
+ *      }
+ *
+ *      fade(show_help.value, modifier().fill_width()) { help_panel(); }.time(0.4)
+ *
+ * When the number turns from 0 to something else the content fades in; when
+ * it turns back to 0 it fades out, and once it has faded out it takes no room
+ * at all (the things around it close up).
+ *
+ *   .time(seconds)       how long a fade takes (default 0.18)
+ *   .keep_room()         stay the same size while invisible, so nothing around it moves
+ *
+ * (Compose: AnimatedVisibility with fadeIn / fadeOut. Android: a ViewPropertyAnimator
+ * on alpha. CSS: a transition on opacity.)
+ *
+ * HOW IT WORKS
+ *
+ *   `amount` is how visible the content is right now, 0 .. 1. Every frame it
+ *   is painted, it moves toward where it should be (1 when wanted, 0 when
+ *   not) by the time that passed, sets its view's opacity to that, and asks
+ *   for another frame until it has arrived. Then it stops asking, and an idle
+ *   app goes back to sleep.
+ *
+ *   The decision to fade is made by YOUR state turning; but a state change
+ *   rebuilds the screen and makes a NEW fader. So the fader is `stateful`: the
+ *   new one adopts the old one's `amount`, finds it is not where it should be,
+ *   and that difference is the animation. A fader that is new on the screen
+ *   (nothing to adopt) starts where it should be, without animating.
+ *
+ *   The content is built even while it is invisible - it has to exist to fade
+ *   out, and building it is cheap. What is skipped while fully faded out is
+ *   measuring, placing and painting it.
+ */
+stable class fader base widget : behavior, stateful {
+    private wanted : _int64 = 1;            // 1: should be seen
+    private amount : decimal = 0 - 1;       // 0 .. 1 how visible now; -1: not decided yet (starts where it should be)
+    private seconds : decimal = 0.18;
+    private holds_room : _int64 = 0;
+
+    fader(visible: _int64) {
+        attach(self);
+        wanted = 0;
+        if(visible != 0) { wanted = 1; }
+    }
+
+    /** put a widget into the fading content */
+    def add(child: element) : fader {
+        me.add_kid(child.node());
+        return self;
+    }
+
+    /** the nested way to give it its content (scope.sharp) */
+    def content(block: ()()) : fader {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** how long a fade takes, in seconds */
+    def time(duration: decimal) : fader {
+        seconds = duration;
+        return self;
+    }
+
+    /** keep its size while invisible, so the things around it do not move */
+    def keep_room() : fader {
+        holds_room = 1;
+        return self;
+    }
+
+    /** how visible it is right now (decided on first use: where it should be) */
+    private def visible_now() : decimal {
+        if(amount < 0) {
+            amount = wanted;
+        }
+        return amount;
+    }
+
+    /** does it take part in layout? Not while fully faded out - unless it keeps its room. */
+    private def takes_room() : _int64 {
+        if(holds_room == 1) { return 1; }
+        if(visible_now() > 0 || wanted == 1) { return 1; }
+        return 0;
+    }
+
+    override def kind() : string { return "fade"; }
+
+    // the content is laid out like a column: one child under the other
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        if(takes_room() == 0) {
+            me.content_w = 0;
+            me.content_h = 0;
+            return;
+        }
+        flex.measure(me, 0, 0, ALIGN_START, min_w, max_w, min_h, max_h);
+    }
+
+    override def arrange() {
+        if(takes_room() == 1) {
+            flex.arrange(me, 0, 0, ALIGN_START, JUSTIFY_START);
+        }
+
+        // The opacity for the first frame after a rebuild is set HERE, before
+        // any painting: the view fades its subtree before it asks this
+        // behavior to paint. A fader that is about to fade in from nothing
+        // must not be at exactly 0 - a view at 0 is not painted at all, and
+        // paint() below is what moves the fade along.
+        now : decimal = visible_now();
+        if(wanted == 1 && now <= 0) { now = 0.001; }
+        me.opacity = now;
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        now : decimal = visible_now();
+
+        if(now != wanted) {
+            // move toward where it should be by the time that passed - never a
+            // big jump: the first frame may come after the app had been asleep
+            move : decimal = num.smaller(host.step, 0.05) / num.larger(seconds, 0.01);
+            was_gone : _int64 = 0;
+            if(now <= 0) { was_gone = 1; }
+
+            if(now < wanted) { now = num.smaller(1, now + move); }
+            else { now = num.larger(0, now - move); }
+            amount = now;
+
+            if(now != wanted) {
+                host.request_frame();
+            }
+            // appearing from nothing, or just gone: the room it takes changed
+            if(holds_room == 0 && (was_gone == 1 || now <= 0)) {
+                host.relayout();
+            }
+        }
+
+        // The view paints the children AFTER this returns, with this opacity.
+        // (At 0 the view paints nothing at all.)
+        me.opacity = now;
+    }
+
+    override def adopt(old: behavior) {
+        if(old is fader) {
+            before := old as fader;
+            amount = before.amount;
+        }
+    }
+}

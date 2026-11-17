@@ -1,0 +1,38 @@
+mod std.guikit.platform;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * font - a typeface at one size, ready to draw text with.
+ *
+ *      title := gui.font(28);                       // the system's standard font, 28 pixels
+ *      mono  := gui.font("fonts/code.ttf", 14);     // your own .ttf file
+ *
+ *      p.text("Hello", 20, 20, title, white);
+ *      wide := title.width_of("Hello");             // to centre or right-align it
+ *
+ * The size is in pixels, like CSS `px` (16 is ordinary reading text).
+ *
+ * Making a font the first time prepares every letter (a few milliseconds);
+ * asking for the same file and size again hands back the one already made, so
+ * calling gui.font(16) inside a draw loop is cheap. A font belongs to the open
+ * window and ends with it. Java comparison: java.awt.Font + FontMetrics in one.
+ */
+stable class font {
+    id : _int64;                // the native side's number for this font
+    size : decimal;             // the size it was made at, in pixels
+    line_height : decimal;      // pixels from one line of text down to the next
+
+    font(path: string, pixels: decimal) {
+        id = font_load(path, pixels);
+        size = pixels;
+        line_height = font_line_height(id);
+    }
+
+    /** how many pixels wide this text is in this font (one line) */
+    def width_of(words: string) : decimal {
+        return text_width(id, words);
+    }
+}

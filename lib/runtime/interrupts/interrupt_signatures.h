@@ -33,7 +33,7 @@
 #ifndef SHARP_INTERRUPT_SIGNATURES_H
 #define SHARP_INTERRUPT_SIGNATURES_H
 
-#include "../core/vm_interrupt_flag.h"
+#include "../../core/vm_interrupt_flag.h"
 
 struct interrupt_signature {
     int flag;               // interrupt_flag
