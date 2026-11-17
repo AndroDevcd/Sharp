@@ -3,114 +3,200 @@ mod std.testing;
 import ( std.di )
 
 /**
- * STAND-INS FOR A TEST: provide, and mock.
+ * MOCKS - stand-ins that do no real work, remember how they were used, and
+ * give back what a test tells them to.
+ *
+ *      store := mock<note_store>();                        // the compiler writes the class
+ *
+ *      given { store.load(); }.returns(one_note());        // set up: what a call gives back
+ *
+ *      book := notebook(store);                            // act
+ *      book.add("milk");
+ *
+ *      verify { store.save("milk"); }.once();              // check: how it was used
+ *      verify { store.remove("milk"); }.never();
  *
  * ------------------------------------------------------------------------
- * provide<t>() { ... }     use this object wherever the program asks for a t
+ * mock<t>()
  * ------------------------------------------------------------------------
+ * A built-in, like get<t>(): the compiler writes a class that implements the
+ * interface t - every function of it - and makes one. Nothing to write.
  *
- *      test("the greeting has the time in it") {
- *          provide<clock>() { return fixed_clock("09:30"); };
- *          expect(greeter().greet()).to_be("It is 09:30");
- *      };
+ *      notebook(mock<note_store>())            just to fill a parameter: no set-up at all
  *
- * It works for definitions written with replaceable<t>() (std.di). The
- * stand-in is in place until the test ends - every test starts with none.
+ * A FUNCTION NOBODY SET UP still works: it notes the call and gives back
+ *
+ *      a number                0
+ *      a text                  ""
+ *      a list / hash_map       an empty one
+ *      something that may be null (`task?`)    null
+ *      nothing (no result)     nothing
+ *
+ * Only a function that must give back some other object has no harmless
+ * answer; calling it without a given { } fails the test and says which
+ * given to write.
+ *
+ * t must be an INTERFACE. An ordinary class's functions have bodies, and a
+ * function with a body cannot be replaced in Sharp - so the edges of a
+ * program that tests want to stand in for are written as interfaces.
  *
  * ------------------------------------------------------------------------
- * mock                     a stand-in that remembers how it was used
+ * given { ONE CALL }.returns(value)
  * ------------------------------------------------------------------------
+ * The block makes the very call you mean - a real call, so the compiler
+ * checks the function's name and its arguments. Inside the block the mock
+ * does not act: it only notes WHICH call was made.
  *
- * A mock is a class YOU write, in a few lines, on top of `mock`: each of its
- * functions says "I was called" and, when it has something to give back,
- * gives the answer the test set up.
+ *      given { store.find("milk"); }.returns(1);               for that argument
+ *      given { store.find(any_text()); }.returns(0);           for any text there
+ *      given { store.rename("a", "b"); }.with_any_arguments().returns(1);
+ *      given { store.load(); }.throws(io_exception("disk is full"));
  *
- *      interface task_store {
- *          def read_all() : list<task>;
- *          def save(t: task);
- *      }
+ * The block must make exactly ONE call on a mock. None, or more than one, is
+ * an error that lists what was found - so it is never a guess which call the
+ * `.returns` belongs to. Other code in the block (building an argument, a
+ * chain on the result) is fine: only calls ON A MOCK count.
+ * When several givens fit a call, the one written last wins.
  *
- *      class mock_store base mock : task_store {
- *          override def read_all() : list<task> { return (answer("read_all") as list<task>); }
- *          override def save(t: task)           { called("save", t); }
- *      }
+ * ------------------------------------------------------------------------
+ * verify { ONE CALL }.once() / .times(n) / .never() / .at_least(n)
+ * ------------------------------------------------------------------------
+ * How often was that call made? Arguments are compared as in given.
+ * verify_nothing_else(store) fails if the mock was asked anything no verify
+ * has covered.
  *
- * and in a test:
+ * (Mockito: mock(), given(x).willReturn(y), verify(mock).call(). MockK:
+ * mockk(relaxed = true), every { } returns, verify { }. The block form is
+ * MockK's; "works without set-up" is Mockito's default.)
  *
- *      store := mock_store();
- *      store.given("read_all", two_tasks());           // what read_all() gives back
- *      provide<task_store>() { return store; };
+ * ------------------------------------------------------------------------
+ * A stand-in for ONE TEST: provide<t>() { ... }
+ * ------------------------------------------------------------------------
+ *      provide<note_store>() { return store; };
+ * Wherever the program asks for a t through a replaceable<t>() definition
+ * (std.di), it gets this object, until the test ends.
  *
- *      model := tasks_model();
- *      model.load();
- *      model.add("Buy milk");
- *
- *      verify(store, "read_all").once();               // was it used the way it should be?
- *      verify(store, "save").times(1);
- *      verify(store, "delete").never();
- *      expect_same(store.last_argument("save"), model.tasks.at(2));
- *
- * WHY YOU WRITE THE CLASS. Mockito and MockK make such a class for you, from
- * the interface, while the program runs. Sharp has no way to make a class at
- * run time, so the few lines are written by hand - one line per function.
- * (Generating them is a job for the compiler one day; these words are chosen
- * so that tests written today will not need changing then.)
- *
- * A mock answers; it does not think. If a stand-in needs behaviour of its own
- * - a store that really keeps what it is given - write a small FAKE instead:
- * an ordinary class with a list in it. Mocks are for checking that something
- * was called; fakes are for standing in for something that works.
+ * ------------------------------------------------------------------------
+ * A mock class written by hand
+ * ------------------------------------------------------------------------
+ * Still possible, for a stand-in with some behaviour of its own: a class on
+ * top of `mock` whose functions call called("name", argument) or
+ * answer("name"). mock<t>() makes exactly such a class for you.
  */
 class mock {
     private calls : list<mock_call> = new list<mock_call>();
-    private answers : list<mock_answer> = new list<mock_answer>();
+    private stubs : list<mock_stub> = new list<mock_stub>();
 
-    // ------------------------------------------------------------ inside the mock class you write
+    // ========================================================================
+    // FRAMEWORK USE: what the class the compiler writes for mock<t>() calls.
+    // Every function of the interface becomes one of these, given the
+    // function's name and the arguments it was called with.
+    // ========================================================================
+
+    /**
+     * A call arrived. Inside a given { } or verify { } block it is only noted
+     * (and null comes back). Otherwise it is written down, and the answer of
+     * the newest given that fits is given back - null when there is none.
+     */
+    def mock_call(function: string, args: mock_args) : object? {
+        arrived := new mock_call(self, function, args);
+        if(mock_recorder.noting == 1) {
+            mock_recorder.noted.add(arrived);
+            return null;
+        }
+        calls.add(arrived);
+        for(i : _int64 = stubs.size().value - 1; i >= 0; i--) {
+            stub : mock_stub = stubs.at(i);
+            if(stub.fits(arrived) == 1) {
+                if(stub.failure != null) {
+                    throw stub.failure!!;
+                }
+                return stub.value;
+            }
+        }
+        return null;
+    }
+
+    /** the same for a function that gives back a number: 0 when nothing was set up */
+    def mock_number(function: string, args: mock_args) : decimal {
+        found : object? = mock_call(function, args);
+        if(found == null) {
+            return 0;
+        }
+        if(found is double) {
+            return (found as double).value;
+        }
+        if(found is int) {
+            return (found as int).value;
+        }
+        throw new test_failure("`" + function + "` gives back a number, but its given { } was told to return something that is not one");
+    }
+
+    /**
+     * A function that must give back an object has no answer and no harmless
+     * default. Inside a given / verify block that is fine - the call is noted
+     * and the block is left; in a running test it fails the test, saying what
+     * to write.
+     */
+    def mock_missing(function: string, gives: string) {
+        if(mock_recorder.noting == 1) {
+            throw new mock_noted();
+        }
+        throw new test_failure("the mock's `" + function + "(...)` was called, and nothing says what it gives back"
+            + "\nit returns a " + gives + ", which has no harmless default"
+            + "\nset it up first:  given { the_mock." + function + "(...); }.returns(<a " + gives + ">);");
+    }
+
+    // ========================================================================
+    // For a mock class written by hand
+    // ========================================================================
 
     /** "this function was called": write it in a function that gives nothing back */
     def called(function: string) {
-        calls.add(new mock_call(function, null));
+        mock_call(function, new mock_args());
     }
 
     /** the same, remembering the argument it was called with */
     def called(function: string, argument: object?) {
-        calls.add(new mock_call(function, argument));
+        mock_call(function, new mock_args().thing(argument));
     }
 
     /**
-     * "This function was called - what do I give back?": the answer the test
-     * set up with given(...). Cast it to the function's own type:
-     * `return (answer("read_all") as list<task>);`
-     *
-     * A function nobody set an answer for fails the test, saying which one:
-     * a mock that quietly gives null hides the mistake until much later.
+     * "This function was called - what do I give back?": cast the result to
+     * the function's own type. A function nobody set an answer for fails the
+     * test, saying which one.
      */
     def answer(function: string) : object {
-        calls.add(new mock_call(function, null));
-        for(i : _int64 = answers.size().value - 1; i >= 0; i--) {
-            if(answers.at(i).function == function) {
-                return answers.at(i).value;
-            }
-        }
-        throw new test_failure("the mock was asked for `" + function + "` but no answer was set up\nset one first:  the_mock.given(\"" + function + "\", <what it should give back>);");
+        return answer_for(function, new mock_args());
     }
 
     /** the same, remembering the argument */
     def answer(function: string, argument: object?) : object {
-        found : object = answer(function);
-        calls.at(calls.size().value - 1).argument = argument;
-        return found;
+        return answer_for(function, new mock_args().thing(argument));
     }
 
-    // ------------------------------------------------------------ in the test
+    private def answer_for(function: string, args: mock_args) : object {
+        found : object? = mock_call(function, args);
+        if(found == null) {
+            mock_missing(function, "value");
+        }
+        return found!!;
+    }
 
-    /** what `function` gives back from now on (set again to change it) */
+    /** what `function` gives back from now on, whatever its arguments (the by-name form of given { }) */
     def given(function: string, value: object) : mock {
-        answers.add(new mock_answer(function, value));
+        stub := new mock_stub(new mock_call(self, function, new mock_args()));
+        stub.any_arguments = 1;
+        stub.value = value;
+        stubs.add(stub);
         return self;
     }
 
-    /** how many times `function` was called */
+    // ========================================================================
+    // Looking at what happened
+    // ========================================================================
+
+    /** how many times a function of this name was called */
     def times_called(function: string) : _int64 {
         count : _int64 = 0;
         for(i : _int64 = 0; i < calls.size().value; i++) {
@@ -119,29 +205,17 @@ class mock {
         return count;
     }
 
-    /** the argument of the last call of `function` (null when it was never called, or called without one) */
+    /** the first argument of the last call of `function` (null when never called, or called with none) */
     def last_argument(function: string) : object? {
         for(i : _int64 = calls.size().value - 1; i >= 0; i--) {
             if(calls.at(i).function == function) {
-                return calls.at(i).argument;
+                return calls.at(i).args.first();
             }
         }
         return null;
     }
 
-    /** the argument of call number `index` of `function` (0 is the first) */
-    def argument_of(function: string, index: _int64) : object? {
-        seen : _int64 = 0;
-        for(i : _int64 = 0; i < calls.size().value; i++) {
-            if(calls.at(i).function == function) {
-                if(seen == index) { return calls.at(i).argument; }
-                seen = seen + 1;
-            }
-        }
-        return null;
-    }
-
-    /** every function that was called, in order: "read_all, save, save" (for a failure message, or to look) */
+    /** every call that was made, in order: `load(), save("milk")` */
     def story() : string {
         if(calls.size().value == 0) {
             return "nothing was called";
@@ -149,83 +223,396 @@ class mock {
         words : string = "";
         for(i : _int64 = 0; i < calls.size().value; i++) {
             if(i > 0) { words = words + ", "; }
-            words = words + calls.at(i).function;
+            words = words + calls.at(i).words();
         }
         return words;
     }
 
-    /** forget every call so far (the answers stay): to check only what happens from here on */
+    /** forget every call so far (what was set up stays): to check only what happens from here on */
     def forget_calls() {
         calls.clear();
     }
-}
 
-/** one remembered call of a mock */
-local stable class mock_call {
-    function : string = "";
-    argument : object?;
+    // ---- FRAMEWORK USE (the checks below)
 
-    mock_call(name: string, given_argument: object?) {
-        function = new string(name);
-        argument = given_argument;
+    def add_stub(stub: mock_stub) {
+        stubs.add(stub);
+    }
+
+    /** how many calls fit `wanted`; each one that does is marked as checked */
+    def count_fitting(wanted: mock_stub) : _int64 {
+        count : _int64 = 0;
+        for(i : _int64 = 0; i < calls.size().value; i++) {
+            if(wanted.fits(calls.at(i)) == 1) {
+                calls.at(i).checked = 1;
+                count = count + 1;
+            }
+        }
+        return count;
+    }
+
+    /** the calls no verify has covered, as words ("" when there are none) */
+    def unchecked_story() : string {
+        words : string = "";
+        for(i : _int64 = 0; i < calls.size().value; i++) {
+            if(calls.at(i).checked == 0) {
+                if(words.size().value > 0) { words = words + ", "; }
+                words = words + calls.at(i).words();
+            }
+        }
+        return words;
     }
 }
 
-/** one answer set up for a mock */
-local stable class mock_answer {
-    function : string = "";
-    value : object;
+// ============================================================================ arguments
 
-    mock_answer(name: string, gives: object) {
-        function = new string(name);
-        value = gives;
+/**
+ * The arguments of one call, in order. FRAMEWORK USE: the generated class
+ * fills one per call - number(...) for a plain number, thing(...) for
+ * everything else (text and every other object).
+ */
+stable class mock_args {
+    private items : list<mock_arg> = new list<mock_arg>();
+
+    def number(value: decimal) : mock_args {
+        items.add(new mock_arg(1, value, null));
+        return self;
     }
+
+    def thing(value: object?) : mock_args {
+        items.add(new mock_arg(0, 0, value));
+        return self;
+    }
+
+    def count() : _int64 {
+        return items.size().value;
+    }
+
+    /** the first argument as an object (a number comes boxed); null when there is none */
+    def first() : object? {
+        if(items.size().value == 0) {
+            return null;
+        }
+        one : mock_arg = items.at(0);
+        if(one.is_number == 1) {
+            return new double(one.number);
+        }
+        return one.thing;
+    }
+
+    /**
+     * Does a call with THESE arguments answer to the pattern `wanted` (the
+     * arguments written in a given / verify block)? The same count, and each
+     * one equal - or the pattern says "any" there.
+     */
+    def fits(wanted: mock_args) : _int64 {
+        if(items.size().value != wanted.items.size().value) {
+            return 0;
+        }
+        for(i : _int64 = 0; i < items.size().value; i++) {
+            if(wanted.items.at(i).accepts(items.at(i)) == 0) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+
+    def words() : string {
+        made : string = "";
+        for(i : _int64 = 0; i < items.size().value; i++) {
+            if(i > 0) { made = made + ", "; }
+            made = made + items.at(i).words();
+        }
+        return made;
+    }
+}
+
+/** one argument of a call: a plain number, or an object (text included) */
+stable class mock_arg {
+    is_number : _int64 = 0;
+    number : decimal = 0;
+    thing : object?;
+
+    mock_arg(as_number: _int64, value: decimal, other: object?) {
+        is_number = as_number;
+        number = value;
+        thing = other;
+    }
+
+    /** as a PATTERN: does it accept the argument a real call had? */
+    def accepts(real: mock_arg) : _int64 {
+        if(is_number != real.is_number) {
+            return 0;
+        }
+        if(is_number == 1) {
+            if(number == mock_recorder.ANY_NUMBER || number == real.number) { return 1; }
+            return 0;
+        }
+        if(thing == null || real.thing == null) {
+            if(thing == null && real.thing == null) { return 1; }
+            return 0;
+        }
+        if(thing!! == mock_recorder.any_text_mark) {
+            return 1;                                   // any_text(): whatever is there
+        }
+        if(thing is string && real.thing is string) {   // texts are equal when they read the same
+            mine : string = thing as string;
+            theirs : string = real.thing as string;
+            if(mine == theirs) { return 1; }
+            return 0;
+        }
+        if(thing!! == real.thing!!) { return 1; }       // any other object: the very same one
+        return 0;
+    }
+
+    def words() : string {
+        if(is_number == 1) {
+            if(number == mock_recorder.ANY_NUMBER) { return "<any number>"; }
+            return "" + number;
+        }
+        if(thing == null) {
+            return "null";
+        }
+        if(thing!! == mock_recorder.any_text_mark) {
+            return "<any text>";
+        }
+        if(thing is string) {
+            return "\"" + (thing as string) + "\"";
+        }
+        return "<an object>";
+    }
+}
+
+/** one call of a mock: which function, with what */
+stable class mock_call {
+    owner : mock;
+    function : string = "";
+    args : mock_args;
+    checked : _int64 = 0;           // 1 once a verify has counted it
+
+    mock_call(on: mock, name: string, given_args: mock_args) {
+        owner = on;
+        function = new string(name);
+        args = given_args;
+    }
+
+    def words() : string {
+        return function + "(" + args.words() + ")";
+    }
+}
+
+/** one given: the call it is for, and what that call gives back (or throws) */
+stable class mock_stub {
+    pattern : mock_call;
+    any_arguments : _int64 = 0;     // 1: whatever the arguments are
+    value : object?;
+    failure : throwable?;
+
+    mock_stub(wanted: mock_call) {
+        pattern = wanted;
+    }
+
+    /** is `real` a call this stub is for? */
+    def fits(real: mock_call) : _int64 {
+        if(!(real.function == pattern.function)) {
+            return 0;
+        }
+        if(any_arguments == 1) {
+            return 1;
+        }
+        return real.args.fits(pattern.args);
+    }
+}
+
+// ============================================================================ given / verify: noting the one call of a block
+
+/** thrown inside a given / verify block to leave it once its call is noted (never seen by a test) */
+stable class mock_noted base exception {
+    mock_noted() -> base("a call on a mock was noted") {}
 }
 
 /**
- * What verify(mock, "function") gives back: say how often it should have
- * been called. A miss fails the test and shows everything the mock WAS
- * asked, which is usually what explains it.
+ * While a given { } or verify { } block runs, mocks do not act: they add the
+ * call to `noted`. FRAMEWORK USE.
  */
-stable class call_check {
-    private target : mock;
-    private function : string = "";
+stable class mock_recorder {
+    static noting : _int64 = 0;
+    static noted : list<mock_call> = new list<mock_call>();
 
-    call_check(on: mock, name: string) {
-        target = on;
-        function = name;
+    /** what any_number() gives: a number no test would write, recognised as "any" */
+    // (a WHOLE number: it must come through a parameter of a whole-number type unchanged)
+    static const ANY_NUMBER : decimal = 0 - 918273645;
+
+    /** what any_text() gives: one particular text object, recognised by being that very object */
+    static any_text_mark : string = new string("<any text>");
+
+    /** run `block` and give back the ONE call it made on a mock; `word` is "given" or "verify", for the messages */
+    static def the_call_of(block: ()(), word: string) : mock_call {
+        if(noting == 1) {
+            throw new illegal_state_exception("a `" + word + " { ... }` was written inside another given / verify block");
+        }
+        noted.clear();
+        noting = 1;
+        failed : throwable? = null;
+        try {
+            block();
+        } catch(done: mock_noted) {
+            // the call was noted and the block left early: nothing more to do
+        } catch(other: throwable) {
+            failed = other;
+        }
+        noting = 0;
+        if(failed != null) {
+            throw failed!!;
+        }
+
+        purpose : string = "check";
+        if(word == "given") { purpose = "set up"; }
+        if(noted.size().value == 0) {
+            throw new illegal_state_exception("this `" + word + " { ... }` block did not call a mock, so there is nothing to " + purpose
+                + "\nwrite the call itself in the block:  " + word + " { the_mock.some_function(...); }");
+        }
+        if(noted.size().value > 1) {
+            found : string = "";
+            for(i : _int64 = 0; i < noted.size().value; i++) {
+                found = found + "\n    " + noted.at(i).words();
+            }
+            throw new illegal_state_exception("a `" + word + " { ... }` block is about ONE call, but this one made " + noted.size().value + ":" + found
+                + "\nwrite one `" + word + " { ... }` for each");
+        }
+        return noted.at(0);
+    }
+}
+
+/** what given { } gives back: say what the call returns */
+stable class stubbing {
+    private stub : mock_stub;
+
+    stubbing(call: mock_call) {
+        stub = new mock_stub(call);
     }
 
-    private def miss(expected: string) {
-        throw new test_failure("expected `" + function + "` to be called " + expected
-            + "\nbut it was called " + target.times_called(function) + " time(s)"
-            + "\nthe mock was asked: " + target.story());
+    /** whatever arguments the call has, not only the ones written in the block */
+    def with_any_arguments() : stubbing {
+        stub.any_arguments = 1;
+        return self;
+    }
+
+    /** the call gives back this number */
+    def returns(value: decimal) {
+        stub.value = new double(value);
+        stub.pattern.owner.add_stub(stub);
+    }
+
+    /** the call gives back this text */
+    def returns(value: string) {
+        stub.value = value;
+        stub.pattern.owner.add_stub(stub);
+    }
+
+    /** the same for text written in quotes (which is a plain row of characters until something makes a string of it) */
+    def returns(value: _int8[]) {
+        stub.value = new string(value);
+        stub.pattern.owner.add_stub(stub);
+    }
+
+    /** the call gives back this object (null for a function whose result may be null) */
+    def returns(value: object?) {
+        stub.value = value;
+        stub.pattern.owner.add_stub(stub);
+    }
+
+    /** the call throws this instead of giving anything back */
+    def throws(problem: throwable) {
+        stub.failure = problem;
+        stub.pattern.owner.add_stub(stub);
+    }
+}
+
+/** what verify { } gives back: say how often the call should have been made */
+stable class call_check {
+    private wanted : mock_stub;
+
+    call_check(call: mock_call) {
+        wanted = new mock_stub(call);
+    }
+
+    /** whatever arguments the call had, not only the ones written in the block */
+    def with_any_arguments() : call_check {
+        wanted.any_arguments = 1;
+        return self;
+    }
+
+    private def miss(expected: string, found: _int64) {
+        asked : string = wanted.pattern.words();
+        if(wanted.any_arguments == 1) { asked = wanted.pattern.function + "(any arguments)"; }
+        throw new test_failure("expected " + asked + " to be called " + expected
+            + "\nbut it was called " + found + " time(s)"
+            + "\nthe mock was asked: " + wanted.pattern.owner.story());
     }
 
     /** exactly this many times */
     def times(count: _int64) {
-        if(target.times_called(function) != count) { miss("" + count + " time(s)"); }
+        found : _int64 = wanted.pattern.owner.count_fitting(wanted);
+        if(found != count) { miss("" + count + " time(s)", found); }
     }
 
     /** exactly once */
     def once() {
-        if(target.times_called(function) != 1) { miss("once"); }
+        found : _int64 = wanted.pattern.owner.count_fitting(wanted);
+        if(found != 1) { miss("once", found); }
     }
 
     /** not at all */
     def never() {
-        if(target.times_called(function) != 0) { miss("never"); }
+        found : _int64 = wanted.pattern.owner.count_fitting(wanted);
+        if(found != 0) { miss("never", found); }
     }
 
     /** this many times or more */
     def at_least(count: _int64) {
-        if(target.times_called(function) < count) { miss("at least " + count + " time(s)"); }
+        found : _int64 = wanted.pattern.owner.count_fitting(wanted);
+        if(found < count) { miss("at least " + count + " time(s)", found); }
     }
 }
 
-/** check how `function` of a mock was used: verify(store, "save").once(); */
+// ============================================================================ the words
+
+/** set up what ONE call on a mock gives back:  given { store.load(); }.returns(notes); */
+def given(block: ()()) : stubbing {
+    return new stubbing(mock_recorder.the_call_of(block, "given"));
+}
+
+/** check how often ONE call on a mock was made:  verify { store.save("milk"); }.once(); */
+def verify(block: ()()) : call_check {
+    return new call_check(mock_recorder.the_call_of(block, "verify"));
+}
+
+/** the by-name form, for a mock class written by hand: every call of that function, whatever its arguments */
 def verify(on: mock, function: string) : call_check {
-    return new call_check(on, function);
+    made := new call_check(new mock_call(on, function, new mock_args()));
+    return made.with_any_arguments();
+}
+
+/** the mock must not have been asked anything that no verify has covered */
+def verify_nothing_else(stand_in: object) {
+    if(!(stand_in is mock)) {
+        throw new illegal_argument_exception("verify_nothing_else(...) takes a mock: an object made with mock<...>(), or of a class written on top of `mock`");
+    }
+    left : string = (stand_in as mock).unchecked_story();
+    if(left.size().value > 0) {
+        throw new test_failure("expected nothing else to be asked of the mock\nbut it was also asked: " + left);
+    }
+}
+
+/** in a given / verify block: "any text here" */
+def any_text() : string {
+    return mock_recorder.any_text_mark;
+}
+
+/** in a given / verify block: "any number here" */
+def any_number() : decimal {
+    return mock_recorder.ANY_NUMBER;
 }
 
 /**

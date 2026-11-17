@@ -98,6 +98,7 @@ class SharpHighlightingTest {
             SharpTokenKinds.COMMA, SharpTokenKinds.SEMICOLON, SharpTokenKinds.DOT, SharpTokenKinds.OPERATOR,
             SharpTokenKinds.KEYWORD_DECLARATION, SharpTokenKinds.KEYWORD_CONTROL, SharpTokenKinds.KEYWORD_MODIFIER,
             SharpTokenKinds.KEYWORD_TYPE, SharpTokenKinds.KEYWORD_VALUE, SharpTokenKinds.KEYWORD_OPERATOR,
+            SharpTokenKinds.BUILT_IN_CALL, SharpTokenKinds.TESTING_WORD,
             SharpTokenKinds.BAD_CHARACTER,
         )
         for (kind in kinds) assertTrue("$kind has no colour slot", highlighter.getTokenHighlights(kind).isNotEmpty())

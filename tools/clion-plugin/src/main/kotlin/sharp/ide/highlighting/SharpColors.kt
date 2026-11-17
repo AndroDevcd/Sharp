@@ -24,6 +24,10 @@ object SharpColors {
     @JvmField val BUILT_IN_TYPE = createTextAttributesKey("SHARP_BUILT_IN_TYPE", DefaultLanguageHighlighterColors.CLASS_NAME)
     @JvmField val BUILT_IN_VALUE = createTextAttributesKey("SHARP_BUILT_IN_VALUE", DefaultLanguageHighlighterColors.CONSTANT)
 
+    // names that read like part of the language where they stand (SharpBuiltInWords)
+    @JvmField val BUILT_IN_CALL = createTextAttributesKey("SHARP_BUILT_IN_CALL", DefaultLanguageHighlighterColors.KEYWORD)
+    @JvmField val TESTING_WORD = createTextAttributesKey("SHARP_TESTING_WORD", DefaultLanguageHighlighterColors.PREDEFINED_SYMBOL)
+
     @JvmField val IDENTIFIER = createTextAttributesKey("SHARP_IDENTIFIER", DefaultLanguageHighlighterColors.IDENTIFIER)
     @JvmField val NUMBER = createTextAttributesKey("SHARP_NUMBER", DefaultLanguageHighlighterColors.NUMBER)
     @JvmField val CHARACTER = createTextAttributesKey("SHARP_CHARACTER", DefaultLanguageHighlighterColors.STRING)

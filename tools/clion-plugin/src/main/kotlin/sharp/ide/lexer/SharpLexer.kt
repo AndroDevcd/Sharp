@@ -144,7 +144,9 @@ class SharpLexer : LexerBase() {
         val start = position
         position++
         while (position < bufferEnd && (isLetter(buffer[position]) || isDigit(buffer[position]))) position++
-        return SharpKeywords.kindOf(buffer.subSequence(start, position)) ?: SharpTokenKinds.IDENTIFIER
+        return SharpKeywords.kindOf(buffer.subSequence(start, position))
+            ?: SharpBuiltInWords.kindAt(buffer, start, position, bufferEnd)      // mock<...>, the testing words
+            ?: SharpTokenKinds.IDENTIFIER
     }
 
     private fun scanNumber(): IElementType {

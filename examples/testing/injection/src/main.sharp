@@ -16,6 +16,7 @@ import (
  *   3. the component gives it out through replaceable<...>  component app { ... }
  *   4. the logic asks for it with `inject`                  class planner
  *   5. a test provides a stand-in                           provide<clock>() { ... }
+ *      - a small fake it wrote (fixed_clock), or a mock    mock<task_store>()
  *
  * The logic (planner) never names system_clock or file_store. That is the
  * whole trick: what you do not build yourself, someone else can swap.
@@ -87,11 +88,7 @@ class fixed_clock : clock {
     override def now() : string { return says; }
 }
 
-/** a MOCK: it remembers how it was used, and gives back what the test set up */
-class mock_store base mock : task_store {
-    override def read_all() : list<string> { return (answer("read_all") as list<string>); }
-    override def save(title: string)       { called("save", title); }
-}
+// (the stand-in for task_store is not written anywhere: mock<task_store>() makes one)
 
 def two_tasks() : list<string> {
     made := new list<string>();
@@ -105,78 +102,51 @@ def two_tasks() : list<string> {
 def main() {
     tests("a planner, with stand-ins for its edges") {
         test("the headline uses the clock it was given") {
+            store := mock<task_store>();
+            given { store.read_all(); }.returns(two_tasks());
             provide<clock>() { return fixed_clock("09:30"); };
-            provide<task_store>() { return mock_store().given("read_all", two_tasks()) as mock_store; };
+            provide<task_store>() { return store; };
 
             p := planner();
             p.load();
-            expect(p.headline()).to_be("2 tasks at 09:30");
+            expect(p.headline()).should_be("2 tasks at 09:30");
         };
 
         test("load reads the store exactly once") {
-            store := mock_store();
-            store.given("read_all", two_tasks());
+            store := mock<task_store>();
+            given { store.read_all(); }.returns(two_tasks());
             provide<task_store>() { return store; };
 
             p := planner();
             p.load();
 
-            verify(store, "read_all").once();
-            verify(store, "save").never();
-            expect(p.tasks.size().value).to_be(2);
+            verify { store.read_all(); }.once();
+            verify { store.save(any_text()); }.never();
+            expect(p.tasks.size().value).should_be(2);
         };
 
         test("adding a task saves it") {
-            store := mock_store();
+            store := mock<task_store>();
             provide<task_store>() { return store; };
 
             p := planner();
-            expect(p.add("Water the plants")).to_be(1);
+            expect(p.add("Water the plants")).should_be(1);
 
-            verify(store, "save").once();
-            expect(store.last_argument("save") as string).to_be("Water the plants");
+            verify { store.save("Water the plants"); }.once();
         };
 
         test("an empty title is not added and not saved") {
-            store := mock_store();
+            store := mock<task_store>();
             provide<task_store>() { return store; };
 
             p := planner();
-            expect(p.add("")).to_be(0);
-            verify(store, "save").never();
+            expect(p.add("")).should_be(0);
+            verify_nothing_else(store);
         };
 
         test("without provide, the program's own clock is used: stand-ins end with their test") {
             p := planner();
-            expect(p.headline()).to_contain("the real time");
-        };
-    };
-
-    tests("what a mock says when it is used wrongly") {
-        test("an answer nobody set up fails the test, naming the function") {
-            store := mock_store();
-            said : string = "";
-            try {
-                store.read_all();
-            } catch(e: test_failure) {
-                said = e.get_message();
-            }
-            expect(said).to_contain("no answer was set up");
-            expect(said).to_contain("read_all");
-        };
-
-        test("a verify that does not hold shows what the mock was asked") {
-            store := mock_store();
-            store.save("a");
-            store.save("b");
-            said : string = "";
-            try {
-                verify(store, "save").once();
-            } catch(e: test_failure) {
-                said = e.get_message();
-            }
-            expect(said).to_contain("called 2 time(s)");
-            expect(said).to_contain("save, save");
+            expect(p.headline()).should_contain("the real time");
         };
     };
 

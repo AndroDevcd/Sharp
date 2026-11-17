@@ -39,6 +39,8 @@ class SharpColorSettingsPage : ColorSettingsPage {
             AttributesDescriptor("Keywords//Operator words (new, as, is, in, sizeof)", SharpColors.KEYWORD_OPERATOR),
             AttributesDescriptor("Keywords//Built-in types (_int64, decimal, object)", SharpColors.BUILT_IN_TYPE),
             AttributesDescriptor("Keywords//Built-in values (true, false, null, self ...)", SharpColors.BUILT_IN_VALUE),
+            AttributesDescriptor("Built-ins//Built-in call (mock<t>())", SharpColors.BUILT_IN_CALL),
+            AttributesDescriptor("Built-ins//Testing words (tests, test, expect, given, verify ...)", SharpColors.TESTING_WORD),
             AttributesDescriptor("Identifier", SharpColors.IDENTIFIER),
             AttributesDescriptor("Number", SharpColors.NUMBER),
             AttributesDescriptor("Strings//String", SharpColors.STRING),
@@ -88,6 +90,16 @@ class SharpColorSettingsPage : ColorSettingsPage {
                     shape?.area()!!.to_string();
                     return new string[] { "a", "b" }[0];
                 }
+            }
+
+            def main() {
+                tests("a circle") {
+                    test("its area is used by whoever asks") {
+                        drawn := mock<shape>();
+                        given { drawn.area(); }.returns(3);
+                        expect(drawn.area()).should_be(3);
+                    };
+                };
             }
         """.trimIndent()
     }

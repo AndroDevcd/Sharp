@@ -222,6 +222,23 @@ def exec_runtime(files: list<string>) : int {
         progress("parsed " + (units.size().value as _int64) + " file(s), no errors");
     }
 
+    // ---- mock<T>(): the classes it asked for are written out and join the program as units of
+    //      their own (frontend/syntax/tree/mocks.sharp). One that cannot be written says why.
+    mock_units := make_mock_units(units);
+    mock_problems : decimal = 0;
+    foreach(mock_unit in mock_units) {
+        if(mock_unit.parsed == null) {
+            mock_problems += print_unit_errors(mock_unit);
+        } else if(!mock_unit.is_good()) {
+            mock_problems += print_within_limit(mock_unit.parsed!!.errors, options.max_errors as _int64);
+        }
+        units.add(mock_unit);
+    }
+    if(mock_problems > 0) {
+        println("" + (mock_problems as _int64) + " error(s)");
+        return 1;
+    }
+
     // ---- names: what every file declares, and what every type name means
     found := new list<diagnostic>();
     stage_started = now_ms();

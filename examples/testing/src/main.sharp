@@ -58,23 +58,23 @@ def main() {
     tests("a basket") {
         test("a new basket is empty") {
             b := basket();
-            expect(b.count()).to_be(0);
+            expect(b.count()).should_be(0);
             expect_true(b.is_empty());
         };
 
         test("adding an item puts it in the basket") {
             b := basket();
             b.add("milk");
-            expect(b.count()).to_be(1);
-            expect(b.at(0)).to_be("milk");
+            expect(b.count()).should_be(1);
+            expect(b.at(0)).should_be("milk");
         };
 
         test("take gives back the last item and removes it") {
             b := basket();
             b.add("milk");
             b.add("bread");
-            expect(b.take()).to_be("bread");
-            expect(b.count()).named("items left after one take").to_be(1);
+            expect(b.take()).should_be("bread");
+            expect(b.count()).named("items left after one take").should_be(1);
         };
 
         test("taking from an empty basket is refused") {
@@ -88,9 +88,9 @@ def main() {
             title := gui.state("");
             rules := form().require(title, "Give it a title");
 
-            expect(rules.problem_of(title)).named("before any check").to_be_empty();
-            expect(rules.check()).to_be(0);
-            expect(rules.problem_of(title)).to_be("Give it a title");
+            expect(rules.problem_of(title)).named("before any check").should_be_empty();
+            expect(rules.check()).should_be(0);
+            expect(rules.problem_of(title)).should_be("Give it a title");
         };
 
         test("the problem goes away once the field is filled in and checked again") {
@@ -99,15 +99,15 @@ def main() {
             rules.check();
 
             title.value = "Buy milk";
-            expect(rules.check()).to_be(1);
-            expect(rules.problem_of(title)).to_be_empty();
+            expect(rules.check()).should_be(1);
+            expect(rules.problem_of(title)).should_be_empty();
         };
 
         test("at_most counts letters") {
             title := gui.state("abcdef");
             rules := form().at_most(title, 5, "Too long");
-            expect(rules.check()).to_be(0);
-            expect(rules.problem_of(title)).to_contain("long");
+            expect(rules.check()).should_be(0);
+            expect(rules.problem_of(title)).should_contain("long");
         };
     };
 
@@ -119,12 +119,12 @@ def main() {
             names.add("c");
             names.move(0, 2);
 
-            expect(names.size()).to_be(3);
-            expect(names.at(0)).to_be("b");
-            expect(names.at(2)).to_be("a");
+            expect(names.size()).should_be(3);
+            expect(names.at(0)).should_be("b");
+            expect(names.at(2)).should_be("a");
 
-            expect(names.remove("b")).to_be(1);
-            expect(names.size()).to_be(2);
+            expect(names.remove("b")).should_be(1);
+            expect(names.size()).should_be(2);
         };
 
         test("on_change is told about every change") {
@@ -135,7 +135,7 @@ def main() {
             names.add("a");
             names.add("b");
             names.clear();
-            expect(changes.value).to_be(3);
+            expect(changes.value).should_be(3);
         };
     };
 
@@ -144,9 +144,9 @@ def main() {
             model := counter_model();
             model.add_slowly().join();
 
-            expect(model.total.value).named("before the main queue is run").to_be(0);
+            expect(model.total.value).named("before the main queue is run").should_be(0);
             main_queue.run_waiting();
-            expect(model.total.value).to_be(5);
+            expect(model.total.value).should_be(5);
         };
 
         test("an answer that arrives after the model was dropped is ignored") {
@@ -155,7 +155,7 @@ def main() {
             model.drop();
             work.join();
             main_queue.run_waiting();
-            expect(model.total.value).to_be(0);
+            expect(model.total.value).should_be(0);
         };
 
         test("a dropped model refuses new work") {

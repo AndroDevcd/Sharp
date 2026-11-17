@@ -19,7 +19,8 @@ import com.intellij.psi.TokenType
 import com.intellij.psi.tree.IElementType
 
 class Tok(val type: IElementType, val start: Int, val end: Int, val text: String) {
-    val isIdentifier: Boolean get() = type == SharpTokenKinds.IDENTIFIER
+    // (a built-in call and a testing word are still names: they complete, hover and navigate like any other)
+    val isIdentifier: Boolean get() = SharpTokenKinds.NAMES.contains(type)
     fun isKeyword(word: String): Boolean = SharpTokenKinds.KEYWORDS.contains(type) && text == word
     /** An operator or punctuation token with exactly this text. */
     fun isMark(mark: String): Boolean = text == mark && !isIdentifier && !SharpTokenKinds.KEYWORDS.contains(type)

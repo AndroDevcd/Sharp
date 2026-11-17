@@ -20,7 +20,7 @@ mod std.di;
  *
  *      test("the greeting has the time in it") {
  *          provide<clock>() { return fixed_clock("09:30"); };
- *          expect(greeter().greet()).to_be("It is 09:30");
+ *          expect(greeter().greet()).should_be("It is 09:30");
  *      };
  *
  * WHY IT IS NEEDED. Components are settled while the program is COMPILED:

@@ -3,12 +3,12 @@ mod std.testing;
 /**
  * EXPECT - the checks a test makes.
  *
- *      expect(basket.count()).to_be(3);                   // numbers
- *      expect(price).to_be_near(9.99, 0.001);
- *      expect(basket.count()).to_be_above(0);
+ *      expect(basket.count()).should_be(3);                   // numbers
+ *      expect(price).should_be_near(9.99, 0.001);
+ *      expect(basket.count()).should_be_above(0);
  *
- *      expect(user.name).to_be("Ada");                    // text
- *      expect(message).to_contain("not found");
+ *      expect(user.name).should_be("Ada");                    // text
+ *      expect(message).should_contain("not found");
  *
  *      expect_true(basket.is_empty());                 // yes / no (also 1 / 0)
  *      expect_false(list.contains(gone));
@@ -27,19 +27,19 @@ mod std.testing;
  * and the test stops there. Add words of your own with .named(...), for when
  * the numbers alone would not say what was being checked:
  *
- *      expect(basket.count()).named("items after the second add").to_be(2);
+ *      expect(basket.count()).named("items after the second add").should_be(2);
  *
  * (JUnit: assertEquals(expected, actual) - where which side is which is a
- * classic mix-up. Reading left to right, "expect X to be Y" cannot be mixed up.
- * The checks are named to_be... because `is` is a word of the language itself.)
+ * classic mix-up. Reading left to right, "expect X should be Y" cannot be mixed up.
+ * The checks are named should_... because `is` is a word of the language itself.)
  */
 
-/** a number to check: expect(n).to_be(...) */
+/** a number to check: expect(n).should_be(...) */
 def expect(value: decimal) : number_check {
     return new number_check(value);
 }
 
-/** a text to check: expect(s).to_be(...) */
+/** a text to check: expect(s).should_be(...) */
 def expect(value: string) : text_check {
     return new text_check(value);
 }
@@ -98,32 +98,32 @@ stable class number_check {
         throw new test_failure(words + "expected " + expected + "\nbut was  " + value);
     }
 
-    def to_be(wanted: decimal) {
+    def should_be(wanted: decimal) {
         if(value != wanted) { miss("" + wanted); }
     }
 
-    def not_to_be(unwanted: decimal) {
+    def should_not_be(unwanted: decimal) {
         if(value == unwanted) { miss("anything but " + unwanted); }
     }
 
-    def to_be_above(limit: decimal) {
+    def should_be_above(limit: decimal) {
         if(!(value > limit)) { miss("more than " + limit); }
     }
 
-    def to_be_below(limit: decimal) {
+    def should_be_below(limit: decimal) {
         if(!(value < limit)) { miss("less than " + limit); }
     }
 
-    def to_be_at_least(limit: decimal) {
+    def should_be_at_least(limit: decimal) {
         if(value < limit) { miss("at least " + limit); }
     }
 
-    def to_be_at_most(limit: decimal) {
+    def should_be_at_most(limit: decimal) {
         if(value > limit) { miss("at most " + limit); }
     }
 
     /** from `low` to `high`, both included */
-    def to_be_between(low: decimal, high: decimal) {
+    def should_be_between(low: decimal, high: decimal) {
         if(value < low || value > high) { miss("between " + low + " and " + high); }
     }
 
@@ -131,7 +131,7 @@ stable class number_check {
      * Equal, give or take `slack`. For numbers that came out of arithmetic
      * with fractions: 0.1 + 0.2 is not exactly 0.3 on any computer.
      */
-    def to_be_near(wanted: decimal, slack: decimal) {
+    def should_be_near(wanted: decimal, slack: decimal) {
         off : decimal = value - wanted;
         if(off < 0) { off = 0 - off; }
         if(off > slack) { miss("" + wanted + " (give or take " + slack + ")"); }
@@ -159,28 +159,28 @@ stable class text_check {
         throw new test_failure(words + "expected " + expected + "\nbut was  \"" + value + "\"");
     }
 
-    def to_be(wanted: string) {
+    def should_be(wanted: string) {
         if(value != wanted) { miss("\"" + wanted + "\""); }
     }
 
-    def not_to_be(unwanted: string) {
+    def should_not_be(unwanted: string) {
         if(value == unwanted) { miss("anything but \"" + unwanted + "\""); }
     }
 
-    def to_be_empty() {
+    def should_be_empty() {
         if(value.size().value != 0) { miss("an empty text"); }
     }
 
-    def not_to_be_empty() {
+    def should_not_be_empty() {
         if(value.size().value == 0) { miss("a text with something in it"); }
     }
 
     /** `piece` must appear somewhere in the text */
-    def to_contain(piece: string) {
+    def should_contain(piece: string) {
         if(find(piece) < 0) { miss("a text containing \"" + piece + "\""); }
     }
 
-    def to_start_with(piece: string) {
+    def should_start_with(piece: string) {
         if(find(piece) != 0) { miss("a text starting with \"" + piece + "\""); }
     }
 

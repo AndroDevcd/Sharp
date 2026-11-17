@@ -11,14 +11,14 @@ import ( std.di )
  *          tests("a shopping basket") {
  *              test("a new basket is empty") {
  *                  b := basket();
- *                  expect(b.count()).to_be(0);
+ *                  expect(b.count()).should_be(0);
  *              };
  *
  *              test("adding an item puts it in the basket") {
  *                  b := basket();
  *                  b.add("milk");
- *                  expect(b.count()).to_be(1);
- *                  expect(b.at(0)).to_be("milk");
+ *                  expect(b.count()).should_be(1);
+ *                  expect(b.at(0)).should_be("milk");
  *              };
  *
  *              test("taking from an empty basket is refused") {
@@ -34,7 +34,7 @@ import ( std.di )
  *
  *      tests(name) { ... }         a group of tests that belong together
  *      test(name) { ... }          one test: one thing the code should do, said as a sentence
- *      expect(value).to_be(...)       a check. When it does not hold, the test fails THERE and the
+ *      expect(value).should_be(...)       a check. When it does not hold, the test fails THERE and the
  *                                  rest of that test is skipped (expect.sharp lists the checks)
  *      expect_throws<e>() { ... }    the block must throw an exception of class e
  *      provide<t>() { ... }        for this test, the program gets this object wherever it asks for a t
@@ -200,7 +200,9 @@ stable class test_run {
         for(i : _int64 = 0; i <= length; i++) {
             if(i == length || text.at(i).value == 10) {
                 step : string = part(text, start, i);
-                if(holds(step, "Source \"") == 1 && holds(step, "/std/") == 0 && holds(step, "/platform/") == 0) {
+                // (not the library's own files, and not a class the compiler wrote for mock<...>())
+                if(holds(step, "Source \"") == 1 && holds(step, "/std/") == 0 && holds(step, "/platform/") == 0
+                   && holds(step, "Source \"mock<") == 0) {
                     found = step;               // later steps are deeper: keep the last one of the program's own
                 }
                 start = i + 1;

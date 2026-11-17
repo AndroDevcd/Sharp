@@ -74,7 +74,8 @@ def parse_file_unit(path: string) : source_unit {
             text = "";
         }
 
-        unit.text = text!!;
+        // `mock<T>()` is a built-in that writes a class: here it becomes `new mock_of_T()` (mocks.sharp)
+        unit.text = expand_mock_calls(text!!);
         characters : _int8[]? = unit.text.data;
         if(characters == null) {
             characters = new _int8[0];

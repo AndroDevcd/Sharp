@@ -18,16 +18,16 @@ def main() {
         before_each { made = made + 1; };
 
         test("a number that is wrong") {
-            expect(half(10)).to_be(6);
+            expect(half(10)).should_be(6);
         };
 
         test("a text that is wrong, with words of your own") {
             name : string = "Ada";
-            expect(name).named("the name on the badge").to_be("Grace");
+            expect(name).named("the name on the badge").should_be("Grace");
         };
 
         test("a text that should contain something") {
-            expect("file not found").to_contain("permission");
+            expect("file not found").should_contain("permission");
         };
 
         test("an exception nobody expected") {
@@ -46,8 +46,8 @@ def main() {
         };
 
         test("this one passes, and before_each ran before every test") {
-            expect(made).to_be(7);
-            expect(half(0.3) + half(0.3)).to_be_near(0.3, 0.0001);
+            expect(made).should_be(7);
+            expect(half(0.3) + half(0.3)).should_be_near(0.3, 0.0001);
         };
     };
 
