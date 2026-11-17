@@ -24,7 +24,7 @@ cd "$ROOT" || exit 1
 FLAGS="-std=c++17 -O3 -w -pthread -DASMJIT_STATIC -D__USE_MINGW_ANSI_STDIO=1 $*"
 echo "$FLAGS" > "$OUT/flags.new"
 if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/flags.new" "$OUT/flags.txt"; fi
-ls main.cpp lib/runtime/error/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
+ls main.cpp lib/runtime/error/*.cpp lib/runtime/interrupts/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
    lib/runtime/sni/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
    lib/runtime/jit/arm/*.cpp lib/runtime/jit/arm/opcode/*.cpp lib/runtime/jit/arm/sections/*.cpp \
    lib/runtime/jit/x64/*.cpp lib/runtime/jit/x64/opcode/*.cpp lib/runtime/jit/x64/sections/*.cpp \

@@ -1,0 +1,184 @@
+mod app;
+
+import (
+    std.testing,
+    std.di
+)
+
+/**
+ * TESTS WITH STAND-INS - a program whose edges (the clock, the place tasks
+ * are stored) are asked for instead of built, so a test can put its own in.
+ *
+ * THE PATTERN
+ *
+ *   1. the edge is an INTERFACE                             clock, task_store
+ *   2. the real one is a class that implements it           system_clock, file_store
+ *   3. the component gives it out through replaceable<...>  component app { ... }
+ *   4. the logic asks for it with `inject`                  class planner
+ *   5. a test provides a stand-in                           provide<clock>() { ... }
+ *
+ * The logic (planner) never names system_clock or file_store. That is the
+ * whole trick: what you do not build yourself, someone else can swap.
+ */
+
+// ============================================================================ the edges
+
+interface clock {
+    def now() : string;
+}
+
+interface task_store {
+    def read_all() : list<string>;
+    def save(title: string);
+}
+
+// ---- the real ones (what the program runs with)
+
+class system_clock : clock {
+    override def now() : string { return "the real time"; }
+}
+
+class file_store : task_store {
+    override def read_all() : list<string> { return new list<string>(); }      // (would read a file)
+    override def save(title: string) { }                                       // (would write one)
+}
+
+component app {
+    factory { replaceable<clock>() { return system_clock(); } }
+    factory { replaceable_single<task_store>() { return file_store(); } }
+}
+
+// ============================================================================ the logic under test
+
+class planner {
+    inject time : clock;
+    inject store : task_store;
+
+    tasks : list<string> = new list<string>();
+
+    def load() {
+        found : list<string> = store.read_all();
+        for(i : _int64 = 0; i < found.size().value; i++) {
+            tasks.add(found.at(i));
+        }
+    }
+
+    /** add a task - unless its title is empty; gives 1 when it was added */
+    def add(title: string) : _int64 {
+        if(title.size().value == 0) {
+            return 0;
+        }
+        tasks.add(title);
+        store.save(title);
+        return 1;
+    }
+
+    def headline() : string {
+        return "" + tasks.size().value + " tasks at " + time.now();
+    }
+}
+
+// ============================================================================ the stand-ins
+
+/** a FAKE: a small working clock that always says the same thing */
+class fixed_clock : clock {
+    private says : string = "";
+    fixed_clock(words: string) { says = words; }
+    override def now() : string { return says; }
+}
+
+/** a MOCK: it remembers how it was used, and gives back what the test set up */
+class mock_store base mock : task_store {
+    override def read_all() : list<string> { return (answer("read_all") as list<string>); }
+    override def save(title: string)       { called("save", title); }
+}
+
+def two_tasks() : list<string> {
+    made := new list<string>();
+    made.add("Buy milk");
+    made.add("Call the bank");
+    return made;
+}
+
+// ============================================================================ the tests
+
+def main() {
+    tests("a planner, with stand-ins for its edges") {
+        test("the headline uses the clock it was given") {
+            provide<clock>() { return fixed_clock("09:30"); };
+            provide<task_store>() { return mock_store().given("read_all", two_tasks()) as mock_store; };
+
+            p := planner();
+            p.load();
+            expect(p.headline()).to_be("2 tasks at 09:30");
+        };
+
+        test("load reads the store exactly once") {
+            store := mock_store();
+            store.given("read_all", two_tasks());
+            provide<task_store>() { return store; };
+
+            p := planner();
+            p.load();
+
+            verify(store, "read_all").once();
+            verify(store, "save").never();
+            expect(p.tasks.size().value).to_be(2);
+        };
+
+        test("adding a task saves it") {
+            store := mock_store();
+            provide<task_store>() { return store; };
+
+            p := planner();
+            expect(p.add("Water the plants")).to_be(1);
+
+            verify(store, "save").once();
+            expect(store.last_argument("save") as string).to_be("Water the plants");
+        };
+
+        test("an empty title is not added and not saved") {
+            store := mock_store();
+            provide<task_store>() { return store; };
+
+            p := planner();
+            expect(p.add("")).to_be(0);
+            verify(store, "save").never();
+        };
+
+        test("without provide, the program's own clock is used: stand-ins end with their test") {
+            p := planner();
+            expect(p.headline()).to_contain("the real time");
+        };
+    };
+
+    tests("what a mock says when it is used wrongly") {
+        test("an answer nobody set up fails the test, naming the function") {
+            store := mock_store();
+            said : string = "";
+            try {
+                store.read_all();
+            } catch(e: test_failure) {
+                said = e.get_message();
+            }
+            expect(said).to_contain("no answer was set up");
+            expect(said).to_contain("read_all");
+        };
+
+        test("a verify that does not hold shows what the mock was asked") {
+            store := mock_store();
+            store.save("a");
+            store.save("b");
+            said : string = "";
+            try {
+                verify(store, "save").once();
+            } catch(e: test_failure) {
+                said = e.get_message();
+            }
+            expect(said).to_contain("called 2 time(s)");
+            expect(said).to_contain("save, save");
+        };
+    };
+
+    finish_tests();
+}

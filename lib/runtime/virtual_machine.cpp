@@ -829,7 +829,7 @@ void main_vm_loop(sharp_function *frame)
                 branch_for(2)
             DPUT:
                 TC(TC_REG_DEC(single_arg))
-                cout << regs[single_arg].d;
+                cout << natural_number(regs[single_arg].d);     // one way to write a number, everywhere (console_helper.cpp)
                 branch
             I2D:    // integer -> decimal (nothing to do while both are stored as doubles)
                 TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_dec;)

@@ -1,0 +1,368 @@
+mod std.testing;
+
+import ( std.di )
+
+/**
+ * TESTING - small programs that check that your code does what you meant.
+ *
+ *      import ( std.testing )
+ *
+ *      def main() {
+ *          tests("a shopping basket") {
+ *              test("a new basket is empty") {
+ *                  b := basket();
+ *                  expect(b.count()).to_be(0);
+ *              };
+ *
+ *              test("adding an item puts it in the basket") {
+ *                  b := basket();
+ *                  b.add("milk");
+ *                  expect(b.count()).to_be(1);
+ *                  expect(b.at(0)).to_be("milk");
+ *              };
+ *
+ *              test("taking from an empty basket is refused") {
+ *                  b := basket();
+ *                  expect_throws<illegal_state_exception>() { b.take(); };
+ *              };
+ *          };
+ *
+ *          finish_tests();
+ *      }
+ *
+ * THE WORDS
+ *
+ *      tests(name) { ... }         a group of tests that belong together
+ *      test(name) { ... }          one test: one thing the code should do, said as a sentence
+ *      expect(value).to_be(...)       a check. When it does not hold, the test fails THERE and the
+ *                                  rest of that test is skipped (expect.sharp lists the checks)
+ *      expect_throws<e>() { ... }    the block must throw an exception of class e
+ *      provide<t>() { ... }        for this test, the program gets this object wherever it asks for a t
+ *      mock, verify(...)           a stand-in that remembers how it was used (both: mock.sharp)
+ *      before_each { ... }         run before every test of the group (make what each test needs)
+ *      after_each { ... }          run after every test of the group, also when it failed (clean up)
+ *      finish_tests()              print the summary and end the program: exit code 0 when every
+ *                                  test passed, 1 when any failed (so a build script can tell)
+ *
+ * ONE TEST, ONE THING. Each test builds what it needs from scratch, does one
+ * thing, and checks the result. Tests do not share objects and do not depend
+ * on the order they run in - then a failing test points at exactly one thing.
+ *
+ * WHAT A FAILURE LOOKS LIKE
+ *
+ *      a shopping basket
+ *        ok    a new basket is empty
+ *        FAIL  adding an item puts it in the basket
+ *              expected 1
+ *              but was  2
+ *
+ *      1 failed, 1 passed (2 tests)
+ *
+ * A test also fails when something in it throws an exception it did not
+ * expect; the report then says which exception, its message, and where it
+ * was thrown.
+ *
+ * (JUnit: @Test, assertEquals, assertThrows, @BeforeEach. Kotest and Jest:
+ * describe / it / expect - whose shape this follows.)
+ *
+ * HOW IT WORKS: tests(...) runs its block straight away; every test(...) in it
+ * runs straight away too, inside a try. A check that does not hold throws a
+ * test_failure; test(...) catches it (and anything else thrown) and writes the
+ * failure down. Nothing is collected first and run later - what you read from
+ * top to bottom is what happens.
+ */
+stable class test_run {
+    private static group_name : string = "";
+    private static inside_group : _int64 = 0;
+    private static inside_test : _int64 = 0;
+
+    private static passed : _int64 = 0;
+    private static failed : _int64 = 0;
+    private static failures : list<string> = new list<string>();        // "group > test" of every test that failed
+
+    private static before : list<test_step> = new list<test_step>();   // the open group's before_each blocks
+    private static after : list<test_step> = new list<test_step>();
+
+    // ------------------------------------------------------------ groups
+
+    static def group(name: string, body: ()()) {
+        if(inside_group == 1) {
+            throw new illegal_state_exception("`tests(\"" + name + "\") { ... }` was written inside another `tests { ... }`: groups do not nest - write them one after the other");
+        }
+        group_name = new string(name);
+        inside_group = 1;
+        before.clear();
+        after.clear();
+
+        println("");
+        println(name);
+        body();
+
+        inside_group = 0;
+        before.clear();
+        after.clear();
+    }
+
+    static def add_before(step: ()()) {
+        must_be_in_group("before_each { ... }");
+        before.add(new test_step(step));
+    }
+
+    static def add_after(step: ()()) {
+        must_be_in_group("after_each { ... }");
+        after.add(new test_step(step));
+    }
+
+    private static def must_be_in_group(written: string) {
+        if(inside_group == 0) {
+            throw new illegal_state_exception("`" + written + "` only works inside `tests(\"...\") { ... }`");
+        }
+        if(inside_test == 1) {
+            throw new illegal_state_exception("`" + written + "` was written inside a `test { ... }`: put it in the group, next to the tests");
+        }
+    }
+
+    /** is a test running right now? */
+    static def in_a_test() : _int64 {
+        return inside_test;
+    }
+
+    // ------------------------------------------------------------ one test
+
+    static def one(name: string, body: ()()) {
+        must_be_in_group("test(\"" + name + "\") { ... }");
+        inside_test = 1;
+        problem : string = "";
+        went_wrong : _int64 = 0;
+
+        // the group's preparation, the test itself, the group's clean-up: the
+        // clean-up runs whatever happened before it
+        try {
+            for(i : _int64 = 0; i < before.size().value; i++) {
+                before.at(i).run();
+            }
+            body();
+        } catch(failure: test_failure) {
+            went_wrong = 1;
+            problem = failure.get_message() + place_of(failure);
+        } catch(other: throwable) {
+            went_wrong = 1;
+            problem = unexpected(other);
+        }
+        try {
+            for(i : _int64 = 0; i < after.size().value; i++) {
+                after.at(i).run();
+            }
+        } catch(late: throwable) {
+            if(went_wrong == 0) {
+                went_wrong = 1;
+                problem = "the test itself passed, but after_each threw:\n" + unexpected(late);
+            }
+        }
+        inside_test = 0;
+        replacements.clear();                   // the stand-ins a test provided end with it (mock.sharp)
+
+        if(went_wrong == 0) {
+            passed = passed + 1;
+            println("  ok    " + name);
+        } else {
+            failed = failed + 1;
+            failures.add(group_name + " > " + name);
+            println("  FAIL  " + name);
+            print_indented(problem);
+        }
+    }
+
+    /** an exception the test did not ask for, as words: what it said, and where in YOUR code it came from */
+    private static def unexpected(thrown: throwable) : string {
+        return "an exception nobody expected was thrown:\n" + thrown.get_message() + place_of(thrown);
+    }
+
+    /**
+     * Where something was thrown, as one line: "at <file>, line <n>".
+     *
+     * An exception remembers the whole trail of calls that led to it - mostly
+     * lines of the standard library and of this framework, which are not where
+     * the mistake is. The deepest step of the trail that is in the PROGRAM's
+     * own file is the line of the test (or of the code under test) to look at.
+     * "" when the trail is not known.
+     */
+    private static def place_of(thrown: throwable) : string {
+        trail : string? = thrown.stack_trace;
+        if(trail == null) {
+            return "";
+        }
+        text : string = trail!!;
+        found : string = "";
+
+        start : _int64 = 0;
+        length : _int64 = text.size().value;
+        for(i : _int64 = 0; i <= length; i++) {
+            if(i == length || text.at(i).value == 10) {
+                step : string = part(text, start, i);
+                if(holds(step, "Source \"") == 1 && holds(step, "/std/") == 0 && holds(step, "/platform/") == 0) {
+                    found = step;               // later steps are deeper: keep the last one of the program's own
+                }
+                start = i + 1;
+            }
+        }
+        if(found.size().value == 0) {
+            return "";
+        }
+
+        // the step reads:  Source "<file>", line <n>, in <function> ...
+        from : _int64 = index_of(found, "Source \"") + 8;
+        to : _int64 = from;
+        while(to < found.size().value && found.at(to).value != 34) { to = to + 1; }      // up to the closing quote
+        file_name : string = part(found, from, to);
+
+        line_at : _int64 = index_of(found, ", line ");
+        if(line_at < 0) {
+            return "\nat " + file_name;
+        }
+        number_from : _int64 = line_at + 7;
+        number_to : _int64 = number_from;
+        while(number_to < found.size().value && found.at(number_to).value >= 48 && found.at(number_to).value <= 57) { number_to = number_to + 1; }
+        return "\nat " + file_name + ", line " + part(found, number_from, number_to);
+    }
+
+    /** where `piece` first appears in `words`, or -1 */
+    private static def index_of(words: string, piece: string) : _int64 {
+        length : _int64 = words.size().value;
+        wide : _int64 = piece.size().value;
+        for(at : _int64 = 0; at + wide <= length; at++) {
+            same : _int64 = 1;
+            for(i : _int64 = 0; i < wide && same == 1; i++) {
+                if(words.at(at + i).value != piece.at(i).value) { same = 0; }
+            }
+            if(same == 1) { return at; }
+        }
+        return 0 - 1;
+    }
+
+    private static def holds(words: string, piece: string) : _int64 {
+        if(index_of(words, piece) >= 0) { return 1; }
+        return 0;
+    }
+
+    /** print several lines, each moved in under the test's name */
+    private static def print_indented(words: string) {
+        start : _int64 = 0;
+        length : _int64 = words.size().value;
+        for(i : _int64 = 0; i < length; i++) {
+            if(words.at(i).value == 10) {
+                println("        " + part(words, start, i));
+                start = i + 1;
+            }
+        }
+        if(start < length) {
+            println("        " + part(words, start, length));
+        }
+    }
+
+    private static def part(words: string, from: _int64, to: _int64) : string {
+        if(to <= from) { return ""; }
+        return words.substring(from, to);
+    }
+
+    // ------------------------------------------------------------ the end
+
+    /** print the summary. Gives how many tests failed. */
+    static def summary() : _int64 {
+        println("");
+        if(failed > 0) {
+            println("failed:");
+            for(i : _int64 = 0; i < failures.size().value; i++) {
+                println("  " + failures.at(i));
+            }
+            println("");
+            println("" + failed + " failed, " + passed + " passed (" + (failed + passed) + " tests)");
+        } else if(passed == 0) {
+            println("no tests were run");
+        } else {
+            println("all " + passed + " tests passed");
+        }
+        return failed;
+    }
+}
+
+/** a block of before_each / after_each, wrapped so it can be kept in a list */
+local stable class test_step {
+    private action : ()();
+
+    test_step(what: ()()) {
+        action = what;
+    }
+
+    def run() {
+        action();
+    }
+}
+
+/** thrown by a check that does not hold; its message is what the report shows */
+stable class test_failure base exception {
+    test_failure(message: string) -> base(message) {}
+}
+
+// ============================================================================ the words
+
+/** a group of tests that belong together */
+def tests(name: string, body: ()()) {
+    test_run.group(name, body);
+}
+
+/** one test: one thing the code should do, said as a sentence */
+def test(name: string, body: ()()) {
+    test_run.one(name, body);
+}
+
+/** run this before every test of the group */
+def before_each(step: ()()) {
+    test_run.add_before(step);
+}
+
+/** run this after every test of the group, also when the test failed */
+def after_each(step: ()()) {
+    test_run.add_after(step);
+}
+
+/**
+ * Print the summary and end the program: exit code 0 when every test passed,
+ * 1 when any failed. The last line of a test program's main.
+ */
+def finish_tests() {
+    if(test_run.summary() > 0) {
+        exit(new int(1));
+    }
+    exit(new int(0));
+}
+
+/** fail the test here, with your own words (for a check none of the expect forms can say) */
+def fail_test(why: string) {
+    throw new test_failure(why);
+}
+
+/**
+ * The block must throw an exception of class e; if it throws nothing, or
+ * something else, the test fails.
+ *
+ *      expect_throws<illegal_state_exception>() { basket.take(); };
+ */
+def expect_throws<e>(body: ()()) {
+    threw : _int64 = 0;
+    wrong_kind : string = "";
+    try {
+        body();
+    } catch(thrown: throwable) {
+        threw = 1;
+        if(!(thrown is e)) {
+            wrong_kind = thrown.get_message();
+        }
+    }
+    if(threw == 0) {
+        throw new test_failure("expected the block to throw an exception\nbut it threw nothing");
+    }
+    if(wrong_kind.size().value > 0) {
+        throw new test_failure("expected the block to throw a different kind of exception\nbut it threw one that said: " + wrong_kind);
+    }
+}

@@ -64,7 +64,7 @@ echo "$CXX $FLAGS" > "$OUT/flags.new"
 if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/flags.new" "$OUT/flags.txt"; fi
 
 {
-  ls main.cpp lib/runtime/*.cpp lib/runtime/error/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
+  ls main.cpp lib/runtime/*.cpp lib/runtime/error/*.cpp lib/runtime/interrupts/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
      lib/runtime/sni/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
      lib/runtime/telemetry/*.cpp lib/core/*.cpp lib/core/opcode/*.cpp lib/util/*.cpp lib/util/zip/*.cpp \
      lib/Modules/math/*.cpp lib/Modules/std/*.cpp lib/Modules/std.io/*.cpp

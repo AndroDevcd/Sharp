@@ -1013,8 +1013,14 @@ class double base number<decimal, double> {
     init(initial_val : _uint32)  -> base(initial_val) { }
     init(initial_val : _uint64)  -> base(initial_val) { }
 
+    /**
+     * The number as text, the way a person would write it: 5, 0.25, 0.1 -
+     * the fewest digits that read back as exactly the same number. (Until
+     * 0.6.0 this printed 16 places after the point: 5.0000000000000000.)
+     * For a fixed number of places use the formatting functions.
+     */
     override def to_string() : string? {
-        return snprintf('f', value, 16);
+        return snprintf('n', value, 0);
     }
 }
 

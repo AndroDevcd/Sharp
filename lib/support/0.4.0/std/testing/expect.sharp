@@ -1,0 +1,200 @@
+mod std.testing;
+
+/**
+ * EXPECT - the checks a test makes.
+ *
+ *      expect(basket.count()).to_be(3);                   // numbers
+ *      expect(price).to_be_near(9.99, 0.001);
+ *      expect(basket.count()).to_be_above(0);
+ *
+ *      expect(user.name).to_be("Ada");                    // text
+ *      expect(message).to_contain("not found");
+ *
+ *      expect_true(basket.is_empty());                 // yes / no (also 1 / 0)
+ *      expect_false(list.contains(gone));
+ *
+ *      expect_same(a, b);                              // the very same object
+ *      expect_null(found);
+ *      expect_not_null(found);
+ *
+ * expect(...) gives back an object that knows the value; the function called
+ * on it says what the value should be. When it is not, the check throws a
+ * test_failure whose message has both sides:
+ *
+ *      expected 3
+ *      but was  2
+ *
+ * and the test stops there. Add words of your own with .named(...), for when
+ * the numbers alone would not say what was being checked:
+ *
+ *      expect(basket.count()).named("items after the second add").to_be(2);
+ *
+ * (JUnit: assertEquals(expected, actual) - where which side is which is a
+ * classic mix-up. Reading left to right, "expect X to be Y" cannot be mixed up.
+ * The checks are named to_be... because `is` is a word of the language itself.)
+ */
+
+/** a number to check: expect(n).to_be(...) */
+def expect(value: decimal) : number_check {
+    return new number_check(value);
+}
+
+/** a text to check: expect(s).to_be(...) */
+def expect(value: string) : text_check {
+    return new text_check(value);
+}
+
+/** the condition must hold (true, or any number that is not 0) */
+def expect_true(condition: decimal) {
+    if(condition == 0) {
+        throw new test_failure("expected true (or a number that is not 0)\nbut was  false (0)");
+    }
+}
+
+/** the condition must not hold (false, or 0) */
+def expect_false(condition: decimal) {
+    if(condition != 0) {
+        throw new test_failure("expected false (0)\nbut was  true (" + condition + ")");
+    }
+}
+
+/** both must be the very same object (not just two objects that look alike) */
+def expect_same(first: object?, second: object?) {
+    if(first != second) {
+        throw new test_failure("expected both to be the same object\nbut they are two different objects");
+    }
+}
+
+def expect_null(value: object?) {
+    if(value != null) {
+        throw new test_failure("expected null\nbut there was an object");
+    }
+}
+
+def expect_not_null(value: object?) {
+    if(value == null) {
+        throw new test_failure("expected an object\nbut was  null");
+    }
+}
+
+/** what expect(number) gives back */
+stable class number_check {
+    private value : decimal;
+    private about : string = "";
+
+    number_check(actual: decimal) {
+        value = actual;
+    }
+
+    /** words of your own, shown in front of a failure: what was being checked */
+    def named(what: string) : number_check {
+        about = what;
+        return self;
+    }
+
+    private def miss(expected: string) {
+        words : string = "";
+        if(about.size().value > 0) { words = about + "\n"; }
+        throw new test_failure(words + "expected " + expected + "\nbut was  " + value);
+    }
+
+    def to_be(wanted: decimal) {
+        if(value != wanted) { miss("" + wanted); }
+    }
+
+    def not_to_be(unwanted: decimal) {
+        if(value == unwanted) { miss("anything but " + unwanted); }
+    }
+
+    def to_be_above(limit: decimal) {
+        if(!(value > limit)) { miss("more than " + limit); }
+    }
+
+    def to_be_below(limit: decimal) {
+        if(!(value < limit)) { miss("less than " + limit); }
+    }
+
+    def to_be_at_least(limit: decimal) {
+        if(value < limit) { miss("at least " + limit); }
+    }
+
+    def to_be_at_most(limit: decimal) {
+        if(value > limit) { miss("at most " + limit); }
+    }
+
+    /** from `low` to `high`, both included */
+    def to_be_between(low: decimal, high: decimal) {
+        if(value < low || value > high) { miss("between " + low + " and " + high); }
+    }
+
+    /**
+     * Equal, give or take `slack`. For numbers that came out of arithmetic
+     * with fractions: 0.1 + 0.2 is not exactly 0.3 on any computer.
+     */
+    def to_be_near(wanted: decimal, slack: decimal) {
+        off : decimal = value - wanted;
+        if(off < 0) { off = 0 - off; }
+        if(off > slack) { miss("" + wanted + " (give or take " + slack + ")"); }
+    }
+}
+
+/** what expect(text) gives back */
+stable class text_check {
+    private value : string;
+    private about : string = "";
+
+    text_check(actual: string) {
+        value = actual;
+    }
+
+    /** words of your own, shown in front of a failure: what was being checked */
+    def named(what: string) : text_check {
+        about = what;
+        return self;
+    }
+
+    private def miss(expected: string) {
+        words : string = "";
+        if(about.size().value > 0) { words = about + "\n"; }
+        throw new test_failure(words + "expected " + expected + "\nbut was  \"" + value + "\"");
+    }
+
+    def to_be(wanted: string) {
+        if(value != wanted) { miss("\"" + wanted + "\""); }
+    }
+
+    def not_to_be(unwanted: string) {
+        if(value == unwanted) { miss("anything but \"" + unwanted + "\""); }
+    }
+
+    def to_be_empty() {
+        if(value.size().value != 0) { miss("an empty text"); }
+    }
+
+    def not_to_be_empty() {
+        if(value.size().value == 0) { miss("a text with something in it"); }
+    }
+
+    /** `piece` must appear somewhere in the text */
+    def to_contain(piece: string) {
+        if(find(piece) < 0) { miss("a text containing \"" + piece + "\""); }
+    }
+
+    def to_start_with(piece: string) {
+        if(find(piece) != 0) { miss("a text starting with \"" + piece + "\""); }
+    }
+
+    /** where `piece` first appears in the text, or -1 */
+    private def find(piece: string) : decimal {
+        length : decimal = value.size().value;
+        wide : decimal = piece.size().value;
+        for(at : decimal = 0; at + wide <= length; at++) {
+            same : decimal = 1;
+            for(i : decimal = 0; i < wide && same == 1; i++) {
+                if(value.at(at + i).value != piece.at(i).value) { same = 0; }
+            }
+            if(same == 1) { return at; }
+        }
+        return 0 - 1;
+    }
+}

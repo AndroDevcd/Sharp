@@ -5,6 +5,7 @@
 // flag".
 //
 
+#include "../console_helper.h"
 #include "jit_runtime.h"
 #include "jit_compiler.h"
 #include "../virtual_machine.h"
@@ -253,7 +254,7 @@ void jit_rt_put_integer(Int value) {
 }
 
 void jit_rt_put_decimal(double value) {
-    cout << value;
+    cout << natural_number(value);      // the same text the interpreter's DPUT prints (console_helper.cpp)
 }
 
 void jit_rt_put_character(Int value) {

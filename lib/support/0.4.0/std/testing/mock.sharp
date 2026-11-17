@@ -1,0 +1,241 @@
+mod std.testing;
+
+import ( std.di )
+
+/**
+ * STAND-INS FOR A TEST: provide, and mock.
+ *
+ * ------------------------------------------------------------------------
+ * provide<t>() { ... }     use this object wherever the program asks for a t
+ * ------------------------------------------------------------------------
+ *
+ *      test("the greeting has the time in it") {
+ *          provide<clock>() { return fixed_clock("09:30"); };
+ *          expect(greeter().greet()).to_be("It is 09:30");
+ *      };
+ *
+ * It works for definitions written with replaceable<t>() (std.di). The
+ * stand-in is in place until the test ends - every test starts with none.
+ *
+ * ------------------------------------------------------------------------
+ * mock                     a stand-in that remembers how it was used
+ * ------------------------------------------------------------------------
+ *
+ * A mock is a class YOU write, in a few lines, on top of `mock`: each of its
+ * functions says "I was called" and, when it has something to give back,
+ * gives the answer the test set up.
+ *
+ *      interface task_store {
+ *          def read_all() : list<task>;
+ *          def save(t: task);
+ *      }
+ *
+ *      class mock_store base mock : task_store {
+ *          override def read_all() : list<task> { return (answer("read_all") as list<task>); }
+ *          override def save(t: task)           { called("save", t); }
+ *      }
+ *
+ * and in a test:
+ *
+ *      store := mock_store();
+ *      store.given("read_all", two_tasks());           // what read_all() gives back
+ *      provide<task_store>() { return store; };
+ *
+ *      model := tasks_model();
+ *      model.load();
+ *      model.add("Buy milk");
+ *
+ *      verify(store, "read_all").once();               // was it used the way it should be?
+ *      verify(store, "save").times(1);
+ *      verify(store, "delete").never();
+ *      expect_same(store.last_argument("save"), model.tasks.at(2));
+ *
+ * WHY YOU WRITE THE CLASS. Mockito and MockK make such a class for you, from
+ * the interface, while the program runs. Sharp has no way to make a class at
+ * run time, so the few lines are written by hand - one line per function.
+ * (Generating them is a job for the compiler one day; these words are chosen
+ * so that tests written today will not need changing then.)
+ *
+ * A mock answers; it does not think. If a stand-in needs behaviour of its own
+ * - a store that really keeps what it is given - write a small FAKE instead:
+ * an ordinary class with a list in it. Mocks are for checking that something
+ * was called; fakes are for standing in for something that works.
+ */
+class mock {
+    private calls : list<mock_call> = new list<mock_call>();
+    private answers : list<mock_answer> = new list<mock_answer>();
+
+    // ------------------------------------------------------------ inside the mock class you write
+
+    /** "this function was called": write it in a function that gives nothing back */
+    def called(function: string) {
+        calls.add(new mock_call(function, null));
+    }
+
+    /** the same, remembering the argument it was called with */
+    def called(function: string, argument: object?) {
+        calls.add(new mock_call(function, argument));
+    }
+
+    /**
+     * "This function was called - what do I give back?": the answer the test
+     * set up with given(...). Cast it to the function's own type:
+     * `return (answer("read_all") as list<task>);`
+     *
+     * A function nobody set an answer for fails the test, saying which one:
+     * a mock that quietly gives null hides the mistake until much later.
+     */
+    def answer(function: string) : object {
+        calls.add(new mock_call(function, null));
+        for(i : _int64 = answers.size().value - 1; i >= 0; i--) {
+            if(answers.at(i).function == function) {
+                return answers.at(i).value;
+            }
+        }
+        throw new test_failure("the mock was asked for `" + function + "` but no answer was set up\nset one first:  the_mock.given(\"" + function + "\", <what it should give back>);");
+    }
+
+    /** the same, remembering the argument */
+    def answer(function: string, argument: object?) : object {
+        found : object = answer(function);
+        calls.at(calls.size().value - 1).argument = argument;
+        return found;
+    }
+
+    // ------------------------------------------------------------ in the test
+
+    /** what `function` gives back from now on (set again to change it) */
+    def given(function: string, value: object) : mock {
+        answers.add(new mock_answer(function, value));
+        return self;
+    }
+
+    /** how many times `function` was called */
+    def times_called(function: string) : _int64 {
+        count : _int64 = 0;
+        for(i : _int64 = 0; i < calls.size().value; i++) {
+            if(calls.at(i).function == function) { count = count + 1; }
+        }
+        return count;
+    }
+
+    /** the argument of the last call of `function` (null when it was never called, or called without one) */
+    def last_argument(function: string) : object? {
+        for(i : _int64 = calls.size().value - 1; i >= 0; i--) {
+            if(calls.at(i).function == function) {
+                return calls.at(i).argument;
+            }
+        }
+        return null;
+    }
+
+    /** the argument of call number `index` of `function` (0 is the first) */
+    def argument_of(function: string, index: _int64) : object? {
+        seen : _int64 = 0;
+        for(i : _int64 = 0; i < calls.size().value; i++) {
+            if(calls.at(i).function == function) {
+                if(seen == index) { return calls.at(i).argument; }
+                seen = seen + 1;
+            }
+        }
+        return null;
+    }
+
+    /** every function that was called, in order: "read_all, save, save" (for a failure message, or to look) */
+    def story() : string {
+        if(calls.size().value == 0) {
+            return "nothing was called";
+        }
+        words : string = "";
+        for(i : _int64 = 0; i < calls.size().value; i++) {
+            if(i > 0) { words = words + ", "; }
+            words = words + calls.at(i).function;
+        }
+        return words;
+    }
+
+    /** forget every call so far (the answers stay): to check only what happens from here on */
+    def forget_calls() {
+        calls.clear();
+    }
+}
+
+/** one remembered call of a mock */
+local stable class mock_call {
+    function : string = "";
+    argument : object?;
+
+    mock_call(name: string, given_argument: object?) {
+        function = new string(name);
+        argument = given_argument;
+    }
+}
+
+/** one answer set up for a mock */
+local stable class mock_answer {
+    function : string = "";
+    value : object;
+
+    mock_answer(name: string, gives: object) {
+        function = new string(name);
+        value = gives;
+    }
+}
+
+/**
+ * What verify(mock, "function") gives back: say how often it should have
+ * been called. A miss fails the test and shows everything the mock WAS
+ * asked, which is usually what explains it.
+ */
+stable class call_check {
+    private target : mock;
+    private function : string = "";
+
+    call_check(on: mock, name: string) {
+        target = on;
+        function = name;
+    }
+
+    private def miss(expected: string) {
+        throw new test_failure("expected `" + function + "` to be called " + expected
+            + "\nbut it was called " + target.times_called(function) + " time(s)"
+            + "\nthe mock was asked: " + target.story());
+    }
+
+    /** exactly this many times */
+    def times(count: _int64) {
+        if(target.times_called(function) != count) { miss("" + count + " time(s)"); }
+    }
+
+    /** exactly once */
+    def once() {
+        if(target.times_called(function) != 1) { miss("once"); }
+    }
+
+    /** not at all */
+    def never() {
+        if(target.times_called(function) != 0) { miss("never"); }
+    }
+
+    /** this many times or more */
+    def at_least(count: _int64) {
+        if(target.times_called(function) < count) { miss("at least " + count + " time(s)"); }
+    }
+}
+
+/** check how `function` of a mock was used: verify(store, "save").once(); */
+def verify(on: mock, function: string) : call_check {
+    return new call_check(on, function);
+}
+
+/**
+ * For the rest of this test, wherever the program asks for a t through a
+ * replaceable<t>() definition (std.di), it gets what the block makes. The
+ * block runs once, now.
+ */
+def provide<t>(make: ()(t)) {
+    if(test_run.in_a_test() == 0) {
+        throw new illegal_state_exception("`provide<...>() { ... }` only works inside a `test(\"...\") { ... }`: a stand-in lasts for one test");
+    }
+    replacements.put(make() as object);
+}
