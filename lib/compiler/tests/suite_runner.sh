@@ -5,7 +5,7 @@
 #   tests/suite_runner.sh
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>  SHARPC=<the C++ compiler>
 #       LIBRARY=<the standard library folder>  SUITE=<the suite folder>  OUT=<a folder to work in>
-#       (defaults: ~/sharp_work/sharp_cl/sharp, ~/sharp_work/out/boot/sharpc_boot,
+#       (defaults: ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/sharpc_cl/sharpc, ~/sharp_work/stdlib, ~/sharp_work/suite,
 #        ~/sharp_work/out/boot/suite_runner)
 #
@@ -39,12 +39,12 @@
 # case, and the runner says so.)
 #
 # Prints one summary line per configuration and exits 1 when any case failed.
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-SHARPC=${SHARPC:-$HOME/sharp_work/sharpc_cl/sharpc}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-SUITE=${SUITE:-$HOME/sharp_work/suite}
-OUT=${OUT:-$HOME/sharp_work/out/boot/suite_runner}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+SHARPC=${SHARPC:-}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+SUITE=${SUITE:-${SHARP_WORK:-$HOME/sharp_work}/suite}
+OUT=${OUT:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/suite_runner}
 mkdir -p "$OUT"
 
 # the compiler under test, as one command the runner can call
@@ -54,6 +54,11 @@ chmod +x "$WRAPPER"
 
 # the judge: the runner, built by the C++ compiler (once more if that compiler dies on a signal,
 # which it does now and then under load)
+# No second compiler (the C++ one is gone since 17 Nov 2026; SHARPC=<another compiler> names one):
+# the compiler under test builds the runner. The runner is a small program that the frontend,
+# backend and driver tests already cover, so a compiler broken enough to build a lying runner
+# fails long before this step.
+[ -x "$SHARPC" ] || SHARPC="$WRAPPER"
 rm -f "$OUT/run_tests"
 (cd "$SUITE" && "$SHARPC" run.sharp -j 1 -o "$OUT/run_tests" -L "$LIBRARY" > "$OUT/runner_compile.txt" 2>&1)
 [ -f "$OUT/run_tests" ] || (cd "$SUITE" && "$SHARPC" run.sharp -j 1 -o "$OUT/run_tests" -L "$LIBRARY" > "$OUT/runner_compile.txt" 2>&1)

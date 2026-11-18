@@ -7,10 +7,10 @@ out
 present/
 mapping.txt
 claude/
-# the release archives ARE kept (releases/sharp-<version>.zip, made by build-scripts/make_release.sh)
+# the release archives ARE kept (releases/sharp-<version>.zip, made by build-scripts/release.sh)
 !/releases/*.zip
 # ... and the archive of the C++ compiler (legacy/sharpc++.zip)
 !/legacy/*.zip
 
-# what build-scripts/build_linux_vm.sh and install_from_source.sh make
+# what the build scripts make inside the repository (build-scripts/README.md)
 /build/

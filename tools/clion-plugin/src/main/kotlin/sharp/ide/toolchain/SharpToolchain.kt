@@ -1,7 +1,7 @@
 /*
  * THE INSTALLED SHARP: where the VM, the compiler and the standard library are on this machine
  *
- * A Sharp release installs into one folder (build-scripts/release in the repository: win-install.cmd,
+ * A Sharp release installs into one folder (build-scripts/internal/zip-contents in the repository: win-install.cmd,
  * unix-install.sh):
  *
  *     <home>/bin/sharp(.exe)                    the VM

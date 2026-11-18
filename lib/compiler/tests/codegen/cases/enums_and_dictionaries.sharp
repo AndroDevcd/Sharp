@@ -8,10 +8,10 @@ import (std.io)
 // other
 // blue green
 // true false
-// size 2.0000000000000000
+// size 2
 // ada 36 alan 41
 // abc
-// 3.0000000000000000
+// 3
 
 /*
  * Enum values used as values (doc/codegen.md 6.2: each is an object in its

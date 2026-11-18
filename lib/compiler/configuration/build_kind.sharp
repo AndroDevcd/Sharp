@@ -31,7 +31,7 @@ import (
  * `debug_compiler` below decides, and it is TRUE in the repository: the
  * compiler built while developing (bootc.sh, the gates, every test script
  * that reads those lines) is the debug one. A release flips it to false for
- * the two standard compilers - build-scripts/build_release_compilers.sh
+ * the two standard compilers - build-scripts/internal/release_compilers.sh
  * rewrites this one line in a copy of the sources. Nothing else differs.
  *
  *      C++ comparison: a -DDEBUG build. Sharp has no conditional compilation,

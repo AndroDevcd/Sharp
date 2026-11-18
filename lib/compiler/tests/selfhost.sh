@@ -16,7 +16,7 @@
 #       SOURCES=<the folder of the bootstrap's sources>   LIBRARY=<the standard library folder>
 #       SUITE=<the suite folder: cases/ and testing.sharp>  OUT=<a folder to work in>
 #       QUICK=1   leave out the suite (part C and check 11, about 12 minutes)
-#       (defaults: ~/sharp_work/sharp_cl/sharp, ~/sharp_work/out/boot/sharpc_boot,
+#       (defaults: ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/src/lib/compiler - the copy bootc.sh built stage 1 from -,
 #        ~/sharp_work/stdlib, ~/sharp_work/suite, ~/sharp_work/out/boot/selfhost)
 #
@@ -53,12 +53,12 @@
 # The time each compiler takes for the self-compile is printed (13.7 keeps the numbers).
 # Prints one line per failure and a summary; exits 1 when anything failed.
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-SOURCES=${SOURCES:-$HOME/sharp_work/src/lib/compiler}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-SUITE=${SUITE:-$HOME/sharp_work/suite}
-OUT=${OUT:-$HOME/sharp_work/out/boot/selfhost}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+SOURCES=${SOURCES:-${SHARP_WORK:-$HOME/sharp_work}/src/lib/compiler}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+SUITE=${SUITE:-${SHARP_WORK:-$HOME/sharp_work}/suite}
+OUT=${OUT:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/selfhost}
 rm -rf "${OUT:?}"
 mkdir -p "$OUT"
 cd "$OUT" || exit 1

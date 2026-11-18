@@ -3,7 +3,7 @@ mod main;
 import (std.io)
 
 // output:
-// n is 42 and sharp, d 2.5000000000000000
+// n is 42 and sharp, d 2.5
 // sum 43!
 // sharpsharp
 // sharp first

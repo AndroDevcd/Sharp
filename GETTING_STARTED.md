@@ -1,43 +1,45 @@
 
 ## Getting Started
 
-This file will aid in getting you started with using sharp.
+#### Installing
 
-#### Downloading
+Download the newest `sharp-<version>.zip` from the [`releases`](releases) folder and unpack it.
+`START-HERE.txt` inside says the same as below.
 
-To download Sharp go to ``releases`` and download the latest release of Sharp. Unpack the folder revealing the contents inside. Sharp is currently supporting 64 bit linux and windows operating systems, below covers how to install sharp on both systems:
+**Windows** - double-click `windows\win-install.cmd` (or run it in a terminal).
 
-#### Installing on Windows
-
-Navigate to the folder ``{YOUR_DIR}\Release-{VERSION}\bin\64bit\win``.  Create the folder ``C:/Program Files/Sharp/bin``.  Place the Sharp binaries in the bin folder. Add following folder to your PATH:
-
-```
-PATH = {OTHER_PATH_DIRS}; C:/Program Files/Sharp/bin/;
-```
-
-Windows Powershell is the preferred method to use sharp but you may use windows CMD as well.
-Next cd into the directory of your sharp build to the folder lib and run the commands below using powershell
+**Linux (64-bit x86)**
 
 ```
-mkdir "C:/Program Files/Sharp/include/"
-cd {SHARP_INSTALL_PATH}/lib/support/0.2.805/
-cp -r * "C:/Program Files/Sharp/include/"
-Sharpc test.sharp -o test -s -R
-Sharp test
+bash linux/unix-install.sh
 ```
 
-After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
-
-#### Installing on linux
-
-Navigate to the folder ``{YOUR_DIR}\Release-{VERSION}\``.  Installing sharp on linux is very simple simply run the command below:
+**Raspberry Pi, or any other Linux** - the VM is built on the machine itself:
 
 ```
-chmod +x linux-install.bash
-./linux-install.bash
+git clone https://github.com/AndroDevcd/Sharp.git
+cd Sharp
+bash build-scripts/linux/install_from_source.sh
 ```
 
-After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
+Then open a NEW terminal and try it:
+
+```
+sharpc hello.sharp -o hello
+sharp hello
+```
+
+(`hello.sharp` is in the `examples` folder of the install.)
+
+#### Building from source
+
+[`build-scripts/README.md`](build-scripts/README.md) explains how to build Sharp, run its tests and
+make a release. The short form, in Linux or WSL:
+
+```
+bash build-scripts/build.sh
+bash build-scripts/test.sh
+```
 
 #### Programming Ideas
 After you install Sharp if you are having trouble coming up with programming ideas then you can head over to the 'examples/' directory to see a list

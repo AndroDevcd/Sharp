@@ -10,7 +10,7 @@
 #   tests/driver.sh
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>
 #       LIBRARY=<the standard library folder>  OUT=<a folder to work in>
-#       (defaults: ~/sharp_work/sharp_cl/sharp, ~/sharp_work/out/boot/sharpc_boot,
+#       (defaults: ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/stdlib, ~/sharp_work/out/boot/driver)
 #
 # What is checked:
@@ -61,10 +61,10 @@
 #      declares it and that it was left out (left_out_modules.sharp)
 #
 # Prints one line per failure and a summary; exits 1 when anything failed.
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-OUT=${OUT:-$HOME/sharp_work/out/boot/driver}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+OUT=${OUT:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/driver}
 WORK="$OUT/work"
 rm -rf "${OUT:?}/work"      # what an earlier run left: a stale file must not pass for a new one
 mkdir -p "$WORK/src" "$WORK/my lib/sub/deeper" "$WORK/my lib/folder.sharp" "$WORK/my lib/.hidden" "$WORK/a" "$WORK/b"

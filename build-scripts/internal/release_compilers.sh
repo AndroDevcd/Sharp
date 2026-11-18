@@ -1,5 +1,10 @@
 #!/bin/bash
-# Builds the two compilers a release ships, by letting the compiler compile itself (WSL / Linux):
+# Builds the three compilers a release ships, by letting the compiler compile itself (WSL / Linux).
+# A PART OF release.sh (its step 3) - it can be run alone, after build.sh: it starts from the compiler
+# that made.
+#
+#     bash build-scripts/internal/release_compilers.sh        about 8 minutes; must end "release compilers: OK"
+#
 #
 #     <OUT>/plain/sharpc     the compiler compiled by itself WITHOUT the optimizer   (sharpc-unoptimized-v<version>)
 #     <OUT>/O/sharpc         the compiler compiled by itself WITH -O                 (sharpc-v<version>)
@@ -10,18 +15,19 @@
 # gets the same messages from both, and a handful of suite cases are written as the same bytes by both,
 # plain and with -O. (The full proof is the gates' self-hosting step; this is the quick form.)
 #
-#     STAGE1   the compiler to start from   (default ~/sharp_work/out/boot/sharpc_boot, built by bootc.sh)
+#     STAGE1   the compiler to start from   (default ~/sharp_work/out/boot/sharpc_boot, built by build.sh)
 #     SOURCES  the bootstrap's sources      (default ~/sharp_work/src/lib/compiler)
 #     LIBRARY  the standard library         (default ~/sharp_work/stdlib)
 #     SHARP    the VM                       (default ~/sharp_work/sharp_dev/sharp)
 #     OUT      (default ~/sharp_work/out/release_build)
-W=$HOME/sharp_work
+source "$(dirname "$0")/common.sh"       # gives REPO and WORK
+W=$WORK
 STAGE1=${STAGE1:-$W/out/boot/sharpc_boot}
 SOURCES=${SOURCES:-$W/src/lib/compiler}
 LIBRARY=${LIBRARY:-$W/stdlib}
 SHARP=${SHARP:-$W/sharp_dev/sharp}
 OUT=${OUT:-$W/out/release_build}
-HERE=$(cd "$(dirname "$0")/.." && pwd)
+HERE="$REPO"
 rm -rf "$OUT"; mkdir -p "$OUT/plain" "$OUT/O" "$OUT/debug" "$OUT/s1" "$OUT/s2"
 # THE STANDARD COMPILER is the sources with one line changed: `debug_compiler` false
 # (lib/compiler/configuration/build_kind.sharp says what that leaves out). The change is made in a copy.

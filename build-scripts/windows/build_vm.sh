@@ -1,16 +1,16 @@
 #!/bin/bash
 # Builds the Sharp VM (sharp.exe) for Windows x64, natively, with a MinGW g++.
 #
-#   bash build-scripts/build_windows_vm.sh            from Git Bash, at the root of the repository
+#   bash build-scripts/windows/build_vm.sh            from Git Bash
 #
 #   MINGW   the folder with g++.exe      (default: the MinGW that ships with CLion)
 #   OUT     where the objects and sharp.exe go   (default: cmake-build-windows-vm, which git ignores)
 #   JOBS    g++ processes at a time      (default 6)
 #
-# The same sources and flags as the Linux build (build.sh / CMakeLists.txt: the `Sharp` target), compiled
+# The same sources and flags as the Linux build (linux/build_vm.sh), compiled
 # file by file so that a second run only compiles what changed. The .exe is linked statically: it needs
 # no MinGW DLL beside it, so it can be copied to a machine that has no compiler.
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 MINGW=${MINGW:-$LOCALAPPDATA/Programs/CLion/bin/mingw/bin}
 OUT=${OUT:-$ROOT/cmake-build-windows-vm}
 JOBS=${JOBS:-6}
@@ -38,5 +38,7 @@ cat "$OUT/files.txt" | xargs -P $JOBS -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" 
 # an object whose source file is no longer in the list (a file that was removed or renamed) must not be linked
 for o in "$OUT"/*.o; do n=$(basename "$o" .o); grep -qxF "$n" <(tr "/ " "__" < "$OUT/files.txt") || rm -f "$o"; done
 echo "objects: $(ls "$OUT"/*.o 2>/dev/null | wc -l) of $(wc -l < "$OUT/files.txt")"
+rm -f "$OUT/sharp.exe"
 g++ -static -o "$OUT/sharp.exe" "$OUT"/*.o -pthread -lm -lpsapi 2>&1 | grep -v warning | head -20
-ls -la "$OUT/sharp.exe" 2>&1 | cut -c1-120
+[ -x "$OUT/sharp.exe" ] || { echo "sharp.exe was not linked: a file above failed to compile (each one's messages: $OUT/<file>.o.err)"; exit 1; }
+echo "built: $OUT/sharp.exe   ($("$OUT/sharp.exe" -V 2>&1 | head -1))"

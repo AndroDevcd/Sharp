@@ -1,9 +1,11 @@
 #!/bin/bash
 # Builds the Sharp VM (`sharp`) on the machine it is run on: a PC, or a Raspberry Pi.
 #
-#     bash build-scripts/build_linux_vm.sh            -> build/linux-vm/sharp
+#     bash build-scripts/linux/build_vm.sh            -> build/linux-vm/sharp
 #
 #     OUT=<folder>      where the object files and `sharp` go        (default: build/linux-vm)
+#     SOURCES=<folder>  compile a COPY of the repository instead of the repository itself (../build.sh does
+#                       this: from WSL, a copy on Linux's own disk compiles many times faster than /mnt/c)
 #     JOBS=<n>          how many files are compiled at once          (default: by cores AND memory, see below)
 #     CXX=<compiler>    the C++ compiler                              (default: g++)
 #     SHARP_NO_JIT=1    build without the machine-code compiler even where there is one
@@ -19,7 +21,7 @@
 #
 # HUNTING A MEMORY BUG (a crash in a place that makes no sense): build a second VM with the address
 # sanitizer, which stops at the first write outside a block and says where it was allocated -
-#     OUT=build/linux-vm-asan LDFLAGS=-fsanitize=address bash build-scripts/build_linux_vm.sh -fsanitize=address -fno-omit-frame-pointer -g -O1
+#     OUT=build/linux-vm-asan LDFLAGS=-fsanitize=address bash build-scripts/linux/build_vm.sh -fsanitize=address -fno-omit-frame-pointer -g -O1
 #
 # The build is incremental: a file is compiled again when it, or ANY header of the VM (lib/runtime, lib/core,
 # lib/Modules, lib/util, stdimports.h), is newer than its object. Change the flags and everything is compiled
@@ -27,8 +29,9 @@
 # includes none of them. (Until 16 Nov 2026 all of lib/util was left alone - so lib/util/File.cpp kept an old
 # layout after a header change, and the VM crashed reading files. A build that mixes old and new objects is
 # worse than a slow one.)
-HERE="$(cd "$(dirname "$0")/.." && pwd)"
-OUT=${OUT:-$HERE/build/linux-vm}; mkdir -p "$OUT"
+REPO="$(cd "$(dirname "$0")/../.." && pwd)"
+HERE="${SOURCES:-$REPO}"
+OUT=${OUT:-$REPO/build/linux-vm}; mkdir -p "$OUT"
 CXX=${CXX:-g++}
 cd "$HERE" || exit 1
 command -v "$CXX" > /dev/null || { echo "no C++ compiler \`$CXX\`:  sudo apt install g++"; exit 1; }

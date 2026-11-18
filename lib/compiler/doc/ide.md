@@ -369,7 +369,7 @@ copies the stub `~/sharp_work/snap_ide` over it), and the gates run
 ### 3.3a The installed Sharp, the program folder, build and run (plugin 0.2.0, 15 Nov 2026)
 
 **The plugin starts the installed Sharp directly.** A release installs into one
-folder (`%LOCALAPPDATA%\Sharp`, `~/.sharp`, or `SHARP_HOME`; build-scripts/release):
+folder (`%LOCALAPPDATA%\Sharp`, `~/.sharp`, or `SHARP_HOME`; build-scripts/internal/zip-contents):
 `bin/sharp(.exe)`, `compiler/sharpc-v<version>`, `lib/`. `sharp.ide.toolchain`
 finds it, takes the newest compiler in it, and the check after a save becomes one
 process with no shell, no WSL and no script:

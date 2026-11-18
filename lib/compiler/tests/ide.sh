@@ -3,7 +3,7 @@
 #
 #   tests/ide.sh
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>  LIBRARY=<the standard library folder>
-#       (defaults: ~/sharp_work/sharp_cl/sharp, ~/sharp_work/out/boot_ide/sharpc_boot, ~/sharp_work/stdlib)
+#       (defaults: ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot, ~/sharp_work/stdlib)
 #
 # Every sample of tests/ide/samples is compiled TOGETHER WITH the standard library and `-ide <folder>`;
 # then tests/ide/check.py looks at what was written: valid JSON, one run id in every file, the expected
@@ -28,9 +28,9 @@
 # Prints one line per failure and a summary; exits 1 when anything failed.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot_ide/sharpc_boot}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
 LIB=$(find "$LIBRARY" -name "*.sharp" | sort)
 SAMPLES="$HERE/ide/samples"
 WORK="${TMPDIR:-/tmp}/ide_tests_$$"

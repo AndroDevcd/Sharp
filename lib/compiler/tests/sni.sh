@@ -14,10 +14,10 @@
 # Works on Linux and, from Git Bash with a MinGW g++ on the PATH, on Windows (the libraries are
 # then .dll files). Prints one line per failure and a summary; exits 1 when anything failed.
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SHARP=${SHARP:-$HOME/sharp_work/sharp_dev/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-OUT=${OUT:-$HOME/sharp_work/out/boot/sni}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+OUT=${OUT:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sni}
 CXX=${CXX:-g++}
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) lib_file() { echo "$1.dll"; }; PIC="-static" ;;

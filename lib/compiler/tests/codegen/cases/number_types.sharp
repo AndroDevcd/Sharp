@@ -59,7 +59,7 @@ mod main;
 // 49
 // 27
 // 50
-// 2.645751311064591
+// 2.6457513110645907
 
 /*
  * The numbers of every type with the VM's exact meaning (doc/codegen.md 4.3,

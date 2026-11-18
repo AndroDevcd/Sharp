@@ -2,10 +2,10 @@
 # Builds Sharp on THIS machine and installs it for the current user - for a machine the release has no
 # ready-made VM for (a Raspberry Pi, any ARM or 32-bit Linux).
 #
-#     bash build-scripts/install_from_source.sh
+#     bash build-scripts/linux/install_from_source.sh
 #
 # What it does:
-#   1. builds the VM here                       (build-scripts/build_linux_vm.sh  ->  build/linux-vm/sharp)
+#   1. builds the VM here                       (build-scripts/linux/build_vm.sh  ->  build/linux-vm/sharp)
 #   2. takes the compiler and the standard library from the newest release in releases/
 #      (they are Sharp programs and Sharp files: the same on every machine - only the VM is built)
 #   3. installs into ~/.sharp exactly as the release's own installer does, with the VM from step 1,
@@ -14,10 +14,16 @@
 # Afterwards, in a NEW terminal:   sharpc main.sharp -o app    then    sharp app
 #
 # Needs: g++ (C++17) and python3 (to unpack the release; any Raspberry Pi OS has it).
-HERE="$(cd "$(dirname "$0")/.." && pwd)"
+#
+# THE GUI on such a machine: the release's sharpgui.so is for 64-bit x86 too. After this script, build
+# it here and put it beside the VM:
+#     sudo apt install libsdl2-dev
+#     GLUE=<the bridge folder> bash build-scripts/linux/build_gui_library.sh     (see that script)
+#     cp build/gui/sharpgui.so ~/.sharp/bin/
+HERE="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$HERE" || exit 1
 
-bash build-scripts/build_linux_vm.sh "$@" || exit 1
+bash build-scripts/linux/build_vm.sh "$@" || exit 1
 VM="${OUT:-$HERE/build/linux-vm}/sharp"
 
 ZIP=$(ls releases/sharp-*.zip 2>/dev/null | sort -V | tail -1)
@@ -29,5 +35,6 @@ echo "compiler and library: from $ZIP"
 
 # the release's VM is for 64-bit x86: the one built here takes its place
 cp "$VM" "$RELEASE/linux/sharp"
+rm -f "$RELEASE/linux/sharpgui.so"          # built for 64-bit x86: it would not load here (see the top of this script)
 chmod +x "$RELEASE"/linux/*
 bash "$RELEASE/linux/unix-install.sh"

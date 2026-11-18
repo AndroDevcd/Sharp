@@ -270,7 +270,7 @@ run, and the build fails.
 | `native "name" { }` in the parser | `frontend/syntax/parser/parse_declarations.sharp`, `parse_native_block` |
 | libraries, C++ names, signatures | `backend/finalizer/sni/native_libraries.sharp` |
 | the generated files | `backend/finalizer/sni/native_files.sharp` |
-| the copy of sni.h the compiler writes | `backend/finalizer/sni/sni_header.sharp` (made by `build-scripts/embed_sni_header.py`) |
+| the copy of sni.h the compiler writes | `backend/finalizer/sni/sni_header.sharp` (made by `build-scripts/internal/embed_sni_header.py`) |
 | building a project's C++ | `native_build.sharp`; the settings: `configuration/settings_processor.sharp`, `read_native_setting` |
 | `program_folder()` | `lib/support/<version>/platform/dl.sharp`; VM interrupt `0x53` |
 | tests | `tests/sni.sh`, `tests/sni/` |

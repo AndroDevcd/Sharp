@@ -16,8 +16,8 @@ import (std.io)
 // no name
 // rex
 // len 3
-// m 2.0000000000000000
-// char q bool  dec 1.2500000000000000 neg -3
+// m 2
+// char q bool  dec 1.25 neg -3
 // 1
 // 2
 // 3

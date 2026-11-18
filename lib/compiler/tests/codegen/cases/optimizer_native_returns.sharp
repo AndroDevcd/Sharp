@@ -3,7 +3,7 @@ mod main;
 // output:
 // weighed: 774 calls 5
 // held: 24 24
-// ratio: 9.5000000000000000
+// ratio: 9.5
 // pick: 15 -15
 // leak: 10 same object: true
 // leak value only: 15 kept 15

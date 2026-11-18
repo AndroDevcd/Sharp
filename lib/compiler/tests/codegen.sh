@@ -5,7 +5,7 @@
 #   tests/codegen.sh
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>  SHARPC=<the C++ compiler>
 #       LIBRARY=<the standard library folder>  OUT=<a folder for the executables>
-#       (defaults: ~/sharp_work/sharp_cl/sharp, ~/sharp_work/out/boot/sharpc_boot,
+#       (defaults: ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/sharpc_cl/sharpc, ~/sharp_work/stdlib, ~/sharp_work/out/boot/codegen)
 #
 #   codegen/cases/*.sharp   a program and the output it must print, in a comment block:
@@ -65,12 +65,16 @@
 #
 # Prints one line per failing test and a summary; exits 1 when anything failed.
 
+# THE C++ COMPILER IS GONE (17 Nov 2026). Sharp's first compiler was written in C++ and this
+# script used it as a second opinion. It cannot read today's standard library, so it is no longer
+# built or kept. SHARPC=<a second Sharp compiler, as one command> still turns the comparison on;
+# without it (the default) the parts that say "C++" below are skipped.
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-SHARPC=${SHARPC:-$HOME/sharp_work/sharpc_cl/sharpc}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-OUT=${OUT:-$HOME/sharp_work/out/boot/codegen}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+SHARPC=${SHARPC:-}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+OUT=${OUT:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/codegen}
 LIB=$(find "$LIBRARY" -name "*.sharp" | sort)
 mkdir -p "$OUT"
 
@@ -103,6 +107,7 @@ for file in "$HERE"/codegen/cases/*.sharp; do
     without_jit=$(run_program -nojit "$OUT/$base")
     # the C++ compiler now and then dies on a signal under load (its own bug, not the test's):
     # compiled once more then, and said so; a refusal is never retried
+    if [ ! -x "$SHARPC" ]; then cpp_built="$expected"; else        # no second compiler: nothing to compare with
     "$SHARPC" "$HERE/codegen/print.sharp" "$file" -o "$OUT/$base.cpp" -L "$LIBRARY" > "$OUT/$base.cpp.txt" 2>&1
     if [ $? -ge 128 ]; then
         echo "note: the C++ compiler died on a signal compiling $name; compiled again"
@@ -121,6 +126,7 @@ for file in "$HERE"/codegen/cases/*.sharp; do
         rm -f "$OUT/$base.cpp"
         "$SHARPC" "$HERE/codegen/print.sharp" "$file" -o "$OUT/$base.cpp" -L "$LIBRARY" > "$OUT/$base.cpp.txt" 2>&1
         if [ -f "$OUT/$base.cpp" ]; then cpp_built=$(run_program "$OUT/$base.cpp"); else cpp_built="(the C++ compiler wrote no file)"; fi
+    fi
     fi
     problems=()
     [ "$with_jit" == "$expected" ] || problems+=("with the JIT it printed:" "$(echo "$with_jit" | head -12 | tr '\n' '|')")
@@ -346,7 +352,7 @@ fi
 #   later stage. Every construct has code now, so that is a failure like any other.)
 #   codegen/suite_running.txt lists the cases that run (since stage 4: all of them); each of them
 #   MUST run, and a case that runs and is not on it is reported, to be added.
-SUITE=${SUITE:-$HOME/sharp_work/suite}
+SUITE=${SUITE:-${SHARP_WORK:-$HOME/sharp_work}/suite}
 RUNNING="$HERE/codegen/suite_running.txt"
 if [ -d "$SUITE/cases" ]; then
     mkdir -p "$OUT/suite"

@@ -8,32 +8,34 @@ description: Build, version-bump, package and install the latest Sharp (VM, comp
 Turns the repository's current state into `releases/sharp-<version>.zip` and puts it on the user's
 machine, so `sharp` and `sharpc` in any terminal are the latest.
 
+**Use ONLY the scripts in `build-scripts/`** (`build-scripts/README.md` is the map). The user runs
+the same scripts: if one breaks or is missing a step, fix the script - never work around it with a
+private helper.
+
 **Not part of this skill:** the CLion plugin. Do not build, bump or mention installing it here.
 
 ## Ground rules
 
 - Do the work yourself, in the main session. Never push. Do not commit unless the user asks.
-- Long steps (the release compilers, about 5 minutes) run in the background; do not poll them.
-- Do NOT run the full gates (about an hour). Use only the short checks below, and say what was not covered.
+- The release takes about 25 minutes: run it in the background; do not poll it.
+- Do NOT run the full tests (`test.sh full`, about an hour) unless asked. Say what was not covered.
 - If a step fails, stop, show the output, and fix the cause. Never package or install a build whose checks failed.
 - Report faithfully: which numbers moved and why, what passed, what was not run.
 
-## The three shells (this machine)
+## Shells (this machine)
 
 | where | used for | how |
 |---|---|---|
-| WSL | Linux VM, the compiler's bootstrap, release compilers, packaging | `MSYS_NO_PATHCONV=1 wsl bash -lc '...'` from Git Bash |
-| Git Bash | the Windows VM | `bash build-scripts/build_windows_vm.sh` |
-| PowerShell | the Windows installer | `& "<path>\win-install.cmd" /quiet` |
+| Git Bash | `release.sh`, everything in `build-scripts/windows/` | `bash build-scripts/release.sh` |
+| WSL | `build.sh`, `test.sh`, when run alone | `MSYS_NO_PATHCONV=1 wsl bash -lc 'cd "/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp" && bash build-scripts/<script>'` |
 
 Pitfalls that have bitten before:
 - Without `MSYS_NO_PATHCONV=1`, Git Bash rewrites `/mnt/c/...` paths handed to `wsl`.
-- `wsl bash -lc '... $var ...'` loses variables set inside it: for anything with variables, write a script file with the Write tool and run `wsl bash "/mnt/c/.../script.sh"`.
+- Piping a script into `tail` hides its exit code: read the last line it prints (`TESTS: PASS`, `release compilers: OK`, `RELEASE DONE`).
 - Heredocs in Git Bash halve backslashes and break on quotes: write files with the Write tool instead.
-- WSL has no `unzip`: extract with `python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall('.')" <zip>`.
-- `cmd //c win-install.cmd` from Git Bash does not find the file: run the installer from PowerShell.
 - Never set `debug_compiler` to false in the repository: the release script does that in its own copy.
-- The compiler is bootstrapped by a frozen C++ compiler that segfaults on `new file(x).method()` written inline (put the file in a local first) and treats `native` and `base` as keywords (not usable as variable names).
+- The compiler is built by its own last good build (the seed, see `build.sh`). A change that
+  uses a NEW language feature inside `lib/compiler` needs two builds: the feature first, then its use.
 
 ## Steps
 
@@ -59,81 +61,63 @@ version number did not move. Do the full release when they ask for a release or 
 ### 2. Bump the versions
 
 - VM: `lib/runtime/main.h`, `#define rev "rN"`.
-- Language - all three, kept in step:
-  - `lib/compiler/configuration/configuration.sharp`: `program_vers : string = "X"`
-  - `lib/compiler/configuration/options.sharp`: `static library_version : string = "X"`
-  - `lib/compiler/configuration/options.sharp`: add `"X"` to the end of `supported_versions`
-- The library folder stays `lib/support/0.4.0` whatever the version (the release script takes the folder that is there).
-- If `lib/runtime/sni/sni.h` changed: `python build-scripts/embed_sni_header.py` (the compiler carries a copy).
+- Language: do NOT edit by hand - pass the new number to `release.sh` in step 3 (`release.sh 0.7.1 install`); it writes
+  `program_vers` (configuration.sharp), `library_version` and `supported_versions` (options.sharp).
+- The library folder stays `lib/support/0.4.0` whatever the version (the scripts take the folder that is there).
+- If `lib/runtime/sni/sni.h` changed: `python build-scripts/internal/embed_sni_header.py` (the compiler carries a copy).
 
-### 3. Build the VMs
+### 3. Build, test, pack and install: one command (background, about 25 minutes)
 
-```
-MSYS_NO_PATHCONV=1 wsl bash -lc 'SHARP_OUT=$HOME/sharp_work/sharp_dev bash ~/sharp_work/tools/build_sharp.sh 2>&1 | grep FAILED -A5; ~/sharp_work/sharp_dev/sharp -V'
-bash build-scripts/build_windows_vm.sh 2>&1 | grep -v "ld.exe" | tail -2 && cmake-build-windows-vm/sharp.exe -V
-```
-
-Both must print the new VM version. (A changed header rebuilds everything: a few minutes.)
-
-### 4. Build the compiler and run the short checks
+From Git Bash, at the repository root:
 
 ```
-MSYS_NO_PATHCONV=1 wsl bash -lc 'bash ~/sharp_work/tools/gates.sh only 1 2 4 5 12 14 15 2>&1 | grep -v "^time:\|^unknown" | cut -c1-200 | tail -18'
+bash build-scripts/release.sh <new version> install 2>&1 | grep -v "ld.exe\|^time:\|^unknown" | cut -c1-200 | tail -70
 ```
 
-Step 1 is the build (`errors: 0 ; built: 1`); then library, frontend, backend, driver, ide and the native
-interface. A few minutes: run it in the background. It must end `GATES: PARTIAL PASS` with no `FAIL` line.
-Add step 11 (the repository's programs) when code generation or the optimizer changed.
+Leave the number out only when the version in the sources was never released (step 1).
 
-### 5. Build the three release compilers (background, about 8 minutes)
+**The overwrite question.** When `releases/sharp-<version>.zip` already exists the script asks
+`Replace it? [Y/n]` and stops without a typed Y - so a background run stops right there
+(`no answer: nothing was built or changed`). That question is THE USER'S: ask them in the chat
+whether to replace that zip, and only after their yes in that turn run it as
+`echo Y | bash build-scripts/release.sh ...`. Never pipe the Y on your own judgment.
 
-```
-MSYS_NO_PATHCONV=1 wsl bash -lc 'cd "/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp" && bash build-scripts/build_release_compilers.sh 2>&1 | tail -5'
-```
+Seven steps, each a script that also runs alone (the top of `release.sh` lists them): the Linux VM
+and the compiler, the short tests, the three release compilers, the Linux GUI library, the Windows
+VM, the Windows GUI library, the zip. It stops at the first failure with
+`RELEASE STOPPED at step N (<script>)`; fix the cause and run it again.
 
-It builds `sharpc-v<version>` (standard, with -O), `sharpc-unoptimized-v<version>` (standard, without) and
-`sharpc-debug-v<version>` (the debug compiler: `sharpc --debug`). The two standard ones are the sources with
-`debug_compiler` set to false in a copy (`lib/compiler/configuration/build_kind.sharp`): they print nothing
-on a good compile and refuse the options that look inside the compiler. In the repository the flag stays
-TRUE - the compiler `bootc.sh` and the gates build is the debug one, and the test scripts read its lines.
+It must show, in order: `built: Sharp X (VM Y)`, `TESTS: PASS (tests 1 2 4 5 12 14 15)`,
+`release compilers: OK`, both `built: ...sharpgui...` lines, `release: .../sharp-X.zip`, `installed: sharp <VM version> ..., Sharp X`, `the GUI library is installed`,
+`RELEASE DONE`, and no `WARNING: no ...sharpgui` line.
 
-Must end `release compilers: OK`: the two standard compilers agree with each other, are quiet, and the
-debug one talks (`standard / debug: 0 problem(s)`).
+Extra tests by what changed (WSL, `bash build-scripts/test.sh only <numbers>`):
+the standard library: 8 - code generation or the optimizer: 7 8 11 13 - the VM: say that `full` was not run.
 
-### 6. Package
+### 4. Install
 
-```
-MSYS_NO_PATHCONV=1 wsl bash -lc 'cd "/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp" && bash build-scripts/make_release.sh 2>&1 | tail -2'
-```
-
-Prints `release: .../releases/sharp-<version>.zip   (language X, VM 4.0.0rN)`. It refuses to package when
-the VM or the compiler does not say the version in the sources - rebuild the one it names.
-
-### 7. Install
-
-**Windows (always).** Extract the zip into the job's temp folder, then from PowerShell:
+**Windows.** `release.sh install` already did it. Alone, from Git Bash:
 
 ```
-& "<temp>\sharp-<version>\windows\win-install.cmd" /quiet
-& "$env:LOCALAPPDATA\Sharp\bin\sharp.exe" -V
-Get-Content "$env:LOCALAPPDATA\Sharp\VERSION.txt" -TotalCount 4
+bash build-scripts/windows/install_release.sh
 ```
 
-The installer replaces `%LOCALAPPDATA%\Sharp` (bin, compiler, lib, examples) and proves itself by compiling
-and running the hello example. It must print `Sharp <version> is installed.`
+It unpacks the newest zip and runs the release's own installer, which proves itself by compiling and
+running the hello example. It must end `installed: sharp <VM version> ..., Sharp <version>` and
+`the GUI library is installed`.
 
 **Linux / WSL (when the user asks for Linux, or `~/.sharp` already exists in WSL).** In WSL: extract the zip
-(python, see pitfalls), `chmod +x sharp-<version>/linux/*`, then `bash sharp-<version>/linux/unix-install.sh`.
-It installs into `~/.sharp` and adds `~/.sharp/bin` to the PATH in the shell's start file. Check with
-`~/.sharp/bin/sharp -V` and `~/.sharp/bin/sharpc -V`.
+(`python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall('.')" <zip>`),
+`chmod +x sharp-<version>/linux/*`, then `bash sharp-<version>/linux/unix-install.sh`.
+Check with `~/.sharp/bin/sharp -V` and `~/.sharp/bin/sharpc -V`.
 
-### 8. Record and report
+### 5. Record and report
 
 - Update the memory file `sharp-versioning.md` (and its line in `MEMORY.md`) with the new numbers.
 - Tell the user, in a few lines:
   - the versions before and after, and what change moved each;
   - the zip: `releases/sharp-<version>.zip`;
-  - what is installed now (`sharp -V`, `VERSION.txt`), and "open a new terminal";
-  - what was checked (the short checks, the release compilers, the installer's own test) and that the full gates were not run;
+  - what is installed now, and "open a new terminal";
+  - what was tested (the short tests, the release compilers, the installer's own test) and that the full tests were not run;
   - that nothing was committed, unless they asked for a commit.
 - Older zips stay in `releases/` unless the user says to remove them.

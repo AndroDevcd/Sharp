@@ -2,18 +2,17 @@ mod main;
 
 // output:
 // hello, world
-// 4631107791820423168
+// 42
 // 42
 
 /*
  * The first program the bootstrap compiler runs (doc/codegen.md 13.1): a
  * main that prints a text and a number through the library's println.
  *
- * The long number is what the C++-built program prints too: println of a
- * number goes to the library's print_num, whose asm prints the decimal's
- * bits with `put` (an integer print), so 42.0 comes out as 4631107791820423168.
- * The oracle is the C++-built program, so that is the right output here.
- * show() (tests/codegen/print.sharp) prints the integer itself.
+ * println(n) and show(n) (tests/codegen/print.sharp) both print 42.
+ * (Until Sharp 0.6.0 println of a number printed the decimal's raw bits,
+ * 4631107791820423168 for 42.0, and this file expected that. Numbers are
+ * printed the short way now - 42, 2.5 - by the VM itself.)
  */
 def main() {
     println("hello, world");

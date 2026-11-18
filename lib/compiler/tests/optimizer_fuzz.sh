@@ -27,11 +27,11 @@
 #
 # Exits 1 when any seed shows an optimizer difference or was not built.
 HERE="$(cd "$(dirname "$0")" && pwd)"
-export SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-export COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-export SHARPC=${SHARPC:-$HOME/sharp_work/sharpc_cl/sharpc}
-export LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-export OUT=${OUT:-$HOME/sharp_work/out/boot/optimizer_fuzz}
+export SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+export COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+export SHARPC=${SHARPC:-}
+export LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+export OUT=${OUT:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/optimizer_fuzz}
 export HERE
 export LIB=$(find "$LIBRARY" -name "*.sharp" | sort)
 first=${1:?optimizer_fuzz.sh <first seed> <last seed> [options instead of -O]}

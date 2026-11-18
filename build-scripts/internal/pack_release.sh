@@ -1,5 +1,5 @@
 #!/bin/bash
-# Packages a release: releases/sharp-<version>.zip   (run in WSL / Linux, from anywhere)
+# Packs a release: releases/sharp-<version>.zip.   A PART OF release.sh (its last step).   (Linux / WSL)
 #
 #   sharp-<version>/
 #     START-HERE.txt   VERSION.txt
@@ -7,17 +7,19 @@
 #     linux/     unix-install.sh  unix-uninstall.sh  sharp      sharpc
 #     shared/    compiler/sharpc-v<version>  sharpc-unoptimized-v<version>  sharpc-debug-v<version>  lib/  examples/
 #
-# BEFORE this script, build the four things it packs:
-#   1. the Linux VM              bash ~/sharp_work/tools/sync.sh build       (-> ~/sharp_work/sharp_dev)
-#   2. the bootstrap compiler    bash ~/sharp_work/tools/bootc.sh
-#   3. the two release compilers bash build-scripts/build_release_compilers.sh   (-> ~/sharp_work/out/release_build)
-#   4. the Windows VM            bash build-scripts/build_windows_vm.sh      (Git Bash, on Windows -> cmake-build-windows-vm)
+# It packs what the steps of release.sh before it built, and says which one is missing:
+#   the Linux VM and the compiler   build.sh                         (-> $WORK/sharp_dev, $WORK/out/boot)
+#   the release compilers           internal/release_compilers.sh    (-> $WORK/out/release_build)
+#   the GUI library (Linux)         linux/build_gui_library.sh       (-> $WORK/out/gui_lib)
+#   the Windows VM                  windows/build_vm.sh              (-> cmake-build-windows-vm)
+#   the GUI library (Windows)       windows/build_gui_library.sh     (-> build/gui)
+# and the installers and texts of internal/zip-contents/, with the version filled in.
 #
 # The version in the names is the LANGUAGE version (compiler + standard library), read from the
 # compiler's own source; the VM's version is written into VERSION.txt.
-REPO=$(cd "$(dirname "$0")/.." && pwd)
-W=$HOME/sharp_work
-T="$REPO/build-scripts/release"
+source "$(dirname "$0")/common.sh"
+W=$WORK
+T="$REPO/build-scripts/internal/zip-contents"
 V=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/lib/compiler/configuration/configuration.sharp" | cut -d'"' -f2)
 VM_V=$(grep -o '#define progvers "[^"]*"' "$REPO/lib/runtime/main.h" | cut -d'"' -f2)$(grep -o '#define rev "[^"]*"' "$REPO/lib/runtime/main.h" | cut -d'"' -f2)
 [ -n "$V" ] || { echo "the compiler's version was not found"; exit 1; }
@@ -29,7 +31,7 @@ STAGE=$W/out/release; D=$STAGE/sharp-$V
 # an older number than the language version - the release ships its contents as `lib/`, without a number.
 LIB_SRC="$REPO/lib/support/$(ls "$REPO/lib/support" | sort -V | tail -1)"
 for need in "$LINUX_OBJECTS/sharp" "$WINDOWS_VM" "$COMPILERS/O/sharpc" "$COMPILERS/plain/sharpc" "$COMPILERS/debug/sharpc" "$LIB_SRC"; do
-  [ -e "$need" ] || { echo "missing: $need   (see the top of this script for what to build first)"; exit 1; }
+  [ -e "$need" ] || { echo "missing: $need   (run  bash build-scripts/release.sh  - it builds everything in order)"; exit 1; }
 done
 rm -rf "$STAGE"; mkdir -p "$D/windows" "$D/linux" "$D/shared/compiler" "$D/shared/examples"
 
@@ -40,7 +42,7 @@ strip "$D/linux/sharp" 2>/dev/null
 cp "$WINDOWS_VM" "$D/windows/sharp.exe"
 
 # ---- the GUI's native library, beside each VM (std.guikit loads it from the VM's own folder).
-# Built by build-scripts/gui/build_gui_library.sh on each system. A release without one still
+# Built by linux/build_gui_library.sh and windows/build_gui_library.sh. A release without one still
 # works for everything but GUI programs - so a missing library is said loudly, not fatal.
 LINUX_GUI=${LINUX_GUI:-$W/out/gui_lib/sharpgui.so}
 WINDOWS_GUI=${WINDOWS_GUI:-$REPO/build/gui/sharpgui.dll}

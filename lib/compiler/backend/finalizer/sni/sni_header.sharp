@@ -7,7 +7,7 @@ import (
 /**
  * sni.h, THE INTERFACE A NATIVE LIBRARY IS WRITTEN AGAINST - as text.
  *
- * A COPY of lib/runtime/sni/sni.h, made by build-scripts/embed_sni_header.py.
+ * A COPY of lib/runtime/sni/sni.h, made by build-scripts/internal/embed_sni_header.py.
  * Never edit this file: change sni.h and run the script again.
  */
 def sni_header_text() : string {

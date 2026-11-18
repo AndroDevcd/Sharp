@@ -10,14 +10,14 @@
 #       TC=<the kind-check runtime>   (default ~/sharp_work/sharp_tc_dev/sharp)
 #       SOURCES=<the copy of the repository the runtime is built from>  (default ~/sharp_work/src)
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>  LIBRARY=<the standard library>
-#       (for the probe; defaults ~/sharp_work/sharp_cl/sharp, ~/sharp_work/out/boot/sharpc_boot,
+#       (for the probe; defaults ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/stdlib)
 #
 # Three steps:
 #   1. THE RUNTIME IS UP TO DATE. When a source file of the runtime is newer than the kind-check
 #      runtime (or there is none yet), it is built again - an incremental build, a few files
 #      after a small change - with
-#           SHARP_ROOT=$SOURCES SHARP_OUT=<folder of $TC> JOBS=4 #               bash ~/sharp_work/tools/build_sharp.sh -DSHARP_TYPE_CHECK
+#           SOURCES=$SOURCES OUT=<folder of $TC> bash build-scripts/linux/build_vm.sh -O3 -DSHARP_TYPE_CHECK
 #      A check on a runtime older than lib/runtime would be a check of something else.
 #   2. THE CHECKER IS AWAKE. tests/kindcheck_probe.sharp, a program that adds a decimal as a
 #      whole number in an asm block, is built by the bootstrap and run: it MUST give a report.
@@ -30,11 +30,11 @@
 # Prints the reports (at most 20) and a summary; exits 1 when there was any report or failure.
 FOLDER=${1:?usage: kindcheck.sh <folder of executables>}
 HERE="$(cd "$(dirname "$0")" && pwd)"
-TC=${TC:-$HOME/sharp_work/sharp_tc_dev/sharp}
-SOURCES=${SOURCES:-$HOME/sharp_work/src}
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
+TC=${TC:-${SHARP_WORK:-$HOME/sharp_work}/sharp_tc_dev/sharp}
+SOURCES=${SOURCES:-${SHARP_WORK:-$HOME/sharp_work}/src}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
 
 # ---- 1: the kind-check runtime is not older than the runtime's sources
 newer_sources() {
@@ -42,13 +42,13 @@ newer_sources() {
     find "$SOURCES/main.cpp" "$SOURCES/stdimports.h" "$SOURCES/lib/runtime" "$SOURCES/lib/core" "$SOURCES/lib/Modules" "$SOURCES/lib/util" -type f \( -name '*.cpp' -o -name '*.h' \) -newer "$TC" 2>/dev/null | head -3
 }
 if [ -n "$(newer_sources)" ]; then
-    # never build into a folder that holds a runtime of another kind (build_sharp.sh keeps the
+    # never build into a folder that holds a runtime of another kind (build_vm.sh keeps the
     # flags of a folder's last build in flags.txt)
     if [ -f "$(dirname "$TC")/flags.txt" ] && ! grep -q "SHARP_TYPE_CHECK" "$(dirname "$TC")/flags.txt"; then
         echo "kind check: $TC is older than the runtime's sources and was not built with -DSHARP_TYPE_CHECK; not rebuilding it"; exit 1
     fi
     echo "kind check: the kind-check runtime is older than the runtime's sources ($(newer_sources | head -1 | sed "s|$SOURCES/||") ...); building it again"
-    SHARP_ROOT="$SOURCES" SHARP_OUT="$(dirname "$TC")" JOBS=4 bash "$HOME/sharp_work/tools/build_sharp.sh" -DSHARP_TYPE_CHECK 2>&1 | tail -3
+    SOURCES="$SOURCES" OUT="$(dirname "$TC")" bash "$HERE/../../../build-scripts/linux/build_vm.sh" -O3 -DSHARP_TYPE_CHECK 2>&1 | tail -3
     if [ -n "$(newer_sources)" ]; then echo "kind check: the kind-check runtime could not be built from $SOURCES"; exit 1; fi
 fi
 

@@ -3,7 +3,7 @@ mod main;
 // output:
 // ab|ab!|ab?ab!
 // q-q-qxqxq-q-qxqx
-// n=42 small= d=2.5000000000000000 nothing=null e=[] end
+// n=42 small= d=2.5 nothing=null e=[] end
 // <k yes k>1 <k no>0
 // 0,0;1,1;2,4;3,9;4,16;
 // size 6 0

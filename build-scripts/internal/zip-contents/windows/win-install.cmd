@@ -16,6 +16,12 @@ if not exist "%HERE%sharp.exe" goto broken
 if not exist "%SHARED%\lib" goto broken
 if not exist "%SHARED%\compiler" goto broken
 
+rem A Sharp program that is still running keeps sharp.exe locked: Windows then refuses to replace it,
+rem and the OLD sharp.exe would stay beside the NEW compiler and library. So this is checked first
+rem (opening the file to add nothing to it fails exactly when a program is using it).
+if exist "%DEST%\bin\sharp.exe" (
+    2>nul ( >>"%DEST%\bin\sharp.exe" call ) || goto running
+)
 echo Installing Sharp @VERSION@ into %DEST% ...
 if exist "%DEST%\bin" rmdir /s /q "%DEST%\bin"
 if exist "%DEST%\compiler" rmdir /s /q "%DEST%\compiler"
@@ -69,6 +75,14 @@ exit /b 1
 
 :nocopy
 echo The files could not be copied to %DEST%.
+if /i not "%QUIET%"=="/quiet" pause
+exit /b 1
+
+:running
+echo.
+echo A Sharp program is still running, so Sharp cannot be replaced.
+echo Close every Sharp program (and any window one opened), then run this installer again.
+echo Nothing was changed.
 if /i not "%QUIET%"=="/quiet" pause
 exit /b 1
 

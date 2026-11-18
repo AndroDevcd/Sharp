@@ -9,7 +9,7 @@
 #   tests/programs.sh
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>  SHARPC=<the C++ compiler>
 #       LIBRARY=<the standard library folder>  OUT=<a folder to work in>
-#       (defaults: ~/sharp_work/sharp_cl/sharp, ~/sharp_work/out/boot/sharpc_boot,
+#       (defaults: ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/sharpc_cl/sharpc, ~/sharp_work/stdlib, ~/sharp_work/out/boot/programs)
 #
 # Both compilers are called as the benchmark script calls one: <program> -j 1 -o <exe> -L <library>.
@@ -26,13 +26,19 @@
 # waits for a password typed at a terminal (read_passwd), so it is built and not run.
 #
 # Prints one line per failure and a summary; exits 1 when anything failed.
+# THE C++ COMPILER IS GONE (17 Nov 2026). Sharp's first compiler was written in C++ and this
+# script used it as a second opinion. It cannot read today's standard library, so it is no longer
+# built or kept. SHARPC=<a second Sharp compiler, as one command> still turns the comparison on;
+# without it (the default) the parts that say "C++" below are skipped.
+# Then every program is compared with ITSELF: the plain build run by the interpreter (-nojit) is the
+# reference, and the JIT, the -O build and the -O build under the JIT must print the same.
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../../.." && pwd)"
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-SHARPC=${SHARPC:-$HOME/sharp_work/sharpc_cl/sharpc}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-OUT=${OUT:-$HOME/sharp_work/out/boot/programs}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+SHARPC=${SHARPC:-}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+OUT=${OUT:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/programs}
 KOSTYA="$REPO/benchmark/kostya"
 mkdir -p "$OUT"
 
@@ -48,9 +54,16 @@ build() {
     rm -f "$OUT/$name.boot" "$OUT/$name.O" "$OUT/$name.cpp"
     timeout -s KILL 300 "$SHARP" "$COMPILER" "$@" -j 1 -o "$OUT/$name.boot" -L "$LIBRARY" > "$OUT/$name.boot.txt" 2>&1
     timeout -s KILL 300 "$SHARP" "$COMPILER" "$@" -j 1 -o "$OUT/$name.O" -L "$LIBRARY" -O > "$OUT/$name.O.txt" 2>&1
-    "$SHARPC" "$@" -j 1 -o "$OUT/$name.cpp" -L "$LIBRARY" > "$OUT/$name.cpp.txt" 2>&1
-    [ -f "$OUT/$name.cpp" ] || "$SHARPC" "$@" -j 1 -o "$OUT/$name.cpp" -L "$LIBRARY" > "$OUT/$name.cpp.txt" 2>&1
+    if [ -x "$SHARPC" ]; then
+        "$SHARPC" "$@" -j 1 -o "$OUT/$name.cpp" -L "$LIBRARY" > "$OUT/$name.cpp.txt" 2>&1
+        [ -f "$OUT/$name.cpp" ] || "$SHARPC" "$@" -j 1 -o "$OUT/$name.cpp" -L "$LIBRARY" > "$OUT/$name.cpp.txt" 2>&1
+    elif [ -f "$OUT/$name.boot" ]; then
+        # no second compiler: the plain build stands in as the reference, and it is run by the
+        # interpreter (REFERENCE_MODE) so that the JIT is still compared with something else
+        cp "$OUT/$name.boot" "$OUT/$name.cpp"
+    fi
 }
+REFERENCE_MODE=""; [ -x "$SHARPC" ] || REFERENCE_MODE="-nojit"
 
 # what a program printed, without the VM's own last lines and the times it measured, and after
 # it the exit code the run ended with (so a build that prints the same and then ends differently
@@ -71,7 +84,7 @@ same_output() {
              "$(grep -m1 -A3 "^error" "$OUT/$name.boot.txt" | head -4)"
         return
     fi
-    local reference; reference=$(printed "$OUT/$name.cpp" "$@")
+    local reference; reference=$(printed $REFERENCE_MODE "$OUT/$name.cpp" "$@")
     local problems=()
     [ "$(echo "$reference" | wc -l)" -gt 1 ] || problems+=("the C++-built program printed nothing")
     for mode in "" "-nojit"; do
@@ -102,7 +115,7 @@ build generate_json "$KOSTYA/json/generate_json.sharp"
 build json "$KOSTYA/json/json.sharp"
 if [ -f "$OUT/generate_json.boot" ] && [ -f "$OUT/generate_json.cpp" ]; then
     rm -f "$OUT"/entries_*.json
-    "$SHARP" "$OUT/generate_json.cpp" "$OUT/entries_cpp.json" 1000 > /dev/null 2>&1
+    "$SHARP" $REFERENCE_MODE "$OUT/generate_json.cpp" "$OUT/entries_cpp.json" 1000 > /dev/null 2>&1
     "$SHARP" "$OUT/generate_json.boot" "$OUT/entries_jit.json" 1000 > /dev/null 2>&1
     "$SHARP" -nojit "$OUT/generate_json.boot" "$OUT/entries_nojit.json" 1000 > /dev/null 2>&1
     [ -f "$OUT/generate_json.O" ] && "$SHARP" "$OUT/generate_json.O" "$OUT/entries_O.json" 1000 > /dev/null 2>&1

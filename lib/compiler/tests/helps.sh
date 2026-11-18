@@ -36,11 +36,11 @@
 # Prints one line per failing file and a summary; exits 1 when anything failed.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
-LIBRARY=${LIBRARY:-$HOME/sharp_work/stdlib}
-CPP=${CPP:-$HOME/sharp_work/sharpc_cl/sharpc}
-WORK=${WORK:-$HOME/sharp_work/out/helps}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
+LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+CPP=${CPP:-}
+WORK=${WORK:-${SHARP_WORK:-$HOME/sharp_work}/out/helps}
 mkdir -p "$WORK"; rm -rf "$WORK"/*
 export HERE SHARP COMPILER LIBRARY CPP WORK
 

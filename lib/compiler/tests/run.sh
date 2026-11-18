@@ -3,7 +3,7 @@
 #
 #   tests/run.sh
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>
-#       (defaults: ~/sharp_work/sharp_cl/sharp and ~/sharp_work/out/boot/sharpc_boot)
+#       (defaults: ~/sharp_work/sharp_dev/sharp and ~/sharp_work/out/boot/sharpc_boot)
 #
 # Three kinds of test, one file each:
 #
@@ -29,8 +29,8 @@
 # Prints one line per failing test and a summary; exits 1 when anything failed.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SHARP=${SHARP:-$HOME/sharp_work/sharp_cl/sharp}
-COMPILER=${COMPILER:-$HOME/sharp_work/out/boot/sharpc_boot}
+SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
+COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
 ACCEPT=0
 [ "$1" = "--accept-trees" ] && ACCEPT=1
 
