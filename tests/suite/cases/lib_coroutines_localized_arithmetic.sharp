@@ -39,5 +39,5 @@ def main(args: string[]) {
         add_through_local(8);
         test("through a local variable, again") { expect(through_local).should_be(12); };
     };
-    finish_tests();
+    finish_tests("lib_coroutines_localized_arithmetic");
 }

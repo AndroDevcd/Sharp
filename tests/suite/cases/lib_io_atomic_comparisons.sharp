@@ -8,5 +8,5 @@ def main(args: string[]) {
         test("atomic 5 <= 3") { expect_false((a <= 3).value); };
         test("atomic 5 >= 3") { expect_true((a >= 3).value); };
     };
-    finish_tests();
+    finish_tests("lib_io_atomic_comparisons");
 }

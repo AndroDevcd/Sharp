@@ -63,5 +63,5 @@ def main(args: string[]) {
         }
         test("a captured local on another fiber") { expect(seen_on_other_fiber.value).should_be(7); };
     };
-    finish_tests();
+    finish_tests("lib_coroutines_closure_across_fibers");
 }

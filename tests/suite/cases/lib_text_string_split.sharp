@@ -179,5 +179,5 @@ def main(args: string[]) {
         abba : string = "Abba";
         test("is_palindrome is case sensitive") { expect_false(abba.is_palindrome()); };
     };
-    finish_tests();
+    finish_tests("lib_text_string_split");
 }

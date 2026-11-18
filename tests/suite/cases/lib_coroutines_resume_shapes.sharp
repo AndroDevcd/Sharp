@@ -213,5 +213,5 @@ def main(args: string[]) {
         test("F a machine frame below an interpreted one") { expect(sum_f.value).should_be(4 * 1021); };
         test("every coroutine got the lock") { expect(waited.value).should_be(24); };
     };
-    finish_tests();
+    finish_tests("lib_coroutines_resume_shapes");
 }

@@ -48,5 +48,5 @@ def main(args: string[]) {
         test("three numbers pick the number overload") { expect(picker.of(2024, 2, 29)).should_be(1); };
         test("a month object picks the object overload") { expect(picker.of(2024, month_like.february, 29)).should_be(2); };
     };
-    finish_tests();
+    finish_tests("lib_time_implicit_number_to_class");
 }

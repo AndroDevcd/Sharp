@@ -210,5 +210,5 @@ def main(args: string[]) {
         test_tree_map_basics();
         test_tree_map_balance();
     };
-    finish_tests();
+    finish_tests("lib_collections_tree_map");
 }

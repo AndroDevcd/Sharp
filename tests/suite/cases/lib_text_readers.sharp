@@ -335,5 +335,5 @@ def main(args: string[]) {
         cmd.reset();
         test("reset") { expect(cmd.next()).should_be("set"); };
     };
-    finish_tests();
+    finish_tests("lib_text_readers");
 }

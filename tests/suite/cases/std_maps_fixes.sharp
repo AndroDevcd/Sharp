@@ -66,5 +66,5 @@ def main(args: string[]) {
         }
         test("an empty dictionary literal can be built") { expect(built).should_be(1); };
     };
-    finish_tests();
+    finish_tests("std_maps_fixes");
 }

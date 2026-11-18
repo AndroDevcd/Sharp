@@ -1,0 +1,73 @@
+mod gui_bridge;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * EVERY NATIVE FUNCTION OF THE GUI, NAMED ONCE
+ *
+ * The compiler writes the C++ bridge of a native library (sharpgui_sni.cpp)
+ * for the native functions a program USES - a program that draws no pictures
+ * gets a bridge without image_load. That is right for a program's own native
+ * code, and wrong for a library that is built once and shipped: its bridge
+ * must hold every function, because any program may use any of them.
+ *
+ * So the shipped sharpgui library is built from the bridge of THIS program,
+ * whose only job is to name every native function of the GUI. It is never
+ * run: `main` does nothing unless it is given the word "all", and
+ * build_gui_library.sh only compiles it.
+ *
+ * WHEN A NATIVE FUNCTION IS ADDED to std/guikit/platform/surface.sharp, add
+ * a call here. If one is forgotten, a program that uses it stops with
+ * "no loaded native library has the function ..." - which names it.
+ */
+def name_every_native() {
+    window_id : _int64 = surface_open("", 1, 1);
+    surface_scale(0);
+    surface_width();
+    surface_height();
+    surface_time();
+    surface_fill(0);
+    surface_present();
+    surface_poll();
+    surface_wait(0);
+    surface_wake();
+    surface_event_a();
+    surface_event_b();
+    surface_event_c();
+    surface_event_d();
+    surface_event_text();
+    clipboard_write(clipboard_read());
+
+    draw_rect(0, 0, 1, 1, 0, 0);
+    draw_rect_line(0, 0, 1, 1, 0, 1, 0);
+    draw_line(0, 0, 1, 1, 1, 0);
+    draw_circle(0, 0, 1, 0);
+    draw_circle_line(0, 0, 1, 1, 0);
+    draw_polygon("", 0);
+    draw_clip(0, 0, 1, 1);
+    draw_unclip();
+
+    layer_begin();
+    layer_mask(0, 0, 1, 1, 0);
+    layer_end(0, 0, 1, 1, 0, 1, 255, 0);
+
+    letters : _int64 = font_load("", 12);
+    font_line_height(letters);
+    text_width(letters, "");
+    draw_text(letters, "", 0, 0, 0);
+
+    picture : _int64 = image_load("");
+    image_width(picture);
+    image_height(picture);
+    draw_image(picture, 0, 0, 1, 1, 255);
+
+    surface_close(window_id);
+}
+
+def main(args: string[]) {
+    if(sizeof(args) > 0 && args[0] == "all") {
+        name_every_native();
+    }
+}

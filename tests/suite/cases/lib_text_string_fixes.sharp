@@ -67,5 +67,5 @@ def main(args: string[]) {
             test("at(length)") { };
         }
     };
-    finish_tests();
+    finish_tests("lib_text_string_fixes");
 }

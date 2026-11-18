@@ -264,5 +264,5 @@ def main(args: string[]) {
         check_complex();
         check_fraction();
     };
-    finish_tests();
+    finish_tests("lib_math_numbers");
 }

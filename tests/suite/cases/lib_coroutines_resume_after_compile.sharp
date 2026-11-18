@@ -89,5 +89,5 @@ def main(args: string[]) {
         test("every coroutine got the lock") { expect(waited.value).should_be(5); };
         test("main called middle twenty times") { expect(quick.value).should_be(20); };
     };
-    finish_tests();
+    finish_tests("lib_coroutines_resume_after_compile");
 }

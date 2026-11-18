@@ -278,5 +278,5 @@ def main(args: string[]) {
         try { calendar.date_of_iso_week(2024, 0, day_of_week.monday); } catch(e: date_time_exception) { caught = 1; }
         test("week 0 throws") { expect(caught).should_be(1); };
     };
-    finish_tests();
+    finish_tests("lib_time_calendar");
 }

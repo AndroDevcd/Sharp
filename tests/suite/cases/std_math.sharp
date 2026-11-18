@@ -202,5 +202,5 @@ def main(args: string[]) {
         }
         test("math calls in a loop") { expect(total).should_be_near(55, tolerance); };
     };
-    finish_tests();
+    finish_tests("std_math");
 }

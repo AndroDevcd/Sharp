@@ -232,5 +232,5 @@ def main(args: string[]) {
             test("char_array slice beyond the end") { };
         }
     };
-    finish_tests();
+    finish_tests("lib_text_string_builder");
 }

@@ -346,5 +346,5 @@ def main(args: string[]) {
         test("cleanup") { expect_true(start.delete_recursively().value); };
         test("test directory gone") { expect_false(start.exists().value); };
     };
-    finish_tests();
+    finish_tests("lib_io_tree");
 }

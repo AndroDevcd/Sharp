@@ -300,5 +300,5 @@ def main(args: string[]) {
         try { date_time_formatter.iso_date().parse("2024-02-29").to_offset_date_time(); } catch(e: date_time_exception) { caught = 1; }
         test("to_offset_date_time without an offset field throws") { expect(caught).should_be(1); };
     };
-    finish_tests();
+    finish_tests("lib_time_formatter");
 }

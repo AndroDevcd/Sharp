@@ -259,5 +259,5 @@ def main(args: string[]) {
         test("parse rejects a fraction") { expect_true(rejects_period("P1.5Y")); };
         test("parse rejects an unknown unit") { expect_true(rejects_period("P1X")); };
     };
-    finish_tests();
+    finish_tests("lib_time_date_arithmetic");
 }

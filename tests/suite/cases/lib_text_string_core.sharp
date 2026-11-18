@@ -211,5 +211,5 @@ def main(args: string[]) {
             test("pad_start(-1)") { };
         }
     };
-    finish_tests();
+    finish_tests("lib_text_string_core");
 }

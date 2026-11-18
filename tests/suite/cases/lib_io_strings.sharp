@@ -275,5 +275,5 @@ def main(args: string[]) {
         test("shell_quote plain") { expect(io_strings.shell_quote("a b")).should_be("'a b'"); };
         test("shell_quote with quote length") { expect(io_strings.length(io_strings.shell_quote("it's"))).should_be(9); };
     };
-    finish_tests();
+    finish_tests("lib_io_strings");
 }

@@ -43,5 +43,5 @@ def main(args: string[]) {
             test("out of bounds message") { expect(e.get_message()).should_be("Index: 5, size: 1"); };
         }
     };
-    finish_tests();
+    finish_tests("std_list_fixes");
 }

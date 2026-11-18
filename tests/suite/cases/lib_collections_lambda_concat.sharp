@@ -26,5 +26,5 @@ def main(args: string[]) {
     tests("lib_collections_lambda_concat") {
         test("lambda that joins a string and an int") { expect(mapper<int, string>.apply(5, { a: int -> (string) return "v" + a; })).should_be("v5"); };
     };
-    finish_tests();
+    finish_tests("lib_collections_lambda_concat");
 }

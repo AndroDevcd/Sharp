@@ -40,5 +40,5 @@ def main(args: string[]) {
         test("three calls were made") { expect(s.count).should_be(3); };
         test("the last character is a closing parenthesis") { expect(s.last).should_be(41); };
     };
-    finish_tests();
+    finish_tests("lib_time_paren_char_literal");
 }

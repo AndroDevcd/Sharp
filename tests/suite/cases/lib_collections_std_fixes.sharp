@@ -274,5 +274,5 @@ def main(args: string[]) {
         test_hash_table();
         test_dictionary();
     };
-    finish_tests();
+    finish_tests("lib_collections_std_fixes");
 }

@@ -278,5 +278,5 @@ def main(args: string[]) {
         }
         test("200 round trips in a loop") { expect(good).should_be(200); };
     };
-    finish_tests();
+    finish_tests("std_serialization");
 }

@@ -178,5 +178,5 @@ def main(args: string[]) {
         test("retain_chars, nothing kept") { expect(phone.retain_chars("abc")).should_be(""); };
         test("remove_chars removing everything") { expect(one.remove_chars("x")).should_be(""); };
     };
-    finish_tests();
+    finish_tests("lib_text_string_search");
 }

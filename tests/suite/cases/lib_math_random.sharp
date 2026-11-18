@@ -336,5 +336,5 @@ def main(args: string[]) {
         check_properties();
         check_runtime_generator();
     };
-    finish_tests();
+    finish_tests("lib_math_random");
 }

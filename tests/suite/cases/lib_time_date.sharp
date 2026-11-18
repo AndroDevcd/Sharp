@@ -305,5 +305,5 @@ def main(args: string[]) {
         test("negative years order correctly") { expect_true(date.of(0 - 100, 1, 1) < date.of(0 - 99, 1, 1)); };
         test("equal dates have equal hashes") { expect_true(a.hash().value == d.hash().value); };
     };
-    finish_tests();
+    finish_tests("lib_time_date");
 }

@@ -49,5 +49,5 @@ def main(args: string[]) {
         test("a character passed as a string") { expect(first_code('3')).should_be('3'); };
         test("\"\" + 300 passed as a string") { expect(takes_text("" + 300)).should_be(3); };
     };
-    finish_tests();
+    finish_tests("lib_text_literals");
 }

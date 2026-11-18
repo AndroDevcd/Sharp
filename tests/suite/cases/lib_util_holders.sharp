@@ -411,5 +411,5 @@ def main(args: string[]) {
         check_id_generator();
         check_bit_flags();
     };
-    finish_tests();
+    finish_tests("lib_util_holders");
 }

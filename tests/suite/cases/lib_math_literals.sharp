@@ -49,5 +49,5 @@ def main(args: string[]) {
         built : string = sb.to_string()!!;
         test("string_builder size after ab + c") { expect(built.size().value).should_be(3); };                          // actual: 4
     };
-    finish_tests();
+    finish_tests("lib_math_literals");
 }

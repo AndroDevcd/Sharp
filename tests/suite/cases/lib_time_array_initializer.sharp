@@ -32,5 +32,5 @@ def main(args: string[]) {
         }
         test("without new: the second element") { expect(second).should_be("b"); };
     };
-    finish_tests();
+    finish_tests("lib_time_array_initializer");
 }

@@ -350,5 +350,5 @@ def main(args: string[]) {
         check_interpolation();
         check_text();
     };
-    finish_tests();
+    finish_tests("lib_math_functions");
 }

@@ -53,5 +53,5 @@ def main(args: string[]) {
         //    (It used to call string.operator== and answer true.)
         test("empty string == null") { expect_false(empty == null); };
     };
-    finish_tests();
+    finish_tests("lib_io_language");
 }

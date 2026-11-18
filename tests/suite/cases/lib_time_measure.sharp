@@ -45,5 +45,5 @@ def main(args: string[]) {
         test("mills_time is after 2020") { expect_true(time.mills_time().value > 1577836800000); };
         test("micro_time is after 2020") { expect_true(time.micro_time().value > 1577836800000000); };
     };
-    finish_tests();
+    finish_tests("lib_time_measure");
 }

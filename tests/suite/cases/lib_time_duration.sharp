@@ -249,5 +249,5 @@ def main(args: string[]) {
         test("rejects trailing junk") { expect_true(rejects("PT1Sx")); };
         test("rejects words") { expect_true(rejects("soon")); };
     };
-    finish_tests();
+    finish_tests("lib_time_duration");
 }

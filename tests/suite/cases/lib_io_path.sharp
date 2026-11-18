@@ -118,5 +118,5 @@ def main(args: string[]) {
         test("to_unix") { expect(path.to_unix("a\\b\\c")).should_be("a/b/c"); };
         test("to_native then to_unix") { expect(path.to_unix(path.to_native("a\\b/c"))).should_be("a/b/c"); };
     };
-    finish_tests();
+    finish_tests("lib_io_path");
 }

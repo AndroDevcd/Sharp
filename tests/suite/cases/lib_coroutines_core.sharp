@@ -747,5 +747,5 @@ def main(args: string[]) {
         test_uncaught();
         test_scale();
     };
-    finish_tests();
+    finish_tests("lib_coroutines_core");
 }

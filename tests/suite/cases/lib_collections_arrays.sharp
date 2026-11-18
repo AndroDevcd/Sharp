@@ -314,5 +314,5 @@ def main(args: string[]) {
         test_object_arrays();
         test_var_arrays();
     };
-    finish_tests();
+    finish_tests("lib_collections_arrays");
 }

@@ -290,5 +290,5 @@ def main(args: string[]) {
         test("same seed: second number repeats") { expect_true(a2 == b2); };
         test("same seed: third number (a double) repeats") { expect_true(a3 == b3); };
     };
-    finish_tests();
+    finish_tests("std_misc");
 }

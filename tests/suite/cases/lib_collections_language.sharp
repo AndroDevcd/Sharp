@@ -45,5 +45,5 @@ def main(args: string[]) {
         test("a new object replaces only that holder's number") { expect(second.points.value).should_be(500); };
         test("...and the holder that got it has 7") { expect(third.points.value).should_be(7); };
     };
-    finish_tests();
+    finish_tests("lib_collections_language");
 }

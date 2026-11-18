@@ -44,7 +44,8 @@ output is in the work folder (`<test>.out.txt`, `<test>.compile.txt`).
 - **Library cases** (`lib_*`, `std_*`) use the standard testing library, `std.testing`: they test
   libraries, which sit above the language, and are written the way any Sharp program tests itself.
 
-The runner accepts the last line of either: `RESULT PASS ...` or `all <n> tests passed`.
+Both kinds end with the same line - `RESULT PASS <name> (...)` or `RESULT FAIL ...` - which is what
+the runner and every script around the suite look for.
 
 ## Writing a library case (std.testing)
 
@@ -61,7 +62,7 @@ def main(args: string[]) {
         test("one element") { expect(numbers.size()).should_be(1); };
         test("it is the one that was added") { expect(numbers.at(0)).should_be(4); };
     };
-    finish_tests();
+    finish_tests("my_library_case");        // also prints the RESULT PASS / RESULT FAIL line the tools read
 }
 ```
 

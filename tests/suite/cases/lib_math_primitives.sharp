@@ -419,5 +419,5 @@ def main(args: string[]) {
         check_char_and_bool();
         check_exceptions();
     };
-    finish_tests();
+    finish_tests("lib_math_primitives");
 }

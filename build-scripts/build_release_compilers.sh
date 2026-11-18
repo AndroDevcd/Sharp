@@ -59,7 +59,7 @@ for c in lib_data_json lambdas_closures nullability lib_collections_functional l
     n=$((n+1))
     (cd $OUT/s1 && $VM $OUT/plain/sharpc $LIB $W/suite/testing.sharp $f -j 1 $flag -o case > out.txt 2>&1)
     (cd $OUT/s2 && $VM $OUT/O/sharpc $LIB $W/suite/testing.sharp $f -j 1 $flag -o case > out.txt 2>&1)
-    if [ -f $OUT/s1/case ] && cmp -s $OUT/s1/case $OUT/s2/case && $SHARP $OUT/s1/case 2>&1 | grep -q "RESULT PASS"; then :
+    if [ -f $OUT/s1/case ] && cmp -s $OUT/s1/case $OUT/s2/case && $SHARP $OUT/s1/case 2>&1 | grep -qE "RESULT PASS| tests passed"; then :
     else bad=$((bad+1)); echo "DIFFERENT or failing: $c $flag ($(tail -1 $OUT/s2/out.txt | cut -c1-120))"; fi
     rm -f $OUT/s1/case $OUT/s2/case
   done

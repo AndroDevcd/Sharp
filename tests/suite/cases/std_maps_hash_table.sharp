@@ -150,5 +150,5 @@ def main(args: string[]) {
         test("same key in two tables (first)") { expect(first.at("k")!!.value).should_be(1); };
         test("same key in two tables (second)") { expect(second.at("k")!!.value).should_be(2); };
     };
-    finish_tests();
+    finish_tests("std_maps_hash_table");
 }

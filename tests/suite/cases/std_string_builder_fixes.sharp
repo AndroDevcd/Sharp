@@ -85,5 +85,5 @@ def main(args: string[]) {
         // printable does not compile ("call to method `operator+=` is ambiguous" between
         // the printable, string and string_builder versions) - nothing to run here.
     };
-    finish_tests();
+    finish_tests("std_string_builder_fixes");
 }

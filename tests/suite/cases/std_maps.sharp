@@ -249,5 +249,5 @@ def main(args: string[]) {
         test("foreach over a dictionary: values") { expect(total).should_be(6); };
         test("foreach over a dictionary: keys in the order written") { expect(keys).should_be("one two three "); };
     };
-    finish_tests();
+    finish_tests("std_maps");
 }

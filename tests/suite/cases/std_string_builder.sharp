@@ -232,5 +232,5 @@ def main(args: string[]) {
         }
         test("200 short-lived builders") { expect(made).should_be(200); };
     };
-    finish_tests();
+    finish_tests("std_string_builder");
 }

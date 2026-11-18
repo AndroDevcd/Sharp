@@ -53,5 +53,5 @@ def main(args: string[]) {
 
         test("all rounds ran") { expect(rounds_done).should_be(40); };
     };
-    finish_tests();
+    finish_tests("lib_coroutines_jit_fiber_frames");
 }

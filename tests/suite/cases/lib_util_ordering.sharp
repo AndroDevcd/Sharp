@@ -317,5 +317,5 @@ def main(args: string[]) {
         check_comparator();
         check_comparators();
     };
-    finish_tests();
+    finish_tests("lib_util_ordering");
 }

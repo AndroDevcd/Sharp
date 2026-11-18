@@ -357,5 +357,5 @@ def main(args: string[]) {
         test_mutex_cancellation();
         test_semaphore();
     };
-    finish_tests();
+    finish_tests("lib_coroutines_sync");
 }

@@ -191,5 +191,5 @@ def main(args: string[]) {
         test_linked_list();
         test_array_iterator();
     };
-    finish_tests();
+    finish_tests("lib_collections_linked_list");
 }

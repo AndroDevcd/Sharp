@@ -6,5 +6,5 @@ def main(args: string[]) {
         r := new result<string, exception>("ok", null);
         test("result with a null error") { expect_true(r != null); };
     };
-    finish_tests();
+    finish_tests("std_result_null_error");
 }

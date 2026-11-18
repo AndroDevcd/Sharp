@@ -527,5 +527,5 @@ def main(args: string[]) {
         test_produce();
         test_pipelines();
     };
-    finish_tests();
+    finish_tests("lib_coroutines_channels");
 }

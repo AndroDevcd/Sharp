@@ -250,5 +250,5 @@ def main(args: string[]) {
         check_sequences();
         check_bits();
     };
-    finish_tests();
+    finish_tests("lib_math_number_theory");
 }

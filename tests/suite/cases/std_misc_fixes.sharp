@@ -35,5 +35,5 @@ def main(args: string[]) {
         // is_success means "error == null". The way around it is a variable that was
         // never assigned (see checked_divide in cases/std_misc.sharp). Nothing to run.
     };
-    finish_tests();
+    finish_tests("std_misc_fixes");
 }

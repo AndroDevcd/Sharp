@@ -340,5 +340,5 @@ def main(args: string[]) {
         one.add("only in one");
         test("adding to one list leaves another alone") { expect(two.size().value).should_be(0); };
     };
-    finish_tests();
+    finish_tests("std_list");
 }

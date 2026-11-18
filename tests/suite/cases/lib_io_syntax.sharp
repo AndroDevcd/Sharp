@@ -39,5 +39,5 @@ def main(args: string[]) {
         test("!! before )") { expect("x" + maybe!!).should_be("xy"); };
         test("method on a literal") { expect("abc".size().value).should_be(3); };
     };
-    finish_tests();
+    finish_tests("lib_io_syntax");
 }

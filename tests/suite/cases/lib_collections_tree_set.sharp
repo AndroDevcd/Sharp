@@ -221,5 +221,5 @@ def main(args: string[]) {
         test_tree_map_against_reference();
         test_tree_set();
     };
-    finish_tests();
+    finish_tests("lib_collections_tree_set");
 }

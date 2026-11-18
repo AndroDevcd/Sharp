@@ -347,5 +347,5 @@ def main(args: string[]) {
         check_vector3();
         check_matrix();
     };
-    finish_tests();
+    finish_tests("lib_math_linear");
 }

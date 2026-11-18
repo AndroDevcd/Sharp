@@ -38,6 +38,15 @@ g++ -static-libstdc++ -static-libgcc -o "$D/linux/sharp" "$LINUX_OBJECTS"/*.o -p
 [ -x "$D/linux/sharp" ] || { echo "the Linux VM did not link"; exit 1; }
 strip "$D/linux/sharp" 2>/dev/null
 cp "$WINDOWS_VM" "$D/windows/sharp.exe"
+
+# ---- the GUI's native library, beside each VM (std.guikit loads it from the VM's own folder).
+# Built by build-scripts/gui/build_gui_library.sh on each system. A release without one still
+# works for everything but GUI programs - so a missing library is said loudly, not fatal.
+LINUX_GUI=${LINUX_GUI:-$W/out/gui_lib/sharpgui.so}
+WINDOWS_GUI=${WINDOWS_GUI:-$REPO/build/gui/sharpgui.dll}
+GUI_NOTE=""
+if [ -f "$LINUX_GUI" ]; then cp "$LINUX_GUI" "$D/linux/sharpgui.so"; else GUI_NOTE="$GUI_NOTE linux"; echo "WARNING: no $LINUX_GUI - GUI programs will not run from the Linux install"; fi
+if [ -f "$WINDOWS_GUI" ]; then cp "$WINDOWS_GUI" "$D/windows/sharpgui.dll"; else GUI_NOTE="$GUI_NOTE windows"; echo "WARNING: no $WINDOWS_GUI - GUI programs will not run from the Windows install"; fi
 [ "$("$D/linux/sharp" -V 2>&1 | head -1 | awk '{print $2}')" = "$VM_V" ] || { echo "the Linux VM is not version $VM_V: rebuild it"; exit 1; }
 
 # ---- the compilers and the library
@@ -73,6 +82,9 @@ commit=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)
   echo "shared/compiler/sharpc-unoptimized-v$V     the same compiler, compiled by itself without -O"
   echo "linux/sharp                               x86-64 Linux, needs glibc $(ldd --version | head -1 | grep -o '[0-9]*\.[0-9]*$') or newer"
   echo "windows/sharp.exe                         x86-64 Windows, needs nothing else"
+  [ -f "$D/linux/sharpgui.so" ] && echo "linux/sharpgui.so                         the GUI (std.guikit); needs SDL2 on the machine:  sudo apt install libsdl2-2.0-0"
+  [ -f "$D/windows/sharpgui.dll" ] && echo "windows/sharpgui.dll                      the GUI (std.guikit); needs nothing else"
+  [ -n "$GUI_NOTE" ] && echo "(no GUI library in this release for:$GUI_NOTE)"
 } | sed 's/$/\r/' > "$D/VERSION.txt"
 
 # ---- the zip (python: the same on every machine, and the Unix files keep their "can be run" bit)

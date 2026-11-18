@@ -231,5 +231,5 @@ def main(args: string[]) {
         test("delete of the empty outer folder") { expect(folder.delete().value).should_be(0); };
         test("the outer folder is gone") { expect_false(folder.exists().value); };
     };
-    finish_tests();
+    finish_tests("std_files");
 }

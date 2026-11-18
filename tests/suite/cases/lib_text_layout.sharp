@@ -243,5 +243,5 @@ def main(args: string[]) {
             test("put_all with different lengths") { };
         }
     };
-    finish_tests();
+    finish_tests("lib_text_layout");
 }

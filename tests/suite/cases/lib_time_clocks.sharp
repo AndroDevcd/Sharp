@@ -373,5 +373,5 @@ def main(args: string[]) {
         test("a negative period throws") { expect(caught).should_be(1); };
         test("a timer on the system clock is not due at once") { expect_false(new interval_timer(duration.of_hours(1)).is_due()); };
     };
-    finish_tests();
+    finish_tests("lib_time_clocks");
 }

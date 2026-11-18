@@ -23,6 +23,8 @@ if exist "%DEST%\lib" rmdir /s /q "%DEST%\lib"
 if exist "%DEST%\examples" rmdir /s /q "%DEST%\examples"
 mkdir "%DEST%\bin" 2>nul
 copy /y "%HERE%sharp.exe" "%DEST%\bin\" >nul
+rem the GUI's native library goes beside sharp.exe: std.guikit loads it from the VM's own folder
+if exist "%HERE%sharpgui.dll" copy /y "%HERE%sharpgui.dll" "%DEST%\bin\" >nul
 copy /y "%HERE%sharpc.cmd" "%DEST%\bin\" >nul
 copy /y "%HERE%win-uninstall.cmd" "%DEST%\" >nul
 copy /y "%HERE%..\VERSION.txt" "%DEST%\" >nul 2>nul

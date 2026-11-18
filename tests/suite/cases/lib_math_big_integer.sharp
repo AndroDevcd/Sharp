@@ -258,5 +258,5 @@ def main(args: string[]) {
         check_divide();
         check_compare();
     };
-    finish_tests();
+    finish_tests("lib_math_big_integer");
 }

@@ -302,5 +302,5 @@ def main(args: string[]) {
         test("an escaped text matches itself") { expect_true(regex.matches(regex.escape("a.b*(c)[d]"), "a.b*(c)[d]")); };
         test("pattern") { expect(digits.pattern()).should_be("\\d+"); };
     };
-    finish_tests();
+    finish_tests("lib_text_patterns");
 }

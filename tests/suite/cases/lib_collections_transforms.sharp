@@ -128,5 +128,5 @@ def main(args: string[]) {
     tests("lib_collections_transforms") {
         test_transforms();
     };
-    finish_tests();
+    finish_tests("lib_collections_transforms");
 }

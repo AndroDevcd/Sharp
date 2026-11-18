@@ -335,5 +335,5 @@ def main(args: string[]) {
         test_ranges();
         test_immutable_list();
     };
-    finish_tests();
+    finish_tests("lib_collections_list");
 }

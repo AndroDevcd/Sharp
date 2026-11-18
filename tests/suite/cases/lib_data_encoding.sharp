@@ -254,5 +254,5 @@ def main(args: string[]) {
         test_hex();
         test_url();
     };
-    finish_tests();
+    finish_tests("lib_data_encoding");
 }

@@ -7,5 +7,5 @@ def main(args: string[]) {
         test("abs(0 - 4)") { expect(abs(0 - 4)).should_be(4); };
         test("abs(0 - 2.5)") { expect(abs(0 - 2.5)).should_be(2.5); };
     };
-    finish_tests();
+    finish_tests("lib_math_abs_plain_number");
 }

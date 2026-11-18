@@ -279,5 +279,5 @@ def main(args: string[]) {
         test("of_bool false") { expect(string.of_bool(0)).should_be("false"); };
         test("of_chars") { expect(string.of_chars(plain_text.chars())).should_be("plain"); };
     };
-    finish_tests();
+    finish_tests("lib_text_numbers");
 }

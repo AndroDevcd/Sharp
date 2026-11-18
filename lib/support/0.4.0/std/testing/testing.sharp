@@ -279,6 +279,11 @@ stable class test_run {
 
     // ------------------------------------------------------------ the end
 
+    /** how many tests ran so far, passed and failed together */
+    static def count() : _int64 {
+        return passed + failed;
+    }
+
     /** print the summary. Gives how many tests failed. */
     static def summary() : _int64 {
         println("");
@@ -356,6 +361,27 @@ def finish_tests() {
     if(test_run.summary() > 0) {
         exit(new int(1));
     }
+    exit(new int(0));
+}
+
+/**
+ * The same, and one more last line that a script can look for - the form the
+ * Sharp test suite's tools have always read:
+ *
+ *      RESULT PASS <name> (<n> tests)
+ *      RESULT FAIL <name> (<k> of <n> tests failed)
+ *
+ * For a test program that is run by a script which decides by that line
+ * rather than by the exit code.
+ */
+def finish_tests(name: string) {
+    failed : _int64 = test_run.summary();
+    total : _int64 = test_run.count();
+    if(failed > 0) {
+        println("RESULT FAIL " + name + " (" + failed + " of " + total + " tests failed)");
+        exit(new int(1));
+    }
+    println("RESULT PASS " + name + " (" + total + " tests)");
     exit(new int(0));
 }
 

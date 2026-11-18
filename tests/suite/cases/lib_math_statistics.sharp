@@ -252,5 +252,5 @@ def main(args: string[]) {
         check_rect();
         check_circle();
     };
-    finish_tests();
+    finish_tests("lib_math_statistics");
 }
