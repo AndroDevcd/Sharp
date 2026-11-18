@@ -1,251 +1,210 @@
+<div align="center">
 
-  
-<a name="logo"/>    
-<div align="center">    
-<a href="https://github.com/" target="_blank">    
-<img src="https://github.com/AndroDevcd/Sharp/blob/master/doc/logo.png?raw=true" alt="Sharp Logo" width="210" height="142"></img>    
-</a>    
-</div>    
-    
-# The Sharp Programming Language 
+<img src="https://github.com/AndroDevcd/Sharp/blob/master/doc/logo.png?raw=true" alt="Sharp Logo" width="210" height="142">
 
-Sharp is an open source a modern object-oriented programming language 
-that was designed to improve the speed and efficiency when writing robust software.     
-    
-Sharp's syntax design is elegantly simple and easy to read. Allowing you to focus more on what the code
-is doing rather than how to write the code.   
-```javascript    
-// Ths is a hello world program!
-mod app;    
-    
-// lets say hi 3 times!
-def main() {    
-   print("hello, world!");    
-}    
-```  
+# The Sharp Programming Language
 
-Sharp is the first ever object-orientated language to offer a built-in high performance
-dependency injection system.
+**Dependency injection, mocks, tests and GUI apps. Built in, not bolted on.**
 
-```javascript
-mod main;
+[Getting Started](GETTING_STARTED.md) · [Examples](examples) · [Install](#install) · [Build from source](build-scripts/README.md) · [CLion plugin](tools/clion-plugin)
 
-class user_client {
-    def create(name: string) {
-        println("created $name!");
-    }   
-}
+</div>
 
-class user_api {
-    private client: user_client;
-        
-    user_api(uc: user_client) {
-        client = uc;
-    }
+---
 
-    def create_user(name: string) {
-        client.create(name);
-    }
-}
+- **Dependency injection is a keyword.** `inject` what you need. No framework.
+- **Mocks are written by the compiler.** `mock<mailer>()` and you have one.
+- **Tests are just a program.** `std.testing` ships with the language.
+- **A GUI app in 30 lines.** A declarative toolkit, in the standard library.
+- **Coroutines and channels.** Thousands of tasks on a few threads.
+- **Modern by default.** Null safety, generics, closures, type inference.
 
-// inject value of user client into global variable
-inject api : user_api;
-
-def main() {
-    // use the Api!
-    api.create_user("james");
-}
-
-// create a component for the user api
-component user_component {
-    single { new user_api(get()) }
-    factory { new user_client() }
-}
-
-``` 
-
-
-The standard library comes with a comprehensive lightweight co-routines library
-that makes handling work in the background simple to put together but looks good as well.
-  
-```javascript  
-mod app; 
-
-// import the threadding library
-import (
-    std.io.coroutines
-)
-  
-def heavy_computation() {
-    // simulate heavy work being done
-    delay(3000);
-}
-
-def lots_of_math() : int {
-    // simulate heavy work being done
-    delay(1000);
-    return 6;
-}
-
-def main() {  
-    // here we create a background task to do some work
-   launcher = { -> 
-        heavy_computation();
-   };
-
-   // launch a task that you can get the answer at a later time
-    answer := deferred_task<int>.for_result({ observer ->
-            observer.post(lots_of_math());
-        }
-    );
-    
-   println("you're answer is ${answer.await()}"); // block main thread until answer is posted
-}  
-```  
-
-
-The language also supports several other convenient features that improve 
-the overall experience with programming in the language.
+## Dependency injection is a keyword
 
 ```javascript
 mod app;
-  
-class list<T> {
-    // inferred type system using `:=`
-    size := 0;
-    data : T[];
+
+interface greeter {
+    def greet(name: string) : string;
 }
 
-/*
-* Extension functions
-*/
-def list.last() : T {
-    return data[size-1];
+class english : greeter {
+    override def greet(name: string) : string { return "Hello, $name!"; }
 }
 
+class welcome_desk {
+    inject words : greeter;                 // asked for, never built here
 
-/*
-* Function pointers
-*/
-def main() { /* ... */ }
-main_ref := main;
+    def welcome(name: string) { println(words.greet(name)); }
+}
 
-/*
-* inline function declarations
-*/
-count := 1;
-def inc_count() := count++;
+component app {
+    single { english() as greeter }         // the one place that says how it is made
+}
 
-/*
-* Type aliasing
-*/
-alias var as Dollar
-money : Dollar = 1.52;
+def main() {
+    welcome_desk().welcome("ada");
+}
+```
 
-/*
-* Anonymous arrays
-*/
-num_list := { 1, 2, 3 };
+## Mocks are written by the compiler
 
-/*
-* Typed Dictionaries
-*/
-response_messages := { as <int, string>
-    200 : "200 error",
-    500 : "500 Error",
-    405 : "405 Error"    
-};
+```javascript
+mod app;
 
-/*
-* Anonymous Dictionaries
-*/
-days := {
-    0 : "Monday",
-    1 : "Tuesday",
-    2 : "Wednesday",
-    3 : "Thursday",
-    4 : "Friday",
-    5 : "Saturday",
-    6 : "Sunday"
-};
+import ( std.testing )
 
+interface mailer {
+    def send(to: string, message: string);
+}
 
-/*
-* Anonymous functions
-*/
-total_size := { items : int[] -> (int)
-    total := 0;
-    foreach(item in items) {
-        total += item;
+def welcome(mail: mailer, name: string) {
+    mail.send(name, "Welcome, $name!");
+}
+
+def main() {
+    tests("signing up") {
+        test("a new member gets exactly one welcome") {
+            mail := mock<mailer>();             // the compiler writes this class
+
+            welcome(mail, "ada");
+
+            verify { mail.send("ada", any_text()); }.once();
+        };
+    };
+    finish_tests();
+}
+```
+
+```
+signing up
+  ok    a new member gets exactly one welcome
+
+all 1 tests passed
+```
+
+## Put them together
+
+Swap anything a class injects, from inside a test.
+
+```javascript
+mod app;
+
+import ( std.testing, std.di )
+
+interface clock {
+    def now() : string;
+}
+
+class system_clock : clock {
+    override def now() : string { return "the real time"; }
+}
+
+class report {
+    inject time : clock;
+    def title() : string { return "Sales at ${time.now()}"; }
+}
+
+component app {
+    factory { replaceable<clock>() { return system_clock(); } }
+}
+
+def main() {
+    tests("a report") {
+        test("the title shows the time") {
+            fake := mock<clock>();
+            given { fake.now(); }.returns("09:30");
+            provide<clock>() { return fake; };      // every `inject clock` now gets the mock
+
+            expect(report().title()).should_be("Sales at 09:30");
+        };
+    };
+    finish_tests();
+}
+```
+
+## A GUI app in 30 lines
+
+Change the state and the screen follows.
+
+```javascript
+mod app;
+
+import (
+    std.guikit.*
+)
+
+class counter base composable {
+    count := state(0);
+
+    override def build() : element {
+        return column(
+            modifier()
+                .fill()
+        ) {
+            text(
+                "count: " + count.value
+            ).size(32);
+            row {
+                button("-") { count.value -= 1; }.outline();
+                button("Reset") { count.value = 0; }.plain();
+                button("+") { count.value += 1; };
+            }.gap(8);
+        }.center().gap(16);
     }
-    
-    return total;
-};
-
-/*
-* Class mutations
-*
-* Class list now has the field initialSize
-* and constructor, class mutation acts just like
-* an advanced version of extension functions
-*/
-mutate class list {
-    initialSize : var = 100;
-    
-    List(data : T[]) {
-        // ...
-    }   
 }
-// and so much more !!
+
+def main() {
+    gui.run("Counter", 360, 240, counter());
+}
 ```
 
-Sharp has a multi-language inspired syntax taking the beauty of languages such 
-as JavaScript, python, Java, lua, Go, and C#. While expressing it in a more concise way. 
+More: [to-do list](examples/gui/todo/src/main.sharp) · [task manager](examples/gui/tasks/src/main.sharp) · [all GUI examples](examples/gui)
 
+## Coroutines
 
-## Getting Started
+```javascript
+mod app;
 
-#### Installing
+import ( std.io.coroutines )
 
-Download the newest `sharp-<version>.zip` from the [`releases`](releases) folder and unpack it.
-`START-HERE.txt` inside says the same as below.
+def fetch_price(item: string) : int {
+    delay(200);                             // a slow network call
+    return item.size().value * 10;
+}
 
-**Windows** - double-click `windows\win-install.cmd` (or run it in a terminal).
+def main() {
+    run_blocking {
+        apples := async<int>.start { fetch_price("apples") };
+        pears := async<int>.start { fetch_price("pears") };
 
-**Linux (64-bit x86)**
-
-```
-bash linux/unix-install.sh
-```
-
-**Raspberry Pi, or any other Linux** - the VM is built on the machine itself:
-
-```
-git clone https://github.com/AndroDevcd/Sharp.git
-cd Sharp
-bash build-scripts/linux/install_from_source.sh
+        // both ran at once: 200 ms, not 400
+        println("total: ${apples.await().value + pears.await().value}");
+    };
+}
 ```
 
-Then open a NEW terminal and try it:
+## Install
+
+Download the newest `sharp-<version>.zip` from [`releases`](releases) and unpack it.
+
+| | |
+|---|---|
+| **Windows** | double-click `windows\win-install.cmd` |
+| **Linux (64-bit x86)** | `bash linux/unix-install.sh` |
+| **Raspberry Pi, other Linux** | `git clone https://github.com/AndroDevcd/Sharp.git && cd Sharp && bash build-scripts/linux/install_from_source.sh` |
+
+Open a new terminal, then:
 
 ```
 sharpc hello.sharp -o hello
 sharp hello
 ```
 
-(`hello.sharp` is in the `examples` folder of the install.)
+## Learn more
 
-#### Building from source
-
-[`build-scripts/README.md`](build-scripts/README.md) explains how to build Sharp, run its tests and
-make a release. The short form, in Linux or WSL:
-
-```
-bash build-scripts/build.sh
-bash build-scripts/test.sh
-```
-
-#### Programming Ideas
-After you install Sharp if you are having trouble coming up with programming ideas then you can head over to the 'examples/' directory to see a list
-of sample programs using various parts of the Sharp programming language.
-
+- [**Getting Started**](GETTING_STARTED.md) - first program, classes, generics, null safety, tests, a window
+- [**Examples**](examples) - sample programs, [GUI apps](examples/gui), [tests and mocks](examples/testing)
+- [**Language by example**](tests/suite/cases) - one small commented program per feature
+- [**Building Sharp**](build-scripts/README.md) - build it, test it, make a release
+- [**CLion / IntelliJ plugin**](tools/clion-plugin)
