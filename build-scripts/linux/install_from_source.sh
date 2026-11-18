@@ -14,12 +14,9 @@
 # Afterwards, in a NEW terminal:   sharpc main.sharp -o app    then    sharp app
 #
 # Needs: g++ (C++17) and python3 (to unpack the release; any Raspberry Pi OS has it).
-#
-# THE GUI on such a machine: the release's sharpgui.so is for 64-bit x86 too. After this script, build
-# it here and put it beside the VM:
-#     sudo apt install libsdl2-dev
-#     GLUE=<the bridge folder> bash build-scripts/linux/build_gui_library.sh     (see that script)
-#     cp build/gui/sharpgui.so ~/.sharp/bin/
+#   4. builds the GUI's native library here too (the release's is for 64-bit x86) and puts it beside
+#      the VM - when SDL2 is installed (sudo apt install libsdl2-dev); without it everything but
+#      GUI programs works, and it says so
 HERE="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$HERE" || exit 1
 
@@ -37,4 +34,13 @@ echo "compiler and library: from $ZIP"
 cp "$VM" "$RELEASE/linux/sharp"
 rm -f "$RELEASE/linux/sharpgui.so"          # built for 64-bit x86: it would not load here (see the top of this script)
 chmod +x "$RELEASE"/linux/*
-bash "$RELEASE/linux/unix-install.sh"
+bash "$RELEASE/linux/unix-install.sh" || exit 1
+
+# ---- the GUI: its native library, built on this machine for the Sharp just installed
+echo ""
+if command -v sdl2-config > /dev/null; then
+    bash "$HERE/build-scripts/linux/build_gui_library.sh" installed         || echo "NOTE: the GUI library did not build (above) - everything but GUI programs works"
+else
+    echo "NOTE: no GUI: SDL2 is not installed. For GUI programs:  sudo apt install libsdl2-dev"
+    echo "      then:  bash build-scripts/linux/build_gui_library.sh"
+fi
