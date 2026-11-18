@@ -61,6 +61,9 @@ class native_library {
     name : string;                  // sensors
     identifier : string;            // the name as a C++ identifier and file name: my-lib -> my_lib
     functions : list<native_function>;
+    // 1 while every function of the group is declared in the standard library (std.guikit's
+    // "sharpgui"): its C++ ships with Sharp, built, so a project never builds it or is asked to
+    from_library : _int64 = 1;
 
     native_library(name: string) {
         self->name = name;
@@ -147,6 +150,7 @@ def native_libraries_of(layout: program_layout) : list<native_library> {
             libraries.add(library!!);
         }
 
+        if(!made.of.module.is_library()) { library!!.from_library = 0; }
         entry := new native_function(made);
         entry.signature = signature_text(made);
         // sensors_read; app_motor_spin for a function of the class `motor`

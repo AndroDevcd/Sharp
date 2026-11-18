@@ -104,7 +104,7 @@ class generation_result {
     too_deep : _int64 = 0;              // functions whose body nests deeper than the generator can follow (E0978)
     renamed : _int64 = 0;               // names obfuscation replaced (listed in <output>.names)
     native_groups : _int64 = 0;         // groups of native functions whose C++ files were written (-sni, or a project)
-    native_group_names : list<string>?; // ... and their names as files are called after them (foo -> foo_sni.cpp)
+    native_group_names : list<string>?; // ... the PROGRAM'S OWN of them (not the standard library's), by the name their files have (foo -> foo_sni.cpp)
     layout_ms : decimal = 0;
     obfuscation_ms : decimal = 0;
     generation_ms : decimal = 0;
@@ -272,9 +272,13 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
             if(sizeof(native_problem.data) > 0) { result.plain_errors.add("error: " + native_problem + "\n"); }
             else {
                 result.native_groups = groups;
+                // the groups a project builds (native_build.sharp): its OWN - a group of the standard
+                // library (std.guikit's "sharpgui") ships with Sharp already built
                 names := new list<string>();
                 written_groups := native_libraries_of(layout);
-                for(i : _int64 = 0; i < written_groups.size(); i++) { names.add(written_groups.at(i).identifier); }
+                for(i : _int64 = 0; i < written_groups.size(); i++) {
+                    if(written_groups.at(i).from_library == 0) { names.add(written_groups.at(i).identifier); }
+                }
                 result.native_group_names = names;
             }
         }
