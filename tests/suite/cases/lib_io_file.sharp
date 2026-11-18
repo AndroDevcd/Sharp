@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.io )
+import ( std.testing, std.io )
 
 /**
  * std.io file: the members added in std/io/files (name, parent, extension,
@@ -19,172 +19,172 @@ def at(name: string): file {
 
 def test_paths() {
     f := new file("/home/joe/report.final.csv");
-    expect_str("get_path", f.get_path(), "/home/joe/report.final.csv");
-    expect_str("get_name", f.name(), "report.final.csv");
-    expect_str("get_parent", f.parent_path()!!, "/home/joe");
-    expect_str("get_parent_file", f.parent()!!.get_path(), "/home/joe");
-    expect_str("get_extension", f.extension(), "csv");
-    expect_str("name without extension", f.name_without_extension(), "report.final");
-    expect_true("has_extension ignores case", f.has_extension("CSV").value);
-    expect_false("has_extension other", f.has_extension("txt").value);
-    expect_true("is_absolute", f.is_absolute().value);
-    expect_str("to_string", f.to_string()!!, "/home/joe/report.final.csv");
+    test("get_path") { expect(f.get_path()).should_be("/home/joe/report.final.csv"); };
+    test("get_name") { expect(f.name()).should_be("report.final.csv"); };
+    test("get_parent") { expect(f.parent_path()!!).should_be("/home/joe"); };
+    test("get_parent_file") { expect(f.parent()!!.get_path()).should_be("/home/joe"); };
+    test("get_extension") { expect(f.extension()).should_be("csv"); };
+    test("name without extension") { expect(f.name_without_extension()).should_be("report.final"); };
+    test("has_extension ignores case") { expect_true(f.has_extension("CSV").value); };
+    test("has_extension other") { expect_false(f.has_extension("txt").value); };
+    test("is_absolute") { expect_true(f.is_absolute().value); };
+    test("to_string") { expect(f.to_string()!!).should_be("/home/joe/report.final.csv"); };
 
     top := new file("/abc");
-    expect_str("name directly under root", top.name(), "abc");
-    expect_str("parent directly under root", top.parent_path()!!, "/");
+    test("name directly under root") { expect(top.name()).should_be("abc"); };
+    test("parent directly under root") { expect(top.parent_path()!!).should_be("/"); };
     root := new file("/");
-    expect_str("root path", root.get_path(), "/");
-    expect_true("root has no parent", io_strings.is_null(root.parent_path()));
-    expect_null("root has no parent file", root.parent());
+    test("root path") { expect(root.get_path()).should_be("/"); };
+    test("root has no parent") { expect_true(io_strings.is_null(root.parent_path())); };
+    test("root has no parent file") { expect_null(root.parent()); };
 
     bare := new file("notes");
-    expect_str("bare name", bare.name(), "notes");
-    expect_true("bare name has no parent", io_strings.is_null(bare.parent_path()));
-    expect_str("no extension", bare.extension(), "");
-    expect_str("name without extension (none)", bare.name_without_extension(), "notes");
-    expect_false("relative is not absolute", bare.is_absolute().value);
-    expect_str("sibling of bare name", bare.sibling("other").get_path(), "other");
+    test("bare name") { expect(bare.name()).should_be("notes"); };
+    test("bare name has no parent") { expect_true(io_strings.is_null(bare.parent_path())); };
+    test("no extension") { expect(bare.extension()).should_be(""); };
+    test("name without extension (none)") { expect(bare.name_without_extension()).should_be("notes"); };
+    test("relative is not absolute") { expect_false(bare.is_absolute().value); };
+    test("sibling of bare name") { expect(bare.sibling("other").get_path()).should_be("other"); };
 
     hidden := new file("dir/.profile");
-    expect_str("hidden file has no extension", hidden.extension(), "");
-    expect_str("hidden name stays whole", hidden.name_without_extension(), ".profile");
+    test("hidden file has no extension") { expect(hidden.extension()).should_be(""); };
+    test("hidden name stays whole") { expect(hidden.name_without_extension()).should_be(".profile"); };
 
     // normalisation of the path given to the constructor
-    expect_str("double separators collapse", new file("a//b///c").get_path(), "a/b/c");
-    expect_str("trailing separator removed", new file("a/b/").get_path(), "a/b");
-    expect_str("back slashes become slashes", new file("a\\b\\c").get_path(), "a/b/c");
+    test("double separators collapse") { expect(new file("a//b///c").get_path()).should_be("a/b/c"); };
+    test("trailing separator removed") { expect(new file("a/b/").get_path()).should_be("a/b"); };
+    test("back slashes become slashes") { expect(new file("a\\b\\c").get_path()).should_be("a/b/c"); };
 
-    expect_str("child", f.parent()!!.child("x.txt").get_path(), "/home/joe/x.txt");
-    expect_str("child with sub path", top.child("a/b").get_path(), "/abc/a/b");
-    expect_str("child of root", root.child("etc").get_path(), "/etc");
-    expect_str("sibling", f.sibling("other.csv").get_path(), "/home/joe/other.csv");
-    expect_true("same_path", f.same_path(new file("/home//joe/report.final.csv")).value);
-    expect_false("same_path different", f.same_path(top).value);
-    expect("separator", file.separator_char(), '/');
+    test("child") { expect(f.parent()!!.child("x.txt").get_path()).should_be("/home/joe/x.txt"); };
+    test("child with sub path") { expect(top.child("a/b").get_path()).should_be("/abc/a/b"); };
+    test("child of root") { expect(root.child("etc").get_path()).should_be("/etc"); };
+    test("sibling") { expect(f.sibling("other.csv").get_path()).should_be("/home/joe/other.csv"); };
+    test("same_path") { expect_true(f.same_path(new file("/home//joe/report.final.csv")).value); };
+    test("same_path different") { expect_false(f.same_path(top).value); };
+    test("separator") { expect(file.separator_char()).should_be('/'); };
 
-    try { top.child(""); fail("empty child", "no exception"); }
-    catch(e: nullptr_exception) { pass("empty child"); }
+    try { top.child(""); test("empty child") { fail_test("no exception"); }; }
+    catch(e: nullptr_exception) { test("empty child") { }; }
 
     rel := new file("some/relative.txt");
     absolute := rel.absolute_path();
-    expect_true("absolute path of a missing file is rooted", absolute.data[0] == '/');
-    expect_true("absolute path ends with the relative one", io_strings.ends_with(absolute, "/some/relative.txt").value);
+    test("absolute path of a missing file is rooted") { expect_true(absolute.data[0] == '/'); };
+    test("absolute path ends with the relative one") { expect_true(io_strings.ends_with(absolute, "/some/relative.txt").value); };
 }
 
 def test_create_delete() {
     f := at("created.txt");
-    expect_false("does not exist yet", f.exists().value);
-    expect_false("is_file before", f.is_file().value);
-    expect("length of missing file", f.size(), 0);
-    expect_true("create_new", f.create_new().value);
-    expect_true("exists after create", f.exists().value);
-    expect_true("is_file", f.is_file().value);
-    expect_false("is_directory", f.is_directory().value);
-    expect_true("is_empty", f.is_empty().value);
-    expect_true("is_readable", f.is_readable().value);
-    expect_true("is_writeable", f.is_writeable().value);
-    expect_true("last_modified is set", f.last_modified().value > 1000000000);
+    test("does not exist yet") { expect_false(f.exists().value); };
+    test("is_file before") { expect_false(f.is_file().value); };
+    test("length of missing file") { expect(f.size()).should_be(0); };
+    test("create_new") { expect_true(f.create_new().value); };
+    test("exists after create") { expect_true(f.exists().value); };
+    test("is_file") { expect_true(f.is_file().value); };
+    test("is_directory") { expect_false(f.is_directory().value); };
+    test("is_empty") { expect_true(f.is_empty().value); };
+    test("is_readable") { expect_true(f.is_readable().value); };
+    test("is_writeable") { expect_true(f.is_writeable().value); };
+    test("last_modified is set") { expect_true(f.last_modified().value > 1000000000); };
 
     f.write_text("keep me");
-    expect_false("create_new does not replace", f.create_new().value);
-    expect_str("content survived create_new", f.read_text(), "keep me");
-    expect("length", f.size(), 7);
-    expect_false("not empty", f.is_empty().value);
+    test("create_new does not replace") { expect_false(f.create_new().value); };
+    test("content survived create_new") { expect(f.read_text()).should_be("keep me"); };
+    test("length") { expect(f.size()).should_be(7); };
+    test("not empty") { expect_false(f.is_empty().value); };
 
-    expect("set_last_modified", f.set_last_modified(1500000000).value, 1500000000);
-    expect("last_modified reads it back", f.last_modified().value, 1500000000);
+    test("set_last_modified") { expect(f.set_last_modified(1500000000).value).should_be(1500000000); };
+    test("last_modified reads it back") { expect(f.last_modified().value).should_be(1500000000); };
 
-    expect_true("remove", f.remove().value);
-    expect_false("gone after delete", f.exists().value);
-    expect_false("remove of missing file", f.remove().value);
+    test("remove") { expect_true(f.remove().value); };
+    test("gone after delete") { expect_false(f.exists().value); };
+    test("remove of missing file") { expect_false(f.remove().value); };
 
     // directories
     d := at("subdir");
-    expect("mkdir", d.mkdir().value, 0);
-    expect_true("directory exists", d.is_directory().value);
-    expect_false("directory is not a file", d.is_file().value);
-    expect("length of directory", d.size(), 0);
-    expect_true("mkdir again fails", d.mkdir().value != 0);
+    test("mkdir") { expect(d.mkdir().value).should_be(0); };
+    test("directory exists") { expect_true(d.is_directory().value); };
+    test("directory is not a file") { expect_false(d.is_file().value); };
+    test("length of directory") { expect(d.size()).should_be(0); };
+    test("mkdir again fails") { expect_true(d.mkdir().value != 0); };
     inner := d.child("inner.txt");
     inner.write_text("x");
-    expect_false("remove of non-empty directory", d.remove().value);
-    expect_true("...and leaves the content", inner.exists().value);
+    test("remove of non-empty directory") { expect_false(d.remove().value); };
+    test("...and leaves the content") { expect_true(inner.exists().value); };
     inner.remove();
-    expect_true("remove of empty directory", d.remove().value);
-    expect_false("directory gone", d.exists().value);
-    expect_true("mkdir without parent fails", at("no/such/dir").mkdir().value != 0);
-    expect_false("create_new without parent fails", at("no/such/file.txt").create_new().value);
+    test("remove of empty directory") { expect_true(d.remove().value); };
+    test("directory gone") { expect_false(d.exists().value); };
+    test("mkdir without parent fails") { expect_true(at("no/such/dir").mkdir().value != 0); };
+    test("create_new without parent fails") { expect_false(at("no/such/file.txt").create_new().value); };
 
     // rename
     a := at("old_name.txt");
     a.write_text("moving");
     b := at("new_name.txt");
-    expect("rename", a.rename(b).value, 0);
-    expect_str("object follows rename", a.name(), "new_name.txt");
-    expect_false("old name gone", at("old_name.txt").exists().value);
-    expect_str("content under new name", b.read_text(), "moving");
+    test("rename") { expect(a.rename(b).value).should_be(0); };
+    test("object follows rename") { expect(a.name()).should_be("new_name.txt"); };
+    test("old name gone") { expect_false(at("old_name.txt").exists().value); };
+    test("content under new name") { expect(b.read_text()).should_be("moving"); };
     b.remove();
 
     // permissions
     p := at("perm.txt");
     p.write_text("x");
-    expect("set_writable(false)", p.set_writable(false).value, 0);
-    expect("set_writable(true)", p.set_writable(true).value, 0);
-    expect_true("writeable again", p.is_writeable().value);
-    expect("set_executable", p.set_executable(true).value, 0);
-    expect_true("is_executable", p.is_executable().value);
+    test("set_writable(false)") { expect(p.set_writable(false).value).should_be(0); };
+    test("set_writable(true)") { expect(p.set_writable(true).value).should_be(0); };
+    test("writeable again") { expect_true(p.is_writeable().value); };
+    test("set_executable") { expect(p.set_executable(true).value).should_be(0); };
+    test("is_executable") { expect_true(p.is_executable().value); };
     p.remove();
 
-    expect_true("total space", f.get_total_space().value > 0);
-    expect_true("current_directory", io_strings.length(file.current_directory()) > 0);
+    test("total space") { expect_true(f.get_total_space().value > 0); };
+    test("current_directory") { expect_true(io_strings.length(file.current_directory()) > 0); };
 }
 
 def test_text() {
     f := at("text.txt");
     f.write_text("alpha\nbeta\n");
-    expect_str("read_text", f.read_text(), "alpha\nbeta\n");
-    expect("length", f.size(), 11);
+    test("read_text") { expect(f.read_text()).should_be("alpha\nbeta\n"); };
+    test("length") { expect(f.size()).should_be(11); };
     lines := f.read_lines();
-    expect("read_lines count", lines.size().value, 2);
-    expect_str("line 0", lines.at(0), "alpha");
-    expect_str("line 1", lines.at(1), "beta");
+    test("read_lines count") { expect(lines.size().value).should_be(2); };
+    test("line 0") { expect(lines.at(0)).should_be("alpha"); };
+    test("line 1") { expect(lines.at(1)).should_be("beta"); };
 
     f.append_text("gamma");
-    expect_str("append_text", f.read_text(), "alpha\nbeta\ngamma");
+    test("append_text") { expect(f.read_text()).should_be("alpha\nbeta\ngamma"); };
     f.append_line("");
     f.append_line("delta");
-    expect("lines after appends", f.read_lines().size().value, 4);
-    expect_str("last line", f.read_lines().at(3), "delta");
+    test("lines after appends") { expect(f.read_lines().size().value).should_be(4); };
+    test("last line") { expect(f.read_lines().at(3)).should_be("delta"); };
 
     // writing nothing leaves an empty file (the runtime call itself cannot do that)
     f.write_text("");
-    expect_true("empty file exists", f.exists().value);
-    expect("empty file length", f.size(), 0);
-    expect_str("read_text of empty file", f.read_text(), "");
-    expect("read_lines of empty file", f.read_lines().size().value, 0);
-    expect_null("read_bytes of empty file", f.read_bytes());
+    test("empty file exists") { expect_true(f.exists().value); };
+    test("empty file length") { expect(f.size()).should_be(0); };
+    test("read_text of empty file") { expect(f.read_text()).should_be(""); };
+    test("read_lines of empty file") { expect(f.read_lines().size().value).should_be(0); };
+    test("read_bytes of empty file") { expect_null(f.read_bytes()); };
 
     fresh := at("fresh.txt");
     fresh.append_line("first");
-    expect_str("append creates the file", fresh.read_text(), "first\n");
+    test("append creates the file") { expect(fresh.read_text()).should_be("first\n"); };
     fresh.write_text("replaced");
-    expect_str("write_text replaces", fresh.read_text(), "replaced");
+    test("write_text replaces") { expect(fresh.read_text()).should_be("replaced"); };
 
     out := new list<string>();
     out.add("one"); out.add(""); out.add("three");
     fresh.write_lines(out);
-    expect_str("write_lines", fresh.read_text(), "one\n\nthree\n");
+    test("write_lines") { expect(fresh.read_text()).should_be("one\n\nthree\n"); };
     back := fresh.read_lines();
-    expect("write_lines round trip count", back.size().value, 3);
-    expect_str("write_lines round trip empty line", back.at(1), "");
+    test("write_lines round trip count") { expect(back.size().value).should_be(3); };
+    test("write_lines round trip empty line") { expect(back.at(1)).should_be(""); };
     fresh.write_lines(new list<string>());
-    expect("write_lines of nothing", fresh.size(), 0);
+    test("write_lines of nothing") { expect(fresh.size()).should_be(0); };
 
     crlf := at("crlf.txt");
     crlf.write_text("a\r\nb\r\n");
-    expect("crlf lines", crlf.read_lines().size().value, 2);
-    expect_str("crlf line content", crlf.read_lines().at(1), "b");
+    test("crlf lines") { expect(crlf.read_lines().size().value).should_be(2); };
+    test("crlf line content") { expect(crlf.read_lines().at(1)).should_be("b"); };
 
     // bytes: every value 0..255 survives
     bytes := new _int8[256];
@@ -193,18 +193,18 @@ def test_text() {
     }
     bin := at("all_bytes.bin");
     bin.write_bytes(bytes);
-    expect("binary length", bin.size(), 256);
+    test("binary length") { expect(bin.size()).should_be(256); };
     read_back := bin.read_bytes();
-    expect("read_bytes size", sizeof(read_back), 256);
+    test("read_bytes size") { expect(sizeof(read_back)).should_be(256); };
     same : decimal = 1;
     for(i : decimal = 0; i < 256; i++) {
         if((read_back[i] & 0xff) != i) {
             same = 0;
         }
     }
-    expect_true("all 256 byte values round trip", same);
+    test("all 256 byte values round trip") { expect_true(same); };
     bin.write_bytes(null);
-    expect("write_bytes(null) empties", bin.size(), 0);
+    test("write_bytes(null) empties") { expect(bin.size()).should_be(0); };
 
     big := new char_buffer();
     for(i : decimal = 0; i < 20000; i++) {
@@ -212,35 +212,38 @@ def test_text() {
     }
     large := at("large.txt");
     large.write_text(big.to_string()!!);
-    expect("large file length", large.size(), 208890);
-    expect("large file lines", large.read_lines().size().value, 20000);
-    expect_str("large file last line", large.read_lines().at(19999), "line 19999");
+    test("large file length") { expect(large.size()).should_be(208890); };
+    test("large file lines") { expect(large.read_lines().size().value).should_be(20000); };
+    test("large file last line") { expect(large.read_lines().at(19999)).should_be("line 19999"); };
 
     // errors
-    try { at("missing.txt").read_text(); fail("read missing", "no exception"); }
-    catch(e: io_exception) { pass("read missing"); }
-    try { at("missing.txt").read_lines(); fail("read_lines missing", "no exception"); }
-    catch(e: io_exception) { pass("read_lines missing"); }
-    try { new file(base_dir).read_text(); fail("read directory", "no exception"); }
-    catch(e: io_exception) { pass("read directory"); }
-    try { new file(base_dir).write_text("x"); fail("write directory", "no exception"); }
-    catch(e: io_exception) { pass("write directory"); }
-    try { at("no/such/dir/file.txt").write_text("x"); fail("write without directory", "no exception"); }
-    catch(e: io_exception) { pass("write without directory"); }
-    try { new file(base_dir).append_text("x"); fail("append directory", "no exception"); }
-    catch(e: io_exception) { pass("append directory"); }
+    try { at("missing.txt").read_text(); test("read missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("read missing") { }; }
+    try { at("missing.txt").read_lines(); test("read_lines missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("read_lines missing") { }; }
+    try { new file(base_dir).read_text(); test("read directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("read directory") { }; }
+    try { new file(base_dir).write_text("x"); test("write directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("write directory") { }; }
+    try { at("no/such/dir/file.txt").write_text("x"); test("write without directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("write without directory") { }; }
+    try { new file(base_dir).append_text("x"); test("append directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("append directory") { }; }
 }
 
 def main(args: string[]) {
-    start := new file(base_dir);
-    start.delete_recursively();
-    expect_true("test directory created", start.mkdirs().value);
+    show_only_failures();
+    tests("lib_io_file") {
+        start := new file(base_dir);
+        start.delete_recursively();
+        test("test directory created") { expect_true(start.mkdirs().value); };
 
-    test_paths();
-    test_create_delete();
-    test_text();
+        test_paths();
+        test_create_delete();
+        test_text();
 
-    expect_true("cleanup", start.delete_recursively().value);
-    expect_false("test directory gone", start.exists().value);
-    finish("lib_io_file");
+        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("test directory gone") { expect_false(start.exists().value); };
+    };
+    finish_tests();
 }

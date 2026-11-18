@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.collections )
+import ( std.testing, std.collections )
 
 /**
  * std.collections - the static array helpers: arrays<T> for arrays of
@@ -54,35 +54,35 @@ def by_rank(a: card, b: card) : decimal { return a.rank - b.rank; }
 def test_object_arrays() {
     a := ints(5, 3, 9, 1, 4);
     arrays<int>.sort(a, ascending);
-    expect_str("sort ascending", join(a), "1,3,4,5,9");
+    test("sort ascending") { expect(join(a)).should_be("1,3,4,5,9"); };
     arrays<int>.sort(a, descending);
-    expect_str("sort descending", join(a), "9,5,4,3,1");
-    expect("is_sorted descending", arrays<int>.is_sorted(a, descending), 1);
-    expect("is_sorted ascending", arrays<int>.is_sorted(a, ascending), 0);
+    test("sort descending") { expect(join(a)).should_be("9,5,4,3,1"); };
+    test("is_sorted descending") { expect(arrays<int>.is_sorted(a, descending)).should_be(1); };
+    test("is_sorted ascending") { expect(arrays<int>.is_sorted(a, ascending)).should_be(0); };
 
     // edge sizes
     none := new int[0];
     arrays<int>.sort(none, ascending);
-    expect("sort of an empty array", sizeof(none), 0);
-    expect("is_sorted empty", arrays<int>.is_sorted(none, ascending), 1);
+    test("sort of an empty array") { expect(sizeof(none)).should_be(0); };
+    test("is_sorted empty") { expect(arrays<int>.is_sorted(none, ascending)).should_be(1); };
     one := new int[] { new int(7) };
     arrays<int>.sort(one, ascending);
-    expect("sort of one element", one[0].value, 7);
+    test("sort of one element") { expect(one[0].value).should_be(7); };
     two := new int[] { new int(2), new int(1) };
     arrays<int>.sort(two, ascending);
-    expect_str("sort of two elements", join(two), "1,2");
+    test("sort of two elements") { expect(join(two)).should_be("1,2"); };
     three := new int[] { new int(3), new int(1), new int(2) };
     arrays<int>.sort(three, ascending);
-    expect_str("sort of three elements (odd number of merge passes)", join(three), "1,2,3");
+    test("sort of three elements (odd number of merge passes)") { expect(join(three)).should_be("1,2,3"); };
     dup := ints(2, 1, 2, 1, 2);
     arrays<int>.sort(dup, ascending);
-    expect_str("sort with duplicates", join(dup), "1,1,2,2,2");
+    test("sort with duplicates") { expect(join(dup)).should_be("1,1,2,2,2"); };
 
     // sorted() leaves the original alone
     b := ints(4, 2, 5, 1, 3);
     c := arrays<int>.sorted(b, ascending);
-    expect_str("sorted copy", join(c), "1,2,3,4,5");
-    expect_str("sorted leaves the original", join(b), "4,2,5,1,3");
+    test("sorted copy") { expect(join(c)).should_be("1,2,3,4,5"); };
+    test("sorted leaves the original") { expect(join(b)).should_be("4,2,5,1,3"); };
 
     // stable: cards with the same rank keep their order
     cards := new card[] {
@@ -91,86 +91,86 @@ def test_object_arrays() {
     arrays<card>.sort(cards, by_rank);
     order := "";
     for(i : decimal = 0; i < sizeof(cards); i++) order = order + cards[i].label;
-    expect_str("sort is stable", order, "fbdace");
+    test("sort is stable") { expect(order).should_be("fbdace"); };
 
     // binary_search on 1,2,3,4,5
-    expect("binary_search first", arrays<int>.binary_search(c, 1, ascending), 0);
-    expect("binary_search middle", arrays<int>.binary_search(c, 3, ascending), 2);
-    expect("binary_search last", arrays<int>.binary_search(c, 5, ascending), 4);
-    expect("binary_search below all: -(0) - 1", arrays<int>.binary_search(c, 0, ascending), 0 - 1);
-    expect("binary_search above all: -(5) - 1", arrays<int>.binary_search(c, 9, ascending), 0 - 6);
+    test("binary_search first") { expect(arrays<int>.binary_search(c, 1, ascending)).should_be(0); };
+    test("binary_search middle") { expect(arrays<int>.binary_search(c, 3, ascending)).should_be(2); };
+    test("binary_search last") { expect(arrays<int>.binary_search(c, 5, ascending)).should_be(4); };
+    test("binary_search below all: -(0) - 1") { expect(arrays<int>.binary_search(c, 0, ascending)).should_be(0 - 1); };
+    test("binary_search above all: -(5) - 1") { expect(arrays<int>.binary_search(c, 9, ascending)).should_be(0 - 6); };
     gaps := ints(10, 20, 30, 40, 50);
-    expect("binary_search between: -(2) - 1", arrays<int>.binary_search(gaps, 25, ascending), 0 - 3);
-    expect("binary_search in an empty array", arrays<int>.binary_search(none, 1, ascending), 0 - 1);
+    test("binary_search between: -(2) - 1") { expect(arrays<int>.binary_search(gaps, 25, ascending)).should_be(0 - 3); };
+    test("binary_search in an empty array") { expect(arrays<int>.binary_search(none, 1, ascending)).should_be(0 - 1); };
 
     // reverse / reversed / swap / fill
     arrays<int>.reverse(c);
-    expect_str("reverse", join(c), "5,4,3,2,1");
+    test("reverse") { expect(join(c)).should_be("5,4,3,2,1"); };
     even := new int[] { new int(1), new int(2), new int(3), new int(4) };
     arrays<int>.reverse(even);
-    expect_str("reverse with an even length", join(even), "4,3,2,1");
-    expect_str("reversed copy", join(arrays<int>.reversed(c)), "1,2,3,4,5");
-    expect_str("reversed leaves the original", join(c), "5,4,3,2,1");
+    test("reverse with an even length") { expect(join(even)).should_be("4,3,2,1"); };
+    test("reversed copy") { expect(join(arrays<int>.reversed(c))).should_be("1,2,3,4,5"); };
+    test("reversed leaves the original") { expect(join(c)).should_be("5,4,3,2,1"); };
     arrays<int>.swap(c, 0, 4);
-    expect_str("swap", join(c), "1,4,3,2,5");
-    try { arrays<int>.swap(c, 0, 5); fail("swap out of range", "did not throw"); } catch(e: out_of_bounds_exception) { pass("swap out of range"); }
+    test("swap") { expect(join(c)).should_be("1,4,3,2,5"); };
+    try { arrays<int>.swap(c, 0, 5); test("swap out of range") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("swap out of range") { }; }
     filled := new int[3];
     arrays<int>.fill(filled, 8);
-    expect_str("fill", join(filled), "8,8,8");
+    test("fill") { expect(join(filled)).should_be("8,8,8"); };
 
     // copies
-    expect_str("copy_of same length", join(arrays<int>.copy_of(b, 5)), "4,2,5,1,3");
-    expect_str("copy_of shorter", join(arrays<int>.copy_of(b, 2)), "4,2");
+    test("copy_of same length") { expect(join(arrays<int>.copy_of(b, 5))).should_be("4,2,5,1,3"); };
+    test("copy_of shorter") { expect(join(arrays<int>.copy_of(b, 2))).should_be("4,2"); };
     longer := arrays<int>.copy_of(b, 7);
-    expect("copy_of longer: length", sizeof(longer), 7);
-    expect("copy_of longer: kept elements", longer[4].value, 3);
-    expect_null("copy_of longer: extra slots are empty", longer[6]);
-    expect("copy_of zero", sizeof(arrays<int>.copy_of(b, 0)), 0);
-    try { arrays<int>.copy_of(b, 0 - 1); fail("copy_of negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("copy_of negative"); }
-    expect_str("copy_of_range", join(arrays<int>.copy_of_range(b, 1, 4)), "2,5,1");
-    expect("copy_of_range empty", sizeof(arrays<int>.copy_of_range(b, 2, 2)), 0);
-    try { arrays<int>.copy_of_range(b, 3, 6); fail("copy_of_range past the end", "did not throw"); } catch(e: out_of_bounds_exception) { pass("copy_of_range past the end"); }
-    try { arrays<int>.copy_of_range(b, 3, 2); fail("copy_of_range from > to", "did not throw"); } catch(e: out_of_bounds_exception) { pass("copy_of_range from > to"); }
-    expect_str("concat", join(arrays<int>.concat(two, three)), "1,2,1,2,3");
-    expect_str("concat with empty", join(arrays<int>.concat(none, two)), "1,2");
+    test("copy_of longer: length") { expect(sizeof(longer)).should_be(7); };
+    test("copy_of longer: kept elements") { expect(longer[4].value).should_be(3); };
+    test("copy_of longer: extra slots are empty") { expect_null(longer[6]); };
+    test("copy_of zero") { expect(sizeof(arrays<int>.copy_of(b, 0))).should_be(0); };
+    try { arrays<int>.copy_of(b, 0 - 1); test("copy_of negative") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("copy_of negative") { }; }
+    test("copy_of_range") { expect(join(arrays<int>.copy_of_range(b, 1, 4))).should_be("2,5,1"); };
+    test("copy_of_range empty") { expect(sizeof(arrays<int>.copy_of_range(b, 2, 2))).should_be(0); };
+    try { arrays<int>.copy_of_range(b, 3, 6); test("copy_of_range past the end") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("copy_of_range past the end") { }; }
+    try { arrays<int>.copy_of_range(b, 3, 2); test("copy_of_range from > to") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("copy_of_range from > to") { }; }
+    test("concat") { expect(join(arrays<int>.concat(two, three))).should_be("1,2,1,2,3"); };
+    test("concat with empty") { expect(join(arrays<int>.concat(none, two))).should_be("1,2"); };
 
     // searching
     d := ints(7, 3, 7, 5, 3);
-    expect("index_of", arrays<int>.index_of(d, 3), 1);
-    expect("index_of first element", arrays<int>.index_of(d, 7), 0);
-    expect("index_of missing", arrays<int>.index_of(d, 9), 0 - 1);
-    expect("last_index_of", arrays<int>.last_index_of(d, 7), 2);
-    expect("last_index_of missing", arrays<int>.last_index_of(d, 9), 0 - 1);
-    expect("contains", arrays<int>.contains(d, 5), 1);
-    expect("contains missing", arrays<int>.contains(d, 6), 0);
-    expect("count", arrays<int>.count(d, 7), 2);
-    expect("count missing", arrays<int>.count(d, 8), 0);
+    test("index_of") { expect(arrays<int>.index_of(d, 3)).should_be(1); };
+    test("index_of first element") { expect(arrays<int>.index_of(d, 7)).should_be(0); };
+    test("index_of missing") { expect(arrays<int>.index_of(d, 9)).should_be(0 - 1); };
+    test("last_index_of") { expect(arrays<int>.last_index_of(d, 7)).should_be(2); };
+    test("last_index_of missing") { expect(arrays<int>.last_index_of(d, 9)).should_be(0 - 1); };
+    test("contains") { expect(arrays<int>.contains(d, 5)).should_be(1); };
+    test("contains missing") { expect(arrays<int>.contains(d, 6)).should_be(0); };
+    test("count") { expect(arrays<int>.count(d, 7)).should_be(2); };
+    test("count missing") { expect(arrays<int>.count(d, 8)).should_be(0); };
     words := new string[] { "pear", "fig", "apple" };
-    expect("index_of compares strings by value", arrays<string>.index_of(words, "f" + "ig"), 1);
+    test("index_of compares strings by value") { expect(arrays<string>.index_of(words, "f" + "ig")).should_be(1); };
 
     // aggregates
-    expect("min", arrays<int>.min(d, ascending).value, 3);
-    expect("max", arrays<int>.max(d, ascending).value, 7);
-    expect("min with the comparison turned around", arrays<int>.min(d, descending).value, 7);
-    expect_str("max by length", arrays<string>.max(words, { x: string, y: string -> (decimal) return x.size().value - y.size().value; }), "apple");
-    expect("sum_of", arrays<int>.sum_of(d, { n: int -> (decimal) return n.value; }), 25);
-    expect("sum_of empty", arrays<int>.sum_of(none, { n: int -> (decimal) return n.value; }), 0);
-    try { arrays<int>.min(none, ascending); fail("min of empty", "did not throw"); } catch(e: illegal_argument_exception) { pass("min of empty"); }
-    try { arrays<int>.max(none, ascending); fail("max of empty", "did not throw"); } catch(e: illegal_argument_exception) { pass("max of empty"); }
+    test("min") { expect(arrays<int>.min(d, ascending).value).should_be(3); };
+    test("max") { expect(arrays<int>.max(d, ascending).value).should_be(7); };
+    test("min with the comparison turned around") { expect(arrays<int>.min(d, descending).value).should_be(7); };
+    test("max by length") { expect(arrays<string>.max(words, { x: string, y: string -> (decimal) return x.size().value - y.size().value; })).should_be("apple"); };
+    test("sum_of") { expect(arrays<int>.sum_of(d, { n: int -> (decimal) return n.value; })).should_be(25); };
+    test("sum_of empty") { expect(arrays<int>.sum_of(none, { n: int -> (decimal) return n.value; })).should_be(0); };
+    try { arrays<int>.min(none, ascending); test("min of empty") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("min of empty") { }; }
+    try { arrays<int>.max(none, ascending); test("max of empty") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("max of empty") { }; }
 
     // equals
-    expect("equals same contents", arrays<int>.equals(ints(1, 2, 3, 4, 5), ints(1, 2, 3, 4, 5)), 1);
-    expect("equals one difference", arrays<int>.equals(ints(1, 2, 3, 4, 5), ints(1, 2, 3, 4, 6)), 0);
-    expect("equals different length", arrays<int>.equals(two, three), 0);
-    expect("equals both empty", arrays<int>.equals(none, new int[0]), 1);
+    test("equals same contents") { expect(arrays<int>.equals(ints(1, 2, 3, 4, 5), ints(1, 2, 3, 4, 5))).should_be(1); };
+    test("equals one difference") { expect(arrays<int>.equals(ints(1, 2, 3, 4, 5), ints(1, 2, 3, 4, 6))).should_be(0); };
+    test("equals different length") { expect(arrays<int>.equals(two, three)).should_be(0); };
+    test("equals both empty") { expect(arrays<int>.equals(none, new int[0])).should_be(1); };
 
     // to and from list
     as_list := arrays<int>.to_list(d);
-    expect("to_list size", as_list.size().value, 5);
-    expect("to_list[3]", as_list.at(3).value, 5);
+    test("to_list size") { expect(as_list.size().value).should_be(5); };
+    test("to_list[3]") { expect(as_list.at(3).value).should_be(5); };
     back := arrays<int>.from_list(as_list);
-    expect_str("from_list", join(back), "7,3,7,5,3");
-    expect("from_list of an empty list", sizeof(arrays<int>.from_list(new list<int>())), 0);
+    test("from_list") { expect(join(back)).should_be("7,3,7,5,3"); };
+    test("from_list of an empty list") { expect(sizeof(arrays<int>.from_list(new list<int>()))).should_be(0); };
 
     // scale: 5000 pseudo random numbers
     n : decimal = 5000;
@@ -189,100 +189,100 @@ def test_object_arrays() {
         if(big[i - 1].value > big[i].value) in_order = 0;
         sum_after += big[i].value;
     }
-    expect("sort 5000: ascending", in_order, 1);
-    expect("sort 5000: nothing lost or invented", sum_after, sum_before);
-    expect("sort 5000: is_sorted", arrays<int>.is_sorted(big, ascending), 1);
+    test("sort 5000: ascending") { expect(in_order).should_be(1); };
+    test("sort 5000: nothing lost or invented") { expect(sum_after).should_be(sum_before); };
+    test("sort 5000: is_sorted") { expect(arrays<int>.is_sorted(big, ascending)).should_be(1); };
     found : decimal = 1;
     for(i : decimal = 0; i < n; i += 97) {
         at : decimal = arrays<int>.binary_search(big, big[i], ascending);
         if(at < 0) found = 0;
         else if(big[at].value != big[i].value) found = 0;
     }
-    expect("sort 5000: binary_search finds elements", found, 1);
+    test("sort 5000: binary_search finds elements") { expect(found).should_be(1); };
     // already sorted and reversed input
     arrays<int>.sort(big, ascending);
-    expect("sort 5000: sorted input stays sorted", arrays<int>.is_sorted(big, ascending), 1);
+    test("sort 5000: sorted input stays sorted") { expect(arrays<int>.is_sorted(big, ascending)).should_be(1); };
     arrays<int>.sort(big, descending);
-    expect("sort 5000: reversed", arrays<int>.is_sorted(big, descending), 1);
-    expect_true("sort 5000: largest first", big[0].value >= big[n - 1].value);
+    test("sort 5000: reversed") { expect(arrays<int>.is_sorted(big, descending)).should_be(1); };
+    test("sort 5000: largest first") { expect_true(big[0].value >= big[n - 1].value); };
 }
 
 def test_var_arrays() {
     a := vars(5, 3, 9, 1, 4);
     var_arrays.sort(a);
-    expect_str("var sort", join_vars(a), "1,3,4,5,9");
-    expect("var is_sorted", var_arrays.is_sorted(a), 1);
+    test("var sort") { expect(join_vars(a)).should_be("1,3,4,5,9"); };
+    test("var is_sorted") { expect(var_arrays.is_sorted(a)).should_be(1); };
     var_arrays.sort_descending(a);
-    expect_str("var sort_descending", join_vars(a), "9,5,4,3,1");
-    expect("var is_sorted after descending", var_arrays.is_sorted(a), 0);
+    test("var sort_descending") { expect(join_vars(a)).should_be("9,5,4,3,1"); };
+    test("var is_sorted after descending") { expect(var_arrays.is_sorted(a)).should_be(0); };
 
     none := new decimal[0];
     var_arrays.sort(none);
-    expect("var sort empty", sizeof(none), 0);
-    expect("var is_sorted empty", var_arrays.is_sorted(none), 1);
+    test("var sort empty") { expect(sizeof(none)).should_be(0); };
+    test("var is_sorted empty") { expect(var_arrays.is_sorted(none)).should_be(1); };
     three := new decimal[3];
     three[0] = 3; three[1] = 1; three[2] = 2;
     var_arrays.sort(three);
-    expect_str("var sort of three (odd number of merge passes)", join_vars(three), "1,2,3");
+    test("var sort of three (odd number of merge passes)") { expect(join_vars(three)).should_be("1,2,3"); };
 
     // fractions and negatives
     f := vars(0.5, 0 - 2, 0.25, 0 - 2.5, 0);
     var_arrays.sort(f);
-    expect("var sort fractions [0]", f[0], 0 - 2.5);
-    expect("var sort fractions [1]", f[1], 0 - 2);
-    expect("var sort fractions [2]", f[2], 0);
-    expect("var sort fractions [3]", f[3], 0.25);
-    expect("var sort fractions [4]", f[4], 0.5);
+    test("var sort fractions [0]") { expect(f[0]).should_be(0 - 2.5); };
+    test("var sort fractions [1]") { expect(f[1]).should_be(0 - 2); };
+    test("var sort fractions [2]") { expect(f[2]).should_be(0); };
+    test("var sort fractions [3]") { expect(f[3]).should_be(0.25); };
+    test("var sort fractions [4]") { expect(f[4]).should_be(0.5); };
 
     b := vars(4, 2, 5, 1, 3);
     c := var_arrays.sorted(b);
-    expect_str("var sorted copy", join_vars(c), "1,2,3,4,5");
-    expect_str("var sorted leaves the original", join_vars(b), "4,2,5,1,3");
+    test("var sorted copy") { expect(join_vars(c)).should_be("1,2,3,4,5"); };
+    test("var sorted leaves the original") { expect(join_vars(b)).should_be("4,2,5,1,3"); };
 
-    expect("var binary_search first", var_arrays.binary_search(c, 1), 0);
-    expect("var binary_search middle", var_arrays.binary_search(c, 3), 2);
-    expect("var binary_search last", var_arrays.binary_search(c, 5), 4);
-    expect("var binary_search between: -(2) - 1", var_arrays.binary_search(c, 2.5), 0 - 3);
-    expect("var binary_search below all", var_arrays.binary_search(c, 0), 0 - 1);
-    expect("var binary_search above all", var_arrays.binary_search(c, 6), 0 - 6);
-    expect("var binary_search empty", var_arrays.binary_search(none, 6), 0 - 1);
+    test("var binary_search first") { expect(var_arrays.binary_search(c, 1)).should_be(0); };
+    test("var binary_search middle") { expect(var_arrays.binary_search(c, 3)).should_be(2); };
+    test("var binary_search last") { expect(var_arrays.binary_search(c, 5)).should_be(4); };
+    test("var binary_search between: -(2) - 1") { expect(var_arrays.binary_search(c, 2.5)).should_be(0 - 3); };
+    test("var binary_search below all") { expect(var_arrays.binary_search(c, 0)).should_be(0 - 1); };
+    test("var binary_search above all") { expect(var_arrays.binary_search(c, 6)).should_be(0 - 6); };
+    test("var binary_search empty") { expect(var_arrays.binary_search(none, 6)).should_be(0 - 1); };
 
     var_arrays.reverse(c);
-    expect_str("var reverse", join_vars(c), "5,4,3,2,1");
+    test("var reverse") { expect(join_vars(c)).should_be("5,4,3,2,1"); };
     filled := new decimal[3];
     var_arrays.fill(filled, 7);
-    expect_str("var fill", join_vars(filled), "7,7,7");
+    test("var fill") { expect(join_vars(filled)).should_be("7,7,7"); };
 
-    expect_str("var copy_of shorter", join_vars(var_arrays.copy_of(b, 2)), "4,2");
-    expect_str("var copy_of longer is padded with 0", join_vars(var_arrays.copy_of(b, 7)), "4,2,5,1,3,0,0");
-    try { var_arrays.copy_of(b, 0 - 1); fail("var copy_of negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("var copy_of negative"); }
-    expect_str("var copy_of_range", join_vars(var_arrays.copy_of_range(b, 1, 4)), "2,5,1");
-    expect("var copy_of_range empty", sizeof(var_arrays.copy_of_range(b, 5, 5)), 0);
-    try { var_arrays.copy_of_range(b, 2, 6); fail("var copy_of_range past the end", "did not throw"); } catch(e: out_of_bounds_exception) { pass("var copy_of_range past the end"); }
+    test("var copy_of shorter") { expect(join_vars(var_arrays.copy_of(b, 2))).should_be("4,2"); };
+    test("var copy_of longer is padded with 0") { expect(join_vars(var_arrays.copy_of(b, 7))).should_be("4,2,5,1,3,0,0"); };
+    try { var_arrays.copy_of(b, 0 - 1); test("var copy_of negative") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("var copy_of negative") { }; }
+    test("var copy_of_range") { expect(join_vars(var_arrays.copy_of_range(b, 1, 4))).should_be("2,5,1"); };
+    test("var copy_of_range empty") { expect(sizeof(var_arrays.copy_of_range(b, 5, 5))).should_be(0); };
+    try { var_arrays.copy_of_range(b, 2, 6); test("var copy_of_range past the end") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("var copy_of_range past the end") { }; }
 
-    expect("var index_of", var_arrays.index_of(b, 5), 2);
-    expect("var index_of missing", var_arrays.index_of(b, 6), 0 - 1);
-    expect("var contains", var_arrays.contains(b, 1), 1);
-    expect("var contains missing", var_arrays.contains(b, 1.5), 0);
+    test("var index_of") { expect(var_arrays.index_of(b, 5)).should_be(2); };
+    test("var index_of missing") { expect(var_arrays.index_of(b, 6)).should_be(0 - 1); };
+    test("var contains") { expect(var_arrays.contains(b, 1)).should_be(1); };
+    test("var contains missing") { expect(var_arrays.contains(b, 1.5)).should_be(0); };
 
-    expect("var min", var_arrays.min(b), 1);
-    expect("var max", var_arrays.max(b), 5);
-    expect("var sum", var_arrays.sum(b), 15);
-    expect("var sum empty", var_arrays.sum(none), 0);
-    expect("var average", var_arrays.average(b), 3);
-    expect("var average with a fraction", var_arrays.average(var_arrays.copy_of(b, 2)), 3);
-    expect("var min of negatives", var_arrays.min(f), 0 - 2.5);
-    try { var_arrays.min(none); fail("var min of empty", "did not throw"); } catch(e: illegal_argument_exception) { pass("var min of empty"); }
-    try { var_arrays.max(none); fail("var max of empty", "did not throw"); } catch(e: illegal_argument_exception) { pass("var max of empty"); }
-    try { var_arrays.average(none); fail("var average of empty", "did not throw"); } catch(e: illegal_argument_exception) { pass("var average of empty"); }
+    test("var min") { expect(var_arrays.min(b)).should_be(1); };
+    test("var max") { expect(var_arrays.max(b)).should_be(5); };
+    test("var sum") { expect(var_arrays.sum(b)).should_be(15); };
+    test("var sum empty") { expect(var_arrays.sum(none)).should_be(0); };
+    test("var average") { expect(var_arrays.average(b)).should_be(3); };
+    test("var average with a fraction") { expect(var_arrays.average(var_arrays.copy_of(b, 2))).should_be(3); };
+    test("var min of negatives") { expect(var_arrays.min(f)).should_be(0 - 2.5); };
+    try { var_arrays.min(none); test("var min of empty") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("var min of empty") { }; }
+    try { var_arrays.max(none); test("var max of empty") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("var max of empty") { }; }
+    try { var_arrays.average(none); test("var average of empty") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("var average of empty") { }; }
 
-    expect("var equals", var_arrays.equals(vars(1, 2, 3, 4, 5), vars(1, 2, 3, 4, 5)), 1);
-    expect("var equals one difference", var_arrays.equals(vars(1, 2, 3, 4, 5), vars(1, 2, 0, 4, 5)), 0);
-    expect("var equals different length", var_arrays.equals(b, none), 0);
+    test("var equals") { expect(var_arrays.equals(vars(1, 2, 3, 4, 5), vars(1, 2, 3, 4, 5))).should_be(1); };
+    test("var equals one difference") { expect(var_arrays.equals(vars(1, 2, 3, 4, 5), vars(1, 2, 0, 4, 5))).should_be(0); };
+    test("var equals different length") { expect(var_arrays.equals(b, none)).should_be(0); };
 
     boxed := var_arrays.to_list(b);
-    expect("var to_list size", boxed.size().value, 5);
-    expect("var to_list[2]", boxed.at(2).value, 5);
+    test("var to_list size") { expect(boxed.size().value).should_be(5); };
+    test("var to_list[2]") { expect(boxed.at(2).value).should_be(5); };
 
     // scale: 5000 pseudo random numbers, checked for order and for the same sum
     n : decimal = 5000;
@@ -299,17 +299,20 @@ def test_var_arrays() {
     for(i : decimal = 1; i < n; i++) {
         if(big[i - 1] > big[i]) in_order = 0;
     }
-    expect("var sort 5000: ascending", in_order, 1);
-    expect("var sort 5000: same sum", var_arrays.sum(big), sum_before);
-    expect("var sort 5000: min is first", var_arrays.min(big), big[0]);
-    expect("var sort 5000: max is last", var_arrays.max(big), big[n - 1]);
-    expect_true("var sort 5000: binary_search finds an element", var_arrays.binary_search(big, big[1234]) >= 0);
+    test("var sort 5000: ascending") { expect(in_order).should_be(1); };
+    test("var sort 5000: same sum") { expect(var_arrays.sum(big)).should_be(sum_before); };
+    test("var sort 5000: min is first") { expect(var_arrays.min(big)).should_be(big[0]); };
+    test("var sort 5000: max is last") { expect(var_arrays.max(big)).should_be(big[n - 1]); };
+    test("var sort 5000: binary_search finds an element") { expect_true(var_arrays.binary_search(big, big[1234]) >= 0); };
     var_arrays.sort_descending(big);
-    expect_true("var sort 5000: descending", big[0] >= big[1] && big[n - 2] >= big[n - 1]);
+    test("var sort 5000: descending") { expect_true(big[0] >= big[1] && big[n - 2] >= big[n - 1]); };
 }
 
 def main(args: string[]) {
-    test_object_arrays();
-    test_var_arrays();
-    finish("lib_collections_arrays");
+    show_only_failures();
+    tests("lib_collections_arrays") {
+        test_object_arrays();
+        test_var_arrays();
+    };
+    finish_tests();
 }

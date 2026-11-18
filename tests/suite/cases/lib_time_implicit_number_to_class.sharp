@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * KNOWN BUG (compiler, overload resolution): a class that has a constructor
@@ -43,8 +43,10 @@ class picker {
 }
 
 def main(args: string[]) {
-    expect("three numbers pick the number overload", picker.of(2024, 2, 29), 1);
-    expect("a month object picks the object overload", picker.of(2024, month_like.february, 29), 2);
-
-    finish("lib_time_implicit_number_to_class");
+    show_only_failures();
+    tests("lib_time_implicit_number_to_class") {
+        test("three numbers pick the number overload") { expect(picker.of(2024, 2, 29)).should_be(1); };
+        test("a month object picks the object overload") { expect(picker.of(2024, month_like.february, 29)).should_be(2); };
+    };
+    finish_tests();
 }

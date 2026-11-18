@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * The small classes and functions of std:
@@ -76,217 +76,219 @@ def checked_divide(a: decimal, b: decimal): result<double, exception> {
 }
 
 def main(args: string[]) {
-    // ================= pair
-    p := new pair<string, int>("apples", 3);
-    expect_str("pair.first", p.first, "apples");
-    expect("pair.second", p.second.value, 3);
+    show_only_failures();
+    tests("std_misc") {
+        // ================= pair
+        p := new pair<string, int>("apples", 3);
+        test("pair.first") { expect(p.first).should_be("apples"); };
+        test("pair.second") { expect(p.second.value).should_be(3); };
 
-    // the fields can be changed
-    p.first = "pears";
-    p.second = 4;
-    expect_str("pair.first after assignment", p.first, "pears");
-    expect("pair.second after assignment", p.second.value, 4);
+        // the fields can be changed
+        p.first = "pears";
+        p.second = 4;
+        test("pair.first after assignment") { expect(p.first).should_be("pears"); };
+        test("pair.second after assignment") { expect(p.second.value).should_be(4); };
 
-    // objects as members: the pair holds the objects themselves
-    origin := new point(0, 0);
-    corner := new point(3, 4);
-    line := new pair<point, point>(origin, corner);
-    expect("pair of objects: field of second", line.second.y, 4);
-    expect_true("pair holds the object, not a copy", line.first == origin);
-    corner.x = 30;
-    expect("a change of the object is seen through the pair", line.second.x, 30);
+        // objects as members: the pair holds the objects themselves
+        origin := new point(0, 0);
+        corner := new point(3, 4);
+        line := new pair<point, point>(origin, corner);
+        test("pair of objects: field of second") { expect(line.second.y).should_be(4); };
+        test("pair holds the object, not a copy") { expect_true(line.first == origin); };
+        corner.x = 30;
+        test("a change of the object is seen through the pair") { expect(line.second.x).should_be(30); };
 
-    // a pair as a return value
-    range := min_and_max(7, 2, 9);
-    expect("pair returned from a function: first", range.first.value, 2);
-    expect("pair returned from a function: second", range.second.value, 9);
-    range = min_and_max(5, 5, 5);
-    expect("all equal: first", range.first.value, 5);
-    expect("all equal: second", range.second.value, 5);
+        // a pair as a return value
+        range := min_and_max(7, 2, 9);
+        test("pair returned from a function: first") { expect(range.first.value).should_be(2); };
+        test("pair returned from a function: second") { expect(range.second.value).should_be(9); };
+        range = min_and_max(5, 5, 5);
+        test("all equal: first") { expect(range.first.value).should_be(5); };
+        test("all equal: second") { expect(range.second.value).should_be(5); };
 
-    // two pairs are independent
-    other := new pair<string, int>("plums", 1);
-    expect_str("a second pair has its own values", other.first, "plums");
-    expect_str("...and the first one is untouched", p.first, "pears");
+        // two pairs are independent
+        other := new pair<string, int>("plums", 1);
+        test("a second pair has its own values") { expect(other.first).should_be("plums"); };
+        test("...and the first one is untouched") { expect(p.first).should_be("pears"); };
 
-    // pairs inside a pair
-    nested := new pair<pair<string, int>, string>(other, "outer");
-    expect_str("pair in a pair: inner first", nested.first.first, "plums");
-    expect("pair in a pair: inner second", nested.first.second.value, 1);
-    expect_str("pair in a pair: outer second", nested.second, "outer");
+        // pairs inside a pair
+        nested := new pair<pair<string, int>, string>(other, "outer");
+        test("pair in a pair: inner first") { expect(nested.first.first).should_be("plums"); };
+        test("pair in a pair: inner second") { expect(nested.first.second.value).should_be(1); };
+        test("pair in a pair: outer second") { expect(nested.second).should_be("outer"); };
 
-    // ================= triplet, quad, quint
-    t := new triplet<string, int, point>("label", 2, corner);
-    expect_str("triplet.first", t.first, "label");
-    expect("triplet.second", t.second.value, 2);
-    expect("triplet.third", t.third.y, 4);
+        // ================= triplet, quad, quint
+        t := new triplet<string, int, point>("label", 2, corner);
+        test("triplet.first") { expect(t.first).should_be("label"); };
+        test("triplet.second") { expect(t.second.value).should_be(2); };
+        test("triplet.third") { expect(t.third.y).should_be(4); };
 
-    q := new quad<int, int, int, int>(10, 20, 30, 40);
-    expect("quad.first", q.first.value, 10);
-    expect("quad.second", q.second.value, 20);
-    expect("quad.third", q.third.value, 30);
-    expect("quad.fourth", q.fourth.value, 40);
+        q := new quad<int, int, int, int>(10, 20, 30, 40);
+        test("quad.first") { expect(q.first.value).should_be(10); };
+        test("quad.second") { expect(q.second.value).should_be(20); };
+        test("quad.third") { expect(q.third.value).should_be(30); };
+        test("quad.fourth") { expect(q.fourth.value).should_be(40); };
 
-    five := new quint<string, string, string, string, string>("a", "b", "c", "d", "e");
-    expect_str("quint.first", five.first, "a");
-    expect_str("quint.third", five.third, "c");
-    expect_str("quint.fifth", five.fifth, "e");
-    expect_str("quint: all five in order", five.first + five.second + five.third + five.fourth + five.fifth, "abcde");
-    five.third = "C";
-    expect_str("quint: a field assigned", five.second + five.third + five.fourth, "bCd");
+        five := new quint<string, string, string, string, string>("a", "b", "c", "d", "e");
+        test("quint.first") { expect(five.first).should_be("a"); };
+        test("quint.third") { expect(five.third).should_be("c"); };
+        test("quint.fifth") { expect(five.fifth).should_be("e"); };
+        test("quint: all five in order") { expect(five.first + five.second + five.third + five.fourth + five.fifth).should_be("abcde"); };
+        five.third = "C";
+        test("quint: a field assigned") { expect(five.second + five.third + five.fourth).should_be("bCd"); };
 
-    // ================= result
-    good := checked_divide(10, 4);
-    expect_true("result without an error: is_success", good.is_success.value);
-    expect("result without an error: data", good.data.value, 2.5);
-    expect_null("result without an error: error is null", good.error);
+        // ================= result
+        good := checked_divide(10, 4);
+        test("result without an error: is_success") { expect_true(good.is_success.value); };
+        test("result without an error: data") { expect(good.data.value).should_be(2.5); };
+        test("result without an error: error is null") { expect_null(good.error); };
 
-    failed := checked_divide(1, 0);
-    expect_false("result with an error: is_success", failed.is_success.value);
-    expect_not_null("result with an error: error", failed.error);
-    expect_str("result with an error: its message", failed.error!!.get_message(), "division by zero");
-    expect("result with an error: the data that was given", failed.data.value, 0);
+        failed := checked_divide(1, 0);
+        test("result with an error: is_success") { expect_false(failed.is_success.value); };
+        test("result with an error: error") { expect_not_null(failed.error); };
+        test("result with an error: its message") { expect(failed.error!!.get_message()).should_be("division by zero"); };
+        test("result with an error: the data that was given") { expect(failed.data.value).should_be(0); };
 
-    // a result with other types: text as data, text as error
-    parsed := new result<string, string>("parsed", "unexpected end");
-    expect_false("result<string, string> with an error", parsed.is_success.value);
-    expect_str("its data", parsed.data, "parsed");
-    expect_str("its error", parsed.error!!, "unexpected end");
+        // a result with other types: text as data, text as error
+        parsed := new result<string, string>("parsed", "unexpected end");
+        test("result<string, string> with an error") { expect_false(parsed.is_success.value); };
+        test("its data") { expect(parsed.data).should_be("parsed"); };
+        test("its error") { expect(parsed.error!!).should_be("unexpected end"); };
 
-    // ================= unique
-    b := new badge(5);
-    expect("hash() of a class that implements unique", b.hash().value, 155);
-    expect("guid()", b.guid().value, 5);
-    u : unique = new badge(2);
-    expect("called through the interface: hash()", u.hash().value, 62);
-    expect("called through the interface: guid()", u.guid().value, 2);
-    expect("passed to a function that takes a unique", hash_of(b), 155);
-    expect("two objects, two hashes", hash_of(new badge(1)) + hash_of(new badge(10)), 341);
+        // ================= unique
+        b := new badge(5);
+        test("hash() of a class that implements unique") { expect(b.hash().value).should_be(155); };
+        test("guid()") { expect(b.guid().value).should_be(5); };
+        u : unique = new badge(2);
+        test("called through the interface: hash()") { expect(u.hash().value).should_be(62); };
+        test("called through the interface: guid()") { expect(u.guid().value).should_be(2); };
+        test("passed to a function that takes a unique") { expect(hash_of(b)).should_be(155); };
+        test("two objects, two hashes") { expect(hash_of(new badge(1)) + hash_of(new badge(10))).should_be(341); };
 
-    // ================= deferred_init
-    lazy := new deferred_init<settings>(make_settings);
-    expect("nothing is made when the deferred_init is created", times_made.value, 0);
-    expect("the first read of .value makes the object", lazy.value.port, 8080);
-    expect("the function ran once", times_made.value, 1);
-    expect("the second read gives the same value", lazy.value.port, 8080);
-    expect("...without running the function again", times_made.value, 1);
-    first_read := lazy.value;
-    second_read := lazy.value;
-    expect_true("every read gives the same object", first_read == second_read);
-    first_read.port = 9090;
-    expect("a change made through one read is seen by the next", lazy.value.port, 9090);
+        // ================= deferred_init
+        lazy := new deferred_init<settings>(make_settings);
+        test("nothing is made when the deferred_init is created") { expect(times_made.value).should_be(0); };
+        test("the first read of .value makes the object") { expect(lazy.value.port).should_be(8080); };
+        test("the function ran once") { expect(times_made.value).should_be(1); };
+        test("the second read gives the same value") { expect(lazy.value.port).should_be(8080); };
+        test("...without running the function again") { expect(times_made.value).should_be(1); };
+        first_read := lazy.value;
+        second_read := lazy.value;
+        test("every read gives the same object") { expect_true(first_read == second_read); };
+        first_read.port = 9090;
+        test("a change made through one read is seen by the next") { expect(lazy.value.port).should_be(9090); };
 
-    another := new deferred_init<settings>(make_settings);
-    expect("a second deferred_init makes its own object", another.value.port, 8080);
-    expect("the function ran a second time for it", times_made.value, 2);
+        another := new deferred_init<settings>(make_settings);
+        test("a second deferred_init makes its own object") { expect(another.value.port).should_be(8080); };
+        test("the function ran a second time for it") { expect(times_made.value).should_be(2); };
 
-    never_read := new deferred_init<settings>(make_settings);
-    expect("one that is never read never runs the function", times_made.value, 2);
+        never_read := new deferred_init<settings>(make_settings);
+        test("one that is never read never runs the function") { expect(times_made.value).should_be(2); };
 
-    // ================= char_array
-    hello := new char_array("hello");
-    expect("char_array from a string: number of characters", sizeof(hello.data), 5);
-    expect("first character", hello.data[0], 'h');
-    expect("last character", hello.data[4], 'o');
-    expect_str("to_string gives the text back", hello.to_string(), "hello");
+        // ================= char_array
+        hello := new char_array("hello");
+        test("char_array from a string: number of characters") { expect(sizeof(hello.data)).should_be(5); };
+        test("first character") { expect(hello.data[0]).should_be('h'); };
+        test("last character") { expect(hello.data[4]).should_be('o'); };
+        test("to_string gives the text back") { expect(hello.to_string()).should_be("hello"); };
 
-    // foreach goes through the characters: h + e + l + l + o = 104 + 101 + 108 + 108 + 111
-    sum : decimal = 0;
-    count : decimal = 0;
-    foreach(c in hello) {
-        sum += c;
-        count++;
-    }
-    expect("foreach over a char_array: trips", count, 5);
-    expect("foreach over a char_array: sum of the character codes", sum, 532);
+        // foreach goes through the characters: h + e + l + l + o = 104 + 101 + 108 + 108 + 111
+        sum : decimal = 0;
+        count : decimal = 0;
+        foreach(c in hello) {
+            sum += c;
+            count++;
+        }
+        test("foreach over a char_array: trips") { expect(count).should_be(5); };
+        test("foreach over a char_array: sum of the character codes") { expect(sum).should_be(532); };
 
-    // from an array of numbers (character codes)
-    codes := new decimal[3];
-    codes[0] = 'a';
-    codes[1] = 'b';
-    codes[2] = 'c';
-    abc := new char_array(codes);
-    expect("char_array from a number array: size", sizeof(abc.data), 3);
-    expect_str("char_array from a number array: text", abc.to_string(), "abc");
-    codes[0] = 'z';
-    expect("it made its own copy of the numbers", abc.data[0], 'a');
+        // from an array of numbers (character codes)
+        codes := new decimal[3];
+        codes[0] = 'a';
+        codes[1] = 'b';
+        codes[2] = 'c';
+        abc := new char_array(codes);
+        test("char_array from a number array: size") { expect(sizeof(abc.data)).should_be(3); };
+        test("char_array from a number array: text") { expect(abc.to_string()).should_be("abc"); };
+        codes[0] = 'z';
+        test("it made its own copy of the numbers") { expect(abc.data[0]).should_be('a'); };
 
-    // from another char_array
-    again := new char_array(hello);
-    expect_str("char_array from a char_array", again.to_string(), "hello");
+        // from another char_array
+        again := new char_array(hello);
+        test("char_array from a char_array") { expect(again.to_string()).should_be("hello"); };
 
-    // get_elements is the same array as data
-    expect("get_elements: size", sizeof(hello.get_elements()), 5);
-    expect("get_elements: a character", hello.get_elements()[1], 'e');
+        // get_elements is the same array as data
+        test("get_elements: size") { expect(sizeof(hello.get_elements())).should_be(5); };
+        test("get_elements: a character") { expect(hello.get_elements()[1]).should_be('e'); };
 
-    // ================= time: unit conversions (whole numbers, the rest is cut off)
-    expect("nano_to_micro(5000000)", time.nano_to_micro(5000000).value, 5000);
-    expect("nano_to_micro(1000)", time.nano_to_micro(1000).value, 1);
-    expect("nano_to_micro(1999) cuts off", time.nano_to_micro(1999).value, 1);
-    expect("nano_to_micro(999)", time.nano_to_micro(999).value, 0);
-    expect("nano_to_micro(0)", time.nano_to_micro(0).value, 0);
-    expect("nano_to_mills(5000000)", time.nano_to_mills(5000000).value, 5);
-    expect("nano_to_mills(1000000)", time.nano_to_mills(1000000).value, 1);
-    expect("nano_to_mills(1999999) cuts off", time.nano_to_mills(1999999).value, 1);
-    expect("nano_to_mills(999999)", time.nano_to_mills(999999).value, 0);
-    expect("nano_to_secs(3000000000)", time.nano_to_secs(3000000000).value, 3);
-    expect("nano_to_secs(1000000000)", time.nano_to_secs(1000000000).value, 1);
-    expect("nano_to_secs(999999999)", time.nano_to_secs(999999999).value, 0);
-    expect("one hour of nanoseconds in seconds", time.nano_to_secs(3600000000000).value, 3600);
-    expect("one day of nanoseconds in milliseconds", time.nano_to_mills(86400000000000).value, 86400000);
+        // ================= time: unit conversions (whole numbers, the rest is cut off)
+        test("nano_to_micro(5000000)") { expect(time.nano_to_micro(5000000).value).should_be(5000); };
+        test("nano_to_micro(1000)") { expect(time.nano_to_micro(1000).value).should_be(1); };
+        test("nano_to_micro(1999) cuts off") { expect(time.nano_to_micro(1999).value).should_be(1); };
+        test("nano_to_micro(999)") { expect(time.nano_to_micro(999).value).should_be(0); };
+        test("nano_to_micro(0)") { expect(time.nano_to_micro(0).value).should_be(0); };
+        test("nano_to_mills(5000000)") { expect(time.nano_to_mills(5000000).value).should_be(5); };
+        test("nano_to_mills(1000000)") { expect(time.nano_to_mills(1000000).value).should_be(1); };
+        test("nano_to_mills(1999999) cuts off") { expect(time.nano_to_mills(1999999).value).should_be(1); };
+        test("nano_to_mills(999999)") { expect(time.nano_to_mills(999999).value).should_be(0); };
+        test("nano_to_secs(3000000000)") { expect(time.nano_to_secs(3000000000).value).should_be(3); };
+        test("nano_to_secs(1000000000)") { expect(time.nano_to_secs(1000000000).value).should_be(1); };
+        test("nano_to_secs(999999999)") { expect(time.nano_to_secs(999999999).value).should_be(0); };
+        test("one hour of nanoseconds in seconds") { expect(time.nano_to_secs(3600000000000).value).should_be(3600); };
+        test("one day of nanoseconds in milliseconds") { expect(time.nano_to_mills(86400000000000).value).should_be(86400000); };
 
-    // the clock itself: only that it gives a positive number
-    expect_true("nano_time() is positive", time.nano_time().value > 0);
-    expect_true("mills_time() is positive", time.mills_time().value > 0);
-    expect_true("micro_time() is positive", time.micro_time().value > 0);
+        // the clock itself: only that it gives a positive number
+        test("nano_time() is positive") { expect_true(time.nano_time().value > 0); };
+        test("mills_time() is positive") { expect_true(time.mills_time().value > 0); };
+        test("micro_time() is positive") { expect_true(time.micro_time().value > 0); };
 
-    // the units are numbered in this order
-    expect("time_unit.seconds", time_unit.seconds.ordinal, 0);
-    expect("time_unit.milliseconds", time_unit.milliseconds.ordinal, 1);
-    expect("time_unit.microseconds", time_unit.microseconds.ordinal, 2);
-    expect("time_unit.nanoseconds", time_unit.nanoseconds.ordinal, 3);
+        // the units are numbered in this order
+        test("time_unit.seconds") { expect(time_unit.seconds.ordinal).should_be(0); };
+        test("time_unit.milliseconds") { expect(time_unit.milliseconds.ordinal).should_be(1); };
+        test("time_unit.microseconds") { expect(time_unit.microseconds.ordinal).should_be(2); };
+        test("time_unit.nanoseconds") { expect(time_unit.nanoseconds.ordinal).should_be(3); };
 
-    // ================= random numbers: always inside the range that was asked for
-    outside : decimal = 0;
-    fractions : decimal = 0;
-    for(i : decimal = 0; i < 2000; i++) {
-        r : decimal = rand().value;                         // 0 .. 1
-        if(r < 0 || r > 1) outside++;
+        // ================= random numbers: always inside the range that was asked for
+        outside : decimal = 0;
+        fractions : decimal = 0;
+        for(i : decimal = 0; i < 2000; i++) {
+            r : decimal = rand().value;                         // 0 .. 1
+            if(r < 0 || r > 1) outside++;
 
-        k : decimal = rand_int(5, 10).value;                // a whole number, 5 .. 10
-        if(k < 5 || k > 10) outside++;
-        if(k % 1 != 0) fractions++;
+            k : decimal = rand_int(5, 10).value;                // a whole number, 5 .. 10
+            if(k < 5 || k > 10) outside++;
+            if(k % 1 != 0) fractions++;
 
-        d : decimal = rand_double(2, 3).value;              // 2 .. 3
-        if(d < 2 || d > 3) outside++;
+            d : decimal = rand_double(2, 3).value;              // 2 .. 3
+            if(d < 2 || d > 3) outside++;
 
-        n : decimal = rand_int(0 - 3, 3).value;             // a range around zero
-        if(n < 0 - 3 || n > 3) outside++;
+            n : decimal = rand_int(0 - 3, 3).value;             // a range around zero
+            if(n < 0 - 3 || n > 3) outside++;
 
-        big : decimal = rand_int().value;                   // 0 .. 1e9
-        if(big < 0 || big > 1000000000) outside++;
+            big : decimal = rand_int().value;                   // 0 .. 1e9
+            if(big < 0 || big > 1000000000) outside++;
 
-        wide : decimal = rand_double().value;               // 0 .. 1e9
-        if(wide < 0 || wide > 1000000000) outside++;
-    }
-    expect("12000 random numbers, none outside its range", outside, 0);
-    expect("rand_int gives whole numbers", fractions, 0);
+            wide : decimal = rand_double().value;               // 0 .. 1e9
+            if(wide < 0 || wide > 1000000000) outside++;
+        }
+        test("12000 random numbers, none outside its range") { expect(outside).should_be(0); };
+        test("rand_int gives whole numbers") { expect(fractions).should_be(0); };
 
-    one_value : decimal = rand_int(7, 7).value;
-    expect("rand_int(7, 7) can only be 7", one_value, 7);
+        one_value : decimal = rand_int(7, 7).value;
+        test("rand_int(7, 7) can only be 7") { expect(one_value).should_be(7); };
 
-    // the same seed gives the same numbers again
-    set_seed(1234);
-    a1 : decimal = rand_int(0, 1000000).value;
-    a2 : decimal = rand_int(0, 1000000).value;
-    a3 : decimal = rand().value;
-    set_seed(1234);
-    b1 : decimal = rand_int(0, 1000000).value;
-    b2 : decimal = rand_int(0, 1000000).value;
-    b3 : decimal = rand().value;
-    expect_true("same seed: first number repeats", a1 == b1);
-    expect_true("same seed: second number repeats", a2 == b2);
-    expect_true("same seed: third number (a double) repeats", a3 == b3);
-
-    finish("std_misc");
+        // the same seed gives the same numbers again
+        set_seed(1234);
+        a1 : decimal = rand_int(0, 1000000).value;
+        a2 : decimal = rand_int(0, 1000000).value;
+        a3 : decimal = rand().value;
+        set_seed(1234);
+        b1 : decimal = rand_int(0, 1000000).value;
+        b2 : decimal = rand_int(0, 1000000).value;
+        b3 : decimal = rand().value;
+        test("same seed: first number repeats") { expect_true(a1 == b1); };
+        test("same seed: second number repeats") { expect_true(a2 == b2); };
+        test("same seed: third number (a double) repeats") { expect_true(a3 == b3); };
+    };
+    finish_tests();
 }

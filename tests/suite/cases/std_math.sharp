@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.math )
+import ( std.testing, std.math )
 
 /**
  * std.math: every function against values worked out by hand (or taken from
@@ -14,191 +14,193 @@ import ( testing, std.math )
  */
 
 def main(args: string[]) {
-    tolerance : decimal = 0.000000001;              // 1e-9
-    pi : decimal = 3.141592653589793;
+    show_only_failures();
+    tests("std_math") {
+        tolerance : decimal = 0.000000001;              // 1e-9
+        pi : decimal = 3.141592653589793;
 
-    // ---- the constants
-    expect_near("PI", PI.value, 3.141592653589793, tolerance);
-    expect_near("E", E.value, 2.718281828459045, tolerance);
-    expect_true("POSITIVE_INFINITY is larger than any number", POSITIVE_INFINITY.value > 1000000000000);
-    expect_true("NaN is not equal to itself", NaN.value != NaN.value);
+        // ---- the constants
+        test("PI") { expect(PI.value).should_be_near(3.141592653589793, tolerance); };
+        test("E") { expect(E.value).should_be_near(2.718281828459045, tolerance); };
+        test("POSITIVE_INFINITY is larger than any number") { expect_true(POSITIVE_INFINITY.value > 1000000000000); };
+        test("NaN is not equal to itself") { expect_true(NaN.value != NaN.value); };
 
-    // ---- sqrt
-    expect("sqrt(0)", sqrt(0).value, 0);
-    expect("sqrt(1)", sqrt(1).value, 1);
-    expect("sqrt(4)", sqrt(4).value, 2);
-    expect("sqrt(144)", sqrt(144).value, 12);
-    expect("sqrt(0.25)", sqrt(0.25).value, 0.5);
-    expect("sqrt(1000000)", sqrt(1000000).value, 1000);
-    expect_near("sqrt(2)", sqrt(2).value, 1.4142135623730951, tolerance);
-    expect_near("sqrt(3)", sqrt(3).value, 1.7320508075688772, tolerance);
-    expect_near("sqrt(10)", sqrt(10).value, 3.1622776601683795, tolerance);
-    expect_near("sqrt(2) * sqrt(2)", sqrt(2).value * sqrt(2).value, 2, tolerance);
+        // ---- sqrt
+        test("sqrt(0)") { expect(sqrt(0).value).should_be(0); };
+        test("sqrt(1)") { expect(sqrt(1).value).should_be(1); };
+        test("sqrt(4)") { expect(sqrt(4).value).should_be(2); };
+        test("sqrt(144)") { expect(sqrt(144).value).should_be(12); };
+        test("sqrt(0.25)") { expect(sqrt(0.25).value).should_be(0.5); };
+        test("sqrt(1000000)") { expect(sqrt(1000000).value).should_be(1000); };
+        test("sqrt(2)") { expect(sqrt(2).value).should_be_near(1.4142135623730951, tolerance); };
+        test("sqrt(3)") { expect(sqrt(3).value).should_be_near(1.7320508075688772, tolerance); };
+        test("sqrt(10)") { expect(sqrt(10).value).should_be_near(3.1622776601683795, tolerance); };
+        test("sqrt(2) * sqrt(2)") { expect(sqrt(2).value * sqrt(2).value).should_be_near(2, tolerance); };
 
-    // ---- pow
-    expect("pow(2, 10)", pow(2, 10).value, 1024);
-    expect("pow(3, 4)", pow(3, 4).value, 81);
-    expect("pow(5, 0)", pow(5, 0).value, 1);
-    expect("pow(7, 1)", pow(7, 1).value, 7);
-    expect("pow(-2, 3)", pow(0 - 2, 3).value, 0 - 8);
-    expect("pow(-2, 4)", pow(0 - 2, 4).value, 16);
-    expect("pow(2, -1)", pow(2, 0 - 1).value, 0.5);
-    expect("pow(0, 5)", pow(0, 5).value, 0);
-    expect("pow(1, 1000)", pow(1, 1000).value, 1);
-    expect_near("pow(9, 0.5)", pow(9, 0.5).value, 3, tolerance);
-    expect_near("pow(2, 0.5)", pow(2, 0.5).value, 1.4142135623730951, tolerance);
-    expect_near("pow(10, -2)", pow(10, 0 - 2).value, 0.01, tolerance);
-    expect_near("pow(1.5, 3)", pow(1.5, 3).value, 3.375, tolerance);
-    expect_near("pow(27, 1/3)", pow(27, 1 / 3).value, 3, tolerance);
+        // ---- pow
+        test("pow(2, 10)") { expect(pow(2, 10).value).should_be(1024); };
+        test("pow(3, 4)") { expect(pow(3, 4).value).should_be(81); };
+        test("pow(5, 0)") { expect(pow(5, 0).value).should_be(1); };
+        test("pow(7, 1)") { expect(pow(7, 1).value).should_be(7); };
+        test("pow(-2, 3)") { expect(pow(0 - 2, 3).value).should_be(0 - 8); };
+        test("pow(-2, 4)") { expect(pow(0 - 2, 4).value).should_be(16); };
+        test("pow(2, -1)") { expect(pow(2, 0 - 1).value).should_be(0.5); };
+        test("pow(0, 5)") { expect(pow(0, 5).value).should_be(0); };
+        test("pow(1, 1000)") { expect(pow(1, 1000).value).should_be(1); };
+        test("pow(9, 0.5)") { expect(pow(9, 0.5).value).should_be_near(3, tolerance); };
+        test("pow(2, 0.5)") { expect(pow(2, 0.5).value).should_be_near(1.4142135623730951, tolerance); };
+        test("pow(10, -2)") { expect(pow(10, 0 - 2).value).should_be_near(0.01, tolerance); };
+        test("pow(1.5, 3)") { expect(pow(1.5, 3).value).should_be_near(3.375, tolerance); };
+        test("pow(27, 1/3)") { expect(pow(27, 1 / 3).value).should_be_near(3, tolerance); };
 
-    // ---- exp
-    expect("exp(0)", exp(0).value, 1);
-    expect_near("exp(1)", exp(1).value, 2.718281828459045, tolerance);
-    expect_near("exp(2)", exp(2).value, 7.38905609893065, tolerance);
-    expect_near("exp(-1)", exp(0 - 1).value, 0.36787944117144233, tolerance);
-    expect_near("exp(0.5)", exp(0.5).value, 1.6487212707001282, tolerance);
+        // ---- exp
+        test("exp(0)") { expect(exp(0).value).should_be(1); };
+        test("exp(1)") { expect(exp(1).value).should_be_near(2.718281828459045, tolerance); };
+        test("exp(2)") { expect(exp(2).value).should_be_near(7.38905609893065, tolerance); };
+        test("exp(-1)") { expect(exp(0 - 1).value).should_be_near(0.36787944117144233, tolerance); };
+        test("exp(0.5)") { expect(exp(0.5).value).should_be_near(1.6487212707001282, tolerance); };
 
-    // ---- log (natural logarithm) and log10
-    expect("log(1)", log(1).value, 0);
-    expect_near("log(E)", log(E).value, 1, tolerance);
-    expect_near("log(2)", log(2).value, 0.6931471805599453, tolerance);
-    expect_near("log(10)", log(10).value, 2.302585092994046, tolerance);
-    expect_near("log(0.5)", log(0.5).value, 0 - 0.6931471805599453, tolerance);
-    expect_near("log(exp(3))", log(exp(3)).value, 3, tolerance);
-    expect("log10(1)", log10(1).value, 0);
-    expect_near("log10(10)", log10(10).value, 1, tolerance);
-    expect_near("log10(1000)", log10(1000).value, 3, tolerance);
-    expect_near("log10(0.01)", log10(0.01).value, 0 - 2, tolerance);
-    expect_near("log10(2)", log10(2).value, 0.3010299956639812, tolerance);
+        // ---- log (natural logarithm) and log10
+        test("log(1)") { expect(log(1).value).should_be(0); };
+        test("log(E)") { expect(log(E).value).should_be_near(1, tolerance); };
+        test("log(2)") { expect(log(2).value).should_be_near(0.6931471805599453, tolerance); };
+        test("log(10)") { expect(log(10).value).should_be_near(2.302585092994046, tolerance); };
+        test("log(0.5)") { expect(log(0.5).value).should_be_near(0 - 0.6931471805599453, tolerance); };
+        test("log(exp(3))") { expect(log(exp(3)).value).should_be_near(3, tolerance); };
+        test("log10(1)") { expect(log10(1).value).should_be(0); };
+        test("log10(10)") { expect(log10(10).value).should_be_near(1, tolerance); };
+        test("log10(1000)") { expect(log10(1000).value).should_be_near(3, tolerance); };
+        test("log10(0.01)") { expect(log10(0.01).value).should_be_near(0 - 2, tolerance); };
+        test("log10(2)") { expect(log10(2).value).should_be_near(0.3010299956639812, tolerance); };
 
-    // ---- sin (the argument is in radians)
-    expect("sin(0)", sin(0).value, 0);
-    expect_near("sin(pi / 6)", sin(pi / 6).value, 0.5, tolerance);
-    expect_near("sin(pi / 2)", sin(pi / 2).value, 1, tolerance);
-    expect_near("sin(pi)", sin(pi).value, 0, tolerance);
-    expect_near("sin(3 pi / 2)", sin(3 * pi / 2).value, 0 - 1, tolerance);
-    expect_near("sin(1)", sin(1).value, 0.8414709848078965, tolerance);
-    expect_near("sin(-1)", sin(0 - 1).value, 0 - 0.8414709848078965, tolerance);
+        // ---- sin (the argument is in radians)
+        test("sin(0)") { expect(sin(0).value).should_be(0); };
+        test("sin(pi / 6)") { expect(sin(pi / 6).value).should_be_near(0.5, tolerance); };
+        test("sin(pi / 2)") { expect(sin(pi / 2).value).should_be_near(1, tolerance); };
+        test("sin(pi)") { expect(sin(pi).value).should_be_near(0, tolerance); };
+        test("sin(3 pi / 2)") { expect(sin(3 * pi / 2).value).should_be_near(0 - 1, tolerance); };
+        test("sin(1)") { expect(sin(1).value).should_be_near(0.8414709848078965, tolerance); };
+        test("sin(-1)") { expect(sin(0 - 1).value).should_be_near(0 - 0.8414709848078965, tolerance); };
 
-    // ---- cos
-    expect("cos(0)", cos(0).value, 1);
-    expect_near("cos(pi / 3)", cos(pi / 3).value, 0.5, tolerance);
-    expect_near("cos(pi / 2)", cos(pi / 2).value, 0, tolerance);
-    expect_near("cos(pi)", cos(pi).value, 0 - 1, tolerance);
-    expect_near("cos(1)", cos(1).value, 0.5403023058681398, tolerance);
-    expect_near("cos(-1) = cos(1)", cos(0 - 1).value, 0.5403023058681398, tolerance);
-    expect_near("sin(0.7)^2 + cos(0.7)^2", sin(0.7).value * sin(0.7).value + cos(0.7).value * cos(0.7).value, 1, tolerance);
+        // ---- cos
+        test("cos(0)") { expect(cos(0).value).should_be(1); };
+        test("cos(pi / 3)") { expect(cos(pi / 3).value).should_be_near(0.5, tolerance); };
+        test("cos(pi / 2)") { expect(cos(pi / 2).value).should_be_near(0, tolerance); };
+        test("cos(pi)") { expect(cos(pi).value).should_be_near(0 - 1, tolerance); };
+        test("cos(1)") { expect(cos(1).value).should_be_near(0.5403023058681398, tolerance); };
+        test("cos(-1) = cos(1)") { expect(cos(0 - 1).value).should_be_near(0.5403023058681398, tolerance); };
+        test("sin(0.7)^2 + cos(0.7)^2") { expect(sin(0.7).value * sin(0.7).value + cos(0.7).value * cos(0.7).value).should_be_near(1, tolerance); };
 
-    // ---- tan
-    expect("tan(0)", tan(0).value, 0);
-    expect_near("tan(pi / 4)", tan(pi / 4).value, 1, tolerance);
-    expect_near("tan(1)", tan(1).value, 1.5574077246549023, tolerance);
-    expect_near("tan(-pi / 4)", tan(0 - pi / 4).value, 0 - 1, tolerance);
+        // ---- tan
+        test("tan(0)") { expect(tan(0).value).should_be(0); };
+        test("tan(pi / 4)") { expect(tan(pi / 4).value).should_be_near(1, tolerance); };
+        test("tan(1)") { expect(tan(1).value).should_be_near(1.5574077246549023, tolerance); };
+        test("tan(-pi / 4)") { expect(tan(0 - pi / 4).value).should_be_near(0 - 1, tolerance); };
 
-    // ---- asin, acos, atan (the results are in radians)
-    expect("asin(0)", asin(0).value, 0);
-    expect_near("asin(1)", asin(1).value, 1.5707963267948966, tolerance);
-    expect_near("asin(0.5)", asin(0.5).value, 0.5235987755982989, tolerance);
-    expect_near("asin(-1)", asin(0 - 1).value, 0 - 1.5707963267948966, tolerance);
-    expect("acos(1)", acos(1).value, 0);
-    expect_near("acos(0)", acos(0).value, 1.5707963267948966, tolerance);
-    expect_near("acos(0.5)", acos(0.5).value, 1.0471975511965979, tolerance);
-    expect_near("acos(-1)", acos(0 - 1).value, 3.141592653589793, tolerance);
-    expect("atan(0)", atan(0).value, 0);
-    expect_near("atan(1)", atan(1).value, 0.7853981633974483, tolerance);
-    expect_near("atan(-1)", atan(0 - 1).value, 0 - 0.7853981633974483, tolerance);
-    expect_near("atan(1000000) is almost pi / 2", atan(1000000).value, 1.5707953267948966, tolerance);
+        // ---- asin, acos, atan (the results are in radians)
+        test("asin(0)") { expect(asin(0).value).should_be(0); };
+        test("asin(1)") { expect(asin(1).value).should_be_near(1.5707963267948966, tolerance); };
+        test("asin(0.5)") { expect(asin(0.5).value).should_be_near(0.5235987755982989, tolerance); };
+        test("asin(-1)") { expect(asin(0 - 1).value).should_be_near(0 - 1.5707963267948966, tolerance); };
+        test("acos(1)") { expect(acos(1).value).should_be(0); };
+        test("acos(0)") { expect(acos(0).value).should_be_near(1.5707963267948966, tolerance); };
+        test("acos(0.5)") { expect(acos(0.5).value).should_be_near(1.0471975511965979, tolerance); };
+        test("acos(-1)") { expect(acos(0 - 1).value).should_be_near(3.141592653589793, tolerance); };
+        test("atan(0)") { expect(atan(0).value).should_be(0); };
+        test("atan(1)") { expect(atan(1).value).should_be_near(0.7853981633974483, tolerance); };
+        test("atan(-1)") { expect(atan(0 - 1).value).should_be_near(0 - 0.7853981633974483, tolerance); };
+        test("atan(1000000) is almost pi / 2") { expect(atan(1000000).value).should_be_near(1.5707953267948966, tolerance); };
 
-    // ---- atan with two arguments: the angle of the point (x, y), given as atan(y, x)
-    expect_near("atan(1, 1): 45 degrees", atan(1, 1).value, 0.7853981633974483, tolerance);
-    expect_near("atan(1, 0): straight up", atan(1, 0).value, 1.5707963267948966, tolerance);
-    expect_near("atan(0, -1): to the left", atan(0, 0 - 1).value, 3.141592653589793, tolerance);
-    expect_near("atan(-1, 0): straight down", atan(0 - 1, 0).value, 0 - 1.5707963267948966, tolerance);
-    expect_near("atan(1, -1): 135 degrees", atan(1, 0 - 1).value, 2.356194490192345, tolerance);
-    expect("atan(0, 1): to the right", atan(0, 1).value, 0);
+        // ---- atan with two arguments: the angle of the point (x, y), given as atan(y, x)
+        test("atan(1, 1): 45 degrees") { expect(atan(1, 1).value).should_be_near(0.7853981633974483, tolerance); };
+        test("atan(1, 0): straight up") { expect(atan(1, 0).value).should_be_near(1.5707963267948966, tolerance); };
+        test("atan(0, -1): to the left") { expect(atan(0, 0 - 1).value).should_be_near(3.141592653589793, tolerance); };
+        test("atan(-1, 0): straight down") { expect(atan(0 - 1, 0).value).should_be_near(0 - 1.5707963267948966, tolerance); };
+        test("atan(1, -1): 135 degrees") { expect(atan(1, 0 - 1).value).should_be_near(2.356194490192345, tolerance); };
+        test("atan(0, 1): to the right") { expect(atan(0, 1).value).should_be(0); };
 
-    // ---- sinh, cosh, tanh
-    expect("sinh(0)", sinh(0).value, 0);
-    expect_near("sinh(1)", sinh(1).value, 1.1752011936438014, tolerance);
-    expect_near("sinh(-1)", sinh(0 - 1).value, 0 - 1.1752011936438014, tolerance);
-    expect("cosh(0)", cosh(0).value, 1);
-    expect_near("cosh(1)", cosh(1).value, 1.5430806348152437, tolerance);
-    expect("tanh(0)", tanh(0).value, 0);
-    expect_near("tanh(1)", tanh(1).value, 0.7615941559557649, tolerance);
-    expect_near("tanh(20) is almost 1", tanh(20).value, 1, tolerance);
+        // ---- sinh, cosh, tanh
+        test("sinh(0)") { expect(sinh(0).value).should_be(0); };
+        test("sinh(1)") { expect(sinh(1).value).should_be_near(1.1752011936438014, tolerance); };
+        test("sinh(-1)") { expect(sinh(0 - 1).value).should_be_near(0 - 1.1752011936438014, tolerance); };
+        test("cosh(0)") { expect(cosh(0).value).should_be(1); };
+        test("cosh(1)") { expect(cosh(1).value).should_be_near(1.5430806348152437, tolerance); };
+        test("tanh(0)") { expect(tanh(0).value).should_be(0); };
+        test("tanh(1)") { expect(tanh(1).value).should_be_near(0.7615941559557649, tolerance); };
+        test("tanh(20) is almost 1") { expect(tanh(20).value).should_be_near(1, tolerance); };
 
-    // ---- ceil and floor
-    expect("ceil(1.2)", ceil(1.2).value, 2);
-    expect("ceil(1.8)", ceil(1.8).value, 2);
-    expect("ceil(3)", ceil(3).value, 3);
-    expect("ceil(0.0001)", ceil(0.0001).value, 1);
-    expect("ceil(-1.2)", ceil(0 - 1.2).value, 0 - 1);
-    expect("ceil(-1.8)", ceil(0 - 1.8).value, 0 - 1);
-    expect("floor(1.2)", floor(1.2).value, 1);
-    expect("floor(1.8)", floor(1.8).value, 1);
-    expect("floor(3)", floor(3).value, 3);
-    expect("floor(0.9999)", floor(0.9999).value, 0);
-    expect("floor(-1.2)", floor(0 - 1.2).value, 0 - 2);
-    expect("floor(-1.8)", floor(0 - 1.8).value, 0 - 2);
-    expect("floor(1000000.5)", floor(1000000.5).value, 1000000);
+        // ---- ceil and floor
+        test("ceil(1.2)") { expect(ceil(1.2).value).should_be(2); };
+        test("ceil(1.8)") { expect(ceil(1.8).value).should_be(2); };
+        test("ceil(3)") { expect(ceil(3).value).should_be(3); };
+        test("ceil(0.0001)") { expect(ceil(0.0001).value).should_be(1); };
+        test("ceil(-1.2)") { expect(ceil(0 - 1.2).value).should_be(0 - 1); };
+        test("ceil(-1.8)") { expect(ceil(0 - 1.8).value).should_be(0 - 1); };
+        test("floor(1.2)") { expect(floor(1.2).value).should_be(1); };
+        test("floor(1.8)") { expect(floor(1.8).value).should_be(1); };
+        test("floor(3)") { expect(floor(3).value).should_be(3); };
+        test("floor(0.9999)") { expect(floor(0.9999).value).should_be(0); };
+        test("floor(-1.2)") { expect(floor(0 - 1.2).value).should_be(0 - 2); };
+        test("floor(-1.8)") { expect(floor(0 - 1.8).value).should_be(0 - 2); };
+        test("floor(1000000.5)") { expect(floor(1000000.5).value).should_be(1000000); };
 
-    // ---- round (positive numbers; halves go up)
-    expect("round(2.4)", round(2.4).value, 2);
-    expect("round(2.5)", round(2.5).value, 3);
-    expect("round(2.6)", round(2.6).value, 3);
-    expect("round(0.49)", round(0.49).value, 0);
-    expect("round(7)", round(7).value, 7);
-    expect("round(0)", round(0).value, 0);
-    expect("round(999.5)", round(999.5).value, 1000);
+        // ---- round (positive numbers; halves go up)
+        test("round(2.4)") { expect(round(2.4).value).should_be(2); };
+        test("round(2.5)") { expect(round(2.5).value).should_be(3); };
+        test("round(2.6)") { expect(round(2.6).value).should_be(3); };
+        test("round(0.49)") { expect(round(0.49).value).should_be(0); };
+        test("round(7)") { expect(round(7).value).should_be(7); };
+        test("round(0)") { expect(round(0).value).should_be(0); };
+        test("round(999.5)") { expect(round(999.5).value).should_be(1000); };
 
-    // ---- abs
-    // (abs has one version per number class, so a plain literal is ambiguous: the argument must be typed)
-    positive : double = 3.5;
-    negative : double = 0 - 3.5;
-    zero : double = 0;
-    small : double = 0 - 0.001;
-    expect("abs(3.5)", abs(positive).value, 3.5);
-    expect("abs(-3.5)", abs(negative).value, 3.5);
-    expect("abs(0)", abs(zero).value, 0);
-    expect("abs(-0.001)", abs(small).value, 0.001);
-    whole : int = 0 - 7;
-    expect("abs of an int object", abs(whole).value, 7);
-    whole = 12;
-    expect("abs of a positive int object", abs(whole).value, 12);
+        // ---- abs
+        // (abs has one version per number class, so a plain literal is ambiguous: the argument must be typed)
+        positive : double = 3.5;
+        negative : double = 0 - 3.5;
+        zero : double = 0;
+        small : double = 0 - 0.001;
+        test("abs(3.5)") { expect(abs(positive).value).should_be(3.5); };
+        test("abs(-3.5)") { expect(abs(negative).value).should_be(3.5); };
+        test("abs(0)") { expect(abs(zero).value).should_be(0); };
+        test("abs(-0.001)") { expect(abs(small).value).should_be(0.001); };
+        whole : int = 0 - 7;
+        test("abs of an int object") { expect(abs(whole).value).should_be(7); };
+        whole = 12;
+        test("abs of a positive int object") { expect(abs(whole).value).should_be(12); };
 
-    // ---- fmod: the remainder of a division, with the sign of the first number
-    expect("fmod(7, 3)", fmod(7, 3).value, 1);
-    expect("fmod(6, 3)", fmod(6, 3).value, 0);
-    expect("fmod(7.5, 2)", fmod(7.5, 2).value, 1.5);
-    expect("fmod(-7, 3)", fmod(0 - 7, 3).value, 0 - 1);
-    expect("fmod(2, 5)", fmod(2, 5).value, 2);
-    expect_near("fmod(1, 0.3)", fmod(1, 0.3).value, 0.1, tolerance);
+        // ---- fmod: the remainder of a division, with the sign of the first number
+        test("fmod(7, 3)") { expect(fmod(7, 3).value).should_be(1); };
+        test("fmod(6, 3)") { expect(fmod(6, 3).value).should_be(0); };
+        test("fmod(7.5, 2)") { expect(fmod(7.5, 2).value).should_be(1.5); };
+        test("fmod(-7, 3)") { expect(fmod(0 - 7, 3).value).should_be(0 - 1); };
+        test("fmod(2, 5)") { expect(fmod(2, 5).value).should_be(2); };
+        test("fmod(1, 0.3)") { expect(fmod(1, 0.3).value).should_be_near(0.1, tolerance); };
 
-    // ---- ldexp(x, n) = x * 2^n
-    expect("ldexp(1, 10)", ldexp(1, 10).value, 1024);
-    expect("ldexp(3, 2)", ldexp(3, 2).value, 12);
-    expect("ldexp(0.5, 1)", ldexp(0.5, 1).value, 1);
-    expect("ldexp(8, -3)", ldexp(8, 0 - 3).value, 1);
-    expect("ldexp(5, 0)", ldexp(5, 0).value, 5);
+        // ---- ldexp(x, n) = x * 2^n
+        test("ldexp(1, 10)") { expect(ldexp(1, 10).value).should_be(1024); };
+        test("ldexp(3, 2)") { expect(ldexp(3, 2).value).should_be(12); };
+        test("ldexp(0.5, 1)") { expect(ldexp(0.5, 1).value).should_be(1); };
+        test("ldexp(8, -3)") { expect(ldexp(8, 0 - 3).value).should_be(1); };
+        test("ldexp(5, 0)") { expect(ldexp(5, 0).value).should_be(5); };
 
-    // ---- is_nan and is_infinite (is_nan(NaN) and NEGATIVE_INFINITY: std_math_fixes.sharp)
-    expect_false("is_nan(1)", is_nan(1).value);
-    expect_false("is_nan(0)", is_nan(0).value);
-    expect_false("is_nan(POSITIVE_INFINITY)", is_nan(POSITIVE_INFINITY).value);
-    expect_true("is_infinite(POSITIVE_INFINITY)", is_infinite(POSITIVE_INFINITY).value);
-    expect_false("is_infinite(1000000)", is_infinite(1000000).value);
-    expect_false("is_infinite(0)", is_infinite(0).value);
+        // ---- is_nan and is_infinite (is_nan(NaN) and NEGATIVE_INFINITY: std_math_fixes.sharp)
+        test("is_nan(1)") { expect_false(is_nan(1).value); };
+        test("is_nan(0)") { expect_false(is_nan(0).value); };
+        test("is_nan(POSITIVE_INFINITY)") { expect_false(is_nan(POSITIVE_INFINITY).value); };
+        test("is_infinite(POSITIVE_INFINITY)") { expect_true(is_infinite(POSITIVE_INFINITY).value); };
+        test("is_infinite(1000000)") { expect_false(is_infinite(1000000).value); };
+        test("is_infinite(0)") { expect_false(is_infinite(0).value); };
 
-    // ---- arguments can be variables and expressions, results can be combined
-    side_a : decimal = 3;
-    side_b : decimal = 4;
-    expect("hypotenuse of a 3-4-5 triangle", sqrt(side_a * side_a + side_b * side_b).value, 5);
-    expect_near("functions as arguments of functions", sqrt(pow(2, 4)).value + floor(2.9).value, 6, tolerance);
-    total : decimal = 0;
-    for(i : decimal = 1; i <= 10; i++) {
-        total += sqrt(i * i).value;             // 1 + 2 + ... + 10
-    }
-    expect_near("math calls in a loop", total, 55, tolerance);
-
-    finish("std_math");
+        // ---- arguments can be variables and expressions, results can be combined
+        side_a : decimal = 3;
+        side_b : decimal = 4;
+        test("hypotenuse of a 3-4-5 triangle") { expect(sqrt(side_a * side_a + side_b * side_b).value).should_be(5); };
+        test("functions as arguments of functions") { expect(sqrt(pow(2, 4)).value + floor(2.9).value).should_be_near(6, tolerance); };
+        total : decimal = 0;
+        for(i : decimal = 1; i <= 10; i++) {
+            total += sqrt(i * i).value;             // 1 + 2 + ... + 10
+        }
+        test("math calls in a loop") { expect(total).should_be_near(55, tolerance); };
+    };
+    finish_tests();
 }

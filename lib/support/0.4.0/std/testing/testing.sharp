@@ -41,6 +41,7 @@ import ( std.di )
  *      mock, verify(...)           a stand-in that remembers how it was used (both: mock.sharp)
  *      before_each { ... }         run before every test of the group (make what each test needs)
  *      after_each { ... }          run after every test of the group, also when it failed (clean up)
+ *      show_only_failures()        say nothing about tests that pass (for a program with thousands of them)
  *      finish_tests()              print the summary and end the program: exit code 0 when every
  *                                  test passed, 1 when any failed (so a build script can tell)
  *
@@ -75,6 +76,7 @@ stable class test_run {
     private static group_name : string = "";
     private static inside_group : _int64 = 0;
     private static inside_test : _int64 = 0;
+    private static quiet : _int64 = 0;              // 1: say nothing about a test that passed (show_only_failures)
 
     private static passed : _int64 = 0;
     private static failed : _int64 = 0;
@@ -94,8 +96,10 @@ stable class test_run {
         before.clear();
         after.clear();
 
-        println("");
-        println(name);
+        if(quiet == 0) {
+            println("");
+            println(name);
+        }
         body();
 
         inside_group = 0;
@@ -120,6 +124,11 @@ stable class test_run {
         if(inside_test == 1) {
             throw new illegal_state_exception("`" + written + "` was written inside a `test { ... }`: put it in the group, next to the tests");
         }
+    }
+
+    /** from now on, print only the tests that fail (and the summary) */
+    static def only_failures() {
+        quiet = 1;
     }
 
     /** is a test running right now? */
@@ -164,11 +173,12 @@ stable class test_run {
 
         if(went_wrong == 0) {
             passed = passed + 1;
-            println("  ok    " + name);
+            if(quiet == 0) { println("  ok    " + name); }
         } else {
             failed = failed + 1;
             failures.add(group_name + " > " + name);
-            println("  FAIL  " + name);
+            if(quiet == 1) { println("  FAIL  " + group_name + " > " + name); }
+            else { println("  FAIL  " + name); }
             print_indented(problem);
         }
     }
@@ -316,6 +326,16 @@ def tests(name: string, body: ()()) {
 /** one test: one thing the code should do, said as a sentence */
 def test(name: string, body: ()()) {
     test_run.one(name, body);
+}
+
+/**
+ * Print only the tests that fail, and the summary - not a line for every test
+ * that passed. For a program with thousands of small tests (checks made in a
+ * loop), where the passing lines would bury the one that matters. Call it
+ * before the first tests(...).
+ */
+def show_only_failures() {
+    test_run.only_failures();
 }
 
 /** run this before every test of the group */

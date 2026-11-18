@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.io )
+import ( std.testing, std.io )
 
 /**
  * std.io readers and writers: string_text_reader, file_reader,
@@ -33,120 +33,120 @@ def write_report(out: text_writer) {
 
 def test_string_reader() {
     r := new string_text_reader("ab\ncd\r\nef\rgh");
-    expect("length", r.length(), 12);
-    expect("position at start", r.position(), 0);
-    expect("line at start", r.line(), 1);
-    expect("column at start", r.column(), 1);
-    expect_true("has_more", r.has_more().value);
-    expect("peek_char", r.peek_char(), 'a');
-    expect("peek does not consume", r.read_char(), 'a');
-    expect("peek_char_at", r.peek_char_at(1), '\n');
-    expect("peek_char_at past end", r.peek_char_at(100), 0 - 1);
-    expect("column after one char", r.column(), 2);
-    expect_str("read_line rest of line", r.read_line()!!, "b");
-    expect("line 2", r.line(), 2);
-    expect_str("read_line lf", r.read_line()!!, "cd");
-    expect("line 3 after crlf", r.line(), 3);
-    expect_str("read_line cr", r.read_line()!!, "ef");
-    expect("line 4 after cr", r.line(), 4);
-    expect("remaining", r.remaining(), 2);
-    expect_str("last line without end", r.read_line()!!, "gh");
-    expect_true("read_line at end is null", io_strings.is_null(r.read_line()));
-    expect("read_char at end", r.read_char(), 0 - 1);
-    expect("peek_char at end", r.peek_char(), 0 - 1);
-    expect_false("has_more at end", r.has_more().value);
-    expect_str("read_all at end", r.read_all(), "");
+    test("length") { expect(r.length()).should_be(12); };
+    test("position at start") { expect(r.position()).should_be(0); };
+    test("line at start") { expect(r.line()).should_be(1); };
+    test("column at start") { expect(r.column()).should_be(1); };
+    test("has_more") { expect_true(r.has_more().value); };
+    test("peek_char") { expect(r.peek_char()).should_be('a'); };
+    test("peek does not consume") { expect(r.read_char()).should_be('a'); };
+    test("peek_char_at") { expect(r.peek_char_at(1)).should_be('\n'); };
+    test("peek_char_at past end") { expect(r.peek_char_at(100)).should_be(0 - 1); };
+    test("column after one char") { expect(r.column()).should_be(2); };
+    test("read_line rest of line") { expect(r.read_line()!!).should_be("b"); };
+    test("line 2") { expect(r.line()).should_be(2); };
+    test("read_line lf") { expect(r.read_line()!!).should_be("cd"); };
+    test("line 3 after crlf") { expect(r.line()).should_be(3); };
+    test("read_line cr") { expect(r.read_line()!!).should_be("ef"); };
+    test("line 4 after cr") { expect(r.line()).should_be(4); };
+    test("remaining") { expect(r.remaining()).should_be(2); };
+    test("last line without end") { expect(r.read_line()!!).should_be("gh"); };
+    test("read_line at end is null") { expect_true(io_strings.is_null(r.read_line())); };
+    test("read_char at end") { expect(r.read_char()).should_be(0 - 1); };
+    test("peek_char at end") { expect(r.peek_char()).should_be(0 - 1); };
+    test("has_more at end") { expect_false(r.has_more().value); };
+    test("read_all at end") { expect(r.read_all()).should_be(""); };
 
     r.seek(3);
-    expect_str("seek then read_all", r.read_all(), "cd\r\nef\rgh");
+    test("seek then read_all") { expect(r.read_all()).should_be("cd\r\nef\rgh"); };
     r.seek(0);
-    expect_str("read(n)", r.read(2), "ab");
-    expect("skip", r.skip(1), 1);
-    expect_str("read(n) past end is clipped", r.read(100), "cd\r\nef\rgh");
-    expect_str("read(n) at end", r.read(5), "");
-    expect("skip at end", r.skip(5), 0);
-    expect_true("unread", r.unread().value);
-    expect("unread gives the char again", r.read_char(), 'h');
+    test("read(n)") { expect(r.read(2)).should_be("ab"); };
+    test("skip") { expect(r.skip(1)).should_be(1); };
+    test("read(n) past end is clipped") { expect(r.read(100)).should_be("cd\r\nef\rgh"); };
+    test("read(n) at end") { expect(r.read(5)).should_be(""); };
+    test("skip at end") { expect(r.skip(5)).should_be(0); };
+    test("unread") { expect_true(r.unread().value); };
+    test("unread gives the char again") { expect(r.read_char()).should_be('h'); };
     r.seek(0);
-    expect_false("unread at start", r.unread().value);
-    try { r.seek(13); fail("seek outside", "no exception"); }
-    catch(e: illegal_argument_exception) { pass("seek outside"); }
-    try { r.read(0 - 1); fail("negative read", "no exception"); }
-    catch(e: illegal_argument_exception) { pass("negative read"); }
+    test("unread at start") { expect_false(r.unread().value); };
+    try { r.seek(13); test("seek outside") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("seek outside") { }; }
+    try { r.read(0 - 1); test("negative read") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("negative read") { }; }
 
     lines := new string_text_reader("one\n\nthree\n").read_lines();
-    expect("read_lines count", lines.size().value, 3);
-    expect_str("read_lines empty line", lines.at(1), "");
-    expect_str("read_lines last", lines.at(2), "three");
+    test("read_lines count") { expect(lines.size().value).should_be(3); };
+    test("read_lines empty line") { expect(lines.at(1)).should_be(""); };
+    test("read_lines last") { expect(lines.at(2)).should_be("three"); };
 
     joined := new char_buffer();
     src1 := new string_text_reader("x\ny\nz");
     foreach(line in src1) {
         joined.append(line).append_char('|');
     }
-    expect_str("foreach over lines", joined.to_string()!!, "x|y|z|");
+    test("foreach over lines") { expect(joined.to_string()!!).should_be("x|y|z|"); };
 
     empty := new string_text_reader("");
-    expect_false("empty has_more", empty.has_more().value);
-    expect("empty read_char", empty.read_char(), 0 - 1);
-    expect_true("empty read_line", io_strings.is_null(empty.read_line()));
-    expect("empty read_lines", empty.read_lines().size().value, 0);
+    test("empty has_more") { expect_false(empty.has_more().value); };
+    test("empty read_char") { expect(empty.read_char()).should_be(0 - 1); };
+    test("empty read_line") { expect_true(io_strings.is_null(empty.read_line())); };
+    test("empty read_lines") { expect(empty.read_lines().size().value).should_be(0); };
 
     high := new _int8[2];
     high[0] = 200; high[1] = 255;
     bytes := new string_text_reader(new string(high));
-    expect("chars are 0..255", bytes.read_char(), 200);
-    expect("char 255 is not the end", bytes.read_char(), 255);
-    expect("then the end", bytes.read_char(), 0 - 1);
+    test("chars are 0..255") { expect(bytes.read_char()).should_be(200); };
+    test("char 255 is not the end") { expect(bytes.read_char()).should_be(255); };
+    test("then the end") { expect(bytes.read_char()).should_be(0 - 1); };
 
-    expect("through the interface", count_chars(new string_text_reader("12345")), 5);
+    test("through the interface") { expect(count_chars(new string_text_reader("12345"))).should_be(5); };
 
     r.close();
-    expect_true("is_closed", r.is_closed().value);
+    test("is_closed") { expect_true(r.is_closed().value); };
     r.close();
-    try { r.read_char(); fail("read after close", "no exception"); }
-    catch(e: io_exception) { pass("read after close"); }
-    try { r.read_line(); fail("read_line after close", "no exception"); }
-    catch(e: io_exception) { pass("read_line after close"); }
-    try { r.has_more(); fail("has_more after close", "no exception"); }
-    catch(e: io_exception) { pass("has_more after close"); }
+    try { r.read_char(); test("read after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("read after close") { }; }
+    try { r.read_line(); test("read_line after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("read_line after close") { }; }
+    try { r.has_more(); test("has_more after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("has_more after close") { }; }
 }
 
 def test_buffered_reader() {
     r := new buffered_reader(new string_text_reader("  alpha beta\n\tgamma=1;delta\r\nlast"));
-    expect("line at start", r.line(), 1);
-    expect_str("read_word skips space", r.read_word(), "alpha");
-    expect("column after word", r.column(), 8);
-    expect_str("second word", r.read_word(), "beta");
-    expect_str("word on next line", r.read_until('='), "\n\tgamma");
-    expect("line 2", r.line(), 2);
-    expect_str("read_until", r.read_until(';'), "1");
-    expect("peek_char", r.peek_char(), 'd');
+    test("line at start") { expect(r.line()).should_be(1); };
+    test("read_word skips space") { expect(r.read_word()).should_be("alpha"); };
+    test("column after word") { expect(r.column()).should_be(8); };
+    test("second word") { expect(r.read_word()).should_be("beta"); };
+    test("word on next line") { expect(r.read_until('=')).should_be("\n\tgamma"); };
+    test("line 2") { expect(r.line()).should_be(2); };
+    test("read_until") { expect(r.read_until(';')).should_be("1"); };
+    test("peek_char") { expect(r.peek_char()).should_be('d'); };
     r.unread('X');
     r.unread('Y');
-    expect("unread: last given back comes first", r.read_char(), 'Y');
-    expect("unread: then the other", r.read_char(), 'X');
-    expect_str("read_line after unread", r.read_line()!!, "delta");
-    expect("line 3 after crlf", r.line(), 3);
-    expect("column reset", r.column(), 1);
-    expect_str("read(n)", r.read(2), "la");
-    expect_str("read_all", r.read_all(), "st");
-    expect_false("has_more at end", r.has_more().value);
-    expect("read_char at end", r.read_char(), 0 - 1);
-    expect_true("read_line at end", io_strings.is_null(r.read_line()));
-    expect_str("read_word at end", r.read_word(), "");
-    expect_str("read_until at end", r.read_until(','), "");
-    expect_true("skip_whitespace returns true", r.skip_whitespace().value);
+    test("unread: last given back comes first") { expect(r.read_char()).should_be('Y'); };
+    test("unread: then the other") { expect(r.read_char()).should_be('X'); };
+    test("read_line after unread") { expect(r.read_line()!!).should_be("delta"); };
+    test("line 3 after crlf") { expect(r.line()).should_be(3); };
+    test("column reset") { expect(r.column()).should_be(1); };
+    test("read(n)") { expect(r.read(2)).should_be("la"); };
+    test("read_all") { expect(r.read_all()).should_be("st"); };
+    test("has_more at end") { expect_false(r.has_more().value); };
+    test("read_char at end") { expect(r.read_char()).should_be(0 - 1); };
+    test("read_line at end") { expect_true(io_strings.is_null(r.read_line())); };
+    test("read_word at end") { expect(r.read_word()).should_be(""); };
+    test("read_until at end") { expect(r.read_until(',')).should_be(""); };
+    test("skip_whitespace returns true") { expect_true(r.skip_whitespace().value); };
 
     lines := new buffered_reader(new string_text_reader("a\n\nb\r\n")).read_lines();
-    expect("read_lines", lines.size().value, 3);
-    expect_str("read_lines blank", lines.at(1), "");
+    test("read_lines") { expect(lines.size().value).should_be(3); };
+    test("read_lines blank") { expect(lines.at(1)).should_be(""); };
     joined := new char_buffer();
     src2 := new buffered_reader(new string_text_reader("p\nq"));
     foreach(line in src2) {
         joined.append(line).append_char('|');
     }
-    expect_str("foreach", joined.to_string()!!, "p|q|");
+    test("foreach") { expect(joined.to_string()!!).should_be("p|q|"); };
 
     // numbers separated by any white space
     numbers := new buffered_reader(new string_text_reader("1 2\n3\t4   5\n"));
@@ -156,134 +156,134 @@ def test_buffered_reader() {
         total += io_strings.parse_int(numbers.read_word());
         words++;
     }
-    expect("words read", words, 5);
-    expect("sum of words", total, 15);
+    test("words read") { expect(words).should_be(5); };
+    test("sum of words") { expect(total).should_be(15); };
 
     // many pushed back characters
     many := new buffered_reader(new string_text_reader(""));
     for(i : decimal = 0; i < 100; i++) {
         many.unread('a' + (i % 26));
     }
-    expect("first of 100 unread", many.read_char(), 'a' + (99 % 26));
-    expect("the rest", count_chars(many), 99);
+    test("first of 100 unread") { expect(many.read_char()).should_be('a' + (99 % 26)); };
+    test("the rest") { expect(count_chars(many)).should_be(99); };
 
     inner := new string_text_reader("x");
     outer := new buffered_reader(inner);
     outer.close();
     outer.close();
-    expect_true("close closes the source", inner.is_closed().value);
-    try { outer.read_char(); fail("read after close", "no exception"); }
-    catch(e: io_exception) { pass("read after close"); }
-    try { outer.unread('a'); fail("unread after close", "no exception"); }
-    catch(e: io_exception) { pass("unread after close"); }
+    test("close closes the source") { expect_true(inner.is_closed().value); };
+    try { outer.read_char(); test("read after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("read after close") { }; }
+    try { outer.unread('a'); test("unread after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("unread after close") { }; }
 }
 
 def test_string_writer() {
     w := new string_writer();
     write_report(w);
-    expect_str("through the interface", w.to_string()!!, "total: 42\n\nend");
-    expect("length", w.length(), 14);
+    test("through the interface") { expect(w.to_string()!!).should_be("total: 42\n\nend"); };
+    test("length") { expect(w.length()).should_be(14); };
     w.new_line();
     w.write_int(0 - 7);
     w.write_char(' ');
     w.write_number(0.5);
-    expect_str("numbers", w.to_string()!!, "total: 42\n\nend\n-7 0.5");
+    test("numbers") { expect(w.to_string()!!).should_be("total: 42\n\nend\n-7 0.5"); };
     w.clear();
-    expect("clear", w.length(), 0);
+    test("clear") { expect(w.length()).should_be(0); };
     w.write("");
-    expect_str("write of nothing", w.to_string()!!, "");
+    test("write of nothing") { expect(w.to_string()!!).should_be(""); };
     w.close();
-    expect_true("is_closed", w.is_closed().value);
-    try { w.write("x"); fail("write after close", "no exception"); }
-    catch(e: io_exception) { pass("write after close"); }
-    try { w.write_line("x"); fail("write_line after close", "no exception"); }
-    catch(e: io_exception) { pass("write_line after close"); }
-    expect_str("text stays after close", w.to_string()!!, "");
+    test("is_closed") { expect_true(w.is_closed().value); };
+    try { w.write("x"); test("write after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("write after close") { }; }
+    try { w.write_line("x"); test("write_line after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("write_line after close") { }; }
+    test("text stays after close") { expect(w.to_string()!!).should_be(""); };
     sized := new string_writer(4);
     sized.write("longer than four");
-    expect("sized writer grows", sized.length(), 16);
+    test("sized writer grows") { expect(sized.length()).should_be(16); };
 }
 
 def test_file_streams() {
     target := new file(base_dir + "/out.txt");
     w := new file_writer(target);
     write_report(w);
-    expect_str("flush wrote the file", target.read_text(), "total: 42\n\nend");
+    test("flush wrote the file") { expect(target.read_text()).should_be("total: 42\n\nend"); };
     w.new_line();
     w.write_int(12);
     w.write_number(1.5);
-    expect_str("not on disk before the next flush", target.read_text(), "total: 42\n\nend");
-    expect("length counts everything", w.length(), 20);
+    test("not on disk before the next flush") { expect(target.read_text()).should_be("total: 42\n\nend"); };
+    test("length counts everything") { expect(w.length()).should_be(20); };
     w.close();
-    expect_true("is_closed", w.is_closed().value);
-    expect_str("close wrote the rest", target.read_text(), "total: 42\n\nend\n121.5");
+    test("is_closed") { expect_true(w.is_closed().value); };
+    test("close wrote the rest") { expect(target.read_text()).should_be("total: 42\n\nend\n121.5"); };
     w.close();
-    try { w.write("x"); fail("write after close", "no exception"); }
-    catch(e: io_exception) { pass("write after close"); }
-    try { w.flush(); fail("flush after close", "no exception"); }
-    catch(e: io_exception) { pass("flush after close"); }
-    expect_str("get_file", w.get_file().name(), "out.txt");
+    try { w.write("x"); test("write after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("write after close") { }; }
+    try { w.flush(); test("flush after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("flush after close") { }; }
+    test("get_file") { expect(w.get_file().name()).should_be("out.txt"); };
 
     // append keeps what is there, replace does not
     a := new file_writer(target, true);
     a.write_line("");
     a.write("appended");
     a.close();
-    expect_str("append mode", target.read_text(), "total: 42\n\nend\n121.5\nappended");
+    test("append mode") { expect(target.read_text()).should_be("total: 42\n\nend\n121.5\nappended"); };
     r := new file_writer(target, false);
     r.close();
-    expect("replace mode with nothing written empties the file", target.size(), 0);
+    test("replace mode with nothing written empties the file") { expect(target.size()).should_be(0); };
     fresh := new file_writer(new file(base_dir + "/fresh.txt"), true);
     fresh.write("new");
     fresh.close();
-    expect_str("append to a missing file creates it", new file(base_dir + "/fresh.txt").read_text(), "new");
+    test("append to a missing file creates it") { expect(new file(base_dir + "/fresh.txt").read_text()).should_be("new"); };
     by_path := new file_writer(new file(base_dir + "/by_path.txt"));
     by_path.write_line("p");
     by_path.close();
-    expect_str("writer by path", new file(base_dir + "/by_path.txt").read_text(), "p\n");
+    test("writer by path") { expect(new file(base_dir + "/by_path.txt").read_text()).should_be("p\n"); };
 
-    try { new file_writer(new file(base_dir)); fail("writer on a directory", "no exception"); }
-    catch(e: io_exception) { pass("writer on a directory"); }
+    try { new file_writer(new file(base_dir)); test("writer on a directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("writer on a directory") { }; }
     nowhere := new file_writer(new file(base_dir + "/no/such/dir/x.txt"));
     nowhere.write("x");
-    try { nowhere.flush(); fail("flush without directory", "no exception"); }
-    catch(e: io_exception) { pass("flush without directory"); }
-    try { nowhere.close(); fail("close without directory", "no exception"); }
-    catch(e: io_exception) { pass("close without directory"); }
-    expect_true("closed all the same", nowhere.is_closed().value);
+    try { nowhere.flush(); test("flush without directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("flush without directory") { }; }
+    try { nowhere.close(); test("close without directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("close without directory") { }; }
+    test("closed all the same") { expect_true(nowhere.is_closed().value); };
 
     // file_reader
     target.write_text("first\nsecond\nthird\n");
     fr := new file_reader(target);
-    expect_str("file_reader read_line", fr.read_line()!!, "first");
-    expect("file_reader line", fr.line(), 2);
-    expect("file_reader peek", fr.peek_char(), 's');
-    expect_str("file_reader read_all", fr.read_all(), "second\nthird\n");
-    expect_str("file_reader get_file", fr.get_file().name(), "out.txt");
+    test("file_reader read_line") { expect(fr.read_line()!!).should_be("first"); };
+    test("file_reader line") { expect(fr.line()).should_be(2); };
+    test("file_reader peek") { expect(fr.peek_char()).should_be('s'); };
+    test("file_reader read_all") { expect(fr.read_all()).should_be("second\nthird\n"); };
+    test("file_reader get_file") { expect(fr.get_file().name()).should_be("out.txt"); };
     fr.close();
-    try { fr.read_char(); fail("file_reader after close", "no exception"); }
-    catch(e: io_exception) { pass("file_reader after close"); }
+    try { fr.read_char(); test("file_reader after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("file_reader after close") { }; }
     by_name := new file_reader(base_dir + "/out.txt");
-    expect("file_reader by path, through the interface", count_chars(by_name), 19);
+    test("file_reader by path, through the interface") { expect(count_chars(by_name)).should_be(19); };
     lines : decimal = 0;
     src3 := new file_reader(target);
     foreach(line in src3) {
         lines++;
     }
-    expect("foreach over a file", lines, 3);
+    test("foreach over a file") { expect(lines).should_be(3); };
     target.write_text("");
-    expect_false("reader of an empty file", new file_reader(target).has_more().value);
-    try { new file_reader(base_dir + "/missing.txt"); fail("reader of a missing file", "no exception"); }
-    catch(e: io_exception) { pass("reader of a missing file"); }
-    try { new file_reader(new file(base_dir)); fail("reader of a directory", "no exception"); }
-    catch(e: io_exception) { pass("reader of a directory"); }
+    test("reader of an empty file") { expect_false(new file_reader(target).has_more().value); };
+    try { new file_reader(base_dir + "/missing.txt"); test("reader of a missing file") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("reader of a missing file") { }; }
+    try { new file_reader(new file(base_dir)); test("reader of a directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("reader of a directory") { }; }
 
     // a reader stacked on a file
     target.write_text("k1 = v1\nk2 = v2\n");
     stacked := new buffered_reader(new file_reader(target));
-    expect_str("stacked key", stacked.read_word(), "k1");
-    expect_str("stacked until", io_strings.trim(stacked.read_until('\n')), "= v1");
-    expect("stacked line", stacked.line(), 2);
+    test("stacked key") { expect(stacked.read_word()).should_be("k1"); };
+    test("stacked until") { expect(io_strings.trim(stacked.read_until('\n'))).should_be("= v1"); };
+    test("stacked line") { expect(stacked.line()).should_be(2); };
     stacked.close();
 }
 
@@ -291,40 +291,40 @@ def test_buffered_writer() {
     sink := new string_writer();
     w := new buffered_writer(sink, 8);
     w.write("abc");
-    expect("held back", sink.length(), 0);
-    expect("buffered", w.buffered(), 3);
+    test("held back") { expect(sink.length()).should_be(0); };
+    test("buffered") { expect(w.buffered()).should_be(3); };
     w.write("defgh");
-    expect("handed on when full", sink.length(), 8);
-    expect("buffer empty again", w.buffered(), 0);
+    test("handed on when full") { expect(sink.length()).should_be(8); };
+    test("buffer empty again") { expect(w.buffered()).should_be(0); };
     w.write_char('i');
     w.flush();
-    expect_str("flush", sink.to_string()!!, "abcdefghi");
+    test("flush") { expect(sink.to_string()!!).should_be("abcdefghi"); };
     w.write_line("");
     w.write_int(5);
     w.write_number(0.25);
     w.new_line();
-    expect("chars written", w.get_chars_written(), 16);
-    expect("lines written", w.get_lines_written(), 2);
+    test("chars written") { expect(w.get_chars_written()).should_be(16); };
+    test("lines written") { expect(w.get_lines_written()).should_be(2); };
     w.close();
-    expect_str("close flushes", sink.to_string()!!, "abcdefghi\n50.25\n");
-    expect_true("close closes the target", sink.is_closed().value);
+    test("close flushes") { expect(sink.to_string()!!).should_be("abcdefghi\n50.25\n"); };
+    test("close closes the target") { expect_true(sink.is_closed().value); };
     w.close();
-    try { w.write("x"); fail("write after close", "no exception"); }
-    catch(e: io_exception) { pass("write after close"); }
+    try { w.write("x"); test("write after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("write after close") { }; }
 
     crlf_sink := new string_writer();
     crlf := new buffered_writer(crlf_sink);
     crlf.set_line_separator("\r\n");
     crlf.set_auto_flush(true);
     crlf.write_line("a");
-    expect_str("auto flush at line end, custom separator", crlf_sink.to_string()!!, "a\r\n");
+    test("auto flush at line end, custom separator") { expect(crlf_sink.to_string()!!).should_be("a\r\n"); };
     crlf.write("b");
-    expect("no flush without line end", crlf_sink.length(), 3);
+    test("no flush without line end") { expect(crlf_sink.length()).should_be(3); };
     write_report(crlf);
-    expect_str("through the interface", crlf_sink.to_string()!!, "a\r\nbtotal: 42\r\n\r\nend");
+    test("through the interface") { expect(crlf_sink.to_string()!!).should_be("a\r\nbtotal: 42\r\n\r\nend"); };
 
-    try { new buffered_writer(sink, 0); fail("zero capacity", "no exception"); }
-    catch(e: illegal_argument_exception) { pass("zero capacity"); }
+    try { new buffered_writer(sink, 0); test("zero capacity") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("zero capacity") { }; }
 
     // buffered writer in front of a file
     target := new file(base_dir + "/buffered.txt");
@@ -335,8 +335,8 @@ def test_buffered_writer() {
     }
     fw.close();
     back := target.read_lines();
-    expect("100 lines through two writers", back.size().value, 100);
-    expect_str("line 99", back.at(99), "99");
+    test("100 lines through two writers") { expect(back.size().value).should_be(100); };
+    test("line 99") { expect(back.at(99)).should_be("99"); };
 
     // console_writer: only that it can be used and closed (its output is not captured here)
     con := new console_writer();
@@ -344,21 +344,24 @@ def test_buffered_writer() {
     con.flush();
     con.close();
     con.close();
-    try { con.write_line("x"); fail("console write after close", "no exception"); }
-    catch(e: io_exception) { pass("console write after close"); }
+    try { con.write_line("x"); test("console write after close") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("console write after close") { }; }
 }
 
 def main(args: string[]) {
-    start := new file(base_dir);
-    start.delete_recursively();
-    expect_true("test directory created", start.mkdirs().value);
+    show_only_failures();
+    tests("lib_io_streams") {
+        start := new file(base_dir);
+        start.delete_recursively();
+        test("test directory created") { expect_true(start.mkdirs().value); };
 
-    test_string_reader();
-    test_buffered_reader();
-    test_string_writer();
-    test_file_streams();
-    test_buffered_writer();
+        test_string_reader();
+        test_buffered_reader();
+        test_string_writer();
+        test_file_streams();
+        test_buffered_writer();
 
-    expect_true("cleanup", start.delete_recursively().value);
-    finish("lib_io_streams");
+        test("cleanup") { expect_true(start.delete_recursively().value); };
+    };
+    finish_tests();
 }

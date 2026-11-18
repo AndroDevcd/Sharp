@@ -264,7 +264,11 @@ def main(args: string[]) {
     minus_twelve := new short(0 - 12);
     expect_str("negative short to_string", minus_twelve.to_string()!!, "-12");
     expect_str("long to_string", two_33.to_string()!!, "8589934592");
-    expect_str("double to_string has 16 decimals", half.to_string()!!, "2.5000000000000000");
+    // a decimal is written with the fewest digits that read back as the same number
+    // (until VM r19 it was sixteen places after the point: "2.5000000000000000")
+    expect_str("double to_string is the short form", half.to_string()!!, "2.5");
+    expect_str("a whole double has no fraction", new double(3).to_string()!!, "3");
+    expect_str("a tenth is a tenth", new double(0.1).to_string()!!, "0.1");
     expect_str("bool to_string", t.to_string(), "true");
     expect_str("false to_string", f.to_string(), "false");
     expect_str("char to_string is the character", letter.to_string()!!, "z");

@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * std/string.sharp - three corrections to the existing `string` class:
@@ -14,56 +14,58 @@ import ( testing )
  */
 
 def main(args: string[]) {
-    hello : string = "hello";
-    empty : string = "";
+    show_only_failures();
+    tests("lib_text_string_fixes") {
+        hello : string = "hello";
+        empty : string = "";
 
-    // ---- std/string.sharp: an empty string used to be printed as "null"
-    expect_str("literal + empty", "head" + empty, "head");
-    expect_str("empty + literal", empty + "tail", "tail");
-    expect_str("empty + empty", empty + empty, "");
-    expect_str("empty string in the middle", "[" + empty + "]", "[]");
-    expect_str("empty string interpolated", "[$empty]", "[]");
-    fresh := new string();
-    expect_str("new string() concatenated", "<" + fresh + ">", "<>");
-    cut := hello.substring(2, 2);
-    expect_str("empty substring concatenated", "<" + cut + ">", "<>");
-    grown : string = "a";
-    grown += empty;
-    expect_str("+= with an empty string", grown, "a");
-    nothing : string? = null;
-    expect_str("a null string still prints as null", "is " + nothing, "is null");
+        // ---- std/string.sharp: an empty string used to be printed as "null"
+        test("literal + empty") { expect("head" + empty).should_be("head"); };
+        test("empty + literal") { expect(empty + "tail").should_be("tail"); };
+        test("empty + empty") { expect(empty + empty).should_be(""); };
+        test("empty string in the middle") { expect("[" + empty + "]").should_be("[]"); };
+        test("empty string interpolated") { expect("[$empty]").should_be("[]"); };
+        fresh := new string();
+        test("new string() concatenated") { expect("<" + fresh + ">").should_be("<>"); };
+        cut := hello.substring(2, 2);
+        test("empty substring concatenated") { expect("<" + cut + ">").should_be("<>"); };
+        grown : string = "a";
+        grown += empty;
+        test("+= with an empty string") { expect(grown).should_be("a"); };
+        nothing : string? = null;
+        test("a null string still prints as null") { expect("is " + nothing).should_be("is null"); };
 
-    // ---- std/string.sharp: ends_with with a postfix as long as the string
-    expect_true("ends_with the whole string", hello.ends_with("hello").value);
-    expect_true("ends_with a real postfix", hello.ends_with("llo").value);
-    expect_false("ends_with something longer", hello.ends_with("xhello").value);
-    expect_false("ends_with a different postfix", hello.ends_with("lla").value);
+        // ---- std/string.sharp: ends_with with a postfix as long as the string
+        test("ends_with the whole string") { expect_true(hello.ends_with("hello").value); };
+        test("ends_with a real postfix") { expect_true(hello.ends_with("llo").value); };
+        test("ends_with something longer") { expect_false(hello.ends_with("xhello").value); };
+        test("ends_with a different postfix") { expect_false(hello.ends_with("lla").value); };
 
-    // ---- std/string.sharp: at() with a negative position
-    try {
-        hello.at(0 - 1);
-        fail("at(-1)", "did not throw");
-    } catch(e: out_of_bounds_exception) {
-        pass("at(-1)");
-    }
+        // ---- std/string.sharp: at() with a negative position
+        try {
+            hello.at(0 - 1);
+            test("at(-1)") { fail_test("did not throw"); };
+        } catch(e: out_of_bounds_exception) {
+            test("at(-1)") { };
+        }
 
-    // ---- the same through other paths
-    expect_str("empty string returned by a method", "[" + hello.substring(3, 3) + "]", "[]");
-    joined : string = "";
-    joined = joined + empty;
-    joined = joined + "x";
-    joined = joined + empty;
-    expect_str("several empty strings in a row", joined, "x");
-    expect("size after adding empty strings", joined.size().value, 1);
-    expect_true("an empty string still equals \"\"", (empty == "").value);
-    expect_true("ends_with \"\"", hello.ends_with("").value);
-    expect("at(4) still works", hello.at(4).value, 'o');
-    try {
-        hello.at(5);
-        fail("at(length)", "did not throw");
-    } catch(e: out_of_bounds_exception) {
-        pass("at(length)");
-    }
-
-    finish("lib_text_string_fixes");
+        // ---- the same through other paths
+        test("empty string returned by a method") { expect("[" + hello.substring(3, 3) + "]").should_be("[]"); };
+        joined : string = "";
+        joined = joined + empty;
+        joined = joined + "x";
+        joined = joined + empty;
+        test("several empty strings in a row") { expect(joined).should_be("x"); };
+        test("size after adding empty strings") { expect(joined.size().value).should_be(1); };
+        test("an empty string still equals \"\"") { expect_true((empty == "").value); };
+        test("ends_with \"\"") { expect_true(hello.ends_with("").value); };
+        test("at(4) still works") { expect(hello.at(4).value).should_be('o'); };
+        try {
+            hello.at(5);
+            test("at(length)") { fail_test("did not throw"); };
+        } catch(e: out_of_bounds_exception) {
+            test("at(length)") { };
+        }
+    };
+    finish_tests();
 }

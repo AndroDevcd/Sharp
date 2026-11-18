@@ -1,7 +1,7 @@
 mod main;
 
 import (
-    testing,
+    std.testing,
     std.io.coroutines
 )
 
@@ -41,14 +41,17 @@ import (
 rounds_done : decimal = 0;
 
 def main(args: string[]) {
-    for(i : decimal = 0; i < 40; i++) {
-        run_blocking({ ->
-            launch({ -> yield(); });
-            launch({ -> yield(); yield(); });
-        });
-        rounds_done++;
-    }
+    show_only_failures();
+    tests("lib_coroutines_jit_fiber_frames") {
+        for(i : decimal = 0; i < 40; i++) {
+            run_blocking({ ->
+                launch({ -> yield(); });
+                launch({ -> yield(); yield(); });
+            });
+            rounds_done++;
+        }
 
-    expect("all rounds ran", rounds_done, 40);
-    finish("lib_coroutines_jit_fiber_frames");
+        test("all rounds ran") { expect(rounds_done).should_be(40); };
+    };
+    finish_tests();
 }

@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.collections )
+import ( std.testing, std.collections )
 
 /**
  * std.collections - tree_set, and tree_map checked against a simple reference
@@ -66,9 +66,9 @@ def test_tree_map_against_reference() {
         }
         if(m.size() != count) agree = 0;
     }
-    expect("tree random put/remove results agree with the reference", agree, 1);
-    expect("tree random size", m.size(), count);
-    expect_true("tree random height is logarithmic", m.height() <= 12);
+    test("tree random put/remove results agree with the reference") { expect(agree).should_be(1); };
+    test("tree random size") { expect(m.size()).should_be(count); };
+    test("tree random height is logarithmic") { expect_true(m.height() <= 12); };
 
     // every key: contains, value
     for(key : decimal = 0; key < 500; key++) {
@@ -77,7 +77,7 @@ def test_tree_map_against_reference() {
             if(m.at(key)!!.value != stored[key]) agree = 0;
         }
     }
-    expect("tree random contents agree with the reference", agree, 1);
+    test("tree random contents agree with the reference") { expect(agree).should_be(1); };
 
     // the iteration is exactly the present keys in ascending order
     expected_key : decimal = 0;
@@ -88,8 +88,8 @@ def test_tree_map_against_reference() {
         expected_key++;
         walked++;
     }
-    expect("tree random iteration is sorted and complete", agree, 1);
-    expect("tree random iteration count", walked, count);
+    test("tree random iteration is sorted and complete") { expect(agree).should_be(1); };
+    test("tree random iteration count") { expect(walked).should_be(count); };
 
     // floor / ceiling / lower / higher for every possible key, against a linear scan
     for(key : decimal = 0; key < 500; key++) {
@@ -107,16 +107,16 @@ def test_tree_map_against_reference() {
         if(or_minus_one(m.lower_key(key)) != lower) agree = 0;
         if(or_minus_one(m.higher_key(key)) != higher) agree = 0;
     }
-    expect("tree random neighbours agree with a linear scan", agree, 1);
+    test("tree random neighbours agree with a linear scan") { expect(agree).should_be(1); };
 
     // a range, counted both ways
     in_range : decimal = 0;
     for(k : decimal = 100; k < 300; k++) in_range += present[k];
-    expect("tree random range_keys", m.range_keys(100, 300).size().value, in_range);
+    test("tree random range_keys") { expect(m.range_keys(100, 300).size().value).should_be(in_range); };
     it := m.range_iterator(100, 300);
     walked = 0;
     while(it.has_next()) { it.next(); walked++; }
-    expect("tree random range_iterator", walked, in_range);
+    test("tree random range_iterator") { expect(walked).should_be(in_range); };
 
     // empty it from the front: keys must come out ascending
     previous : decimal = 0 - 1;
@@ -125,74 +125,74 @@ def test_tree_map_against_reference() {
         if(key <= previous) agree = 0;
         previous = key;
     }
-    expect("tree random poll_first order", agree, 1);
-    expect("tree random empty at the end", m.height(), 0);
+    test("tree random poll_first order") { expect(agree).should_be(1); };
+    test("tree random empty at the end") { expect(m.height()).should_be(0); };
 }
 
 def test_tree_set() {
     s := new tree_set<int>(ascending);
-    expect("tset new size", s.size(), 0);
-    expect("tset new is_empty", s.is_empty(), 1);
-    expect_null("tset empty get_elements", s.get_elements());
-    expect_null("tset floor on empty", s.floor(1));
-    expect("tset tail on empty", s.tail(1).size().value, 0);
-    try { s.first(); fail("tset first empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset first empty"); }
-    try { s.last(); fail("tset last empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset last empty"); }
-    try { s.poll_first(); fail("tset poll_first empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset poll_first empty"); }
-    try { s.poll_last(); fail("tset poll_last empty", "did not throw"); } catch(e: no_such_element_exception) { pass("tset poll_last empty"); }
+    test("tset new size") { expect(s.size()).should_be(0); };
+    test("tset new is_empty") { expect(s.is_empty()).should_be(1); };
+    test("tset empty get_elements") { expect_null(s.get_elements()); };
+    test("tset floor on empty") { expect_null(s.floor(1)); };
+    test("tset tail on empty") { expect(s.tail(1).size().value).should_be(0); };
+    try { s.first(); test("tset first empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("tset first empty") { }; }
+    try { s.last(); test("tset last empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("tset last empty") { }; }
+    try { s.poll_first(); test("tset poll_first empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("tset poll_first empty") { }; }
+    try { s.poll_last(); test("tset poll_last empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("tset poll_last empty") { }; }
 
-    expect("tset add", s.add(5), 1);
-    expect("tset add 2", s.add(1), 1);
-    expect("tset add 3", s.add(9), 1);
-    expect("tset add duplicate", s.add(5), 0);
-    expect("tset add 4", s.add(3), 1);
-    expect("tset add 5", s.add(7), 1);
-    expect("tset size", s.size(), 5);
-    expect_str("tset sorted", join(s.to_list()), "1,3,5,7,9");
-    expect("tset to_array", s.to_array()[4].value, 9);
-    expect("tset contains", s.contains(7), 1);
-    expect("tset contains missing", s.contains(6), 0);
-    expect("tset first", s.first().value, 1);
-    expect("tset last", s.last().value, 9);
-    expect("tset floor", or_minus_one(s.floor(6)), 5);
-    expect("tset floor exact", or_minus_one(s.floor(7)), 7);
-    expect("tset ceiling", or_minus_one(s.ceiling(6)), 7);
-    expect("tset lower", or_minus_one(s.lower(5)), 3);
-    expect("tset lower none", or_minus_one(s.lower(1)), 0 - 1);
-    expect("tset higher", or_minus_one(s.higher(5)), 7);
-    expect("tset higher none", or_minus_one(s.higher(9)), 0 - 1);
-    expect_str("tset range", join(s.range(3, 9)), "3,5,7");
-    expect_str("tset range empty", join(s.range(4, 5)), "");
-    expect_str("tset head", join(s.head(5)), "1,3");
-    expect_str("tset head of everything", join(s.head(100)), "1,3,5,7,9");
-    expect_str("tset tail", join(s.tail(5)), "5,7,9");
-    expect_str("tset tail between", join(s.tail(8)), "9");
-    expect_str("tset tail of nothing", join(s.tail(10)), "");
+    test("tset add") { expect(s.add(5)).should_be(1); };
+    test("tset add 2") { expect(s.add(1)).should_be(1); };
+    test("tset add 3") { expect(s.add(9)).should_be(1); };
+    test("tset add duplicate") { expect(s.add(5)).should_be(0); };
+    test("tset add 4") { expect(s.add(3)).should_be(1); };
+    test("tset add 5") { expect(s.add(7)).should_be(1); };
+    test("tset size") { expect(s.size()).should_be(5); };
+    test("tset sorted") { expect(join(s.to_list())).should_be("1,3,5,7,9"); };
+    test("tset to_array") { expect(s.to_array()[4].value).should_be(9); };
+    test("tset contains") { expect(s.contains(7)).should_be(1); };
+    test("tset contains missing") { expect(s.contains(6)).should_be(0); };
+    test("tset first") { expect(s.first().value).should_be(1); };
+    test("tset last") { expect(s.last().value).should_be(9); };
+    test("tset floor") { expect(or_minus_one(s.floor(6))).should_be(5); };
+    test("tset floor exact") { expect(or_minus_one(s.floor(7))).should_be(7); };
+    test("tset ceiling") { expect(or_minus_one(s.ceiling(6))).should_be(7); };
+    test("tset lower") { expect(or_minus_one(s.lower(5))).should_be(3); };
+    test("tset lower none") { expect(or_minus_one(s.lower(1))).should_be(0 - 1); };
+    test("tset higher") { expect(or_minus_one(s.higher(5))).should_be(7); };
+    test("tset higher none") { expect(or_minus_one(s.higher(9))).should_be(0 - 1); };
+    test("tset range") { expect(join(s.range(3, 9))).should_be("3,5,7"); };
+    test("tset range empty") { expect(join(s.range(4, 5))).should_be(""); };
+    test("tset head") { expect(join(s.head(5))).should_be("1,3"); };
+    test("tset head of everything") { expect(join(s.head(100))).should_be("1,3,5,7,9"); };
+    test("tset tail") { expect(join(s.tail(5))).should_be("5,7,9"); };
+    test("tset tail between") { expect(join(s.tail(8))).should_be("9"); };
+    test("tset tail of nothing") { expect(join(s.tail(10))).should_be(""); };
 
     digits : decimal = 0;
     foreach(x in s) { digits = digits * 10 + x.value; }
-    expect("tset foreach", digits, 13579);
+    test("tset foreach") { expect(digits).should_be(13579); };
     it := s.iterator();
     digits = 0;
     while(it.has_next()) digits = digits * 10 + it.next().value;
-    expect("tset iterator", digits, 13579);
+    test("tset iterator") { expect(digits).should_be(13579); };
     back := s.descending_iterator();
     digits = 0;
     while(back.has_next()) digits = digits * 10 + back.next().value;
-    expect("tset descending_iterator", digits, 97531);
+    test("tset descending_iterator") { expect(digits).should_be(97531); };
 
-    expect("tset remove", s.remove(5), 1);
-    expect("tset remove again", s.remove(5), 0);
-    expect("tset poll_first", s.poll_first().value, 1);
-    expect("tset poll_last", s.poll_last().value, 9);
-    expect_str("tset after removes", join(s.to_list()), "3,7");
+    test("tset remove") { expect(s.remove(5)).should_be(1); };
+    test("tset remove again") { expect(s.remove(5)).should_be(0); };
+    test("tset poll_first") { expect(s.poll_first().value).should_be(1); };
+    test("tset poll_last") { expect(s.poll_last().value).should_be(9); };
+    test("tset after removes") { expect(join(s.to_list())).should_be("3,7"); };
 
     more := new list<int>();
     more.add(7); more.add(4); more.add(8); more.add(4);
-    expect("tset add_all counts the new ones", s.add_all(more), 2);
-    expect_str("tset after add_all", join(s.to_list()), "3,4,7,8");
+    test("tset add_all counts the new ones") { expect(s.add_all(more)).should_be(2); };
+    test("tset after add_all") { expect(join(s.to_list())).should_be("3,4,7,8"); };
     s.clear();
-    expect("tset clear", s.size(), 0);
+    test("tset clear") { expect(s.size()).should_be(0); };
 
     // scale: 3000 pseudo random numbers; the set must hold each once, sorted
     seen := new decimal[2000];
@@ -204,7 +204,7 @@ def test_tree_set() {
         if(!seen[value]) { seen[value] = 1; distinct++; }
         s.add(value);
     }
-    expect("tset big size", s.size(), distinct);
+    test("tset big size") { expect(s.size()).should_be(distinct); };
     sorted : decimal = 1;
     previous : decimal = 0 - 1;
     foreach(x in s) {
@@ -212,11 +212,14 @@ def test_tree_set() {
         if(!seen[x.value]) sorted = 0;
         previous = x.value;
     }
-    expect("tset big is sorted and has no strangers", sorted, 1);
+    test("tset big is sorted and has no strangers") { expect(sorted).should_be(1); };
 }
 
 def main(args: string[]) {
-    test_tree_map_against_reference();
-    test_tree_set();
-    finish("lib_collections_tree_set");
+    show_only_failures();
+    tests("lib_collections_tree_set") {
+        test_tree_map_against_reference();
+        test_tree_set();
+    };
+    finish_tests();
 }

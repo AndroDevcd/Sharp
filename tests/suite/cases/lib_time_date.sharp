@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.time )
+import ( std.testing, std.time )
 
 /**
  * std.time.date: creating and validating dates, the leap year rule, the
@@ -46,262 +46,264 @@ def weekday_of(y: decimal, m: decimal, d: decimal): decimal {
 }
 
 def main(args: string[]) {
-    // ---- fields
-    d := date.of(2024, 2, 29);
-    expect("year", d.year(), 2024);
-    expect("month_value", d.month_value(), 2);
-    expect("day", d.day(), 29);
-    expect_str("month_of_year name", d.month_of_year().name(), "February");
-    expect("quarter of February", d.quarter(), 1);
-    expect("quarter of October", date.of(2024, 10, 1).quarter(), 4);
-    expect_str("of_month", text(date.of_month(2024, month.march, 5)), "2024-03-05");
+    show_only_failures();
+    tests("lib_time_date") {
+        // ---- fields
+        d := date.of(2024, 2, 29);
+        test("year") { expect(d.year()).should_be(2024); };
+        test("month_value") { expect(d.month_value()).should_be(2); };
+        test("day") { expect(d.day()).should_be(29); };
+        test("month_of_year name") { expect(d.month_of_year().name()).should_be("February"); };
+        test("quarter of February") { expect(d.quarter()).should_be(1); };
+        test("quarter of October") { expect(date.of(2024, 10, 1).quarter()).should_be(4); };
+        test("of_month") { expect(text(date.of_month(2024, month.march, 5))).should_be("2024-03-05"); };
 
-    // ---- leap years: divisible by 4, except centuries, unless divisible by 400
-    expect_true("2024 is a leap year", date.is_leap_year(2024));
-    expect_true("2000 is a leap year", date.is_leap_year(2000));
-    expect_true("1600 is a leap year", date.is_leap_year(1600));
-    expect_true("2400 is a leap year", date.is_leap_year(2400));
-    expect_true("year 0 is a leap year", date.is_leap_year(0));
-    expect_true("year -4 is a leap year", date.is_leap_year(0 - 4));
-    expect_false("1900 is not a leap year", date.is_leap_year(1900));
-    expect_false("2100 is not a leap year", date.is_leap_year(2100));
-    expect_false("1700 is not a leap year", date.is_leap_year(1700));
-    expect_false("2023 is not a leap year", date.is_leap_year(2023));
-    expect_false("year 1 is not a leap year", date.is_leap_year(1));
-    expect_false("year -1 is not a leap year", date.is_leap_year(0 - 1));
-    expect_true("is_leap_year() on a date", d.is_leap_year());
-    expect_false("is_leap_year() on a 1900 date", date.of(1900, 6, 1).is_leap_year());
+        // ---- leap years: divisible by 4, except centuries, unless divisible by 400
+        test("2024 is a leap year") { expect_true(date.is_leap_year(2024)); };
+        test("2000 is a leap year") { expect_true(date.is_leap_year(2000)); };
+        test("1600 is a leap year") { expect_true(date.is_leap_year(1600)); };
+        test("2400 is a leap year") { expect_true(date.is_leap_year(2400)); };
+        test("year 0 is a leap year") { expect_true(date.is_leap_year(0)); };
+        test("year -4 is a leap year") { expect_true(date.is_leap_year(0 - 4)); };
+        test("1900 is not a leap year") { expect_false(date.is_leap_year(1900)); };
+        test("2100 is not a leap year") { expect_false(date.is_leap_year(2100)); };
+        test("1700 is not a leap year") { expect_false(date.is_leap_year(1700)); };
+        test("2023 is not a leap year") { expect_false(date.is_leap_year(2023)); };
+        test("year 1 is not a leap year") { expect_false(date.is_leap_year(1)); };
+        test("year -1 is not a leap year") { expect_false(date.is_leap_year(0 - 1)); };
+        test("is_leap_year() on a date") { expect_true(d.is_leap_year()); };
+        test("is_leap_year() on a 1900 date") { expect_false(date.of(1900, 6, 1).is_leap_year()); };
 
-    // ---- lengths
-    expect("days in February 2024", date.days_in_month(2024, 2), 29);
-    expect("days in February 2023", date.days_in_month(2023, 2), 28);
-    expect("days in February 1900", date.days_in_month(1900, 2), 28);
-    expect("days in February 2000", date.days_in_month(2000, 2), 29);
-    expect("days in January", date.days_in_month(2023, 1), 31);
-    expect("days in April", date.days_in_month(2023, 4), 30);
-    expect("days in June", date.days_in_month(2023, 6), 30);
-    expect("days in September", date.days_in_month(2023, 9), 30);
-    expect("days in November", date.days_in_month(2023, 11), 30);
-    expect("days in December", date.days_in_month(2023, 12), 31);
-    expect("length_of_month", d.length_of_month(), 29);
-    expect("days in 2024", date.days_in_year(2024), 366);
-    expect("days in 2023", date.days_in_year(2023), 365);
-    expect("length_of_year", d.length_of_year(), 366);
+        // ---- lengths
+        test("days in February 2024") { expect(date.days_in_month(2024, 2)).should_be(29); };
+        test("days in February 2023") { expect(date.days_in_month(2023, 2)).should_be(28); };
+        test("days in February 1900") { expect(date.days_in_month(1900, 2)).should_be(28); };
+        test("days in February 2000") { expect(date.days_in_month(2000, 2)).should_be(29); };
+        test("days in January") { expect(date.days_in_month(2023, 1)).should_be(31); };
+        test("days in April") { expect(date.days_in_month(2023, 4)).should_be(30); };
+        test("days in June") { expect(date.days_in_month(2023, 6)).should_be(30); };
+        test("days in September") { expect(date.days_in_month(2023, 9)).should_be(30); };
+        test("days in November") { expect(date.days_in_month(2023, 11)).should_be(30); };
+        test("days in December") { expect(date.days_in_month(2023, 12)).should_be(31); };
+        test("length_of_month") { expect(d.length_of_month()).should_be(29); };
+        test("days in 2024") { expect(date.days_in_year(2024)).should_be(366); };
+        test("days in 2023") { expect(date.days_in_year(2023)).should_be(365); };
+        test("length_of_year") { expect(d.length_of_year()).should_be(366); };
 
-    // ---- epoch day: 1970-01-01 is day 0
-    expect("1970-01-01", epoch_day_of(1970, 1, 1), 0);
-    expect("1970-01-02", epoch_day_of(1970, 1, 2), 1);
-    expect("1969-12-31", epoch_day_of(1969, 12, 31), 0 - 1);
-    expect("2000-01-01", epoch_day_of(2000, 1, 1), 10957);
-    expect("1999-12-31", epoch_day_of(1999, 12, 31), 10956);
-    expect("2024-02-29", epoch_day_of(2024, 2, 29), 19782);
-    expect("2026-11-12", epoch_day_of(2026, 11, 12), 20769);
-    expect("2038-01-19 (32-bit time_t ends)", epoch_day_of(2038, 1, 19), 24855);
-    expect("2100-03-01", epoch_day_of(2100, 3, 1), 47541);
-    expect("2400-02-29", epoch_day_of(2400, 2, 29), 157113);
-    expect("9999-12-31", epoch_day_of(9999, 12, 31), 2932896);
-    expect("1969-07-20 (moon landing)", epoch_day_of(1969, 7, 20), 0 - 165);
-    expect("1945-05-08", epoch_day_of(1945, 5, 8), 0 - 9004);
-    expect("1900-01-01", epoch_day_of(1900, 1, 1), 0 - 25567);
-    expect("1600-01-01", epoch_day_of(1600, 1, 1), 0 - 135140);
-    expect("1582-10-15 (first Gregorian day)", epoch_day_of(1582, 10, 15), 0 - 141427);
-    expect("0001-01-01", epoch_day_of(1, 1, 1), 0 - 719162);
-    expect("0000-03-01 (the algorithm's day zero)", epoch_day_of(0, 3, 1), 0 - 719468);
-    expect("the epoch constant", date.epoch.to_epoch_day(), 0);
+        // ---- epoch day: 1970-01-01 is day 0
+        test("1970-01-01") { expect(epoch_day_of(1970, 1, 1)).should_be(0); };
+        test("1970-01-02") { expect(epoch_day_of(1970, 1, 2)).should_be(1); };
+        test("1969-12-31") { expect(epoch_day_of(1969, 12, 31)).should_be(0 - 1); };
+        test("2000-01-01") { expect(epoch_day_of(2000, 1, 1)).should_be(10957); };
+        test("1999-12-31") { expect(epoch_day_of(1999, 12, 31)).should_be(10956); };
+        test("2024-02-29") { expect(epoch_day_of(2024, 2, 29)).should_be(19782); };
+        test("2026-11-12") { expect(epoch_day_of(2026, 11, 12)).should_be(20769); };
+        test("2038-01-19 (32-bit time_t ends)") { expect(epoch_day_of(2038, 1, 19)).should_be(24855); };
+        test("2100-03-01") { expect(epoch_day_of(2100, 3, 1)).should_be(47541); };
+        test("2400-02-29") { expect(epoch_day_of(2400, 2, 29)).should_be(157113); };
+        test("9999-12-31") { expect(epoch_day_of(9999, 12, 31)).should_be(2932896); };
+        test("1969-07-20 (moon landing)") { expect(epoch_day_of(1969, 7, 20)).should_be(0 - 165); };
+        test("1945-05-08") { expect(epoch_day_of(1945, 5, 8)).should_be(0 - 9004); };
+        test("1900-01-01") { expect(epoch_day_of(1900, 1, 1)).should_be(0 - 25567); };
+        test("1600-01-01") { expect(epoch_day_of(1600, 1, 1)).should_be(0 - 135140); };
+        test("1582-10-15 (first Gregorian day)") { expect(epoch_day_of(1582, 10, 15)).should_be(0 - 141427); };
+        test("0001-01-01") { expect(epoch_day_of(1, 1, 1)).should_be(0 - 719162); };
+        test("0000-03-01 (the algorithm's day zero)") { expect(epoch_day_of(0, 3, 1)).should_be(0 - 719468); };
+        test("the epoch constant") { expect(date.epoch.to_epoch_day()).should_be(0); };
 
-    // ---- and back
-    expect_str("of_epoch_day(0)", text(date.of_epoch_day(0)), "1970-01-01");
-    expect_str("of_epoch_day(-1)", text(date.of_epoch_day(0 - 1)), "1969-12-31");
-    expect_str("of_epoch_day(10957)", text(date.of_epoch_day(10957)), "2000-01-01");
-    expect_str("of_epoch_day(19782)", text(date.of_epoch_day(19782)), "2024-02-29");
-    expect_str("of_epoch_day(19783)", text(date.of_epoch_day(19783)), "2024-03-01");
-    expect_str("of_epoch_day(24855)", text(date.of_epoch_day(24855)), "2038-01-19");
-    expect_str("of_epoch_day(47541)", text(date.of_epoch_day(47541)), "2100-03-01");
-    expect_str("of_epoch_day(2932896)", text(date.of_epoch_day(2932896)), "9999-12-31");
-    expect_str("of_epoch_day(-25567)", text(date.of_epoch_day(0 - 25567)), "1900-01-01");
-    expect_str("of_epoch_day(-141427)", text(date.of_epoch_day(0 - 141427)), "1582-10-15");
-    expect_str("of_epoch_day(-719162)", text(date.of_epoch_day(0 - 719162)), "0001-01-01");
-    expect_str("of_epoch_day(-719163)", text(date.of_epoch_day(0 - 719163)), "0000-12-31");
-    expect_str("of_epoch_day(-719468)", text(date.of_epoch_day(0 - 719468)), "0000-03-01");
-    expect_str("of_epoch_day(-719469)", text(date.of_epoch_day(0 - 719469)), "0000-02-29");
+        // ---- and back
+        test("of_epoch_day(0)") { expect(text(date.of_epoch_day(0))).should_be("1970-01-01"); };
+        test("of_epoch_day(-1)") { expect(text(date.of_epoch_day(0 - 1))).should_be("1969-12-31"); };
+        test("of_epoch_day(10957)") { expect(text(date.of_epoch_day(10957))).should_be("2000-01-01"); };
+        test("of_epoch_day(19782)") { expect(text(date.of_epoch_day(19782))).should_be("2024-02-29"); };
+        test("of_epoch_day(19783)") { expect(text(date.of_epoch_day(19783))).should_be("2024-03-01"); };
+        test("of_epoch_day(24855)") { expect(text(date.of_epoch_day(24855))).should_be("2038-01-19"); };
+        test("of_epoch_day(47541)") { expect(text(date.of_epoch_day(47541))).should_be("2100-03-01"); };
+        test("of_epoch_day(2932896)") { expect(text(date.of_epoch_day(2932896))).should_be("9999-12-31"); };
+        test("of_epoch_day(-25567)") { expect(text(date.of_epoch_day(0 - 25567))).should_be("1900-01-01"); };
+        test("of_epoch_day(-141427)") { expect(text(date.of_epoch_day(0 - 141427))).should_be("1582-10-15"); };
+        test("of_epoch_day(-719162)") { expect(text(date.of_epoch_day(0 - 719162))).should_be("0001-01-01"); };
+        test("of_epoch_day(-719163)") { expect(text(date.of_epoch_day(0 - 719163))).should_be("0000-12-31"); };
+        test("of_epoch_day(-719468)") { expect(text(date.of_epoch_day(0 - 719468))).should_be("0000-03-01"); };
+        test("of_epoch_day(-719469)") { expect(text(date.of_epoch_day(0 - 719469))).should_be("0000-02-29"); };
 
-    // round trip over every day of four centuries around the epoch would be slow in the
-    // interpreter; every 97th day from 1583 to 2400 covers all months and weekdays
-    mismatches : decimal = 0;
-    previous : decimal = 0 - 141800;
-    for(day : decimal = 0 - 141700; day < 157200; day += 97) {
-        back : date = date.of_epoch_day(day);
-        if(back.to_epoch_day() != day) {
-            mismatches++;
+        // round trip over every day of four centuries around the epoch would be slow in the
+        // interpreter; every 97th day from 1583 to 2400 covers all months and weekdays
+        mismatches : decimal = 0;
+        previous : decimal = 0 - 141800;
+        for(day : decimal = 0 - 141700; day < 157200; day += 97) {
+            back : date = date.of_epoch_day(day);
+            if(back.to_epoch_day() != day) {
+                mismatches++;
+            }
+            if(date.of(back.year(), back.month_value(), back.day()).to_epoch_day() != day) {
+                mismatches++;
+            }
+            previous = day;
         }
-        if(date.of(back.year(), back.month_value(), back.day()).to_epoch_day() != day) {
-            mismatches++;
+        test("epoch day round trip 1583-2400") { expect(mismatches).should_be(0); };
+
+        // consecutive days never skip or repeat: walk across 1900 (not leap) and 2000 (leap)
+        walk : date = date.of(1900, 2, 27);
+        test("1900-02-27 + 1") { expect(text(walk.plus_days(1))).should_be("1900-02-28"); };
+        test("1900-02-27 + 2 (no leap day in 1900)") { expect(text(walk.plus_days(2))).should_be("1900-03-01"); };
+        walk = date.of(2000, 2, 27);
+        test("2000-02-27 + 2 (leap day in 2000)") { expect(text(walk.plus_days(2))).should_be("2000-02-29"); };
+        test("2000-02-27 + 3") { expect(text(walk.plus_days(3))).should_be("2000-03-01"); };
+
+        // ---- day of week (1 = Monday .. 7 = Sunday)
+        test("1970-01-01 was a Thursday") { expect(weekday_of(1970, 1, 1)).should_be(4); };
+        test("2000-01-01 was a Saturday") { expect(weekday_of(2000, 1, 1)).should_be(6); };
+        test("2024-02-29 was a Thursday") { expect(weekday_of(2024, 2, 29)).should_be(4); };
+        test("1969-12-31 was a Wednesday") { expect(weekday_of(1969, 12, 31)).should_be(3); };
+        test("1969-07-20 was a Sunday") { expect(weekday_of(1969, 7, 20)).should_be(7); };
+        test("2001-09-11 was a Tuesday") { expect(weekday_of(2001, 9, 11)).should_be(2); };
+        test("1945-05-08 was a Tuesday") { expect(weekday_of(1945, 5, 8)).should_be(2); };
+        test("1900-01-01 was a Monday") { expect(weekday_of(1900, 1, 1)).should_be(1); };
+        test("1600-01-01 was a Saturday") { expect(weekday_of(1600, 1, 1)).should_be(6); };
+        test("1582-10-15 was a Friday") { expect(weekday_of(1582, 10, 15)).should_be(5); };
+        test("0001-01-01 is a Monday (proleptic)") { expect(weekday_of(1, 1, 1)).should_be(1); };
+        test("2038-01-19 is a Tuesday") { expect(weekday_of(2038, 1, 19)).should_be(2); };
+        test("2100-03-01 is a Monday") { expect(weekday_of(2100, 3, 1)).should_be(1); };
+        test("9999-12-31 is a Friday") { expect(weekday_of(9999, 12, 31)).should_be(5); };
+        test("day_of_week() gives the shared object") { expect_true(d.day_of_week() == day_of_week.thursday); };
+        test("day_of_week().name()") { expect(d.day_of_week().name()).should_be("Thursday"); };
+
+        // ---- day of year
+        test("1 January") { expect(date.of(2023, 1, 1).day_of_year()).should_be(1); };
+        test("1 February") { expect(date.of(2023, 2, 1).day_of_year()).should_be(32); };
+        test("1 March 2023") { expect(date.of(2023, 3, 1).day_of_year()).should_be(60); };
+        test("1 March 2024") { expect(date.of(2024, 3, 1).day_of_year()).should_be(61); };
+        test("29 February 2024") { expect(d.day_of_year()).should_be(60); };
+        test("31 December 2023") { expect(date.of(2023, 12, 31).day_of_year()).should_be(365); };
+        test("31 December 2024") { expect(date.of(2024, 12, 31).day_of_year()).should_be(366); };
+        test("2026-11-12") { expect(date.of(2026, 11, 12).day_of_year()).should_be(316); };
+        test("of_year_day(2024, 60)") { expect(text(date.of_year_day(2024, 60))).should_be("2024-02-29"); };
+        test("of_year_day(2023, 60)") { expect(text(date.of_year_day(2023, 60))).should_be("2023-03-01"); };
+        test("of_year_day(2024, 366)") { expect(text(date.of_year_day(2024, 366))).should_be("2024-12-31"); };
+        test("of_year_day(2023, 1)") { expect(text(date.of_year_day(2023, 1))).should_be("2023-01-01"); };
+
+        // ---- ISO week numbers
+        test("2024-02-29 week") { expect(d.iso_week()).should_be(9); };
+        test("2026-11-12 week") { expect(date.of(2026, 11, 12).iso_week()).should_be(46); };
+        test("2021-01-03 is in week 53") { expect(date.of(2021, 1, 3).iso_week()).should_be(53); };
+        test("...of 2020") { expect(date.of(2021, 1, 3).iso_week_year()).should_be(2020); };
+        test("2021-01-04 is in week 1") { expect(date.of(2021, 1, 4).iso_week()).should_be(1); };
+        test("...of 2021") { expect(date.of(2021, 1, 4).iso_week_year()).should_be(2021); };
+        test("2024-12-30 is in week 1") { expect(date.of(2024, 12, 30).iso_week()).should_be(1); };
+        test("...of 2025") { expect(date.of(2024, 12, 30).iso_week_year()).should_be(2025); };
+        test("2020-12-31 is in week 53") { expect(date.of(2020, 12, 31).iso_week()).should_be(53); };
+        test("2016-01-01 is in week 53") { expect(date.of(2016, 1, 1).iso_week()).should_be(53); };
+        test("...of 2015") { expect(date.of(2016, 1, 1).iso_week_year()).should_be(2015); };
+        test("2018-12-31 is in week 1") { expect(date.of(2018, 12, 31).iso_week()).should_be(1); };
+        test("...of 2019") { expect(date.of(2018, 12, 31).iso_week_year()).should_be(2019); };
+        test("2010-01-03 is in week 53") { expect(date.of(2010, 1, 3).iso_week()).should_be(53); };
+        test("2008-12-29 is in week 1") { expect(date.of(2008, 12, 29).iso_week()).should_be(1); };
+        test("2005-01-01 is in week 53") { expect(date.of(2005, 1, 1).iso_week()).should_be(53); };
+        test("...of 2004") { expect(date.of(2005, 1, 1).iso_week_year()).should_be(2004); };
+        test("2005-12-31 is in week 52") { expect(date.of(2005, 12, 31).iso_week()).should_be(52); };
+        test("2007-01-01 is in week 1") { expect(date.of(2007, 1, 1).iso_week()).should_be(1); };
+        test("2000-01-01 is in week 52") { expect(date.of(2000, 1, 1).iso_week()).should_be(52); };
+        test("...of 1999") { expect(date.of(2000, 1, 1).iso_week_year()).should_be(1999); };
+        test("1969-12-31 is in week 1 of 1970") { expect(date.of(1969, 12, 31).iso_week_year()).should_be(1970); };
+        test("2020 has 53 weeks") { expect(date.iso_weeks_in_year(2020)).should_be(53); };
+        test("2015 has 53 weeks") { expect(date.iso_weeks_in_year(2015)).should_be(53); };
+        test("2004 has 53 weeks") { expect(date.iso_weeks_in_year(2004)).should_be(53); };
+        test("2026 has 53 weeks") { expect(date.iso_weeks_in_year(2026)).should_be(53); };
+        test("2024 has 52 weeks") { expect(date.iso_weeks_in_year(2024)).should_be(52); };
+        test("2021 has 52 weeks") { expect(date.iso_weeks_in_year(2021)).should_be(52); };
+
+        // ---- text
+        test("to_string") { expect(text(d)).should_be("2024-02-29"); };
+        test("padding") { expect(text(date.of(33, 4, 3))).should_be("0033-04-03"); };
+        test("year 0") { expect(text(date.of(0, 1, 1))).should_be("0000-01-01"); };
+        test("negative year") { expect(text(date.of(0 - 44, 3, 15))).should_be("-0044-03-15"); };
+        test("five digit year") { expect(text(date.of(12345, 1, 1))).should_be("+12345-01-01"); };
+        test("largest date") { expect(text(date.of(999999, 12, 31))).should_be("+999999-12-31"); };
+        test("smallest date") { expect(text(date.of(0 - 999999, 1, 1))).should_be("-999999-01-01"); };
+        test("interpolation") { expect("on $d").should_be("on 2024-02-29"); };
+
+        // ---- parsing
+        test("parse") { expect(text(date.parse("2024-02-29"))).should_be("2024-02-29"); };
+        test("parse year") { expect(date.parse("1999-12-31").year()).should_be(1999); };
+        test("parse month") { expect(date.parse("1999-12-31").month_value()).should_be(12); };
+        test("parse day") { expect(date.parse("1999-12-31").day()).should_be(31); };
+        test("parse negative year") { expect(date.parse("-0044-03-15").year()).should_be(0 - 44); };
+        test("parse signed long year") { expect(date.parse("+12345-01-01").year()).should_be(12345); };
+        test("format -> parse round trip") { expect(text(date.parse(text(date.of(1582, 10, 15))))).should_be("1582-10-15"); };
+        test("parse rejects 29 February 2023") { expect_true(rejects_text("2023-02-29")); };
+        test("parse rejects month 13") { expect_true(rejects_text("2024-13-01")); };
+        test("parse rejects day 0") { expect_true(rejects_text("2024-01-00")); };
+        test("parse rejects one digit month") { expect_true(rejects_text("2024-1-01")); };
+        test("parse rejects slashes") { expect_true(rejects_text("2024/01/01")); };
+        test("parse rejects trailing text") { expect_true(rejects_text("2024-01-01x")); };
+        test("parse rejects the empty string") { expect_true(rejects_text("")); };
+        test("parse rejects words") { expect_true(rejects_text("yesterday")); };
+        test("parse rejects a 5 digit year without sign") { expect_true(rejects_text("12345-01-01")); };
+
+        // ---- validation
+        test("29 February 2023") { expect_true(rejects(2023, 2, 29)); };
+        test("29 February 1900") { expect_true(rejects(1900, 2, 29)); };
+        test("29 February 2000 exists") { expect_false(rejects(2000, 2, 29)); };
+        test("30 February 2024") { expect_true(rejects(2024, 2, 30)); };
+        test("31 April") { expect_true(rejects(2024, 4, 31)); };
+        test("31 June") { expect_true(rejects(2024, 6, 31)); };
+        test("32 January") { expect_true(rejects(2024, 1, 32)); };
+        test("day 0") { expect_true(rejects(2024, 1, 0)); };
+        test("negative day") { expect_true(rejects(2024, 1, 0 - 1)); };
+        test("month 0") { expect_true(rejects(2024, 0, 1)); };
+        test("month 13") { expect_true(rejects(2024, 13, 1)); };
+        test("year one million") { expect_true(rejects(1000000, 1, 1)); };
+        test("year minus one million") { expect_true(rejects(0 - 1000000, 1, 1)); };
+        test("a fractional day") { expect_true(rejects(2024, 1, 1.5)); };
+        test("a fractional month") { expect_true(rejects(2024, 1.5, 1)); };
+        try {
+            date.of(2023, 2, 29);
+            test("message") { fail_test("no exception"); };
+        } catch(e: date_time_exception) {
+            test("message names the month and its length") { expect(e.get_message()).should_be("day 29 is not valid for 2023-02 (1 to 28)"); };
         }
-        previous = day;
-    }
-    expect("epoch day round trip 1583-2400", mismatches, 0);
+        try {
+            date.of(2024, 13, 1);
+            test("message") { fail_test("no exception"); };
+        } catch(e: date_time_exception) {
+            test("message for the month") { expect(e.get_message()).should_be("month must be 1 to 12 but was 13"); };
+        }
+        try {
+            date.of_year_day(2023, 366);
+            test("of_year_day(2023, 366)") { fail_test("no exception"); };
+        } catch(e: date_time_exception) {
+            test("of_year_day(2023, 366) throws") { };
+        }
+        caught_as_exception : decimal = 0;
+        try {
+            date.of(2024, 0, 1);
+        } catch(e: exception) {
+            caught_as_exception = 1;
+        }
+        test("date_time_exception is an exception") { expect(caught_as_exception).should_be(1); };
 
-    // consecutive days never skip or repeat: walk across 1900 (not leap) and 2000 (leap)
-    walk : date = date.of(1900, 2, 27);
-    expect_str("1900-02-27 + 1", text(walk.plus_days(1)), "1900-02-28");
-    expect_str("1900-02-27 + 2 (no leap day in 1900)", text(walk.plus_days(2)), "1900-03-01");
-    walk = date.of(2000, 2, 27);
-    expect_str("2000-02-27 + 2 (leap day in 2000)", text(walk.plus_days(2)), "2000-02-29");
-    expect_str("2000-02-27 + 3", text(walk.plus_days(3)), "2000-03-01");
-
-    // ---- day of week (1 = Monday .. 7 = Sunday)
-    expect("1970-01-01 was a Thursday", weekday_of(1970, 1, 1), 4);
-    expect("2000-01-01 was a Saturday", weekday_of(2000, 1, 1), 6);
-    expect("2024-02-29 was a Thursday", weekday_of(2024, 2, 29), 4);
-    expect("1969-12-31 was a Wednesday", weekday_of(1969, 12, 31), 3);
-    expect("1969-07-20 was a Sunday", weekday_of(1969, 7, 20), 7);
-    expect("2001-09-11 was a Tuesday", weekday_of(2001, 9, 11), 2);
-    expect("1945-05-08 was a Tuesday", weekday_of(1945, 5, 8), 2);
-    expect("1900-01-01 was a Monday", weekday_of(1900, 1, 1), 1);
-    expect("1600-01-01 was a Saturday", weekday_of(1600, 1, 1), 6);
-    expect("1582-10-15 was a Friday", weekday_of(1582, 10, 15), 5);
-    expect("0001-01-01 is a Monday (proleptic)", weekday_of(1, 1, 1), 1);
-    expect("2038-01-19 is a Tuesday", weekday_of(2038, 1, 19), 2);
-    expect("2100-03-01 is a Monday", weekday_of(2100, 3, 1), 1);
-    expect("9999-12-31 is a Friday", weekday_of(9999, 12, 31), 5);
-    expect_true("day_of_week() gives the shared object", d.day_of_week() == day_of_week.thursday);
-    expect_str("day_of_week().name()", d.day_of_week().name(), "Thursday");
-
-    // ---- day of year
-    expect("1 January", date.of(2023, 1, 1).day_of_year(), 1);
-    expect("1 February", date.of(2023, 2, 1).day_of_year(), 32);
-    expect("1 March 2023", date.of(2023, 3, 1).day_of_year(), 60);
-    expect("1 March 2024", date.of(2024, 3, 1).day_of_year(), 61);
-    expect("29 February 2024", d.day_of_year(), 60);
-    expect("31 December 2023", date.of(2023, 12, 31).day_of_year(), 365);
-    expect("31 December 2024", date.of(2024, 12, 31).day_of_year(), 366);
-    expect("2026-11-12", date.of(2026, 11, 12).day_of_year(), 316);
-    expect_str("of_year_day(2024, 60)", text(date.of_year_day(2024, 60)), "2024-02-29");
-    expect_str("of_year_day(2023, 60)", text(date.of_year_day(2023, 60)), "2023-03-01");
-    expect_str("of_year_day(2024, 366)", text(date.of_year_day(2024, 366)), "2024-12-31");
-    expect_str("of_year_day(2023, 1)", text(date.of_year_day(2023, 1)), "2023-01-01");
-
-    // ---- ISO week numbers
-    expect("2024-02-29 week", d.iso_week(), 9);
-    expect("2026-11-12 week", date.of(2026, 11, 12).iso_week(), 46);
-    expect("2021-01-03 is in week 53", date.of(2021, 1, 3).iso_week(), 53);
-    expect("...of 2020", date.of(2021, 1, 3).iso_week_year(), 2020);
-    expect("2021-01-04 is in week 1", date.of(2021, 1, 4).iso_week(), 1);
-    expect("...of 2021", date.of(2021, 1, 4).iso_week_year(), 2021);
-    expect("2024-12-30 is in week 1", date.of(2024, 12, 30).iso_week(), 1);
-    expect("...of 2025", date.of(2024, 12, 30).iso_week_year(), 2025);
-    expect("2020-12-31 is in week 53", date.of(2020, 12, 31).iso_week(), 53);
-    expect("2016-01-01 is in week 53", date.of(2016, 1, 1).iso_week(), 53);
-    expect("...of 2015", date.of(2016, 1, 1).iso_week_year(), 2015);
-    expect("2018-12-31 is in week 1", date.of(2018, 12, 31).iso_week(), 1);
-    expect("...of 2019", date.of(2018, 12, 31).iso_week_year(), 2019);
-    expect("2010-01-03 is in week 53", date.of(2010, 1, 3).iso_week(), 53);
-    expect("2008-12-29 is in week 1", date.of(2008, 12, 29).iso_week(), 1);
-    expect("2005-01-01 is in week 53", date.of(2005, 1, 1).iso_week(), 53);
-    expect("...of 2004", date.of(2005, 1, 1).iso_week_year(), 2004);
-    expect("2005-12-31 is in week 52", date.of(2005, 12, 31).iso_week(), 52);
-    expect("2007-01-01 is in week 1", date.of(2007, 1, 1).iso_week(), 1);
-    expect("2000-01-01 is in week 52", date.of(2000, 1, 1).iso_week(), 52);
-    expect("...of 1999", date.of(2000, 1, 1).iso_week_year(), 1999);
-    expect("1969-12-31 is in week 1 of 1970", date.of(1969, 12, 31).iso_week_year(), 1970);
-    expect("2020 has 53 weeks", date.iso_weeks_in_year(2020), 53);
-    expect("2015 has 53 weeks", date.iso_weeks_in_year(2015), 53);
-    expect("2004 has 53 weeks", date.iso_weeks_in_year(2004), 53);
-    expect("2026 has 53 weeks", date.iso_weeks_in_year(2026), 53);
-    expect("2024 has 52 weeks", date.iso_weeks_in_year(2024), 52);
-    expect("2021 has 52 weeks", date.iso_weeks_in_year(2021), 52);
-
-    // ---- text
-    expect_str("to_string", text(d), "2024-02-29");
-    expect_str("padding", text(date.of(33, 4, 3)), "0033-04-03");
-    expect_str("year 0", text(date.of(0, 1, 1)), "0000-01-01");
-    expect_str("negative year", text(date.of(0 - 44, 3, 15)), "-0044-03-15");
-    expect_str("five digit year", text(date.of(12345, 1, 1)), "+12345-01-01");
-    expect_str("largest date", text(date.of(999999, 12, 31)), "+999999-12-31");
-    expect_str("smallest date", text(date.of(0 - 999999, 1, 1)), "-999999-01-01");
-    expect_str("interpolation", "on $d", "on 2024-02-29");
-
-    // ---- parsing
-    expect_str("parse", text(date.parse("2024-02-29")), "2024-02-29");
-    expect("parse year", date.parse("1999-12-31").year(), 1999);
-    expect("parse month", date.parse("1999-12-31").month_value(), 12);
-    expect("parse day", date.parse("1999-12-31").day(), 31);
-    expect("parse negative year", date.parse("-0044-03-15").year(), 0 - 44);
-    expect("parse signed long year", date.parse("+12345-01-01").year(), 12345);
-    expect_str("format -> parse round trip", text(date.parse(text(date.of(1582, 10, 15)))), "1582-10-15");
-    expect_true("parse rejects 29 February 2023", rejects_text("2023-02-29"));
-    expect_true("parse rejects month 13", rejects_text("2024-13-01"));
-    expect_true("parse rejects day 0", rejects_text("2024-01-00"));
-    expect_true("parse rejects one digit month", rejects_text("2024-1-01"));
-    expect_true("parse rejects slashes", rejects_text("2024/01/01"));
-    expect_true("parse rejects trailing text", rejects_text("2024-01-01x"));
-    expect_true("parse rejects the empty string", rejects_text(""));
-    expect_true("parse rejects words", rejects_text("yesterday"));
-    expect_true("parse rejects a 5 digit year without sign", rejects_text("12345-01-01"));
-
-    // ---- validation
-    expect_true("29 February 2023", rejects(2023, 2, 29));
-    expect_true("29 February 1900", rejects(1900, 2, 29));
-    expect_false("29 February 2000 exists", rejects(2000, 2, 29));
-    expect_true("30 February 2024", rejects(2024, 2, 30));
-    expect_true("31 April", rejects(2024, 4, 31));
-    expect_true("31 June", rejects(2024, 6, 31));
-    expect_true("32 January", rejects(2024, 1, 32));
-    expect_true("day 0", rejects(2024, 1, 0));
-    expect_true("negative day", rejects(2024, 1, 0 - 1));
-    expect_true("month 0", rejects(2024, 0, 1));
-    expect_true("month 13", rejects(2024, 13, 1));
-    expect_true("year one million", rejects(1000000, 1, 1));
-    expect_true("year minus one million", rejects(0 - 1000000, 1, 1));
-    expect_true("a fractional day", rejects(2024, 1, 1.5));
-    expect_true("a fractional month", rejects(2024, 1.5, 1));
-    try {
-        date.of(2023, 2, 29);
-        fail("message", "no exception");
-    } catch(e: date_time_exception) {
-        expect_str("message names the month and its length", e.get_message(), "day 29 is not valid for 2023-02 (1 to 28)");
-    }
-    try {
-        date.of(2024, 13, 1);
-        fail("message", "no exception");
-    } catch(e: date_time_exception) {
-        expect_str("message for the month", e.get_message(), "month must be 1 to 12 but was 13");
-    }
-    try {
-        date.of_year_day(2023, 366);
-        fail("of_year_day(2023, 366)", "no exception");
-    } catch(e: date_time_exception) {
-        pass("of_year_day(2023, 366) throws");
-    }
-    caught_as_exception : decimal = 0;
-    try {
-        date.of(2024, 0, 1);
-    } catch(e: exception) {
-        caught_as_exception = 1;
-    }
-    expect("date_time_exception is an exception", caught_as_exception, 1);
-
-    // ---- comparing
-    a := date.of(2024, 2, 29);
-    b := date.of(2024, 3, 1);
-    expect_true("== with equal fields", a == d);
-    expect_false("== with different fields", a == b);
-    expect_true("!=", a != b);
-    expect_false("!= with equal fields", a != d);
-    expect_true("<", a < b);
-    expect_false("< the other way", b < a);
-    expect_true("<= equal", a <= d);
-    expect_true(">", b > a);
-    expect_true(">= equal", a >= d);
-    expect_false(">= smaller", a >= b);
-    expect("compare_to less", a.compare_to(b), 0 - 1);
-    expect("compare_to equal", a.compare_to(d), 0);
-    expect("compare_to greater", b.compare_to(a), 1);
-    expect_true("is_before", a.is_before(b));
-    expect_true("is_after", b.is_after(a));
-    expect_true("year decides before month", date.of(2023, 12, 31) < date.of(2024, 1, 1));
-    expect_true("negative years order correctly", date.of(0 - 100, 1, 1) < date.of(0 - 99, 1, 1));
-    expect_true("equal dates have equal hashes", a.hash().value == d.hash().value);
-
-    finish("lib_time_date");
+        // ---- comparing
+        a := date.of(2024, 2, 29);
+        b := date.of(2024, 3, 1);
+        test("== with equal fields") { expect_true(a == d); };
+        test("== with different fields") { expect_false(a == b); };
+        test("!=") { expect_true(a != b); };
+        test("!= with equal fields") { expect_false(a != d); };
+        test("<") { expect_true(a < b); };
+        test("< the other way") { expect_false(b < a); };
+        test("<= equal") { expect_true(a <= d); };
+        test(">") { expect_true(b > a); };
+        test(">= equal") { expect_true(a >= d); };
+        test(">= smaller") { expect_false(a >= b); };
+        test("compare_to less") { expect(a.compare_to(b)).should_be(0 - 1); };
+        test("compare_to equal") { expect(a.compare_to(d)).should_be(0); };
+        test("compare_to greater") { expect(b.compare_to(a)).should_be(1); };
+        test("is_before") { expect_true(a.is_before(b)); };
+        test("is_after") { expect_true(b.is_after(a)); };
+        test("year decides before month") { expect_true(date.of(2023, 12, 31) < date.of(2024, 1, 1)); };
+        test("negative years order correctly") { expect_true(date.of(0 - 100, 1, 1) < date.of(0 - 99, 1, 1)); };
+        test("equal dates have equal hashes") { expect_true(a.hash().value == d.hash().value); };
+    };
+    finish_tests();
 }

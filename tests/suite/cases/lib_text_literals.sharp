@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * KNOWN BUGS found while writing std.text (expected to FAIL today).
@@ -29,23 +29,25 @@ def first_code(text: string): decimal {
 }
 
 def main(args: string[]) {
-    big : decimal = 12345678901;
+    show_only_failures();
+    tests("lib_text_literals") {
+        big : decimal = 12345678901;
 
-    // ---- 1. large negative literals
-    literal : decimal = -12345678901;
-    expect("a large literal with a minus sign", literal, 0 - big);              // actual: -2147483648
-    folded : decimal = 0 - 12345678901;
-    expect("0 - a large literal", folded, 0 - big);                             // actual: -2147483648
-    expect("a large positive literal (correct today)", big + 1, 12345678902);
-    limit : decimal = -1.7976931348623157e308;
-    expect_true("a large negative decimal literal", limit < 0 - 1e300);         // actual: false
+        // ---- 1. large negative literals
+        literal : decimal = -12345678901;
+        test("a large literal with a minus sign") { expect(literal).should_be(0 - big); };              // actual: -2147483648
+        folded : decimal = 0 - 12345678901;
+        test("0 - a large literal") { expect(folded).should_be(0 - big); };                             // actual: -2147483648
+        test("a large positive literal (correct today)") { expect(big + 1).should_be(12345678902); };
+        limit : decimal = -1.7976931348623157e308;
+        test("a large negative decimal literal") { expect_true(limit < 0 - 1e300); };         // actual: false
 
-    // ---- 2. a number is not accepted where a string is expected
-    // takes_text(300) is a compile error now (it used to pass a one-character
-    // string). A character still becomes a string by itself, and a number is
-    // made text explicitly.
-    expect("a character passed as a string", first_code('3'), '3');
-    expect("\"\" + 300 passed as a string", takes_text("" + 300), 3);
-
-    finish("lib_text_literals");
+        // ---- 2. a number is not accepted where a string is expected
+        // takes_text(300) is a compile error now (it used to pass a one-character
+        // string). A character still becomes a string by itself, and a number is
+        // made text explicitly.
+        test("a character passed as a string") { expect(first_code('3')).should_be('3'); };
+        test("\"\" + 300 passed as a string") { expect(takes_text("" + 300)).should_be(3); };
+    };
+    finish_tests();
 }

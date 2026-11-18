@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * std hash_map and dictionary: behaviour that used to be wrong and was fixed -
@@ -22,47 +22,49 @@ class city {
 }
 
 def main(args: string[]) {
-    // ---- fixed, used to be wrong (1): hash_map.remove never removes anything and always returns false.
-    // (std/hash_map.sharp, remove(): the search is inside `if(data[index] == null)`,
-    // i.e. it only looks when the bucket is EMPTY; the test should be `!= null`.)
-    cities := new hash_map<string, city>();
-    cities.put("fr", new city("paris"));
-    cities.put("it", new city("rome"));
-    expect_true("remove of an existing key returns true", cities.remove("fr").value);
-    expect("remove makes the map smaller", cities.size, 1);
-    expect_null("a removed key is gone", cities.at("fr"));
-    expect_not_null("the other key is still there", cities.at("it"));
+    show_only_failures();
+    tests("std_maps_fixes") {
+        // ---- fixed, used to be wrong (1): hash_map.remove never removes anything and always returns false.
+        // (std/hash_map.sharp, remove(): the search is inside `if(data[index] == null)`,
+        // i.e. it only looks when the bucket is EMPTY; the test should be `!= null`.)
+        cities := new hash_map<string, city>();
+        cities.put("fr", new city("paris"));
+        cities.put("it", new city("rome"));
+        test("remove of an existing key returns true") { expect_true(cities.remove("fr").value); };
+        test("remove makes the map smaller") { expect(cities.size).should_be(1); };
+        test("a removed key is gone") { expect_null(cities.at("fr")); };
+        test("the other key is still there") { expect_not_null(cities.at("it")); };
 
-    // ---- fixed, used to be wrong (2): at() of a missing key gives the value of ANOTHER key when the
-    // bucket of the missing key is not empty. Int keys 1, 129 and 257 share a bucket
-    // (key % 128). (at() walks the chain until `entry.next == null` and then returns
-    // that last entry without comparing its key.)
-    by_number := new hash_map<int, city>();
-    by_number.put(1, new city("one"));
-    by_number.put(129, new city("one hundred twenty nine"));
-    expect_null("a missing key in a bucket that holds other keys gives null", by_number.at(257));
+        // ---- fixed, used to be wrong (2): at() of a missing key gives the value of ANOTHER key when the
+        // bucket of the missing key is not empty. Int keys 1, 129 and 257 share a bucket
+        // (key % 128). (at() walks the chain until `entry.next == null` and then returns
+        // that last entry without comparing its key.)
+        by_number := new hash_map<int, city>();
+        by_number.put(1, new city("one"));
+        by_number.put(129, new city("one hundred twenty nine"));
+        test("a missing key in a bucket that holds other keys gives null") { expect_null(by_number.at(257)); };
 
-    // ---- fixed, used to be wrong (3): for value types that are created by default (string, int, ...) a
-    // missing key gives an empty value instead of null, although at() returns `v?`.
-    names := new hash_map<int, string>();
-    names.put(1, "one");
-    expect_null("a missing key in a map of strings gives null", names.at(3));
+        // ---- fixed, used to be wrong (3): for value types that are created by default (string, int, ...) a
+        // missing key gives an empty value instead of null, although at() returns `v?`.
+        names := new hash_map<int, string>();
+        names.put(1, "one");
+        test("a missing key in a map of strings gives null") { expect_null(names.at(3)); };
 
-    // ---- fixed, used to be wrong (4): a map never grows: resize() exists but nothing calls it, so the
-    // number of buckets stays 128 however many entries are put (it still works,
-    // the chains just get longer). Nothing to check from outside.
+        // ---- fixed, used to be wrong (4): a map never grows: resize() exists but nothing calls it, so the
+        // number of buckets stays 128 however many entries are put (it still works,
+        // the chains just get longer). Nothing to check from outside.
 
-    // ---- fixed, used to be wrong (5): an EMPTY dictionary literal throws nullptr_exception while it is
-    // being built (dictionary() -> list.add_all() -> copy() of a null array).
-    built : decimal = 0;
-    try {
-        empty := { as <string, city> : };
-        built = 1;
-        expect("an empty dictionary has no pairs", empty.map.size().value, 0);
-    } catch(e: exception) {
-        built = 2;
-    }
-    expect("an empty dictionary literal can be built", built, 1);
-
-    finish("std_maps_fixes");
+        // ---- fixed, used to be wrong (5): an EMPTY dictionary literal throws nullptr_exception while it is
+        // being built (dictionary() -> list.add_all() -> copy() of a null array).
+        built : decimal = 0;
+        try {
+            empty := { as <string, city> : };
+            built = 1;
+            test("an empty dictionary has no pairs") { expect(empty.map.size().value).should_be(0); };
+        } catch(e: exception) {
+            built = 2;
+        }
+        test("an empty dictionary literal can be built") { expect(built).should_be(1); };
+    };
+    finish_tests();
 }

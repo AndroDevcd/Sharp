@@ -149,11 +149,11 @@ def main(args: string[]) {
     expect_str("+ whole number", "n=" + 5, "n=5");
     expect_str("+ two numbers appends each", "a" + 1 + 2, "a12");
     x : decimal = 2.5;
-    expect_str("+ native variable has 16 decimals", "x=" + x, "x=2.5000000000000000");
+    expect_str("+ native variable is written the short way", "x=" + x, "x=2.5");
     forty_two := 42;
     expect_str("+ int object", "i=" + forty_two, "i=42");
     one_and_half := new double(1.5);
-    expect_str("+ double object", "d=" + one_and_half, "d=1.5000000000000000");
+    expect_str("+ double object", "d=" + one_and_half, "d=1.5");
     big := new long(1234567890123);
     expect_str("+ long object", "l=" + big, "l=1234567890123");
     expect_str("+ character", "c=" + 'q', "c=q");

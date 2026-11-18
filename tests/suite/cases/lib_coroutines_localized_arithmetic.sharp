@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * `x = x + n` on a localized (fiber-local) number.
@@ -28,14 +28,16 @@ def add_through_local(n: decimal) {
 }
 
 def main(args: string[]) {
-    add_direct(4);
-    add_through_local(4);
+    show_only_failures();
+    tests("lib_coroutines_localized_arithmetic") {
+        add_direct(4);
+        add_through_local(4);
 
-    expect("through a local variable", through_local, 4);
-    expect("direct", direct, 4);
+        test("through a local variable") { expect(through_local).should_be(4); };
+        test("direct") { expect(direct).should_be(4); };
 
-    add_through_local(8);
-    expect("through a local variable, again", through_local, 12);
-
-    finish("lib_coroutines_localized_arithmetic");
+        add_through_local(8);
+        test("through a local variable, again") { expect(through_local).should_be(12); };
+    };
+    finish_tests();
 }

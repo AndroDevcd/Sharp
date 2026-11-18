@@ -89,12 +89,15 @@ def run_one(sharpc: string, sharp: string, suite: string, work: string, options:
     sys("timeout $limit " + sharp + " " + quoted(executable) + " > " + quoted(output) + " 2>&1");
 
     text : string? = new file(output).read();
-    if(text != null && text!!.find("RESULT PASS").value) {
+    // A case ends with one of two last lines: the suite's own helper (testing.sharp) prints
+    // `RESULT PASS ...`; a case written with the standard testing library (std.testing: the
+    // library cases, lib_* and std_*) prints `all <n> tests passed`.
+    if(text != null && (text!!.find("RESULT PASS").value || text!!.find(" tests passed").value)) {
         passed_tests++;
         println("PASS  $name");
     } else {
         failed_tests++;
-        if(text != null && text!!.find("RESULT FAIL").value) {
+        if(text != null && (text!!.find("RESULT FAIL").value || text!!.find(" failed, ").value)) {
             println("FAIL  $name   (checks failed, see $output)");
         } else {
             println("FAIL  $name   (crashed or timed out before finishing, see $output)");

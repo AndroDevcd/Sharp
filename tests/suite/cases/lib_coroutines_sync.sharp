@@ -1,7 +1,7 @@
 mod main;
 
 import (
-    testing,
+    std.testing,
     std.io.coroutines,
     std.io.coroutines.sync,
     std.io
@@ -120,23 +120,23 @@ def warm_up() {
 
 def test_atomic_counter() {
     c := new atomic_counter();
-    expect("starts at 0", c.read(), 0);
-    expect("increment returns the new value", c.increment(), 1);
-    expect("add returns the new value", c.add(9), 10);
-    expect("decrement", c.decrement(), 9);
-    expect("fetch_add returns the old value", c.fetch_add(5), 9);
-    expect("...and adds", c.read(), 14);
-    expect("exchange returns the old value", c.exchange(3), 14);
-    expect_true("compare_and_set with the right value", c.compare_and_set(3, 30).value);
-    expect_false("compare_and_set with the wrong value", c.compare_and_set(3, 99).value);
-    expect("compare_and_set result", c.read(), 30);
-    expect("raise_to a bigger value", c.raise_to(40), 40);
-    expect("raise_to a smaller value changes nothing", c.raise_to(7), 40);
+    test("starts at 0") { expect(c.read()).should_be(0); };
+    test("increment returns the new value") { expect(c.increment()).should_be(1); };
+    test("add returns the new value") { expect(c.add(9)).should_be(10); };
+    test("decrement") { expect(c.decrement()).should_be(9); };
+    test("fetch_add returns the old value") { expect(c.fetch_add(5)).should_be(9); };
+    test("...and adds") { expect(c.read()).should_be(14); };
+    test("exchange returns the old value") { expect(c.exchange(3)).should_be(14); };
+    test("compare_and_set with the right value") { expect_true(c.compare_and_set(3, 30).value); };
+    test("compare_and_set with the wrong value") { expect_false(c.compare_and_set(3, 99).value); };
+    test("compare_and_set result") { expect(c.read()).should_be(30); };
+    test("raise_to a bigger value") { expect(c.raise_to(40)).should_be(40); };
+    test("raise_to a smaller value changes nothing") { expect(c.raise_to(7)).should_be(40); };
     c.write(5);
-    expect("write", c.read(), 5);
-    expect_str("to_string", c.to_string()!!, "5");
+    test("write") { expect(c.read()).should_be(5); };
+    test("to_string") { expect(c.to_string()!!).should_be("5"); };
     d := new atomic_counter(100);
-    expect("initial value", d.read(), 100);
+    test("initial value") { expect(d.read()).should_be(100); };
 
     never_reached.write(0);
     coroutine_scope({ ->
@@ -144,43 +144,43 @@ def test_atomic_counter() {
             launch_on(dispatchers.default_pool(), { -> never_reached.increment(); });
         }
     });
-    expect("10,000 coroutines on the pool each incremented once", never_reached.read(), 10000);
+    test("10,000 coroutines on the pool each incremented once") { expect(never_reached.read()).should_be(10000); };
     never_reached.write(0);
 }
 
 def test_mutex_basics() {
     m := new mutex();
-    expect_false("new mutex is free", m.is_locked().value);
-    expect_false("nobody holds it", m.holds_lock().value);
+    test("new mutex is free") { expect_false(m.is_locked().value); };
+    test("nobody holds it") { expect_false(m.holds_lock().value); };
     m.acquire();
-    expect_true("locked after acquire", m.is_locked().value);
-    expect_true("held by this fiber", m.holds_lock().value);
-    expect_false("try_acquire on a held mutex", m.try_acquire().value);
+    test("locked after acquire") { expect_true(m.is_locked().value); };
+    test("held by this fiber") { expect_true(m.holds_lock().value); };
+    test("try_acquire on a held mutex") { expect_false(m.try_acquire().value); };
     m.release();
-    expect_false("free after release", m.is_locked().value);
-    expect_true("try_acquire on a free mutex", m.try_acquire().value);
+    test("free after release") { expect_false(m.is_locked().value); };
+    test("try_acquire on a free mutex") { expect_true(m.try_acquire().value); };
     m.release();
 
     try {
         m.release();
-        fail("release of a free mutex", "returned normally");
+        test("release of a free mutex") { fail_test("returned normally"); };
     } catch(e: illegal_state_exception) {
-        pass("release of a free mutex throws");
+        test("release of a free mutex throws") { };
     }
 
     captured := new plain();
     m.with_lock({ -> captured.value = 5; if(m.is_locked()) { captured.peak = 1; } });
-    expect("with_lock ran the block", captured.value, 5);
-    expect("with_lock held the mutex meanwhile", captured.peak, 1);
-    expect_false("with_lock released", m.is_locked().value);
+    test("with_lock ran the block") { expect(captured.value).should_be(5); };
+    test("with_lock held the mutex meanwhile") { expect(captured.peak).should_be(1); };
+    test("with_lock released") { expect_false(m.is_locked().value); };
 
     try {
         m.with_lock({ -> throw new illegal_state_exception("inside"); });
-        fail("with_lock whose block throws", "returned normally");
+        test("with_lock whose block throws") { fail_test("returned normally"); };
     } catch(e: illegal_state_exception) {
-        expect_str("with_lock passed the exception on", e.get_message(), "inside");
+        test("with_lock passed the exception on") { expect(e.get_message()).should_be("inside"); };
     }
-    expect_false("with_lock released after an exception", m.is_locked().value);
+    test("with_lock released after an exception") { expect_false(m.is_locked().value); };
 
     other := new mutex();
     refused := new plain();
@@ -195,9 +195,9 @@ def test_mutex_basics() {
         refused.peak = 1;
         other.release();
     });
-    expect("with_lock inside with_lock is refused", refused.value, 1);
-    expect("acquire inside with_lock works", refused.peak, 1);
-    expect_false("outer mutex released after the refusal", m.is_locked().value);
+    test("with_lock inside with_lock is refused") { expect(refused.value).should_be(1); };
+    test("acquire inside with_lock works") { expect(refused.peak).should_be(1); };
+    test("outer mutex released after the refusal") { expect_false(m.is_locked().value); };
 }
 
 def test_mutex_exclusion() {
@@ -208,7 +208,7 @@ def test_mutex_exclusion() {
             launch({ -> slow_increment(); });
         }
     });
-    expect("500 read-yield-write increments under a mutex (one thread)", shared.value, 500);
+    test("500 read-yield-write increments under a mutex (one thread)") { expect(shared.value).should_be(500); };
 
     // the same on the worker threads
     shared.value = 0;
@@ -217,7 +217,7 @@ def test_mutex_exclusion() {
             launch_on(dispatchers.default_pool(), { -> sleepy_increment(); });
         }
     });
-    expect("300 read-sleep-write increments under a mutex (pool)", shared.value, 300);
+    test("300 read-sleep-write increments under a mutex (pool)") { expect(shared.value).should_be(300); };
 
     // 10,000 coroutines, with_lock, an unsynchronised counter
     shared.value = 0;
@@ -226,9 +226,9 @@ def test_mutex_exclusion() {
             launch_on(dispatchers.default_pool(), { -> quick_increment(); });
         }
     });
-    expect("10,000 coroutines each added 1 under with_lock", shared.value, 10000);
-    expect_false("mutex free at the end", guard.is_locked().value);
-    expect("nobody waiting at the end", guard.waiting_count(), 0);
+    test("10,000 coroutines each added 1 under with_lock") { expect(shared.value).should_be(10000); };
+    test("mutex free at the end") { expect_false(guard.is_locked().value); };
+    test("nobody waiting at the end") { expect(guard.waiting_count()).should_be(0); };
 
     // first come first served: on one thread the order of arrival is the order of launching
     shared.order = "";
@@ -240,10 +240,10 @@ def test_mutex_exclusion() {
         launch({ -> queue_up("d"); });
         yield();
         yield();
-        expect("four coroutines are waiting", guard.waiting_count(), 4);
+        test("four coroutines are waiting") { expect(guard.waiting_count()).should_be(4); };
         guard.release();
     });
-    expect_str("waiters got the mutex in the order they arrived", shared.order, "abcd");
+    test("waiters got the mutex in the order they arrived") { expect(shared.order).should_be("abcd"); };
 }
 
 def test_mutex_cancellation() {
@@ -251,57 +251,57 @@ def test_mutex_cancellation() {
     guard.acquire();
     waiting := launch({ -> guard.acquire(); never_reached.increment(); guard.release(); });
     delay(5);
-    expect("one coroutine waits for the mutex", guard.waiting_count(), 1);
+    test("one coroutine waits for the mutex") { expect(guard.waiting_count()).should_be(1); };
     waiting.cancel_and_join();
-    expect_true("the waiting coroutine was cancelled", waiting.is_cancelled().value);
-    expect("it left the queue", guard.waiting_count(), 0);
+    test("the waiting coroutine was cancelled") { expect_true(waiting.is_cancelled().value); };
+    test("it left the queue") { expect(guard.waiting_count()).should_be(0); };
     guard.release();
-    expect_false("the mutex was not handed to the cancelled waiter", guard.is_locked().value);
-    expect("the cancelled waiter never got the mutex", never_reached.read(), 0);
+    test("the mutex was not handed to the cancelled waiter") { expect_false(guard.is_locked().value); };
+    test("the cancelled waiter never got the mutex") { expect(never_reached.read()).should_be(0); };
 
     // a time limit on acquire
     guard.acquire();
     r := with_timeout_or_null(20, { -> (object) guard.acquire(); return guard; });
-    expect_null("acquire under a time limit", r);
-    expect("no stale waiter left", guard.waiting_count(), 0);
+    test("acquire under a time limit") { expect_null(r); };
+    test("no stale waiter left") { expect(guard.waiting_count()).should_be(0); };
     guard.release();
-    expect_true("still usable", guard.try_acquire().value);
+    test("still usable") { expect_true(guard.try_acquire().value); };
     guard.release();
 }
 
 def test_semaphore() {
     s := new semaphore(2);
-    expect("available permits", s.available_permits(), 2);
-    expect_true("try_acquire 1", s.try_acquire().value);
+    test("available permits") { expect(s.available_permits()).should_be(2); };
+    test("try_acquire 1") { expect_true(s.try_acquire().value); };
     s.acquire();
-    expect("no permits left", s.available_permits(), 0);
-    expect_false("try_acquire without permits", s.try_acquire().value);
-    expect_false("acquire_for times out without permits", s.acquire_for(15).value);
-    expect("the timed out waiter left the queue", s.waiting_count(), 0);
+    test("no permits left") { expect(s.available_permits()).should_be(0); };
+    test("try_acquire without permits") { expect_false(s.try_acquire().value); };
+    test("acquire_for times out without permits") { expect_false(s.acquire_for(15).value); };
+    test("the timed out waiter left the queue") { expect(s.waiting_count()).should_be(0); };
     s.release();
-    expect_true("acquire_for with a permit", s.acquire_for(15).value);
+    test("acquire_for with a permit") { expect_true(s.acquire_for(15).value); };
     s.release();
     s.release();
-    expect("all permits back", s.available_permits(), 2);
+    test("all permits back") { expect(s.available_permits()).should_be(2); };
 
     try {
         bad := new semaphore(0 - 1);
-        fail("negative permits", "accepted");
+        test("negative permits") { fail_test("accepted"); };
     } catch(e: illegal_argument_exception) {
-        pass("negative permits refused");
+        test("negative permits refused") { };
     }
 
     captured := new plain();
     s.with_permit({ -> captured.value = s.available_permits(); });
-    expect("with_permit held one permit", captured.value, 1);
-    expect("with_permit gave it back", s.available_permits(), 2);
+    test("with_permit held one permit") { expect(captured.value).should_be(1); };
+    test("with_permit gave it back") { expect(s.available_permits()).should_be(2); };
     try {
         s.with_permit({ -> throw new illegal_state_exception("inside"); });
-        fail("with_permit whose block throws", "returned normally");
+        test("with_permit whose block throws") { fail_test("returned normally"); };
     } catch(e: illegal_state_exception) {
-        pass("with_permit passed the exception on");
+        test("with_permit passed the exception on") { };
     }
-    expect("with_permit gave the permit back after an exception", s.available_permits(), 2);
+    test("with_permit gave the permit back after an exception") { expect(s.available_permits()).should_be(2); };
 
     // never more inside than permits
     tracker.inside = 0;
@@ -312,11 +312,11 @@ def test_semaphore() {
             launch_on(dispatchers.default_pool(), { -> through_the_gate(); });
         }
     });
-    expect("600 coroutines went through the gate", finished.read(), 600);
-    expect_true("never more than 3 inside a semaphore of 3", tracker.peak <= 3);
-    expect_true("at least one was inside", tracker.peak >= 1);
-    expect("nobody inside at the end", tracker.inside, 0);
-    expect("all permits returned", gate.available_permits(), 3);
+    test("600 coroutines went through the gate") { expect(finished.read()).should_be(600); };
+    test("never more than 3 inside a semaphore of 3") { expect_true(tracker.peak <= 3); };
+    test("at least one was inside") { expect_true(tracker.peak >= 1); };
+    test("nobody inside at the end") { expect(tracker.inside).should_be(0); };
+    test("all permits returned") { expect(gate.available_permits()).should_be(3); };
 
     // zero permits: a signal
     finished.write(0);
@@ -325,35 +325,37 @@ def test_semaphore() {
         launch({ -> signal.acquire(); finished.increment(); });
         yield();
         yield();
-        expect("two coroutines wait for the signal", signal.waiting_count(), 2);
-        expect("nothing happened yet", finished.read(), 0);
+        test("two coroutines wait for the signal") { expect(signal.waiting_count()).should_be(2); };
+        test("nothing happened yet") { expect(finished.read()).should_be(0); };
         signal.release();
         signal.release();
     });
-    expect("both were woken by release", finished.read(), 2);
-    expect("a release that woke a waiter adds no permit", signal.available_permits(), 0);
+    test("both were woken by release") { expect(finished.read()).should_be(2); };
+    test("a release that woke a waiter adds no permit") { expect(signal.available_permits()).should_be(0); };
 
     // cancelling a waiter
     never_reached.write(0);
     waiting := launch({ -> signal.acquire(); never_reached.increment(); });
     delay(5);
     waiting.cancel_and_join();
-    expect_true("a coroutine waiting for a permit was cancelled", waiting.is_cancelled().value);
-    expect("it left the queue", signal.waiting_count(), 0);
+    test("a coroutine waiting for a permit was cancelled") { expect_true(waiting.is_cancelled().value); };
+    test("it left the queue") { expect(signal.waiting_count()).should_be(0); };
     signal.release();
-    expect("the permit was not given to the cancelled waiter", signal.available_permits(), 1);
-    expect("the cancelled waiter never continued", never_reached.read(), 0);
+    test("the permit was not given to the cancelled waiter") { expect(signal.available_permits()).should_be(1); };
+    test("the cancelled waiter never continued") { expect(never_reached.read()).should_be(0); };
     signal.acquire();
 }
 
 def main(args: string[]) {
-    warm_up();
+    show_only_failures();
+    tests("lib_coroutines_sync") {
+        warm_up();
 
-    test_atomic_counter();
-    test_mutex_basics();
-    test_mutex_exclusion();
-    test_mutex_cancellation();
-    test_semaphore();
-
-    finish("lib_coroutines_sync");
+        test_atomic_counter();
+        test_mutex_basics();
+        test_mutex_exclusion();
+        test_mutex_cancellation();
+        test_semaphore();
+    };
+    finish_tests();
 }

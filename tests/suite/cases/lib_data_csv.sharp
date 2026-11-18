@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.io, std.data )
+import ( std.testing, std.io, std.data )
 
 /**
  * std.data CSV: csv_reader (quotes, separators and line breaks inside
@@ -31,16 +31,16 @@ def show(rows: list<csv_row>): string {
 }
 
 def expect_rows(name: string, text: string, expected: string) {
-    expect_str(name, show(csv_reader.parse(text)), expected);
+    test(name) { expect(show(csv_reader.parse(text))).should_be(expected); };
 }
 
 def expect_bad(name: string, text: string, line: decimal, column: decimal) {
     try {
         csv_reader.parse(text);
-        fail(name, "no exception");
+        test(name) { fail_test("no exception"); };
     } catch(e: csv_exception) {
-        expect(name + " (line)", e.line, line);
-        expect(name + " (column)", e.column, column);
+        test(name + " (line)") { expect(e.line).should_be(line); };
+        test(name + " (column)") { expect(e.column).should_be(column); };
     }
 }
 
@@ -81,117 +81,117 @@ def test_reader() {
     expect_bad("line counted through quoted line breaks", q + "1\n2" + q + ",ok\n" + q + "bad", 3, 1);
 
     // custom separators and quotes
-    expect_str("semicolon", show(csv_reader.parse("a;b,c;" + q + "d;e" + q, ';')), "[a][b,c][d;e]");
-    expect_str("tab", show(csv_reader.parse("a\tb c\td", '\t')), "[a][b c][d]");
+    test("semicolon") { expect(show(csv_reader.parse("a;b,c;" + q + "d;e" + q, ';'))).should_be("[a][b,c][d;e]"); };
+    test("tab") { expect(show(csv_reader.parse("a\tb c\td", '\t'))).should_be("[a][b c][d]"); };
     apos := new csv_reader("'it''s',b");
     apos.set_quote(39);
-    expect_str("single quote as quote", show(apos.read_all()), "[it's][b]");
-    try { new csv_reader("x").set_separator('"'); fail("separator = quote", "no exception"); }
-    catch(e: csv_exception) { pass("separator = quote"); }
-    try { new csv_reader("x").set_separator('\n'); fail("separator = line end", "no exception"); }
-    catch(e: csv_exception) { pass("separator = line end"); }
-    try { new csv_reader("x").set_quote(','); fail("quote = separator", "no exception"); }
-    catch(e: csv_exception) { pass("quote = separator"); }
+    test("single quote as quote") { expect(show(apos.read_all())).should_be("[it's][b]"); };
+    try { new csv_reader("x").set_separator('"'); test("separator = quote") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("separator = quote") { }; }
+    try { new csv_reader("x").set_separator('\n'); test("separator = line end") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("separator = line end") { }; }
+    try { new csv_reader("x").set_quote(','); test("quote = separator") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("quote = separator") { }; }
 
     // options
     trimmed := new csv_reader(" a , b\t,  " + q + " c " + q + " ,d ");
     trimmed.set_trim(true);
-    expect_str("trim", show(trimmed.read_all()), "[a][b][ c ][d]");
+    test("trim") { expect(show(trimmed.read_all())).should_be("[a][b][ c ][d]"); };
     keep := new csv_reader("a\n\nb");
     keep.set_skip_empty_lines(false);
-    expect_str("empty lines kept", show(keep.read_all()), "[a]/[]/[b]");
+    test("empty lines kept") { expect(show(keep.read_all())).should_be("[a]/[]/[b]"); };
 
     // row by row, with a header
     r := new csv_reader("name,age,city\nAda,36,London\nBob,41\n");
-    expect_true("has_next", r.has_next().value);
+    test("has_next") { expect_true(r.has_next().value); };
     header := r.read_header();
-    expect("header size", header.size().value, 3);
-    expect("column_index", r.column_index("age"), 1);
-    expect("column_index missing", r.column_index("Age"), 0 - 1);
+    test("header size") { expect(header.size().value).should_be(3); };
+    test("column_index") { expect(r.column_index("age")).should_be(1); };
+    test("column_index missing") { expect(r.column_index("Age")).should_be(0 - 1); };
     first := r.next_row();
-    expect_str("field by name", first.field("city"), "London");
-    expect_str("field by position", first.at(0), "Ada");
-    expect("row size", first.size(), 3);
-    expect_true("has_field", first.has_field("age").value);
-    expect_false("has_field unknown", first.has_field("zip").value);
-    expect_str("to_string", first.to_string()!!, "Ada, 36, London");
+    test("field by name") { expect(first.field("city")).should_be("London"); };
+    test("field by position") { expect(first.at(0)).should_be("Ada"); };
+    test("row size") { expect(first.size()).should_be(3); };
+    test("has_field") { expect_true(first.has_field("age").value); };
+    test("has_field unknown") { expect_false(first.has_field("zip").value); };
+    test("to_string") { expect(first.to_string()!!).should_be("Ada, 36, London"); };
     second := r.next_row();
-    expect("short row size", second.size(), 2);
-    expect_false("has_field on short row", second.has_field("city").value);
-    expect_str("at_or", second.at_or(2, "?"), "?");
-    expect_str("at_or present", second.at_or(1, "?"), "41");
-    try { second.field("city"); fail("field missing in short row", "no exception"); }
-    catch(e: csv_exception) { pass("field missing in short row"); }
-    try { second.field("zip"); fail("unknown column", "no exception"); }
-    catch(e: csv_exception) { pass("unknown column"); }
-    try { second.at(5); fail("at outside", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("at outside"); }
-    expect_false("no more rows", r.has_next().value);
-    expect("rows read", r.get_rows_read(), 3);
-    try { r.next_row(); fail("next_row at end", "no exception"); }
-    catch(e: illegal_state_exception) { pass("next_row at end"); }
+    test("short row size") { expect(second.size()).should_be(2); };
+    test("has_field on short row") { expect_false(second.has_field("city").value); };
+    test("at_or") { expect(second.at_or(2, "?")).should_be("?"); };
+    test("at_or present") { expect(second.at_or(1, "?")).should_be("41"); };
+    try { second.field("city"); test("field missing in short row") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("field missing in short row") { }; }
+    try { second.field("zip"); test("unknown column") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("unknown column") { }; }
+    try { second.at(5); test("at outside") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("at outside") { }; }
+    test("no more rows") { expect_false(r.has_next().value); };
+    test("rows read") { expect(r.get_rows_read()).should_be(3); };
+    try { r.next_row(); test("next_row at end") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("next_row at end") { }; }
     no_header := new csv_reader("a,b");
-    try { no_header.column_index("a"); fail("column_index without header", "no exception"); }
-    catch(e: illegal_state_exception) { pass("column_index without header"); }
+    try { no_header.column_index("a"); test("column_index without header") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("column_index without header") { }; }
     plain := no_header.next_row();
-    expect("column_index on a row without header", plain.column_index("a"), 0 - 1);
-    try { plain.field("a"); fail("field without header", "no exception"); }
-    catch(e: csv_exception) { pass("field without header"); }
+    test("column_index on a row without header") { expect(plain.column_index("a")).should_be(0 - 1); };
+    try { plain.field("a"); test("field without header") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("field without header") { }; }
     fields := new csv_reader("x,y\n").next_fields();
-    expect("next_fields", fields.size().value, 2);
+    test("next_fields") { expect(fields.size().value).should_be(2); };
 }
 
 def test_writer() {
     out := new csv_writer();
     out.write_field("name").write_field("age").end_row();
     out.write_field("Smith, John").write_number(41).end_row();
-    expect_str("basic", out.to_string()!!, "name,age\n" + q + "Smith, John" + q + ",41\n");
-    expect("rows written", out.get_rows_written(), 2);
+    test("basic") { expect(out.to_string()!!).should_be("name,age\n" + q + "Smith, John" + q + ",41\n"); };
+    test("rows written") { expect(out.get_rows_written()).should_be(2); };
     out.clear();
-    expect_str("clear", out.to_string()!!, "");
+    test("clear") { expect(out.to_string()!!).should_be(""); };
 
     out.write_row(row_of("plain", "with " + q + "quote" + q, "two\nlines"));
-    expect_str("quoting", out.to_string()!!, "plain," + q + "with " + q + q + "quote" + q + q + q + "," + q + "two\nlines" + q + "\n");
+    test("quoting") { expect(out.to_string()!!).should_be("plain," + q + "with " + q + q + "quote" + q + q + q + "," + q + "two\nlines" + q + "\n"); };
     out.clear();
     out.write_row(row_of(" lead", "trail ", "in side"));
-    expect_str("spaces at the edges are quoted", out.to_string()!!, q + " lead" + q + "," + q + "trail " + q + ",in side\n");
+    test("spaces at the edges are quoted") { expect(out.to_string()!!).should_be(q + " lead" + q + "," + q + "trail " + q + ",in side\n"); };
     out.clear();
     out.write_row(row_of("", "", ""));
-    expect_str("empty fields", out.to_string()!!, ",,\n");
+    test("empty fields") { expect(out.to_string()!!).should_be(",,\n"); };
     out.clear();
     out.write_field("").end_row();
-    expect_str("a single empty field is quoted", out.to_string()!!, q + q + "\n");
+    test("a single empty field is quoted") { expect(out.to_string()!!).should_be(q + q + "\n"); };
     out.clear();
     out.write_field("a");
     out.write_row(row_of("b", "c", "d"));
-    expect_str("write_row finishes an open row", out.to_string()!!, "a\nb,c,d\n");
+    test("write_row finishes an open row") { expect(out.to_string()!!).should_be("a\nb,c,d\n"); };
     out.clear();
     out.write_number(1.5).write_number(0 - 3).write_number(1000000).end_row();
-    expect_str("numbers", out.to_string()!!, "1.5,-3,1000000\n");
+    test("numbers") { expect(out.to_string()!!).should_be("1.5,-3,1000000\n"); };
 
     semi := new csv_writer();
     semi.set_separator(';').set_line_end("\r\n");
     semi.write_row(row_of("a;b", "c,d", "e"));
-    expect_str("separator and line end", semi.to_string()!!, q + "a;b" + q + ";c,d;e\r\n");
+    test("separator and line end") { expect(semi.to_string()!!).should_be(q + "a;b" + q + ";c,d;e\r\n"); };
     always := new csv_writer();
     always.set_always_quote(true);
     always.write_row(row_of("a", "", "1"));
-    expect_str("always quote", always.to_string()!!, q + "a" + q + "," + q + q + "," + q + "1" + q + "\n");
+    test("always quote") { expect(always.to_string()!!).should_be(q + "a" + q + "," + q + q + "," + q + "1" + q + "\n"); };
     apostrophe := new csv_writer();
     apostrophe.set_quote(39);
     apostrophe.write_row(row_of("it's", "a,b", "c"));
-    expect_str("other quote character", apostrophe.to_string()!!, "'it''s','a,b',c\n");
-    try { new csv_writer().set_separator('\r'); fail("writer separator = line end", "no exception"); }
-    catch(e: csv_exception) { pass("writer separator = line end"); }
-    try { new csv_writer().set_quote(','); fail("writer quote = separator", "no exception"); }
-    catch(e: csv_exception) { pass("writer quote = separator"); }
+    test("other quote character") { expect(apostrophe.to_string()!!).should_be("'it''s','a,b',c\n"); };
+    try { new csv_writer().set_separator('\r'); test("writer separator = line end") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("writer separator = line end") { }; }
+    try { new csv_writer().set_quote(','); test("writer quote = separator") { fail_test("no exception"); }; }
+    catch(e: csv_exception) { test("writer quote = separator") { }; }
 
     list_row := new list<string>();
     list_row.add("x"); list_row.add("y");
     from_list := new csv_writer();
     from_list.write_row(list_row);
-    expect_str("write_row from a list", from_list.to_string()!!, "x,y\n");
-    expect("csv_row from a list", new csv_row(list_row).size(), 2);
+    test("write_row from a list") { expect(from_list.to_string()!!).should_be("x,y\n"); };
+    test("csv_row from a list") { expect(new csv_row(list_row).size()).should_be(2); };
 }
 
 def test_round_trip() {
@@ -207,20 +207,20 @@ def test_round_trip() {
 
     text := csv_writer.format(rows);
     back := csv_reader.parse(text);
-    expect("round trip row count", back.size().value, 8);
-    expect_str("round trip content", show(back), show(rows));
-    expect_str("write again gives the same text", csv_writer.format(back), text);
+    test("round trip row count") { expect(back.size().value).should_be(8); };
+    test("round trip content") { expect(show(back)).should_be(show(rows)); };
+    test("write again gives the same text") { expect(csv_writer.format(back)).should_be(text); };
 
     semi := csv_writer.format(rows, ';');
-    expect_str("round trip with semicolon", show(csv_reader.parse(semi, ';')), show(rows));
+    test("round trip with semicolon") { expect(show(csv_reader.parse(semi, ';'))).should_be(show(rows)); };
     tab := csv_writer.format(rows, '\t');
-    expect_str("round trip with tab", show(csv_reader.parse(tab, '\t')), show(rows));
+    test("round trip with tab") { expect(show(csv_reader.parse(tab, '\t'))).should_be(show(rows)); };
 
     one := new list<csv_row>();
     empty_row := new csv_row();
     empty_row.add("");
     one.add(empty_row);
-    expect("a row of one empty field survives", csv_reader.parse(csv_writer.format(one)).size().value, 1);
+    test("a row of one empty field survives") { expect(csv_reader.parse(csv_writer.format(one)).size().value).should_be(1); };
 
     // through a file
     target := new file(base_dir + "/data.csv");
@@ -228,9 +228,9 @@ def test_round_trip() {
     out.write_rows(rows);
     out.save(target);
     from_file := csv_reader.parse_file(target);
-    expect_str("file round trip", show(from_file), show(rows));
-    try { csv_reader.parse_file(new file(base_dir + "/missing.csv")); fail("parse missing file", "no exception"); }
-    catch(e: io_exception) { pass("parse missing file"); }
+    test("file round trip") { expect(show(from_file)).should_be(show(rows)); };
+    try { csv_reader.parse_file(new file(base_dir + "/missing.csv")); test("parse missing file") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("parse missing file") { }; }
 
     // a larger table
     big := new csv_writer();
@@ -238,8 +238,8 @@ def test_round_trip() {
         big.write_number(i).write_field("name " + io_strings.int_to_string(i)).write_field("a,b").end_row();
     }
     table := csv_reader.parse(big.to_string()!!);
-    expect("3000 rows", table.size().value, 3000);
-    expect_str("row 2999", show_one(table.at(2999)), "[2999][name 2999][a,b]");
+    test("3000 rows") { expect(table.size().value).should_be(3000); };
+    test("row 2999") { expect(show_one(table.at(2999))).should_be("[2999][name 2999][a,b]"); };
 }
 
 def show_one(row: csv_row): string {
@@ -249,14 +249,17 @@ def show_one(row: csv_row): string {
 }
 
 def main(args: string[]) {
-    start := new file(base_dir);
-    start.delete_recursively();
-    expect_true("test directory created", start.mkdirs().value);
+    show_only_failures();
+    tests("lib_data_csv") {
+        start := new file(base_dir);
+        start.delete_recursively();
+        test("test directory created") { expect_true(start.mkdirs().value); };
 
-    test_reader();
-    test_writer();
-    test_round_trip();
+        test_reader();
+        test_writer();
+        test_round_trip();
 
-    expect_true("cleanup", start.delete_recursively().value);
-    finish("lib_data_csv");
+        test("cleanup") { expect_true(start.delete_recursively().value); };
+    };
+    finish_tests();
 }

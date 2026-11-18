@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * KNOWN BUG: this file is EXPECTED TO FAIL - the COMPILER crashes
@@ -21,10 +21,12 @@ def run(action: (string)(), argument: string) {
 }
 
 def main(args: string[]) {
-    note := new holder();
+    show_only_failures();
+    tests("lib_math_lambda_concat") {
+        note := new holder();
 
-    run({ s: string -> note.text = "left " + s; }, "side");     // the compiler crashes here
-    expect_str("literal + parameter assigned inside a lambda", note.text, "left side");
-
-    finish("lib_math_lambda_concat");
+        run({ s: string -> note.text = "left " + s; }, "side");     // the compiler crashes here
+        test("literal + parameter assigned inside a lambda") { expect(note.text).should_be("left side"); };
+    };
+    finish_tests();
 }

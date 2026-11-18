@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * KNOWN BUG: `mutate` on a GENERIC class. This file is EXPECTED TO FAIL (it
@@ -40,22 +40,24 @@ mutate shelf {
 }
 
 def main(args: string[]) {
-    a := new list<string>();
-    expect("list<string> (also instantiated inside the library)", a.is_blank(), 1);
-    b := new list<card>();
-    expect("list<card> (only instantiated here)", b.is_blank(), 1);
-    // a field added by mutate: each list has its own
-    b.touch();
-    b.touch();
-    expect("a mutated field on list<card>", b.touches(), 2);
-    expect("...is separate for every list", a.touches(), 0);
-    c := new list<shelf>();
-    c.touch();
-    expect("a third kind of list, made last", c.touches(), 1);
+    show_only_failures();
+    tests("lib_collections_mutate_generic") {
+        a := new list<string>();
+        test("list<string> (also instantiated inside the library)") { expect(a.is_blank()).should_be(1); };
+        b := new list<card>();
+        test("list<card> (only instantiated here)") { expect(b.is_blank()).should_be(1); };
+        // a field added by mutate: each list has its own
+        b.touch();
+        b.touch();
+        test("a mutated field on list<card>") { expect(b.touches()).should_be(2); };
+        test("...is separate for every list") { expect(a.touches()).should_be(0); };
+        c := new list<shelf>();
+        c.touch();
+        test("a third kind of list, made last") { expect(c.touches()).should_be(1); };
 
-    s := new shelf();
-    s.open();
-    expect("a mutated field on a plain class", s.open(), 2);
-
-    finish("lib_collections_mutate_generic");
+        s := new shelf();
+        s.open();
+        test("a mutated field on a plain class") { expect(s.open()).should_be(2); };
+    };
+    finish_tests();
 }

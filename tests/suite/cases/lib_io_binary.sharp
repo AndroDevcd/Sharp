@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.io )
+import ( std.testing, std.io )
 
 /**
  * std.io binary data: byte_buffer (bytes with a read position, numbers of
@@ -33,160 +33,160 @@ def through_buffer(value: decimal, little: decimal): decimal {
 
 def test_bytes() {
     buf := new byte_buffer();
-    expect("new buffer size", buf.size(), 0);
-    expect_true("is_empty", buf.is_empty().value);
-    expect_true("big endian by default", buf.is_big_endian().value);
-    expect_false("nothing remaining", buf.has_remaining().value);
-    expect_null("to_array of empty", buf.to_array());
-    expect_str("to_string of empty", buf.to_string()!!, "");
+    test("new buffer size") { expect(buf.size()).should_be(0); };
+    test("is_empty") { expect_true(buf.is_empty().value); };
+    test("big endian by default") { expect_true(buf.is_big_endian().value); };
+    test("nothing remaining") { expect_false(buf.has_remaining().value); };
+    test("to_array of empty") { expect_null(buf.to_array()); };
+    test("to_string of empty") { expect(buf.to_string()!!).should_be(""); };
 
     buf.put_int8(1).put_int8(255).put_int8(0 - 1).put_int8(300).put_int8(128);
-    expect("size", buf.size(), 5);
-    expect_str("bytes", hex_of(buf), "01ffff2c80");
-    expect("get_int8", buf.get_int8(), 1);
-    expect("get_uint8 of 255", buf.get_uint8(), 255);
-    expect("get_int8 of 255 is -1", buf.get_int8(), 0 - 1);
-    expect("position", buf.position(), 3);
-    expect("remaining", buf.remaining(), 2);
-    expect("peek_uint8", buf.peek_uint8(), 44);
-    expect("300 wrapped to 44", buf.get_uint8(), 44);
-    expect("128 as signed", buf.get_int8(), 0 - 128);
-    expect_false("at the end", buf.has_remaining().value);
-    try { buf.get_int8(); fail("read past end", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("read past end"); }
-    try { buf.peek_uint8(); fail("peek past end", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("peek past end"); }
+    test("size") { expect(buf.size()).should_be(5); };
+    test("bytes") { expect(hex_of(buf)).should_be("01ffff2c80"); };
+    test("get_int8") { expect(buf.get_int8()).should_be(1); };
+    test("get_uint8 of 255") { expect(buf.get_uint8()).should_be(255); };
+    test("get_int8 of 255 is -1") { expect(buf.get_int8()).should_be(0 - 1); };
+    test("position") { expect(buf.position()).should_be(3); };
+    test("remaining") { expect(buf.remaining()).should_be(2); };
+    test("peek_uint8") { expect(buf.peek_uint8()).should_be(44); };
+    test("300 wrapped to 44") { expect(buf.get_uint8()).should_be(44); };
+    test("128 as signed") { expect(buf.get_int8()).should_be(0 - 128); };
+    test("at the end") { expect_false(buf.has_remaining().value); };
+    try { buf.get_int8(); test("read past end") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("read past end") { }; }
+    try { buf.peek_uint8(); test("peek past end") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("peek past end") { }; }
 
     buf.rewind();
-    expect("rewind", buf.position(), 0);
+    test("rewind") { expect(buf.position()).should_be(0); };
     buf.skip(4);
-    expect("skip", buf.get_uint8(), 128);
+    test("skip") { expect(buf.get_uint8()).should_be(128); };
     buf.set_position(1);
-    expect("set_position", buf.get_uint8(), 255);
-    expect("byte_at", buf.byte_at(3), 44);
+    test("set_position") { expect(buf.get_uint8()).should_be(255); };
+    test("byte_at") { expect(buf.byte_at(3)).should_be(44); };
     buf.set_byte(3, 7);
-    expect("set_byte", buf.byte_at(3), 7);
-    try { buf.byte_at(5); fail("byte_at outside", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("byte_at outside"); }
-    try { buf.set_byte(0 - 1, 0); fail("set_byte outside", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("set_byte outside"); }
-    try { buf.set_position(6); fail("set_position outside", "no exception"); }
-    catch(e: illegal_argument_exception) { pass("set_position outside"); }
-    try { buf.skip(100); fail("skip too far", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("skip too far"); }
+    test("set_byte") { expect(buf.byte_at(3)).should_be(7); };
+    try { buf.byte_at(5); test("byte_at outside") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("byte_at outside") { }; }
+    try { buf.set_byte(0 - 1, 0); test("set_byte outside") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("set_byte outside") { }; }
+    try { buf.set_position(6); test("set_position outside") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("set_position outside") { }; }
+    try { buf.skip(100); test("skip too far") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("skip too far") { }; }
     buf.clear();
-    expect("clear", buf.size(), 0);
-    expect("clear resets position", buf.position(), 0);
+    test("clear") { expect(buf.size()).should_be(0); };
+    test("clear resets position") { expect(buf.position()).should_be(0); };
 
     // growth
     for(i : decimal = 0; i < 5000; i++) {
         buf.put_int8(i);
     }
-    expect("5000 bytes", buf.size(), 5000);
-    expect("byte 4999", buf.byte_at(4999), 4999 % 256);
-    expect("byte 300", buf.byte_at(300), 44);
+    test("5000 bytes") { expect(buf.size()).should_be(5000); };
+    test("byte 4999") { expect(buf.byte_at(4999)).should_be(4999 % 256); };
+    test("byte 300") { expect(buf.byte_at(300)).should_be(44); };
 }
 
 def test_numbers() {
     big := new byte_buffer();
     big.put_int16(0x1234).put_int32(0x12345678).put_int64(0x1122334455);
-    expect_str("big endian layout", hex_of(big), "1234123456780000001122334455");
-    expect("get_int16", big.get_int16(), 0x1234);
-    expect("get_int32", big.get_int32(), 0x12345678);
-    expect("get_int64", big.get_int64(), 0x1122334455);
+    test("big endian layout") { expect(hex_of(big)).should_be("1234123456780000001122334455"); };
+    test("get_int16") { expect(big.get_int16()).should_be(0x1234); };
+    test("get_int32") { expect(big.get_int32()).should_be(0x12345678); };
+    test("get_int64") { expect(big.get_int64()).should_be(0x1122334455); };
 
     little := new byte_buffer().little_endian();
-    expect_false("is_big_endian after switch", little.is_big_endian().value);
+    test("is_big_endian after switch") { expect_false(little.is_big_endian().value); };
     little.put_int16(0x1234).put_int32(0x12345678).put_int64(0x1122334455);
-    expect_str("little endian layout", hex_of(little), "3412785634125544332211000000");
-    expect("little get_int16", little.get_int16(), 0x1234);
-    expect("little get_int32", little.get_int32(), 0x12345678);
-    expect("little get_int64", little.get_int64(), 0x1122334455);
+    test("little endian layout") { expect(hex_of(little)).should_be("3412785634125544332211000000"); };
+    test("little get_int16") { expect(little.get_int16()).should_be(0x1234); };
+    test("little get_int32") { expect(little.get_int32()).should_be(0x12345678); };
+    test("little get_int64") { expect(little.get_int64()).should_be(0x1122334455); };
 
     // the order can change in the middle
     mixed := new byte_buffer();
     mixed.put_int16(1);
     mixed.little_endian().put_int16(1);
     mixed.big_endian();
-    expect_str("mixed orders", hex_of(mixed), "00010100");
-    expect("read big", mixed.get_uint16(), 1);
-    expect("read the little one as big", mixed.get_uint16(), 256);
+    test("mixed orders") { expect(hex_of(mixed)).should_be("00010100"); };
+    test("read big") { expect(mixed.get_uint16()).should_be(1); };
+    test("read the little one as big") { expect(mixed.get_uint16()).should_be(256); };
 
     // signed and unsigned edges
     edge := new byte_buffer();
     edge.put_int16(0 - 1).put_int16(32767).put_int16(0 - 32768).put_int16(65535);
-    expect("int16 -1", edge.get_int16(), 0 - 1);
-    expect("int16 max", edge.get_int16(), 32767);
-    expect("int16 min", edge.get_int16(), 0 - 32768);
-    expect("uint16 max", edge.get_uint16(), 65535);
+    test("int16 -1") { expect(edge.get_int16()).should_be(0 - 1); };
+    test("int16 max") { expect(edge.get_int16()).should_be(32767); };
+    test("int16 min") { expect(edge.get_int16()).should_be(0 - 32768); };
+    test("uint16 max") { expect(edge.get_uint16()).should_be(65535); };
     edge.clear();
     edge.put_int32(0 - 1).put_int32(2147483647).put_int32(0 - 2147483648).put_int32(4294967295).put_int32(0 - 2);
-    expect_str("int32 layout", hex_of(edge), "ffffffff7fffffff80000000fffffffffffffffe");
-    expect("int32 -1", edge.get_int32(), 0 - 1);
-    expect("int32 max", edge.get_int32(), 2147483647);
-    expect("int32 min", edge.get_int32(), 0 - 2147483648);
-    expect("uint32 max", edge.get_uint32(), 4294967295);
-    expect("uint32 of -2", edge.get_uint32(), 4294967294);
+    test("int32 layout") { expect(hex_of(edge)).should_be("ffffffff7fffffff80000000fffffffffffffffe"); };
+    test("int32 -1") { expect(edge.get_int32()).should_be(0 - 1); };
+    test("int32 max") { expect(edge.get_int32()).should_be(2147483647); };
+    test("int32 min") { expect(edge.get_int32()).should_be(0 - 2147483648); };
+    test("uint32 max") { expect(edge.get_uint32()).should_be(4294967295); };
+    test("uint32 of -2") { expect(edge.get_uint32()).should_be(4294967294); };
     edge.clear();
     edge.put_int64(0 - 1).put_int64(9007199254740992).put_int64(0 - 9007199254740992).put_int64(0).put_int64(0 - 4294967296).put_int64(2.9);
-    expect_str("int64 -1 layout", io_strings.slice(hex_of(edge), 0, 16), "ffffffffffffffff");
-    expect_str("int64 2^53 layout", io_strings.slice(hex_of(edge), 16, 32), "0020000000000000");
-    expect("int64 -1", edge.get_int64(), 0 - 1);
-    expect("int64 2^53", edge.get_int64(), 9007199254740992);
-    expect("int64 -2^53", edge.get_int64(), 0 - 9007199254740992);
-    expect("int64 0", edge.get_int64(), 0);
-    expect("int64 -2^32", edge.get_int64(), 0 - 4294967296);
-    expect("int64 cuts a fraction", edge.get_int64(), 2);
-    try { edge.get_int32(); fail("int32 past end", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("int32 past end"); }
+    test("int64 -1 layout") { expect(io_strings.slice(hex_of(edge), 0, 16)).should_be("ffffffffffffffff"); };
+    test("int64 2^53 layout") { expect(io_strings.slice(hex_of(edge), 16, 32)).should_be("0020000000000000"); };
+    test("int64 -1") { expect(edge.get_int64()).should_be(0 - 1); };
+    test("int64 2^53") { expect(edge.get_int64()).should_be(9007199254740992); };
+    test("int64 -2^53") { expect(edge.get_int64()).should_be(0 - 9007199254740992); };
+    test("int64 0") { expect(edge.get_int64()).should_be(0); };
+    test("int64 -2^32") { expect(edge.get_int64()).should_be(0 - 4294967296); };
+    test("int64 cuts a fraction") { expect(edge.get_int64()).should_be(2); };
+    try { edge.get_int32(); test("int32 past end") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("int32 past end") { }; }
 
     short_buf := new byte_buffer();
     short_buf.put_int8(1).put_int8(2).put_int8(3);
-    try { short_buf.get_int32(); fail("int32 with 3 bytes", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("int32 with 3 bytes"); }
-    expect("a failed read takes nothing", short_buf.position(), 0);
-    try { short_buf.get_int64(); fail("int64 with 3 bytes", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("int64 with 3 bytes"); }
-    expect("still nothing taken", short_buf.remaining(), 3);
+    try { short_buf.get_int32(); test("int32 with 3 bytes") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("int32 with 3 bytes") { }; }
+    test("a failed read takes nothing") { expect(short_buf.position()).should_be(0); };
+    try { short_buf.get_int64(); test("int64 with 3 bytes") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("int64 with 3 bytes") { }; }
+    test("still nothing taken") { expect(short_buf.remaining()).should_be(3); };
 }
 
 def test_floats() {
     buf := new byte_buffer();
     buf.put_float64(1).put_float64(0 - 2).put_float64(0.1).put_float64(0);
-    expect_str("1.0", io_strings.slice(hex_of(buf), 0, 16), "3ff0000000000000");
-    expect_str("-2.0", io_strings.slice(hex_of(buf), 16, 32), "c000000000000000");
-    expect_str("0.1", io_strings.slice(hex_of(buf), 32, 48), "3fb999999999999a");
-    expect_str("0.0", io_strings.slice(hex_of(buf), 48, 64), "0000000000000000");
-    expect("read 1.0", buf.get_float64(), 1);
-    expect("read -2.0", buf.get_float64(), 0 - 2);
-    expect("read 0.1", buf.get_float64(), 0.1);
-    expect("read 0.0", buf.get_float64(), 0);
+    test("1.0") { expect(io_strings.slice(hex_of(buf), 0, 16)).should_be("3ff0000000000000"); };
+    test("-2.0") { expect(io_strings.slice(hex_of(buf), 16, 32)).should_be("c000000000000000"); };
+    test("0.1") { expect(io_strings.slice(hex_of(buf), 32, 48)).should_be("3fb999999999999a"); };
+    test("0.0") { expect(io_strings.slice(hex_of(buf), 48, 64)).should_be("0000000000000000"); };
+    test("read 1.0") { expect(buf.get_float64()).should_be(1); };
+    test("read -2.0") { expect(buf.get_float64()).should_be(0 - 2); };
+    test("read 0.1") { expect(buf.get_float64()).should_be(0.1); };
+    test("read 0.0") { expect(buf.get_float64()).should_be(0); };
 
     special := new byte_buffer();
     special.put_float64(1.0 / 0.0).put_float64(0 - 1.0 / 0.0).put_float64(0.0 / 0.0);
-    expect_str("infinity", io_strings.slice(hex_of(special), 0, 16), "7ff0000000000000");
-    expect_str("-infinity", io_strings.slice(hex_of(special), 16, 32), "fff0000000000000");
-    expect_str("NaN", io_strings.slice(hex_of(special), 32, 48), "7ff8000000000000");
-    expect_true("read infinity", special.get_float64() > 1e308);
-    expect_true("read -infinity", special.get_float64() < 0 - 1e308);
+    test("infinity") { expect(io_strings.slice(hex_of(special), 0, 16)).should_be("7ff0000000000000"); };
+    test("-infinity") { expect(io_strings.slice(hex_of(special), 16, 32)).should_be("fff0000000000000"); };
+    test("NaN") { expect(io_strings.slice(hex_of(special), 32, 48)).should_be("7ff8000000000000"); };
+    test("read infinity") { expect_true(special.get_float64() > 1e308); };
+    test("read -infinity") { expect_true(special.get_float64() < 0 - 1e308); };
     nan : decimal = special.get_float64();
-    expect_true("read NaN", nan != nan);
+    test("read NaN") { expect_true(nan != nan); };
 
     little := new byte_buffer().little_endian();
     little.put_float64(1);
-    expect_str("little endian 1.0", hex_of(little), "000000000000f03f");
+    test("little endian 1.0") { expect(hex_of(little)).should_be("000000000000f03f"); };
 
-    expect("pi", through_buffer(3.141592653589793, 0), 3.141592653589793);
-    expect("pi little endian", through_buffer(3.141592653589793, 1), 3.141592653589793);
-    expect("large", through_buffer(1.7976931348623157e308, 0), 1.7976931348623157e308);
-    expect("tiny normal", through_buffer(2.2250738585072014e-308, 0), 2.2250738585072014e-308);
-    expect("subnormal", through_buffer(5e-324, 0), 5e-324);
-    expect("another subnormal", through_buffer(1e-310, 0), 1e-310);
-    expect("negative fraction", through_buffer(0 - 123456.789, 0), 0 - 123456.789);
-    expect("one third", through_buffer(1.0 / 3.0, 0), 1.0 / 3.0);
-    expect("power of two", through_buffer(1024, 0), 1024);
-    expect("2^53 + 2", through_buffer(9007199254740994, 0), 9007199254740994);
-    expect("just below one", through_buffer(0.9999999999999999, 0), 0.9999999999999999);
+    test("pi") { expect(through_buffer(3.141592653589793, 0)).should_be(3.141592653589793); };
+    test("pi little endian") { expect(through_buffer(3.141592653589793, 1)).should_be(3.141592653589793); };
+    test("large") { expect(through_buffer(1.7976931348623157e308, 0)).should_be(1.7976931348623157e308); };
+    test("tiny normal") { expect(through_buffer(2.2250738585072014e-308, 0)).should_be(2.2250738585072014e-308); };
+    test("subnormal") { expect(through_buffer(5e-324, 0)).should_be(5e-324); };
+    test("another subnormal") { expect(through_buffer(1e-310, 0)).should_be(1e-310); };
+    test("negative fraction") { expect(through_buffer(0 - 123456.789, 0)).should_be(0 - 123456.789); };
+    test("one third") { expect(through_buffer(1.0 / 3.0, 0)).should_be(1.0 / 3.0); };
+    test("power of two") { expect(through_buffer(1024, 0)).should_be(1024); };
+    test("2^53 + 2") { expect(through_buffer(9007199254740994, 0)).should_be(9007199254740994); };
+    test("just below one") { expect(through_buffer(0.9999999999999999, 0)).should_be(0.9999999999999999); };
     same : decimal = 1;
     value : decimal = 0.000123;
     for(i : decimal = 0; i < 60; i++) {
@@ -195,59 +195,59 @@ def test_floats() {
         }
         value = value * 7.31;
     }
-    expect_true("60 doubles of growing size round trip", same);
+    test("60 doubles of growing size round trip") { expect_true(same); };
 }
 
 def test_strings() {
     buf := new byte_buffer();
     buf.put_string("abc").put_string_prefixed("hello").put_string_zero("zed").put_string_prefixed("").put_string_zero("");
-    expect_str("layout", hex_of(buf), "6162630000000568656c6c6f7a6564000000000000");
-    expect_str("get_string", buf.get_string(3), "abc");
-    expect_str("get_string_prefixed", buf.get_string_prefixed(), "hello");
-    expect_str("get_string_zero", buf.get_string_zero(), "zed");
-    expect_str("empty prefixed", buf.get_string_prefixed(), "");
-    expect_str("empty zero terminated", buf.get_string_zero(), "");
-    expect("all read", buf.remaining(), 0);
-    expect_str("get_string(0)", buf.get_string(0), "");
-    expect_null("get_bytes(0)", buf.get_bytes(0));
-    try { buf.get_string(1); fail("string past end", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("string past end"); }
+    test("layout") { expect(hex_of(buf)).should_be("6162630000000568656c6c6f7a6564000000000000"); };
+    test("get_string") { expect(buf.get_string(3)).should_be("abc"); };
+    test("get_string_prefixed") { expect(buf.get_string_prefixed()).should_be("hello"); };
+    test("get_string_zero") { expect(buf.get_string_zero()).should_be("zed"); };
+    test("empty prefixed") { expect(buf.get_string_prefixed()).should_be(""); };
+    test("empty zero terminated") { expect(buf.get_string_zero()).should_be(""); };
+    test("all read") { expect(buf.remaining()).should_be(0); };
+    test("get_string(0)") { expect(buf.get_string(0)).should_be(""); };
+    test("get_bytes(0)") { expect_null(buf.get_bytes(0)); };
+    try { buf.get_string(1); test("string past end") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("string past end") { }; }
 
     cut := new byte_buffer();
     cut.put_int32(10).put_string("abc");
-    try { cut.get_string_prefixed(); fail("prefixed string cut off", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("prefixed string cut off"); }
-    expect("nothing taken from a cut string", cut.position(), 0);
+    try { cut.get_string_prefixed(); test("prefixed string cut off") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("prefixed string cut off") { }; }
+    test("nothing taken from a cut string") { expect(cut.position()).should_be(0); };
     cut.set_position(4);
-    try { cut.get_string_zero(); fail("no zero byte", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("no zero byte"); }
+    try { cut.get_string_zero(); test("no zero byte") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("no zero byte") { }; }
 
     little := new byte_buffer().little_endian();
     little.put_string_prefixed("hi");
-    expect_str("prefix follows byte order", hex_of(little), "020000006869");
-    expect_str("little prefixed", little.get_string_prefixed(), "hi");
+    test("prefix follows byte order") { expect(hex_of(little)).should_be("020000006869"); };
+    test("little prefixed") { expect(little.get_string_prefixed()).should_be("hi"); };
 
     raw := new _int8[3];
     raw[0] = 9; raw[1] = 0; raw[2] = 200;
     wrapped := byte_buffer.wrap(raw);
-    expect("wrap size", wrapped.size(), 3);
-    expect("wrap position", wrapped.position(), 0);
+    test("wrap size") { expect(wrapped.size()).should_be(3); };
+    test("wrap position") { expect(wrapped.position()).should_be(0); };
     raw[0] = 1;
-    expect("wrap copies", wrapped.get_uint8(), 9);
+    test("wrap copies") { expect(wrapped.get_uint8()).should_be(9); };
     part := wrapped.get_bytes(2);
-    expect("get_bytes size", sizeof(part), 2);
-    expect("get_bytes content", part[1] & 0xff, 200);
-    expect("wrap(null)", byte_buffer.wrap(null).size(), 0);
-    expect_str("from_string", hex_of(byte_buffer.from_string("AB")), "4142");
-    expect("from empty string", byte_buffer.from_string("").size(), 0);
+    test("get_bytes size") { expect(sizeof(part)).should_be(2); };
+    test("get_bytes content") { expect(part[1] & 0xff).should_be(200); };
+    test("wrap(null)") { expect(byte_buffer.wrap(null).size()).should_be(0); };
+    test("from_string") { expect(hex_of(byte_buffer.from_string("AB"))).should_be("4142"); };
+    test("from empty string") { expect(byte_buffer.from_string("").size()).should_be(0); };
 
     a := byte_buffer.from_string("xyz");
     b := new byte_buffer();
     b.put_bytes(null).put_buffer(a).put_buffer(a);
-    expect_str("put_buffer", b.to_string()!!, "xyzxyz");
-    expect_true("same_bytes", a.same_bytes(byte_buffer.from_string("xyz")).value);
-    expect_false("same_bytes different", a.same_bytes(b).value);
-    expect("to_array", sizeof(b.to_array()), 6);
+    test("put_buffer") { expect(b.to_string()!!).should_be("xyzxyz"); };
+    test("same_bytes") { expect_true(a.same_bytes(byte_buffer.from_string("xyz")).value); };
+    test("same_bytes different") { expect_false(a.same_bytes(b).value); };
+    test("to_array") { expect(sizeof(b.to_array())).should_be(6); };
 
     // to a file and back
     target := new file(base_dir + "/buffer.bin");
@@ -257,17 +257,17 @@ def test_strings() {
     }
     all.put_float64(2.5).put_string_prefixed("tail");
     all.write_to(target);
-    expect("file length", target.size(), 272);
+    test("file length") { expect(target.size()).should_be(272); };
     loaded := byte_buffer.from_file(target);
-    expect_true("file round trip", loaded.same_bytes(all).value);
+    test("file round trip") { expect_true(loaded.same_bytes(all).value); };
     loaded.skip(256);
-    expect("double from file", loaded.get_float64(), 2.5);
-    expect_str("string from file", loaded.get_string_prefixed(), "tail");
+    test("double from file") { expect(loaded.get_float64()).should_be(2.5); };
+    test("string from file") { expect(loaded.get_string_prefixed()).should_be("tail"); };
     new byte_buffer().write_to(target);
-    expect("empty buffer writes an empty file", target.size(), 0);
-    expect("empty file loads an empty buffer", byte_buffer.from_file(target).size(), 0);
-    try { byte_buffer.from_file(new file(base_dir + "/missing.bin")); fail("load missing", "no exception"); }
-    catch(e: io_exception) { pass("load missing"); }
+    test("empty buffer writes an empty file") { expect(target.size()).should_be(0); };
+    test("empty file loads an empty buffer") { expect(byte_buffer.from_file(target).size()).should_be(0); };
+    try { byte_buffer.from_file(new file(base_dir + "/missing.bin")); test("load missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("load missing") { }; }
 }
 
 def test_writer_reader() {
@@ -280,121 +280,124 @@ def test_writer_reader() {
     raw := new _int8[2];
     raw[0] = 7; raw[1] = 8;
     out.write_bytes(raw).write_bytes(null);
-    expect("size", out.size(), 50);
+    test("size") { expect(out.size()).should_be(50); };
 
     input := new binary_reader(out.to_array());
-    expect_true("has_more", input.has_more().value);
-    expect_true("bool true", input.read_bool().value);
-    expect_false("bool false", input.read_bool().value);
-    expect("unsigned byte", input.read_unsigned_byte(), 200);
-    expect("short", input.read_short(), 0 - 2);
-    expect("int", input.read_int(), 123456789);
-    expect("long", input.read_long(), 0 - 5000000000);
-    expect("double", input.read_double(), 0.75);
-    expect_str("string", input.read_string(), "player one");
-    expect_str("empty string", input.read_string(), "");
+    test("has_more") { expect_true(input.has_more().value); };
+    test("bool true") { expect_true(input.read_bool().value); };
+    test("bool false") { expect_false(input.read_bool().value); };
+    test("unsigned byte") { expect(input.read_unsigned_byte()).should_be(200); };
+    test("short") { expect(input.read_short()).should_be(0 - 2); };
+    test("int") { expect(input.read_int()).should_be(123456789); };
+    test("long") { expect(input.read_long()).should_be(0 - 5000000000); };
+    test("double") { expect(input.read_double()).should_be(0.75); };
+    test("string") { expect(input.read_string()).should_be("player one"); };
+    test("empty string") { expect(input.read_string()).should_be(""); };
     back := input.read_string_list();
-    expect("list size", back.size().value, 3);
-    expect_str("list 0", back.at(0), "a");
-    expect_str("list 1", back.at(1), "");
-    expect_str("list 2", back.at(2), "ccc");
-    expect("empty list", input.read_string_list().size().value, 0);
+    test("list size") { expect(back.size().value).should_be(3); };
+    test("list 0") { expect(back.at(0)).should_be("a"); };
+    test("list 1") { expect(back.at(1)).should_be(""); };
+    test("list 2") { expect(back.at(2)).should_be("ccc"); };
+    test("empty list") { expect(input.read_string_list().size().value).should_be(0); };
     bytes := input.read_bytes();
-    expect("bytes size", sizeof(bytes), 2);
-    expect("bytes content", bytes[1], 8);
-    expect_null("null bytes", input.read_bytes());
-    expect("remaining", input.remaining(), 0);
-    expect_false("has_more at end", input.has_more().value);
-    try { input.read_int(); fail("read past end", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("read past end"); }
+    test("bytes size") { expect(sizeof(bytes)).should_be(2); };
+    test("bytes content") { expect(bytes[1]).should_be(8); };
+    test("null bytes") { expect_null(input.read_bytes()); };
+    test("remaining") { expect(input.remaining()).should_be(0); };
+    test("has_more at end") { expect_false(input.has_more().value); };
+    try { input.read_int(); test("read past end") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("read past end") { }; }
 
     // varints: sizes and values
     v := new binary_writer();
     v.write_varint(0);
-    expect("varint 0 is one byte", v.size(), 1);
+    test("varint 0 is one byte") { expect(v.size()).should_be(1); };
     v.write_varint(127);
-    expect("varint 127 is one byte", v.size(), 2);
+    test("varint 127 is one byte") { expect(v.size()).should_be(2); };
     v.write_varint(128);
-    expect("varint 128 is two bytes", v.size(), 4);
+    test("varint 128 is two bytes") { expect(v.size()).should_be(4); };
     v.write_varint(300);
-    expect_str("varint layout", hex_of(v.get_buffer()), "007f8001ac02");
+    test("varint layout") { expect(hex_of(v.get_buffer())).should_be("007f8001ac02"); };
     v.write_varint(16384).write_varint(4294967296).write_varint(9007199254740992);
     v.write_signed_varint(0).write_signed_varint(0 - 1).write_signed_varint(1).write_signed_varint(0 - 64).write_signed_varint(1000000).write_signed_varint(0 - 4503599627370496);
     vr := new binary_reader(v.get_buffer());
-    expect("read varint 0", vr.read_varint(), 0);
-    expect("read varint 127", vr.read_varint(), 127);
-    expect("read varint 128", vr.read_varint(), 128);
-    expect("read varint 300", vr.read_varint(), 300);
-    expect("read varint 16384", vr.read_varint(), 16384);
-    expect("read varint 2^32", vr.read_varint(), 4294967296);
-    expect("read varint 2^53", vr.read_varint(), 9007199254740992);
-    expect("signed 0", vr.read_signed_varint(), 0);
-    expect("signed -1", vr.read_signed_varint(), 0 - 1);
-    expect("signed 1", vr.read_signed_varint(), 1);
-    expect("signed -64", vr.read_signed_varint(), 0 - 64);
-    expect("signed million", vr.read_signed_varint(), 1000000);
-    expect("signed -2^52", vr.read_signed_varint(), 0 - 4503599627370496);
-    try { v.write_varint(0 - 1); fail("negative varint", "no exception"); }
-    catch(e: illegal_argument_exception) { pass("negative varint"); }
-    try { v.write_varint(1.5); fail("fractional varint", "no exception"); }
-    catch(e: illegal_argument_exception) { pass("fractional varint"); }
-    try { v.write_signed_varint(0.5); fail("fractional signed varint", "no exception"); }
-    catch(e: illegal_argument_exception) { pass("fractional signed varint"); }
+    test("read varint 0") { expect(vr.read_varint()).should_be(0); };
+    test("read varint 127") { expect(vr.read_varint()).should_be(127); };
+    test("read varint 128") { expect(vr.read_varint()).should_be(128); };
+    test("read varint 300") { expect(vr.read_varint()).should_be(300); };
+    test("read varint 16384") { expect(vr.read_varint()).should_be(16384); };
+    test("read varint 2^32") { expect(vr.read_varint()).should_be(4294967296); };
+    test("read varint 2^53") { expect(vr.read_varint()).should_be(9007199254740992); };
+    test("signed 0") { expect(vr.read_signed_varint()).should_be(0); };
+    test("signed -1") { expect(vr.read_signed_varint()).should_be(0 - 1); };
+    test("signed 1") { expect(vr.read_signed_varint()).should_be(1); };
+    test("signed -64") { expect(vr.read_signed_varint()).should_be(0 - 64); };
+    test("signed million") { expect(vr.read_signed_varint()).should_be(1000000); };
+    test("signed -2^52") { expect(vr.read_signed_varint()).should_be(0 - 4503599627370496); };
+    try { v.write_varint(0 - 1); test("negative varint") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("negative varint") { }; }
+    try { v.write_varint(1.5); test("fractional varint") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("fractional varint") { }; }
+    try { v.write_signed_varint(0.5); test("fractional signed varint") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("fractional signed varint") { }; }
 
     // damaged data
     bad := new byte_buffer();
     bad.put_int8(2);
-    try { new binary_reader(bad).read_bool(); fail("bad bool", "no exception"); }
-    catch(e: io_exception) { pass("bad bool"); }
+    try { new binary_reader(bad).read_bool(); test("bad bool") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("bad bool") { }; }
     endless := new byte_buffer();
     for(i : decimal = 0; i < 12; i++) {
         endless.put_int8(255);
     }
-    try { new binary_reader(endless).read_varint(); fail("endless varint", "no exception"); }
-    catch(e: io_exception) { pass("endless varint"); }
+    try { new binary_reader(endless).read_varint(); test("endless varint") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("endless varint") { }; }
     cut := new byte_buffer();
     cut.put_int8(0x85);
-    try { new binary_reader(cut).read_varint(); fail("varint cut off", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("varint cut off"); }
+    try { new binary_reader(cut).read_varint(); test("varint cut off") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("varint cut off") { }; }
     liar := new byte_buffer();
     liar.put_int8(50).put_int8(1).put_int8('x');
-    try { new binary_reader(liar).read_string_list(); fail("list count too large", "no exception"); }
-    catch(e: io_exception) { pass("list count too large"); }
+    try { new binary_reader(liar).read_string_list(); test("list count too large") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("list count too large") { }; }
     liar.rewind();
-    try { new binary_reader(liar).read_string(); fail("string cut off", "no exception"); }
-    catch(e: out_of_bounds_exception) { pass("string cut off"); }
+    try { new binary_reader(liar).read_string(); test("string cut off") { fail_test("no exception"); }; }
+    catch(e: out_of_bounds_exception) { test("string cut off") { }; }
 
     // little endian through writer and reader, and a file
     le_buf := new byte_buffer().little_endian();
     le := new binary_writer(le_buf);
     le.write_int(1).write_string("le");
-    expect_str("writer uses the order of its buffer", hex_of(le_buf), "01000000026c65");
+    test("writer uses the order of its buffer") { expect(hex_of(le_buf)).should_be("01000000026c65"); };
     target := new file(base_dir + "/save.dat");
     out.save(target);
-    expect("saved size", target.size(), 50);
+    test("saved size") { expect(target.size()).should_be(50); };
     loaded := binary_reader.load(target);
     loaded.skip(3);
-    expect("loaded short", loaded.read_short(), 0 - 2);
-    expect("loaded int", loaded.read_int(), 123456789);
-    expect("unsigned reads", new binary_reader(byte_buffer.from_string("\n")).read_byte(), 10);
+    test("loaded short") { expect(loaded.read_short()).should_be(0 - 2); };
+    test("loaded int") { expect(loaded.read_int()).should_be(123456789); };
+    test("unsigned reads") { expect(new binary_reader(byte_buffer.from_string("\n")).read_byte()).should_be(10); };
     u := new byte_buffer();
     u.put_int16(65535).put_int32(4294967295);
     ur := new binary_reader(u);
-    expect("read_unsigned_short", ur.read_unsigned_short(), 65535);
-    expect("read_unsigned_int", ur.read_unsigned_int(), 4294967295);
+    test("read_unsigned_short") { expect(ur.read_unsigned_short()).should_be(65535); };
+    test("read_unsigned_int") { expect(ur.read_unsigned_int()).should_be(4294967295); };
 }
 
 def main(args: string[]) {
-    start := new file(base_dir);
-    start.delete_recursively();
-    expect_true("test directory created", start.mkdirs().value);
+    show_only_failures();
+    tests("lib_io_binary") {
+        start := new file(base_dir);
+        start.delete_recursively();
+        test("test directory created") { expect_true(start.mkdirs().value); };
 
-    test_bytes();
-    test_numbers();
-    test_floats();
-    test_strings();
-    test_writer_reader();
+        test_bytes();
+        test_numbers();
+        test_floats();
+        test_strings();
+        test_writer_reader();
 
-    expect_true("cleanup", start.delete_recursively().value);
-    finish("lib_io_binary");
+        test("cleanup") { expect_true(start.delete_recursively().value); };
+    };
+    finish_tests();
 }

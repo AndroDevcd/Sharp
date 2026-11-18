@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * Does not COMPILE today. Three small things the parser rejects; each was
@@ -31,10 +31,13 @@ def maybe_text(): string? {
 }
 
 def main(args: string[]) {
-    expect("char literal ';' before ;", semicolon(), 59);
-    expect("char literal ')' before )", code_of(')'), 41);
-    maybe := maybe_text();
-    expect_str("!! before )", "x" + maybe!!, "xy");
-    expect("method on a literal", "abc".size().value, 3);
-    finish("lib_io_syntax");
+    show_only_failures();
+    tests("lib_io_syntax") {
+        test("char literal ';' before ;") { expect(semicolon()).should_be(59); };
+        test("char literal ')' before )") { expect(code_of(')')).should_be(41); };
+        maybe := maybe_text();
+        test("!! before )") { expect("x" + maybe!!).should_be("xy"); };
+        test("method on a literal") { expect("abc".size().value).should_be(3); };
+    };
+    finish_tests();
 }

@@ -1,7 +1,10 @@
 mod main;
-import ( testing )
+import ( std.testing )
 def main(args: string[]) {
-    r := new result<string, exception>("ok", null);
-    expect_true("result with a null error", r != null);
-    finish("std_result_null_error");
+    show_only_failures();
+    tests("std_result_null_error") {
+        r := new result<string, exception>("ok", null);
+        test("result with a null error") { expect_true(r != null); };
+    };
+    finish_tests();
 }

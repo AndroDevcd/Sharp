@@ -1,7 +1,7 @@
 mod main;
 
 import (
-    testing,
+    std.testing,
     std.io.fiber,
     std.io.coroutines
 )
@@ -66,25 +66,28 @@ def middle(n: decimal) : decimal {
 }
 
 def main(args: string[]) {
-    jobs := new list<job>();
-    lock(guard) {
-        for(i : decimal = 0; i < 5; i++) {
-            jobs.add(launch_on(dispatchers.default_pool(), { -> middle(0); }));
+    show_only_failures();
+    tests("lib_coroutines_resume_after_compile") {
+        jobs := new list<job>();
+        lock(guard) {
+            for(i : decimal = 0; i < 5; i++) {
+                jobs.add(launch_on(dispatchers.default_pool(), { -> middle(0); }));
+            }
+
+            // let every coroutine reach the lock and wait for it
+            delay(200);
+
+            for(i : decimal = 0; i < 20; i++) {
+                middle(1);
+            }
         }
 
-        // let every coroutine reach the lock and wait for it
-        delay(200);
-
-        for(i : decimal = 0; i < 20; i++) {
-            middle(1);
+        foreach(j in jobs) {
+            j.join();
         }
-    }
 
-    foreach(j in jobs) {
-        j.join();
-    }
-
-    expect("every coroutine got the lock", waited.value, 5);
-    expect("main called middle twenty times", quick.value, 20);
-    finish("lib_coroutines_resume_after_compile");
+        test("every coroutine got the lock") { expect(waited.value).should_be(5); };
+        test("main called middle twenty times") { expect(quick.value).should_be(20); };
+    };
+    finish_tests();
 }

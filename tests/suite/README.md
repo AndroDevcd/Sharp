@@ -35,7 +35,37 @@ The last line is `ALL n TESTS PASSED` or `k OF n TESTS FAILED`, and the runner
 exits with 0 or 1. For a failed test it prints the checks that failed; the full
 output is in the work folder (`<test>.out.txt`, `<test>.compile.txt`).
 
-## Writing a test
+## Two kinds of case, two helpers - on purpose
+
+- **Language cases** (arithmetic, classes, generics, lambdas, exceptions ...) use the small helper in
+  `testing.sharp`: plain functions that compare two values and print a line. They test the very
+  features a testing library is built from - a suite written with closures could not report that
+  closures are broken - so they depend on as little of the language as possible.
+- **Library cases** (`lib_*`, `std_*`) use the standard testing library, `std.testing`: they test
+  libraries, which sit above the language, and are written the way any Sharp program tests itself.
+
+The runner accepts the last line of either: `RESULT PASS ...` or `all <n> tests passed`.
+
+## Writing a library case (std.testing)
+
+```
+mod main;
+
+import ( std.testing, std.collections )
+
+def main(args: string[]) {
+    show_only_failures();                   // thousands of small checks: print only what fails
+    tests("my_library_case") {
+        numbers := new list<int>();
+        numbers.add(4);
+        test("one element") { expect(numbers.size()).should_be(1); };
+        test("it is the one that was added") { expect(numbers.at(0)).should_be(4); };
+    };
+    finish_tests();
+}
+```
+
+## Writing a language case (testing.sharp)
 
 A test is an ordinary program that imports `testing`:
 

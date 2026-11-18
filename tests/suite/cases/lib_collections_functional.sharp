@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.collections )
+import ( std.testing, std.collections )
 
 /**
  * std.collections - collections<T>, the Kotlin style helpers that stay within one
@@ -63,80 +63,80 @@ def test_filtering() {
     n := numbers(1, 10);
     empty := new list<int>();
 
-    expect_str("filter", join(collections<int>.filter(n, is_even)), "2,4,6,8,10");
-    expect_str("filter with a lambda", join(collections<int>.filter(n, { x: int -> (bool) return x.value > 7; })), "8,9,10");
-    expect_str("filter nothing matches", join(collections<int>.filter(n, is_big)), "");
-    expect_str("filter of empty", join(collections<int>.filter(empty, is_even)), "");
-    expect_str("filter_not", join(collections<int>.filter_not(n, is_even)), "1,3,5,7,9");
-    expect("filter leaves the source alone", n.size().value, 10);
+    test("filter") { expect(join(collections<int>.filter(n, is_even))).should_be("2,4,6,8,10"); };
+    test("filter with a lambda") { expect(join(collections<int>.filter(n, { x: int -> (bool) return x.value > 7; }))).should_be("8,9,10"); };
+    test("filter nothing matches") { expect(join(collections<int>.filter(n, is_big))).should_be(""); };
+    test("filter of empty") { expect(join(collections<int>.filter(empty, is_even))).should_be(""); };
+    test("filter_not") { expect(join(collections<int>.filter_not(n, is_even))).should_be("1,3,5,7,9"); };
+    test("filter leaves the source alone") { expect(n.size().value).should_be(10); };
 
     parts := collections<int>.partition(n, is_even);
-    expect_str("partition first", join(parts.first), "2,4,6,8,10");
-    expect_str("partition second", join(parts.second), "1,3,5,7,9");
+    test("partition first") { expect(join(parts.first)).should_be("2,4,6,8,10"); };
+    test("partition second") { expect(join(parts.second)).should_be("1,3,5,7,9"); };
     none := collections<int>.partition(empty, is_even);
-    expect("partition of empty", none.first.size().value + none.second.size().value, 0);
+    test("partition of empty") { expect(none.first.size().value + none.second.size().value).should_be(0); };
 
-    expect_str("take", join(collections<int>.take(n, 3)), "1,2,3");
-    expect_str("take 0", join(collections<int>.take(n, 0)), "");
-    expect_str("take more than there is", join(collections<int>.take(numbers(1, 2), 5)), "1,2");
-    expect_str("drop", join(collections<int>.drop(n, 7)), "8,9,10");
-    expect_str("drop 0", join(collections<int>.drop(numbers(1, 3), 0)), "1,2,3");
-    expect_str("drop more than there is", join(collections<int>.drop(n, 11)), "");
-    expect_str("take_last", join(collections<int>.take_last(n, 2)), "9,10");
-    expect_str("take_last more than there is", join(collections<int>.take_last(numbers(1, 2), 5)), "1,2");
-    expect_str("take_while", join(collections<int>.take_while(n, is_small)), "1,2");
-    expect_str("take_while nothing", join(collections<int>.take_while(n, is_big)), "");
-    expect_str("drop_while", join(collections<int>.drop_while(n, { x: int -> (bool) return x.value < 8; })), "8,9,10");
-    expect_str("drop_while keeps later matches", join(collections<int>.drop_while(arrays<int>.to_list(new int[] { 1, 5, 1 }), is_small)), "5,1");
-    try { collections<int>.take(n, 0 - 1); fail("take negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("take negative"); }
-    try { collections<int>.drop(n, 0 - 1); fail("drop negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("drop negative"); }
-    try { collections<int>.take_last(n, 0 - 1); fail("take_last negative", "did not throw"); } catch(e: illegal_argument_exception) { pass("take_last negative"); }
+    test("take") { expect(join(collections<int>.take(n, 3))).should_be("1,2,3"); };
+    test("take 0") { expect(join(collections<int>.take(n, 0))).should_be(""); };
+    test("take more than there is") { expect(join(collections<int>.take(numbers(1, 2), 5))).should_be("1,2"); };
+    test("drop") { expect(join(collections<int>.drop(n, 7))).should_be("8,9,10"); };
+    test("drop 0") { expect(join(collections<int>.drop(numbers(1, 3), 0))).should_be("1,2,3"); };
+    test("drop more than there is") { expect(join(collections<int>.drop(n, 11))).should_be(""); };
+    test("take_last") { expect(join(collections<int>.take_last(n, 2))).should_be("9,10"); };
+    test("take_last more than there is") { expect(join(collections<int>.take_last(numbers(1, 2), 5))).should_be("1,2"); };
+    test("take_while") { expect(join(collections<int>.take_while(n, is_small))).should_be("1,2"); };
+    test("take_while nothing") { expect(join(collections<int>.take_while(n, is_big))).should_be(""); };
+    test("drop_while") { expect(join(collections<int>.drop_while(n, { x: int -> (bool) return x.value < 8; }))).should_be("8,9,10"); };
+    test("drop_while keeps later matches") { expect(join(collections<int>.drop_while(arrays<int>.to_list(new int[] { 1, 5, 1 }), is_small))).should_be("5,1"); };
+    try { collections<int>.take(n, 0 - 1); test("take negative") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("take negative") { }; }
+    try { collections<int>.drop(n, 0 - 1); test("drop negative") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("drop negative") { }; }
+    try { collections<int>.take_last(n, 0 - 1); test("take_last negative") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("take_last negative") { }; }
 
     repeats := arrays<int>.to_list(new int[] { 3, 1, 3, 2, 1, 3 });
-    expect_str("distinct keeps the first of each", join(collections<int>.distinct(repeats)), "3,1,2");
-    expect_str("distinct of empty", join(collections<int>.distinct(empty)), "");
+    test("distinct keeps the first of each") { expect(join(collections<int>.distinct(repeats))).should_be("3,1,2"); };
+    test("distinct of empty") { expect(join(collections<int>.distinct(empty))).should_be(""); };
     words := arrays<string>.to_list(new string[] { "b", "a", "b" });
-    expect("distinct strings by value", collections<string>.distinct(words).size().value, 2);
+    test("distinct strings by value") { expect(collections<string>.distinct(words).size().value).should_be(2); };
 }
 
 def test_questions() {
     n := numbers(1, 10);
     empty := new list<int>();
 
-    expect("any yes", collections<int>.any(n, is_even), 1);
-    expect("any no", collections<int>.any(n, is_big), 0);
-    expect("any of empty", collections<int>.any(empty, is_even), 0);
-    expect("all no", collections<int>.all(n, is_even), 0);
-    expect("all yes", collections<int>.all(n, { x: int -> (bool) return x.value > 0; }), 1);
-    expect("all of empty", collections<int>.all(empty, is_even), 1);
-    expect("none yes", collections<int>.none(n, is_big), 1);
-    expect("none no", collections<int>.none(n, is_even), 0);
-    expect("none of empty", collections<int>.none(empty, is_even), 1);
-    expect("count", collections<int>.count(n, is_even), 5);
-    expect("count of empty", collections<int>.count(empty, is_even), 0);
-    expect("size", collections<int>.size(n), 10);
-    expect("size of empty", collections<int>.size(empty), 0);
-    expect("contains", collections<int>.contains(n, 7), 1);
-    expect("contains missing", collections<int>.contains(n, 11), 0);
-    expect("index_of", collections<int>.index_of(n, 7), 6);
-    expect("index_of missing", collections<int>.index_of(n, 0), 0 - 1);
-    expect("index_of in empty", collections<int>.index_of(empty, 0), 0 - 1);
-    expect("index_of_first", collections<int>.index_of_first(n, is_even), 1);
-    expect("index_of_first none", collections<int>.index_of_first(n, is_big), 0 - 1);
+    test("any yes") { expect(collections<int>.any(n, is_even)).should_be(1); };
+    test("any no") { expect(collections<int>.any(n, is_big)).should_be(0); };
+    test("any of empty") { expect(collections<int>.any(empty, is_even)).should_be(0); };
+    test("all no") { expect(collections<int>.all(n, is_even)).should_be(0); };
+    test("all yes") { expect(collections<int>.all(n, { x: int -> (bool) return x.value > 0; })).should_be(1); };
+    test("all of empty") { expect(collections<int>.all(empty, is_even)).should_be(1); };
+    test("none yes") { expect(collections<int>.none(n, is_big)).should_be(1); };
+    test("none no") { expect(collections<int>.none(n, is_even)).should_be(0); };
+    test("none of empty") { expect(collections<int>.none(empty, is_even)).should_be(1); };
+    test("count") { expect(collections<int>.count(n, is_even)).should_be(5); };
+    test("count of empty") { expect(collections<int>.count(empty, is_even)).should_be(0); };
+    test("size") { expect(collections<int>.size(n)).should_be(10); };
+    test("size of empty") { expect(collections<int>.size(empty)).should_be(0); };
+    test("contains") { expect(collections<int>.contains(n, 7)).should_be(1); };
+    test("contains missing") { expect(collections<int>.contains(n, 11)).should_be(0); };
+    test("index_of") { expect(collections<int>.index_of(n, 7)).should_be(6); };
+    test("index_of missing") { expect(collections<int>.index_of(n, 0)).should_be(0 - 1); };
+    test("index_of in empty") { expect(collections<int>.index_of(empty, 0)).should_be(0 - 1); };
+    test("index_of_first") { expect(collections<int>.index_of_first(n, is_even)).should_be(1); };
+    test("index_of_first none") { expect(collections<int>.index_of_first(n, is_big)).should_be(0 - 1); };
 
-    expect("find", collections<int>.find(n, is_even)!!.value, 2);
-    expect_null("find nothing", collections<int>.find(n, is_big));
-    expect_null("find in empty", collections<int>.find(empty, is_even));
-    expect("find_last", collections<int>.find_last(n, is_even)!!.value, 10);
-    expect_null("find_last nothing", collections<int>.find_last(n, is_big));
-    expect("first", collections<int>.first(n).value, 1);
-    expect("last", collections<int>.last(n).value, 10);
-    expect("first_or_null", collections<int>.first_or_null(n)!!.value, 1);
-    expect("last_or_null", collections<int>.last_or_null(n)!!.value, 10);
-    expect_null("first_or_null of empty", collections<int>.first_or_null(empty));
-    expect_null("last_or_null of empty", collections<int>.last_or_null(empty));
-    try { collections<int>.first(empty); fail("first of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("first of empty"); }
-    try { collections<int>.last(empty); fail("last of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("last of empty"); }
+    test("find") { expect(collections<int>.find(n, is_even)!!.value).should_be(2); };
+    test("find nothing") { expect_null(collections<int>.find(n, is_big)); };
+    test("find in empty") { expect_null(collections<int>.find(empty, is_even)); };
+    test("find_last") { expect(collections<int>.find_last(n, is_even)!!.value).should_be(10); };
+    test("find_last nothing") { expect_null(collections<int>.find_last(n, is_big)); };
+    test("first") { expect(collections<int>.first(n).value).should_be(1); };
+    test("last") { expect(collections<int>.last(n).value).should_be(10); };
+    test("first_or_null") { expect(collections<int>.first_or_null(n)!!.value).should_be(1); };
+    test("last_or_null") { expect(collections<int>.last_or_null(n)!!.value).should_be(10); };
+    test("first_or_null of empty") { expect_null(collections<int>.first_or_null(empty)); };
+    test("last_or_null of empty") { expect_null(collections<int>.last_or_null(empty)); };
+    try { collections<int>.first(empty); test("first of empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("first of empty") { }; }
+    try { collections<int>.last(empty); test("last of empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("last of empty") { }; }
 }
 
 def test_numbers_and_order() {
@@ -144,32 +144,32 @@ def test_numbers_and_order() {
     empty := new list<int>();
     crowd := people();
 
-    expect("sum_of", collections<int>.sum_of(n, value_of), 27);
-    expect("sum_of empty", collections<int>.sum_of(empty, value_of), 0);
-    expect("max_of", collections<int>.max_of(n, value_of), 9);
-    expect("min_of", collections<int>.min_of(n, value_of), 2);
-    expect("average_of", collections<int>.average_of(n, value_of), 5.4);
-    expect("sum_of ages", collections<person>.sum_of(crowd, age_of), 160);
-    expect_str("max_by", collections<person>.max_by(crowd, age_of).name, "cid");
-    expect_str("min_by takes the first on a tie", collections<person>.min_by(crowd, age_of).name, "bob");
-    try { collections<int>.max_of(empty, value_of); fail("max_of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("max_of empty"); }
-    try { collections<int>.min_of(empty, value_of); fail("min_of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("min_of empty"); }
-    try { collections<int>.average_of(empty, value_of); fail("average_of empty", "did not throw"); } catch(e: no_such_element_exception) { pass("average_of empty"); }
-    try { collections<person>.max_by(new list<person>(), age_of); fail("max_by empty", "did not throw"); } catch(e: no_such_element_exception) { pass("max_by empty"); }
-    try { collections<person>.min_by(new list<person>(), age_of); fail("min_by empty", "did not throw"); } catch(e: no_such_element_exception) { pass("min_by empty"); }
+    test("sum_of") { expect(collections<int>.sum_of(n, value_of)).should_be(27); };
+    test("sum_of empty") { expect(collections<int>.sum_of(empty, value_of)).should_be(0); };
+    test("max_of") { expect(collections<int>.max_of(n, value_of)).should_be(9); };
+    test("min_of") { expect(collections<int>.min_of(n, value_of)).should_be(2); };
+    test("average_of") { expect(collections<int>.average_of(n, value_of)).should_be(5.4); };
+    test("sum_of ages") { expect(collections<person>.sum_of(crowd, age_of)).should_be(160); };
+    test("max_by") { expect(collections<person>.max_by(crowd, age_of).name).should_be("cid"); };
+    test("min_by takes the first on a tie") { expect(collections<person>.min_by(crowd, age_of).name).should_be("bob"); };
+    try { collections<int>.max_of(empty, value_of); test("max_of empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("max_of empty") { }; }
+    try { collections<int>.min_of(empty, value_of); test("min_of empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("min_of empty") { }; }
+    try { collections<int>.average_of(empty, value_of); test("average_of empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("average_of empty") { }; }
+    try { collections<person>.max_by(new list<person>(), age_of); test("max_by empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("max_by empty") { }; }
+    try { collections<person>.min_by(new list<person>(), age_of); test("min_by empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("min_by empty") { }; }
 
-    expect_str("reversed", join(collections<int>.reversed(n)), "5,7,2,9,4");
-    expect_str("reversed empty", join(collections<int>.reversed(empty)), "");
-    expect_str("sorted_with", join(collections<int>.sorted_with(n, ascending)), "2,4,5,7,9");
-    expect_str("sorted_with leaves the source", join(n), "4,9,2,7,5");
-    expect_str("sorted_by", join(collections<int>.sorted_by(n, value_of)), "2,4,5,7,9");
-    expect_str("sorted_by_descending", join(collections<int>.sorted_by_descending(n, value_of)), "9,7,5,4,2");
-    expect_str("sorted_by empty", join(collections<int>.sorted_by(empty, value_of)), "");
-    expect_str("sorted_by one element", join(collections<int>.sorted_by(numbers(3, 3), value_of)), "3");
+    test("reversed") { expect(join(collections<int>.reversed(n))).should_be("5,7,2,9,4"); };
+    test("reversed empty") { expect(join(collections<int>.reversed(empty))).should_be(""); };
+    test("sorted_with") { expect(join(collections<int>.sorted_with(n, ascending))).should_be("2,4,5,7,9"); };
+    test("sorted_with leaves the source") { expect(join(n)).should_be("4,9,2,7,5"); };
+    test("sorted_by") { expect(join(collections<int>.sorted_by(n, value_of))).should_be("2,4,5,7,9"); };
+    test("sorted_by_descending") { expect(join(collections<int>.sorted_by_descending(n, value_of))).should_be("9,7,5,4,2"); };
+    test("sorted_by empty") { expect(join(collections<int>.sorted_by(empty, value_of))).should_be(""); };
+    test("sorted_by one element") { expect(join(collections<int>.sorted_by(numbers(3, 3), value_of))).should_be("3"); };
     // equal ages keep their order (bob before dee) in both directions
-    expect_str("sorted_by is stable", names(collections<person>.sorted_by(crowd, age_of)), "bob,dee,ann,eve,cid");
-    expect_str("sorted_by_descending is stable", names(collections<person>.sorted_by_descending(crowd, age_of)), "cid,eve,ann,bob,dee");
-    expect_str("sorted_with a lambda", names(collections<person>.sorted_with(crowd, { a: person, b: person -> (decimal) return b.age - a.age; })), "cid,eve,ann,bob,dee");
+    test("sorted_by is stable") { expect(names(collections<person>.sorted_by(crowd, age_of))).should_be("bob,dee,ann,eve,cid"); };
+    test("sorted_by_descending is stable") { expect(names(collections<person>.sorted_by_descending(crowd, age_of))).should_be("cid,eve,ann,bob,dee"); };
+    test("sorted_with a lambda") { expect(names(collections<person>.sorted_with(crowd, { a: person, b: person -> (decimal) return b.age - a.age; }))).should_be("cid,eve,ann,bob,dee"); };
 
     // scale: sorted_by on 5000 pseudo random numbers
     big := new list<int>();
@@ -183,60 +183,60 @@ def test_numbers_and_order() {
     for(i : decimal = 1; i < 5000; i++) {
         if(sorted.at(i - 1).value > sorted.at(i).value) in_order = 0;
     }
-    expect("sorted_by 5000: size", sorted.size().value, 5000);
-    expect("sorted_by 5000: ascending", in_order, 1);
-    expect("sorted_by 5000: same sum", collections<int>.sum_of(sorted, value_of), collections<int>.sum_of(big, value_of));
-    expect("sorted_by 5000: first is the minimum", sorted.at(0).value, collections<int>.min_of(big, value_of));
-    expect("sorted_by 5000: last is the maximum", sorted.at(4999).value, collections<int>.max_of(big, value_of));
+    test("sorted_by 5000: size") { expect(sorted.size().value).should_be(5000); };
+    test("sorted_by 5000: ascending") { expect(in_order).should_be(1); };
+    test("sorted_by 5000: same sum") { expect(collections<int>.sum_of(sorted, value_of)).should_be(collections<int>.sum_of(big, value_of)); };
+    test("sorted_by 5000: first is the minimum") { expect(sorted.at(0).value).should_be(collections<int>.min_of(big, value_of)); };
+    test("sorted_by 5000: last is the maximum") { expect(sorted.at(4999).value).should_be(collections<int>.max_of(big, value_of)); };
 }
 
 def test_combining() {
     n := numbers(1, 5);
     empty := new list<int>();
 
-    expect_str("plus", join(collections<int>.plus(n, numbers(8, 9))), "1,2,3,4,5,8,9");
-    expect_str("plus empty", join(collections<int>.plus(empty, n)), "1,2,3,4,5");
+    test("plus") { expect(join(collections<int>.plus(n, numbers(8, 9)))).should_be("1,2,3,4,5,8,9"); };
+    test("plus empty") { expect(join(collections<int>.plus(empty, n))).should_be("1,2,3,4,5"); };
 
     chunks := collections<int>.chunked(n, 2);
-    expect("chunked count", chunks.size().value, 3);
-    expect_str("chunked first", join(chunks.at(0)), "1,2");
-    expect_str("chunked second", join(chunks.at(1)), "3,4");
-    expect_str("chunked remainder", join(chunks.at(2)), "5");
-    expect("chunked exact", collections<int>.chunked(numbers(1, 6), 3).size().value, 2);
-    expect("chunked bigger than the source", collections<int>.chunked(n, 10).size().value, 1);
-    expect("chunked empty", collections<int>.chunked(empty, 2).size().value, 0);
-    try { collections<int>.chunked(n, 0); fail("chunked 0", "did not throw"); } catch(e: illegal_argument_exception) { pass("chunked 0"); }
+    test("chunked count") { expect(chunks.size().value).should_be(3); };
+    test("chunked first") { expect(join(chunks.at(0))).should_be("1,2"); };
+    test("chunked second") { expect(join(chunks.at(1))).should_be("3,4"); };
+    test("chunked remainder") { expect(join(chunks.at(2))).should_be("5"); };
+    test("chunked exact") { expect(collections<int>.chunked(numbers(1, 6), 3).size().value).should_be(2); };
+    test("chunked bigger than the source") { expect(collections<int>.chunked(n, 10).size().value).should_be(1); };
+    test("chunked empty") { expect(collections<int>.chunked(empty, 2).size().value).should_be(0); };
+    try { collections<int>.chunked(n, 0); test("chunked 0") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("chunked 0") { }; }
 
-    expect_str("flatten", join(collections<int>.flatten(chunks)), "1,2,3,4,5");
-    expect_str("flatten empty", join(collections<int>.flatten(new list<list<int> >())), "");
+    test("flatten") { expect(join(collections<int>.flatten(chunks))).should_be("1,2,3,4,5"); };
+    test("flatten empty") { expect(join(collections<int>.flatten(new list<list<int> >()))).should_be(""); };
 
     windows := collections<int>.windowed(n, 3);
-    expect("windowed count", windows.size().value, 3);
-    expect_str("windowed first", join(windows.at(0)), "1,2,3");
-    expect_str("windowed last", join(windows.at(2)), "3,4,5");
-    expect("windowed too long", collections<int>.windowed(n, 6).size().value, 0);
-    try { collections<int>.windowed(n, 0); fail("windowed 0", "did not throw"); } catch(e: illegal_argument_exception) { pass("windowed 0"); }
+    test("windowed count") { expect(windows.size().value).should_be(3); };
+    test("windowed first") { expect(join(windows.at(0))).should_be("1,2,3"); };
+    test("windowed last") { expect(join(windows.at(2))).should_be("3,4,5"); };
+    test("windowed too long") { expect(collections<int>.windowed(n, 6).size().value).should_be(0); };
+    try { collections<int>.windowed(n, 0); test("windowed 0") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("windowed 0") { }; }
 
-    expect("reduce sum", collections<int>.reduce(n, { a: int, b: int -> (int) return a.value + b.value; }).value, 15);
-    expect("reduce product", collections<int>.reduce(n, { a: int, b: int -> (int) return a.value * b.value; }).value, 120);
-    expect("reduce one element", collections<int>.reduce(numbers(7, 7), { a: int, b: int -> (int) return a.value + b.value; }).value, 7);
-    try { collections<int>.reduce(empty, { a: int, b: int -> (int) return a.value + b.value; }); fail("reduce empty", "did not throw"); } catch(e: no_such_element_exception) { pass("reduce empty"); }
+    test("reduce sum") { expect(collections<int>.reduce(n, { a: int, b: int -> (int) return a.value + b.value; }).value).should_be(15); };
+    test("reduce product") { expect(collections<int>.reduce(n, { a: int, b: int -> (int) return a.value * b.value; }).value).should_be(120); };
+    test("reduce one element") { expect(collections<int>.reduce(numbers(7, 7), { a: int, b: int -> (int) return a.value + b.value; }).value).should_be(7); };
+    try { collections<int>.reduce(empty, { a: int, b: int -> (int) return a.value + b.value; }); test("reduce empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("reduce empty") { }; }
 
     seen := new list<int>();
     collections<int>.for_each(n, { x: int -> seen.add(x); });
-    expect_str("for_each", join(seen), "1,2,3,4,5");
+    test("for_each") { expect(join(seen)).should_be("1,2,3,4,5"); };
 
-    expect_str("join_to_string", collections<int>.join_to_string(n, ", "), "1, 2, 3, 4, 5");
-    expect_str("join_to_string with prefix and postfix", collections<int>.join_to_string(n, "-", "[", "]"), "[1-2-3-4-5]");
-    expect_str("join_to_string one element", collections<int>.join_to_string(numbers(4, 4), ", "), "4");
-    expect_str("join_to_string empty", collections<int>.join_to_string(empty, ", "), "");
-    expect_str("join_to_string empty with brackets", collections<int>.join_to_string(empty, ", ", "<", ">"), "<>");
-    expect_str("join_to_string with an empty separator", collections<int>.join_to_string(n, ""), "12345");
-    expect_str("join_to_string strings", collections<string>.join_to_string(arrays<string>.to_list(new string[] { "a", "b", "c" }), "/"), "a/b/c");
+    test("join_to_string") { expect(collections<int>.join_to_string(n, ", ")).should_be("1, 2, 3, 4, 5"); };
+    test("join_to_string with prefix and postfix") { expect(collections<int>.join_to_string(n, "-", "[", "]")).should_be("[1-2-3-4-5]"); };
+    test("join_to_string one element") { expect(collections<int>.join_to_string(numbers(4, 4), ", ")).should_be("4"); };
+    test("join_to_string empty") { expect(collections<int>.join_to_string(empty, ", ")).should_be(""); };
+    test("join_to_string empty with brackets") { expect(collections<int>.join_to_string(empty, ", ", "<", ">")).should_be("<>"); };
+    test("join_to_string with an empty separator") { expect(collections<int>.join_to_string(n, "")).should_be("12345"); };
+    test("join_to_string strings") { expect(collections<string>.join_to_string(arrays<string>.to_list(new string[] { "a", "b", "c" }), "/")).should_be("a/b/c"); };
 
-    expect_str("to_list", join(collections<int>.to_list(n)), "1,2,3,4,5");
-    expect("to_array", sizeof(collections<int>.to_array(n)), 5);
-    expect("to_array of empty", sizeof(collections<int>.to_array(empty)), 0);
+    test("to_list") { expect(join(collections<int>.to_list(n))).should_be("1,2,3,4,5"); };
+    test("to_array") { expect(sizeof(collections<int>.to_array(n))).should_be(5); };
+    test("to_array of empty") { expect(sizeof(collections<int>.to_array(empty))).should_be(0); };
 }
 
 /** the same helpers on the other collections: anything loopable is a source */
@@ -254,16 +254,16 @@ def test_other_sources() {
         pile.push(x);
     }
 
-    expect_str("linked_list source", join(collections<int>.filter(linked, is_even)), "6,4");
-    expect_str("deque source", join(collections<int>.to_list(ring)), "3,1,4,1,6");
-    expect_str("hash_set source", join(collections<int>.sorted_by(unique, value_of)), "1,3,4,6");
-    expect_str("tree_set source", join(collections<int>.take(ordered, 2)), "1,3");
-    expect_str("stack source", join(collections<int>.to_list(pile)), "3,1,4,1,6");
-    expect("sum over a linked_list", collections<int>.sum_of(linked, value_of), 15);
-    expect("any over an empty deque", collections<int>.any(new deque<int>(), is_even), 0);
-    expect("count over a tree_set", collections<int>.count(ordered, is_even), 2);
-    expect_str("distinct over a deque", join(collections<int>.distinct(ring)), "3,1,4,6");
-    expect("first of a priority_queue is its smallest", collections<int>.first(make_heap()).value, 2);
+    test("linked_list source") { expect(join(collections<int>.filter(linked, is_even))).should_be("6,4"); };
+    test("deque source") { expect(join(collections<int>.to_list(ring))).should_be("3,1,4,1,6"); };
+    test("hash_set source") { expect(join(collections<int>.sorted_by(unique, value_of))).should_be("1,3,4,6"); };
+    test("tree_set source") { expect(join(collections<int>.take(ordered, 2))).should_be("1,3"); };
+    test("stack source") { expect(join(collections<int>.to_list(pile))).should_be("3,1,4,1,6"); };
+    test("sum over a linked_list") { expect(collections<int>.sum_of(linked, value_of)).should_be(15); };
+    test("any over an empty deque") { expect(collections<int>.any(new deque<int>(), is_even)).should_be(0); };
+    test("count over a tree_set") { expect(collections<int>.count(ordered, is_even)).should_be(2); };
+    test("distinct over a deque") { expect(join(collections<int>.distinct(ring))).should_be("3,1,4,6"); };
+    test("first of a priority_queue is its smallest") { expect(collections<int>.first(make_heap()).value).should_be(2); };
 }
 
 def make_heap() : priority_queue<int> {
@@ -273,10 +273,13 @@ def make_heap() : priority_queue<int> {
 }
 
 def main(args: string[]) {
-    test_filtering();
-    test_questions();
-    test_numbers_and_order();
-    test_combining();
-    test_other_sources();
-    finish("lib_collections_functional");
+    show_only_failures();
+    tests("lib_collections_functional") {
+        test_filtering();
+        test_questions();
+        test_numbers_and_order();
+        test_combining();
+        test_other_sources();
+    };
+    finish_tests();
 }

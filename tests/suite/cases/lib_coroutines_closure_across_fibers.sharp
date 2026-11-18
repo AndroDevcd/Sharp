@@ -1,7 +1,7 @@
 mod main;
 
 import (
-    testing,
+    std.testing,
     std.io.fiber
 )
 
@@ -41,25 +41,27 @@ def call_it(block: ()()) {
 }
 
 def main(args: string[]) {
-    captured := new box();
-    captured.value = 7;
+    show_only_failures();
+    tests("lib_coroutines_closure_across_fibers") {
+        captured := new box();
+        captured.value = 7;
 
-    // 1. the lambda runs on the fiber that created it
-    same := new box();
-    call_it({ -> same.value = captured.value; });
-    expect("a captured local on the same fiber", same.value, 7);
+        // 1. the lambda runs on the fiber that created it
+        same := new box();
+        call_it({ -> same.value = captured.value; });
+        test("a captured local on the same fiber") { expect(same.value).should_be(7); };
 
-    // 2. the same kind of lambda runs on another fiber
-    slice({ a: object[] -> (int)
-        seen_on_other_fiber.value = captured.value;     // `captured` is null here
-        finished.value = 1;
-        return 0;
-    });
+        // 2. the same kind of lambda runs on another fiber
+        slice({ a: object[] -> (int)
+            seen_on_other_fiber.value = captured.value;     // `captured` is null here
+            finished.value = 1;
+            return 0;
+        });
 
-    for(i : decimal = 0; i < 200 && finished.value == 0; i++) {
-        delay(5);
-    }
-    expect("a captured local on another fiber", seen_on_other_fiber.value, 7);
-
-    finish("lib_coroutines_closure_across_fibers");
+        for(i : decimal = 0; i < 200 && finished.value == 0; i++) {
+            delay(5);
+        }
+        test("a captured local on another fiber") { expect(seen_on_other_fiber.value).should_be(7); };
+    };
+    finish_tests();
 }

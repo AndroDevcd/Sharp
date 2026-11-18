@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing, std.collections )
+import ( std.testing, std.collections )
 
 /**
  * std.collections - transforms<T, R>, the Kotlin style helpers that produce another
@@ -65,65 +65,68 @@ def test_transforms() {
     crowd := people();
 
     doubled := transforms<int, int>.map(n, { x: int -> (int) return x.value * 2; });
-    expect_str("map", join(doubled), "2,4,6,8,10");
-    expect_str("map of empty", join(transforms<int, int>.map(empty, { x: int -> (int) return x.value * 2; })), "");
+    test("map") { expect(join(doubled)).should_be("2,4,6,8,10"); };
+    test("map of empty") { expect(join(transforms<int, int>.map(empty, { x: int -> (int) return x.value * 2; }))).should_be(""); };
     cities := transforms<person, string>.map(crowd, city_of);
-    expect_str("map to another type", collections<string>.join_to_string(cities, ","), "oslo,rome,oslo,bern,rome");
+    test("map to another type") { expect(collections<string>.join_to_string(cities, ",")).should_be("oslo,rome,oslo,bern,rome"); };
     lengths := transforms<string, int>.map(cities, { s: string -> (int) return s.size(); });
-    expect("map string -> int", collections<int>.sum_of(lengths, value_of), 20);
-    expect_str("map_indexed", join(transforms<int, int>.map_indexed(n, { i: int, x: int -> (int) return i.value * 10 + x.value; })), "1,12,23,34,45");
+    test("map string -> int") { expect(collections<int>.sum_of(lengths, value_of)).should_be(20); };
+    test("map_indexed") { expect(join(transforms<int, int>.map_indexed(n, { i: int, x: int -> (int) return i.value * 10 + x.value; }))).should_be("1,12,23,34,45"); };
 
-    expect_str("flat_map", join(transforms<int, int>.flat_map(numbers(1, 3), { x: int -> (list<int>) return numbers(1, x.value); })), "1,1,2,1,2,3");
-    expect_str("flat_map empty", join(transforms<int, int>.flat_map(empty, { x: int -> (list<int>) return numbers(1, x.value); })), "");
+    test("flat_map") { expect(join(transforms<int, int>.flat_map(numbers(1, 3), { x: int -> (list<int>) return numbers(1, x.value); }))).should_be("1,1,2,1,2,3"); };
+    test("flat_map empty") { expect(join(transforms<int, int>.flat_map(empty, { x: int -> (list<int>) return numbers(1, x.value); }))).should_be(""); };
 
-    expect("fold sum", transforms<int, int>.fold(n, 10, { sum: int, x: int -> (int) return sum.value + x.value; }).value, 25);
-    expect("fold of empty is the start value", transforms<int, int>.fold(empty, 10, { sum: int, x: int -> (int) return sum.value + x.value; }).value, 10);
-    expect_str("fold to another type", transforms<person, string>.fold(crowd, "", { text: string, p: person -> (string) return text + p.name; }), "annbobciddeeeve");
+    test("fold sum") { expect(transforms<int, int>.fold(n, 10, { sum: int, x: int -> (int) return sum.value + x.value; }).value).should_be(25); };
+    test("fold of empty is the start value") { expect(transforms<int, int>.fold(empty, 10, { sum: int, x: int -> (int) return sum.value + x.value; }).value).should_be(10); };
+    test("fold to another type") { expect(transforms<person, string>.fold(crowd, "", { text: string, p: person -> (string) return text + p.name; })).should_be("annbobciddeeeve"); };
 
     groups := transforms<person, string>.group_by(crowd, city_of);
-    expect("group_by number of groups", groups.size(), 3);
-    expect_str("group_by keys in first-seen order", collections<string>.join_to_string(groups.keys(), ","), "oslo,rome,bern");
-    expect_str("group_by oslo", names(groups.at("oslo")!!), "ann,cid");
-    expect_str("group_by rome", names(groups.at("rome")!!), "bob,eve");
-    expect_str("group_by bern", names(groups.at("bern")!!), "dee");
-    expect("group_by of empty", transforms<person, string>.group_by(new list<person>(), city_of).size(), 0);
+    test("group_by number of groups") { expect(groups.size()).should_be(3); };
+    test("group_by keys in first-seen order") { expect(collections<string>.join_to_string(groups.keys(), ",")).should_be("oslo,rome,bern"); };
+    test("group_by oslo") { expect(names(groups.at("oslo")!!)).should_be("ann,cid"); };
+    test("group_by rome") { expect(names(groups.at("rome")!!)).should_be("bob,eve"); };
+    test("group_by bern") { expect(names(groups.at("bern")!!)).should_be("dee"); };
+    test("group_by of empty") { expect(transforms<person, string>.group_by(new list<person>(), city_of).size()).should_be(0); };
     parity := transforms<int, int>.group_by(numbers(1, 7), { x: int -> (int) return x.value % 3; });
-    expect_str("group_by int keys: 1", join(parity.at(1)!!), "1,4,7");
-    expect_str("group_by int keys: 0", join(parity.at(0)!!), "3,6");
+    test("group_by int keys: 1") { expect(join(parity.at(1)!!)).should_be("1,4,7"); };
+    test("group_by int keys: 0") { expect(join(parity.at(0)!!)).should_be("3,6"); };
 
     by_name := transforms<person, string>.associate_by(crowd, name_of);
-    expect("associate_by size", by_name.size(), 5);
-    expect("associate_by lookup", by_name.at("cid")!!.age, 42);
+    test("associate_by size") { expect(by_name.size()).should_be(5); };
+    test("associate_by lookup") { expect(by_name.at("cid")!!.age).should_be(42); };
     by_city := transforms<person, string>.associate_by(crowd, city_of);
-    expect("associate_by: equal keys collapse", by_city.size(), 3);
-    expect_str("associate_by: the last one wins", by_city.at("oslo")!!.name, "cid");
+    test("associate_by: equal keys collapse") { expect(by_city.size()).should_be(3); };
+    test("associate_by: the last one wins") { expect(by_city.at("oslo")!!.name).should_be("cid"); };
     squares := transforms<int, int>.associate_with(n, { x: int -> (int) return x.value * x.value; });
-    expect("associate_with size", squares.size(), 5);
-    expect("associate_with lookup", squares.at(4)!!.value, 16);
+    test("associate_with size") { expect(squares.size()).should_be(5); };
+    test("associate_with lookup") { expect(squares.at(4)!!.value).should_be(16); };
 
     pairs := transforms<int, string>.zip(n, cities);
-    expect("zip size", pairs.size().value, 5);
-    expect("zip first.first", pairs.at(0).first.value, 1);
-    expect_str("zip first.second", pairs.at(0).second, "oslo");
-    expect_str("zip last.second", pairs.at(4).second, "rome");
-    expect("zip stops at the shorter one", transforms<int, int>.zip(n, numbers(1, 2)).size().value, 2);
-    expect("zip with empty", transforms<int, int>.zip(n, empty).size().value, 0);
+    test("zip size") { expect(pairs.size().value).should_be(5); };
+    test("zip first.first") { expect(pairs.at(0).first.value).should_be(1); };
+    test("zip first.second") { expect(pairs.at(0).second).should_be("oslo"); };
+    test("zip last.second") { expect(pairs.at(4).second).should_be("rome"); };
+    test("zip stops at the shorter one") { expect(transforms<int, int>.zip(n, numbers(1, 2)).size().value).should_be(2); };
+    test("zip with empty") { expect(transforms<int, int>.zip(n, empty).size().value).should_be(0); };
 
-    expect_str("distinct_by", names(transforms<person, string>.distinct_by(crowd, city_of)), "ann,bob,dee");
+    test("distinct_by") { expect(names(transforms<person, string>.distinct_by(crowd, city_of))).should_be("ann,bob,dee"); };
 
     // scale: group 6000 numbers by their remainder, map them back
     big := numbers(1, 6000);
     by_remainder := transforms<int, int>.group_by(big, { x: int -> (int) return x.value % 7; });
-    expect("group_by 6000: groups", by_remainder.size(), 7);
-    expect("group_by 6000: size of group 0", by_remainder.at(0)!!.size().value, 857);
-    expect("group_by 6000: size of group 1", by_remainder.at(1)!!.size().value, 858);
+    test("group_by 6000: groups") { expect(by_remainder.size()).should_be(7); };
+    test("group_by 6000: size of group 0") { expect(by_remainder.at(0)!!.size().value).should_be(857); };
+    test("group_by 6000: size of group 1") { expect(by_remainder.at(1)!!.size().value).should_be(858); };
     total : decimal = 0;
     foreach(entry in by_remainder) { total += entry.value.size().value; }
-    expect("group_by 6000: nothing lost", total, 6000);
-    expect("map + fold 6000", transforms<int, int>.fold(transforms<int, int>.map(big, { x: int -> (int) return x.value * 2; }), 0, { sum: int, x: int -> (int) return sum.value + x.value; }).value, 36006000);
+    test("group_by 6000: nothing lost") { expect(total).should_be(6000); };
+    test("map + fold 6000") { expect(transforms<int, int>.fold(transforms<int, int>.map(big, { x: int -> (int) return x.value * 2; }), 0, { sum: int, x: int -> (int) return sum.value + x.value; }).value).should_be(36006000); };
 }
 
 def main(args: string[]) {
-    test_transforms();
-    finish("lib_collections_transforms");
+    show_only_failures();
+    tests("lib_collections_transforms") {
+        test_transforms();
+    };
+    finish_tests();
 }

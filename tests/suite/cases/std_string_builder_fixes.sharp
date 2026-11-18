@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * std string_builder: size(), to_string(), ==, +, the copy constructor,
@@ -11,77 +11,79 @@ import ( testing )
  */
 
 def main(args: string[]) {
-    // ---- fixed, used to be wrong (1): size() is one too large; an empty builder has size 1
-    empty := new string_builder();
-    expect("size of a new builder", empty.size().value, 0);
+    show_only_failures();
+    tests("std_string_builder_fixes") {
+        // ---- fixed, used to be wrong (1): size() is one too large; an empty builder has size 1
+        empty := new string_builder();
+        test("size of a new builder") { expect(empty.size().value).should_be(0); };
 
-    sb := new string_builder();
-    sb.append("abc");
-    expect("size after append(\"abc\")", sb.size().value, 3);
+        sb := new string_builder();
+        sb.append("abc");
+        test("size after append(\"abc\")") { expect(sb.size().value).should_be(3); };
 
-    // ---- fixed, used to be wrong (2): to_string() has one character too many: a 0 character at the end,
-    // so the result never equals the text that was appended
-    expect("length of to_string()", sb.to_string()!!.size().value, 3);
-    expect_str("to_string()", sb.to_string()!!, "abc");
-    expect_str("to_string() of an empty builder", empty.to_string()!!, "");
+        // ---- fixed, used to be wrong (2): to_string() has one character too many: a 0 character at the end,
+        // so the result never equals the text that was appended
+        test("length of to_string()") { expect(sb.to_string()!!.size().value).should_be(3); };
+        test("to_string()") { expect(sb.to_string()!!).should_be("abc"); };
+        test("to_string() of an empty builder") { expect(empty.to_string()!!).should_be(""); };
 
-    // ---- fixed, used to be wrong (3): == with the same text is false (it compares cursor + 1 with the length)
-    expect_true("builder == \"abc\"", (sb == "abc").value);
+        // ---- fixed, used to be wrong (3): == with the same text is false (it compares cursor + 1 with the length)
+        test("builder == \"abc\"") { expect_true((sb == "abc").value); };
 
-    // ---- fixed, used to be wrong (4): + copies the whole 255 character buffer of the left side, so the
-    // appended text lands far behind the original text, after 250 zero characters
-    hello := new string_builder("hello");
-    both := hello + " world";
-    expect("character 5 of \"hello\" + \" world\"", both.at(5).value, ' ');
-    expect("character 6 of \"hello\" + \" world\"", both.at(6).value, 'w');
+        // ---- fixed, used to be wrong (4): + copies the whole 255 character buffer of the left side, so the
+        // appended text lands far behind the original text, after 250 zero characters
+        hello := new string_builder("hello");
+        both := hello + " world";
+        test("character 5 of \"hello\" + \" world\"") { expect(both.at(5).value).should_be(' '); };
+        test("character 6 of \"hello\" + \" world\"") { expect(both.at(6).value).should_be('w'); };
 
-    // ---- fixed, used to be wrong (5): the copy constructor does the same: the copy of a 5 character
-    // builder reports size 261
-    copied := new string_builder(hello);
-    expect("size of a copy", copied.size().value, 5);
+        // ---- fixed, used to be wrong (5): the copy constructor does the same: the copy of a 5 character
+        // builder reports size 261
+        copied := new string_builder(hello);
+        test("size of a copy") { expect(copied.size().value).should_be(5); };
 
-    // ---- fixed, used to be wrong (6): substring() gives a builder whose cursor was never set (size 1)
-    part := new string_builder("abcdefgh").substring(2, 5);
-    expect("size of substring(2, 5)", part.size().value, 3);
+        // ---- fixed, used to be wrong (6): substring() gives a builder whose cursor was never set (size 1)
+        part := new string_builder("abcdefgh").substring(2, 5);
+        test("size of substring(2, 5)") { expect(part.size().value).should_be(3); };
 
-    // ---- fixed, used to be wrong (7): at(length) is allowed (it gives the 0 character) instead of throwing
-    threw : decimal = 0;
-    try {
-        sb.at(3);
-    } catch(e: out_of_bounds_exception) {
-        threw = 1;
-    }
-    expect("at(3) of \"abc\" throws", threw, 1);
-
-    // ---- fixed, used to be wrong (8): ends_with throws out_of_bounds_exception for a matching ending
-    // (it indexes the postfix with the position in the builder: `postfix[i]`)
-    result : decimal = 0;
-    try {
-        if(hello.ends_with("lo").value) {
-            result = 1;
+        // ---- fixed, used to be wrong (7): at(length) is allowed (it gives the 0 character) instead of throwing
+        threw : decimal = 0;
+        try {
+            sb.at(3);
+        } catch(e: out_of_bounds_exception) {
+            threw = 1;
         }
-    } catch(e: out_of_bounds_exception) {
-        result = 2;
-    }
-    expect("\"hello\" ends_with \"lo\"", result, 1);
+        test("at(3) of \"abc\" throws") { expect(threw).should_be(1); };
 
-    // ---- fixed, used to be wrong (9): after `builder = ""` the next append throws invalid_operation_exception
-    // ("invalid call to memcopy(); dest start: -1"): the empty string arrives in
-    // operator= as null, which sets cursor to -1
-    result = 0;
-    emptied := new string_builder("first");
-    emptied = "";
-    try {
-        emptied.append("next");
-        result = 1;
-    } catch(e: exception) {
-        result = 2;
-    }
-    expect("append after = \"\"", result, 1);
+        // ---- fixed, used to be wrong (8): ends_with throws out_of_bounds_exception for a matching ending
+        // (it indexes the postfix with the position in the builder: `postfix[i]`)
+        result : decimal = 0;
+        try {
+            if(hello.ends_with("lo").value) {
+                result = 1;
+            }
+        } catch(e: out_of_bounds_exception) {
+            result = 2;
+        }
+        test("\"hello\" ends_with \"lo\"") { expect(result).should_be(1); };
 
-    // ---- STILL OPEN, a compile error so it cannot be a check: += with a char object or with an object of a user class that is
-    // printable does not compile ("call to method `operator+=` is ambiguous" between
-    // the printable, string and string_builder versions) - nothing to run here.
+        // ---- fixed, used to be wrong (9): after `builder = ""` the next append throws invalid_operation_exception
+        // ("invalid call to memcopy(); dest start: -1"): the empty string arrives in
+        // operator= as null, which sets cursor to -1
+        result = 0;
+        emptied := new string_builder("first");
+        emptied = "";
+        try {
+            emptied.append("next");
+            result = 1;
+        } catch(e: exception) {
+            result = 2;
+        }
+        test("append after = \"\"") { expect(result).should_be(1); };
 
-    finish("std_string_builder_fixes");
+        // ---- STILL OPEN, a compile error so it cannot be a check: += with a char object or with an object of a user class that is
+        // printable does not compile ("call to method `operator+=` is ambiguous" between
+        // the printable, string and string_builder versions) - nothing to run here.
+    };
+    finish_tests();
 }

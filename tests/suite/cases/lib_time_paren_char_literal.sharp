@@ -1,6 +1,6 @@
 mod main;
 
-import ( testing )
+import ( std.testing )
 
 /**
  * KNOWN BUG (compiler, parser): the character literal ')' as the LAST
@@ -33,10 +33,12 @@ class sink {
 }
 
 def main(args: string[]) {
-    s := new sink();
-    s.put('(').put_number(5).put(')');
-    expect("three calls were made", s.count, 3);
-    expect("the last character is a closing parenthesis", s.last, 41);
-
-    finish("lib_time_paren_char_literal");
+    show_only_failures();
+    tests("lib_time_paren_char_literal") {
+        s := new sink();
+        s.put('(').put_number(5).put(')');
+        test("three calls were made") { expect(s.count).should_be(3); };
+        test("the last character is a closing parenthesis") { expect(s.last).should_be(41); };
+    };
+    finish_tests();
 }

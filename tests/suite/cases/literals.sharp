@@ -42,7 +42,7 @@ def main(args: string[]) {
     expect_near("0.1 * 3", 0.1 * 3, 0.3, 0.000000001);
     expect_near("0.000001 * 1000000", 0.000001 * 1000000, 1, 0.000000001);
     pi : decimal = 3.25;
-    expect_str("a fraction as text has 16 decimals", "$pi", "3.2500000000000000");
+    expect_str("a fraction as text is written the short way", "$pi", "3.25");
 
     // ---- digit separators
     expect("1_000", 1_000, 1000);

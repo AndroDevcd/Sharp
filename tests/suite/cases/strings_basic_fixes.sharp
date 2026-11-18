@@ -46,7 +46,7 @@ def main(args: string[]) {
     fraction : decimal = 2.5;
     s4 := "x";
     s4 += fraction;
-    expect_str("s += var", s4, "x2.5000000000000000");
+    expect_str("s += var", s4, "x2.5");
 
     // ---- BUG 5: a string object + a whole number literal past 32 bits is cut to 32 bits
     //      today: "n=0" and "n=-727379968" ("n=" + 4294967296 with two literals is right)
@@ -55,7 +55,7 @@ def main(args: string[]) {
     expect_str("string + 1000000000000", prefix + 1000000000000, "n=1000000000000");
 
     // ---- BUG 6: a literal sum prints with decimals although a single literal does not
-    //      today: "n" + 5 is "n5", but "n" + (2 + 3) is "n5.0000000000000000"
+    //      today: "n" + 5 is "n5", but "n" + (2 + 3) is "n5"
     expect_str("string + (2 + 3)", "n" + (2 + 3), "n5");
 
     // ---- BUG 7: comparing a null string with null throws nullptr_exception

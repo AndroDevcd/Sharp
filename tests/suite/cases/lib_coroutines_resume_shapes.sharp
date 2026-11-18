@@ -1,7 +1,7 @@
 mod main;
 
 import (
-    testing,
+    std.testing,
     std.io.fiber,
     std.io.coroutines
 )
@@ -168,47 +168,50 @@ def hot_caller(n: decimal) : decimal {
 }
 
 def main(args: string[]) {
-    // A and F: these are machine code before any coroutine exists
-    for(i : decimal = 1; i <= 30; i++) {
-        both_hot(i);
-        hot_caller(i);
-    }
-
-    jobs := new list<job>();
-    lock(guard) {
-        for(i : decimal = 0; i < 4; i++) {
-            jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_a, both_hot(0)); }));
-            jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_b, deep(6, 1)); }));
-            jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_c, top(0)); }));
-            jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_d, looper(0)); }));
-            jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_e, catcher(0)); }));
-            jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_f, hot_caller(0)); }));
+    show_only_failures();
+    tests("lib_coroutines_resume_shapes") {
+        // A and F: these are machine code before any coroutine exists
+        for(i : decimal = 1; i <= 30; i++) {
+            both_hot(i);
+            hot_caller(i);
         }
 
-        // let every coroutine reach the lock and wait for it
-        delay(300);
+        jobs := new list<job>();
+        lock(guard) {
+            for(i : decimal = 0; i < 4; i++) {
+                jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_a, both_hot(0)); }));
+                jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_b, deep(6, 1)); }));
+                jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_c, top(0)); }));
+                jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_d, looper(0)); }));
+                jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_e, catcher(0)); }));
+                jobs.add(launch_on(dispatchers.default_pool(), { -> record(sum_f, hot_caller(0)); }));
+            }
 
-        // compile what they are waiting in
-        for(i : decimal = 0; i < 25; i++) {
-            deep(6, 0);
-            top(1);
-            looper(1);
-            catcher(1);
-            late(1);
+            // let every coroutine reach the lock and wait for it
+            delay(300);
+
+            // compile what they are waiting in
+            for(i : decimal = 0; i < 25; i++) {
+                deep(6, 0);
+                top(1);
+                looper(1);
+                catcher(1);
+                late(1);
+            }
         }
-    }
 
-    foreach(j in jobs) {
-        j.join();
-    }
+        foreach(j in jobs) {
+            j.join();
+        }
 
-    expect("A two machine frames", sum_a.value, 4 * 111);
-    expect("B seven frames of one function", sum_b.value, 4 * 43);
-    expect("C the function on top", sum_c.value, 4 * 14);
-    expect("D a hot loop after the wait", sum_d.value, 4 * 12497505);
-    expect("E an exception after the wait", sum_e.value, 4 * 42);
-    expect("E every exception was caught", caught.value, 4);
-    expect("F a machine frame below an interpreted one", sum_f.value, 4 * 1021);
-    expect("every coroutine got the lock", waited.value, 24);
-    finish("lib_coroutines_resume_shapes");
+        test("A two machine frames") { expect(sum_a.value).should_be(4 * 111); };
+        test("B seven frames of one function") { expect(sum_b.value).should_be(4 * 43); };
+        test("C the function on top") { expect(sum_c.value).should_be(4 * 14); };
+        test("D a hot loop after the wait") { expect(sum_d.value).should_be(4 * 12497505); };
+        test("E an exception after the wait") { expect(sum_e.value).should_be(4 * 42); };
+        test("E every exception was caught") { expect(caught.value).should_be(4); };
+        test("F a machine frame below an interpreted one") { expect(sum_f.value).should_be(4 * 1021); };
+        test("every coroutine got the lock") { expect(waited.value).should_be(24); };
+    };
+    finish_tests();
 }
