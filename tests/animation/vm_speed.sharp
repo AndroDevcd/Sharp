@@ -1,0 +1,91 @@
+mod app;
+
+import (
+    std,
+    std.math,
+    std.text
+)
+
+/**
+ * HOW FAST IS THE VM HERE? Seven small loops, each timed - no window, no drawing.
+ *
+ *      sharpc tests/animation/vm_speed.sharp -o vm_speed
+ *      sharp vm_speed
+ *
+ * Run it on two machines and compare line by line: a line that is far slower
+ * than the others, compared with the other machine, is what the VM does badly
+ * there (whole numbers on a 32-bit CPU, calls, making objects ...).
+ */
+
+def add_one(n: decimal) : decimal {
+    return n + 1;
+}
+
+class counter {
+    value : decimal = 0;
+
+    def bump() {
+        value = value + 1;
+    }
+}
+
+def now() : decimal {
+    return time.mills_time().value;
+}
+
+def report(what: string, began: decimal, times: decimal) {
+    took : decimal = now() - began;
+    println(what + ": " + took + " ms   (" + number_to_fixed(took * 1000000 / times, 0) + " ns each)");
+}
+
+def main() {
+    began : decimal = now();
+    total : decimal = 0;
+    for(i : decimal = 0; i < 5000000; i++) {
+        total = total + i * 0.5;
+    }
+    report("5,000,000 loops of decimal maths", began, 5000000);
+
+    began = now();
+    whole : _int64 = 0;
+    for(i : _int64 = 0; i < 5000000; i++) {
+        whole = (whole + i * 3) % 1000003;
+    }
+    report("5,000,000 loops of whole-number maths", began, 5000000);
+
+    began = now();
+    total = 0;
+    for(i : decimal = 0; i < 1000000; i++) {
+        total = add_one(total);
+    }
+    report("1,000,000 function calls", began, 1000000);
+
+    began = now();
+    c := new counter();
+    for(i : decimal = 0; i < 1000000; i++) {
+        c.bump();
+    }
+    report("1,000,000 method calls", began, 1000000);
+
+    began = now();
+    numbers := new decimal[1000];
+    for(i : _int64 = 0; i < 2000000; i++) {
+        numbers[i % 1000] = i;
+    }
+    report("2,000,000 array stores", began, 2000000);
+
+    began = now();
+    total = 0;
+    for(i : decimal = 0; i < 300000; i++) {
+        total = total + sin_of(i);
+    }
+    report("300,000 sines", began, 300000);
+
+    began = now();
+    for(i : decimal = 0; i < 200000; i++) {
+        c = new counter();
+    }
+    report("200,000 objects made", began, 200000);
+
+    println("(checks: " + whole + ", " + c.value + ")");
+}

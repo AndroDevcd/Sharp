@@ -2,8 +2,12 @@
 // See jit_compiler.h for the interface. This file picks the compiler for the
 // CPU the runtime was built for:
 //
-//      x86-64, System V (Linux, macOS on Intel)    jit/x64/x64_compiler.cpp
+//      x86-64 (Linux, macOS on Intel, Windows)     jit/x64/x64_compiler.cpp
 //      anything else                               none: everything is interpreted
+//
+// (Windows passes arguments to C++ in other registers than Linux does: the two
+// places that touch that are call_runtime in x64_generator.cpp and the C++ door
+// in sections/entry.cpp.)
 //
 // A runtime built with -DSHARP_TYPE_CHECK (the number kind checker,
 // memory/type_check.h) has no compiler either: the checker's tags are kept by
@@ -15,7 +19,7 @@
 #include "jit_compiler.h"
 #include "../main.h"
 
-#if defined(SHARP_HAS_ASMJIT) && !defined(_WIN32) && !defined(SHARP_TYPE_CHECK)
+#if defined(SHARP_HAS_ASMJIT) && !defined(SHARP_TYPE_CHECK)
 #define SHARP_JIT_X64
 #include "x64/x64_compiler.h"
 #endif

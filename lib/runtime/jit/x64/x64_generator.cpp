@@ -267,9 +267,36 @@ void X64Generator::set_current_instruction(Int at) {
 //      store_vm_register(n, rax);                      // the result
 // ---------------------------------------------------------------------------------
 
+//
+// TWO WAYS A C++ FUNCTION TAKES ITS ARGUMENTS on x86-64, by system:
+//
+//      Linux, macOS (System V)     rdi, rsi, rdx, rcx
+//      Windows                     rcx, rdx, r8,  r9  - and the caller leaves 32 bytes
+//                                  of stack free above the return address for the callee
+//
+// Everything in opcode/ and sections/ places arguments the first way. On
+// Windows this is the ONE place that knows the difference: the four registers
+// are moved over (in an order that reads each before it is written), the 32
+// bytes are made, and they are given back after the call. r8 and r9 are homes
+// of VM registers, and free here: a call into C++ is only made in memory mode.
+//
+// (Decimals need nothing: a helper takes either whole numbers or decimals, and
+// the first two decimals are in xmm0 and xmm1 on both systems.)
+//
 void X64Generator::call_runtime(void *target) {
+#ifdef _WIN32
+    a.mov(x86::r9, rcx);
+    a.mov(x86::r8, rdx);
+    a.mov(rdx, rsi);
+    a.mov(rcx, rdi);
+    a.mov(rax, (uint64_t)target);
+    a.sub(x86::rsp, 32);
+    a.call(rax);
+    a.add(x86::rsp, 32);
+#else
     a.mov(rax, (uint64_t)target);
     a.call(rax);
+#endif
 }
 
 void X64Generator::call_runtime_checked(void *target) {

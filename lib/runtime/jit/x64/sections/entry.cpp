@@ -47,11 +47,22 @@ void X64Generator::emit_entry() {
     a.push(x86::r13);
     a.push(x86::r14);
     a.push(x86::r15);
+#ifdef _WIN32
+    // On Windows C++ expects rsi and rdi back too (they are homes of VM registers here).
+    // Two more pushes: 16 bytes, so the sum below still comes out right.
+    a.push(x86::rsi);
+    a.push(x86::rdi);
+#endif
     // 6 pushes + the return address = 56 bytes; 8 more make rsp a multiple of 16
     a.sub(x86::rsp, 8);
 
-    a.mov(THREAD, rdi);
+#ifdef _WIN32
+    a.mov(THREAD, rcx);                 // Windows hands over (thread, fun, registers) in rcx, rdx, r8
+    a.mov(REGS, x86::r8);
+#else
+    a.mov(THREAD, rdi);                 // System V: rdi, rsi, rdx
     a.mov(REGS, rdx);
+#endif
     a.mov(TASK, x86::qword_ptr(THREAD, offsetof(sharp_thread, task)));
 
     // if(task->rebuilding) { run the frames above this one; then see what happened }
@@ -94,6 +105,10 @@ void X64Generator::emit_entry() {
 
     a.bind(wrapperExit);
     a.add(x86::rsp, 8);
+#ifdef _WIN32
+    a.pop(x86::rdi);
+    a.pop(x86::rsi);
+#endif
     a.pop(x86::r15);
     a.pop(x86::r14);
     a.pop(x86::r13);
