@@ -43,6 +43,9 @@ def generate_executable(analysed: analysed_program, files: list<string>, written
         request.sni_folder = options.project_dir + "/build/outputs/sni";
         request.sni_only_when_native = 1;
     }
+    // where the project's C libraries are (settings.json "c_libraries"), for the program's extern functions
+    if(options.c_library_places.size() > 0) { request.c_library_places = options.c_library_places; }
+    if(options.compile_mode == compilation_mode.project_mode) { request.project_folder = options.project_dir; }
     request.output = written_to;
     // the name in the manifest is the output's NAME as it was asked for, not the path it ends
     // up at: the same program written into two folders is the same bytes

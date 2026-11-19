@@ -6,6 +6,7 @@
 // OP_FREE_LIBRARY, OP_LINK_FUNC). See interrupt_internal.h for what a handler is.
 //
 #include "../cffi/c_bind.h"
+#include "../cffi/c_callback.h"
 #include "interrupt_internal.h"
 
 //
@@ -79,4 +80,16 @@ void op_c_link_all(Int interrupt) {
     auto strObject = create_object(missing.size(), type_int8);
     copy_object(&push_stack_object, strObject);
     if(strObject && missing.size() > 0) assign_string_field(strObject, missing);
+}
+
+//
+// c_keep(function) / c_drop(function): a function C calls after the call it was handed to has
+// returned keeps its C address until it is dropped (cffi/c_callback.h). The function is popped.
+//
+void op_c_keep(Int interrupt) {
+    c_keep((thread_self->task->sp--)->obj.o);
+}
+
+void op_c_drop(Int interrupt) {
+    c_drop((thread_self->task->sp--)->obj.o);
 }

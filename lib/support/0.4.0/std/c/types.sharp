@@ -114,3 +114,36 @@ def c_check_libraries() {
         throw new unsatisfied_link_error("$missing");
     }
 }
+
+/**
+ * C WILL CALL THIS FUNCTION LATER - after the call it is handed to has
+ * returned (an event handler, a timer, a comparison C stores).
+ *
+ *      on_tick := { interval: c_uint, data: pointer -> println("tick"); return interval; };
+ *      c_keep(on_tick);
+ *      SDL_AddTimer(1000, on_tick, 0);
+ *      ...
+ *      c_drop(on_tick);                    // C no longer has it
+ *
+ * A function handed to an extern function is C's for the length of that call
+ * and no longer: enough for qsort and "call this for each". c_keep says C
+ * keeps it; the function then has ONE address in C until c_drop, however
+ * often it is handed over. Keep it BEFORE it is handed over.
+ *
+ * A callback runs on the thread that made the C call, while a C call of that
+ * thread is running.
+ */
+def c_keep(callback: object) {
+    asm {
+        pushl [callback]
+        int 0x58
+    };
+}
+
+/** C no longer has the function (see c_keep). */
+def c_drop(callback: object) {
+    asm {
+        pushl [callback]
+        int 0x59
+    };
+}

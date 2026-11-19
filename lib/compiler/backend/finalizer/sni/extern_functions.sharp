@@ -39,6 +39,7 @@ import (
  *      a number array               buf                 its items, in place: C reads and writes the array itself
  *      a class based on c_struct    {x:i32 y:i32}       a C struct BY VALUE: the class's fields, in order, are its members
  *      ... written with a `?`       *{x:i32 y:i32}      a POINTER to that struct (null is C's NULL)
+ *      a function type              fn(i32,i32)i32      a Sharp function C can call: (c_int, c_int)(c_int)
  *      nothing after the `:`        void
  *
  * The names c_float, c_long, c_ulong, c_size, c_ssize and pointer are aliases
@@ -123,6 +124,42 @@ def c_member_text(field: sharp_field, depth: _int64) : string {
 }
 
 /**
+ * A function handed to C: "fn(i32,i32)i32". What C calls it with are numbers
+ * and `pointer`s - the types as they are WRITTEN when the function type is
+ * written out (so `c_float` is a float), else as they resolved.
+ */
+def c_function_text(written: sharp_type?, found: resolved_type) : string {
+    written_parameters : list<sharp_type>? = null;
+    written_result : sharp_type? = null;
+    if(written != null && written!!.form == TYPE_FUNCTION) {
+        written_parameters = written!!.parameters;
+        written_result = written!!.result;
+    }
+    text := new string_builder("fn(");
+    count : _int64 = 0;
+    if(found.parameters != null) { count = found.parameters!!.size().value as _int64; }
+    for(i : _int64 = 0; i < count; i++) {
+        one : sharp_type? = null;
+        if(written_parameters != null && i < written_parameters!!.size()) { one = written_parameters!!.at(i); }
+        piece : string = c_type_text(one, found.parameters!!.at(i), 0);
+        if(sizeof(piece.data) > 0 && piece.data!![0] == '!') { return piece; }
+        if(piece == "cstr" || piece == "buf" || piece == "void" || (sizeof(piece.data) > 0 && (piece.data!![0] == '{' || piece.data!![0] == '*' || piece.data!![0] == 'f' && piece != "f32" && piece != "f64"))) {
+            return "!a function handed to C takes numbers and `pointer`s: its parameter " + (i + 1) + " is something else (a text or a struct arrives as a `pointer`)";
+        }
+        if(i > 0) { text.append(","); }
+        text.append(piece);
+    }
+    text.append(")");
+    result : string = c_type_text(written_result, found.result, 1);
+    if(sizeof(result.data) > 0 && result.data!![0] == '!') { return result; }
+    if(result == "cstr" || (sizeof(result.data) > 0 && (result.data!![0] == '{' || result.data!![0] == '*'))) {
+        return "!a function handed to C returns a number, a `pointer` or nothing";
+    }
+    text.append(result);
+    return text.build();
+}
+
+/**
  * One type as the signature spells it. A type C cannot be handed comes back
  * as "!" and the reason.
  */
@@ -154,6 +191,10 @@ def c_type_text(written: sharp_type?, type: resolved_type?, is_result: _int64) :
         return text + found.bits;
     }
     if(found.kind == RT_CLASS && found.class_of != null && found.class_of!!.name == "string") { return "cstr"; }
+    if(found.kind == RT_FUNCTION) {
+        if(is_result == 1) { return "!C cannot return a Sharp function: declare the result as `pointer`"; }
+        return c_function_text(written, found);
+    }
     if(found.kind == RT_CLASS && is_c_struct(found.class_of) == 1) {
         members : string = c_struct_members(found.class_of!!, 0);
         if(sizeof(members.data) > 0 && members.data!![0] == '!') { return members; }

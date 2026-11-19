@@ -349,6 +349,11 @@ def process_settings() {
             read_native_setting(member!!);
          }
 
+         if((member = setting(obj, "c_libraries")) != null) {
+            require_type(member!!, json_value.kind_object);
+            read_c_libraries_setting(member!!);
+         }
+
          if((member = setting(obj, "target_api")) != null) {
             // the version of the installed standard library to build with (C++:
             // process_library_files(<the text>)); main.sharp checks it is one this compiler knows
@@ -488,6 +493,43 @@ def read_processors(holder: json_value, where: string) {
    }
 }
 
+/** the places one system has for a C library: a text, or a list of texts */
+def read_c_library_places(library: string, system: string, places: json_value) {
+   if(places.is_string()) {
+      options.c_library_places.add(library); options.c_library_places.add(system); options.c_library_places.add(places.as_string());
+      return;
+   }
+   if(!places.is_array()) {
+      settings_error("`c_libraries`: `$library` is a file's name or path, or a list of them, for example \"$library\": \"SDL2\"");
+   }
+   for(n : decimal = 0; n < places.size(); n++) {
+      val := places.at(n);
+      if(!val.is_string()) { settings_error("`c_libraries`: every place of `$library` is a text"); }
+      options.c_library_places.add(library); options.c_library_places.add(system); options.c_library_places.add(val.as_string());
+   }
+}
+
+/**
+ * "c_libraries": which file each C library of the `extern` blocks is (options.sharp has the form).
+ * A library is a text or a list (every system), or an object with a text or list per system.
+ */
+def read_c_libraries_setting(libraries: json_value) {
+   foreach(library in libraries.keys()) {
+      places := libraries.find(library)!!;
+      if(!places.is_object()) {
+         read_c_library_places(library, "", places);
+         continue;
+      }
+      foreach(system in places.keys()) {
+         if(system != "windows" && system != "linux" && system != "mac") {
+            warning("settings.json: `c_libraries`, `$library`: unknown system `$system` is ignored (the systems are `windows`, `linux` and `mac`)");
+            continue;
+         }
+         read_c_library_places(library, system, places.find(system)!!);
+      }
+   }
+}
+
 /** every name settings.json may have (the table at the top of this file) */
 def known_settings() : list<string> {
    names := new list<string>();
@@ -505,7 +547,7 @@ def known_settings() : list<string> {
    names.add("ignore_files");           names.add("ignore_folders");
    names.add("extern_lib");             names.add("extern_libs");
    names.add("ignore_extern_files");    names.add("ignore_extern_folders");
-   names.add("native");
+   names.add("native");                 names.add("c_libraries");
    return names;
 }
 

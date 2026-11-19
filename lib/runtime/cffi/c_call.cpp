@@ -150,6 +150,22 @@ static bool parse_one(const char *&p, c_type &type, std::string &why, int depth)
         std::string name;
         while((*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '_') name += *p++;
         if(name.empty()) { why = std::string("a type was expected at `") + start + "`"; return false; }
+        if(name == "fn" && *p == '(') {
+            // a function handed to C: fn(i32,i32)i32 - a pointer; what it is called with is c_callback.cpp's business
+            int depth_in = 0;
+            while(*p != 0) {
+                if(*p == '(') depth_in++;
+                if(*p == ')') { depth_in--; if(depth_in == 0) { p++; break; } }
+                p++;
+            }
+            c_type returned;
+            if(depth_in != 0 || !parse_one(p, returned, why, depth + 1)) { if(why.empty()) why = "the `(` of a function type is never closed"; return false; }
+            type.kind = C_PTR;
+            type.size = c_size_of(C_PTR);
+            type.align = type.size;
+            type.text = std::string(start, p);
+            return true;
+        }
         if(!kind_named(name, type.kind)) {
             why = "`" + name + "` is not a C type this knows (i8 u8 i16 u16 i32 u32 i64 u64 f32 f64 ptr cstr buf fn long ulong size ssize void, or a struct in { })";
             return false;

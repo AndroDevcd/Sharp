@@ -85,6 +85,8 @@ class generation_request {
     max_errors : _int64 = 10;           // how many functions without code (E0970) to show before "and n more"
     optimizer : optimizer_settings;     // -O, -n<name>, -Oreport (backend/optimizer)
     sni_folder : string = "";           // -sni: where the C++ files of the native functions go ("": not written)
+    c_library_places : list<string>?;   // settings.json "c_libraries": triples of library, system, place (null: none)
+    project_folder : string = "";       // the folder of the project being built ("": not a project)
     sni_only_when_native : _int64 = 0;  // 1 (a project's automatic folder): write nothing for a program without native functions
 
     generation_request() {
@@ -260,6 +262,8 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
     options.version = request.version;
     options.target = request.target;
     options.debug = request.debug;
+    options.c_library_places = request.c_library_places;
+    options.project_folder = request.project_folder;
     layout.application_id = application_id_of(request.application, layout.functions.size().value as _int64);
     problem := write_executable(layout, options, request.output);
     if(sizeof(problem.data) > 0) {

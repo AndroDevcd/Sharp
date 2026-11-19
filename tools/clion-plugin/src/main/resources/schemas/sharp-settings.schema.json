@@ -211,6 +211,25 @@
       "$ref": "#/definitions/texts",
       "description": "Folders of the libraries that are left out, with paths as written."
     },
+    "c_libraries": {
+      "type": "object",
+      "description": "Which file each C library of the program's `extern \"name\" { }` blocks is: a file's name the system finds, or a path - absolute, or from the project's folder. One text or a list for every system, or an object with a text or a list per system.",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "windows": { "anyOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+              "linux": { "anyOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+              "mac": { "anyOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] }
+            }
+          }
+        ]
+      }
+    },
     "native": {
       "type": "object",
       "description": "The C++ of the project's `native` functions (the Sharp Native Interface). With \"sources\" the compiler builds it into build/outputs/<group>.dll (.so on Linux) on every build.",

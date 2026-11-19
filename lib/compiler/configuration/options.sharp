@@ -207,6 +207,19 @@ class options {
      *        }
      *      }
      */
+    /**
+     * settings.json, "c_libraries": which file each C library of the program's `extern` blocks is
+     *
+     *      "c_libraries": {
+     *        "sqlite": "sqlite3",                                  one name for every system
+     *        "sdl": { "windows": "SDL2.dll",                       a name the system finds, or a path:
+     *                 "linux": [ "libSDL2-2.0.so.0", "libs/libSDL2.so" ] }     absolute, or from the project's folder
+     *      }
+     *
+     * Kept as triples - library, system ("" for every system), place - in the order written:
+     * the places of a library are tried in that order when the program runs (lib/runtime/cffi/c_bind.cpp).
+     */
+    static c_library_places := new list<string>();
     static cxx : string = "";
     static native_configured : decimal = false;            // settings.json has "native"
     static native_sources := new list<string>();

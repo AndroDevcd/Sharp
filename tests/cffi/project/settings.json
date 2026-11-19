@@ -1,0 +1,8 @@
+{
+  "name": "c_project",
+  "output": "c_project",
+  "c_libraries": {
+    "tests": { "windows": "libs/c_test.dll", "linux": [ "libs/not_there.so", "libs/libc_test.so" ] },
+    "everywhere": "libs/c_test"
+  }
+}

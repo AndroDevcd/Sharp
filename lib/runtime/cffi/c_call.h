@@ -19,6 +19,7 @@
 //      { i32 f32 {i8 i8} u8[16] }         a struct handed over by value: its members in order
 //      { x:i32 y:i32 }                    ... each may carry its name
 //      *{ x:i32 y:i32 }                   a pointer to such a struct
+//      fn(i32,i32)i32                     a function handed to C: a pointer to a function with that signature
 //
 // HOW A CALL IS MADE, without machine code of our own. Every calling convention says, for each
 // argument, which register or which place on the stack it travels in. c_parse_signature works that out

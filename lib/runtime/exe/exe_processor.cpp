@@ -85,7 +85,7 @@ KeyPair<int, string> process_exe() {
 // functions - an executable that ends with the meta section has none.
 //
 //      0x3d   then per function:  0x3f, its address (int32), the library, the C function, the signature (texts)
-//             per library the project placed:  0x3e, the library, the place (texts)
+//             per library the project placed:  0x3e, the library, the system ("" for every one), the place (texts)
 //             the project's folder:  0x3c, the folder (text)
 //      0x1d
 //
@@ -108,10 +108,18 @@ void process_extern_data(KeyPair<int, string> &result) {
             }
             c_declare(&vm.methods[address], library, symbol, signature);
         } else if(tag == 0x3e) {
-            string library, place;
+            string library, system, place;
             next_string(library);
+            next_string(system);
             next_string(place);
-            c_project_library(library, place);
+#if defined(_WIN32)
+            const char *here = "windows";
+#elif defined(__APPLE__)
+            const char *here = "mac";
+#else
+            const char *here = "linux";
+#endif
+            if(system.empty() || system == here) c_project_library(library, place);
         } else if(tag == 0x3c) {
             string folder;
             next_string(folder);

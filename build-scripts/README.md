@@ -20,6 +20,12 @@ build-scripts/
   windows/       what only Windows does:  build_vm.sh   build_gui_library.sh   install_release.sh
                                           suite.sh  (the suite on the Windows VM, with the JIT and without)
   internal/      parts the three scripts use - nothing in it is run by hand
+
+tests/cffi/      calls to C (extern blocks), in seconds:
+                   engine_test.sh   the calling conventions alone, without the VM
+                   run.sh           from Sharp: numbers, structs, memory, callbacks, mistakes, a project
+                 (both run in WSL and in Git Bash; on Windows, before a release is installed:
+                  COMPILER=<the sharpc_boot built in WSL> bash tests/cffi/run.sh)
 ```
 
 ## What Sharp is made of

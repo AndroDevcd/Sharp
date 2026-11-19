@@ -1,0 +1,119 @@
+mod main;
+
+import ( std.c, std.io, platform )
+
+/**
+ * C calling Sharp: a Sharp function handed to C - for the length of a call
+ * (C's qsort), kept by C and called later, with numbers of every kind, with
+ * captured variables, and with an exception thrown inside it.
+ *
+ *      sharp callbacks <folder of the test library>
+ *
+ * Prints one line per check that fails and, last, CALLBACKS: PASS (n checks).
+ */
+
+extern "c" {
+    def qsort(items: _int32[], count: c_size, width: c_size, compare: (pointer, pointer)(c_int));
+}
+
+extern "c_test" {
+    def call_int(f: (c_int, c_int)(c_int), a: c_int, b: c_int) : c_int;
+    def call_mixed(f: (c_int, c_double, c_float, _int64, pointer)(c_double), data: pointer) : c_double;
+    def sort_ints(values: _int32[], count: c_int, compare: (pointer, pointer)(c_int));
+    def keep_callback(f: (c_int, c_int)(c_int));
+    def call_kept(a: c_int, b: c_int) : c_int;
+    def call_on_other_thread(f: (c_int, c_int)(c_int), a: c_int, b: c_int) : c_int;
+}
+
+checks : _int64 = 0;
+failures : _int64 = 0;
+calls_seen : _int64 = 0;
+
+def same(name: string, got: decimal, want: decimal) {
+    checks++;
+    if(got != want) {
+        failures++;
+        println("FAIL  " + name + ": got " + got + ", expected " + want);
+    }
+}
+
+def add_them(a: c_int, b: c_int) : c_int {
+    calls_seen++;
+    return a + b;
+}
+
+def throws(a: c_int, b: c_int) : c_int {
+    throw new illegal_state_exception("thrown inside a callback");
+}
+
+def main(args: string[]) {
+    folder : string = ".";
+    if(sizeof(args) > 0) { folder = args[0]; }
+    c_library("c_test", folder + "/c_test");
+
+    // ---- a lambda, for the length of the call
+    same("a lambda", call_int({ a: c_int, b: c_int -> return a * 10 + b; }, 4, 2), 43);
+    // ---- a function by its name
+    same("a named function", call_int(add_them, 30, 12), 43);
+    same("... it ran once", calls_seen, 1);
+    // ---- it captures a variable
+    offset : _int64 = 1000;
+    same("a lambda that captures", call_int({ a: c_int, b: c_int -> return a + b + offset; }, 1, 2), 1004);
+    // ---- every kind of number, and an address passed through
+    same("mixed arguments", call_mixed({ a: c_int, b: c_double, c: c_float, d: _int64, data: pointer -> return a + b + c + d + data; }, 5), (7 + 2.5 + 1.25 + 9000000000 + 5) * 2);
+    // ---- a null function is C's NULL (the C side would crash calling it: it is only handed over)
+    nothing : (c_int, c_int)(c_int)? = null;
+    keep_callback(nothing!!);
+    same("no function kept", call_kept(1, 2), 0 - 1);
+
+    // ---- C's own qsort calls back once per comparison
+    values := new _int32[] { 50, 0 - 3, 17, 4, 99, 0, 0 - 40, 8 };
+    compares : _int64 = 0;
+    one := new _int32[1];
+    two := new _int32[1];
+    qsort(values, 8, 4, { a: pointer, b: pointer ->
+        compares++;
+        x : _int64 = c_memory.view(a, 4).int32_at(0);
+        y : _int64 = c_memory.view(b, 4).int32_at(0);
+        if(x < y) { return 0 - 1; }
+        if(x > y) { return 1; }
+        return 0;
+    });
+    sorted : _int64 = 1;
+    for(i : _int64 = 1; i < 8; i++) { if(values[i - 1] > values[i]) { sorted = 0; } }
+    same("qsort sorted the array", sorted, 1);
+    same("... smallest first", values[0], 0 - 40);
+    same("... largest last", values[7], 99);
+    checks++;
+    if(compares < 7) { failures++; println("FAIL  qsort compared only " + compares + " times"); }
+
+    // ---- many calls in a row: the places for callbacks are given back after each
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < 200; i++) { total = total + call_int({ a: c_int, b: c_int -> return a + b; }, i, 1); }
+    same("200 calls, each with its own lambda", total, 19900 + 200 + 200);
+
+    // ---- a function C keeps: called after the call that handed it over has returned
+    kept := { a: c_int, b: c_int -> return a * b; };
+    c_keep(kept);
+    keep_callback(kept);
+    same("C calls what it kept", call_kept(6, 7), 42);
+    same("... and again", call_kept(0 - 3, 5), 0 - 15);
+    c_drop(kept);
+    keep_callback(nothing!!);
+
+    // ---- an exception thrown inside a callback comes out of the C call
+    caught : _int64 = 0;
+    try {
+        call_int(throws, 1, 2);
+    } catch(problem: illegal_state_exception) {
+        if(problem.get_message() == "thrown inside a callback") { caught = 1; }
+    }
+    same("an exception thrown in a callback is raised when C returns", caught, 1);
+    same("... and the next call works", call_int(add_them, 1, 2), 4);
+
+    // ---- a callback from a thread C made itself cannot run: it answers 0 and says why
+    same("a callback on a foreign thread answers 0", call_on_other_thread(add_them, 1, 2), 0);
+
+    if(failures == 0) { println("CALLBACKS: PASS (" + checks + " checks)"); }
+    else { println("CALLBACKS: FAIL (" + failures + " of " + checks + " checks failed)"); }
+}

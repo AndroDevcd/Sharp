@@ -22,6 +22,7 @@
 //
 #include "c_bind.h"
 #include "c_call.h"
+#include "c_callback.h"
 #include "../sni/sni_runtime.h"
 #include "../virtual_machine.h"
 #include "../main.h"
@@ -221,7 +222,7 @@ static void open_library(c_library &library, const std::string &wanted_by) {
 // 2. One extern function
 // ---------------------------------------------------------------------------------
 
-enum { ROLE_WHOLE, ROLE_DECIMAL, ROLE_ADDRESS, ROLE_TEXT, ROLE_ITEMS, ROLE_NOTHING, ROLE_STRUCT, ROLE_STRUCT_POINTER };
+enum { ROLE_WHOLE, ROLE_DECIMAL, ROLE_ADDRESS, ROLE_TEXT, ROLE_ITEMS, ROLE_NOTHING, ROLE_STRUCT, ROLE_STRUCT_POINTER, ROLE_FUNCTION };
 
 // A STRUCT IS AN OBJECT IN SHARP AND BYTES IN C. A class based on c_struct has the struct's members
 // as its fields; for the length of a call the VM lays them out as C does (PACK), and afterwards reads
@@ -392,6 +393,7 @@ static uint8_t role_of(const c_type &type) {
     if(type.kind == C_VOID) return ROLE_NOTHING;
     if(type.kind == C_STRUCT) return ROLE_STRUCT;
     if(!type.text.empty() && type.text[0] == '*') return ROLE_STRUCT_POINTER;
+    if(type.text.compare(0, 3, "fn(") == 0) return ROLE_FUNCTION;
     if(type.text == "cstr") return ROLE_TEXT;
     if(type.text == "buf") return ROLE_ITEMS;
     if(type.kind == C_PTR) return ROLE_ADDRESS;
@@ -497,13 +499,27 @@ void c_call_extern(sharp_function *fun, Int argSize) {
     std::deque<std::string> texts;              // the C strings, alive until the call is over
     std::deque<std::vector<uint8_t> > structs;  // the structs as C's bytes, likewise
     uint8_t *packed[C_MAX_ARGUMENTS];           // ... which of them each argument is (null: not a struct, or a null one)
+    int thunk_family[C_MAX_ARGUMENTS], thunk_number[C_MAX_ARGUMENTS];   // the functions handed to C: their thunks (c_callback.h)
+    struct thunks_given_back {                  // ... free again when the call is over, however it ends
+        int *family, *number;
+        Int count;
+        ~thunks_given_back() { for(Int i = 0; i < count; i++) c_callback_done(family[i], number[i]); }
+    } given_back = { thunk_family, thunk_number, argSize };
     c_running here;
     here.binding = &binding;
     here.values = values;
     for(Int i = 0; i < argSize; i++) {
         here.item_counts[i] = -1;
         packed[i] = nullptr;
+        thunk_family[i] = -1;
+        thunk_number[i] = -1;
         switch(binding.roles[(size_t) i]) {
+            case ROLE_FUNCTION: {
+                // "fn(i32,i32)i32": C calls it with (i32,i32)i32
+                const std::string &text = binding.signature.args[(size_t) i].text;
+                values[i].p = c_callback_for(first[i].obj.o, text.substr(2), fun, thunk_family[i], thunk_number[i]);
+                break;
+            }
             case ROLE_STRUCT:
             case ROLE_STRUCT_POINTER: {
                 sharp_object *o = first[i].obj.o;
@@ -662,6 +678,7 @@ std::string c_describe_call(sharp_thread *thread) {
                 if(value.p == nullptr) { text += running.item_counts[i] == 0 ? "an array with no items" : "null"; if(suspect.empty()) suspect = "argument " + std::to_string(i + 1) + " is null or an empty array: C was handed the address 0"; }
                 else text += "an array of " + std::to_string((long long) running.item_counts[i]) + " items";
                 break;
+            case ROLE_FUNCTION: text += value.p == nullptr ? "null" : "a function"; break;
             case ROLE_STRUCT: text += "a struct"; break;
             case ROLE_STRUCT_POINTER: text += value.p == nullptr ? "null" : "a pointer to a struct"; break;
             case ROLE_ADDRESS:

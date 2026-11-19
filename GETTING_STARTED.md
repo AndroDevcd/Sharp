@@ -349,7 +349,55 @@ from these; `lib/support/0.4.0/std/guikit/words3d.sharp` lists every word.
 
 Scenes are drawn with OpenGL, which every PC has; on a Raspberry Pi it is OpenGL ES 2.
 
-## 8. Where to go next
+## 8. Calling a C library
+
+A Sharp program can call the functions of any C library directly. List them in an `extern`
+block, each without a body and under its C name:
+
+```
+mod app;
+
+import ( std.c )
+
+extern "c" {
+    def strlen(text: string) : c_size;
+    def qsort(items: _int32[], count: c_size, width: c_size, compare: (pointer, pointer)(c_int));
+}
+
+def main() {
+    println("strlen says " + strlen("hello, C"));
+
+    numbers := new _int32[] { 42, 7, 19, 3 };
+    qsort(numbers, 4, 4, { a: pointer, b: pointer ->
+        return c_memory.view(a, 4).int32_at(0) - c_memory.view(b, 4).int32_at(0);
+    });
+    println("sorted by C: " + numbers[0] + " " + numbers[1] + " " + numbers[2] + " " + numbers[3]);
+}
+```
+
+```
+strlen says 8
+sorted by C: 3 7 19 42
+```
+
+- **`extern "c"`** is C's own library, the functions every C program has. Any other name is a
+  library file: `extern "SDL2" { ... }` opens `SDL2.dll` on Windows and `libSDL2.so` on Linux.
+  `c_library("sdl", "path/or/name")` says which file a name is, and so does `"c_libraries"`
+  in a project's `settings.json`.
+- **The types** are C's by their C names: `c_int`, `c_float`, `c_double`, `c_size`, `pointer`
+  (an address) and so on. A `string` is handed over as a C string, an array of numbers as
+  the address of its items.
+- **A C struct** is a class based on `c_struct` whose fields are the members. Written as a
+  parameter it travels by value; written with a `?` it is a pointer, and what C writes
+  through it is in your object after the call.
+- **A function** can be handed to C, as `qsort` is handed the comparison above.
+- **When something is wrong** - the library is not found, the function is not in it - the
+  message lists what was looked for. A crash inside C names the C function, how it was
+  declared and what it was handed.
+
+[`lib/compiler/doc/extern.md`](lib/compiler/doc/extern.md) has all of it.
+
+## 9. Where to go next
 
 - The [README](README.md) shows what sets Sharp apart: dependency injection in the
   language, mocks the compiler writes, the GUI toolkit and coroutines.
