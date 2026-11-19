@@ -9,14 +9,30 @@ import ( std.testing, std.io )
  * Everything happens inside one folder made for this test,
  *     /tmp/sharp_suite_std_files
  * which is removed again at the end (and at the start, in case an earlier run
- * was stopped half way).
+ * was stopped half way). On windows the folder is sharp_suite_std_files in
+ * the directory for temporary files.
  *
  * mkdir, write, rename and delete return 0 when it worked; create returns
  * true when it made the file. list() gives the NAMES of the files and folders
  * in a directory, sorted by character code.
  */
 
-FOLDER : string = "/tmp/sharp_suite_std_files";
+/** is this windows? (its paths are written with back slashes) */
+def on_windows(): bool {
+    return file.separator_char() != '/';
+}
+
+/** `path`, written with slashes here, the way this system writes it */
+def os(path: string): string {
+    return io_strings.replace_char(path, '/', file.separator_char());
+}
+
+/** the folder this test works in: below /tmp, or on windows below the directory for temporary files */
+def suite_dir(name: string): string {
+    return on_windows() ? os(temp_files.directory() + "/" + name) : "/tmp/" + name;
+}
+
+FOLDER : string = suite_dir("sharp_suite_std_files");
 
 /** how many entries of `names` are exactly `name` */
 def count_named(names: list<string>, name: string): decimal {
@@ -30,7 +46,7 @@ def count_named(names: list<string>, name: string): decimal {
 def main(args: string[]) {
     show_only_failures();
     tests("std_files") {
-        sys("rm -rf " + FOLDER);
+        new file(FOLDER).delete_recursively();
 
         // ================= a folder
         folder := new file(FOLDER);
@@ -61,10 +77,10 @@ def main(args: string[]) {
 
         // ---- names and paths
         test("get_name(): the last part of the path") { expect(notes.get_name()!!).should_be("notes.txt"); };
-        test("get_path(): the path it was made with") { expect(notes.get_path()).should_be("/tmp/sharp_suite_std_files/notes.txt"); };
-        test("get_absolute_path()") { expect(notes.get_absolute_path()).should_be("/tmp/sharp_suite_std_files/notes.txt"); };
-        test("to_string() is the path") { expect(notes.to_string()!!).should_be("/tmp/sharp_suite_std_files/notes.txt"); };
-        test("get_parent_file(): the folder") { expect(notes.get_parent_file()!!.get_path()).should_be("/tmp/sharp_suite_std_files"); };
+        test("get_path(): the path it was made with") { expect(notes.get_path()).should_be(os(FOLDER + "/notes.txt")); };
+        test("get_absolute_path()") { expect(notes.get_absolute_path()).should_be(os(FOLDER + "/notes.txt")); };
+        test("to_string() is the path") { expect(notes.to_string()!!).should_be(os(FOLDER + "/notes.txt")); };
+        test("get_parent_file(): the folder") { expect(notes.get_parent_file()!!.get_path()).should_be(os(FOLDER)); };
         test("get_name() of the folder") { expect(folder.get_name()!!).should_be("sharp_suite_std_files"); };
 
         // ================= write and read back
@@ -148,7 +164,8 @@ def main(args: string[]) {
         data.write("abc");
         hidden := new file(FOLDER + "/.hidden");
         hidden.create();
-        test("a name that starts with a dot is hidden") { expect_true(hidden.is_hidden()); };
+        // (on windows a file is hidden when it is marked so, whatever its name)
+        test("a name that starts with a dot is hidden") { expect(hidden.is_hidden()).should_be(!on_windows()); };
 
         names := folder.list();
         test("three entries in the folder") { expect(names.size().value).should_be(3); };
@@ -195,7 +212,7 @@ def main(args: string[]) {
         test("the new name exists") { expect_true(renamed.exists()); };
         test("the old name is gone") { expect_false(new file(FOLDER + "/notes.txt").exists()); };
         test("the content moved with the file") { expect(renamed.read()!!).should_be("written through the other object"); };
-        test("the file object that was renamed now has the new path") { expect(notes.get_path()).should_be("/tmp/sharp_suite_std_files/renamed.txt"); };
+        test("the file object that was renamed now has the new path") { expect(notes.get_path()).should_be(os(FOLDER + "/renamed.txt")); };
         test("...and reads the same file") { expect(notes.read()!!).should_be("written through the other object"); };
         test("still four entries after the rename") { expect(folder.list().size().value).should_be(4); };
         test("the list has the new name") { expect(count_named(folder.list(), "renamed.txt")).should_be(1); };

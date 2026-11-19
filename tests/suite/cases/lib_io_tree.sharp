@@ -8,16 +8,32 @@ import ( std.testing, std.io )
  * fallback), temp_files and file_utils.
  *
  * Works only inside /tmp/sharp_suite_io_tree (and the temporary directory
- * of temp_files) and removes everything at the end.
+ * of temp_files) and removes everything at the end. On windows the folder
+ * is sharp_suite_io_tree in the directory for temporary files.
  */
 
-base_dir : string = "/tmp/sharp_suite_io_tree";
+/** is this windows? (its paths are written with back slashes) */
+def on_windows(): bool {
+    return file.separator_char() != '/';
+}
+
+/** `path`, written with slashes here, the way this system writes it */
+def os(path: string): string {
+    return io_strings.replace_char(path, '/', file.separator_char());
+}
+
+/** the folder this test works in: below /tmp, or on windows below the directory for temporary files */
+def suite_dir(name: string): string {
+    return on_windows() ? os(temp_files.directory() + "/" + name) : "/tmp/" + name;
+}
+
+base_dir : string = suite_dir("sharp_suite_io_tree");
 
 def at(name: string): file {
     return new file(base_dir + "/" + name);
 }
 
-/** the paths of `files` below the test directory, joined with spaces */
+/** the paths of `files` below the test directory, joined with spaces (and written with slashes on every system) */
 def names_of(files: list<file>): string {
     buf := new char_buffer();
     skip : decimal = io_strings.length(base_dir) + 1;
@@ -26,7 +42,7 @@ def names_of(files: list<file>): string {
         if(i > 0) {
             buf.append_char(' ');
         }
-        buf.append(io_strings.slice_from(files.at(i).get_path(), skip));
+        buf.append(io_strings.replace_char(io_strings.slice_from(files.at(i).get_path(), skip), file.separator_char(), '/'));
     }
     return buf.to_string()!!;
 }
@@ -234,7 +250,7 @@ def test_temp_files() {
     p1 := temp_files.new_path("sharp_suite_io_", ".tmp");
     p2 := temp_files.new_path("sharp_suite_io_", ".tmp");
     test("new_path gives different names") { expect_false(io_strings.equals(p1, p2)); };
-    test("new_path is in the temp directory") { expect_true(io_strings.starts_with(p1, dir + "/sharp_suite_io_")); };
+    test("new_path is in the temp directory") { expect_true(io_strings.starts_with(p1, dir + os("/sharp_suite_io_"))); };
     test("new_path has the suffix") { expect_true(io_strings.ends_with(p1, ".tmp")); };
     test("new_path creates nothing") { expect_false(new file(p1).exists()); };
 

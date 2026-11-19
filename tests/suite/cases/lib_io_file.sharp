@@ -8,10 +8,28 @@ import ( std.testing, std.io )
  * together with the older ones they are used with (exists, is_file,
  * mkdir, rename, time stamps, permissions).
  *
- * Works only inside /tmp/sharp_suite_io_file and removes it at the end.
+ * Works only inside /tmp/sharp_suite_io_file (on windows: sharp_suite_io_file
+ * in the directory for temporary files) and removes it at the end.
+ *
+ * Paths are written with slashes here; os() gives what the system makes of them.
  */
 
-base_dir : string = "/tmp/sharp_suite_io_file";
+/** is this windows? (its paths are written with back slashes) */
+def on_windows(): bool {
+    return file.separator_char() != '/';
+}
+
+/** `path`, written with slashes here, the way this system writes it */
+def os(path: string): string {
+    return io_strings.replace_char(path, '/', file.separator_char());
+}
+
+/** the folder this test works in: below /tmp, or on windows below the directory for temporary files */
+def suite_dir(name: string): string {
+    return on_windows() ? os(temp_files.directory() + "/" + name) : "/tmp/" + name;
+}
+
+base_dir : string = suite_dir("sharp_suite_io_file");
 
 def at(name: string): file {
     return new file(base_dir + "/" + name);
@@ -19,22 +37,22 @@ def at(name: string): file {
 
 def test_paths() {
     f := new file("/home/joe/report.final.csv");
-    test("get_path") { expect(f.get_path()).should_be("/home/joe/report.final.csv"); };
+    test("get_path") { expect(f.get_path()).should_be(os("/home/joe/report.final.csv")); };
     test("get_name") { expect(f.name()).should_be("report.final.csv"); };
-    test("get_parent") { expect(f.parent_path()!!).should_be("/home/joe"); };
-    test("get_parent_file") { expect(f.parent()!!.get_path()).should_be("/home/joe"); };
+    test("get_parent") { expect(f.parent_path()!!).should_be(os("/home/joe")); };
+    test("get_parent_file") { expect(f.parent()!!.get_path()).should_be(os("/home/joe")); };
     test("get_extension") { expect(f.extension()).should_be("csv"); };
     test("name without extension") { expect(f.name_without_extension()).should_be("report.final"); };
     test("has_extension ignores case") { expect_true(f.has_extension("CSV")); };
     test("has_extension other") { expect_false(f.has_extension("txt")); };
     test("is_absolute") { expect_true(f.is_absolute()); };
-    test("to_string") { expect(f.to_string()!!).should_be("/home/joe/report.final.csv"); };
+    test("to_string") { expect(f.to_string()!!).should_be(os("/home/joe/report.final.csv")); };
 
     top := new file("/abc");
     test("name directly under root") { expect(top.name()).should_be("abc"); };
-    test("parent directly under root") { expect(top.parent_path()!!).should_be("/"); };
+    test("parent directly under root") { expect(top.parent_path()!!).should_be(os("/")); };
     root := new file("/");
-    test("root path") { expect(root.get_path()).should_be("/"); };
+    test("root path") { expect(root.get_path()).should_be(os("/")); };
     test("root has no parent") { expect_true(io_strings.is_null(root.parent_path())); };
     test("root has no parent file") { expect_null(root.parent()); };
 
@@ -51,25 +69,25 @@ def test_paths() {
     test("hidden name stays whole") { expect(hidden.name_without_extension()).should_be(".profile"); };
 
     // normalisation of the path given to the constructor
-    test("double separators collapse") { expect(new file("a//b///c").get_path()).should_be("a/b/c"); };
-    test("trailing separator removed") { expect(new file("a/b/").get_path()).should_be("a/b"); };
-    test("back slashes become slashes") { expect(new file("a\\b\\c").get_path()).should_be("a/b/c"); };
+    test("double separators collapse") { expect(new file("a//b///c").get_path()).should_be(os("a/b/c")); };
+    test("trailing separator removed") { expect(new file("a/b/").get_path()).should_be(os("a/b")); };
+    test("back slashes become slashes") { expect(new file("a\\b\\c").get_path()).should_be(os("a/b/c")); };
 
-    test("child") { expect(f.parent()!!.child("x.txt").get_path()).should_be("/home/joe/x.txt"); };
-    test("child with sub path") { expect(top.child("a/b").get_path()).should_be("/abc/a/b"); };
-    test("child of root") { expect(root.child("etc").get_path()).should_be("/etc"); };
-    test("sibling") { expect(f.sibling("other.csv").get_path()).should_be("/home/joe/other.csv"); };
+    test("child") { expect(f.parent()!!.child("x.txt").get_path()).should_be(os("/home/joe/x.txt")); };
+    test("child with sub path") { expect(top.child("a/b").get_path()).should_be(os("/abc/a/b")); };
+    test("child of root") { expect(root.child("etc").get_path()).should_be(os("/etc")); };
+    test("sibling") { expect(f.sibling("other.csv").get_path()).should_be(os("/home/joe/other.csv")); };
     test("same_path") { expect_true(f.same_path(new file("/home//joe/report.final.csv"))); };
     test("same_path different") { expect_false(f.same_path(top)); };
-    test("separator") { expect(file.separator_char()).should_be('/'); };
+    test("separator") { expect(file.separator_char()).should_be(on_windows() ? '\\' : '/'); };
 
     try { top.child(""); test("empty child") { fail_test("no exception"); }; }
     catch(e: nullptr_exception) { test("empty child") { }; }
 
     rel := new file("some/relative.txt");
     absolute := rel.absolute_path();
-    test("absolute path of a missing file is rooted") { expect_true(absolute.data[0] == '/'); };
-    test("absolute path ends with the relative one") { expect_true(io_strings.ends_with(absolute, "/some/relative.txt")); };
+    test("absolute path of a missing file is rooted") { expect_true(new file(absolute).is_absolute()); };
+    test("absolute path ends with the relative one") { expect_true(io_strings.ends_with(absolute, os("/some/relative.txt"))); };
 }
 
 def test_create_delete() {
@@ -132,8 +150,10 @@ def test_create_delete() {
     test("set_writable(false)") { expect(p.set_writable(false).value).should_be(0); };
     test("set_writable(true)") { expect(p.set_writable(true).value).should_be(0); };
     test("writeable again") { expect_true(p.is_writeable()); };
-    test("set_executable") { expect(p.set_executable(true).value).should_be(0); };
-    test("is_executable") { expect_true(p.is_executable()); };
+    if(!on_windows()) {     // (windows has no such permission: a file runs or not by its name)
+        test("set_executable") { expect(p.set_executable(true).value).should_be(0); };
+        test("is_executable") { expect_true(p.is_executable()); };
+    }
     p.remove();
 
     test("total space") { expect_true(f.get_total_space().value > 0); };

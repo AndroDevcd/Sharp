@@ -84,7 +84,17 @@ class process {
         in_file := new file(temp_files.new_path("sharp_proc_", ".in"));
 
         line := new char_buffer(sizeof(command.data) + 160);
-        line.append("( ").append(command).append(" ) > ").append(io_strings.shell_quote(out_file.get_path()));
+        if(build.is_windows()) {
+            // A cmd.exe of its own for the command, so that the files take the output of all of it.
+            // Not ( command ): cmd prints the blank before the ")" after an echo, and a ")" in the
+            // command (echo %PATH% with "Program Files (x86)" in it) would end the group early.
+            // /s: the outer pair of quotes is taken off and what is between them is run as it is.
+            // (no blank between the closing quote and ">": it would reach the command as its last character)
+            line.append("cmd /s /c ").append_char('"').append(command).append_char('"').append("> ");
+        } else {
+            line.append("( ").append(command).append(" ) > ");
+        }
+        line.append(io_strings.shell_quote(out_file.get_path()));
         if(merged) {
             line.append(" 2>&1");
         } else {

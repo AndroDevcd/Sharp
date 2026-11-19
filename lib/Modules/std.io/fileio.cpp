@@ -133,8 +133,10 @@ void current_directory(string &path) {
 
 void create_file(string &path)
 {
-    std::ofstream o(path.c_str());
-    o.close();
+    // The C library's fopen, not std::ofstream: in a Windows VM (MinGW g++ 15, linked statically
+    // against UCRT, -O3) an ofstream made here crashes in its constructor, before the file is touched.
+    FILE *made = fopen(path.c_str(), "w");
+    if(made != NULL) fclose(made);
 }
 
 long delete_file(string &path)

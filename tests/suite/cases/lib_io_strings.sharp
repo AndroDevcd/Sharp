@@ -272,8 +272,10 @@ def main(args: string[]) {
         test_numbers();
         test("is_null of null") { expect_true(io_strings.is_null(null)); };
         test("is_null of empty") { expect_false(io_strings.is_null("")); };
-        test("shell_quote plain") { expect(io_strings.shell_quote("a b")).should_be("'a b'"); };
-        test("shell_quote with quote length") { expect(io_strings.length(io_strings.shell_quote("it's"))).should_be(9); };
+        // single quotes on unix (one inside becomes '\''), double quotes on windows
+        windows : bool = file.separator_char() != '/';
+        test("shell_quote plain") { expect(io_strings.shell_quote("a b")).should_be(windows ? "\"a b\"" : "'a b'"); };
+        test("shell_quote with quote length") { expect(io_strings.length(io_strings.shell_quote("it's"))).should_be(windows ? 6 : 9); };
     };
     finish_tests("lib_io_strings");
 }
