@@ -1,0 +1,52 @@
+mod std.guikit.game;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * box - a rectangle that things in a game are checked against: does the
+ * player touch the coin, is the click inside the button, did the bullet hit.
+ *
+ *      player := new box(x, y, 32, 48);
+ *      coin := new box(400, 200, 16, 16);
+ *
+ *      if(player.overlaps(coin)) { ... }
+ *      if(player.contains(f.mouse_x, f.mouse_y)) { ... }
+ *
+ * Its fields are plain numbers: move a box by changing x and y. Boxes that
+ * only share an edge do not overlap.
+ */
+stable class box {
+    x : decimal = 0;
+    y : decimal = 0;
+    w : decimal = 0;
+    h : decimal = 0;
+
+    box(left: decimal, top: decimal, width: decimal, height: decimal) {
+        x = left;
+        y = top;
+        w = width;
+        h = height;
+    }
+
+    /** do the two boxes share any area? */
+    def overlaps(other: box) : bool {
+        return x < other.x + other.w && other.x < x + w && y < other.y + other.h && other.y < y + h;
+    }
+
+    /** the same against a box given as four numbers */
+    def overlaps(left: decimal, top: decimal, width: decimal, height: decimal) : bool {
+        return x < left + width && left < x + w && y < top + height && top < y + h;
+    }
+
+    /** is the point (px, py) inside the box? */
+    def contains(px: decimal, py: decimal) : bool {
+        return px >= x && px < x + w && py >= y && py < y + h;
+    }
+
+    /** would the box be inside a solid tile of this map? (tile_map.blocked) */
+    def blocked_by(level: tile_map) : bool {
+        return level.blocked(x, y, w, h);
+    }
+}

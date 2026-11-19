@@ -70,6 +70,18 @@ native "sharpgui" {
     def fill_polygon(xs: decimal[], ys: decimal[], count: _int64,
                      shift_x: decimal, shift_y: decimal, color: _int64);       // the same from the first `count` corners, each shifted
 
+    // --- many shapes in one call (native/shapes.cpp): positions are moved by the shift, alphas scaled by the level ---
+    def draw_shapes(kinds: _int8[], data: decimal[], colors: _int64[], count: _int64,
+                    shift_x: decimal, shift_y: decimal, level: decimal);       // a mixed list, six numbers a shape (shape_batch.sharp)
+    def fill_rects(xs: decimal[], ys: decimal[], ws: decimal[], hs: decimal[], colors: _int64[], count: _int64,
+                   shift_x: decimal, shift_y: decimal, level: decimal);
+    def fill_circles(xs: decimal[], ys: decimal[], radii: decimal[], colors: _int64[], count: _int64,
+                     shift_x: decimal, shift_y: decimal, level: decimal);
+    def draw_lines(x1s: decimal[], y1s: decimal[], x2s: decimal[], y2s: decimal[], thickness: decimal, colors: _int64[],
+                   count: _int64, shift_x: decimal, shift_y: decimal, level: decimal);
+    def fill_triangles(xs: decimal[], ys: decimal[], colors: _int64[], count: _int64,
+                       shift_x: decimal, shift_y: decimal, level: decimal);    // three corners a triangle
+
     // --- layers (native/layers.cpp): paint to one side, then put it on the screen turned, scaled, blurred, cut ---
     def layer_begin() : _int64;                                                // 1: painting now goes into a new layer
     def layer_mask(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal) : _int64;   // keep only what is inside
@@ -89,6 +101,18 @@ native "sharpgui" {
     def image_width(image: _int64) : _int32;
     def image_height(image: _int64) : _int32;
     def draw_image(image: _int64, x: decimal, y: decimal, w: decimal, h: decimal, opacity: _int32);
+
+    // --- sprites: parts of a picture (native/images.cpp) ---
+    def image_smooth(image: _int64, on: _int64);                               // scaled smoothly (1) or every pixel a sharp square (0)
+    def draw_image_part(image: _int64, sx: decimal, sy: decimal, sw: decimal, sh: decimal,
+                        x: decimal, y: decimal, w: decimal, h: decimal,
+                        opacity: _int32, flip: _int32, angle: decimal);        // flip 1: left to right, 2: top to bottom, 3: both
+    def draw_image_parts(image: _int64, sources: decimal[], places: decimal[], count: _int64,
+                         shift_x: decimal, shift_y: decimal, opacity: _int32); // four numbers a sprite in each list (sprite_batch.sharp)
+    def draw_tiles(image: _int64, tiles: _int32[], map_columns: _int64, map_rows: _int64,
+                   first_column: _int64, first_row: _int64, columns: _int64, rows: _int64,
+                   frame_w: decimal, frame_h: decimal, margin: decimal, spacing: decimal, sheet_columns: _int64,
+                   x: decimal, y: decimal, tile_w: decimal, tile_h: decimal, opacity: _int32);   // a grid of tiles (tile_map.sharp)
 }
 
 /**

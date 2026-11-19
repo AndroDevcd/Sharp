@@ -1,0 +1,89 @@
+mod std.guikit.game;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * sprite_sheet - one picture that holds many small ones of the same size, in
+ * rows: the frames of a character's run, the tiles of a level.
+ *
+ *      hero := new sprite_sheet("assets/hero.png", 32, 32);     // frames of 32 x 32 pixels
+ *      p.sprite(hero, 5, x, y);                                 // frame 5, at its own size
+ *      p.sprite(hero, 5, x, y, 96, 96);                         // three times as large
+ *      p.sprite(hero, 5, x, y, 96, 96, true);                   // facing the other way
+ *
+ * FRAMES ARE NUMBERED from 0, left to right and then down - the top-left frame
+ * is 0, the one to its right is 1, and the first of the second row comes after
+ * the last of the first.
+ *
+ * PIXEL ART: call crisp() once. A picture is normally smoothed when it is
+ * drawn larger than it is, which is right for a photo and turns pixel art to
+ * mush; crisp() keeps every pixel a sharp square.
+ *
+ * Some sheets leave a gap around the frames: `margin` is the gap between the
+ * picture's edge and the first frame, `spacing` the gap between two frames.
+ *
+ * Make a sheet once, before the frame loop (it needs an open window, like every
+ * picture). Animations are sprite_animation; many sprites at once sprite_batch;
+ * a level made of tiles tile_map.
+ */
+stable class sprite_sheet {
+    picture : image;
+    frame_width : decimal = 0;      // the size of one frame, in the picture's pixels
+    frame_height : decimal = 0;
+    margin : decimal = 0;           // the gap around all the frames
+    spacing : decimal = 0;          // the gap between two frames
+    columns : _int64 = 1;           // frames in a row
+    rows : _int64 = 1;
+
+    sprite_sheet(path: string, frame_w: decimal, frame_h: decimal) {
+        picture = new image(path);
+        cut(frame_w, frame_h, 0, 0);
+    }
+
+    sprite_sheet(path: string, frame_w: decimal, frame_h: decimal, edge: decimal, gap: decimal) {
+        picture = new image(path);
+        cut(frame_w, frame_h, edge, gap);
+    }
+
+    /** a sheet over a picture that is already loaded */
+    sprite_sheet(loaded: image, frame_w: decimal, frame_h: decimal) {
+        picture = loaded;
+        cut(frame_w, frame_h, 0, 0);
+    }
+
+    private def cut(frame_w: decimal, frame_h: decimal, edge: decimal, gap: decimal) {
+        frame_width = frame_w;
+        frame_height = frame_h;
+        margin = edge;
+        spacing = gap;
+        if(frame_w > 0 && frame_h > 0) {
+            columns = (picture.width - edge * 2 + gap) / (frame_w + gap);
+            rows = (picture.height - edge * 2 + gap) / (frame_h + gap);
+        }
+        if(columns < 1) { columns = 1; }
+        if(rows < 1) { rows = 1; }
+    }
+
+    /** how many frames the sheet holds */
+    def frames() : _int64 {
+        return columns * rows;
+    }
+
+    /** where a frame's box starts in the picture, across and down */
+    def frame_x(frame: _int64) : decimal {
+        return margin + (frame % columns) * (frame_width + spacing);
+    }
+
+    def frame_y(frame: _int64) : decimal {
+        row : _int64 = frame / columns;
+        return margin + row * (frame_height + spacing);
+    }
+
+    /** keep every pixel a sharp square when the sheet is drawn larger: for pixel art. Returns the sheet. */
+    def crisp() : sprite_sheet {
+        picture.smooth(false);
+        return self;
+    }
+}

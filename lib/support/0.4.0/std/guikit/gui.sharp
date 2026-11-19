@@ -1338,6 +1338,30 @@ stable class gui {
         return new color(r, g, b, a);
     }
 
+    /**
+     * A solid colour as ONE NUMBER, 0xRRGGBBAA - the form the painter takes
+     * without making anything: p.rect(0, 0, 200, 80, gui.pack(60, 63, 70)) is
+     * p.rect(0, 0, 200, 80, 0x3C3F46FF). Channels outside 0..255 are brought
+     * inside. For a colour worked out while painting; one that never changes
+     * is best written as the hex number, or packed once and kept.
+     */
+    static def pack(r: _int64, g: _int64, b: _int64) : _int64 {
+        return pack(r, g, b, 255);
+    }
+
+    /** the same with an alpha: 0 (invisible) .. 255 (solid) */
+    static def pack(r: _int64, g: _int64, b: _int64, a: _int64) : _int64 {
+        if(r < 0) { r = 0; }
+        if(r > 255) { r = 255; }
+        if(g < 0) { g = 0; }
+        if(g > 255) { g = 255; }
+        if(b < 0) { b = 0; }
+        if(b > 255) { b = 255; }
+        if(a < 0) { a = 0; }
+        if(a > 255) { a = 255; }
+        return ((r * 256 + g) * 256 + b) * 256 + a;
+    }
+
     // ================================================================ the layer below (for programs that paint everything themselves)
 
     /**

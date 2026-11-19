@@ -1,0 +1,71 @@
+mod std.guikit.game;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * sprite_animation - which frame of a sprite sheet to show, as time passes.
+ *
+ *      run := new sprite_animation(8, 6, 12);       // frames 8 .. 13, twelve a second
+ *
+ *      p.sprite(hero, run.frame_at(f.time), x, y);  // in the canvas, every frame
+ *
+ * It holds no clock of its own: hand frame_at the seconds since the animation
+ * began - f.time for one that just loops, or `f.time - jumped_at` for one that
+ * starts at a moment. So one animation serves every character that uses it,
+ * each at its own point, and the speed is the same at any frame rate.
+ *
+ * It loops for ever unless once() is called: then it stops on its last frame,
+ * and finished(seconds) says when (a jump, an explosion).
+ */
+stable class sprite_animation {
+    frames : _int64[];              // the sheet's frame numbers, in the order shown
+    per_second : decimal = 10;      // how many of them a second
+    loops : bool = true;
+
+    /** `count` frames in a row of the sheet, starting at frame `first` */
+    sprite_animation(first: _int64, count: _int64, frames_a_second: decimal) {
+        frames = new _int64[count];
+        for(i : _int64 = 0; i < count; i++) {
+            frames[i] = first + i;
+        }
+        per_second = frames_a_second;
+    }
+
+    /** exactly these frames, in this order (a frame may be in it twice) */
+    sprite_animation(in_order: _int64[], frames_a_second: decimal) {
+        frames = in_order;
+        per_second = frames_a_second;
+    }
+
+    /** play through once and stay on the last frame. Returns the animation. */
+    def once() : sprite_animation {
+        loops = false;
+        return self;
+    }
+
+    /** the frame to show `seconds` after the animation began */
+    def frame_at(seconds: decimal) : _int64 {
+        count : _int64 = sizeof(frames);
+        if(count == 0) { return 0; }
+        step : _int64 = seconds * per_second;
+        if(step < 0) { step = 0; }
+        if(loops) {
+            return frames[step % count];
+        }
+        if(step >= count) { step = count - 1; }
+        return frames[step];
+    }
+
+    /** how long one pass through the frames takes, in seconds */
+    def length() : decimal {
+        if(per_second <= 0) { return 0; }
+        return sizeof(frames) / per_second;
+    }
+
+    /** has an animation that plays once reached its end? (one that loops never has) */
+    def finished(seconds: decimal) : bool {
+        return !loops && seconds >= length();
+    }
+}

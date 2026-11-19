@@ -1,0 +1,118 @@
+mod std.guikit.game;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * tile_map - a level laid out as a grid of tiles from a tile set.
+ *
+ *      ground := new sprite_sheet("assets/tiles.png", 18, 18).crisp();
+ *      level := new tile_map(ground, 200, 20);          // 200 tiles wide, 20 high
+ *      level.tile_size(36, 36);                         // painted twice the tile's own size
+ *      level.fill(0, 18, 200, 2, 3);                    // two rows of tile 3 along the bottom
+ *      level.put(12, 17, 48);                           // one tile
+ *      level.solid(3);                                  // tile 3 is something to stand on
+ *
+ *      p.tiles(level, camera_x, camera_y, f.width, f.height);     // in the canvas
+ *
+ * TILE NUMBERS: 0 is "nothing here". Tile n is frame n - 1 of the sheet, so
+ * tile 1 is the sheet's top-left frame. (A new map is all 0: empty. The Tiled
+ * map editor numbers tiles the same way.)
+ *
+ * THE CAMERA is the point of the map that is at the view's top-left corner, in
+ * the map's painted pixels: moving it scrolls the level. p.tiles paints only
+ * the tiles inside the view, in one call - a map of a million tiles costs the
+ * same to paint as a small one.
+ *
+ * WALLS AND FLOORS: mark tiles solid(...), and blocked(x, y, w, h) says whether
+ * a box - a character - would be inside one. Move, ask, and move back if so.
+ */
+stable class tile_map {
+    sheet : sprite_sheet;
+    columns : _int64 = 0;           // tiles across
+    rows : _int64 = 0;              // tiles down
+    tiles : _int32[];               // row after row: the tile at (column, row) is tiles[row * columns + column]
+    tile_width : decimal = 0;       // the size a tile is painted at
+    tile_height : decimal = 0;
+
+    private walls : bool[];         // walls[n]: is tile n solid?
+
+    tile_map(tile_set: sprite_sheet, across: _int64, down: _int64) {
+        sheet = tile_set;
+        columns = across;
+        rows = down;
+        tiles = new _int32[across * down];
+        tile_width = tile_set.frame_width;
+        tile_height = tile_set.frame_height;
+        walls = new bool[tile_set.frames() + 1];
+    }
+
+    /** paint every tile at this size instead of the sheet's own. Returns the map. */
+    def tile_size(w: decimal, h: decimal) : tile_map {
+        tile_width = w;
+        tile_height = h;
+        return self;
+    }
+
+    /** the whole map's size, in painted pixels */
+    def width() : decimal { return columns * tile_width; }
+    def height() : decimal { return rows * tile_height; }
+
+    /** put a tile at (column, row); outside the map nothing happens */
+    def put(column: _int64, row: _int64, tile: _int32) {
+        if(column < 0 || row < 0 || column >= columns || row >= rows) { return; }
+        tiles[row * columns + column] = tile;
+    }
+
+    /** the tile at (column, row); 0 outside the map */
+    def at(column: _int64, row: _int64) : _int32 {
+        if(column < 0 || row < 0 || column >= columns || row >= rows) { return 0; }
+        return tiles[row * columns + column];
+    }
+
+    /** the same tile over a block: `across` columns and `down` rows from (column, row) */
+    def fill(column: _int64, row: _int64, across: _int64, down: _int64, tile: _int32) {
+        for(r : _int64 = row; r < row + down; r++) {
+            for(c : _int64 = column; c < column + across; c++) {
+                put(c, r, tile);
+            }
+        }
+    }
+
+    /** the tile under the point (x, y) of the map, in painted pixels; 0 outside the map */
+    def tile_at(x: decimal, y: decimal) : _int32 {
+        if(x < 0 || y < 0) { return 0; }
+        column : _int64 = x / tile_width;
+        row : _int64 = y / tile_height;
+        return at(column, row);
+    }
+
+    /** from now on tile number `tile` is solid: a wall or a floor (blocked). Returns the map. */
+    def solid(tile: _int32) : tile_map {
+        if(tile > 0 && tile < sizeof(walls)) { walls[tile] = true; }
+        return self;
+    }
+
+    /** is this tile number solid? */
+    def is_solid(tile: _int32) : bool {
+        if(tile <= 0 || tile >= sizeof(walls)) { return false; }
+        return walls[tile];
+    }
+
+    /** would the box (x, y, w, h), in the map's painted pixels, be inside a solid tile? */
+    def blocked(x: decimal, y: decimal, w: decimal, h: decimal) : bool {
+        first_column : _int64 = x / tile_width;
+        first_row : _int64 = y / tile_height;
+        last_column : _int64 = (x + w - 0.001) / tile_width;
+        last_row : _int64 = (y + h - 0.001) / tile_height;
+        if(x < 0) { first_column = 0; }
+        if(y < 0) { first_row = 0; }
+        for(r : _int64 = first_row; r <= last_row; r++) {
+            for(c : _int64 = first_column; c <= last_column; c++) {
+                if(is_solid(at(c, r))) { return true; }
+            }
+        }
+        return false;
+    }
+}

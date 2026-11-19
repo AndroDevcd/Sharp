@@ -52,6 +52,15 @@ def name_every_native() {
     draw_circle_line(0, 0, 1, 1, 0);
     draw_polygon("", 0);
     fill_polygon(new decimal[3], new decimal[3], 3, 0, 0, 0);
+    draw_shapes(new _int8[1], new decimal[6], new _int64[1], 1, 0, 0, 1);
+    fill_rects(new decimal[1], new decimal[1], new decimal[1], new decimal[1], new _int64[1], 1, 0, 0, 1);
+    fill_circles(new decimal[1], new decimal[1], new decimal[1], new _int64[1], 1, 0, 0, 1);
+    draw_lines(new decimal[1], new decimal[1], new decimal[1], new decimal[1], 1, new _int64[1], 1, 0, 0, 1);
+    fill_triangles(new decimal[3], new decimal[3], new _int64[1], 1, 0, 0, 1);
+    image_smooth(0, 1);
+    draw_image_part(0, 0, 0, 1, 1, 0, 0, 1, 1, 255, 0, 0);
+    draw_image_parts(0, new decimal[4], new decimal[4], 1, 0, 0, 255);
+    draw_tiles(0, new _int32[1], 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 255);
     draw_clip(0, 0, 1, 1);
     draw_unclip();
 

@@ -18,6 +18,16 @@
 #include <SDL2/SDL.h>
 #include <string>
 
+// SDL_RenderGeometry (triangles handed to the graphics card) arrived in SDL
+// 2.0.18. Shapes with smooth edges and whole batches in one go are built on it;
+// on an older SDL (an old Raspberry Pi OS) the same things are painted one by
+// one, without the smooth edge.
+#if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(GUI_NO_GEOMETRY)
+#define GUI_HAS_GEOMETRY 1
+#else
+#define GUI_HAS_GEOMETRY 0
+#endif
+
 // The window and what paints it. Null while no window is open.
 extern SDL_Window*   g_window;
 extern SDL_Renderer* g_renderer;
@@ -44,6 +54,20 @@ static inline SDL_Color gui_color(int64_t packed) {
     c.a = (Uint8) (packed & 255);
     return c;
 }
+
+// The same with its alpha scaled by a fade level (1: unchanged, 0: invisible) -
+// what the painter's fade() does to every colour of a batch.
+static inline SDL_Color gui_color(int64_t packed, double level) {
+    SDL_Color c = gui_color(packed);
+    if(level < 1) c.a = (Uint8) (c.a * (level < 0 ? 0 : level));
+    return c;
+}
+
+// The numbers of an array handed over from Sharp, checked: it must hold numbers
+// of this kind (SNI_DECIMAL, SNI_INT64 ...) and at least `need` of them. When it
+// does not, a Sharp exception that names the array (`what`) is raised and the
+// result is false - the caller just returns.
+bool gui_numbers(sni_env* env, sni_ref ref, int32_t kind, int64_t need, const char* what, sni_array* out);
 
 // Fonts and images are textures of the renderer: when the window closes they
 // are thrown away with it (text.cpp, images.cpp).

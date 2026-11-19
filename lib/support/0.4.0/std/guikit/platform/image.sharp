@@ -26,4 +26,14 @@ stable class image {
         width = image_width(id);
         height = image_height(id);
     }
+
+    /**
+     * how the picture is scaled when it is drawn larger or smaller than it is:
+     * true (how every picture starts) smoothly, right for photos and drawn art;
+     * false keeps every pixel a sharp square, which is what pixel art needs.
+     */
+    def smooth(on: bool) {
+        if(on) { image_smooth(id, 1); }
+        else { image_smooth(id, 0); }
+    }
 }
