@@ -11,6 +11,9 @@ sharp examples/gui/lantern_hunt/lantern_hunt
 (The program is built next to `assets/`: it loads its models from the folder it is in.
 `sharp examples/gui/lantern_hunt/lantern_hunt play` skips the start screen.)
 
+The corner shows the frames painted each second. The game paints as fast as the
+machine can; add `capped` to hold it at 60.
+
 **Playing:** the arrow keys or W A S D walk and turn. Walk into a lantern to
 take it. Barrels are in the way.
 
