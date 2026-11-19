@@ -104,6 +104,14 @@ int64_t sharpgui_surface_open(sni_env* env, sni_ref title, int32_t width, int32_
     // Pictures and text are scaled smoothly instead of blocky.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
 
+#ifdef _WIN32
+    // On Windows paint with Direct3D 11. SDL would pick Direct3D 9 first, and a Direct3D 9
+    // window goes black for good the moment the 3D side makes its OpenGL context (g3_core.cpp);
+    // Direct3D 11 is untroubled by it. (Where there is no Direct3D 11, SDL goes on down its
+    // list; the environment variable SDL_RENDER_DRIVER still decides when it is set.)
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
+#endif
+
     // the size was given in units: the window is that many units, whatever a unit is in pixels here
     g_scale = g_scale_wanted > 0 ? g_scale_wanted : screen_scale();
 
@@ -172,6 +180,7 @@ void sharpgui_surface_close(sni_env* env, int64_t handle) {
     gui_forget_fonts();
     gui_forget_images();
     gui_forget_layers();
+    g3_forget_window();
     if(g_renderer != nullptr) { SDL_DestroyRenderer(g_renderer); g_renderer = nullptr; }
     if(g_window   != nullptr) { SDL_DestroyWindow(g_window);     g_window   = nullptr; }
     g_mode = MODE_WINDOWED;                 // the next window starts as an ordinary one again

@@ -18,6 +18,7 @@ build-scripts/
 
   linux/         what only Linux does:    build_vm.sh   build_gui_library.sh   install_from_source.sh
   windows/       what only Windows does:  build_vm.sh   build_gui_library.sh   install_release.sh
+                                          suite.sh  (the suite on the Windows VM, with the JIT and without)
   internal/      parts the three scripts use - nothing in it is run by hand
 ```
 

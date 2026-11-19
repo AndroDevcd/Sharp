@@ -1,0 +1,466 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * stage - what makes the nested way of writing a scene work, exactly as
+ * `scope` does for widgets (core/tree/scope.sharp):
+ *
+ *      scene {
+ *          cube(1).at(0, 0.5, 0);                  // lands in the scene ...
+ *          group {
+ *              sphere(0.3).at(0, 2, 0);            // ... these land in the group ...
+ *              cylinder(0.1, 2);
+ *          }.at(4, 0, 0);                          // ... and move with it
+ *      }
+ *
+ * There is one "open" thing at any moment: a scene or a group whose block is
+ * running. Every thing, the moment it is made, joins the open one. With
+ * nothing open, a new thing belongs to nothing yet - keep it in a variable and
+ * add(...) it inside a scene later.
+ */
+stable class stage {
+    /** the scene or group whose block is running right now (null: none) */
+    static open : thing?;
+
+    /** the scene whose block is running (null: none): what camera(), sun(), sky(), fog() and on_frame speak to */
+    static building : scene?;
+
+    static def adopt(fresh: thing) {
+        if(open != null) {
+            open!!.add(fresh);
+        }
+    }
+
+    /** run `block` with `into` as the open thing, then put back whichever was open before */
+    static def fill(into: thing, block: ()()) {
+        before : thing? = open;
+        open = into;
+        block();
+        open = before;
+    }
+
+    /** the scene being built, for a word that only makes sense inside one */
+    static def the_scene(written: string) : scene {
+        if(building == null) {
+            throw new illegal_state_exception("`" + written + "` only works inside `scene { ... }`");
+        }
+        return building!!;
+    }
+}
+
+/**
+ * thing - anything that stands in a scene: a shape, a model from a file, a
+ * group of other things.
+ *
+ * You rarely write `thing` itself. The words make them - cube, sphere, model,
+ * group, terrain, tree ... - and everything about how a thing sits and looks
+ * is chained onto it, the way a text's size is chained onto a text:
+ *
+ *      model("assets/car.obj").at(0, 0, -4).turn(30).color(0xD63031FF);
+ *
+ * WHERE IT IS
+ *      at(x, y, z)             its place: x to the right, y UP, z towards you; a unit is a metre
+ *      turn(heading)           degrees round the up axis: 0 faces along -z, 90 along +x
+ *      turn(heading, pitch, roll)      ... then nose up, then rolled
+ *      scale(s)                1: its own size
+ *      A thing inside a group is placed, turned and scaled RELATIVE to the group.
+ *
+ * HOW IT LOOKS
+ *      color(0xRRGGBBAA)       its colour (a texture is tinted by it; an alpha below FF makes it see-through)
+ *      texture(path)           a picture over it;  texture(path, 40): laid 40 times across
+ *      shiny(0 .. 1)           how strongly it glints
+ *      glow(0 .. 1)            how much of its colour it gives off by itself
+ *
+ * MOVING BY ITSELF (worked out on the graphics side: costs the program nothing)
+ *      spin(40)                degrees a second round the up axis
+ *      bob(0.2, 2)             up and down, this far, this fast
+ *
+ * CLICKS use the names a view's modifier uses:
+ *      click { ... }           double_click { ... }            right_click { ... }
+ *
+ * A thing you keep in a variable can be changed at any time - in on_frame,
+ * from a button, from a timer - and the scene shows it:
+ *
+ *      ship.turn_by(90 * f.step);
+ *      ship.forward(12 * f.step);
+ *
+ * (three.js: Object3D / Mesh. Godot: Node3D.)
+ */
+class thing {
+    model : _int64 = 0;             // what it looks like: a model on the graphics card (0: only a group)
+    shape : mesh? = null;           // the mesh it was made from, when it was: sent again when it changes
+
+    x : decimal = 0;
+    y : decimal = 0;
+    z : decimal = 0;
+    heading : decimal = 0;          // degrees
+    pitch : decimal = 0;
+    roll : decimal = 0;
+    size_x : decimal = 1;
+    size_y : decimal = 1;
+    size_z : decimal = 1;
+
+    spin_heading : decimal = 0;     // degrees a second
+    spin_pitch : decimal = 0;
+    spin_roll : decimal = 0;
+    bob_height : decimal = 0;
+    bob_rate : decimal = 0;
+
+    tinted : _int64 = 0xFFFFFFFF;
+    picture : _int64 = 0;           // a texture over the model's own (0: the model's)
+    repeats : decimal = 1;
+    shine : decimal = 0 - 1;        // below 0: the model's own
+    light : decimal = 0 - 1;
+    own_shader : _int64 = 0;        // its own pixel code (shader): 0, the library's
+
+    hidden : bool = false;
+    faces_eye : bool = false;       // always turned towards the camera (billboard)
+    shadowless : bool = false;
+    plain : bool = false;           // unlit
+    deaf : bool = false;            // clicks go through it
+
+    kids : list<thing>? = null;
+    parent : thing? = null;
+
+    copies : _int64 = 0;            // many copies of the model (scatter): the id of their places
+    far_model : _int64 = 0;         // ... and the cheaper model the far ones are drawn with
+    far_from : decimal = 0;
+
+    on_click : ()()? = null;
+    on_double_click : ()()? = null;
+    on_right_click : ()()? = null;
+
+    slot : _int64 = 0 - 1;          // its number in the scene, as last packed (scene.sharp)
+
+    /** counted up by everything that changes a thing: a scene packs itself again when it has moved on */
+    static changes : _int64 = 0;
+
+    thing() {
+        stage.adopt(self);
+    }
+
+    private def touched() : thing {
+        changes = changes + 1;
+        return self;
+    }
+
+    // ---------------------------------------------------------------- where it is
+
+    def at(px: decimal, py: decimal, pz: decimal) : thing {
+        x = px;
+        y = py;
+        z = pz;
+        return touched();
+    }
+
+    def move_by(dx: decimal, dy: decimal, dz: decimal) : thing {
+        x = x + dx;
+        y = y + dy;
+        z = z + dz;
+        return touched();
+    }
+
+    /** degrees round the up axis: 0 faces along -z, 90 along +x */
+    def turn(degrees: decimal) : thing {
+        heading = degrees;
+        return touched();
+    }
+
+    /** heading, then nose up by `nose_up` degrees, then rolled */
+    def turn(degrees: decimal, nose_up: decimal, rolled: decimal) : thing {
+        heading = degrees;
+        pitch = nose_up;
+        roll = rolled;
+        return touched();
+    }
+
+    def turn_by(degrees: decimal) : thing {
+        heading = heading + degrees;
+        return touched();
+    }
+
+    def scale(s: decimal) : thing {
+        size_x = s;
+        size_y = s;
+        size_z = s;
+        return touched();
+    }
+
+    def scale(sx: decimal, sy: decimal, sz: decimal) : thing {
+        size_x = sx;
+        size_y = sy;
+        size_z = sz;
+        return touched();
+    }
+
+    /** this far the way it faces (below 0: backwards) */
+    def forward(distance: decimal) : thing {
+        x = x + sin_of(heading * PI_VALUE / 180) * distance;
+        z = z - cos_of(heading * PI_VALUE / 180) * distance;
+        return touched();
+    }
+
+    def back(distance: decimal) : thing {
+        return forward(0 - distance);
+    }
+
+    /** this far to its right (below 0: to its left) */
+    def sideways(distance: decimal) : thing {
+        x = x + cos_of(heading * PI_VALUE / 180) * distance;
+        z = z + sin_of(heading * PI_VALUE / 180) * distance;
+        return touched();
+    }
+
+    // ---------------------------------------------------------------- how it looks
+
+    def color(packed: _int64) : thing {
+        tinted = packed;
+        return touched();
+    }
+
+    def texture(path: string) : thing {
+        picture = g3_texture(path);
+        return touched();
+    }
+
+    /** a picture laid `times` times across it (a floor of tiles, a field of grass) */
+    def texture(path: string, times: decimal) : thing {
+        picture = g3_texture(path);
+        repeats = times;
+        return touched();
+    }
+
+    /** a texture that is already loaded or made, by its id */
+    def texture(id: _int64) : thing {
+        picture = id;
+        return touched();
+    }
+
+    def texture(id: _int64, times: decimal) : thing {
+        picture = id;
+        repeats = times;
+        return touched();
+    }
+
+    def shiny(amount: decimal) : thing {
+        shine = amount;
+        return touched();
+    }
+
+    def glow(amount: decimal) : thing {
+        light = amount;
+        return touched();
+    }
+
+    /**
+     * your own last word on every pixel of it, in the graphics card's language
+     * (GLSL) - the way out when no setting does what you want, as canvas is in
+     * 2D. The code is one function; it is handed the colour the library worked
+     * out (texture, light, shadow) and returns the colour to show:
+     *
+     *      cube(2).shader("vec3 look(vec3 color, vec3 normal, vec3 place, vec2 at, float time) {"
+     *                   + "    float stripe = step(0.5, fract(place.y * 4.0 + time));"
+     *                   + "    return mix(color, vec3(1.0, 0.8, 0.2), stripe * 0.6);"
+     *                   + "}");
+     *
+     * normal: which way the surface faces; place: where in the world the pixel
+     * is; at: its point of the texture; time: seconds since the window opened.
+     * A mistake in the code stops the program with what the graphics card said.
+     */
+    def shader(code: string) : thing {
+        own_shader = g3_shader(code);
+        return touched();
+    }
+
+    /** its own colour whatever the light */
+    def unlit() : thing {
+        plain = true;
+        return touched();
+    }
+
+    def hide() : thing {
+        hidden = true;
+        return touched();
+    }
+
+    def show() : thing {
+        hidden = false;
+        return touched();
+    }
+
+    /** shown or not, by a condition: door.shown(open.value) */
+    def shown(yes: bool) : thing {
+        hidden = !yes;
+        return touched();
+    }
+
+    /** throws no shadow (a cloud, a beam of light) */
+    def no_shadow() : thing {
+        shadowless = true;
+        return touched();
+    }
+
+    /** always turned towards the camera: a name tag, a far-off tree drawn as a picture */
+    def face_camera() : thing {
+        faces_eye = true;
+        return touched();
+    }
+
+    // ---------------------------------------------------------------- moving by itself
+
+    /** turning round the up axis, this many degrees a second */
+    def spin(degrees_a_second: decimal) : thing {
+        spin_heading = degrees_a_second;
+        return touched();
+    }
+
+    def spin(heading_rate: decimal, pitch_rate: decimal, roll_rate: decimal) : thing {
+        spin_heading = heading_rate;
+        spin_pitch = pitch_rate;
+        spin_roll = roll_rate;
+        return touched();
+    }
+
+    /** floating up and down: `height` metres each way, `rate` turns of the wave a second times 6.28 */
+    def bob(height: decimal, rate: decimal) : thing {
+        bob_height = height;
+        bob_rate = rate;
+        return touched();
+    }
+
+    // ---------------------------------------------------------------- clicks
+
+    /** what happens when it is clicked (the same word a view's modifier uses) */
+    def click(what: ()()) : thing {
+        on_click = what;
+        return self;
+    }
+
+    def double_click(what: ()()) : thing {
+        on_double_click = what;
+        return self;
+    }
+
+    def right_click(what: ()()) : thing {
+        on_right_click = what;
+        return self;
+    }
+
+    /** clicks go through it to what is behind */
+    def unclickable() : thing {
+        deaf = true;
+        return touched();
+    }
+
+    // ---------------------------------------------------------------- what is in it
+
+    /** put another thing into this one: it is then placed, turned and scaled relative to it. Returns this thing. */
+    def add(kid: thing) : thing {
+        if(kid.parent != null) {
+            kid.parent!!.remove(kid);                   // a thing is in one place: moved, never copied
+        }
+        if(kids == null) { kids = new list<thing>(); }
+        kids!!.add(kid);
+        kid.parent = self;
+        return touched();
+    }
+
+    def remove(kid: thing) : thing {
+        if(kids != null) {
+            count : _int64 = kids!!.size().value;
+            for(i : _int64 = 0; i < count; i++) {
+                if(kids!!.at(i) == kid) {
+                    kids!!.remove_at(i);
+                    kid.parent = null;
+                    break;
+                }
+            }
+        }
+        return touched();
+    }
+
+    /** take every thing out of it */
+    def empty() : thing {
+        if(kids != null) { kids!!.clear(); }
+        return touched();
+    }
+
+    // ---------------------------------------------------------------- for the kinds of thing built on this one
+
+    /** the scene is about to hand this thing to the graphics card: make what it needs (scattered copies get their places here) */
+    def prepare() {
+        if(self is scattering) {
+            (self as scattering).place_copies();
+        }
+    }
+
+    /**
+     * how high the ground of this thing is at (px, pz) of the scene. Land
+     * (terrain) answers from its heights; any other thing is flat ground at
+     * its own height.
+     */
+    def height_at(px: decimal, pz: decimal) : decimal {
+        if(self is terrain) {
+            return (self as terrain).land_height(px, pz);
+        }
+        return y;
+    }
+
+    // ---------------------------------------------------------------- questions
+
+    /** how far from another thing, middle to middle, in metres (both in the same scene or group) */
+    def distance_to(other: thing) : decimal {
+        dx : decimal = other.x - x;
+        dy : decimal = other.y - y;
+        dz : decimal = other.z - z;
+        return square_root(dx * dx + dy * dy + dz * dz);
+    }
+
+    /**
+     * do the two things touch? Each is taken as the box round its model, at
+     * its place and size (a turned thing as the upright box that holds it).
+     * Right for things that are next to each other in the same scene or group.
+     */
+    def touches(other: thing) : bool {
+        mine := reach();
+        theirs := other.reach();
+        if(mine == null || theirs == null) { return false; }
+        a := mine!!;
+        b := theirs!!;
+        return a[0] < b[3] && b[0] < a[3] && a[1] < b[4] && b[1] < a[4] && a[2] < b[5] && b[2] < a[5];
+    }
+
+    /** the upright box round it where it stands: low x y z, high x y z (null: nothing to measure) */
+    def reach() : decimal[]? {
+        if(model == 0) { return null; }
+        box := new decimal[6];
+        g3_model_box(model, box);
+        low_x : decimal = box[0] * size_x;
+        high_x : decimal = box[3] * size_x;
+        low_z : decimal = box[2] * size_z;
+        high_z : decimal = box[5] * size_z;
+        if(heading != 0 || spin_heading != 0) {
+            // turned: the box that holds it whichever way it faces
+            far : decimal = absolute(low_x);
+            if(absolute(high_x) > far) { far = absolute(high_x); }
+            if(absolute(low_z) > far) { far = absolute(low_z); }
+            if(absolute(high_z) > far) { far = absolute(high_z); }
+            low_x = 0 - far;
+            high_x = far;
+            low_z = 0 - far;
+            high_z = far;
+        }
+        box[0] = x + low_x;
+        box[1] = y + box[1] * size_y;
+        box[2] = z + low_z;
+        box[3] = x + high_x;
+        box[4] = y + box[4] * size_y;
+        box[5] = z + high_z;
+        return box;
+    }
+}

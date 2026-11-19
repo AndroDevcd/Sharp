@@ -78,6 +78,24 @@ def name_every_native() {
     image_height(picture);
     draw_image(picture, 0, 0, 1, 1, 255);
 
+    g3_card();
+    g3_texture("");
+    g3_texture_pixels("", new _int64[1], 1, 1);
+    g3_texture_made("", 0);
+    g3_shader("");
+    shape : _int64 = g3_model();
+    g3_model_part(shape, 0 - 1, new decimal[9], new decimal[9], new decimal[6], new _int64[3], new _int32[3], 3, 1);
+    g3_part_look(shape, 0 - 1, 0, 0, 0, 0, 0);
+    g3_model_load("");
+    g3_model_box(shape, new decimal[6]);
+    g3_copies(new decimal[5], 1);
+    world : _int64 = g3_scene();
+    g3_scene_nodes(world, new decimal[26], 1, new decimal[8], 1);
+    g3_scene_look(world, new decimal[32]);
+    g3_scene_draw(world, 0, 0, 1, 1, 0, 255);
+    g3_scene_drawn(world);
+    g3_scene_pick(world, 0, 0, 1, 1, new decimal[3]);
+
     surface_close(window_id);
 }
 

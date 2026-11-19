@@ -5,25 +5,25 @@ import (
 )
 
 /**
- * box - a rectangle that things in a game are checked against: does the
+ * hit_box - a rectangle that things in a game are checked against: does the
  * player touch the coin, is the click inside the button, did the bullet hit.
  *
- *      player := new box(x, y, 32, 48);
- *      coin := new box(400, 200, 16, 16);
+ *      player := new hit_box(x, y, 32, 48);
+ *      coin := new hit_box(400, 200, 16, 16);
  *
  *      if(player.overlaps(coin)) { ... }
  *      if(player.contains(f.mouse_x, f.mouse_y)) { ... }
  *
- * Its fields are plain numbers: move a box by changing x and y. Boxes that
+ * Its fields are plain numbers: move a hit box by changing x and y. Hit boxes that
  * only share an edge do not overlap.
  */
-stable class box {
+stable class hit_box {
     x : decimal = 0;
     y : decimal = 0;
     w : decimal = 0;
     h : decimal = 0;
 
-    box(left: decimal, top: decimal, width: decimal, height: decimal) {
+    hit_box(left: decimal, top: decimal, width: decimal, height: decimal) {
         x = left;
         y = top;
         w = width;
@@ -31,7 +31,7 @@ stable class box {
     }
 
     /** do the two boxes share any area? */
-    def overlaps(other: box) : bool {
+    def overlaps(other: hit_box) : bool {
         return x < other.x + other.w && other.x < x + w && y < other.y + other.h && other.y < y + h;
     }
 

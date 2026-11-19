@@ -162,7 +162,7 @@ stable class ui_host {
     mouse_y : decimal = 0;
     mouse_held : _int64 = 0;
     now : decimal = 0;                  // seconds since the window opened, at the start of this turn
-    step : decimal = 0;                 // seconds since the previous turn
+    step : decimal = 0;                 // seconds since the previous FRAME was painted (frame.step; never over 0.1)
     private keys_held : list<int> = new list<int>();
 
     ui_host(title: string, width: _int32, height: _int32) {
@@ -212,12 +212,10 @@ stable class ui_host {
         apply_vsync();                           // a window opens waiting for the refresh; this is what the program chose
 
         p := win.painter();
-        last : decimal = win.time();
+        painted_at : decimal = win.time();          // when the last frame was painted
 
         while(win.is_open()) {
             now = win.time();
-            step = now - last;
-            last = now;
 
             read_events();
             if(!win.is_open()) {
@@ -267,6 +265,16 @@ stable class ui_host {
                     // loop comes back here to sleep out the rest.)
                     wait_for_frame(next_frame_at - started);
                 } else {
+                    // How long since the last frame: what everything that moves by itself moves by.
+                    // (Measured frame to frame. This loop turns several times between two frames when
+                    // the frame rate is limited - it wakes for events and timers - and a step measured
+                    // turn to turn made everything run slow under a limit.) After a pause - the app
+                    // was idle, the window was dragged - things carry on from where they were: they
+                    // do not jump ahead by the whole pause.
+                    step = started - painted_at;
+                    if(step > 0.1) { step = 0.1; }
+                    painted_at = started;
+
                     paint_due = 0;
                     frame_wanted = 0;
                     wake_at = 0;                  // widgets that still need waking ask again while painting

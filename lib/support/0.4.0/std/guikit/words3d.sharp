@@ -1,0 +1,309 @@
+mod std.guikit;
+
+import (
+    std,
+    std.guikit.*
+)
+
+/**
+ * THE WORDS OF 3D - a scene is written the way a screen is (words.sharp):
+ *
+ *      scene {
+ *          camera().orbit();
+ *          sun().from(0.8, 0.5, 0.3).shadows();
+ *          ground(20).texture("assets/concrete.png", 8);
+ *          cube(1).at(0, 0.5, 0).color(0xD63031FF).spin(40);
+ *          group {
+ *              cylinder(0.08, 3).color(0x2D3436FF);
+ *              sphere(0.25).at(0, 3, 0).glow(1);
+ *          }.at(4, 0, 0);
+ *      }
+ *
+ * THE SHAPE OF EVERY ONE OF THEM, as with widgets:
+ *
+ *      name(what it needs)             cube(1)     model("car.obj")     sphere(0.5)
+ *      ... then what it is like, chained: .at(...) .turn(...) .color(...) .texture(...)
+ *      ... a block last, where it holds things:    scene { ... }        group { ... }
+ *
+ * A scene is a WIDGET: its box - size, place in the layout - comes from a
+ * modifier, like any widget's: scene(modifier().grow(1)) { ... }. What is IN
+ * the scene are THINGS, and a thing has no box: where it stands and how it
+ * looks are chained onto it (three/thing.sharp).
+ *
+ * WHAT THERE IS
+ *
+ *      holding things      scene  group
+ *      shapes              cube  sphere  cylinder  cone  ground  ring  sign
+ *      from files          model("x.obj")  model("x.gltf")  model("x.glb")
+ *      your own            add(a mesh)             (three/mesh.sharp)
+ *      land and plants     terrain  tree  pine  scatter
+ *      the view            camera()  sun()  lamp()  sky  backdrop  fog  daylight
+ *      code and widgets    on_frame { f -> ... }   hud { ... }
+ *
+ * Shapes of the same size share one copy on the graphics card, however often
+ * the screen is rebuilt: writing cube(1) in a loop a thousand times makes a
+ * thousand things and one cube.
+ */
+
+// ==================================================================== the scene
+
+/** a 3D view filling what room there is (give it a modifier to size it) */
+def scene(block: ()()) : scene {
+    made := new scene(block);
+    gui.modifier().fill().apply_to(made.node());
+    return made;
+}
+
+def scene(look: modifier, block: ()()) : scene {
+    made := new scene(block);
+    look.apply_to(made.node());
+    return made;
+}
+
+/** things that belong together: placed, turned and scaled as one */
+def group(block: ()()) : thing {
+    made := new thing();
+    stage.fill(made, block);
+    return made;
+}
+
+/** put a thing you kept in a variable into the scene or group being written */
+def add(what: thing) : thing {
+    if(stage.open == null) {
+        throw new illegal_state_exception("`add(...)` only works inside `scene { ... }` or `group { ... }`");
+    }
+    stage.open!!.add(what);
+    return what;
+}
+
+/** a mesh of your own, as a thing */
+def add(shape: mesh) : thing {
+    made := new thing();
+    made.shape = shape;
+    return made;
+}
+
+// ==================================================================== shapes
+
+/** a cube `size` metres along every edge, round its own middle */
+def cube(size: decimal) : thing {
+    return cube(size, size, size);
+}
+
+/** a box `w` wide, `h` high and `d` deep */
+def cube(w: decimal, h: decimal, d: decimal) : thing {
+    key : string = "cube " + w + " " + h + " " + d;
+    id : _int64 = shape_store.find(key);
+    if(id == 0) { id = shape_store.keep(key, shapes.cube(w, h, d)); }
+    return shape_store.thing_of(id);
+}
+
+/** a ball of this radius */
+def sphere(radius: decimal) : thing {
+    return sphere(radius, 32, 20);
+}
+
+/** a ball cut into `around` pieces round its middle and `down` bands: few of them for a faceted look */
+def sphere(radius: decimal, around: _int64, down: _int64) : thing {
+    key : string = "sphere " + radius + " " + around + " " + down;
+    id : _int64 = shape_store.find(key);
+    if(id == 0) { id = shape_store.keep(key, shapes.sphere(radius, around, down)); }
+    return shape_store.thing_of(id);
+}
+
+/** a round post of this radius and height, standing on its own middle */
+def cylinder(radius: decimal, height: decimal) : thing {
+    return cylinder(radius, radius, height, 24);
+}
+
+/** `bottom` and `top` its two radii, `sides` how many flat sides: a funnel, a pillar, a pyramid */
+def cylinder(bottom: decimal, top: decimal, height: decimal, sides: _int64) : thing {
+    key : string = "cylinder " + bottom + " " + top + " " + height + " " + sides;
+    id : _int64 = shape_store.find(key);
+    if(id == 0) { id = shape_store.keep(key, shapes.cylinder(bottom, top, height, sides)); }
+    return shape_store.thing_of(id);
+}
+
+/** a cone: `radius` at the bottom, a point at the top */
+def cone(radius: decimal, height: decimal) : thing {
+    return cylinder(radius, 0, height, 24);
+}
+
+/** flat ground, `size` metres square, round (0, 0, 0) */
+def ground(size: decimal) : thing {
+    return ground(size, size);
+}
+
+def ground(w: decimal, d: decimal) : thing {
+    key : string = "ground " + w + " " + d;
+    id : _int64 = shape_store.find(key);
+    if(id == 0) { id = shape_store.keep(key, shapes.plane(w, d, 16, 16)); }
+    return shape_store.thing_of(id);
+}
+
+/** a ring lying flat: `radius` to the middle of its tube, the tube `thickness` in radius */
+def ring(radius: decimal, thickness: decimal) : thing {
+    key : string = "ring " + radius + " " + thickness;
+    id : _int64 = shape_store.find(key);
+    if(id == 0) { id = shape_store.keep(key, shapes.ring(radius, thickness, 40, 12)); }
+    return shape_store.thing_of(id);
+}
+
+/**
+ * a picture standing in the world, `w` by `h` metres, on its bottom edge. Its
+ * see-through parts are holes, and it is its own colours whatever the light.
+ * Chain .face_camera() for one that always looks at the eye (a name tag, a
+ * far-off tree).
+ */
+def sign(path: string, w: decimal, h: decimal) : thing {
+    key : string = "sign " + path + " " + w + " " + h;
+    id : _int64 = shape_store.find(key);
+    if(id == 0) { id = shape_store.keep(key, shapes.card(w, h).texture(path).cut_out().unlit()); }
+    return shape_store.thing_of(id);
+}
+
+// ==================================================================== from files
+
+/**
+ * a model made in an art tool: an .obj (with its .mtl), a .gltf or a .glb
+ * file, with its materials and textures. The file is read once; every
+ * model(...) of it after that is the same shape on the graphics card.
+ */
+def model(path: string) : thing {
+    return shape_store.thing_of(g3_model_load(path));
+}
+
+// ==================================================================== land and plants
+
+/** land `size` metres square, its height at (x, z) given by your function (three/terrain.sharp) */
+def terrain(size: decimal, rise: (decimal, decimal)(decimal)) : terrain {
+    return new terrain(size, 128, rise);
+}
+
+/** the same cut into `cells` squares along each edge: more for finer land, fewer for a faster start */
+def terrain(size: decimal, cells: _int64, rise: (decimal, decimal)(decimal)) : terrain {
+    return new terrain(size, cells, rise);
+}
+
+/** a broad-leaved tree, grown from this number: another number, another tree (three/plant.sharp) */
+def tree(seed: decimal) : plant {
+    return plants.whole("tree", seed);
+}
+
+/** a conifer, grown from this number */
+def pine(seed: decimal) : plant {
+    return plants.whole("pine", seed);
+}
+
+/**
+ * a texture the library draws itself, for land and plants with no picture
+ * files: "bark", "leaves", "needles", "grass", "rock" or "sand". The number
+ * picks one of each kind. Gives its id, for .texture(id).
+ */
+def made_texture(kind: string, which: _int64) : _int64 {
+    return g3_texture_made(kind, which);
+}
+
+/** `count` copies of a thing, strewn about (three/terrain.sharp: scattering) */
+def scatter(what: thing, count: _int64) : scattering {
+    return new scattering(what, count);
+}
+
+// ==================================================================== the view
+
+/** the scene's camera (three/camera.sharp) */
+def camera() : camera {
+    return stage.the_scene("camera()").eye;
+}
+
+/** the scene's sun (three/lights.sharp) */
+def sun() : sun {
+    return stage.the_scene("sun()").light;
+}
+
+/** a light at a place (three/lights.sharp). Made inside a group, it hangs in the group. */
+def lamp() : lamp {
+    on := stage.the_scene("lamp()");
+    made := new lamp();
+    made.on = stage.open;
+    on.lamps.add(made);
+    thing.changes = thing.changes + 1;
+    return made;
+}
+
+/** the sky: its colour overhead, and at the horizon */
+def sky(top: _int64, horizon: _int64) {
+    on := stage.the_scene("sky(...)");
+    on.sky_shown = true;
+    on.sky_top = top;
+    on.sky_horizon = horizon;
+    on.sky_below = horizon;
+}
+
+/** one flat colour behind everything, instead of a sky */
+def backdrop(color: _int64) {
+    on := stage.the_scene("backdrop(...)");
+    on.sky_shown = false;
+    on.behind = color;
+}
+
+/** far things fade into this colour: none of it at `from` metres, nothing but it at `to` */
+def fog(color: _int64, from: decimal, to: decimal) {
+    on := stage.the_scene("fog(...)");
+    on.fog_color = color;
+    on.fog_from = from;
+    on.fog_to = to;
+}
+
+/**
+ * the light that is everywhere, sun or not: `from_sky` on what faces up,
+ * `from_ground` on what faces down. Darker for a moody scene, both the same
+ * for flat light.
+ */
+def daylight(from_sky: _int64, from_ground: _int64) {
+    on := stage.the_scene("daylight(...)");
+    on.sky_light = from_sky;
+    on.ground_light = from_ground;
+}
+
+// ==================================================================== code and widgets
+
+/**
+ * your code, run before every frame of the scene is drawn. `f` says how much
+ * time passed (f.step, in seconds), what time it is (f.time), where the mouse
+ * is and which keys are held (f.key_down(KEY_LEFT), f.key_down('a')).
+ *
+ *      on_frame { f: frame ->
+ *          if(f.key_down(KEY_LEFT) == 1) { ship.turn_by(0 - 90 * f.step); }
+ *          ship.forward(12 * f.step);
+ *      };
+ */
+def on_frame(what: (frame)()) {
+    stage.the_scene("on_frame { ... }").each_frame(what);
+}
+
+/** ordinary widgets over the scene: a score, a health bar, buttons */
+def hud(block: ()()) {
+    stage.the_scene("hud { ... }").over(block);
+}
+
+// ==================================================================== textures by hand
+
+/** a picture file as a texture: its id, for mesh.texture(id) and thing.texture(id) */
+def texture_of(path: string) : _int64 {
+    return g3_texture(path);
+}
+
+/**
+ * a texture made by the program: `width` x `height` colours (0xRRGGBBAA), row
+ * after row from the top. `name` is what it is remembered by: asking again
+ * under the same name gives the one made first.
+ */
+def make_texture(name: string, pixels: _int64[], width: _int64, height: _int64) : _int64 {
+    return g3_texture_pixels(name, pixels, width, height);
+}
+
+/** what draws the scenes on this machine: the graphics card and its OpenGL (or why 3D is not available) */
+def graphics_card() : string {
+    return g3_card();
+}

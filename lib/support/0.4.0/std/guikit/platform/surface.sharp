@@ -113,6 +113,27 @@ native "sharpgui" {
                    first_column: _int64, first_row: _int64, columns: _int64, rows: _int64,
                    frame_w: decimal, frame_h: decimal, margin: decimal, spacing: decimal, sheet_columns: _int64,
                    x: decimal, y: decimal, tile_w: decimal, tile_h: decimal, opacity: _int32);   // a grid of tiles (tile_map.sharp)
+
+    // --- 3D (native/g3_core.cpp, g3_load.cpp): scenes drawn by the graphics card with OpenGL. std/guikit/three wraps all of it ---
+    def g3_card() : string;                                                    // what draws: the card and its OpenGL (or why 3D is not available)
+    def g3_texture(path: string) : _int64;                                     // a picture file as a texture: its id
+    def g3_texture_pixels(name: string, pixels: _int64[], width: _int64, height: _int64) : _int64;   // one made by the program: 0xRRGGBBAA, row after row
+    def g3_texture_made(kind: string, seed: _int64) : _int64;                  // one drawn by the library: bark, leaves, needles, grass, rock, sand (native/g3_make.cpp)
+    def g3_shader(code: string) : _int64;                                      // a program's own pixel code (GLSL): its id
+    def g3_model() : _int64;                                                   // a new, empty model: its id
+    def g3_model_part(model: _int64, part: _int64, points: decimal[], normals: decimal[], uvs: decimal[],
+                      colors: _int64[], faces: _int32[], corner_count: _int64, face_count: _int64) : _int64;   // part -1: a new part; its number
+    def g3_part_look(model: _int64, part: _int64, color: _int64, texture: _int64,
+                     shiny: decimal, glow: decimal, flags: _int64);            // what a part is made of (part -1: all). flags: mesh.sharp
+    def g3_model_load(path: string) : _int64;                                  // an .obj, .gltf or .glb file with its textures: its id
+    def g3_model_box(model: _int64, into: decimal[]) : _int64;                 // the box round it (low x y z, high x y z); returns its triangles
+    def g3_copies(places: decimal[], count: _int64) : _int64;                  // where many copies stand: x y z heading scale each. Its id
+    def g3_scene() : _int64;                                                   // a new scene: its id
+    def g3_scene_nodes(scene: _int64, nodes: decimal[], count: _int64, lamps: decimal[], lamp_count: _int64);   // what is in it (scene.sharp packs it)
+    def g3_scene_look(scene: _int64, look: decimal[]);                         // its camera, sun, sky and fog: 32 numbers
+    def g3_scene_draw(scene: _int64, x: decimal, y: decimal, w: decimal, h: decimal, time: decimal, opacity: _int32);
+    def g3_scene_drawn(scene: _int64) : _int64;                                // triangles the last draw sent to the card
+    def g3_scene_pick(scene: _int64, px: decimal, py: decimal, w: decimal, h: decimal, hit: decimal[]) : _int64;   // the node under a point, -1: none
 }
 
 /**

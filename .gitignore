@@ -14,3 +14,6 @@ claude/
 
 # what the build scripts make inside the repository (build-scripts/README.md)
 /build/
+
+# a compiled example program (built next to its assets: examples/gui/lantern_hunt/README.md)
+/examples/gui/lantern_hunt/lantern_hunt

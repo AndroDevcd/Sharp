@@ -74,6 +74,7 @@ bool gui_numbers(sni_env* env, sni_ref ref, int32_t kind, int64_t need, const ch
 void gui_forget_fonts();
 void gui_forget_images();
 void gui_forget_layers();
+void g3_forget_window();        // the 3D side's picture in the 2D renderer (g3_core.cpp)
 
 void sharpgui_draw_rect(sni_env* env, double x, double y, double w, double h, double radius, int64_t color);
 

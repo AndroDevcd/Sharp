@@ -300,12 +300,61 @@ The GUI draws through SDL2:
 - **Windows** - nothing to install: SDL2 is inside the `sharpgui.dll` that came with Sharp.
 - **Raspberry Pi / Debian / Ubuntu** - `sudo apt install libsdl2-dev`
 
-## 7. Where to go next
+## 7. Your first 3D scene
+
+A scene is a widget, written the way a screen is: the block says what is in it.
+
+```javascript
+mod app;
+
+import (
+    std.guikit.*
+)
+
+def main() {
+    gui.run("Yard", 900, 600, { ->
+        return scene {
+            camera().orbit();                                   // drag to look round, wheel to zoom
+            sun().from(0.6, 0.7, 0.4).shadows();
+            ground(30).texture(made_texture("grass", 1), 10);
+
+            cube(1).at(0, 0.5, 0).color(0xD63031FF).spin(40);
+            sphere(0.5).at(2, 0.5, 0).color(0xC0C8D0FF).shiny(0.9);
+            add(tree(7)).at(0 - 3, 0, 0 - 2);
+            group {                                             // a street lamp: moves as one thing
+                cylinder(0.06, 2.4).at(0, 1.2, 0).color(0x2D3436FF);
+                sphere(0.18).at(0, 2.5, 0).color(0xFFE9A0FF).glow(1);
+                lamp().at(0, 2.5, 0).reach(7);
+            }.at(3, 0, 2);
+        };
+    });
+}
+```
+
+- **Things** are made by words - `cube`, `sphere`, `cylinder`, `cone`, `ground`, `tree`,
+  `pine`, `model("file.gltf")` - and what a thing is like is chained onto it: `.at(x, y, z)`,
+  `.turn(degrees)`, `.scale(s)`, `.color(0xRRGGBBAA)`, `.texture(path)`, `.shiny(...)`,
+  `.spin(...)`, `.click { ... }`.
+- **The space**: x to the right, y up, z towards you; one unit is a metre.
+- **Colours are numbers**: `0xD63031FF` is red, green, blue and alpha, two hex digits each.
+  One kept in a variable needs its type written: `red : _int64 = 0xD63031FF;`.
+- **Your own models** come from `.obj`, `.gltf` and `.glb` files; your own shapes from
+  `mesh` (corners and triangles). `terrain` makes land from a height function and
+  `scatter(thing, count)` strews copies over it.
+- **Your own code** runs before every frame in `on_frame { f: frame -> ... }` (the keys, the
+  time passed), and ordinary widgets go over the scene with `hud { ... }`.
+
+[`examples/gui/lantern_hunt`](examples/gui/lantern_hunt) is a complete small game built
+from these; `lib/support/0.4.0/std/guikit/words3d.sharp` lists every word.
+
+Scenes are drawn with OpenGL, which every PC has; on a Raspberry Pi it is OpenGL ES 2.
+
+## 8. Where to go next
 
 - The [README](README.md) shows what sets Sharp apart: dependency injection in the
   language, mocks the compiler writes, the GUI toolkit and coroutines.
 - [`examples`](examples) has sample programs; [`examples/gui`](examples/gui) goes from a
-  to-do list to a full task manager.
+  to-do list to a full task manager, and to a 3D game.
 - [`tests/suite/cases`](tests/suite/cases) has one small, commented program per language
   feature and library - the quickest way to see how something is written.
 - [`tools/clion-plugin`](tools/clion-plugin) is an editor plugin for CLion and IntelliJ IDEA.

@@ -345,6 +345,11 @@ stable class painter {
                    ox - camera_x, oy - camera_y, ground.tile_width, ground.tile_height, solid(255));
     }
 
+    /** how solid things are painted right now: 255 fully, 0 not at all (what fade() has made of it) */
+    def opacity() : _int32 {
+        return solid(255);
+    }
+
     // ---------------------------------------------------------------- clipping
 
     /**
