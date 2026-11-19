@@ -67,9 +67,11 @@ object SharpTokenKinds {
     // ---- names that read like part of the language where they stand (SharpBuiltInWords)
     @JvmField val BUILT_IN_CALL = SharpTokenType("BUILT_IN_CALL")       // mock<t>()
     @JvmField val TESTING_WORD = SharpTokenType("TESTING_WORD")         // tests, test, expect, given, verify ...
+    @JvmField val C_TYPE = SharpTokenType("C_TYPE")                     // c_int, c_float, pointer ... (std.c)
+    @JvmField val CONTEXT_KEYWORD = SharpTokenType("CONTEXT_KEYWORD")   // extern "library" { }
 
-    /** every kind a NAME can have: a plain identifier, or one of the two above (they are still names) */
-    @JvmField val NAMES = TokenSet.create(IDENTIFIER, BUILT_IN_CALL, TESTING_WORD)
+    /** every kind a NAME can have: a plain identifier, or one of those above (they are still names) */
+    @JvmField val NAMES = TokenSet.create(IDENTIFIER, BUILT_IN_CALL, TESTING_WORD, C_TYPE, CONTEXT_KEYWORD)
 
     // ---- punctuation
     @JvmField val LBRACE = SharpTokenType("LBRACE")

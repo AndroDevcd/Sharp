@@ -41,6 +41,8 @@ class SharpColorSettingsPage : ColorSettingsPage {
             AttributesDescriptor("Keywords//Built-in values (true, false, null, self ...)", SharpColors.BUILT_IN_VALUE),
             AttributesDescriptor("Built-ins//Built-in call (mock<t>())", SharpColors.BUILT_IN_CALL),
             AttributesDescriptor("Built-ins//Testing words (tests, test, expect, given, verify ...)", SharpColors.TESTING_WORD),
+            AttributesDescriptor("Built-ins//C types (c_int, c_float, pointer ...)", SharpColors.C_TYPE),
+            AttributesDescriptor("Keywords//Words that are keywords where they stand (extern)", SharpColors.CONTEXT_KEYWORD),
             AttributesDescriptor("Identifier", SharpColors.IDENTIFIER),
             AttributesDescriptor("Number", SharpColors.NUMBER),
             AttributesDescriptor("Strings//String", SharpColors.STRING),
@@ -90,6 +92,11 @@ class SharpColorSettingsPage : ColorSettingsPage {
                     shape?.area()!!.to_string();
                     return new string[] { "a", "b" }[0];
                 }
+            }
+
+            extern "c" {
+                def strlen(text: string) : c_size;
+                def memcpy(into: pointer, from: pointer, bytes: c_size) : pointer;
             }
 
             def main() {

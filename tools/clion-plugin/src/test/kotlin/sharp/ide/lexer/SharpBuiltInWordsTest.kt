@@ -55,6 +55,33 @@ class SharpBuiltInWordsTest {
     }
 
     @Test
+    fun theCTypesAreMarkedWhereverTheyAreNotAMember() {
+        assertEquals(listOf("IDENTIFIER[count]", "OPERATOR[:]", "C_TYPE[c_int]"), kinds("count : c_int"))
+        assertEquals("C_TYPE[c_float]", kinds("alias decimal as c_float").last())
+        assertEquals(listOf("IDENTIFIER[x]", "DOT[.]", "IDENTIFIER[c_int]"), kinds("x.c_int"))
+    }
+
+    @Test
+    fun pointerIsATypeOnlyWhereATypeStands() {
+        assertEquals(listOf("IDENTIFIER[block]", "OPERATOR[:]", "C_TYPE[pointer]"), kinds("block : pointer"))
+        assertEquals(
+            listOf("LPAREN[(]", "C_TYPE[pointer]", "COMMA[,]", "C_TYPE[pointer]", "RPAREN[)]", "LPAREN[(]", "C_TYPE[c_int]", "RPAREN[)]"),
+            kinds("(pointer, pointer)(c_int)"),
+        )
+        assertEquals("C_TYPE[pointer]", kinds("alias _int64 as pointer").last())
+        // a variable of that name stays a plain name
+        assertEquals(listOf("IDENTIFIER[pointer]", "OPERATOR[=]", "INTEGER[1]"), kinds("pointer = 1"))
+        assertEquals("IDENTIFIER[pointer]", kinds("free(pointer)")[2])
+        assertEquals("IDENTIFIER[pointer]", kinds("pointer : _int64").first())
+    }
+
+    @Test
+    fun externIsAKeywordOnlyInFrontOfALibrarysName() {
+        assertEquals("CONTEXT_KEYWORD[extern]", kinds("extern \"sdl\" { }").first())
+        assertEquals(listOf("IDENTIFIER[extern]", "OPERATOR[=]", "INTEGER[1]"), kinds("extern = 1"))
+    }
+
+    @Test
     fun theCheckAfterExpectIsAnOrdinaryMember() {
         assertEquals(
             listOf("TESTING_WORD[expect]", "LPAREN[(]", "IDENTIFIER[x]", "RPAREN[)]", "DOT[.]", "IDENTIFIER[should_be]", "LPAREN[(]", "INTEGER[1]", "RPAREN[)]"),

@@ -109,7 +109,7 @@ object SharpProjectFiles {
         "name", "version", "output", "output_file", "compile_only", "show_all_errors", "debug", "release", "release_build",
         "obfuscate", "optimize_level", "cache_files", "target", "target_api", "warnings", "enable_warnings", "disable_warnings",
         "warnings_as_errors", "error_limit", "green_mode", "magic_mode", "compiler_debug_mode", "ignore_files", "ignore_folders",
-        "extern_lib", "extern_libs", "ignore_extern_files", "ignore_extern_folders", "native",
+        "extern_lib", "extern_libs", "ignore_extern_files", "ignore_extern_folders", "native", "c_libraries",
     )
     /** `name` and `version` alone are in every package.json and the like: they do not decide. */
     private val TELLING = KNOWN_SETTINGS - setOf("name", "version", "debug", "target", "warnings", "release")

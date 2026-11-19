@@ -21,12 +21,17 @@ object SharpColors {
     @JvmField val KEYWORD_CONTROL = createTextAttributesKey("SHARP_KEYWORD_CONTROL", DefaultLanguageHighlighterColors.KEYWORD)
     @JvmField val KEYWORD_MODIFIER = createTextAttributesKey("SHARP_KEYWORD_MODIFIER", DefaultLanguageHighlighterColors.KEYWORD)
     @JvmField val KEYWORD_OPERATOR = createTextAttributesKey("SHARP_KEYWORD_OPERATOR", DefaultLanguageHighlighterColors.KEYWORD)
-    @JvmField val BUILT_IN_TYPE = createTextAttributesKey("SHARP_BUILT_IN_TYPE", DefaultLanguageHighlighterColors.CLASS_NAME)
+    // (the keyword colour, not the class-name one: most colour schemes leave class names the colour of plain
+    //  text, and `decimal` and `_int64` then looked like any other name)
+    @JvmField val BUILT_IN_TYPE = createTextAttributesKey("SHARP_BUILT_IN_TYPE", DefaultLanguageHighlighterColors.KEYWORD)
     @JvmField val BUILT_IN_VALUE = createTextAttributesKey("SHARP_BUILT_IN_VALUE", DefaultLanguageHighlighterColors.CONSTANT)
 
     // names that read like part of the language where they stand (SharpBuiltInWords)
     @JvmField val BUILT_IN_CALL = createTextAttributesKey("SHARP_BUILT_IN_CALL", DefaultLanguageHighlighterColors.KEYWORD)
     @JvmField val TESTING_WORD = createTextAttributesKey("SHARP_TESTING_WORD", DefaultLanguageHighlighterColors.PREDEFINED_SYMBOL)
+    // the C types of std.c look like the built-in types unless the user gives them a colour of their own
+    @JvmField val C_TYPE = createTextAttributesKey("SHARP_C_TYPE", BUILT_IN_TYPE)
+    @JvmField val CONTEXT_KEYWORD = createTextAttributesKey("SHARP_CONTEXT_KEYWORD", KEYWORD_DECLARATION)
 
     @JvmField val IDENTIFIER = createTextAttributesKey("SHARP_IDENTIFIER", DefaultLanguageHighlighterColors.IDENTIFIER)
     @JvmField val NUMBER = createTextAttributesKey("SHARP_NUMBER", DefaultLanguageHighlighterColors.NUMBER)

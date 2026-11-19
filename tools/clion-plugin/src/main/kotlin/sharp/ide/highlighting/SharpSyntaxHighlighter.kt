@@ -30,6 +30,8 @@ class SharpSyntaxHighlighter : SyntaxHighlighterBase() {
             SharpTokenKinds.KEYWORD_VALUE to SharpColors.BUILT_IN_VALUE,
             SharpTokenKinds.BUILT_IN_CALL to SharpColors.BUILT_IN_CALL,
             SharpTokenKinds.TESTING_WORD to SharpColors.TESTING_WORD,
+            SharpTokenKinds.C_TYPE to SharpColors.C_TYPE,
+            SharpTokenKinds.CONTEXT_KEYWORD to SharpColors.CONTEXT_KEYWORD,
             SharpTokenKinds.IDENTIFIER to SharpColors.IDENTIFIER,
             SharpTokenKinds.INTEGER to SharpColors.NUMBER,
             SharpTokenKinds.DECIMAL to SharpColors.NUMBER,
