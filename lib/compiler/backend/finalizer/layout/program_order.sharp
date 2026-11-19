@@ -1,0 +1,288 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * IN WHAT ORDER THINGS ARE NUMBERED (doc/codegen.md 6.15, 8.1)
+ *
+ * The addresses of classes and functions, and the order the static parts of
+ * the classes run in, follow one rule a reader can predict - the
+ * INITIALISATION ORDER:
+ *
+ *   1. modules in DEPENDENCY order: a module after every module its files
+ *      import (`platform.kernel` first); modules that import each other keep
+ *      the order of their files on the command line;
+ *   2. inside a module, its classes in the order they are written (file by
+ *      file in command-line order, top to bottom; a generic instance where its
+ *      blueprint is written, instances of one blueprint by their arguments).
+ *
+ * Nothing may depend on the order in which parallel work finished: the files
+ * are parsed by coroutines, so the lists of the analysed program come in the
+ * order the parses happened to end. Everything here is ordered by WHERE it is
+ * written (`position`), never by the order it was found - the output must be
+ * the same bytes for the same input (self-hosting, codegen.md 8.1).
+ *
+ *      position = file rank (its place on the command line) * 2^32 + the token
+ *                 the declaration starts at
+ *
+ *      C++ comparison: the C++ compiler numbers classes by its list of source
+ *      files sorted BY SIZE (main.cpp, isFileLarger), so adding a comment can
+ *      change which static part runs first (codegen.md 10, G13).
+ */
+class program_order {
+    file_ranks : name_table<numbered>;
+
+    program_order(file_order: list<string>) {
+        file_ranks = new name_table<numbered>();
+        for(i : _int64 = 0; i < file_order.size(); i++) {
+            if(file_ranks.at(file_order.at(i)) == null) {
+                file_ranks.put(file_order.at(i), new numbered(i));
+            }
+        }
+    }
+
+    /** the place of a file on the command line; files not given there come after every file that is */
+    def file_rank(unit: source_unit) : _int64 {
+        found := file_ranks.at(unit.file);
+        if(found == null) { return 1000000; }
+        return found!!.value;
+    }
+
+    /** where a declaration is written, as one number that sorts like the source does */
+    def position_of(declared: sharp_declaration) : _int64 {
+        unit := declared.unit;
+        token : _int64 = 0;
+        if(unit.parsed != null && declared.node >= 0 && declared.node < unit.parsed!!.tree.count) {
+            token = unit.parsed!!.tree.tokens!![declared.node];
+        }
+        return file_rank(unit) * 4294967296 + token;
+    }
+}
+
+/**
+ * The modules in dependency order: each after the modules its files import
+ * (a depth-first search that adds a module once everything it imports has
+ * been added: a "topological sort", the textbook way to put things after what
+ * they depend on). A module met again while it is being visited is part of a
+ * circle of imports; it is left where the search finds it. The search starts
+ * from `platform.kernel`, then takes the modules by their first file on the
+ * command line.
+ */
+def modules_in_dependency_order(prog: sharp_program, order: program_order) : list<sharp_module> {
+    // the modules, by the rank of their first file
+    by_rank := new list<sharp_module>();
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) { by_rank.add(prog.module_list.at(i)); }
+    ranks := new number_list_of_modules();
+    for(i : _int64 = 0; i < by_rank.size(); i++) { ranks.add(first_file_rank(by_rank.at(i), order)); }
+    sort_modules(by_rank, ranks);
+
+    // what each module imports: the imports of all its files, in their order
+    imports := new name_table<list<sharp_module>>();
+    for(i : _int64 = 0; i < prog.files.size(); i++) {
+        file := prog.files.at(i);
+        found := imports.at(file.module.name);
+        if(found == null) {
+            found = new list<sharp_module>();
+            imports.put(file.module.name, found!!);
+        }
+    }
+    // the files of a module in command-line order, so the imports are met in a fixed order
+    files := new list<sharp_file>();
+    for(i : _int64 = 0; i < prog.files.size(); i++) { files.add(prog.files.at(i)); }
+    file_ranks := new number_list_of_modules();
+    for(i : _int64 = 0; i < files.size(); i++) { file_ranks.add(order.file_rank(files.at(i).unit)); }
+    sort_files(files, file_ranks);
+    for(i : _int64 = 0; i < files.size(); i++) {
+        file := files.at(i);
+        list_of := imports.at(file.module.name)!!;
+        for(j : _int64 = 0; j < file.imports.size(); j++) { list_of.add(file.imports.at(j)); }
+    }
+
+    state := new name_table<numbered>();       // 1 while being visited, 2 when added
+    ordered := new list<sharp_module>();
+    kernel := prog.find_module("platform.kernel");
+    if(kernel != null) { visit_module(kernel!!, imports, state, ordered); }
+    for(i : _int64 = 0; i < by_rank.size(); i++) { visit_module(by_rank.at(i), imports, state, ordered); }
+    return ordered;
+}
+
+/** depth-first search: a module is added after every module it imports */
+def visit_module(module: sharp_module, imports: name_table<list<sharp_module>>, state: name_table<numbered>,
+                 ordered: list<sharp_module>) {
+    if(state.at(module.name) != null) { return; }
+    state.put(module.name, new numbered(1));
+    found := imports.at(module.name);
+    if(found != null) {
+        for(i : _int64 = 0; i < found!!.size(); i++) {
+            if(found!!.at(i) != module) { visit_module(found!!.at(i), imports, state, ordered); }
+        }
+    }
+    state.put(module.name, new numbered(2));
+    ordered.add(module);
+}
+
+/** the position on the command line of the first file of a module */
+def first_file_rank(module: sharp_module, order: program_order) : _int64 {
+    best : _int64 = 1000000000;
+    for(i : _int64 = 0; i < module.units.size(); i++) {
+        rank : _int64 = order.file_rank(module.units.at(i));
+        if(rank < best) { best = rank; }
+    }
+    return best;
+}
+
+/** a list of numbers that go with a list of things to sort (the sort keys) */
+class number_list_of_modules {
+    keys : _int64[];
+    count : _int64 = 0;
+
+    number_list_of_modules() { keys = new _int64[16]; }
+
+    /** add a number at the end */
+    def add(value: _int64) {
+        if(count >= sizeof(keys)) {
+            grown := new _int64[sizeof(keys) * 2];
+            for(i : _int64 = 0; i < count; i++) { grown[i] = keys[i]; }
+            keys = grown;
+        }
+        keys[count] = value;
+        count++;
+    }
+}
+
+/** sort modules by their keys (insertion sort: there are a few dozen at most; stable) */
+def sort_modules(modules: list<sharp_module>, keys: number_list_of_modules) {
+    items := new sharp_module[keys.count];
+    for(i : _int64 = 0; i < keys.count; i++) { items[i] = modules.at(i); }
+    for(i : _int64 = 1; i < keys.count; i++) {
+        key : _int64 = keys.keys[i];
+        item := items[i];
+        j : _int64 = i - 1;
+        while(j >= 0 && keys.keys[j] > key) {
+            keys.keys[j + 1] = keys.keys[j];
+            items[j + 1] = items[j];
+            j--;
+        }
+        keys.keys[j + 1] = key;
+        items[j + 1] = item;
+    }
+    modules.clear();
+    for(i : _int64 = 0; i < keys.count; i++) { modules.add(items[i]); }
+}
+
+/** sort files by their keys (insertion sort, stable; files are a few hundred) */
+def sort_files(files: list<sharp_file>, keys: number_list_of_modules) {
+    items := new sharp_file[keys.count];
+    for(i : _int64 = 0; i < keys.count; i++) { items[i] = files.at(i); }
+    for(i : _int64 = 1; i < keys.count; i++) {
+        key : _int64 = keys.keys[i];
+        item := items[i];
+        j : _int64 = i - 1;
+        while(j >= 0 && keys.keys[j] > key) {
+            keys.keys[j + 1] = keys.keys[j];
+            items[j + 1] = items[j];
+            j--;
+        }
+        keys.keys[j + 1] = key;
+        items[j + 1] = item;
+    }
+    files.clear();
+    for(i : _int64 = 0; i < keys.count; i++) { files.add(items[i]); }
+}
+
+/**
+ * Sort classes by (position, key): a merge sort, which is stable and takes
+ * n log n steps for any input (a program has thousands of classes).
+ */
+def sort_classes(list_of: list<class_layout>) {
+    count : _int64 = list_of.size().value as _int64;
+    if(count < 2) { return; }
+    items := new class_layout[count];
+    scratch := new class_layout[count];
+    for(i : _int64 = 0; i < count; i++) { items[i] = list_of.at(i); }
+    merge_classes(items, scratch, 0, count);
+    list_of.clear();
+    for(i : _int64 = 0; i < count; i++) { list_of.add(items[i]); }
+}
+
+/** merge sort of classes by where they are written (stable, n log n) */
+def merge_classes(items: class_layout[], scratch: class_layout[], from: _int64, to: _int64) {
+    if(to - from < 2) { return; }
+    middle : _int64 = from + (to - from) / 2;
+    merge_classes(items, scratch, from, middle);
+    merge_classes(items, scratch, middle, to);
+    left : _int64 = from;
+    right : _int64 = middle;
+    for(k : _int64 = from; k < to; k++) {
+        if(left < middle && (right >= to || !class_after(items[left], items[right]))) {
+            scratch[k] = items[left];
+            left++;
+        } else {
+            scratch[k] = items[right];
+            right++;
+        }
+    }
+    for(k : _int64 = from; k < to; k++) { items[k] = scratch[k]; }
+}
+
+/** does `a` come after `b`? */
+def class_after(a: class_layout, b: class_layout) : _int64 {
+    if(a.position != b.position) { return a.position > b.position; }
+    return text_after(a.key, b.key);
+}
+
+/** sort functions by position (merge sort, stable): the order of a class's methods */
+def sort_functions(list_of: list<function_layout>) {
+    count : _int64 = list_of.size().value as _int64;
+    if(count < 2) { return; }
+    items := new function_layout[count];
+    scratch := new function_layout[count];
+    for(i : _int64 = 0; i < count; i++) { items[i] = list_of.at(i); }
+    merge_functions(items, scratch, 0, count);
+    list_of.clear();
+    for(i : _int64 = 0; i < count; i++) { list_of.add(items[i]); }
+}
+
+/** merge sort of functions by where they are written (stable, n log n) */
+def merge_functions(items: function_layout[], scratch: function_layout[], from: _int64, to: _int64) {
+    if(to - from < 2) { return; }
+    middle : _int64 = from + (to - from) / 2;
+    merge_functions(items, scratch, from, middle);
+    merge_functions(items, scratch, middle, to);
+    left : _int64 = from;
+    right : _int64 = middle;
+    for(k : _int64 = from; k < to; k++) {
+        if(left < middle && (right >= to || !function_after(items[left], items[right]))) {
+            scratch[k] = items[left];
+            left++;
+        } else {
+            scratch[k] = items[right];
+            right++;
+        }
+    }
+    for(k : _int64 = from; k < to; k++) { items[k] = scratch[k]; }
+}
+
+/** is function a written after function b? */
+def function_after(a: function_layout, b: function_layout) : _int64 {
+    if(a.position != b.position) { return a.position > b.position; }
+    return text_after(a.full_name + a.of.signature(), b.full_name + b.of.signature());
+}
+
+/** does text `a` sort after text `b` (byte by byte)? */
+def text_after(a: string, b: string) : _int64 {
+    length_a : _int64 = sizeof(a.data);
+    length_b : _int64 = sizeof(b.data);
+    if(length_a == 0 || length_b == 0) { return length_a > length_b; }
+    x : _int8[] = a.data!!;
+    y : _int8[] = b.data!!;
+    for(i : _int64 = 0; i < length_a && i < length_b; i++) {
+        if(x[i] != y[i]) { return (x[i] & 0xff) > (y[i] & 0xff); }
+    }
+    return length_a > length_b;
+}

@@ -1,0 +1,480 @@
+mod app;
+
+import (
+    std.guikit.*,
+    std.math,
+    std.text
+)
+
+/**
+ * A BUSY SCENE: how well does a machine animate a lot of moving things at a set frame rate?
+ *
+ *      sharpc tests/animation/busy_scene.sharp -o busy_scene
+ *      sharp busy_scene [frame rate] [crowd] [full] [times]
+ *
+ *      frame rate   the most frames a second (gui.frame_rate), 0 for no limit; 30 when left out
+ *      crowd        1 .. 6: how many trees, cars, people and birds; 2 when left out
+ *      full         fullscreen instead of a 960 x 540 window
+ *      times        at the end, how long each part of the scene took to paint, a frame on
+ *                   average, and what is left of the frame (showing it: SDL and the graphics card)
+ *
+ *      sharp busy_scene 30 2           the scene at 30 fps
+ *      sharp busy_scene 0 6 full       everything there is, as fast as it goes
+ *      sharp busy_scene 0 2 times      where the time of a frame goes
+ *
+ * Everything moves every frame: three layers of mountains scrolling at their own
+ * speeds, two layers of city whose buildings never repeat (each one is made from
+ * its place in the street: its height, width, colour, roof, and windows that go
+ * on and off), clouds, a windmill turning, trees swaying, cars with turning wheels both
+ * ways down a two-lane road, people running with jointed arms and legs, birds
+ * flapping. Each thing is moved by its speed times the time since the last frame,
+ * so at a low frame rate it moves just as far - in bigger jumps.
+ *
+ * The box in the top right corner shows the frames a second; when the window
+ * closes the program prints the average over the whole run.
+ */
+
+// ------------------------------------------------------------ the things that move
+
+class car {
+    x : decimal = 0;
+    speed : decimal = 0;        // pixels a second; below 0 it drives to the left
+    lane : decimal = 0;         // 0 the far lane, 1 the near one
+    size : decimal = 1;
+    paint : _int64 = 0;
+
+    car(start: decimal, pixels_a_second: decimal, which_lane: decimal, scale: decimal, c: _int64) {
+        x = start;
+        speed = pixels_a_second;
+        lane = which_lane;
+        size = scale;
+        paint = c;
+    }
+}
+
+class runner {
+    x : decimal = 0;
+    speed : decimal = 0;        // pixels a second
+    stride : decimal = 0;       // steps a second
+    size : decimal = 1;
+    shirt : _int64 = 0;
+
+    runner(start: decimal, pixels_a_second: decimal, scale: decimal, c: _int64) {
+        x = start;
+        speed = pixels_a_second;
+        stride = pixels_a_second / (28 * scale);
+        size = scale;
+        shirt = c;
+    }
+}
+
+frames : decimal = 0;           // for the average printed at the end
+first_frame : decimal = 0;
+last_frame : decimal = 0;
+
+timing := false;                // `times`: each part of the scene is timed (lap)
+spent := new decimal[9];        // seconds spent in each part, over all frames
+clock : decimal = 0;            // when the part being timed began
+
+/** the part numbered `n` of this frame has just been painted: add the time it took */
+def lap(n: _int64) {
+    if(!timing) { return; }
+    now : decimal = ui_host.current!!.win.time();
+    spent[n] = spent[n] + now - clock;
+    clock = now;
+}
+
+def main(args: string[]) {
+    rate : _int64 = 30;
+    crowd : decimal = 2;
+    full := false;
+    numbers := 0;
+    for(i : _int64 = 0; i < sizeof(args); i++) {
+        if(args[i] == "full") { full = true; }
+        else if(args[i] == "times") { timing = true; }
+        else if(numbers == 0) { rate = args[i].to_int(); numbers++; }
+        else { crowd = args[i].to_int(); numbers++; }
+    }
+    if(crowd < 1) { crowd = 1; }
+    if(crowd > 6) { crowd = 6; }
+
+    car_colors := new _int64[6];
+    car_colors[0] = 0xD63031FF;
+    car_colors[1] = 0x0984E3FF;
+    car_colors[2] = 0xFDCB6EFF;
+    car_colors[3] = 0x00B894FF;
+    car_colors[4] = 0xE84393FF;
+    car_colors[5] = 0xECF0F1FF;
+
+    car_count : _int64 = crowd * 4;
+    cars := new car[car_count];
+    for(i : _int64 = 0; i < sizeof(cars); i++) {
+        lane : decimal = i % 2;
+        speed : decimal = 140 + (i * 37) % 120;
+        if(lane == 0) { speed = 0 - speed; }                    // the far lane drives the other way
+        cars[i] = new car(i * 260, speed, lane, 0.8 + (i % 3) * 0.15, car_colors[i % 6]);
+    }
+
+    people_count : _int64 = crowd * 3;
+    people := new runner[people_count];
+    for(i : _int64 = 0; i < sizeof(people); i++) {
+        people[i] = new runner(i * 170, 70 + (i * 29) % 60, 0.8 + (i % 4) * 0.12, car_colors[(i + 2) % 6]);
+    }
+
+    trees : decimal = crowd * 8;
+    birds : decimal = crowd * 5;
+
+    b := new shape_batch(2048);     // the shapes of one layer of the frame, filled again every frame
+
+    gui.frame_rate(rate);
+    gui.show_fps(true);
+
+    mode := window_mode.windowed;
+    if(full) { mode = window_mode.fullscreen; }
+
+    gui.run("Busy scene", 960, 540, mode, { ->
+        return canvas(modifier().fill()) { p: painter, f: frame ->
+            if(frames == 0) { first_frame = f.time; }
+            frames = frames + 1;
+            last_frame = f.time;
+            if(timing) { clock = ui_host.current!!.win.time(); }
+
+            t : decimal = f.time;
+            w : decimal = f.width;
+            h : decimal = f.height;
+            ground : decimal = h * 0.62;                       // where the grass starts
+            road : decimal = h * 0.74;                         // the top of the road
+
+            // The shapes are gathered in a batch and painted a whole layer at a time: the
+            // frame crosses into the graphics side six times, not once for each of its
+            // (about a thousand) shapes. Only the three ridges are painted on their own -
+            // each is one shape of many corners - so the batch is painted before each.
+            b.clear();
+            sky(b, w, ground);
+            sun_and_clouds(b, t, w, h);
+            p.draw(b);
+            lap(0);
+            mountains(p, t, w, ground - h * 0.18, 0.004, 70, 12, 0x7E90BAFF);
+            mountains(p, t, w, ground - h * 0.08, 0.007, 50, 30, 0x586E96FF);
+            lap(1);
+            b.clear();
+            city(b, t, w, ground + 12, 20, 0.6, 0);            // far: plain shapes, slow
+            lap(2);
+            city(b, t, w, ground + 12, 38, 1.0, 1);            // near: windows, roofs, lights
+            p.draw(b);
+            lap(3);
+            mountains(p, t, w, ground + 10, 0.012, 22, 55, 0x60A852FF);            // the hills
+            b.clear();
+            b.rect(0, ground + 8, w, h, 0x549C48FF);                               // the grass
+            windmill(b, t, w, ground);
+            flock(b, t, w, h, birds);
+            lap(4);
+
+            for(i : decimal = 0; i < trees; i++) {             // the far row of trees, smaller and slower
+                tree(b, t, i, wrap(i * 97 - t * 40, w + 120) - 60, ground + 6, 0.6);
+            }
+            lap(5);
+            b.rect(0, road, w, h * 0.16, 0x3C3F46FF);                              // the road
+            b.rect(0, road - 4, w, 4, 0x969696FF);
+            b.rect(0, road + h * 0.16, w, 4, 0x969696FF);
+            for(i : decimal = 0; i < w / 60 + 2; i++) {                            // the lane marks
+                b.rect(wrap(i * 60 - t * 90, w + 60) - 60, road + h * 0.08 - 2, 30, 4, 0xF0DC78FF);
+            }
+
+            for(i : _int64 = 0; i < sizeof(cars); i++) {
+                c := cars[i];
+                c.x = wrap(c.x + c.speed * f.step, w + 300);
+                lane_y : decimal = road + h * 0.055;
+                if(c.lane == 1) { lane_y = road + h * 0.135; }
+                vehicle(b, t, c, c.x - 150, lane_y);
+            }
+            lap(6);
+
+            b.rect(0, road + h * 0.16 + 4, w, h, 0xB2AA96FF);                      // the pavement
+            for(i : _int64 = 0; i < sizeof(people); i++) {
+                r := people[i];
+                r.x = wrap(r.x + r.speed * f.step, w + 100);
+                person(b, t, r, r.x - 50, h - 8);
+            }
+            lap(7);
+            for(i : decimal = 0; i < trees / 2; i++) {         // the near row: big, in front of everything
+                tree(b, t, i + 50, wrap(i * 230 - t * 160, w + 300) - 150, h + 10, 1.5);
+            }
+            p.draw(b);
+            lap(8);
+        };
+    });
+
+    if(timing && frames > 1) {
+        names := new string[] { "sky, sun, clouds", "mountains", "far city", "near city", "hills, windmill, birds",
+                                "far trees", "road, cars", "pavement, people", "near trees, painting the front layer" };
+        painting : decimal = 0;
+        println("a frame on average:");
+        for(i : _int64 = 0; i < 9; i++) {
+            println("    " + names[i] + ": " + number_to_fixed(spent[i] / frames * 1000, 2) + " ms");
+            painting = painting + spent[i];
+        }
+        whole : decimal = (last_frame - first_frame) / (frames - 1);
+        println("    the scene's own code, all parts: " + number_to_fixed(painting / frames * 1000, 2) + " ms");
+        println("    the whole frame: " + number_to_fixed(whole * 1000, 2) + " ms   (the rest - SDL, the graphics card,"
+            + " and any wait for the frame rate - " + number_to_fixed((whole - painting / frames) * 1000, 2) + " ms)");
+    }
+
+    if(frames > 1 && last_frame > first_frame) {
+        println("rate " + rate + ", crowd " + crowd + ": " + number_to_fixed((frames - 1) / (last_frame - first_frame), 1)
+            + " frames a second on average over " + number_to_fixed(last_frame - first_frame, 1) + " seconds");
+    }
+}
+
+// ------------------------------------------------------------ drawing
+
+/** v moved into 0 .. span: things that leave one side come back on the other */
+def wrap(v: decimal, span: decimal) : decimal {
+    return v - floor_of(v / span) * span;
+}
+
+/** a number from 0 to 1 that looks random but is always the same for the same n */
+def chance(n: decimal) : decimal {
+    v : decimal = sin_of(n * 12.9898) * 43758.5453;
+    return v - floor_of(v);
+}
+
+/**
+ * A street of buildings scrolling left. The street is cut into slots, and the
+ * building in slot k is made from k alone - so the street goes on for ever,
+ * every building coming into view is a new one, and one that comes back into
+ * view (it never does) would be the same.
+ */
+def city(b: shape_batch, t: decimal, w: decimal, foot: decimal, speed: decimal, s: decimal, near: decimal) {
+    slot : decimal = 74 * s;
+    shift : decimal = t * speed;
+    for(k : decimal = floor_of(shift / slot) - 1; k * slot - shift < w + slot; k++) {
+        building(b, t, k + near * 5000, k * slot - shift, foot, slot, s, near);
+    }
+}
+
+def building(b: shape_batch, t: decimal, k: decimal, x: decimal, foot: decimal, slot: decimal, s: decimal, near: decimal) {
+    wide : decimal = slot * (0.6 + 0.38 * chance(k + 0.1));
+    tall : decimal = (50 + 170 * chance(k + 0.2)) * s;
+    left : decimal = x + (slot - wide) * chance(k + 0.3);
+    top : decimal = foot - tall;
+    shade : decimal = chance(k + 0.4);
+
+    if(near == 0) {                                            // far away: a flat shape in the haze
+        haze : _int64 = gui.pack(98 + shade * 24, 112 + shade * 24, 150 + shade * 20);
+        b.rect(left, top, wide, tall, haze);
+        if(chance(k + 0.5) > 0.6) { b.rect(left + wide * 0.3, top - 14 * s, wide * 0.4, 14 * s, haze); }
+        return;
+    }
+
+    kind : decimal = floor_of(shade * 4);                      // brick, concrete, glass, sandstone
+    body : _int64 = 0x965240FF;
+    if(kind == 1) { body = 0x969AA0FF; }
+    else if(kind == 2) { body = 0x466E8CFF; }
+    else if(kind == 3) { body = 0xC4AA78FF; }
+    b.rect(left, top, wide, tall, body);
+    b.rect(left + wide - 6, top, 6, tall, 0x00000032);                     // the shaded side
+
+    roof : decimal = floor_of(chance(k + 0.5) * 4);
+    if(roof == 0) {                                            // a ledge
+        b.rect(left - 3, top - 5, wide + 6, 6, 0x505058FF);
+    } else if(roof == 1) {                                     // an antenna, its light blinking
+        mast_x : decimal = left + wide * 0.5;
+        b.line(mast_x, top, mast_x, top - 34 * s, 2, 0x3C3C42FF);
+        if(wrap(t * 1.4 + chance(k + 0.6), 1) < 0.5) { b.circle(mast_x, top - 34 * s, 3, 0xFF3C3CFF); }
+    } else if(roof == 2) {                                     // a water tower on legs
+        tank_x : decimal = left + wide * 0.25;
+        b.line(tank_x + 3, top, tank_x + 3, top - 10, 2, 0x463228FF);
+        b.line(tank_x + 15, top, tank_x + 15, top - 10, 2, 0x463228FF);
+        b.rect(tank_x, top - 26, 18, 16, 4, 0x78543CFF);
+        b.triangle(tank_x - 2, top - 26, tank_x + 20, top - 26, tank_x + 9, top - 34, 0x5A3C2CFF);
+    } else {                                                   // a stepped top
+        b.rect(left + wide * 0.15, top - 16 * s, wide * 0.7, 16 * s, body);
+        b.rect(left + wide * 0.3, top - 28 * s, wide * 0.4, 12 * s, body);
+    }
+
+    // the windows: each goes on or off now and then, at its own moment
+    lit : _int64 = 0xFFDE82FF;
+    unlit : _int64 = 0x283042FF;
+    if(kind == 2) { unlit = 0x6EA0BEFF; }        // glass: the sky in it
+    cols : decimal = floor_of((wide - 10) / 12);
+    rows : decimal = floor_of((tall - 14) / 16);
+    for(r : decimal = 0; r < rows; r++) {
+        for(c : decimal = 0; c < cols; c++) {
+            n : decimal = k * 31 + r * 7.3 + c * 1.9;
+            moment : decimal = floor_of(t * 0.4 + chance(n) * 20);
+            ink : _int64 = unlit;
+            if(chance(n + moment * 3.7) > 0.55) { ink = lit; }
+            b.rect(left + 6 + c * 12, top + 10 + r * 16, 7, 9, ink);
+        }
+    }
+}
+
+/** the sky in bands, dark blue at the top to pale at the horizon */
+def sky(b: shape_batch, w: decimal, ground: decimal) {
+    bands : decimal = 12;
+    for(i : decimal = 0; i < bands; i++) {
+        k : decimal = i / bands;
+        b.rect(0, ground * k, w, ground / bands + 1, gui.pack(40 + k * 130, 90 + k * 110, 170 + k * 70));
+    }
+}
+
+def sun_and_clouds(b: shape_batch, t: decimal, w: decimal, h: decimal) {
+    sx : decimal = w * 0.8;
+    sy : decimal = h * 0.16;
+    b.circle(sx, sy, 46 + sin_of(t * 2) * 3, 0xFFE67846);
+    b.circle(sx, sy, 32, 0xFFD65AFF);
+    for(i : decimal = 0; i < 6; i++) {
+        cx : decimal = wrap(i * 210 + t * (12 + i * 3), w + 240) - 120;
+        cy : decimal = h * (0.08 + (i % 3) * 0.06);
+        white : _int64 = 0xFFFFFFDC;
+        b.circle(cx, cy, 22, white);
+        b.circle(cx + 24, cy - 8, 28, white);
+        b.circle(cx + 52, cy, 20, white);
+        b.rect(cx, cy, 52, 20, 10, white);
+    }
+}
+
+/** a ridge of mountains: one polygon along a sum of two waves, scrolling */
+def mountains(p: painter, t: decimal, w: decimal, foot: decimal, wave: decimal, tall: decimal, speed: decimal, c: _int64) {
+    shift : decimal = t * speed;
+    steps : _int64 = floor_of((w + 24) / 24) + 1;
+    xs := new decimal[steps + 2];                              // the ridge, with a corner under each end
+    ys := new decimal[steps + 2];
+    xs[0] = 0;
+    ys[0] = foot + 200;
+    for(i : _int64 = 0; i < steps; i++) {
+        x : decimal = i * 24;
+        u : decimal = x + shift;
+        xs[i + 1] = x;
+        ys[i + 1] = foot - tall * (0.6 + 0.4 * sin_of(u * wave)) - tall * 0.35 * sin_of(u * wave * 3.1);
+    }
+    xs[steps + 1] = w + 24;
+    ys[steps + 1] = foot + 200;
+    p.polygon(xs, ys, c);
+}
+
+/** a windmill on the hills, its four blades turning */
+def windmill(b: shape_batch, t: decimal, w: decimal, ground: decimal) {
+    x : decimal = wrap(w * 0.3 - t * 55, w + 200) - 100;
+    top : decimal = ground - 70;
+    b.triangle(x - 14, ground + 10, x + 14, ground + 10, x, top, 0xE6E1D7FF);
+    turn : decimal = t * 2.2;
+    for(blade : decimal = 0; blade < 4; blade++) {
+        a : decimal = turn + blade * HALF_PI;
+        tip_x : decimal = x + cos_of(a) * 48;
+        tip_y : decimal = top + sin_of(a) * 48;
+        side_x : decimal = x + cos_of(a + 0.25) * 44;
+        side_y : decimal = top + sin_of(a + 0.25) * 44;
+        b.triangle(x, top, tip_x, tip_y, side_x, side_y, 0xF5F5F0FF);
+        b.line(x, top, tip_x, tip_y, 2, 0x786450FF);
+    }
+    b.circle(x, top, 5, 0x5A463CFF);
+}
+
+/** a tree: a pine or a round one by number, the top swaying in the wind */
+def tree(b: shape_batch, t: decimal, n: decimal, x: decimal, foot: decimal, s: decimal) {
+    sway : decimal = sin_of(t * 1.7 + n * 0.9) * 5 * s;
+    b.rect(x - 4 * s, foot - 30 * s, 8 * s, 30 * s, 0x6E4C34FF);
+    if(n % 2 == 0) {
+        for(k : decimal = 0; k < 3; k++) {
+            low : decimal = foot - 24 * s - k * 22 * s;
+            half : decimal = (30 - k * 7) * s;
+            b.triangle(x - half, low, x + half, low, x + sway * (k + 1) / 3, low - 34 * s, gui.pack(34, 110 + k * 15, 64));
+        }
+    } else {
+        b.circle(x + sway * 0.5, foot - 46 * s, 22 * s, 0x348C3CFF);
+        b.circle(x - 14 * s + sway * 0.7, foot - 58 * s, 18 * s, 0x3E9C46FF);
+        b.circle(x + 12 * s + sway, foot - 66 * s, 16 * s, 0x4EAC54FF);
+    }
+}
+
+/** a car: body, cabin, windows, lights, and two wheels turning as far as it has rolled */
+def vehicle(b: shape_batch, t: decimal, c: car, x: decimal, y: decimal) {
+    s : decimal = c.size;
+    if(c.lane == 0) { s = s * 0.85; }                         // the far lane is a little smaller
+    long : decimal = 110 * s;
+    bounce : decimal = sin_of(t * 14 + c.x * 0.05) * 1.2;
+    body_y : decimal = y - 26 * s + bounce;
+
+    b.rect(x + 6, y - 2, long - 12, 6, 3, 0x00000046);                      // the shadow
+    b.rect(x, body_y, long, 22 * s, 8 * s, c.paint);
+    b.rect(x + long * 0.22, body_y - 18 * s, long * 0.5, 20 * s, 8 * s, c.paint);
+    glass : _int64 = 0xAAD2EBFF;
+    b.rect(x + long * 0.27, body_y - 14 * s, long * 0.18, 13 * s, 3, glass);
+    b.rect(x + long * 0.49, body_y - 14 * s, long * 0.18, 13 * s, 3, glass);
+
+    front : decimal = x + long - 4;                            // the lights at the end it drives towards
+    back : decimal = x + 4;
+    if(c.speed < 0) { front = x + 4; back = x + long - 4; }
+    b.circle(front, body_y + 8 * s, 4 * s, 0xFFF5BEFF);
+    b.circle(back, body_y + 8 * s, 3 * s, 0xE62828FF);
+
+    radius : decimal = 11 * s;
+    turned : decimal = c.x / radius;                           // rolled this far: turned this much
+    wheel(b, x + long * 0.22, y - 4, radius, turned);
+    wheel(b, x + long * 0.78, y - 4, radius, turned);
+}
+
+def wheel(b: shape_batch, x: decimal, y: decimal, radius: decimal, turned: decimal) {
+    b.circle(x, y, radius, 0x1E1E22FF);
+    b.circle(x, y, radius * 0.55, 0xAAAAB2FF);
+    for(k : decimal = 0; k < 3; k++) {
+        a : decimal = turned + k * PI_VALUE / 3;
+        b.line(x - cos_of(a) * radius * 0.5, y - sin_of(a) * radius * 0.5,
+               x + cos_of(a) * radius * 0.5, y + sin_of(a) * radius * 0.5, 2, 0x505058FF);
+    }
+}
+
+/** a person running: hips, knees, feet, shoulders, elbows and hands worked out from the stride */
+def person(b: shape_batch, t: decimal, r: runner, x: decimal, foot: decimal) {
+    s : decimal = r.size;
+    step : decimal = t * r.stride * PI_VALUE * 2 + r.x * 0.01;
+    leg : decimal = 17 * s;
+    hip_x : decimal = x;
+    hip_y : decimal = foot - leg * 1.9 - (0.5 + 0.5 * cos_of(step * 2)) * 3 * s;      // up and down with each step
+    neck_x : decimal = hip_x + 5 * s;                          // leaning into the run
+    neck_y : decimal = hip_y - 28 * s;
+    skin : _int64 = 0xF0C8A0FF;
+    dark : _int64 = 0x282C3CFF;
+
+    b.circle(x, foot, 9 * s, 0x00000032);          // the shadow
+    for(side : decimal = 0; side < 2; side++) {
+        a : decimal = step + side * PI_VALUE;
+        // angles from straight down; more is further forward
+        thigh : decimal = 0.65 * sin_of(a);
+        shin : decimal = thigh - 1.1 * (0.5 + 0.5 * sin_of(a + 1.7));
+        knee_x : decimal = hip_x + sin_of(thigh) * leg;
+        knee_y : decimal = hip_y + cos_of(thigh) * leg;
+        foot_x : decimal = knee_x + sin_of(shin) * leg;
+        foot_y : decimal = knee_y + cos_of(shin) * leg;
+        upper : decimal = 0 - 0.7 * sin_of(a);                 // the arm on this side swings against the leg
+        lower : decimal = upper + 1.4;
+        elbow_x : decimal = neck_x + sin_of(upper) * 13 * s;
+        elbow_y : decimal = neck_y + 3 * s + cos_of(upper) * 13 * s;
+        hand_x : decimal = elbow_x + sin_of(lower) * 12 * s;
+        hand_y : decimal = elbow_y + cos_of(lower) * 12 * s;
+
+        limb : _int64 = dark;
+        if(side == 1) { limb = 0x464C60FF; }        // the far side, a shade lighter
+        b.line(hip_x, hip_y, knee_x, knee_y, 5 * s, limb);
+        b.line(knee_x, knee_y, foot_x, foot_y, 4 * s, limb);
+        b.line(foot_x, foot_y, foot_x + 6 * s, foot_y, 4 * s, 0xE6E6E6FF);
+        b.line(neck_x, neck_y + 3 * s, elbow_x, elbow_y, 4 * s, r.shirt);
+        b.line(elbow_x, elbow_y, hand_x, hand_y, 3 * s, skin);
+    }
+    b.line(hip_x, hip_y, neck_x, neck_y, 9 * s, r.shirt);     // the body
+    b.circle(neck_x + 2 * s, neck_y - 9 * s, 7 * s, skin);    // the head
+}
+
+/** birds: each a V whose wings beat, drifting across the sky */
+def flock(b: shape_batch, t: decimal, w: decimal, h: decimal, count: decimal) {
+    ink : _int64 = 0x282832FF;
+    for(i : decimal = 0; i < count; i++) {
+        x : decimal = wrap(i * 83 + t * (60 + (i % 4) * 12), w + 80) - 40;
+        y : decimal = h * 0.12 + (i % 5) * 18 + sin_of(t * 1.3 + i) * 8;
+        beat : decimal = sin_of(t * 9 + i * 1.7) * 6;
+        b.line(x - 9, y - beat, x, y, 2, ink);
+        b.line(x, y, x + 9, y - beat, 2, ink);
+    }
+}

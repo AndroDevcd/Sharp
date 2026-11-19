@@ -1,0 +1,165 @@
+mod backend.finalizer.generation.values;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * CONVERSIONS: what analysis decided a value becomes, done (doc/codegen.md 6.3)
+ *
+ * Every implicit conversion is a node of the typed tree (`bound_conversion`),
+ * and every `as` is a `bound_cast`; both carry a `conversion` that says
+ * exactly what to do, so nothing here compares two types:
+ *
+ *      count given to a decimal        CONV_NUMERIC    convert int_to_decimal %t, %count
+ *      300 given to an _int8           CONV_NUMERIC    convert narrow %t, %v (as _int8)  -> 44
+ *      a : animal = some_dog           CONV_UPCAST     nothing: the reference is the value
+ *      d : dog = an_animal as dog      CONV_DOWNCAST   cast %v to class dog (the VM checks)
+ *      n : _int64 = an_int             CONV_UNBOX      get_field %t, %an_int.value
+ *      s : string = "text"             CONV_CONSTRUCT  %o = new string; call string(%o, %text)
+ *
+ * and a condition (`if`, a loop, `&&`) is an integer: a decimal becomes one
+ * by its truth (`condition_of`).
+ */
+
+/**
+ * A value converted as analysis decided (`conversion.kind`, codegen.md 6.3).
+ * Most conversions change nothing at run time - the value's slot is the
+ * converted value.
+ */
+def converted(g: generator, value: _int64, how: conversion, at: bound_expression) : _int64 {
+    kind : _int64 = how.kind;
+    if(kind == CONV_IDENTITY || kind == CONV_TO_NULLABLE || kind == CONV_NULL || kind == CONV_UPCAST
+       || kind == CONV_TO_OBJECT || kind == CONV_RESULT_IGNORED) {
+        return value;
+    }
+    if(kind == CONV_NUMERIC) { return numeric_conversion(g, value, how.from, how.to); }
+    if(kind == CONV_DOWNCAST) {
+        if(how.checked == 0) { return value; }
+        to : resolved_type = how.to;
+        // `x as object[]`: every array of objects is one, and the VM has no test that tells one from any
+        // other object - nothing is checked, as in the C++-built program (create_cast_operation: "ignore
+        // var and object casts")
+        if(to.kind == RT_OBJECT) { return value; }
+        // an array of function values (`copy(...) as T[]` in list<()(int)>): an array of references made by
+        // `newobjarray`, which carries no class to test - nothing is checked, as for `object[]`. (The C++
+        // compiler refuses a list of function values altogether: "cast expression of type `*()(int)[]`
+        // not allowed"; analysis here accepts it, backend.md D10.)
+        if(to.kind == RT_FUNCTION && to.is_array == 1) { return value; }
+        cast := g.b.emit(IR_CAST);
+        cast.first = value;
+        if(to.is_array == 1 && to.kind == RT_INTEGER) {
+            cast.detail = 1;
+            cast.number = integer_type_number(to);
+        } else if(to.is_array == 1 && to.kind == RT_DECIMAL) {
+            cast.detail = 1;
+            cast.number = VM_TYPE_DECIMAL;
+        } else if(to.kind == RT_CLASS && to.class_of != null && to.class_of!!.address >= 0) {
+            // a class, or an array of a class: `copy(...) as T[]` is checked against the class itself, as the
+            // C++ compiler checks it (create_cast_operation ignores the `[]`; probed: an object of the class
+            // passes too). An array of class references is an object of that class to the VM's `cast`.
+            cast.number = to.class_of!!.address;
+        } else if(to.kind == RT_FUNCTION && function_value_class_address(g) >= 0) {
+            // one function value: an object of platform.kernel#function_value (codegen.md 6.12)
+            cast.number = function_value_class_address(g);
+        } else {
+            g.stop("a cast to `" + to.to_text() + "`", at.unit, at.node);
+        }
+        return value;
+    }
+    if(kind == CONV_UNBOX) {
+        if(how.field == null) { g.stop("a number object to its number", at.unit, at.node); }
+        target : _int64 = g.temp_for(how.to);
+        g.b.get_field(target, value, how.field!!);
+        g.b.release(value);
+        return target;
+    }
+    if(kind == CONV_CONSTRUCT) {
+        if(how.function == null || how.function!!.owner == null) { g.stop("a conversion through a constructor", at.unit, at.node); }
+        inner : _int64 = value;
+        if(how.inner != null) { inner = converted(g, value, how.inner!!, at); }
+        made : _int64 = g.b.temp(SLOT_REF);
+        g.b.new_object(made, how.function!!.owner!!);
+        arguments := new number_list();
+        arguments.add(made);
+        arguments.add(inner);
+        g.b.call(0 - 1, how.function!!, arguments, CALL_HOW_DIRECT);
+        g.b.release(inner);
+        return made;
+    }
+    g.stop("a conversion analysis could not decide", at.unit, at.node);
+    return value;
+}
+
+/**
+ * Number to number (4.3): integer to decimal `i2d`, decimal to integer `d2i`
+ * (then cut to the target's width), and an integer that may not fit its new
+ * type is cut to it (`mov8` ... `movu32`), as the C++-built program does
+ * (probed, Q3: 300 given to an _int8 is 44).
+ */
+def numeric_conversion(g: generator, value: _int64, from: resolved_type, to: resolved_type) : _int64 {
+    if(from.kind == RT_INTEGER && to.kind == RT_INTEGER) {
+        narrowing : _int64 = integer_narrowing(from, to);
+        if(narrowing == NARROW_NONE) { return value; }
+        g.b.release(value);         // (given back first: the result may use the same slot)
+        target : _int64 = g.b.temp(SLOT_INT);
+        g.b.convert(target, value, CONVERT_NARROW, narrowing);
+        return target;
+    }
+    if(from.kind == RT_INTEGER && to.kind == RT_DECIMAL) {
+        target : _int64 = g.b.temp(SLOT_DEC);
+        g.b.convert(target, value, CONVERT_INT_TO_DECIMAL, NARROW_NONE);
+        g.b.release(value);
+        return target;
+    }
+    if(from.kind == RT_DECIMAL && to.kind == RT_INTEGER) {
+        target : _int64 = g.b.temp(SLOT_INT);
+        g.b.convert(target, value, CONVERT_DECIMAL_TO_INT, narrowing_of(to));
+        g.b.release(value);
+        return target;
+    }
+    return value;
+}
+
+/**
+ * Must an integer be cut when it becomes this type? Not when every value of
+ * `from` is a value of `to` (an _int8 into an _int32, a _uint8 into an
+ * _int16), nor into a 64-bit type (the cell wraps as the type does).
+ */
+def integer_narrowing(from: resolved_type, to: resolved_type) : _int64 {
+    if(to.bits >= 64) { return NARROW_NONE; }
+    if(from.is_signed == 1 && to.is_signed == 1 && to.bits >= from.bits) { return NARROW_NONE; }
+    if(from.is_signed == 0 && to.is_signed == 1 && to.bits > from.bits) { return NARROW_NONE; }
+    if(from.is_signed == 0 && to.is_signed == 0 && to.bits >= from.bits) { return NARROW_NONE; }
+    return narrowing_of(to);
+}
+
+/** a condition (of `if`, a loop, `&&`): an integer; a decimal is made one by its truth (6.3) */
+def condition_of(g: generator, e: bound_expression) : _int64 {
+    value : _int64 = value_of(g, e);
+    if(g.b.kind_of(value) == SLOT_DEC) {
+        target : _int64 = g.b.temp(SLOT_INT);
+        g.b.convert(target, value, CONVERT_TRUTH, NARROW_NONE);
+        g.b.release(value);
+        return target;
+    }
+    return value;
+}
+
+/** the address of platform.kernel#function_value, the class of every function value; -1 when it is not kept */
+def function_value_class_address(g: generator) : _int64 {
+    module := g.layout.analysed.prog.find_module("platform.kernel");
+    if(module == null) { return 0 - 1; }
+    classes := module!!.classes;
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        if(classes.at(i).name == "function_value") { return classes.at(i).address; }
+    }
+    return 0 - 1;
+}

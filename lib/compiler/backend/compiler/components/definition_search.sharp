@@ -1,0 +1,145 @@
+mod backend.compiler.components;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * WHICH DEFINITION ANSWERS A REQUEST
+ *
+ *      get<database>()             an UNNAMED definition that provides a `database`
+ *      get<worker>("fast")         the definition NAMED "fast" (which must provide a `worker`)
+ *      get<database>(app)          ... looked for in the component `app` only
+ *      get("fast", app)            the definition named "fast" of `app`, whatever it provides
+ *
+ * The rules, as in the C++ compiler:
+ *
+ *   - named and unnamed definitions are two separate lists: a request with a
+ *     name looks only at the named ones, a request without one only at the
+ *     unnamed ones. `factory("worker") { ... }` is never found by its type alone;
+ *   - "provides a `database`" is exact: the same type (a request for
+ *     `database?` accepts a `database`). A definition of a class below
+ *     `database` does not answer it - ask for that class, or define it as
+ *     the base type;
+ *   - WHERE: in the component the request names; else first in the component
+ *     the request is written in (a definition asking for another one), then
+ *     in every component, in the order declared. The first definition found
+ *     is the answer; when another component answers as well, nothing says
+ *     which was meant (W1013).
+ *
+ * This file only searches. What a search that found nothing means, and what
+ * is said about it, is requests.sharp.
+ *
+ * [differs from the C++ compiler] There, a search through all components
+ * returns what the LAST component has - null when the definition is in any
+ * other (`get_type_definition(manager, type, ast)` in component_manager.cpp
+ * overwrites its result in every round of the loop). So `get<database>()`
+ * fails with "No defined type found" unless the database happens to be
+ * defined in the last component. Here the first definition found is the answer.
+ */
+class definition_search {
+    found : type_definition?;                   // the answer; null when there is none
+    also_in : list<sharp_component>;            // other components that answer too, when none was named
+    other_type : type_definition?;              // a definition of the NAME asked for that provides another type
+    in_progress : list<type_definition>;        // definitions that could not be asked: they are being analysed right now
+    broken : _int64 = 0;                        // 1: a definition in reach has no type because of a reported mistake
+    unknown_by_waiting : list<type_definition>; // definitions in reach with no type only because a request of theirs waited
+    no_such_component : _int64 = 0;             // 1: the component the request names does not exist
+    searched : list<sharp_component>;           // the components looked in
+
+    definition_search() {
+        also_in = new list<sharp_component>();
+        in_progress = new list<type_definition>();
+        unknown_by_waiting = new list<type_definition>();
+        searched = new list<sharp_component>();
+    }
+}
+
+/** look for the definition that answers `request` */
+def search_definitions(session: analysis_session, request: component_request) : definition_search {
+    result := new definition_search();
+    result.searched = components_in_reach(session.prog, request);
+    if(request.component_name != null && result.searched.size() == 0) {
+        result.no_such_component = 1;
+        return result;
+    }
+
+    for(c : _int64 = 0; c < result.searched.size(); c++) {
+        declared := result.searched.at(c);
+        for(i : _int64 = 0; i < declared.definitions.size(); i++) {
+            definition := declared.definitions.at(i);
+            if(!is_listed_for(definition, request)) { continue; }
+
+            provided : resolved_type? = provides_of(session, definition);
+            if(provided == null) {
+                result.in_progress.add(definition);
+            } else if(provided!!.kind == RT_NIL) {
+                continue;                       // E0905: it provides nothing
+            } else if(provided!!.kind == RT_ERROR && definition.unknown_by_waiting == 1) {
+                result.unknown_by_waiting.add(definition);      // not reported: it keeps nothing quiet
+            } else if(provided!!.kind == RT_ERROR) {
+                result.broken = 1;
+            } else if(request.type != null && !same_or_nullable_of(provided!!, request.type!!)) {
+                if(request.name != null && result.other_type == null) { result.other_type = definition; }
+            } else if(result.found == null) {
+                result.found = definition;
+            } else {
+                note_second_answer(result, request, definition);
+            }
+        }
+    }
+    return result;
+}
+
+/** is the definition in the list this request looks at: the named ones (and of that name), or the unnamed ones? */
+def is_listed_for(definition: type_definition, request: component_request) : _int64 {
+    if(request.name == null) { return definition.name == null; }
+    if(definition.name == null) { return 0; }
+    if(definition.name!! == request.name!!) { return 1; }
+    return 0;
+}
+
+/**
+ * A second definition answers. It matters only when it is in ANOTHER
+ * component, the request named none, and the first answer was not found in
+ * the request's own component (which always wins).
+ */
+def note_second_answer(result: definition_search, request: component_request, second: type_definition) {
+    first : type_definition = result.found!!;
+    if(request.component_name != null || same_component(first.owner, second.owner)) { return; }
+    if(request.inside != null && same_component(first.owner, request.inside!!)) { return; }
+    for(i : _int64 = 0; i < result.also_in.size(); i++) {
+        if(same_component(result.also_in.at(i), second.owner)) { return; }
+    }
+    result.also_in.add(second.owner);
+}
+
+/**
+ * The components a request looks in, in order: the one it names; else the
+ * one it is written in first, then all the others as declared. (Several
+ * blocks may be one component: every block of that name is listed.)
+ */
+def components_in_reach(prog: sharp_program, request: component_request) : list<sharp_component> {
+    reach := new list<sharp_component>();
+    all : list<sharp_component> = prog.components;
+    if(request.component_name != null) {
+        for(i : _int64 = 0; i < all.size(); i++) {
+            if(all.at(i).name == request.component_name!!) { reach.add(all.at(i)); }
+        }
+        return reach;
+    }
+    if(request.inside != null) {
+        for(i : _int64 = 0; i < all.size(); i++) {
+            if(same_component(all.at(i), request.inside!!)) { reach.add(all.at(i)); }
+        }
+    }
+    for(i : _int64 = 0; i < all.size(); i++) {
+        if(request.inside == null || !same_component(all.at(i), request.inside!!)) { reach.add(all.at(i)); }
+    }
+    return reach;
+}

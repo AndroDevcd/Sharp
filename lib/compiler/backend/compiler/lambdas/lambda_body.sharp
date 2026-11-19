@@ -1,0 +1,277 @@
+mod backend.compiler.lambdas;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions,
+    backend.compiler.statements,
+    backend.compiler.statements.jumps
+)
+
+/**
+ * THE LAMBDA AS A FUNCTION OF ITS OWN
+ *
+ *      def total(items: int[]) : _int64 {
+ *          sum := 0;
+ *          each(items, { n: int -> sum += n.value; });
+ *          return sum;
+ *      }
+ *
+ * The lambda becomes a `sharp_function`: static (it is called through a
+ * function value, never on an object), named `lambda@3:21` after where it is
+ * written, owned by the class it is written in, `enclosing` the function
+ * around it. It is not a member anything can name; the program keeps it in
+ * `sharp_program.lambdas`, and the function around it in its `lambdas`.
+ *
+ * Its body is analysed by the same statement code as any body, in a context
+ * of its own:
+ *
+ *   - its first scope continues into the scope it is written in. Looking a
+ *     name up walks out of the lambda into the function around it, and that
+ *     crossing is what makes `sum` CAPTURED (context/closures.sharp);
+ *   - no loop is around it: `break` / `continue` cannot leave a lambda
+ *     (E0602 / E0603). `return` returns from the lambda;
+ *   - `self` is the object of the function around it, when that is an
+ *     instance function (captured as well); in static code there is none;
+ *   - the type parameters of the class or generic function around it hold.
+ *
+ * THE RESULT. Written `(t)` or expected: every `return` must give a `t`.
+ * Neither (`f := { x: int -> return x.value * 2; };`): the result is the
+ * type of the first `return` that gives a value - the others are converted
+ * to it - or nothing when no `return` gives one [differs D11: the C++
+ * compiler refuses such a lambda as "not fully qualified"].
+ *
+ * A body that is ONE expression without `;` (`{ it * 2 }`) gives its value
+ * as the result: a bound_expression_statement with `is_result`, which the
+ * flow analysis treats as a `return`. When the lambda returns nothing the
+ * expression is simply carried out (`run_twice { total.add(10) }`).
+ *
+ *      C++ comparison: compile_lambda_expression in
+ *      compiler/expressions/primary/lambda_expression.cpp (the function is
+ *      `anonymous_func<id>`, compiled later with the class or on
+ *      `fully_qualify_function`).
+ */
+def build_lambda(context: analysis_context, form: lambda_form, signature: lambda_signature) : bound_lambda {
+    session : analysis_session = context.session;
+    function := new_lambda_function(context, form, signature);
+
+    inner := lambda_context(context, function);
+    declare_lambda_parameters(inner, function, signature);
+
+    block : bound_block = new bound_block(context.unit, form.node);
+    if(form.body >= 0) {
+        block = analyse_lambda_body(inner, form, function);
+    }
+
+    function.bound_body = block;
+    function.locals = inner.locals;
+    function.body_state = TYPE_KNOWN;
+    session.counters.bodies++;
+    session.counters.lambdas++;
+    session.analysed_functions.add(function);         // for the flow analysis: `return` paths, unreachable code
+
+    made := new bound_lambda(context.unit, form.node, function, function_type_of_lambda(session, function));
+    if(function.takes_record == 1) {
+        if(function.enclosing != null) { made.record = record_of_function(function.enclosing!!); }
+        else if(function.enclosing_field != null) { made.record = record_of_field(function.enclosing_field!!); }
+    }
+    return made;
+}
+
+/** the sharp_function of a lambda: its parameters as written / expected, its result if known */
+def new_lambda_function(context: analysis_context, form: lambda_form, signature: lambda_signature) : sharp_function {
+    p : parse_state = context.state;
+    token : _int64 = context.tree.tokens!![form.node];
+    offset : _int64 = p.start_of(token);
+    name := "lambda@" + line_of(p.table, offset) + ":" + column_of(p.table, offset);
+    function := new sharp_function(D_FUNCTION, name, context.unit, form.node, context.class_of, context.file.module);
+    function.flags = FLAG_STATIC;
+    function.is_lambda = 1;
+    function.enclosing = context.function;
+    if(context.function == null) { function.enclosing_field = context.field; }
+    function.environment = context.environment;
+    function.body = form.body;
+
+    for(i : _int64 = 0; i < signature.names.size(); i++) {
+        parameter := new sharp_parameter(signature.names.at(i), null, signature.nodes[i]);
+        parameter.value_type = signature.types.at(i);
+        function.parameters.add(parameter);
+    }
+    if(signature.result != null) {
+        function.result_type = signature.result;
+        function.type_state = TYPE_KNOWN;
+    }
+
+    context.session.prog.lambdas.add(function);
+    // (in a component definition: the definition keeps its lambdas, to take them back when
+    //  its analysis is dropped and done again - components/definitions.sharp)
+    if(context.definition != null) { context.definition!!.lambdas.add(function); }
+    if(context.function != null) {
+        if(context.function!!.lambdas == null) { context.function!!.lambdas = new list<sharp_function>(); }
+        context.function!!.lambdas!!.add(function);
+    } else if(context.field != null) {
+        if(context.field!!.lambdas == null) { context.field!!.lambdas = new list<sharp_function>(); }
+        context.field!!.lambdas!!.add(function);
+    }
+    return function;
+}
+
+/**
+ * The context the lambda's body is analysed in: the same class, `self` and
+ * type parameters as the code around it, its own function, its own locals,
+ * no jumps around it - and a first scope whose `outer` is the scope the
+ * lambda is written in.
+ */
+def lambda_context(context: analysis_context, function: sharp_function) : analysis_context {
+    inner := new analysis_context(context.session, context.file);
+    inner.class_of = context.class_of;
+    inner.function = function;
+    inner.field = context.field;
+    inner.accessor_of = context.accessor_of;
+    inner.definition = context.definition;          // a lambda in a component definition: its `get()`s are still inside the component
+    inner.environment = context.environment;
+    inner.is_static = context.is_static;
+    inner.alias_count = context.alias_count;
+    inner.scope = new local_scope(context.scope, function);
+    return inner;
+}
+
+/** the parameters, as the lambda's first locals; the `it` nobody wrote is hidden but has its name */
+def declare_lambda_parameters(inner: analysis_context, function: sharp_function, signature: lambda_signature) {
+    for(i : _int64 = 0; i < signature.names.size(); i++) {
+        variable := new local_variable(signature.names.at(i), signature.types.at(i), inner.unit, signature.nodes[i]);
+        variable.is_parameter = 1;
+        if(signature.hidden_it == 1) {
+            variable.is_hidden = 1;
+        } else {
+            report_if_already_local(inner, variable.name, signature.nodes[i]);
+        }
+        inner.declare(variable);
+    }
+}
+
+/** the statements of the body, with the result checked or worked out */
+def analyse_lambda_body(inner: analysis_context, form: lambda_form, function: sharp_function) : bound_block {
+    if(form.single_expression >= 0) { return single_expression_body(inner, form, function); }
+
+    if(function.result_type == null) {
+        inner.inferring_result = 1;
+        inner.returns = new list<bound_statement>();
+    } else {
+        inner.expected_result = function.result_type;
+    }
+
+    made := new list<bound_statement>();
+    analyse_statement(inner, form.body, made);
+    block : bound_block = new bound_block(inner.unit, form.body);
+    if(made.size() > 0 && made.at(0).kind == BS_BLOCK) { block = made.at(0) as bound_block; }
+
+    if(inner.inferring_result == 1) { settle_result(inner, function); }
+    return block;
+}
+
+/**
+ * `{ it * 2 }`: the value of the one expression is the result. When the
+ * lambda returns nothing it is an ordinary expression statement.
+ */
+def single_expression_body(inner: analysis_context, form: lambda_form, function: sharp_function) : bound_block {
+    session : analysis_session = inner.session;
+    statement : _int64 = form.single_expression;
+    expression : _int64 = inner.tree.first_child!![statement];
+    block := new bound_block(inner.unit, form.body);
+    inner.open_scope();
+
+    if(function.result_type != null && function.result_type!!.kind == RT_NIL) {
+        analyse_statement(inner, statement, block.statements);
+        inner.close_scope();
+        return block;
+    }
+
+    value : bound_expression? = null;
+    if(function.result_type != null) {
+        value = analyse_converted(inner, expression, function.result_type!!, "the result of this lambda");
+    } else {
+        found := analyse_expression(inner, expression, null);
+        if(found.type.kind == RT_NIL) {
+            // a call that returns nothing: so does the lambda
+            function.result_type = session.types.nil_type;
+            function.type_state = TYPE_KNOWN;
+            block.statements.add(new bound_expression_statement(inner.unit, statement, found));
+            inner.close_scope();
+            return block;
+        }
+        found = as_value(inner, found);
+        function.result_type = lambda_result_of(session, found);
+        function.type_state = TYPE_KNOWN;
+        value = convert(inner, found, function.result_type!!, "the result of this lambda");
+    }
+    result := new bound_expression_statement(inner.unit, statement, value!!);
+    result.is_result = 1;
+    block.statements.add(result);
+    session.counters.statements++;
+    inner.close_scope();
+    return block;
+}
+
+/**
+ * After the body of a lambda whose result was not written nor expected: the
+ * first `return` with a value decides the type; every value is converted to
+ * it, and a `return;` without one is then E0607. No value anywhere: the
+ * lambda returns nothing.
+ */
+def settle_result(inner: analysis_context, function: sharp_function) {
+    session : analysis_session = inner.session;
+    returns : list<bound_statement> = inner.returns!!;
+    result : resolved_type = session.types.nil_type;
+    for(i : _int64 = 0; i < returns.size(); i++) {
+        value := (returns.at(i) as bound_return).value;
+        if(value != null && value!!.type.kind != RT_NIL) {
+            result = lambda_result_of(session, value!!);
+            break;
+        }
+    }
+    function.result_type = result;
+    function.type_state = TYPE_KNOWN;
+    if(result.kind == RT_NIL) { return; }
+
+    for(i : _int64 = 0; i < returns.size(); i++) {
+        returned := returns.at(i) as bound_return;
+        if(returned.value == null) {
+            inner.expected_result = result;
+            report_no_value(inner, returned.node, result);
+        } else {
+            returned.value = convert(inner, returned.value!!, result, "the result of this lambda (its first `return` gives a `"
+                                     + result.to_text() + "`)");
+        }
+    }
+}
+
+/**
+ * The result type a lambda gets from a value it returns: the value's type,
+ * except that a text literal is a `string` and `null` an `object` (a lambda
+ * that hands out text means a string, not an array of characters).
+ */
+def lambda_result_of(session: analysis_session, value: bound_expression) : resolved_type {
+    if(value.literal == LIT_TEXT) { return session.string_type(); }
+    if(value.type.kind == RT_NULL) { return session.types.object_type; }
+    return value.type;
+}
+
+/** the function type of a lambda: its parameters and its result */
+def function_type_of_lambda(session: analysis_session, function: sharp_function) : resolved_type {
+    parameters := new list<resolved_type>();
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        type := function.parameters.at(i).value_type;
+        if(type != null) { parameters.add(type!!); } else { parameters.add(session.types.error_type); }
+    }
+    result : resolved_type = session.types.nil_type;
+    if(function.result_type != null) { result = function.result_type!!; }
+    return function_type_of(parameters, result);
+}

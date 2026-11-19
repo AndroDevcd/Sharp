@@ -1,0 +1,112 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * JUMPS OVER A TEST WHOSE ANSWER IS KNOWN ON THE WAY IN
+ *
+ * `a && b` and `a || b` as a condition are made into a truth value first,
+ * then tested (codegen.md 6.4): each way in sets the value, and all meet at
+ * one test.
+ *
+ *      int_constant %7, 1                          int_constant %7, 1
+ *      ... jump_if %9, L7          ->              ... jump_if %9, L20         %7 is 1 on this way in:
+ *      int_constant %7, 0                          int_constant %7, 0          the test below is passed,
+ *    L7:                                         L7:                           so the jump goes past it
+ *      jump_unless %7, L6                          jump_unless %7, L6
+ *      ... the body ...                          L20:
+ *                                                  ... the body ...
+ *
+ * A jump whose target is a block that does nothing but test a slot, at a
+ * point where constant propagation knows that slot, goes straight to where
+ * the test would send it: the test's target, or the instruction after the
+ * test (a new label is placed there). The textbook name is "jump threading"
+ * with known values on an edge (Muchnick 18.3; the C++ optimizer's constant
+ * propagation decides such branches too). The values on the other ways in
+ * are not touched, and the constant that is no longer read on this way is
+ * then often dead.
+ *
+ * Called from constant_propagation.sharp's rewrite, which knows the values at
+ * every jump. Labels a `try` names are never jumped past.
+ */
+class thread_plan {
+    places : number_list;           // per label: the index of the instruction that places it
+    after : number_list;            // indexes of tests that get a new label right after them ...
+    labels : number_list;           // ... and those labels
+
+    thread_plan(code: ir_function) {
+        places = places_of_labels(code);
+        after = new number_list();
+        labels = new number_list();
+    }
+
+    /** the label right after instruction `index`: the one already there, or a new one to be placed */
+    def label_after(code: ir_function, index: _int64) : _int64 {
+        if(index + 1 < code.instructions.size() && code.instructions.at(index + 1).kind == IR_LABEL) {
+            return code.instructions.at(index + 1).number;
+        }
+        for(i : _int64 = 0; i < after.count; i++) {
+            if(after.at(i) == index) { return labels.at(i); }
+        }
+        label : _int64 = code.label_count;
+        code.label_count++;
+        after.add(index);
+        labels.add(label);
+        return label;
+    }
+}
+
+/** retarget the jump `made` past a test whose answer is known here; 1 when it was */
+def thread_jump(code: ir_function, facts: label_facts, made: ir_instruction, state: constant_state, plan: thread_plan) : _int64 {
+    if(!is_jump(made)) { return 0; }
+    label : _int64 = made.number;
+    if(label >= plan.places.count || facts.is_protected(label)) { return 0; }
+    place : _int64 = plan.places.at(label);
+    if(place < 0) { return 0; }
+    at : _int64 = next_real_instruction(code, place);
+    if(at < 0) { return 0; }
+    test := code.instructions.at(at);
+    if((test.kind != IR_JUMP_IF && test.kind != IR_JUMP_UNLESS) || test == made || !state.knows(test.first)) { return 0; }
+    taken : _int64 = state.whole_of(test.first) != 0;
+    if(test.kind == IR_JUMP_UNLESS) { taken = !taken; }
+    if(taken) {
+        if(test.number == label || facts.is_protected(test.number)) { return 0; }
+        made.number = test.number;
+        return 1;
+    }
+    made.number = plan.label_after(code, at);
+    return 1;
+}
+
+/**
+ * The function's instructions without the ones at `removed` (increasing
+ * indexes) and with the new labels of `plan` placed after their tests.
+ */
+def rebuild_with_labels(code: ir_function, removed: number_list, plan: thread_plan) {
+    if(plan.after.count == 0) {
+        remove_instructions(code, removed);
+        return;
+    }
+    made := new list<ir_instruction>();
+    next : _int64 = 0;
+    total : _int64 = code.instructions.size().value as _int64;
+    for(i : _int64 = 0; i < total; i++) {
+        if(next < removed.count && removed.at(next) == i) {
+            next++;
+        } else {
+            made.add(code.instructions.at(i));
+        }
+        for(k : _int64 = 0; k < plan.after.count; k++) {
+            if(plan.after.at(k) == i) {
+                placed := new ir_instruction(IR_LABEL);
+                placed.number = plan.labels.at(k);
+                made.add(placed);
+            }
+        }
+    }
+    code.instructions = made;
+}

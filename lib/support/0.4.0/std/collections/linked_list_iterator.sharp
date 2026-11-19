@@ -1,0 +1,50 @@
+mod std.collections;
+
+/**
+ * @class linked_list_iterator
+ *
+ * The `iterator` a `linked_list` returns. It follows the links of the list
+ * directly (no copy of the elements is made), either from the head towards
+ * the tail or - for descending_iterator() - from the tail towards the head.
+ *
+ * Because it walks the live list, the list should not be changed while one
+ * of its iterators is still in use: removing the node the iterator is
+ * standing on makes the rest of the walk meaningless.
+ */
+class linked_list_iterator<T> : iterator<T> {
+    /** the node whose element next() returns, null when finished */
+    private current : linked_node<T>?;
+    /** 1 = walk head -> tail, 0 = walk tail -> head */
+    private forward : decimal;
+
+    /**
+     * @param start   the node to begin with (the head for a forward walk,
+     *                the tail for a backward walk), null for an empty list
+     * @param forward 1 to follow the `next` links, 0 to follow `prev`
+     */
+    linked_list_iterator(start: linked_node<T>?, forward: decimal) {
+        current = start;
+        self->forward = forward;
+    }
+
+    /** 1 while there are elements left, otherwise 0. O(1). */
+    override def has_next() : decimal {
+        if(current == null) return 0;
+        return 1;
+    }
+
+    /**
+     * Return the current element and step to the neighbouring node. O(1).
+     *
+     * @throws no_such_element_exception when the iterator is finished
+     */
+    override def next() : T {
+        if(current == null)
+            throw new no_such_element_exception("linked_list_iterator: no more elements");
+
+        node := current!!;
+        if(forward) current = node.next;
+        else current = node.prev;
+        return node.value;
+    }
+}

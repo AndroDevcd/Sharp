@@ -1,0 +1,101 @@
+mod backend.finalizer.verify;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.bytecode
+)
+
+/**
+ * THE TRY RECORDS OF A FUNCTION (doc/codegen.md 3.8, 4.7, 5.7)
+ *
+ * A try record tells the VM which words a `try` guards and where its handlers
+ * are. Nothing in the VM checks one: a range that is a word too short lets an
+ * exception escape the `catch` written for it, a handler pc in the middle of
+ * an instruction runs garbage. So every record is checked here:
+ *
+ *      try_start = block_start <= block_end <= try_end        the ranges nest and lie
+ *                                                              inside the code
+ *      every range starts on the first word of an instruction and ends on the
+ *          last word of one
+ *      every handler and the finally start on the first word of an instruction,
+ *          inside the function; the handlers inside the try range, after the block
+ *      every exception slot inside the frame (or -1 for a clause without a
+ *          variable); a finally's slot never a number whose low byte is 05 (the
+ *          loader takes such a last byte for the end of the data section: 11.1)
+ *      every class a clause takes exists
+ *      R1: the last instruction of each range is not a call - the VM looks the
+ *          exception of a call up at the word AFTER it (4.7), which must still be
+ *          inside the range
+ *      R2: the instruction just before a range is not a call - for the same
+ *          reason its exception would be looked up at the range's first word
+ *
+ * The records must be in the order their `try` statements start (the VM asks
+ * the last one first, and an inner `try` starts after the one around it).
+ */
+def check_try_records(words: number_list, starts: number_list, code: function_code, layout: program_layout) : string? {
+    previous_start : _int64 = 0 - 1;
+    for(i : _int64 = 0; i < code.tries.size(); i++) {
+        record := code.tries.at(i);
+        name := "try record " + i;
+        if(record.try_start < previous_start) { return name + " starts before the record ahead of it"; }
+        previous_start = record.try_start;
+        if(record.block_start != record.try_start || record.block_end < record.block_start
+           || record.try_end < record.block_end || record.try_end >= words.count) {
+            return name + " has ranges that do not nest inside the code (try " + record.try_start + ".." + record.try_end
+                   + ", block " + record.block_start + ".." + record.block_end + ")";
+        }
+        problem := check_range(words, starts, name + ": the block", record.block_start, record.block_end);
+        if(problem != null) { return problem; }
+        problem = check_range(words, starts, name + ": the guarded range", record.try_start, record.try_end);
+        if(problem != null) { return problem; }
+        for(j : _int64 = 0; j < record.handler_pcs.count; j++) {
+            handler : _int64 = record.handler_pcs.at(j);
+            if(handler <= record.block_end || handler > record.try_end || starts.at(handler) == 0) {
+                return name + ": catch clause " + j + " starts at " + handler + ", not at an instruction after the block";
+            }
+            slot : _int64 = record.catch_slots.at(j);
+            if(slot < 0 - 1 || slot >= code.stack_size) { return name + ": catch clause " + j + " stores into slot " + slot; }
+            address : _int64 = record.catch_classes.at(j);
+            if(address < 0 || address >= layout.classes.size()) { return name + ": catch clause " + j + " takes class " + address; }
+        }
+        if(record.has_finally == 1) {
+            if(record.finally_start <= record.try_end || record.finally_start >= words.count
+               || starts.at(record.finally_start) == 0 || record.finally_end < record.finally_start) {
+                return name + ": the finally block at " + record.finally_start + " is not an instruction after the guarded range";
+            }
+            if(record.finally_slot < 0 || record.finally_slot >= code.stack_size) {
+                return name + ": the finally block stores its exception into slot " + record.finally_slot;
+            }
+            if((record.finally_slot & 0xff) == 5) {
+                return name + ": the finally's exception slot " + record.finally_slot + " ends in the byte 05 (codegen.md 11.1)";
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * One range: it starts on an instruction and ends on the last word of one,
+ * the instruction before it is not a call (R2) and its last one is not a call
+ * either (R1).
+ */
+def check_range(words: number_list, starts: number_list, name: string, first: _int64, last: _int64) : string? {
+    if(starts.at(first) == 0) { return name + " starts at " + first + ", inside an instruction"; }
+    if(last + 1 < words.count && starts.at(last + 1) == 0) { return name + " ends at " + last + ", inside an instruction"; }
+    if(first > 0 && is_call_opcode(words.at(start_of_instruction(starts, first - 1)) & 0xff)) {
+        return name + " begins right after a call (R2 of codegen.md 4.7: that call's exception would be taken for the range's)";
+    }
+    if(is_call_opcode(words.at(start_of_instruction(starts, last)) & 0xff)) {
+        return name + " ends with a call (R1 of codegen.md 4.7: its exception would be looked up past the range)";
+    }
+    return null;
+}
+
+/** the first word of the instruction word `pc` belongs to */
+def start_of_instruction(starts: number_list, pc: _int64) : _int64 {
+    at : _int64 = pc;
+    while(at > 0 && starts.at(at) == 0) { at--; }
+    return at;
+}

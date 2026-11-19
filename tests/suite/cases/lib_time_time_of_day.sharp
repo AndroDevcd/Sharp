@@ -1,0 +1,287 @@
+mod main;
+
+import ( std.testing, std.time )
+
+/**
+ * std.time.time_of_day and std.time.date_time: fields and validation,
+ * arithmetic (wrapping around midnight for time_of_day, carrying into the
+ * date for date_time), second/nano of day, epoch seconds, comparison, text
+ * and parsing.
+ */
+
+def ttext(t: time_of_day): string {
+    return t.to_string()!!;
+}
+
+def dtext(d: date_time): string {
+    return d.to_string()!!;
+}
+
+/** 1 when time_of_day.of(h, m, s, n) throws a date_time_exception */
+def rejects(h: decimal, m: decimal, s: decimal, n: decimal): decimal {
+    try {
+        time_of_day.of(h, m, s, n);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def rejects_time(s: string): decimal {
+    try {
+        time_of_day.parse(s);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def rejects_date_time(s: string): decimal {
+    try {
+        date_time.parse(s);
+        return 0;
+    } catch(e: date_time_exception) {
+        return 1;
+    }
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_time_time_of_day") {
+        // seconds from 1900-01-01 to 1970-01-01 (70 years with 17 leap days)
+        seconds_1900_to_1970 : decimal = 2208988800;
+
+        // ================= time_of_day =================
+
+        // ---- fields
+        t := time_of_day.of(13, 45, 30, 250000000);
+        test("hour") { expect(t.hour()).should_be(13); };
+        test("minute") { expect(t.minute()).should_be(45); };
+        test("second") { expect(t.second()).should_be(30); };
+        test("nano") { expect(t.nano()).should_be(250000000); };
+        test("milli") { expect(t.milli()).should_be(250); };
+        test("of(h, m) has zero seconds") { expect(time_of_day.of(7, 5).second()).should_be(0); };
+        test("of(h, m, s) has zero nanos") { expect(time_of_day.of(7, 5, 9).nano()).should_be(0); };
+        test("midnight") { expect(time_of_day.midnight.to_second_of_day()).should_be(0); };
+        test("noon") { expect(time_of_day.noon.to_second_of_day()).should_be(43200); };
+        test("min") { expect(time_of_day.min.to_nano_of_day()).should_be(0); };
+        test("max") { expect(time_of_day.max.to_nano_of_day()).should_be(86399999999999); };
+        test("hour_12 at 13:45") { expect(t.hour_12()).should_be(1); };
+        test("hour_12 at midnight") { expect(time_of_day.midnight.hour_12()).should_be(12); };
+        test("hour_12 at noon") { expect(time_of_day.noon.hour_12()).should_be(12); };
+        test("hour_12 at 11:59") { expect(time_of_day.of(11, 59).hour_12()).should_be(11); };
+        test("is_pm in the afternoon") { expect_true(t.is_pm()); };
+        test("is_pm at noon") { expect_true(time_of_day.noon.is_pm()); };
+        test("is_pm at midnight") { expect_false(time_of_day.midnight.is_pm()); };
+
+        // ---- second and nanosecond of day
+        test("to_second_of_day") { expect(t.to_second_of_day()).should_be(49530); };
+        test("to_nano_of_day") { expect(t.to_nano_of_day()).should_be(49530250000000); };
+        test("of_second_of_day") { expect(ttext(time_of_day.of_second_of_day(49530))).should_be("13:45:30"); };
+        test("of_second_of_day(0)") { expect(ttext(time_of_day.of_second_of_day(0))).should_be("00:00:00"); };
+        test("of_second_of_day(86399)") { expect(ttext(time_of_day.of_second_of_day(86399))).should_be("23:59:59"); };
+        test("of_nano_of_day") { expect(ttext(time_of_day.of_nano_of_day(49530250000000))).should_be("13:45:30.250"); };
+        test("of_nano_of_day(1)") { expect(ttext(time_of_day.of_nano_of_day(1))).should_be("00:00:00.000000001"); };
+
+        // ---- validation
+        test("hour 24") { expect_true(rejects(24, 0, 0, 0)); };
+        test("hour -1") { expect_true(rejects(0 - 1, 0, 0, 0)); };
+        test("minute 60") { expect_true(rejects(0, 60, 0, 0)); };
+        test("second 60 (no leap seconds)") { expect_true(rejects(0, 0, 60, 0)); };
+        test("nano 1e9") { expect_true(rejects(0, 0, 0, 1000000000)); };
+        test("negative nano") { expect_true(rejects(0, 0, 0, 0 - 1)); };
+        test("a fractional hour") { expect_true(rejects(1.5, 0, 0, 0)); };
+        test("23:59:59.999999999 is valid") { expect_false(rejects(23, 59, 59, 999999999)); };
+        caught : decimal = 0;
+        try { time_of_day.of_second_of_day(86400); } catch(e: date_time_exception) { caught = 1; }
+        test("of_second_of_day(86400) throws") { expect(caught).should_be(1); };
+        try {
+            time_of_day.of(24, 0);
+            test("message") { fail_test("no exception"); };
+        } catch(e: date_time_exception) {
+            test("message") { expect(e.get_message()).should_be("hour must be 0 to 23 but was 24"); };
+        }
+
+        // ---- arithmetic wraps around midnight
+        test("+2 hours over midnight") { expect(ttext(time_of_day.of(23, 0).plus_hours(2))).should_be("01:00:00"); };
+        test("+12 hours") { expect(ttext(t.plus_hours(12))).should_be("01:45:30.250"); };
+        test("+24 hours is the same time") { expect(ttext(t.plus_hours(24))).should_be("13:45:30.250"); };
+        test("-14 hours") { expect(ttext(t.minus_hours(14))).should_be("23:45:30.250"); };
+        test("+49 hours") { expect(ttext(time_of_day.of(10, 0).plus_hours(49))).should_be("11:00:00"); };
+        test("-20 minutes under midnight") { expect(ttext(time_of_day.of(0, 10).minus_minutes(20))).should_be("23:50:00"); };
+        test("+90 minutes") { expect(ttext(time_of_day.of(22, 45).plus_minutes(90))).should_be("00:15:00"); };
+        test("+1440 minutes") { expect(ttext(t.plus_minutes(1440))).should_be("13:45:30.250"); };
+        test("+1 second at the end of the day") { expect(ttext(time_of_day.of(23, 59, 59).plus_seconds(1))).should_be("00:00:00"); };
+        test("-1 second at midnight") { expect(ttext(time_of_day.midnight.minus_seconds(1))).should_be("23:59:59"); };
+        test("+3661 seconds") { expect(ttext(time_of_day.of(1, 1, 1).plus_seconds(3661))).should_be("02:02:02"); };
+        test("+1 ns at the end of the day") { expect(ttext(time_of_day.max.plus_nanos(1))).should_be("00:00:00"); };
+        test("-1 ns at midnight") { expect(ttext(time_of_day.midnight.minus_nanos(1))).should_be("23:59:59.999999999"); };
+        test("+750 ms carries into the second") { expect(ttext(t.plus_nanos(750000000))).should_be("13:45:31"); };
+        test("plus(duration)") { expect(ttext(time_of_day.of(10, 0).plus(duration.of_minutes(90)))).should_be("11:30:00"); };
+        test("plus a duration of 25 hours") { expect(ttext(time_of_day.of(10, 0).plus(duration.of_hours(25)))).should_be("11:00:00"); };
+        test("minus(duration)") { expect(ttext(time_of_day.of(0, 30).minus(duration.of_hours(1)))).should_be("23:30:00"); };
+        test("+ duration with a fraction") { expect(ttext(t + duration.of_millis(1750))).should_be("13:45:32"); };
+        test("- duration") { expect(ttext(t - duration.of_millis(250))).should_be("13:45:30"); };
+        test("the original is unchanged") { expect(ttext(t)).should_be("13:45:30.250"); };
+
+        // ---- until (no wrapping)
+        test("until later") { expect(time_of_day.of(9, 0).until(time_of_day.of(17, 30)).to_minutes()).should_be(510); };
+        test("until earlier") { expect(time_of_day.of(23, 0).until(time_of_day.of(1, 0)).to_hours()).should_be(0 - 22); };
+        test("until with nanos") { expect(time_of_day.of(0, 0, 0, 1).until(time_of_day.of(0, 0, 1, 0)).to_nanos()).should_be(999999999); };
+
+        // ---- with_... and truncation
+        test("with_hour") { expect(ttext(t.with_hour(0))).should_be("00:45:30.250"); };
+        test("with_minute") { expect(ttext(t.with_minute(0))).should_be("13:00:30.250"); };
+        test("with_second") { expect(ttext(t.with_second(59))).should_be("13:45:59.250"); };
+        test("with_nano") { expect(ttext(t.with_nano(0))).should_be("13:45:30"); };
+        test("truncated_to_seconds") { expect(ttext(t.truncated_to_seconds())).should_be("13:45:30"); };
+        test("truncated_to_minutes") { expect(ttext(t.truncated_to_minutes())).should_be("13:45:00"); };
+        test("truncated_to_hours") { expect(ttext(t.truncated_to_hours())).should_be("13:00:00"); };
+        caught = 0;
+        try { t.with_hour(24); } catch(e: date_time_exception) { caught = 1; }
+        test("with_hour(24) throws") { expect(caught).should_be(1); };
+
+        // ---- comparing
+        early := time_of_day.of(8, 0);
+        late := time_of_day.of(8, 0, 0, 1);
+        test("<") { expect_true(early < late); };
+        test(">") { expect_true(late > early); };
+        test("<=") { expect_true(early <= early); };
+        test(">=") { expect_true(late >= early); };
+        test("==") { expect_true(early == time_of_day.of(8, 0, 0, 0)); };
+        test("!=") { expect_true(early != late); };
+        test("== differs by a nanosecond") { expect_false(early == late); };
+        test("compare_to") { expect(early.compare_to(late)).should_be(0 - 1); };
+        test("is_before") { expect_true(early.is_before(late)); };
+        test("is_after") { expect_true(late.is_after(early)); };
+
+        // ---- text
+        test("to_string") { expect(ttext(time_of_day.of(7, 5, 9))).should_be("07:05:09"); };
+        test("milliseconds") { expect(ttext(time_of_day.of(7, 5, 0, 250000000))).should_be("07:05:00.250"); };
+        test("microseconds") { expect(ttext(time_of_day.of(0, 0, 0, 1000))).should_be("00:00:00.000001"); };
+        test("nanoseconds") { expect(ttext(time_of_day.max)).should_be("23:59:59.999999999"); };
+        test("parse HH:MM") { expect(ttext(time_of_day.parse("13:45"))).should_be("13:45:00"); };
+        test("parse HH:MM:SS") { expect(ttext(time_of_day.parse("13:45:30"))).should_be("13:45:30"); };
+        test("parse a fraction") { expect(time_of_day.parse("07:05:00.25").nano()).should_be(250000000); };
+        test("parse nine fraction digits") { expect(time_of_day.parse("00:00:00.000000001").nano()).should_be(1); };
+        test("parse a comma fraction") { expect(time_of_day.parse("00:00:00,5").nano()).should_be(500000000); };
+        test("format -> parse round trip") { expect_true(time_of_day.parse(ttext(t)) == t); };
+        test("parse rejects 24:00") { expect_true(rejects_time("24:00")); };
+        test("parse rejects 12:60") { expect_true(rejects_time("12:60")); };
+        test("parse rejects one digit hours") { expect_true(rejects_time("7:05")); };
+        test("parse rejects a missing minute") { expect_true(rejects_time("13")); };
+        test("parse rejects an empty fraction") { expect_true(rejects_time("13:45:30.")); };
+        test("parse rejects trailing text") { expect_true(rejects_time("13:45pm")); };
+        test("parse rejects the empty string") { expect_true(rejects_time("")); };
+
+        // ================= date_time =================
+
+        dt := date_time.of(2024, 2, 28, 23, 30, 0);
+        test("year") { expect(dt.year()).should_be(2024); };
+        test("month_value") { expect(dt.month_value()).should_be(2); };
+        test("day") { expect(dt.day()).should_be(28); };
+        test("hour") { expect(dt.hour()).should_be(23); };
+        test("minute") { expect(dt.minute()).should_be(30); };
+        test("second") { expect(dt.second()).should_be(0); };
+        test("nano") { expect(dt.nano()).should_be(0); };
+        test("day_of_year") { expect(dt.day_of_year()).should_be(59); };
+        test("day_of_week") { expect_true(dt.day_of_week() == day_of_week.wednesday); };
+        test("to_date") { expect(dt.to_date().to_string()!!).should_be("2024-02-28"); };
+        test("to_time") { expect(dt.to_time().to_string()!!).should_be("23:30:00"); };
+        test("of(date, time)") { expect(dtext(date_time.of(date.of(2000, 1, 1), time_of_day.noon))).should_be("2000-01-01T12:00:00"); };
+        test("date.at_time") { expect(dtext(date.of(2000, 1, 1).at_time(8, 15, 0))).should_be("2000-01-01T08:15:00"); };
+        test("date.at_start_of_day") { expect(dtext(date.of(2000, 1, 1).at_start_of_day())).should_be("2000-01-01T00:00:00"); };
+        test("time.at_date") { expect(dtext(time_of_day.noon.at_date(date.of(2000, 1, 1)))).should_be("2000-01-01T12:00:00"); };
+
+        // ---- arithmetic carries across midnight, month ends and year ends
+        test("+1 hour over midnight onto the leap day") { expect(dtext(dt.plus_hours(1))).should_be("2024-02-29T00:30:00"); };
+        test("+25 hours") { expect(dtext(dt.plus_hours(25))).should_be("2024-03-01T00:30:00"); };
+        test("-24 hours") { expect(dtext(dt.minus_hours(24))).should_be("2024-02-27T23:30:00"); };
+        test("+30 minutes") { expect(dtext(dt.plus_minutes(30))).should_be("2024-02-29T00:00:00"); };
+        test("+1 second at the end of a year") { expect(dtext(date_time.of(1999, 12, 31, 23, 59, 59).plus_seconds(1))).should_be("2000-01-01T00:00:00"); };
+        test("-1 second at the start of a year") { expect(dtext(date_time.of(2000, 1, 1, 0, 0, 0).minus_seconds(1))).should_be("1999-12-31T23:59:59"); };
+        test("+86400 seconds") { expect(dtext(dt.plus_seconds(86400))).should_be("2024-02-29T23:30:00"); };
+        test("+1 ns at the end of a day") { expect(dtext(date_time.of(2023, 12, 31, 23, 59, 59, 999999999).plus_nanos(1))).should_be("2024-01-01T00:00:00"); };
+        test("-1 ns at midnight") { expect(dtext(date_time.of(1970, 1, 1, 0, 0, 0).minus_nanos(1))).should_be("1969-12-31T23:59:59.999999999"); };
+        test("+1 day keeps the time") { expect(dtext(dt.plus_days(2))).should_be("2024-03-01T23:30:00"); };
+        test("+1 week") { expect(dtext(dt.plus_weeks(1))).should_be("2024-03-06T23:30:00"); };
+        test("+1 month") { expect(dtext(date_time.of(2024, 1, 31, 12, 0).plus_months(1))).should_be("2024-02-29T12:00:00"); };
+        test("+1 year from the leap day") { expect(dtext(date_time.of(2024, 2, 29, 12, 0).plus_years(1))).should_be("2025-02-28T12:00:00"); };
+        test("minus_days") { expect(dtext(dt.minus_days(28))).should_be("2024-01-31T23:30:00"); };
+        test("minus_months") { expect(dtext(dt.minus_months(2))).should_be("2023-12-28T23:30:00"); };
+        test("minus_years") { expect(dtext(dt.minus_years(24))).should_be("2000-02-28T23:30:00"); };
+        test("plus(duration)") { expect(dtext(dt.plus(duration.of_minutes(45)))).should_be("2024-02-29T00:15:00"); };
+        test("minus(duration)") { expect(dtext(dt.minus(duration.of_hours(48)))).should_be("2024-02-26T23:30:00"); };
+        test("+ duration with a fraction") { expect(dtext(dt + duration.of_millis(1800500))).should_be("2024-02-29T00:00:00.500"); };
+        test("- duration") { expect(dtext(dt - duration.of_nanos(1))).should_be("2024-02-28T23:29:59.999999999"); };
+        test("plus(period)") { expect(dtext(dt.plus(period.of(1, 1, 1)))).should_be("2025-03-29T23:30:00"); };
+        test("minus(period)") { expect(dtext(dt.minus(period.of_days(28)))).should_be("2024-01-31T23:30:00"); };
+        test("the original is unchanged") { expect(dtext(dt)).should_be("2024-02-28T23:30:00"); };
+
+        // ---- until
+        test("until") { expect(date_time.of(2024, 2, 28, 12, 0).until(date_time.of(2024, 3, 1, 12, 0)).to_hours()).should_be(48); };
+        test("until backwards") { expect(dt.until(date_time.of(2024, 2, 28, 23, 0, 0)).to_minutes()).should_be(0 - 30); };
+        test("until with nanos") { expect(date_time.of(2024, 1, 1, 0, 0, 0, 999999999).until(date_time.of(2024, 1, 1, 0, 0, 1)).to_nanos()).should_be(1); };
+
+        // ---- epoch seconds
+        test("the epoch in UTC") { expect(date_time.of(1970, 1, 1, 0, 0, 0).to_epoch_second(zone_offset.utc)).should_be(0); };
+        test("2000-01-01T00:00:00Z") { expect(date_time.of(2000, 1, 1, 0, 0, 0).to_epoch_second(zone_offset.utc)).should_be(946684800); };
+        test("2024-02-29T13:00:00Z") { expect(date_time.of(2024, 2, 29, 13, 0, 0).to_epoch_second(zone_offset.utc)).should_be(1709211600); };
+        test("the same clock reading at +02:00 is 2 hours earlier") { expect(date_time.of(2024, 2, 29, 15, 0, 0).to_epoch_second(zone_offset.of_hours(2))).should_be(1709211600); };
+        test("...and at -05:00 later") { expect(date_time.of(2024, 2, 29, 8, 0, 0).to_epoch_second(zone_offset.of_hours(0 - 5))).should_be(1709211600); };
+        test("one second before the epoch") { expect(date_time.of(1969, 12, 31, 23, 59, 59).to_epoch_second(zone_offset.utc)).should_be(0 - 1); };
+        test("1900-01-01T00:00:00Z") { expect(date_time.of(1900, 1, 1, 0, 0, 0).to_epoch_second(zone_offset.utc)).should_be(0 - seconds_1900_to_1970); };
+        test("the end of 32-bit time") { expect(date_time.of(2038, 1, 19, 3, 14, 7).to_epoch_second(zone_offset.utc)).should_be(2147483647); };
+        test("9999-12-31T23:59:59Z") { expect(date_time.of(9999, 12, 31, 23, 59, 59).to_epoch_second(zone_offset.utc)).should_be(253402300799); };
+        test("of_epoch_second(0)") { expect(dtext(date_time.of_epoch_second(0, 0, zone_offset.utc))).should_be("1970-01-01T00:00:00"); };
+        test("of_epoch_second(1e9)") { expect(dtext(date_time.of_epoch_second(1000000000, 0, zone_offset.utc))).should_be("2001-09-09T01:46:40"); };
+        test("of_epoch_second(1234567890)") { expect(dtext(date_time.of_epoch_second(1234567890, 0, zone_offset.utc))).should_be("2009-02-13T23:31:30"); };
+        test("of_epoch_second(-1)") { expect(dtext(date_time.of_epoch_second(0 - 1, 0, zone_offset.utc))).should_be("1969-12-31T23:59:59"); };
+        test("of_epoch_second(-1) with nanos") { expect(dtext(date_time.of_epoch_second(0 - 1, 500000000, zone_offset.utc))).should_be("1969-12-31T23:59:59.500"); };
+        test("of_epoch_second at +05:30") { expect(dtext(date_time.of_epoch_second(0, 0, zone_offset.of_hours_minutes(5, 30)))).should_be("1970-01-01T05:30:00"); };
+        test("of_epoch_second at -08:00") { expect(dtext(date_time.of_epoch_second(0, 0, zone_offset.of_hours(0 - 8)))).should_be("1969-12-31T16:00:00"); };
+        test("of_epoch_second(2147483647)") { expect(dtext(date_time.of_epoch_second(2147483647, 0, zone_offset.utc))).should_be("2038-01-19T03:14:07"); };
+
+        // ---- with_... and truncation
+        test("with_date") { expect(dtext(dt.with_date(date.of(2000, 1, 1)))).should_be("2000-01-01T23:30:00"); };
+        test("with_time") { expect(dtext(dt.with_time(time_of_day.noon))).should_be("2024-02-28T12:00:00"); };
+        test("truncated_to_days") { expect(dtext(dt.truncated_to_days())).should_be("2024-02-28T00:00:00"); };
+        test("truncated_to_hours") { expect(dtext(dt.truncated_to_hours())).should_be("2024-02-28T23:00:00"); };
+        test("truncated_to_seconds") { expect(dtext(date_time.of(2024, 1, 1, 1, 2, 3, 4).truncated_to_seconds())).should_be("2024-01-01T01:02:03"); };
+
+        // ---- comparing
+        later := dt.plus_nanos(1);
+        test("<") { expect_true(dt < later); };
+        test(">") { expect_true(later > dt); };
+        test("<=") { expect_true(dt <= dt); };
+        test(">=") { expect_true(later >= dt); };
+        test("==") { expect_true(dt == date_time.of(2024, 2, 28, 23, 30, 0)); };
+        test("!=") { expect_true(dt != later); };
+        test("the date decides before the time") { expect_true(date_time.of(2024, 1, 1, 23, 0) < date_time.of(2024, 1, 2, 1, 0)); };
+        test("compare_to") { expect(later.compare_to(dt)).should_be(1); };
+        test("is_before") { expect_true(dt.is_before(later)); };
+        test("is_after") { expect_true(later.is_after(dt)); };
+
+        // ---- text and parsing
+        test("to_string with a fraction") { expect(dtext(date_time.of(2024, 2, 29, 13, 45, 30, 500000000))).should_be("2024-02-29T13:45:30.500"); };
+        test("parse") { expect(dtext(date_time.parse("2024-02-29T13:45:30"))).should_be("2024-02-29T13:45:30"); };
+        test("parse without seconds") { expect(dtext(date_time.parse("2024-02-29T13:45"))).should_be("2024-02-29T13:45:00"); };
+        test("parse with a space") { expect(dtext(date_time.parse("2024-02-29 13:45:30"))).should_be("2024-02-29T13:45:30"); };
+        test("parse lower case t") { expect(dtext(date_time.parse("2024-02-29t13:45:30"))).should_be("2024-02-29T13:45:30"); };
+        test("parse a fraction") { expect(date_time.parse("2024-02-29T13:45:30.123456789").nano()).should_be(123456789); };
+        test("parse then add a second over the millennium") { expect(date_time.parse("1999-12-31T23:59:59").plus_seconds(1).year()).should_be(2000); };
+        test("format -> parse round trip") { expect_true(date_time.parse(dtext(later)) == later); };
+        test("parse rejects a date alone") { expect_true(rejects_date_time("2024-02-29")); };
+        test("parse rejects 30 February") { expect_true(rejects_date_time("2024-02-30T00:00:00")); };
+        test("parse rejects hour 24") { expect_true(rejects_date_time("2024-02-29T24:00:00")); };
+        test("parse rejects an offset") { expect_true(rejects_date_time("2024-02-29T13:45:30Z")); };
+        test("parse rejects a missing separator") { expect_true(rejects_date_time("2024-02-2913:45:30")); };
+        caught = 0;
+        try { date_time.of(2023, 2, 29, 0, 0); } catch(e: date_time_exception) { caught = 1; }
+        test("of() with a day that does not exist throws") { expect(caught).should_be(1); };
+        caught = 0;
+        try { date_time.of(2024, 2, 29, 0, 60); } catch(e: date_time_exception) { caught = 1; }
+        test("of() with minute 60 throws") { expect(caught).should_be(1); };
+    };
+    finish_tests("lib_time_time_of_day");
+}

@@ -1,0 +1,269 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * WHICH FUNCTION OVERRIDES WHICH - EXACTLY
+ *
+ *      interface comparable<T> { def compare(other: T) : int; }
+ *      class holder<T> : comparable<T> { override def compare(other: T) : int { ... } }
+ *      class money base holder<money> { }
+ *
+ * Stage 4 (overrides.sharp) linked `override` functions to the body-less
+ * functions they define by comparing WRITTEN types. One level up it knew
+ * what a type parameter stands for; further up it did not, and counted a
+ * `T` it knew nothing about as "matches anything", so as not to report a
+ * mistake that might not be one.
+ *
+ * Here every real class - instances of generic classes included - has real
+ * base classes (class_bases.sharp) whose members have resolved types
+ * (member_types.sharp). So the question is asked again and answered exactly:
+ * two functions have the same parameters when their resolved parameter types
+ * are the same types. `holder<money>.compare(other: money)` overrides
+ * `comparable<money>.compare(other: money)`; nothing is guessed.
+ *
+ * What is recorded, on the function objects of the real classes:
+ *
+ *      overrides       the body-less function this one defines
+ *      overridden_by   on the function it defines: this one (and every other,
+ *                      in every class below - instances included)
+ *      family_root     the body-less function at the top. All functions with
+ *                      one root form an "override family": a call through any
+ *                      of them is decided at run time by the object's class
+ *                      (backend.md 7.7.3; textbook: virtual dispatch)
+ *
+ * and what the exact comparison shows that the lenient one could not:
+ *
+ *      E0341   a real class does not define a function it is required to
+ *      E0342   `override`, and with the real types there is nothing to override
+ *      E0343   the parameters fit, but with the real types the result is another type
+ *
+ * All three only where stage 4 did not already report the class or function.
+ * The messages are written in override_family_messages.sharp.
+ *
+ *      C++ comparison: postprocessor/delegate_processor.cpp, which runs on
+ *      the generic clones and so compares real types as well.
+ */
+def link_families(prog: sharp_program, declared: sharp_class) {
+    if(declared.families_linked == 1) { return; }
+    declared.families_linked = 1;
+    if(declared.is_open()) { return; }
+
+    ensure_members(prog, declared);
+    resolve_bases(prog, declared);
+
+    // the classes above first: their functions must know their family before ours join it
+    if(declared.base_class != null) { link_families(prog, declared.base_class!!); }
+    for(i : _int64 = 0; i < declared.interfaces.size(); i++) {
+        link_families(prog, declared.interfaces.at(i));
+    }
+
+    above := body_less_functions_above(prog, declared);
+    found_wrong_override : _int64 = 0;
+    // a stand-in (`box<?>`, compiler/driver/unused_blueprints.sharp): with its type arguments
+    // unknown, what stands above it is unknown too - `iterator<T>` is no class there - so
+    // "overrides nothing" and "does not define" cannot be said of it
+    is_stand_in : _int64 = has_unknown_type_argument(declared);
+
+    for(i : _int64 = 0; i < declared.functions.size(); i++) {
+        function := declared.functions.at(i);
+        if(function.kind != D_FUNCTION) { continue; }
+
+        linked_by_stage_4 : _int64 = function.overrides != null || (function.origin != null && function.origin!!.overrides != null);
+        function.overrides = null;
+
+        if(function.has(FLAG_NATIVE) || function.is_generic()) { continue; }
+        target := same_function_among(function, above);
+
+        if(!function.has_body()) {
+            // body-less itself: the top of a family, or a promise repeated from above
+            if(target != null) { function.family_root = root_of(target!!); }
+            else { function.family_root = function; }
+            continue;
+        }
+        if(!function.has(FLAG_OVERRIDE)) {
+            // a plain function is never replaced at run time; one with the
+            // parameters of a function above only hides it (hidden_functions.sharp)
+            if(is_stand_in == 0) { warn_if_hides_defined(prog, declared, function); }
+            continue;
+        }
+
+        if(target == null) {
+            // (stage 4 said nothing about a class whose base is a type parameter: it could not know)
+            if(is_stand_in == 0 && (linked_by_stage_4 == 1 || declared.written.inherits_from_parameter == 1)) {
+                report_overrides_nothing_exactly(declared, function, above, prog.problems);
+                found_wrong_override = 1;
+            }
+            continue;
+        }
+        if(!keeps_promised_result(target!!, function)) {
+            if(is_stand_in == 0) { report_other_result_exactly(declared, function, target!!, prog.problems); }
+            continue;
+        }
+        function.overrides = target;
+        function.family_root = root_of(target!!);
+        if(target!!.overridden_by == null) { target!!.overridden_by = new list<sharp_function>(); }
+        target!!.overridden_by!!.add(function);
+    }
+
+    // (a function that was just reported as overriding nothing is also the
+    // reason something is "missing": one mistake, one message)
+    if(declared.kind == D_CLASS && found_wrong_override == 0 && is_stand_in == 0) {
+        report_missing_exactly(prog, declared);
+    }
+}
+
+/** is one of the type arguments of this instance "not known" (the error type)? */
+def has_unknown_type_argument(declared: sharp_class) : _int64 {
+    if(declared.type_arguments == null) { return 0; }
+    for(i : _int64 = 0; i < declared.type_arguments!!.size(); i++) {
+        if(declared.type_arguments!!.at(i).is_error()) { return 1; }
+    }
+    return 0;
+}
+
+/** the body-less function at the top of the family `function` belongs to */
+def root_of(function: sharp_function) : sharp_function {
+    if(function.family_root != null) { return function.family_root!!; }
+    return function;
+}
+
+/**
+ * Every body-less function of the classes and interfaces above `declared`,
+ * nearest first: its base classes all the way up, and the interfaces of each.
+ */
+def body_less_functions_above(prog: sharp_program, declared: sharp_class) : list<sharp_function> {
+    found := new list<sharp_function>();
+    visited := new list<sharp_class>();
+    visited.add(declared);
+
+    if(declared.base_class != null) { gather_body_less(prog, declared.base_class!!, found, visited); }
+    for(i : _int64 = 0; i < declared.interfaces.size(); i++) {
+        gather_body_less(prog, declared.interfaces.at(i), found, visited);
+    }
+    return found;
+}
+
+/** add the body-less functions of `from` and of everything above it to `found`; each class is visited once */
+def gather_body_less(prog: sharp_program, from: sharp_class, found: list<sharp_function>, visited: list<sharp_class>) {
+    if(contains_class(visited, from)) { return; }
+    visited.add(from);
+
+    ensure_members(prog, from);
+    resolve_bases(prog, from);
+    for(i : _int64 = 0; i < from.functions.size(); i++) {
+        function := from.functions.at(i);
+        if(must_be_defined(function)) { found.add(function); }
+    }
+
+    if(from.base_class != null) { gather_body_less(prog, from.base_class!!, found, visited); }
+    for(i : _int64 = 0; i < from.interfaces.size(); i++) {
+        gather_body_less(prog, from.interfaces.at(i), found, visited);
+    }
+}
+
+/** the first of `candidates` with the name and exactly the parameter types of `function`; null when none */
+def same_function_among(function: sharp_function, candidates: list<sharp_function>) : sharp_function? {
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        candidate := candidates.at(i);
+        if(candidate.name == function.name && same_resolved_parameters(candidate, function)) { return candidate; }
+    }
+    return null;
+}
+
+/**
+ * Do two functions of real classes take the same parameters? A parameter
+ * whose type could not be resolved (reported already) matches anything, so
+ * one mistake does not become two.
+ */
+def same_resolved_parameters(a: sharp_function, b: sharp_function) : _int64 {
+    if(a.parameters.size() != b.parameters.size()) { return 0; }
+    for(i : _int64 = 0; i < a.parameters.size(); i++) {
+        left := a.parameters.at(i).value_type;
+        right := b.parameters.at(i).value_type;
+        if(left == null || right == null) { continue; }
+        if(left!!.is_error() || right!!.is_error()) { continue; }
+        if(!same_resolved_type(left!!, right!!)) { return 0; }
+    }
+    return 1;
+}
+
+/**
+ * Does `definition` return what `promise` - the function it overrides - says?
+ * The same type, or the same type without its `?`: where `string?` is
+ * promised, a function that always returns a string keeps the promise.
+ * A result that is not known yet (`def f() := value`) or could not be
+ * resolved counts as fine.
+ */
+def keeps_promised_result(promise: sharp_function, definition: sharp_function) : _int64 {
+    if(promise.result_type == null || definition.result_type == null) { return 1; }
+    wanted : resolved_type = promise.result_type!!;
+    given : resolved_type = definition.result_type!!;
+
+    if(wanted.is_error() || given.is_error() || wanted.is_open() || given.is_open()) { return 1; }
+    if(same_resolved_type(wanted, given)) { return 1; }
+    return wanted.is_nullable == 1 && wanted.kind != RT_FUNCTION && same_resolved_type(wanted.as_non_null(), given);
+}
+
+/**
+ * Does the class write an `override` function of this name? Then a required
+ * function of that name that it does not match was ATTEMPTED with other
+ * parameter types: E0342 says so, and it is not listed as missing too
+ * (one mistake, one message - the same rule as stage 4's `not_attempted`).
+ */
+def has_override_named(declared: sharp_class, name: string) : _int64 {
+    for(i : _int64 = 0; i < declared.functions.size(); i++) {
+        own := declared.functions.at(i);
+        if(own.name == name && own.has(FLAG_OVERRIDE) && own.has_body()) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * E0341, exactly: the functions a class must define are the body-less ones
+ * of its DIRECT base class and of its own interfaces with everything those
+ * inherit (the same rule as stage 4, which follows the C++ compiler).
+ */
+def report_missing_exactly(prog: sharp_program, declared: sharp_class) {
+    if(declared.written.missing_reported == 1) { return; }     // stage 4 said so already, or another instance did
+    // what is written after `base` / `:` was refused: what the class "must define" follows from that mistake
+    if(declared.written.members_uncertain == 1 || declared.written.base_assumed == 1) { return; }
+
+    required := new list<sharp_function>();
+    visited := new list<sharp_class>();
+    visited.add(declared);
+    if(declared.base_class != null) {
+        direct : sharp_class = declared.base_class!!;
+        ensure_members(prog, direct);
+        for(i : _int64 = 0; i < direct.functions.size(); i++) {
+            if(must_be_defined(direct.functions.at(i))) { required.add(direct.functions.at(i)); }
+        }
+
+        // What is further up the base chain - the interfaces of the base
+        // classes included - was for those classes to define. Walk it first,
+        // so the interfaces below do not ask for it again.
+        not_required := new list<sharp_function>();
+        gather_body_less(prog, direct, not_required, visited);
+    }
+    for(i : _int64 = 0; i < declared.interfaces.size(); i++) {
+        gather_body_less(prog, declared.interfaces.at(i), required, visited);
+    }
+
+    missing := new list<sharp_function>();
+    for(i : _int64 = 0; i < required.size(); i++) {
+        if(same_function_among(required.at(i), declared.functions) == null && !has_override_named(declared, required.at(i).name)) {
+            missing.add(required.at(i));
+        }
+    }
+    if(missing.size() == 0) { return; }
+    declared.written.missing_reported = 1;
+    report_missing_in_real_class(prog, declared, missing);
+}

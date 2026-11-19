@@ -1,0 +1,272 @@
+mod backend.finalizer.ir;
+
+import (
+    std.io,
+    backend.types.declarations
+)
+
+/**
+ * MAKING THE IR OF ONE FUNCTION
+ *
+ * Every generation package writes IR through this object, so that slots and
+ * labels are handed out in one place:
+ *
+ *      b := new ir_builder(new ir_function("main#__srt_global.main"));
+ *      x := b.fixed_slot(SLOT_INT);            a local (self, parameters and locals come first)
+ *      t := b.temp(SLOT_INT);                  a value the generator makes on the way
+ *      b.int_constant(t, 5);
+ *      b.copy(x, t, NARROW_NONE);
+ *      b.release(t);                           t has been used: the next temp of its kind may reuse it
+ *
+ * SLOT REUSE. A value of an expression is used once, by the expression it is
+ * part of; after that its slot is free. Each kind has its own list of free
+ * slots, so a slot never changes kind (a slot that holds a reference must not
+ * be read as a number by anyone). A function therefore needs about as many
+ * slots as its deepest expression, not one per value it computes
+ * (doc/codegen.md 5.3). Releasing a fixed slot (a local) does nothing, and
+ * releasing a slot twice is harmless: it is on the free list once.
+ *
+ * LINES. `line(n)` marks where the code of a source line begins; only a
+ * change of line makes an instruction, so the line table has one entry per
+ * statement (and per call written on a later line).
+ */
+class ir_builder {
+    code : ir_function;
+    free_slots : list<number_list>;     // [kind]: the free slots of that kind
+    is_free : number_list;              // per slot: 1 while it is on a free list
+    last_line : _int64 = 0 - 1;
+
+    ir_builder(code: ir_function) {
+        self->code = code;
+        free_slots = new list<number_list>();
+        for(i : _int64 = 0; i < 4; i++) { free_slots.add(new number_list()); }
+        is_free = new number_list();
+    }
+
+    /** a slot that belongs to the function's frame for its whole run: self, a parameter, a local */
+    def fixed_slot(kind: _int64) : _int64 {
+        slot : _int64 = code.slot_kinds.count;
+        code.slot_kinds.add(kind);
+        is_free.add(0);
+        code.fixed_slots = code.slot_kinds.count;
+        return slot;
+    }
+
+    /** a slot for a value the generator makes; a free one of the same kind when there is one */
+    def temp(kind: _int64) : _int64 {
+        free := free_slots.at(kind);
+        if(free.count > 0) {
+            slot : _int64 = free.pop_last();
+            is_free.replace(slot, 0);
+            return slot;
+        }
+        slot : _int64 = code.slot_kinds.count;
+        code.slot_kinds.add(kind);
+        is_free.add(0);
+        return slot;
+    }
+
+    /** a value has been used: its slot may hold the next value of its kind */
+    def release(slot: _int64) {
+        if(slot < code.fixed_slots || slot >= code.slot_kinds.count) { return; }
+        if(is_free.at(slot) == 1) { return; }
+        is_free.replace(slot, 1);
+        free_slots.at(code.slot_kinds.at(slot)).add(slot);
+    }
+
+    /**
+     * A slot for the exception a `finally` block is entered with. Its number
+     * must not end in the byte 05: the VM's loader takes the last byte of a
+     * function record for the data section's end marker when it is 05, and
+     * the last number of a record can be exactly this slot (doc/codegen.md
+     * 11.1, a VM bug). A free slot that would be such a number is passed
+     * over and given back.
+     */
+    def finally_exception_slot() : _int64 {
+        passed_over : _int64 = 0 - 1;
+        slot : _int64 = temp(SLOT_REF);
+        if((slot & 0xff) == 5) {
+            passed_over = slot;
+            slot = temp(SLOT_REF);
+        }
+        if(passed_over >= 0) { release(passed_over); }
+        return slot;
+    }
+
+    /** is this the slot of `self`, a parameter or a local (and not a value on the way)? */
+    def is_fixed_slot(slot: _int64) : _int64 {
+        return slot >= 0 && slot < code.fixed_slots;
+    }
+
+    /** the kind of a slot */
+    def kind_of(slot: _int64) : _int64 {
+        return code.slot_kinds.at(slot);
+    }
+
+    /** a new label (a position in the code, placed later with `place`) */
+    def new_label() : _int64 {
+        label : _int64 = code.label_count;
+        code.label_count++;
+        return label;
+    }
+
+    /** add an instruction of this kind and return it, for its operands to be filled in */
+    def emit(kind: _int64) : ir_instruction {
+        made := new ir_instruction(kind);
+        code.instructions.add(made);
+        return made;
+    }
+
+    /** the code that follows starts source line `line` */
+    def line(line: _int64) {
+        if(line == last_line || line <= 0) { return; }
+        last_line = line;
+        emit(IR_LINE).number = line;
+    }
+
+    /** label `label` is here */
+    def place(label: _int64) {
+        emit(IR_LABEL).number = label;
+    }
+
+    /** go to a label */
+    def jump(label: _int64) {
+        emit(IR_JUMP).number = label;
+    }
+
+    /** go to a label when the condition is not 0 */
+    def jump_if(condition: _int64, label: _int64) {
+        made := emit(IR_JUMP_IF);
+        made.first = condition;
+        made.number = label;
+    }
+
+    /** go to a label when the condition is 0 */
+    def jump_unless(condition: _int64, label: _int64) {
+        made := emit(IR_JUMP_UNLESS);
+        made.first = condition;
+        made.number = label;
+    }
+
+    /** raise the exception object in `slot` */
+    def throw_value(slot: _int64) {
+        emit(IR_THROW).first = slot;
+    }
+
+    /** lock the object in `slot` (IR_LOCK) or unlock it (IR_UNLOCK) */
+    def lock_object(kind: _int64, slot: _int64) {
+        emit(kind).first = slot;
+    }
+
+    /**
+     * A new `try` statement: its labels are made here and placed by the
+     * generator; it is added to the function's list now, when it starts, so
+     * the list is in the order the statements start in the code (codegen.md 3.8).
+     */
+    def new_try() : ir_try {
+        made := new ir_try(new_label(), new_label(), new_label());
+        code.tries.add(made);
+        return made;
+    }
+
+    /** target = an integer */
+    def int_constant(target: _int64, value: _int64) {
+        made := emit(IR_INT_CONSTANT);
+        made.target = target;
+        made.number = value;
+    }
+
+    /** a decimal; `digits` is the literal's own text when it is one (doc/codegen.md 3.6), else null */
+    def decimal_constant(target: _int64, value: decimal, digits: string?) {
+        made := emit(IR_DECIMAL_CONSTANT);
+        made.target = target;
+        made.real = value;
+        made.text = digits;
+    }
+
+    /** target = null */
+    def null_constant(target: _int64) {
+        emit(IR_NULL).target = target;
+    }
+
+    /** target = source; `narrow` cuts an integer to a smaller type on the way (NARROW_...) */
+    def copy(target: _int64, source: _int64, narrow: _int64) {
+        made := emit(IR_COPY);
+        made.target = target;
+        made.first = source;
+        made.number = narrow;
+    }
+
+    /** target = source converted (CONVERT_...), then cut to a narrower integer (NARROW_...) */
+    def convert(target: _int64, source: _int64, how: _int64, narrow: _int64) {
+        made := emit(IR_CONVERT);
+        made.target = target;
+        made.first = source;
+        made.number = how;
+        made.detail = narrow;
+    }
+
+    /** target = left <operation> right, for IR_INT_BINARY, IR_DECIMAL_BINARY and the two compares */
+    def binary(kind: _int64, operation: _int64, target: _int64, left: _int64, right: _int64) {
+        made := emit(kind);
+        made.number = operation;
+        made.target = target;
+        made.first = left;
+        made.second = right;
+    }
+
+    /** target = a field of the object in `holder` */
+    def get_field(target: _int64, holder: _int64, field: sharp_declaration) {
+        made := emit(IR_GET_FIELD);
+        made.target = target;
+        made.first = holder;
+        made.declaration = field;
+    }
+
+    /** a field of the object in `holder` = value (cut to the field's type: `narrow`) */
+    def set_field(holder: _int64, field: sharp_declaration, value: _int64, narrow: _int64) {
+        made := emit(IR_SET_FIELD);
+        made.first = holder;
+        made.second = value;
+        made.declaration = field;
+        made.number = narrow;
+    }
+
+    /** a static field or global; `class_address` is the class whose static object holds it */
+    def get_static(target: _int64, class_address: _int64, field: sharp_declaration) {
+        made := emit(IR_GET_STATIC);
+        made.target = target;
+        made.detail = class_address;
+        made.declaration = field;
+    }
+
+    /** a static field or global = value (cut to the field's type: `narrow`) */
+    def set_static(class_address: _int64, field: sharp_declaration, value: _int64, narrow: _int64) {
+        made := emit(IR_SET_STATIC);
+        made.detail = class_address;
+        made.second = value;
+        made.declaration = field;
+        made.number = narrow;
+    }
+
+    /** target = a new object of a class; its constructor is a separate call */
+    def new_object(target: _int64, made_of: sharp_declaration) {
+        made := emit(IR_NEW_OBJECT);
+        made.target = target;
+        made.declaration = made_of;
+    }
+
+    /**
+     * A call. `arguments` are the slots to hand over, `self` first for a
+     * function that has an object; `target` is -1 when the result is not used
+     * (or there is none).
+     */
+    def call(target: _int64, function: sharp_declaration, arguments: number_list, how: _int64) : ir_instruction {
+        made := emit(IR_CALL);
+        made.target = target;
+        made.declaration = function;
+        made.arguments = arguments;
+        made.number = how;
+        return made;
+    }
+}

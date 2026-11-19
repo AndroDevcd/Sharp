@@ -1,0 +1,97 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io
+)
+
+/**
+ * THE STATEMENTS OF THE TYPED TREE
+ *
+ * A function body is a list of statements. In the typed tree each statement
+ * of the source becomes one object that says what it MEANS, with everything a
+ * code generator needs already worked out:
+ *
+ *      foreach(name in names) {            bound_foreach
+ *          if(name == "") { continue; }        variable: name : string  (a local_variable)
+ *          print(name);                        collection: the array (for a list: the call of
+ *      }                                       its get_elements())
+ *                                              body: bound_block
+ *                                                  bound_if
+ *                                                      bound_continue  (loop: the foreach above)
+ *                                                  bound_expression_statement
+ *
+ * What every statement has (bound_statement, in typed_tree/bound_node.sharp):
+ * its kind (BS_...), where it was written, and `completes` - can execution go
+ * on after it? That last one is worked out by the flow analysis
+ * (backend/compiler/flow), a separate pass over the finished statements.
+ *
+ * A jump knows where it goes and what it passes on the way: `break` holds the
+ * loop it leaves, and every `return`, `break` and `continue` lists the `lock`
+ * statements to unlock and the `try` statements whose `finally` must run
+ * (`leaves`, innermost first). A code generator never has to search for them.
+ *
+ * Values the compiler needs to keep for a while get a HIDDEN local variable
+ * (`local_variable.is_hidden`), listed in the function's `locals` like any
+ * other so that it has a slot: the subject of a `when`, the array and the
+ * position of a `foreach`, the object of a `lock`.
+ *
+ * The files of this package (module `backend.types.typed_tree.statements`):
+ *
+ *      statements.sharp                this front door: the kinds of statement (BS_...)
+ *      bound_simple_statements.sharp   block, local variable, expression statement, empty
+ *      bound_branches.sharp            if, when (and its clauses)
+ *      bound_loops.sharp               while, do-while, for, foreach (what loops share: bound_loop)
+ *      bound_jumps.sharp               return, break, continue, throw
+ *      bound_handlers.sharp            try / catch / finally, lock
+ *      bound_assembly.sharp            asm blocks: instructions and their operands
+ *      statement_parts.sharp           the expressions and statements directly inside a statement (for passes)
+ *
+ *      C++ comparison: the old compiler builds no such objects; each
+ *      statement file in compiler/functions/statements writes its code
+ *      directly (`operation_schema`).
+ */
+
+// ---- kinds of statement
+const BS_BLOCK                : _int64 = 50;
+const BS_LOCAL_DECLARATION    : _int64 = 51;
+const BS_EXPRESSION_STATEMENT : _int64 = 52;
+const BS_RETURN               : _int64 = 53;
+const BS_EMPTY                : _int64 = 55;
+const BS_IF                   : _int64 = 56;
+const BS_WHILE                : _int64 = 57;
+const BS_DO_WHILE             : _int64 = 58;
+const BS_FOR                  : _int64 = 59;
+const BS_FOREACH              : _int64 = 60;
+const BS_BREAK                : _int64 = 61;
+const BS_CONTINUE             : _int64 = 62;
+const BS_THROW                : _int64 = 63;
+const BS_TRY                  : _int64 = 64;
+const BS_CATCH                : _int64 = 65;     // one `catch` clause of a bound_try (not a statement by itself)
+const BS_LOCK                 : _int64 = 66;
+const BS_WHEN                 : _int64 = 67;
+const BS_WHEN_CLAUSE          : _int64 = 68;     // one clause of a bound_when (not a statement by itself)
+const BS_ASM                  : _int64 = 69;
+
+/** "if", "foreach" ...: the name of a kind of statement, for messages and the -analysis option */
+def statement_kind_name(kind: _int64) : string {
+    if(kind == BS_BLOCK) { return "block"; }
+    if(kind == BS_LOCAL_DECLARATION) { return "local variable"; }
+    if(kind == BS_EXPRESSION_STATEMENT) { return "expression"; }
+    if(kind == BS_RETURN) { return "return"; }
+    if(kind == BS_EMPTY) { return "empty"; }
+    if(kind == BS_IF) { return "if"; }
+    if(kind == BS_WHILE) { return "while"; }
+    if(kind == BS_DO_WHILE) { return "do-while"; }
+    if(kind == BS_FOR) { return "for"; }
+    if(kind == BS_FOREACH) { return "foreach"; }
+    if(kind == BS_BREAK) { return "break"; }
+    if(kind == BS_CONTINUE) { return "continue"; }
+    if(kind == BS_THROW) { return "throw"; }
+    if(kind == BS_TRY) { return "try"; }
+    if(kind == BS_CATCH) { return "catch"; }
+    if(kind == BS_LOCK) { return "lock"; }
+    if(kind == BS_WHEN) { return "when"; }
+    if(kind == BS_WHEN_CLAUSE) { return "when clause"; }
+    if(kind == BS_ASM) { return "asm"; }
+    return "?";
+}

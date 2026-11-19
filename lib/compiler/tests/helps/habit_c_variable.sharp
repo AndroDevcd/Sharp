@@ -1,0 +1,10 @@
+// expect: E0100
+// help: value : int = 3;
+// replace: int value = 3;
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    int value = 3;
+    println("" + value);
+}

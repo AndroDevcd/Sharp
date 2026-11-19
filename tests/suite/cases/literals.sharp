@@ -1,0 +1,177 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Literals: the values that can be written directly in the source.
+ * Whole numbers, fractions, digit separators, exponents, hexadecimal,
+ * characters (which are numbers), true / false, and string literals.
+ */
+
+def main(args: string[]) {
+    // ---- whole numbers
+    expect("0 is nothing", 0 + 0, 0);
+    expect("10 is ten ones", 10, 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);
+    expect("100 is ten tens", 100, 10 * 10);
+    expect("leading zeros change nothing", 007, 7);
+    expect("2147483647 + 1 (past 32 bits)", 2147483647 + 1, 2147483648);
+    expect("4294967296 is 65536 squared", 4294967296, 65536 * 65536);
+    expect("1099511627776 is 2 to the 40th", 1099511627776, 1048576 * 1048576);
+    expect("9007199254740992 is 2 to the 53rd", 9007199254740992, 4503599627370496 * 2);
+    expect("a quintillion", 1000000000000000000, 1000000000 * 1000000000);
+
+    // ---- a number literal prints the way it was written
+    thousand : int = 1000;
+    expect_str("1000 as text", "$thousand", "1000");
+    zero : int = 0;
+    expect_str("0 as text", "$zero", "0");
+    minus : int = 0 - 45;
+    expect_str("-45 as text", "$minus", "-45");
+
+    // ---- fractions
+    expect("0.5 is a half", 0.5, 1 / 2);
+    expect("0.25 is a quarter", 0.25, 1 / 4);
+    expect("0.125 is an eighth", 0.125, 1 / 8);
+    expect("1.0 is 1", 1.0, 1);
+    expect("2.50 is 2.5", 2.50, 2.5);
+    expect("0.5 + 0.5", 0.5 + 0.5, 1);
+    expect("1.75 * 4", 1.75 * 4, 7);
+    expect("12.375 * 8", 12.375 * 8, 99);
+    expect_true("3.14159 is above 3.14", 3.14159 > 3.14);
+    expect_true("3.14159 is below 3.15", 3.14159 < 3.15);
+    expect_near("0.1 * 3", 0.1 * 3, 0.3, 0.000000001);
+    expect_near("0.000001 * 1000000", 0.000001 * 1000000, 1, 0.000000001);
+    pi : decimal = 3.25;
+    expect_str("a fraction as text is written the short way", "$pi", "3.25");
+
+    // ---- digit separators
+    expect("1_000", 1_000, 1000);
+    expect("1_000_000", 1_000_000, 1000000);
+    expect("12_34 (anywhere between digits)", 12_34, 1234);
+    expect("1_0", 1_0, 10);
+    expect("1__000 (two in a row)", 1__000, 1000);
+    expect("1_000.5", 1_000.5, 1000.5);
+    expect("1.2_5 (after the point)", 1.2_5, 1.25);
+    expect("1_000 * 1_000", 1_000 * 1_000, 1000000);
+
+    // ---- exponents
+    expect("1e3", 1e3, 1000);
+    expect("1E3", 1E3, 1000);
+    expect("1e0", 1e0, 1);
+    expect("1e+2", 1e+2, 100);
+    expect("1.5e3", 1.5e3, 1500);
+    expect("2.5e-1", 2.5e-1, 0.25);
+    expect("5e-1", 5e-1, 0.5);
+    expect("1e15", 1e15, 1000000000000000);
+    expect("1e9 + 9", 1e9 + 9, 1000000009);
+
+    // ---- hexadecimal
+    expect("0x0", 0x0, 0);
+    expect("0x1", 0x1, 1);
+    expect("0xa", 0xa, 10);
+    expect("0xF", 0xF, 15);
+    expect("0x10", 0x10, 16);
+    expect("0xff", 0xff, 255);
+    expect("0xFF", 0xFF, 255);
+    expect("0x100", 0x100, 256);
+    expect("0xDEAD", 0xDEAD, 57005);
+    expect("0xabcdef", 0xabcdef, 11259375);
+    expect("0xff_ff", 0xff_ff, 65535);
+    expect("0x7fffffff", 0x7fffffff, 2147483647);
+    expect("0xffffffff", 0xffffffff, 4294967295);
+    expect("0x10 + 0x10", 0x10 + 0x10, 32);
+
+    // ---- characters are numbers
+    expect("'a'", 'a', 97);
+    expect("'z'", 'z', 122);
+    expect("'A'", 'A', 65);
+    expect("'Z'", 'Z', 90);
+    expect("'0'", '0', 48);
+    expect("'9'", '9', 57);
+    expect("' ' (space)", ' ', 32);
+    expect("'!'", '!', 33);
+    expect("'_'", '_', 95);
+    expect("'~'", '~', 126);
+    expect("'a' + 1 is 'b'", 'a' + 1, 'b');
+    expect("'z' - 'a'", 'z' - 'a', 25);
+    expect("'7' - '0' turns a digit into its value", '7' - '0', 7);
+    expect("'a' - 'A' is the distance between the cases", 'a' - 'A', 32);
+    expect_true("'a' < 'b'", 'a' < 'b');
+    expect_true("'Z' < 'a'", 'Z' < 'a');
+
+    // ---- escaped characters
+    expect("'\\n' new line", '\n', 10);
+    expect("'\\t' tab", '\t', 9);
+    expect("'\\r' carriage return", '\r', 13);
+    expect("'\\b' backspace", '\b', 8);
+    expect("'\\v' vertical tab", '\v', 11);
+    expect("'\\f' form feed", '\f', 12);
+    expect("'\\a' bell", '\a', 7);
+    expect("'\\0' zero", '\0', 0);
+    expect("'\\\\' backslash", '\\', 92);
+    expect("'\\'' single quote", '\'', 39);
+    expect("'\\\"' double quote", '\"', 34);
+    expect("'\"' double quote without the backslash", '"', 34);
+
+    // ---- characters in variables
+    letter : decimal = 'q';
+    expect("char in a var", letter, 113);
+    boxed : char = 'x';
+    expect("char in a char object", boxed.value, 120);
+    expect_str("a char object prints as the character", "$boxed", "x");
+
+    // ---- true and false
+    expect("true is 1", true, 1);
+    expect("false is 0", false, 0);
+    expect_true("true", true);
+    expect_false("false", false);
+    expect_true("true != false", true != false);
+    yes : decimal = true;
+    no : decimal = false;
+    expect("true in a var", yes, 1);
+    expect("false in a var", no, 0);
+    flag : bool = true;
+    expect("true in a bool object", flag, 1);
+    expect_str("a bool object prints as a word", "$flag", "true");
+    flag = false;
+    expect("false in a bool object", flag, 0);
+    expect_str("false prints as a word", "$flag", "false");
+
+    // ---- string literals
+    hello := "hello";
+    expect("\"hello\" has 5 characters", hello.size().value, 5);
+    expect("first character", hello.at(0).value, 'h');
+    expect("last character", hello.at(4).value, 'o');
+    expect("index operator", hello[1].value, 'e');
+    empty := "";
+    expect("\"\" has no characters", empty.size().value, 0);
+    spaced := "a b";
+    expect("a space is a character", spaced.size().value, 3);
+    expect("the space", spaced.at(1).value, 32);
+    digits := "123";
+    expect("digits in a string are characters", digits.at(0).value, 49);
+    expect("\"123\" has 3 characters", digits.size().value, 3);
+    symbols := "a//b{c}";
+    expect("// inside a string is not a comment", symbols.size().value, 7);
+    quote := "it's";
+    expect("single quote inside a string", quote.at(2).value, 39);
+
+    // ---- escapes inside strings
+    tabbed := "a\tb";
+    expect("\\t is one character", tabbed.size().value, 3);
+    expect("\\t is a tab", tabbed.at(1).value, 9);
+    lines := "one\ntwo";
+    expect("\\n is one character", lines.size().value, 7);
+    expect("\\n is a new line", lines.at(3).value, 10);
+    quoted := "a\"b";
+    expect("\\\" is one character", quoted.size().value, 3);
+    expect("\\\" is a double quote", quoted.at(1).value, 34);
+    slashed := "a\\b";
+    expect("\\\\ is one character", slashed.size().value, 3);
+    expect("\\\\ is a backslash", slashed.at(1).value, 92);
+    dollar := "a$$b";
+    expect("$$$$ is one character", dollar.size().value, 3);
+    expect("$$$$ is a dollar sign", dollar.at(1).value, 36);
+
+    finish("literals");
+}

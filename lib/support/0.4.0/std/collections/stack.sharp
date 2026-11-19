@@ -1,0 +1,150 @@
+mod std.collections;
+
+/**
+ * @class stack
+ *
+ * A last-in first-out stack: push puts an element on top, pop takes the top
+ * element off again, so elements leave in the reverse order they arrived.
+ *
+ *     s := new stack<int>();
+ *     s.push(1);  s.push(2);  s.push(3);
+ *     s.pop();        // 3
+ *     s.peek();       // 2 (stays on the stack)
+ *
+ * It is backed by an array that doubles when it is full: push is O(1) on
+ * average, pop and peek are O(1).
+ *
+ * Looping over a stack (foreach, iterator, to_array) visits the elements
+ * from the TOP down - the order pop() would return them - and does not
+ * remove anything.
+ *
+ * Limitation: the element type has to be an object type; native types such
+ * as `decimal` cannot be used as T.
+ */
+class stack<T> : loopable<T>, iterable<T> {
+    /** the elements, bottom of the stack at index 0 */
+    private items : T[]?;
+    /** number of elements; the top is items[count - 1] */
+    private count : decimal;
+
+    private static const default_capacity : decimal = 16;
+
+    /** Create an empty stack. */
+    stack() {
+        items = new T[default_capacity];
+        count = 0;
+    }
+
+    /** Number of elements on the stack. O(1). */
+    def size() : decimal {
+        return count;
+    }
+
+    /** 1 when the stack has no elements, otherwise 0. O(1). */
+    def is_empty() : decimal {
+        return count == 0;
+    }
+
+    /** Put an element on top of the stack. O(1) on average. */
+    def push(element: T) {
+        if(count == sizeof(items)) {
+            bigger := new T[count * 2];
+            for(i : decimal = 0; i < count; i++)
+                bigger[i] = items[i];
+            items = bigger;
+        }
+        items[count++] = element;
+    }
+
+    /**
+     * Take the top element off the stack and return it. O(1).
+     *
+     * @throws no_such_element_exception when the stack is empty
+     */
+    def pop() : T {
+        if(count == 0)
+            throw new no_such_element_exception("stack: pop called on an empty stack");
+        count--;
+        element := items[count];
+        excuse nothing : T;
+        items[count] = nothing;     // drop the reference so the element can be collected
+        return element;
+    }
+
+    /** Take the top element off and return it, or return null when the stack is empty. O(1). */
+    def pop_or_null() : T? {
+        if(count == 0) return null;
+        return pop();
+    }
+
+    /**
+     * The top element (it stays on the stack). O(1).
+     *
+     * @throws no_such_element_exception when the stack is empty
+     */
+    def peek() : T {
+        if(count == 0)
+            throw new no_such_element_exception("stack: peek called on an empty stack");
+        return items[count - 1];
+    }
+
+    /** The top element, or null when the stack is empty. O(1). */
+    def peek_or_null() : T? {
+        if(count == 0) return null;
+        return items[count - 1];
+    }
+
+    /**
+     * How far an element is from the top: 0 for the top element, 1 for the
+     * one below it, ... or -1 when no element equals `element` (compared
+     * with `==`). When it occurs more than once the one nearest to the top
+     * counts. O(n).
+     */
+    def search(element: T) : decimal {
+        for(i : decimal = count - 1; i >= 0; i--) {
+            if(items[i] == element) return count - 1 - i;
+        }
+        return -1;
+    }
+
+    /** 1 when an element equals `element`, otherwise 0. O(n). */
+    def contains(element: T) : decimal {
+        return search(element) >= 0;
+    }
+
+    /** Remove every element. O(1). */
+    def clear() {
+        items = new T[default_capacity];
+        count = 0;
+    }
+
+    /** A new array with the elements from the top down (length 0 when empty). O(n). */
+    def to_array() : T[] {
+        result := new T[count];
+        for(i : decimal = 0; i < count; i++)
+            result[i] = items[count - 1 - i];
+        return result;
+    }
+
+    /** A new `list` with the elements from the top down. O(n). */
+    def to_list() : list<T> {
+        result := new list<T>();
+        for(i : decimal = count - 1; i >= 0; i--)
+            result.add(items[i]);
+        return result;
+    }
+
+    /**
+     * The elements from the top down, or null when the stack is empty. This
+     * is what `foreach` uses. O(n).
+     */
+    override def get_elements() : T[]? {
+        if(count == 0) return null;
+        return to_array();
+    }
+
+    /** An iterator over a snapshot of the elements, from the top down. O(n) to create. */
+    override def iterator() : iterator<T> {
+        return new array_iterator<T>(get_elements());
+    }
+}

@@ -1,0 +1,22 @@
+mod main;
+
+// output:
+// hello, world
+// 42
+// 42
+
+/*
+ * The first program the bootstrap compiler runs (doc/codegen.md 13.1): a
+ * main that prints a text and a number through the library's println.
+ *
+ * println(n) and show(n) (tests/codegen/print.sharp) both print 42.
+ * (Until Sharp 0.6.0 println of a number printed the decimal's raw bits,
+ * 4631107791820423168 for 42.0, and this file expected that. Numbers are
+ * printed the short way now - 42, 2.5 - by the VM itself.)
+ */
+def main() {
+    println("hello, world");
+    n : _int64 = 6 * 7;
+    println(n);
+    show(n);
+}

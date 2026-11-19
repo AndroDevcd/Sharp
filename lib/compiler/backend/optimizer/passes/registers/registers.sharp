@@ -1,0 +1,26 @@
+mod backend.optimizer.passes.registers;
+
+import (
+    std.io
+)
+
+/**
+ * WHERE VALUES LIVE: the two passes that run last
+ *
+ * Every other pass changes WHAT the code computes with; these two decide
+ * where the values are kept while it does - the part of a compiler the
+ * textbook calls register allocation (the dragon book, 8.8). On this VM a
+ * value has two possible homes: a slot of the function's frame, or, for the
+ * moment between two instructions, the register it was computed in.
+ *
+ * They run after every pass that changes code, in this order
+ * (optimizer.sharp, `optimize_program`):
+ *
+ *      slot_packing.sharp          values that are never alive at the same time share one slot,
+ *                                  so the frame is small (frame size is recursion depth here)
+ *      register_hand_off.sharp     a value read only by the very next instruction is never
+ *                                  stored into its slot at all
+ *      registers.sharp             this front door
+ *
+ * (module `backend.optimizer.passes.registers`)
+ */

@@ -1,0 +1,64 @@
+SHARP @VERSION@
+===========
+
+Unzip the WHOLE archive first (the installers need the folders next to them).
+
+
+WINDOWS
+    1. Open the "windows" folder and double-click   win-install.cmd
+    2. Open a NEW terminal (Command Prompt or PowerShell).
+    3. From any folder:
+           sharpc myprogram.sharp -o myprogram
+           sharp myprogram
+
+LINUX
+    1. In a terminal, inside the "linux" folder:    sh unix-install.sh
+    2. Open a NEW terminal.
+    3. From any folder:
+           sharpc myprogram.sharp -o myprogram
+           sharp myprogram
+
+
+The installer needs no administrator rights. It copies Sharp into your user folder
+(Windows: %LOCALAPPDATA%\Sharp   Linux: ~/.sharp), adds it to your PATH, and then compiles
+and runs a small program to show that everything works.
+
+A first program to read and change is installed with it:  examples/hello.sharp
+
+
+THE TWO COMMANDS
+
+    sharpc    the compiler.  sharpc file.sharp -o name   writes the program "name".
+              It always includes the standard library; you never have to say where it is.
+              sharpc --h lists every option.   Add -O to make the program faster.
+
+    sharp     runs a compiled program:   sharp name
+
+
+IF THE COMPILER MISBEHAVES
+
+    sharpc --unoptimized file.sharp -o name
+
+    uses a second copy of the same compiler that was built without the optimizer. If that
+    one works where the normal one does not, you have found a bug worth reporting.
+
+    sharpc --debug file.sharp -o name
+
+    uses the debug compiler. The normal compiler prints nothing when a compile goes well; the
+    debug one also prints how the compile went, stage by stage, and has the options that look
+    inside the compiler (-Oreport, -Otrace, -ir, -listing, -timings). It is for working on the
+    compiler itself.
+
+
+TO REMOVE SHARP
+
+    Windows:  run  win-uninstall.cmd     Linux:  sh unix-uninstall.sh
+
+
+WHAT IS IN THIS ARCHIVE
+
+    windows/    the Windows installer, uninstaller, the VM (sharp.exe) and the sharpc command
+    linux/      the Linux installer, uninstaller, the VM (sharp) and the sharpc command
+    shared/     the same on both systems: the compiler (a Sharp program the VM runs),
+                the standard library, the example
+    VERSION.txt what exactly was built, and from which source

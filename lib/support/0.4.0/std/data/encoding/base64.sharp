@@ -1,0 +1,267 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Base64: writes any bytes with 64 harmless characters (A-Z a-z 0-9 and two
+ * more), three bytes becoming four characters. Used wherever binary data
+ * has to travel as text: e-mail attachments, data in JSON or XML, tokens.
+ *
+ *     base64.encode("hello")              "aGVsbG8="
+ *     base64.decode("aGVsbG8=")           "hello"
+ *     base64.encode_url("\xfb\xff")       "-_8"       (URL safe, no padding)
+ *
+ * Two alphabets (RFC 4648):
+ *   - standard: the two extra characters are '+' and '/', and the text is
+ *     padded with '=' to a multiple of four characters
+ *   - URL safe: '-' and '_' instead, which need no escaping in URLs and
+ *     file names; written without padding
+ *
+ * Strings stand for bytes here: every character of the input of encode()
+ * is one byte (0..255), and decode() gives a string whose characters are
+ * the decoded bytes (it may contain any byte, including 0). The _bytes
+ * variants take and give byte arrays instead.
+ *
+ * Decoding accepts both alphabets, with or without padding, and skips line
+ * breaks, spaces and tabs (encoded data is often wrapped into lines).
+ * Anything else throws parse_exception.
+ *
+ * Everything is static.
+ */
+class base64 {
+    private static const standard_alphabet : string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    private static const url_alphabet : string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    /** the bytes of `data` (one per character) in standard Base64 with '=' padding; "" gives "" */
+    static def encode(data: string) : string {
+        return encode_with(data.data, standard_alphabet, 1);
+    }
+
+    /** `bytes` in standard Base64 with '=' padding; null gives "" */
+    static def encode_bytes(bytes: _int8[]?) : string {
+        return encode_with(bytes, standard_alphabet, 1);
+    }
+
+    /** the bytes of `data` in URL safe Base64 ('-' and '_'), without padding */
+    static def encode_url(data: string) : string {
+        return encode_with(data.data, url_alphabet, 0);
+    }
+
+    /** `bytes` in URL safe Base64 ('-' and '_'), without padding; null gives "" */
+    static def encode_url_bytes(bytes: _int8[]?) : string {
+        return encode_with(bytes, url_alphabet, 0);
+    }
+
+    /**
+     * Standard Base64 broken into lines of `line_length` characters with
+     * "\r\n" between them (MIME uses 76, PEM files 64). No line break at
+     * the end.
+     * Throws illegal_argument_exception when line_length is below 4.
+     */
+    static def encode_lines(data: string, line_length: _int64) : string {
+        if(line_length < 4) {
+            throw new illegal_argument_exception("encode_lines: the line length must be at least 4");
+        }
+        flat := encode(data);
+        n : _int64 = sizeof(flat.data);
+        buf := new char_buffer(n + n / line_length * 2 + 4);
+        for(start : _int64 = 0; start < n; start += line_length) {
+            if(start > 0) {
+                buf.append_char('\r');
+                buf.append_char('\n');
+            }
+            end : _int64 = start + line_length;
+            if(end > n) {
+                end = n;
+            }
+            buf.append_range(flat.data!!, start, end);
+        }
+        return buf.to_string()!!;
+    }
+
+    /**
+     * The work of every encode function. The result is written straight into
+     * a byte array of the right size - no call per character - and the array
+     * becomes the string.
+     */
+    private static def encode_with(bytes: _int8[]?, alphabet: string, pad: _int64) : string {
+        n : _int64 = sizeof(bytes);
+        if(n == 0) {
+            return "";
+        }
+        letters := alphabet.data!!;
+        source := bytes!!;
+
+        // four characters for every three bytes, rounded up: never too small
+        capacity : _int64 = (n + 2) / 3 * 4 + 4;
+        out := new _int8[capacity];
+        count : _int64 = 0;
+
+        // three bytes (24 bits) become four characters (6 bits each)
+        i : _int64 = 0;
+        b0 : _int64 = 0;
+        b1 : _int64 = 0;
+        b2 : _int64 = 0;
+        while(i + 2 < n) {
+            b0 = source[i] & 0xff;
+            b1 = source[i + 1] & 0xff;
+            b2 = source[i + 2] & 0xff;
+            out[count] = letters[b0 >> 2];
+            out[count + 1] = letters[((b0 & 3) << 4) | (b1 >> 4)];
+            out[count + 2] = letters[((b1 & 15) << 2) | (b2 >> 6)];
+            out[count + 3] = letters[b2 & 63];
+            count += 4;
+            i += 3;
+        }
+
+        // one or two bytes are left over
+        if(n - i == 1) {
+            b0 = source[i] & 0xff;
+            out[count++] = letters[b0 >> 2];
+            out[count++] = letters[(b0 & 3) << 4];
+            if(pad) {
+                out[count++] = '=';
+                out[count++] = '=';
+            }
+        } else if(n - i == 2) {
+            b0 = source[i] & 0xff;
+            b1 = source[i + 1] & 0xff;
+            out[count++] = letters[b0 >> 2];
+            out[count++] = letters[((b0 & 3) << 4) | (b1 >> 4)];
+            out[count++] = letters[(b1 & 15) << 2];
+            if(pad) {
+                out[count++] = '=';
+            }
+        }
+        return new string(out, 0, count);
+    }
+
+    /** the 6-bit value of a Base64 character of either alphabet, or -1 when it is not one */
+    private static def value_of(ch: _int64) : _int64 {
+        if(ch >= 'A' && ch <= 'Z') return ch - 'A';
+        if(ch >= 'a' && ch <= 'z') return ch - 'a' + 26;
+        if(ch >= '0' && ch <= '9') return ch - '0' + 52;
+        if(ch == '+' || ch == '-') return 62;
+        if(ch == '/' || ch == '_') return 63;
+        return 0 - 1;
+    }
+
+    /**
+     * The bytes that `text` encodes, as a string with one character per
+     * byte. Both alphabets are accepted, padding is optional, white space
+     * is skipped. "" gives "".
+     *
+     * Throws parse_exception when the text contains a character that is
+     * not Base64, has padding in the middle, has a length that no input
+     * produces (one character left over), or ends in bits that are not
+     * zero.
+     */
+    static def decode(text: string) : string {
+        bytes := decode_bytes(text);
+        if(bytes == null) {
+            return "";
+        }
+        return new string(bytes!!);
+    }
+
+    /**
+     * The bytes that `text` encodes as an array; null when it encodes no
+     * bytes at all. Accepts and throws like decode().
+     */
+    static def decode_bytes(text: string) : _int8[]? {
+        n : _int64 = sizeof(text.data);
+        if(n == 0) {
+            return null;
+        }
+        chars := text.data!!;
+
+        // What each of the 256 possible characters stands for, looked up
+        // instead of worked out with comparisons for every character:
+        //      0..63   its 6-bit value (both alphabets)
+        //      -1      not a Base64 character
+        //      -2      white space: skipped
+        //      -3      '=' padding
+        table := new _int8[256];
+        for(c : _int64 = 0; c < 256; c++) {
+            table[c] = value_of(c);
+        }
+        table[' '] = 0 - 2;
+        table['\t'] = 0 - 2;
+        table['\n'] = 0 - 2;
+        table['\r'] = 0 - 2;
+        table['='] = 0 - 3;
+
+        // three bytes for every four characters: never too small
+        out := new _int8[(n >> 2) * 3 + 4];
+        count : _int64 = 0;
+
+        bits : _int64 = 0;      // the bits collected so far
+        have : _int64 = 0;      // how many 6-bit groups are in `bits` (0..3)
+        padding : _int64 = 0;   // '=' characters seen
+        value : _int64 = 0;
+        for(i : _int64 = 0; i < n; i++) {
+            value = table[chars[i] & 0xff];
+            if(value < 0) {
+                if(value == 0 - 2) {
+                    continue;
+                }
+                if(value == 0 - 3) {
+                    padding++;
+                    continue;
+                }
+                throw new parse_exception("base64: illegal character with code " + io_strings.int_to_string(chars[i] & 0xff)
+                    + " at position " + io_strings.int_to_string(i));
+            }
+            if(padding > 0) {
+                throw new parse_exception("base64: data after the padding at character " + io_strings.int_to_string(i));
+            }
+
+            bits = bits * 64 + value;
+            have++;
+            if(have == 4) {
+                out[count] = (bits >> 16) & 0xff;
+                out[count + 1] = (bits >> 8) & 0xff;
+                out[count + 2] = bits & 0xff;
+                count += 3;
+                bits = 0;
+                have = 0;
+            }
+        }
+
+        // the last group may be short: 2 characters give 1 byte, 3 give 2
+        if(have == 1) {
+            throw new parse_exception("base64: the text is cut off (one character too many or too few)");
+        }
+        if(have == 2) {
+            if((bits & 15) != 0) {
+                throw new parse_exception("base64: the last character has bits set that belong to no byte");
+            }
+            out[count++] = (bits >> 4) & 0xff;
+        } else if(have == 3) {
+            if((bits & 3) != 0) {
+                throw new parse_exception("base64: the last character has bits set that belong to no byte");
+            }
+            out[count++] = (bits >> 10) & 0xff;
+            out[count++] = (bits >> 2) & 0xff;
+        }
+        if(padding > 2 || (padding > 0 && have == 0) || (padding > 0 && have + padding != 4)) {
+            throw new parse_exception("base64: wrong padding");
+        }
+        if(count == 0) {
+            return null;
+        }
+        result := new _int8[count];
+        memcopy(out, result, 0, 0, count);
+        return result;
+    }
+
+    /** true when decode(text) would succeed */
+    static def is_valid(text: string) : bool {
+        try {
+            decode_bytes(text);
+            return true;
+        } catch(e: parse_exception) {
+        }
+        return false;
+    }
+}

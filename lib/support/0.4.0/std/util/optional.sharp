@@ -1,0 +1,139 @@
+mod std.util;
+
+/**
+ * @class optional
+ *
+ * A box that either holds one value or is empty - a way to say "there may
+ * be no result" in a return type instead of returning null and hoping the
+ * caller checks (Java's Optional, Kotlin's nullable types).
+ *
+ *     def find_user(id: decimal): optional<string> {
+ *         if(id == 1) return optional<string>.of("ada");
+ *         return optional<string>.empty();
+ *     }
+ *
+ *     name := find_user(7).or_else("nobody");
+ *     found := find_user(1);
+ *     if(found.is_present()) println(found.value());
+ *
+ * An optional never changes after it is made; map() and filter() return new
+ * optionals.
+ *
+ * LIMITATION: T must be an object type (string, int, your own classes).
+ * optional<decimal> and other native type arguments are not supported, because
+ * the class stores its value in a nullable field (T?).
+ */
+class optional<T> {
+    private item : T?;
+
+    private optional(item: T?) {
+        self->item = item;
+    }
+
+    /**
+     * An optional holding `value`.
+     * Throws illegal_argument_exception when value is null (use of_nullable).
+     */
+    static def of(value: T): optional<T> {
+        if((value as object) == null)
+            throw new illegal_argument_exception("optional.of: the value is null (use of_nullable)");
+        return new optional<T>(value);
+    }
+
+    /** an optional holding `value`, or an empty optional when value is null */
+    static def of_nullable(value: T?): optional<T> {
+        return new optional<T>(value);
+    }
+
+    /** an optional that holds nothing */
+    static def empty(): optional<T> {
+        return new optional<T>(null);
+    }
+
+    /** true when a value is held */
+    def is_present(): bool {
+        return (item as object) != null;
+    }
+
+    /** true when no value is held */
+    def is_empty(): bool {
+        return (item as object) == null;
+    }
+
+    /**
+     * The held value.
+     * Throws no_such_element_exception when the optional is empty.
+     */
+    def value(): T {
+        if((item as object) == null)
+            throw new no_such_element_exception("optional: no value present");
+        return item!!;
+    }
+
+    /** the held value, or `fallback` when the optional is empty */
+    def or_else(fallback: T): T {
+        if((item as object) == null) return fallback;
+        return item!!;
+    }
+
+    /**
+     * The held value, or the result of calling `supplier` when the optional
+     * is empty. The supplier is only called when it is needed.
+     */
+    def or_else_get(supplier: ()(T)): T {
+        if((item as object) == null) return supplier();
+        return item!!;
+    }
+
+    /** the held value, or null when the optional is empty */
+    def or_null(): T? {
+        return item;
+    }
+
+    /**
+     * The held value.
+     * Throws no_such_element_exception with the given message when the
+     * optional is empty.
+     */
+    def or_throw(message: string): T {
+        if((item as object) == null)
+            throw new no_such_element_exception(message);
+        return item!!;
+    }
+
+    /** call `action` with the held value; does nothing when the optional is empty */
+    def if_present(action: (T)()) {
+        if((item as object) != null) {
+            action(item!!);
+        }
+    }
+
+    /**
+     * An optional holding `transform(value)`, or an empty optional when this
+     * one is empty (the function is not called then) or when the function
+     * returns null.
+     *
+     * The function maps T to T: the language has no generic methods, so the
+     * result type cannot differ from the type of the optional.
+     */
+    def map(transform: (T)(T)): optional<T> {
+        if((item as object) == null) return self;
+        return new optional<T>(transform(item!!));
+    }
+
+    /**
+     * This optional when it holds a value for which `predicate` returns
+     * true, otherwise an empty optional.
+     */
+    def filter(predicate: (T)(bool)): optional<T> {
+        if((item as object) == null) return self;
+        if(predicate(item!!)) return self;
+        return new optional<T>(null);
+    }
+
+    /** this optional when it holds a value, otherwise `other` */
+    def or(other: optional<T>): optional<T> {
+        if((item as object) == null) return other;
+        return self;
+    }
+}

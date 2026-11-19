@@ -1,0 +1,14 @@
+// expect: E0906
+// help: new fixed_clock(1000) as clock
+// replace: new fixed_clock(1000)
+mod tests.helps;
+import (std, std.io);
+
+interface clock { def now() : _int64; }
+class fixed_clock : clock { t : _int64; fixed_clock(t: _int64) { self->t = t; } override def now() : _int64 { return t; } }
+component { single { new fixed_clock(1000) } }
+class log_writer { inject time : clock; }
+
+def main() {
+    w := new log_writer();
+}

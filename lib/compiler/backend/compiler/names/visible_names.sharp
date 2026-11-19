@@ -1,0 +1,71 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.postprocessor.inheritance,
+    backend.compiler.context
+)
+
+/**
+ * EVERY NAME VISIBLE FROM A PLACE - for "did you mean"
+ *
+ * When a name is not found, the message offers the closest names that DO
+ * exist (frontend/diagnostics/similar_names.sharp). These functions gather
+ * the candidates: the same places name lookup searches, in the same order.
+ * They run only when a mistake is being reported, so they may be thorough.
+ */
+
+/** every name a plain identifier could have meant here */
+def names_visible_from(context: analysis_context) : list<string> {
+    known := new list<string>();
+    if(context.scope != null) { context.scope!!.add_visible_names(known); }
+    if(context.class_of != null) { add_member_names(context.prog, context.class_of!!, known, 0); }
+    for(i : _int64 = 0; i < context.file.imports.size(); i++) {
+        add_declared_names(context.file.imports.at(i).declared, known);
+    }
+    return known;
+}
+
+/**
+ * The names of the members of a class and of the classes above it.
+ *
+ * @param only_static  1: only what can be reached through the class NAME
+ *                     (static fields and functions, enum values, types inside)
+ */
+def add_member_names(prog: sharp_program, declared: sharp_class, known: list<string>, only_static: _int64) {
+    current : sharp_class? = declared;
+    for(depth : _int64 = 0; current != null && depth < 256; depth++) {
+        ensure_members(prog, current!!);
+        ordered := current!!.members!!.ordered;
+        for(i : _int64 = 0; i < ordered.size(); i++) {
+            member := ordered.at(i);
+            if(!can_be_named(member.kind)) { continue; }
+            if(only_static == 1 && (member.kind == D_FIELD || member.kind == D_FUNCTION) && !member.has(FLAG_STATIC)) { continue; }
+            known.add(member.name);
+        }
+        resolve_bases(prog, current!!);
+        current = current!!.base_class;
+    }
+}
+
+/** the names one module (or one class body) declares */
+def add_declared_names(from: scope, known: list<string>) {
+    for(i : _int64 = 0; i < from.ordered.size(); i++) {
+        declared := from.ordered.at(i);
+        if(can_be_named(declared.kind)) { known.add(declared.name); }
+    }
+}
+
+/** can a body name a declaration of this kind? (not a constructor, an init block, a getter ...) */
+def can_be_named(kind: _int64) : _int64 {
+    return kind == D_FIELD || kind == D_FUNCTION || kind == D_ENUM_VALUE || kind == D_ALIAS || kind == D_CLASS
+        || kind == D_INTERFACE || kind == D_ENUM;
+}

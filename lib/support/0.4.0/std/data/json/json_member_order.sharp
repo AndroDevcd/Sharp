@@ -1,0 +1,43 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Helper of json_writer: the order in which the entries of one array or
+ * object are written - as they are, or, for an object when keys are
+ * sorted, by name. Programs do not need this class.
+ */
+class json_member_order {
+    /** positions of the members in writing order, or null for "as they are" */
+    private positions : decimal[]?;
+
+    json_member_order(container: json_value, sorted: decimal) {
+        if(sorted) {
+            count : decimal = container.size();
+            order := new decimal[count];
+            for(i : decimal = 0; i < count; i++) {
+                order[i] = i;
+            }
+            // insertion sort by name: objects rarely have many members
+            for(i : decimal = 1; i < count; i++) {
+                moving : decimal = order[i];
+                name := container.key_at(moving);
+                j : decimal = i - 1;
+                while(j >= 0 && io_strings.compare(container.key_at(order[j]), name) > 0) {
+                    order[j + 1] = order[j];
+                    j--;
+                }
+                order[j + 1] = moving;
+            }
+            positions = order;
+        }
+    }
+
+    /** which entry of the container is written as number `n` */
+    def position_of(n: decimal) : decimal {
+        if(positions == null) {
+            return n;
+        }
+        return positions[n];
+    }
+}

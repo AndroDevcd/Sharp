@@ -1,0 +1,13 @@
+mod std.reflect;
+
+def describe(o: object?): description? {
+    asm {
+        pushl [o]
+        int 0x51
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}

@@ -1,0 +1,297 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Functions: parameters, return values of every kind (native numbers, sized
+ * numbers that wrap around, boxed numbers, strings, objects, arrays, nothing),
+ * overloads, early return, functions calling functions, and the two short
+ * forms for a function that is a single expression.
+ */
+
+class pair_of_numbers {
+    first : decimal = 0;
+    second : decimal = 0;
+
+    pair_of_numbers(a: decimal, b: decimal) {
+        first = a;
+        second = b;
+    }
+}
+
+// ---- parameters
+def no_parameters(): decimal { return 42; }
+def one_parameter(a: decimal): decimal { return a + 1; }
+def two_parameters(a: decimal, b: decimal): decimal { return a * 10 + b; }
+def six_parameters(a: decimal, b: decimal, c: decimal, d: decimal, e: decimal, f: decimal): decimal {
+    return a * 100000 + b * 10000 + c * 1000 + d * 100 + e * 10 + f;
+}
+def string_parameter(s: string): decimal { return s.size().value; }
+def boxed_parameter(n: int): decimal { return n.value * 2; }
+def object_parameter(p: pair_of_numbers): decimal { return p.first + p.second; }
+def array_parameter(numbers: decimal[]): decimal {
+    total : decimal = 0;
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
+        total += numbers[i];
+    }
+    return total;
+}
+def mixed_parameters(scale: decimal, label: string, p: pair_of_numbers, numbers: decimal[]): decimal {
+    return scale * (label.size().value + p.first + numbers[0]);
+}
+
+// ---- a parameter is a copy of a number, but the same object
+def change_number(a: decimal): decimal {
+    a = a + 100;
+    return a;
+}
+def change_object(p: pair_of_numbers) {
+    p.first = 99;
+}
+def change_array(numbers: decimal[]) {
+    numbers[0] = 77;
+}
+
+// ---- return values
+def returns_var(): decimal { return 2.5; }
+def returns_int8(a: decimal): _int8 { return a; }
+def returns_uint8(a: decimal): _uint8 { return a; }
+def returns_int16(a: decimal): _int16 { return a; }
+def returns_int32(a: decimal): _int32 { return a; }
+def returns_boxed_int(a: decimal): int { return new int(a); }
+def returns_boxed_double(a: decimal): double { return new double(a); }
+def returns_string(times: decimal): string {
+    s : string = "";
+    for(i : decimal = 0; i < times; i++) {
+        s = s + "ab";
+    }
+    return s;
+}
+def returns_object(a: decimal, b: decimal): pair_of_numbers { return new pair_of_numbers(a, b); }
+def returns_array(length: decimal): decimal[] {
+    numbers : decimal[] = new decimal[length];
+    for(i : decimal = 0; i < length; i++) {
+        numbers[i] = i * i;
+    }
+    return numbers;
+}
+def returns_null(): pair_of_numbers? { return null; }
+
+calls_made : decimal = 0;
+def returns_nothing() { calls_made++; }
+def returns_nothing_early(stop: decimal) {
+    if(stop) {
+        return;
+    }
+    calls_made += 10;
+}
+
+// ---- overloads chosen by the number of parameters
+def count_of(): decimal { return 0; }
+def count_of(a: decimal): decimal { return 1; }
+def count_of(a: decimal, b: decimal): decimal { return 2; }
+def count_of(a: decimal, b: decimal, c: decimal): decimal { return 3; }
+
+// ---- overloads chosen by the types of the parameters
+def kind_of(a: decimal): decimal { return 1; }
+def kind_of(s: string): decimal { return 10; }
+def kind_of(p: pair_of_numbers): decimal { return 20; }
+def kind_of(s: string, a: decimal): decimal { return 30; }
+def kind_of(a: decimal, s: string): decimal { return 40; }
+def kind_of(numbers: decimal[]): decimal { return 50; }
+def kind_of(p: pair_of_numbers, q: pair_of_numbers): decimal { return 60; }
+
+// ---- early return
+def sign(a: decimal): decimal {
+    if(a < 0) {
+        return 0 - 1;
+    }
+    if(a == 0) {
+        return 0;
+    }
+    return 1;
+}
+def first_index_of(numbers: decimal[], wanted: decimal): decimal {
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
+        if(numbers[i] == wanted) {
+            return i;
+        }
+    }
+    return 0 - 1;
+}
+def grade(score: decimal): string {
+    if(score >= 90) { return "A"; }
+    else if(score >= 80) { return "B"; }
+    else if(score >= 70) { return "C"; }
+    return "F";
+}
+
+// ---- functions calling functions
+def square(a: decimal): decimal { return a * a; }
+def sum_of_squares(a: decimal, b: decimal): decimal { return square(a) + square(b); }
+def hypotenuse_squared(a: decimal, b: decimal): decimal { return sum_of_squares(a, b); }
+def largest(a: decimal, b: decimal): decimal {
+    if(a > b) { return a; }
+    return b;
+}
+def largest_of_three(a: decimal, b: decimal, c: decimal): decimal { return largest(largest(a, b), c); }
+def used_before_declared(a: decimal): decimal { return declared_later(a) + 1; }
+def declared_later(a: decimal): decimal { return a * 3; }
+
+// ---- expression-bodied functions
+//      `:=` works the result type out from the expression, and a number worked
+//      out that way is an int OBJECT (the same as `z := 1;`), read with .value
+def twice(x: decimal) := x * 2;
+def thrice(x: decimal): decimal = x * 3;
+def twice_plus_thrice(x: decimal): decimal = twice(x).value + thrice(x);
+def greeting(name: string): string = "hello " + name;
+def make_pair(a: decimal): pair_of_numbers = new pair_of_numbers(a, a + 1);
+
+def main(args: string[]) {
+    // ---- parameters
+    expect("no parameters", no_parameters(), 42);
+    expect("one parameter", one_parameter(9), 10);
+    expect("two parameters keep their order", two_parameters(3, 4), 34);
+    expect("six parameters keep their order", six_parameters(1, 2, 3, 4, 5, 6), 123456);
+    expect("a string parameter", string_parameter("hello"), 5);
+    expect("an empty string parameter", string_parameter(""), 0);
+    expect("a boxed int parameter", boxed_parameter(new int(21)), 42);
+    expect("an object parameter", object_parameter(new pair_of_numbers(30, 12)), 42);
+    expect("an array parameter", array_parameter(new decimal[] { 1, 2, 3, 4 }), 10);
+    expect("parameters of four different types",
+        mixed_parameters(2, "abc", new pair_of_numbers(10, 0), new decimal[] { 7 }), 40);
+
+    // ---- an expression as an argument is evaluated before the call
+    x : decimal = 5;
+    expect("an expression as an argument", one_parameter(x * 2 + 1), 12);
+    expect("a call as an argument", one_parameter(one_parameter(one_parameter(0))), 3);
+    expect("a negative argument", one_parameter(0 - 8), 0 - 7);
+    expect("a fraction as an argument", one_parameter(0.5), 1.5);
+
+    // ---- numbers are copied into a parameter, objects and arrays are shared
+    n : decimal = 1;
+    expect("the function sees its own copy", change_number(n), 101);
+    expect("...and the caller's variable is unchanged", n, 1);
+    shared := new pair_of_numbers(1, 2);
+    change_object(shared);
+    expect("a function can change the caller's object", shared.first, 99);
+    expect("...only the field it assigned", shared.second, 2);
+    numbers : decimal[] = new decimal[] { 1, 2, 3 };
+    change_array(numbers);
+    expect("a function can change the caller's array", numbers[0], 77);
+    expect("...only the element it assigned", numbers[1], 2);
+
+    // ---- native return values
+    expect("return a var", returns_var(), 2.5);
+    expect("return a var, used in an expression", returns_var() * 4 + 1, 11);
+
+    // ---- sized return values wrap around
+    expect("_int8 holds 100", returns_int8(100), 100);
+    expect("_int8 holds 127", returns_int8(127), 127);
+    expect("_int8: 128 wraps to -128", returns_int8(128), 0 - 128);
+    expect("_int8: 200 wraps to -56", returns_int8(200), 0 - 56);
+    expect("_int8: 256 wraps to 0", returns_int8(256), 0);
+    expect("_int8 drops the fraction", returns_int8(3.75), 3);
+    expect("_uint8 holds 255", returns_uint8(255), 255);
+    expect("_uint8: 256 wraps to 0", returns_uint8(256), 0);
+    expect("_uint8: 300 wraps to 44", returns_uint8(300), 44);
+    expect("_int16 holds 32767", returns_int16(32767), 32767);
+    expect("_int16: 32768 wraps to -32768", returns_int16(32768), 0 - 32768);
+    expect("_int16: 70000 wraps to 4464", returns_int16(70000), 4464);
+    expect("_int32 holds 2147483647", returns_int32(2147483647), 2147483647);
+    expect("_int32: 2147483648 wraps to -2147483648", returns_int32(2147483648), 0 - 2147483648);
+    expect("_int32: 4294967296 wraps to 0", returns_int32(4294967296), 0);
+    expect("_int32 drops the fraction", returns_int32(9.99), 9);
+
+    // ---- boxed return values are objects; .value is the number
+    expect("return an int object", returns_boxed_int(7).value, 7);
+    expect("an int object holds a whole number", returns_boxed_int(7.9).value, 7);
+    expect("return a double object", returns_boxed_double(1.25).value, 1.25);
+    boxed : int = returns_boxed_int(40);
+    expect("keep the int object in a variable", boxed.value + 2, 42);
+    expect_not_null("a boxed result is an object", returns_boxed_int(1));
+
+    // ---- strings, objects, arrays, null
+    expect_str("return a string", returns_string(3), "ababab");
+    expect_str("return an empty string", returns_string(0), "");
+    made := returns_object(3, 4);
+    expect("return an object: first field", made.first, 3);
+    expect("return an object: second field", made.second, 4);
+    expect("use a returned object without a variable", returns_object(8, 9).second, 9);
+    squares : decimal[] = returns_array(5);
+    expect("return an array: its length", sizeof(squares), 5);
+    expect("return an array: first element", squares[0], 0);
+    expect("return an array: last element", squares[4], 16);
+    expect("index a returned array without a variable", returns_array(4)[3], 9);
+    expect_null("return null", returns_null());
+    expect_not_null("return an object, not null", returns_object(1, 1));
+
+    // ---- functions that return nothing
+    returns_nothing();
+    returns_nothing();
+    expect("a function without a result still runs", calls_made, 2);
+    returns_nothing_early(1);
+    expect("return; leaves the function", calls_made, 2);
+    returns_nothing_early(0);
+    expect("...and without it the rest runs", calls_made, 12);
+
+    // ---- overloads: chosen by the number of arguments
+    expect("overload with no arguments", count_of(), 0);
+    expect("overload with one number", count_of(5), 1);
+    expect("overload with two numbers", count_of(5, 6), 2);
+    expect("overload with three numbers", count_of(5, 6, 7), 3);
+
+    // ---- overloads: chosen by the types of the arguments
+    y : decimal = 3;
+    word : string = "word";
+    expect("overload with a number", kind_of(y), 1);
+    expect("overload with a string", kind_of(word), 10);
+    expect("overload with a string literal", kind_of("text"), 10);
+    expect("overload with an object", kind_of(new pair_of_numbers(1, 2)), 20);
+    expect("overload with (string, number)", kind_of(word, y), 30);
+    expect("overload with (number, string)", kind_of(y, word), 40);
+    expect("overload with an array", kind_of(new decimal[] { 1, 2 }), 50);
+    expect("overload with two objects", kind_of(shared, made), 60);
+
+    // ---- early return
+    expect("sign of a negative number", sign(0 - 12), 0 - 1);
+    expect("sign of zero", sign(0), 0);
+    expect("sign of a positive number", sign(12), 1);
+    haystack : decimal[] = new decimal[] { 4, 8, 15, 16, 23, 42 };
+    expect("return from inside a loop: first element", first_index_of(haystack, 4), 0);
+    expect("return from inside a loop: in the middle", first_index_of(haystack, 16), 3);
+    expect("return from inside a loop: last element", first_index_of(haystack, 42), 5);
+    expect("the return after the loop", first_index_of(haystack, 5), 0 - 1);
+    expect_str("return from an if chain: first branch", grade(95), "A");
+    expect_str("return from an if chain: second branch", grade(85), "B");
+    expect_str("return from an if chain: third branch", grade(70), "C");
+    expect_str("return from an if chain: fall through", grade(12), "F");
+
+    // ---- functions calling functions
+    expect("square(9)", square(9), 81);
+    expect("one level of calls", sum_of_squares(3, 4), 25);
+    expect("two levels of calls", hypotenuse_squared(5, 12), 169);
+    expect("largest_of_three, first", largest_of_three(9, 2, 5), 9);
+    expect("largest_of_three, second", largest_of_three(2, 9, 5), 9);
+    expect("largest_of_three, third", largest_of_three(2, 5, 9), 9);
+    expect("a function declared further down the file", used_before_declared(4), 13);
+    expect("calls on both sides of an operator", square(3) - square(2), 5);
+    expect("calls in a condition", square(4) > sum_of_squares(2, 3), 1);
+
+    // ---- expression-bodied functions
+    expect("def f(x) := expression", twice(21).value, 42);
+    expect("def f(x): var = expression", thrice(5), 15);
+    expect("an expression body that calls others", twice_plus_thrice(4), 20);
+    expect_str("an expression body returning a string", greeting("sharp"), "hello sharp");
+    expect("an expression body returning an object", make_pair(6).second, 7);
+    expect("short functions nest like any other", twice(thrice(twice(1).value)).value, 12);
+
+    // ---- the same function called many times
+    total : decimal = 0;
+    for(i : decimal = 1; i <= 100; i++) {
+        total += twice(i).value;
+    }
+    expect("100 calls in a loop", total, 10100);
+
+    finish("functions");
+}

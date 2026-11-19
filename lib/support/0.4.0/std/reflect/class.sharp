@@ -1,0 +1,79 @@
+mod std.reflect;
+
+class _class_ {
+    name: string;
+    full_name: string;
+    id: int;
+    hash: int;
+    flags: int;
+    base_class: _class_?;
+    owner: _class_?;
+    interfaces: _class_[]?;
+    fields: _field_[]?;
+    static_fields: _field_[]?;
+    functions: _function_[]?;
+
+    def get_field(name: string): _field_? {
+        foreach(field in fields) {
+            if(field.name == name) {
+                return field;
+            }
+        }
+
+        return null;
+    }
+
+    def get_nested_field(fields: string[]): _field_? {
+        base_field : _field_? = null;
+        foreach(fiend_name in fields) {
+            if(base_field == null) {
+                base_field = get_field(fiend_name);
+            } else {
+                base_field = base_field!!.type.type_class!!.get_field(fiend_name);
+            }
+        }
+
+        return base_field;
+    }
+
+    def get_nested_field_value(fields: string[], instance: _object_?): reflect_value? {
+        base_field : _field_? = null;
+        base_instance: _object_? = null;
+        value: reflect_value? = null;
+
+        foreach(fiend_name in fields) {
+            if(base_field == null) {
+                base_field = get_field(fiend_name);
+                base_instance = instance;
+                value = base_field?.get_value(base_instance);
+            } else {
+                base_field = base_field?.type.type_class?.get_field(fiend_name);
+                base_instance = value?.data as _object_;
+                value = base_field?.get_value(base_instance);
+            }
+        }
+
+        return value;
+    }
+
+
+    def get_function(name: string): _function_? {
+        foreach(func in functions) {
+            if(func.name == name)
+                return func;
+        }
+
+        return null;
+    }
+
+
+    override def hash() : int {
+        return hash;
+    }
+
+    override def to_string(): string? {
+        return "$name(fullname=$full_name, base_class=${base_class != null ? base_class!!.full_name : new string("")}," +
+        " owner=${owner != null ? owner!!.full_name : new string("")}, interfaces=(${sizeof(interfaces)}), fields=(${sizeof(fields)})," +
+        " static_fields=(${sizeof(static_fields)}), functions=(${sizeof(functions)}))";
+    }
+}

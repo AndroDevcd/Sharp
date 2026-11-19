@@ -1,0 +1,229 @@
+mod backend.compiler.expressions.assignment;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * WHAT CAN STAND ON THE LEFT OF `=`
+ *
+ *      count = 5;              a local variable or parameter              storage
+ *      self->x = 5;  p.x = 5;  a field, a static field, a global          storage
+ *      items[i] = 5;           an item of an ARRAY                        storage
+ *      p.size = 3;             a PROPERTY: a field with a setter - the setter is called;
+ *                              with a getter and no setter the field is stored directly
+ *                              (doc/backend.md 7.17)
+ *      names[0] = x;           `o[i]` on an OBJECT: `names.put(0, x)` (index_store.sharp)
+ *      f() = 1;  5 = x;        anything else: E0711, it is not a place that holds a value
+ *      color.red = x;          ... an enum value neither: it is not a variable
+ *      print = null;           ... nor the name of a function
+ *      p?.x = 1;               ... nor a `?.` chain: it may give null (the C++ compiler takes
+ *                              it and stops the program when `p` is null, doc/backend.md D58)
+ *      title() = "x";          one exception: an OBJECT that a call gave back can be changed
+ *                              through its class's operator= (plain_assignment.sharp)
+ *
+ * The target is analysed like any expression first - `p.size` reads
+ * through the getter - and then classified here into an `assign_target`,
+ * which says where the value goes. Inside a getter or setter of its own the
+ * field's name is the stored value (the access rule of reading applies).
+ *
+ * `const` (doc/backend.md 7.10): a `const` variable is assigned only by its
+ * declaration, a `const` field without a value also by a constructor or
+ * `init` of its class (static: a `static init`). Any other assignment, `++`
+ * included, is the warning W1021 - the C++ compiler does not enforce `const`
+ * at all (D7).
+ *
+ *      C++ comparison: the cases of `compile_assignment` in
+ *      compiler/expressions/assign_expression.cpp.
+ */
+const TARGET_ERROR    : _int64 = 0;     // already reported (or not typed yet): say nothing more
+const TARGET_STORAGE  : _int64 = 1;     // a local, a field, an array item
+const TARGET_PROPERTY : _int64 = 2;     // a field with a getter and / or a setter, outside them
+const TARGET_INDEX    : _int64 = 3;     // o[i] on an object: a call of operator[]
+const TARGET_NONE     : _int64 = 4;     // a value only (a call, a literal ...): reported by the caller
+
+/** where an assigned value goes */
+class assign_target {
+    kind : _int64 = 0;                  // TARGET_...
+    read : bound_expression;            // the target as it was analysed (a read)
+    node : _int64;                      // where the target is written
+    storage : bound_expression?;        // STORAGE / PROPERTY: the place itself (bound_local, bound_field, bound_index)
+    field : sharp_field?;               // PROPERTY: its field
+    getter : sharp_function?;           // PROPERTY: read through it (null: read the field)
+    setter : sharp_function?;           // PROPERTY: written through it (null: store into the field)
+    index_call : bound_call?;           // INDEX: the operator[] call
+    type : resolved_type;               // what a value of the target is
+
+    assign_target(read: bound_expression) {
+        self->read = read;
+        node = read.node;
+        type = read.type;
+    }
+}
+
+/**
+ * The target at `node`, analysed and classified.
+ *
+ * Only something WRITTEN as a place is one: a name, `a.b`, `a[i]`,
+ * `module#name` (in parentheses or not). `(count ?: 1) = 2` is a value even
+ * though analysing `count ?: 1` hands back the variable itself when `count`
+ * is never null.
+ */
+def target_at(context: analysis_context, node: _int64) : assign_target {
+    context.reading_a_target = 1;       // `p?.x = 1` is refused as a whole (E0711): no W1027 about its `?.` as well
+    read := analyse_expression(context, node, null);
+    context.reading_a_target = 0;
+    return target_from(context, node, read);
+}
+
+/** classify what was analysed at `node`; to be a place it must also be written as one */
+def target_from(context: analysis_context, node: _int64, read: bound_expression) : assign_target {
+    target := target_of(context, read);
+    target.node = node;
+    if(target.kind != TARGET_ERROR && target.kind != TARGET_NONE && !is_written_as_a_place(context, node)) {
+        target.kind = TARGET_NONE;
+    }
+    return target;
+}
+
+/** is the expression at `node` a name, a member or an indexed item - the forms that can name a place? */
+def is_written_as_a_place(context: analysis_context, node: _int64) : _int64 {
+    kind : _int64 = context.tree.kinds!![node];
+    if(kind == N_PAREN) { return is_written_as_a_place(context, context.tree.first_child!![node]); }
+    return kind == N_IDENTIFIER || kind == N_MEMBER || kind == N_INDEX || kind == N_MODULE_NAME;
+}
+
+/** classify an analysed expression as a place a value can be put */
+def target_of(context: analysis_context, read: bound_expression) : assign_target {
+    target := new assign_target(read);
+    kind : _int64 = read.kind;
+    if(kind == BX_FUNCTIONS) {
+        // `print = null;` - the name of a function is not a variable
+        target.kind = TARGET_NONE;
+        return target;
+    }
+    if(kind == BX_ERROR || kind == BX_PENDING || read.type.kind == RT_ERROR) { return target; }
+
+    if(kind == BX_LOCAL || kind == BX_INDEX) {
+        target.kind = TARGET_STORAGE;
+        target.storage = read;
+        return target;
+    }
+    if(kind == BX_FIELD) {
+        field : sharp_field = (read as bound_field).field;
+        target.storage = read;
+        target.field = field;
+        target.kind = TARGET_STORAGE;
+        if(field.setter != null && context.accessor_of != field) {
+            target.kind = TARGET_PROPERTY;
+            target.setter = field.setter;
+        }
+        return target;
+    }
+    if(kind == BX_CALL) {
+        call := read as bound_call;
+        if(call.written_as == AS_GETTER && call.function.field != null) {
+            field : sharp_field = call.function.field!!;
+            target.kind = TARGET_PROPERTY;
+            target.field = field;
+            target.getter = call.function;
+            target.setter = field.setter;
+            target.storage = new bound_field(read.unit, read.node, call.on, field, read.type);
+            return target;
+        }
+        if(call.written_as == AS_INDEX) {
+            target.kind = TARGET_INDEX;
+            target.index_call = call;
+            return target;
+        }
+    }
+    target.kind = TARGET_NONE;
+    return target;
+}
+
+/**
+ * W1021: the target is `const` and this is not where it may be given its
+ * value. Called for every assignment, compound assignment and `++`.
+ */
+def check_const(context: analysis_context, target: assign_target, node: _int64) {
+    storage := target.storage;
+    if(storage == null) { return; }
+    if(storage!!.kind == BX_LOCAL) {
+        variable : local_variable = (storage as bound_local).variable;
+        if(variable.is_const == 1) { warn_const(context, variable.name, variable.unit, variable.node, node); }
+        return;
+    }
+    if(target.field == null) { return; }
+    field : sharp_field = target.field!!;
+    if(!field.has(FLAG_CONST)) { return; }
+    if(field.initializer < 0 && is_initializing_code_of(context, field)) { return; }
+    warn_const(context, field.name, field.unit, field.node, node);
+}
+
+/** is this a constructor or `init` of the field's class - the code that gives a `const` field without a value its value? */
+def is_initializing_code_of(context: analysis_context, field: sharp_field) : _int64 {
+    if(context.function == null || field.owner == null || context.class_of == null) { return 0; }
+    kind : _int64 = context.function!!.kind;
+    if(kind != D_CONSTRUCTOR && kind != D_INIT) { return 0; }
+    if(context.class_of!!.written != field.owner!!.written) { return 0; }
+    return field.has(FLAG_STATIC) == context.function!!.has(FLAG_STATIC);
+}
+
+/** the W1021 message itself */
+def warn_const(context: analysis_context, name: string, unit: source_unit, declared_at: _int64, node: _int64) {
+    d := problem_over(context, "W1021", "`" + name + "` is `const`, but it is given a new value here", node);
+    d.with_label("assigns a `const`");
+    d.with_related_place(place_of_node(unit, declared_at, "`" + name + "` is declared `const` here"));
+    d.with_note("`const` says the variable keeps the value it was declared with; the old compiler does not check it, so this is a warning");
+    d.with_help("remove `const` from the declaration, or give the new value to another variable");
+    report(context, d);
+}
+
+/**
+ * E0711: `f() = 1`, `5++`, `color.red = x` - not a place that holds a value.
+ *
+ * @param node  the assignment or the `++` itself
+ * @param what  "assigned to", "changed with `++`"
+ */
+def report_not_assignable(context: analysis_context, target: assign_target, node: _int64, what: string) {
+    read : bound_expression = target.read;
+    written := source_text_of(context, target.node);
+    d := problem_over(context, "E0711", "`" + written + "` cannot be " + what, target.node);
+    d.with_label("not a variable, a field or an array item");
+    is_plain_assignment : _int64 = context.tree.kinds!![node] == N_ASSIGN && token_kind_at(context, node) == P_ASSIGN;
+    if(read.kind == BX_ENUM_VALUE) {
+        d.with_note("an enum value is a constant of its enum, not a variable");
+    } else if(read.kind == BX_FUNCTIONS) {
+        d.with_note("`" + written + "` is a function: it is declared once and cannot be given another value");
+        d.with_help("to keep a function in a variable, declare one of a function type: `handler : (_int64)(nil) = " + written + ";`");
+        is_plain_assignment = 0;
+    } else if(read.kind == BX_TYPE_NAME) {
+        d.with_note("`" + written + "` is a type, not a variable");
+    } else if(read.kind == BX_SAFE_NAVIGATION) {
+        d.with_note("`?.` gives null when the object is not there, and null is not a place to store into");
+        d.with_help("when the object is certainly there write `!!.` instead of `?.`; otherwise test it first: `if(... != null) { ... }`");
+        is_plain_assignment = 0;
+    } else if(read.kind == BX_CALL && (read as bound_call).written_as == AS_INDEX) {
+        d.with_note("`" + written + "` is what `operator[]` gave back: a value, not a place in the object");
+        d.with_help("write the whole step out: read the item, work out the new value, and store it with `=`");
+        is_plain_assignment = 0;
+    } else if(read.kind == BX_CALL || read.kind == BX_VALUE_CALL || read.kind == BX_NEW) {
+        d.with_note("the result of a call is a value, not a place that holds one");
+    } else if(read.literal != LIT_NONE) {
+        d.with_note("a literal is a value, not a place that holds one");
+    } else {
+        d.with_note("only a local variable, a parameter, a field or an item of an array can be assigned");
+    }
+    if(is_plain_assignment == 1) { d.with_help("`=` stores a value; to COMPARE two values write `==`"); }
+    report(context, d);
+}

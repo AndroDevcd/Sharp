@@ -1,0 +1,122 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io
+)
+
+/**
+ * A SET OF SLOTS, ONE BIT EACH
+ *
+ * The analyses of the optimizer ask "which slots are live here?" at the
+ * start and the end of every basic block, and join those answers over and
+ * over until nothing changes (liveness.sharp). A set is therefore the thing
+ * they make and combine most, and it is the textbook "bit vector": slot n is
+ * bit (n % 64) of word (n / 64), so a union of two sets of 300 slots is five
+ * `|` of whole numbers instead of 300 tests.
+ *
+ *      live := new slot_set(12);
+ *      live.add(3);  live.add(7);          live.has(7) -> 1
+ *      live.remove(3);                     live.has(3) -> 0
+ *      changed := live.add_all(other);     1 when a slot of `other` was not in `live` yet
+ *
+ *      C++ comparison: liveness.h of the C++ optimizer uses std::vector<bool>
+ *      per block for the same job.
+ */
+class slot_set {
+    words : _int64[];
+
+    slot_set(slots: _int64) {
+        words = new _int64[(slots / 64) + 1];
+    }
+
+    /** the bit of slot `slot` inside its word */
+    def bit_of(slot: _int64) : _int64 {
+        one : _int64 = 1;
+        return one << (slot % 64);
+    }
+
+    /** is `slot` in the set? (a slot of -1, "none", never is) */
+    def has(slot: _int64) : _int64 {
+        if(slot < 0) { return 0; }
+        return (words[slot / 64] & bit_of(slot)) != 0;
+    }
+
+    /** put `slot` in (nothing for -1) */
+    def add(slot: _int64) {
+        if(slot < 0) { return; }
+        words[slot / 64] = words[slot / 64] | bit_of(slot);
+    }
+
+    /** take `slot` out (nothing for -1) */
+    def remove(slot: _int64) {
+        if(slot < 0) { return; }
+        if((words[slot / 64] & bit_of(slot)) != 0) { words[slot / 64] = words[slot / 64] ^ bit_of(slot); }
+    }
+
+    /** every slot of `other` put in as well; 1 when that added one this set did not have */
+    def add_all(other: slot_set) : _int64 {
+        changed : _int64 = 0;
+        for(i : _int64 = 0; i < sizeof(words); i++) {
+            joined : _int64 = words[i] | other.words[i];
+            if(joined != words[i]) {
+                words[i] = joined;
+                changed = 1;
+            }
+        }
+        return changed;
+    }
+
+    /** this set becomes exactly `other` */
+    def copy_from(other: slot_set) {
+        for(i : _int64 = 0; i < sizeof(words); i++) { words[i] = other.words[i]; }
+    }
+
+    /** a set of its own holding the same slots */
+    def copy() : slot_set {
+        made := new slot_set((sizeof(words) - 1) * 64);
+        made.copy_from(self);
+        return made;
+    }
+
+    /** how many words a set of this size takes: the stride of a table of sets (liveness.sharp) */
+    def width() : _int64 {
+        return sizeof(words);
+    }
+
+    /** no slot in the set */
+    def clear() {
+        for(i : _int64 = 0; i < sizeof(words); i++) { words[i] = 0; }
+    }
+
+    /**
+     * Sets kept in one flat table, `width()` words each, the set of row r at
+     * `r * width()` (liveness.sharp keeps one per block that way: two arrays
+     * instead of two objects per block).
+     */
+    def load(table: _int64[], at: _int64) {
+        for(i : _int64 = 0; i < sizeof(words); i++) { words[i] = table[at + i]; }
+    }
+
+    /** this set written into a table at `at` */
+    def store(table: _int64[], at: _int64) {
+        for(i : _int64 = 0; i < sizeof(words); i++) { table[at + i] = words[i]; }
+    }
+
+    /** the set in a table at `at` added to this one */
+    def add_row(table: _int64[], at: _int64) {
+        for(i : _int64 = 0; i < sizeof(words); i++) { words[i] = words[i] | table[at + i]; }
+    }
+
+    /** this set added to the set in a table at `at`; 1 when that gave the table's set a slot it did not have */
+    def add_into_row(table: _int64[], at: _int64) : _int64 {
+        changed : _int64 = 0;
+        for(i : _int64 = 0; i < sizeof(words); i++) {
+            joined : _int64 = table[at + i] | words[i];
+            if(joined != table[at + i]) {
+                table[at + i] = joined;
+                changed = 1;
+            }
+        }
+        return changed;
+    }
+}

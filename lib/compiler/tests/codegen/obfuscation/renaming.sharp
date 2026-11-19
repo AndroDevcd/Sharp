@@ -1,0 +1,71 @@
+mod main;
+
+// output:
+// 3
+// 7
+// 12
+// caught: from point
+// 5
+// 41
+
+// renamed: main#point
+// renamed: main#point.x
+// renamed: main#point.sum
+// renamed: main#__srt_global.total
+// kept: main#point.y
+// kept: std#string
+// kept: std#illegal_state_exception
+// kept: platform.kernel#function_value
+// kept: platform.kernel#function_value.address
+
+/*
+ * -obf (doc/codegen.md 6.17): every name the `obfuscate` blocks do not keep
+ * is replaced in the file - classes, fields, functions, modules, source
+ * files - and the program does exactly what it did. Kept: what a rule keeps
+ * (`point.y` below; the library's platform/dependencies.sharp keeps the
+ * classes the platform needs), and whatever the VM finds by name whatever
+ * the rules say - the classes it looks up (`function_value`, the
+ * exceptions, `std#string`) and their fields. The map `<output>.names` says
+ * what each new name stands for; the test script checks the `renamed:` and
+ * `kept:` lines above against it.
+ *
+ * Inside: fields and functions, a global, a lambda that captures (its
+ * function value, its closure record's class), a virtual call, an exception
+ * thrown and caught by its class and its message read (a field the VM reads
+ * by name).
+ */
+interface shape {
+    def area() : _int64;
+}
+
+class point : shape {
+    x : _int64;
+    y : _int64;
+    point(x: _int64, y: _int64) { self->x = x; self->y = y; }
+    def sum() : _int64 { return x + y; }
+    override def area() : _int64 { return x * y; }
+    def fail() { throw new illegal_state_exception("from point"); }
+}
+
+total : _int64 = 3;
+
+obfuscate -keep { point.y }
+
+def adder(n: _int64) : (_int64)(_int64) {
+    return { k: _int64 -> (_int64) return k + n; };
+}
+
+def main() {
+    show(total);
+    p := new point(3, 4);
+    show(p.sum());
+    s : shape = p;
+    show(s.area());
+    try {
+        p.fail();
+    } catch(e: illegal_state_exception) {
+        println("caught: " + e.get_message());
+    }
+    show(adder(2)(3));
+    show(adder(total)(38));
+}

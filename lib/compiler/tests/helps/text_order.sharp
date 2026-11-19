@@ -1,0 +1,11 @@
+// expect: E0511
+// help: word.compare_to(other) < 0
+// replace: word < other
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    word : string = "a";
+    other : string = "b";
+    if(word < other) { println("first"); }
+}

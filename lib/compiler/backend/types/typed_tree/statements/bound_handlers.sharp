@@ -1,0 +1,69 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.typed_tree
+)
+
+/**
+ * STATEMENTS THAT GUARD A BLOCK
+ *
+ *      try { ... }                     bound_try
+ *      catch(e: io_exception) { ... }      catches: bound_catch, in the order written
+ *      finally { ... }                     finally_part: runs however the try is left
+ *
+ *      lock(table) { ... }             bound_lock: the object is locked for the block and
+ *                                      unlocked however the block is left
+ *
+ * Both matter to the jumps inside them (bound_jumps.sharp): a `return` out of
+ * a `lock` must unlock, a `break` out of a `try` with a `finally` must run it.
+ */
+
+/** `try body catch(...) ... finally ...` - at least one catch or a finally */
+class bound_try base bound_statement {
+    body : bound_statement;
+    catches : list<bound_catch>;
+    finally_part : bound_statement?;            // null: no `finally`
+
+    bound_try(unit: source_unit, node: _int64) -> base(BS_TRY, unit, node) {
+        body = new bound_empty(unit, node);
+        catches = new list<bound_catch>();
+    }
+}
+
+/**
+ * `catch(e: some_exception) body` / `catch(some_exception) body`. It takes a
+ * thrown object of class `caught` or a class below it; the first clause, in
+ * the order written, that takes the object runs.
+ */
+class bound_catch base bound_node {
+    caught : sharp_class?;                      // null only after E0613 (the type is not a throwable class)
+    variable : local_variable?;                 // the `e`; null for `catch(some_exception)`
+    body : bound_statement;
+
+    bound_catch(unit: source_unit, node: _int64, caught: sharp_class?, variable: local_variable?)
+            -> base(BS_CATCH, unit, node) {
+        self->caught = caught;
+        self->variable = variable;
+        body = new bound_empty(unit, node);
+    }
+}
+
+/**
+ * `lock(object) body`. The object is evaluated once, into `held` (a hidden
+ * local), so the same object is unlocked that was locked.
+ */
+class bound_lock base bound_statement {
+    locked : bound_expression;                  // an object, `object` or an array; may be nullable
+    held : local_variable;                      // hidden: the object while the block runs
+    body : bound_statement;
+
+    bound_lock(unit: source_unit, node: _int64, locked: bound_expression, held: local_variable)
+            -> base(BS_LOCK, unit, node) {
+        self->locked = locked;
+        self->held = held;
+        body = new bound_empty(unit, node);
+    }
+}

@@ -1,0 +1,222 @@
+mod std.text;
+
+/**
+ * text_wrap
+ *
+ * Breaks long text into lines of a maximum width, and adds or removes
+ * indentation. All functions are static:
+ *
+ *     text_wrap.wrap("the quick brown fox jumps", 10)     ["the quick", "brown fox", "jumps"]
+ *     text_wrap.fill("the quick brown fox jumps", 10)     "the quick\nbrown fox\njumps"
+ *     text_wrap.indent("a\nb", "  ")                      "  a\n  b"
+ *     text_wrap.dedent("    a\n      b")                  "a\n  b"
+ *
+ * How wrapping works
+ *  - the text is cut into words at whitespace; words are put on a line with
+ *    single spaces between them for as long as they fit
+ *  - a word longer than the width is cut into pieces of exactly the width
+ *    (there is no hyphenation), so no line is ever longer than the width
+ *  - line ends in the input are treated like spaces by wrap(); fill() and
+ *    wrap_paragraphs() keep EMPTY lines as paragraph breaks
+ *  - width is counted in characters (bytes): right for ASCII text
+ */
+class text_wrap {
+
+    /** Throws illegal_argument_exception unless the width is at least 1. */
+    private static def check_width(width: decimal) {
+        if(width < 1)
+            throw new ill_arg_except("the width must be at least 1, but was " + number_format.integer(width));
+    }
+
+    /** Appends the lines of one paragraph (text without paragraph breaks) to `lines`. */
+    private static def wrap_into(lines: list<string>, text: string, width: decimal) {
+        words := text.split_whitespace();
+        count : decimal = sizeof(words);
+        line := new text_buffer();
+
+        for(w : decimal = 0; w < count; w++) {
+            word := words[w];
+            len : decimal = sizeof(word.data);
+
+            // does the word fit on the current line (after a space, if the line has words)?
+            needed : decimal = line.length() == 0 ? len : line.length() + 1 + len;
+            if(needed <= width) {
+                if(line.length() > 0) line.append_char(' ');
+                line.append(word);
+            } else {
+                if(line.length() > 0) {
+                    lines.add(line.build());
+                    line.clear();
+                }
+                // a word wider than a whole line is cut into full-width pieces
+                start : decimal = 0;
+                while(len - start > width) {
+                    lines.add(new string(word.data!!, start, start + width));
+                    start += width;
+                }
+                line.append(new string(word.data!!, start, len));
+            }
+        }
+        if(line.length() > 0) lines.add(line.build());
+    }
+
+    /** The strings of the list as an array (length 0 for an empty list). */
+    private static def to_array(lines: list<string>): string[] {
+        if(lines.empty()) return new string[0];
+        return lines.get_elements()!!;
+    }
+
+    /**
+     * The text as lines of at most `width` characters, as an array. All
+     * whitespace (including line ends) only separates words. An empty or
+     * blank text gives an array of length 0.
+     * Throws illegal_argument_exception if width is less than 1.
+     */
+    static def wrap(text: string, width: int): string[] {
+        check_width(width.value);
+        lines := new list<string>();
+        wrap_into(lines, text, width.value);
+        return to_array(lines);
+    }
+
+    /**
+     * Like wrap, but empty (or blank) lines in the text are kept as paragraph
+     * breaks: each paragraph is wrapped on its own and an empty string is put
+     * between two paragraphs. Several empty lines in a row give one break.
+     * Throws illegal_argument_exception if width is less than 1.
+     */
+    static def wrap_paragraphs(text: string, width: int): string[] {
+        check_width(width.value);
+        lines := new list<string>();
+        source := text.lines();
+        count : decimal = sizeof(source);
+
+        paragraph := new text_buffer();
+        pending_break : decimal = 0;            // an empty line was seen since the last paragraph
+        for(i : decimal = 0; i <= count; i++) {
+            // (i == count is one extra round to write the last paragraph)
+            at_break : decimal = 1;
+            if(i < count) at_break = source[i].is_blank();
+
+            if(!at_break) {
+                if(paragraph.length() > 0) paragraph.append_char(' ');
+                paragraph.append(source[i]);
+            } else {
+                if(paragraph.length() > 0) {
+                    if(pending_break && !lines.empty()) lines.add("");
+                    wrap_into(lines, paragraph.build(), width.value);
+                    paragraph.clear();
+                    pending_break = 0;
+                }
+                pending_break = 1;
+            }
+        }
+        return to_array(lines);
+    }
+
+    /**
+     * The text wrapped to `width` as ONE string with "\n" between the lines.
+     * Paragraph breaks (empty lines) are kept, as in wrap_paragraphs.
+     * There is no "\n" after the last line. A blank text gives "".
+     * Throws illegal_argument_exception if width is less than 1.
+     */
+    static def fill(text: string, width: int): string {
+        return string.join("\n", wrap_paragraphs(text, width));
+    }
+
+    /**
+     * Wraps the text so that, together with the prefixes, no line is longer
+     * than `width`: the first line starts with `first_prefix`, all following
+     * lines with `rest_prefix`. Used for bullet points and hanging indents:
+     * fill("some long text ...", 20, "- ", "  ").
+     * Throws illegal_argument_exception if width does not leave at least one
+     * character of room after the longer prefix.
+     */
+    static def fill(text: string, width: int, first_prefix: string, rest_prefix: string): string {
+        first_len : decimal = sizeof(first_prefix.data);
+        rest_len : decimal = sizeof(rest_prefix.data);
+        longest : decimal = first_len > rest_len ? first_len : rest_len;
+        room : decimal = width.value - longest;
+        check_width(room);
+
+        lines := wrap(text, room);
+        count : decimal = sizeof(lines);
+        out := new text_buffer();
+        for(i : decimal = 0; i < count; i++) {
+            if(i > 0) out.append_char('\n');
+            if(i == 0) out.append(first_prefix);
+            else out.append(rest_prefix);
+            out.append(lines[i]);
+        }
+        return out.build();
+    }
+
+    /**
+     * Every line of the text with `prefix` in front of it. Lines that are
+     * empty stay empty (no trailing spaces are produced). Line ends are
+     * written as "\n".
+     */
+    static def indent(text: string, prefix: string): string {
+        lines := text.lines();
+        count : decimal = sizeof(lines);
+        out := new text_buffer();
+        for(i : decimal = 0; i < count; i++) {
+            if(i > 0) out.append_char('\n');
+            if(sizeof(lines[i].data) > 0) {
+                out.append(prefix);
+                out.append(lines[i]);
+            }
+        }
+        return out.build();
+    }
+
+    /**
+     * indent with `spaces` spaces as the prefix. A count of 0 or less changes nothing but the line ends.
+     * (It has its own name because indent(text, 3) would be ambiguous: a number also converts to a string.)
+     */
+    static def indent_by(text: string, spaces: int): string {
+        return indent(text, character.repeat(' ', spaces));
+    }
+
+    /**
+     * The text with the indentation that ALL its lines share removed, so the
+     * least indented line starts at column 0 and the others keep their
+     * relative indentation. Blank lines are ignored when measuring and come
+     * out empty. Only spaces and tabs count as indentation, each as one
+     * character. Line ends are written as "\n".
+     */
+    static def dedent(text: string): string {
+        lines := text.lines();
+        count : decimal = sizeof(lines);
+
+        // the smallest indentation of any non-blank line
+        shared : decimal = -1;
+        for(i : decimal = 0; i < count; i++) {
+            line := lines[i];
+            if(!line.is_blank()) {
+                depth : decimal = line.index_of_none(" \t");
+                if(shared < 0 || depth < shared) shared = depth;
+            }
+        }
+        if(shared < 0) shared = 0;
+
+        out := new text_buffer();
+        for(i : decimal = 0; i < count; i++) {
+            if(i > 0) out.append_char('\n');
+            line := lines[i];
+            if(!line.is_blank()) out.append(line.drop(shared));
+        }
+        return out.build();
+    }
+
+    /** The length of the longest line of the text (0 for ""). */
+    static def max_line_length(text: string): decimal {
+        lines := text.lines();
+        count : decimal = sizeof(lines);
+        longest : decimal = 0;
+        for(i : decimal = 0; i < count; i++) {
+            if(sizeof(lines[i].data) > longest) longest = sizeof(lines[i].data);
+        }
+        return longest;
+    }
+}

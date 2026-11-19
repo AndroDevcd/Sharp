@@ -1,0 +1,56 @@
+mod frontend.lexer;
+
+import (
+    std.io,
+    platform.kernel
+)
+
+/**
+ * `sharpc -lexstats file...`: run the tokenizer over the files and print what
+ * it found and how fast it was. For checking the tokenizer on real code and
+ * for comparing changes to it; nothing else is compiled.
+ *
+ * @param rounds  how many times every file is scanned (the time is for all of
+ *                them: more rounds give a steadier number)
+ */
+def print_lexer_stats(files: list<string>, rounds: _int64) {
+    sources := new list<string>();
+    for(f : _int64 = 0; f < files.size(); f++) {
+        sources.add(file_utils.read_text(files.at(f)));
+    }
+
+    bytes : _int64 = 0;
+    tokens : _int64 = 0;
+    lines : _int64 = 0;
+    errors : _int64 = 0;
+    keywords : _int64 = 0;
+    identifiers : _int64 = 0;
+
+    started : decimal = vm.time_in_nanoseconds().value;
+    for(r : _int64 = 0; r < rounds; r++) {
+        for(s : _int64 = 0; s < sources.size(); s++) {
+            text : _int8[]? = sources.at(s).data;
+            if(text == null) { continue; }      // an empty file
+            table := scan(text!!);
+
+            if(r == 0) {
+                bytes += sizeof(text);
+                tokens += table.count;
+                lines += table.line_count;
+                errors += table.error_count;
+
+                kinds : _uint8[] = table.kinds!!;
+                for(k : _int64 = 0; k < table.count; k++) {
+                    if(kinds[k] >= T_KEYWORD) { keywords++; }
+                    else if(kinds[k] == T_IDENTIFIER) { identifiers++; }
+                }
+            }
+        }
+    }
+    elapsed : decimal = (vm.time_in_nanoseconds().value - started) / 1000000;
+    megabytes : decimal = (bytes * rounds) / 1048576.0;
+
+    println("files " + files.size() + "  bytes " + bytes + "  lines " + lines + "  tokens " + tokens
+            + "  keywords " + keywords + "  identifiers " + identifiers + "  errors " + errors);
+    println("rounds " + rounds + "  time ms " + elapsed + "  MB per second " + (megabytes / (elapsed / 1000)));
+}

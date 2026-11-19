@@ -1,0 +1,103 @@
+mod app;
+
+import ( platform )
+
+/**
+ * THE NATIVE INTERFACE, END TO END (tests/sni.sh builds the two libraries and runs this)
+ *
+ * Every kind of value crosses the boundary once, in both directions, and the
+ * program prints what came back. The expected output is expected.txt.
+ */
+native "demo" {
+    def add(a: _int32, b: _int32) : _int32;
+    def half(x: decimal) : decimal;
+    def widths(a: _int8, b: _int16, c: _int64, d: _uint8, e: _uint16, f: _uint32, g: _uint64) : _int64;
+    def narrow(x: _int64) : _int8;
+    def shout(s: string) : string;
+    def sum(values: _int32[]) : _int64;
+    def double_all(values: decimal[]);
+    def range(count: _int32) : _int64[];
+    def fail(code: _int32);
+    def fail_unknown();
+    def nothing();
+    def remember(o: object);
+    def recall() : object;
+    def forget();
+    def churn(count: _int32) : string;
+    def pick(a: _int32) : _int32;
+    def pick(a: decimal) : _int32;
+}
+
+class counter {
+    value : _int32 = 7;
+
+    // declared alone: these belong to the library named after the module, "app"
+    native def plus(extra: _int32) : _int32;
+    static native def twice(x: _int32) : _int32;
+}
+
+native def version() : _int32;
+
+/** the only reference Sharp has to the text dies with this function: from then on C++ alone keeps it */
+def remember_one() {
+    kept : string = "kept " + "text";
+    remember(kept);
+}
+
+def main(args: string[]) {
+    // nothing is loaded for the program: it loads its libraries itself, before the first native call
+    load_library("demo");
+    load_library("app");
+
+    println("add " + add(40, 2));
+    println("half x10 " + ((half(5) * 10) as _int64));
+    println("widths " + widths(0 - 1, 0 - 2, 0 - 3, 250, 65000, 4000000000, 5));
+    println("narrow " + (narrow(300) as _int64));
+    println("shout " + shout("hello"));
+    println("shout empty [" + shout("") + "]");
+
+    numbers := new _int32[4];
+    for(i : _int64 = 0; i < 4; i++) { numbers[i] = (i + 1) * 10; }
+    println("sum " + sum(numbers));
+
+    decimals := new decimal[3];
+    decimals[0] = 1.5; decimals[1] = 2.5; decimals[2] = 4;
+    double_all(decimals);
+    println("double_all " + (decimals[0] as _int64) + " " + (decimals[1] as _int64) + " " + (decimals[2] as _int64));
+
+    made := range(5);
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < sizeof(made); i++) { total += made[i]; }
+    println("range " + sizeof(made) + " " + total);
+
+    try {
+        fail(3);
+        println("fail: no exception");
+    } catch(e: illegal_argument_exception) {
+        println("fail " + e.get_message());
+    }
+    try {
+        fail_unknown();
+        println("fail_unknown: no exception");
+    } catch(e: exception) {
+        println("fail_unknown " + e.get_message());
+    }
+
+    nothing();
+    println("nothing");
+
+    // a kept reference outlives the call that handed it over, through many collections
+    remember_one();
+    garbage := "";
+    for(i : _int64 = 0; i < 20000; i++) { garbage = "g" + i; }
+    println("churn " + churn(3000));
+    println("recall " + (recall() as string));
+    forget();
+
+    println("pick " + pick(1) + " " + pick(1.5));
+
+    c := new counter();
+    println("plus " + c.plus(5));
+    println("twice " + counter.twice(21));
+    println("version " + version());
+}

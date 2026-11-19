@@ -1,0 +1,76 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * radio - one choice out of several: a round dot with words next to it. Made
+ * with radio(...).
+ *
+ *      size := state(1);                       // which one is chosen
+ *
+ *      radio("Small",  size, 0);
+ *      radio("Medium", size, 1);
+ *      radio("Large",  size, 2);
+ *
+ * All the radios of one group share ONE state: each radio stands for a number
+ * (its last argument), shows itself chosen while the state holds that number,
+ * and a click writes its number into the state. There is no "radio group"
+ * object to create - the shared state IS the group, and reading it tells you
+ * the choice. (Compose: RadioButton(selected, onClick), with the selection
+ * hoisted the same way. Android: RadioGroup + RadioButton.)
+ */
+stable class radio base widget : behavior {
+    private words : string = "";
+    private bound : state<_int64>;
+    private mine : _int64 = 0;              // the number this radio stands for
+
+    private static const DOT : decimal = 20;
+
+    radio(caption: string, choice: state<_int64>, stands_for: _int64) {
+        attach(self);
+        words = caption;
+        bound = choice;
+        mine = stands_for;
+        me.on_click = { -> bound.value = mine; };
+    }
+
+    override def kind() : string { return "radio"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        host := ui_host.current!!;
+        f : font = host.font_of(host.look.text_size);
+        me.content_w = DOT + host.look.space + f.width_of(words);
+        me.content_h = num.larger(DOT, f.line_height);
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        f : font = host.font_of(t.text_size);
+
+        centre_x : decimal = me.inner_x() + DOT / 2;
+        centre_y : decimal = me.inner_y() + me.inner_h() / 2;
+        chosen : _int64 = 0;
+        if(bound.value == mine) { chosen = 1; }
+
+        ring : color = t.border;
+        if(chosen == 1) { ring = t.primary; }
+        else if(me.hovered == 1 && me.enabled == 1) { ring = t.primary; }
+        if(me.enabled == 0) { ring = t.surface_high; }
+
+        p.circle(centre_x, centre_y, DOT / 2, t.surface);
+        p.ring(centre_x, centre_y, DOT / 2, 1.5, ring);
+        if(chosen == 1) {
+            p.circle(centre_x, centre_y, DOT / 2 - 5, ring);
+        }
+
+        ink : color = t.text;
+        if(me.enabled == 0) { ink = t.text_dim; }
+        p.text(words, me.inner_x() + DOT + t.space, me.inner_y() + (me.inner_h() - f.line_height) / 2, f, ink);
+    }
+}

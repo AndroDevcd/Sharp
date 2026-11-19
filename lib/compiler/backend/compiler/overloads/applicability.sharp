@@ -1,0 +1,240 @@
+mod backend.compiler.overloads;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.inheritance,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * CAN THIS FUNCTION TAKE THESE ARGUMENTS?
+ *
+ * Step 2 of overload resolution (doc/backend.md 7.6): a candidate is
+ * APPLICABLE when it has as many parameters as there are arguments and every
+ * argument converts implicitly to its parameter - by any conversion of the
+ * table in 7.5.1, a construction through the parameter's class included
+ * (`takes_point(5)` builds a point when point has a constructor from a
+ * number).
+ *
+ *      def add(item: product, count: decimal)
+ *      add(new product(), 3)           applicable: product is product, _int32 becomes decimal
+ *      add("pen", 3)                   not: argument 1 is `_int8[]` but `product` is expected
+ *      add(new product())              not: takes 2 arguments, 1 was given
+ *
+ * The conversions found are kept on the candidate: ranking compares them,
+ * and the winner's are applied to the arguments.
+ *
+ * A lambda (or function name) that waits for its parameter fits a parameter of a function
+ * type with as many parameters as the lambda was written with.
+ *
+ *      C++ comparison: `function_parameters_match` in types/sharp_function.cpp.
+ */
+def fit_candidate(session: analysis_session, function: sharp_function, arguments: list<call_argument>,
+                  allow_construction: _int64) : call_candidate {
+    candidate := new call_candidate(function);
+    parameter_count : _int64 = function.parameters.size().value as _int64;
+    argument_count : _int64 = arguments.size().value as _int64;
+    if(parameter_count != argument_count) {
+        candidate.wrong_count = 1;
+        candidate.parameter_count = parameter_count;
+        candidate.argument_count = argument_count;
+        return candidate;
+    }
+
+    for(i : _int64 = 0; i < argument_count; i++) {
+        argument := arguments.at(i);
+        wanted : resolved_type = session.types.error_type;
+        parameter_type := function.parameters.at(i).value_type;
+        if(parameter_type != null) { wanted = parameter_type!!; }
+
+        if(argument.is_lambda == 1) {
+            if(!fits_lambda(candidate, argument, wanted, i)) { return candidate; }
+            candidate.conversions.add(session.after_an_error);
+            continue;
+        }
+
+        how := find_conversion(session, argument.value.type, wanted, allow_construction);
+        if(!how.converts()) {
+            // a function value whose parameters fit: its result is not compared (W1029 when bound)
+            loose := result_ignored_conversion(argument.value.type, wanted);
+            if(loose != null) {
+                candidate.conversions.add(loose!!);
+                continue;
+            }
+            candidate.failed_argument = i;
+            candidate.failed_how = how;
+            candidate.failed_parameter = function.parameters.at(i).name;
+            candidate.failed_is_text = argument.value.literal == LIT_TEXT;
+            return candidate;
+        }
+        candidate.conversions.add(how);
+    }
+    candidate.applicable = 1;
+    return candidate;
+}
+
+/**
+ * A lambda (or a function name) that waits for its parameter's type,
+ * against the parameter it would be given to. It fits a function type with
+ * as many parameters as it is written with, whose parameter types are the
+ * ones written (where any are). Its result is not compared: the C++ compiler
+ * compares only the parameters of a function passed as an argument (a
+ * different result is W1029 when the call is bound). A function name fits
+ * when one of its overloads has those parameters.
+ * The lambda's body is analysed only once the function is chosen.
+ */
+def fits_lambda(candidate: call_candidate, argument: call_argument, wanted: resolved_type, position: _int64) : _int64 {
+    if(wanted.kind == RT_ERROR || wanted.is_open_type == 1) { return 1; }
+    if(argument.request_node >= 0) { return fits_request(candidate, argument, wanted, position); }
+    if(wanted.kind != RT_FUNCTION || wanted.is_array == 1) {
+        candidate.failed_argument = position;
+        candidate.reason = "argument " + (position + 1) + " is " + argument.waiting_kind() + ", but `" + wanted.to_text() + "` is expected";
+        return 0;
+    }
+    if(argument.named != null) { return fits_function_name(candidate, argument, wanted, position); }
+
+    wanted_count : _int64 = wanted.parameters!!.size().value as _int64;
+    if(argument.lambda_parameters >= 0 && argument.lambda_parameters != wanted_count) {
+        candidate.failed_argument = position;
+        candidate.reason = "argument " + (position + 1) + " is a lambda with " + count_of(argument.lambda_parameters, "parameter")
+                           + ", but `" + wanted.to_text() + "` takes " + wanted_count;
+        return 0;
+    }
+    if(argument.lambda_parameters < 0 && wanted_count > 1) {
+        candidate.failed_argument = position;
+        candidate.reason = "argument " + (position + 1) + " is a lambda without `->`, which can take one value as `it`, but `"
+                           + wanted.to_text() + "` passes " + wanted_count;
+        return 0;
+    }
+    if(argument.lambda_parameter_types != null) {
+        written : list<resolved_type> = argument.lambda_parameter_types!!;
+        for(i : _int64 = 0; i < written.size() && i < wanted_count; i++) {
+            type := written.at(i);
+            if(type.kind == RT_ERROR) { continue; }
+            if(!same_or_nullable_of(type, wanted.parameters!!.at(i))) {
+                candidate.failed_argument = position;
+                candidate.reason = "argument " + (position + 1) + " is a lambda whose parameter " + (i + 1) + " is `" + type.to_text()
+                                   + "`, but `" + wanted.to_text() + "` passes a `" + wanted.parameters!!.at(i).to_text() + "`";
+                return 0;
+            }
+        }
+    }
+    candidate.waits_for_lambda = 1;
+    return 1;
+}
+
+/**
+ * A `get()` written in a component definition, which asks for the type of
+ * the parameter it is given to (`new worker(get())`): it fits a parameter
+ * whose type one of the definitions in reach provides. The types were
+ * gathered when the argument was read (components/get_expression.sharp,
+ * `describe_waiting_request`); `request_fits_any` means one of the
+ * definitions could not be asked yet (it is being analysed - the definition
+ * the call is written in always is): the argument is then let through, and
+ * the search made when the call is bound decides - and reports.
+ */
+def fits_request(candidate: call_candidate, argument: call_argument, wanted: resolved_type, position: _int64) : _int64 {
+    candidate.waits_for_lambda = 1;
+    provided : list<resolved_type> = argument.request_types!!;
+    for(i : _int64 = 0; i < provided.size(); i++) {
+        if(same_or_nullable_of(provided.at(i), wanted)) { return 1; }
+    }
+    if(argument.request_fits_any == 1) {
+        // nothing known provides it, but a definition that might is still unknown: a candidate
+        // let through like this loses to one whose `get()`s are all answered (ranking.sharp)
+        candidate.request_unsure = 1;
+        return 1;
+    }
+    candidate.failed_argument = position;
+    candidate.reason = "argument " + (position + 1) + " is a `get()`, but no component definition provides a `" + wanted.to_text() + "`";
+    return 0;
+}
+
+/** a function name passed as a value: does one of its overloads have exactly the type wanted? */
+def fits_function_name(candidate: call_candidate, argument: call_argument, wanted: resolved_type, position: _int64) : _int64 {
+    functions : list<sharp_function> = argument.named!!.candidates;
+    generic : _int64 = 0;
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        if(function.is_generic()) {
+            generic++;
+            continue;
+        }
+        if(function.result_type == null) { return 1; }      // `def f() := value;` not worked out yet: decided when it is
+        if(function.parameters.size() != wanted.parameters!!.size()) { continue; }
+        fits : _int64 = 1;
+        for(j : _int64 = 0; j < function.parameters.size() && fits == 1; j++) {
+            type := function.parameters.at(j).value_type;
+            if(type == null || !same_or_nullable_of(type!!, wanted.parameters!!.at(j))) { fits = 0; }
+        }
+        // whatever it returns: the C++ compiler compares only the parameters of an argument of a
+        // function type (W1029 when it is bound, when the result differs)
+        if(fits == 1) { return 1; }
+    }
+    candidate.failed_argument = position;
+    if(generic > 0 && generic == functions.size()) {
+        // `take(twice<int>)`: a generic function is no value (E0805, lambdas/function_references.sharp)
+        candidate.reason = "argument " + (position + 1) + " is the generic function `" + argument.named!!.name
+                           + "`, which cannot be passed as a value: pass a lambda that calls it, `{ x -> " + argument.named!!.name + "(x) }`";
+        return 0;
+    }
+    candidate.reason = "argument " + (position + 1) + " is the function `" + argument.named!!.name + "`, which has no overload of type `"
+                       + wanted.to_text() + "`";
+    return 0;
+}
+/** "argument 2 is `string` but `decimal` is expected", or the one thing in the way */
+def why_argument_does_not_fit(how: conversion, position: _int64, parameter: string, is_text_literal: _int64) : string {
+    which := "argument " + (position + 1);
+    if(how.problem == WHY_NULLABLE || how.only_nullable_in_the_way == 1) {
+        return which + " may be null (`" + how.from.to_text() + "`), but parameter `" + parameter + "` is " + a_type_word(how.to);
+    }
+    if(how.problem == WHY_NULL) {
+        return which + " is `null`, but parameter `" + parameter + "` is " + a_type_word(how.to) + ", which cannot be null";
+    }
+    if(how.problem == WHY_NO_VALUE) { return which + " has no value"; }
+    if(is_text_literal == 1) { return which + " is a text literal, but parameter `" + parameter + "` is " + a_type_word(how.to); }
+    return which + " is `" + how.from.to_text() + "`, but parameter `" + parameter + "` is " + a_type_word(how.to);
+}
+
+/** "1 argument", "3 arguments" */
+def count_of(count: _int64, word: string) : string {
+    if(count == 1) { return "1 " + word; }
+    return "" + count + " " + word + "s";
+}
+
+/** "1 was given", "2 were given" */
+def count_was(count: _int64, word: string) : string {
+    if(count == 1) { return "1 was " + word; }
+    return "" + count + " were " + word;
+}
+
+/**
+ * How many classes above `receiver` the function is declared: 0 in the class
+ * itself, 1 in its base class ... A function of an interface counts as far
+ * away. Used when two candidates are otherwise equally good: the one
+ * declared nearer the object's class wins (7.6 step 7b).
+ */
+def distance_of(prog: sharp_program, receiver: sharp_class?, function: sharp_function) : _int64 {
+    if(receiver == null || function.owner == null) { return 0; }
+    current : sharp_class? = receiver;
+    for(distance : _int64 = 0; current != null && distance < 256; distance++) {
+        if(current == function.owner) { return distance; }
+        current = real_base_of(prog, current!!);
+    }
+    return 1000;
+}
+
+/** "a `decimal`", "an `item`": a type named in a sentence, with the right article */
+def a_type_word(type: resolved_type) : string {
+    text := type.to_text();
+    if(text.starts_with("a") || text.starts_with("e") || text.starts_with("i") || text.starts_with("o") || text.starts_with("u")) {
+        return "an `" + text + "`";
+    }
+    return "a `" + text + "`";
+}

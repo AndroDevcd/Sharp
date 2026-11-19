@@ -1,0 +1,15 @@
+// expect: E0511
+// help: def operator+(b: v) : v { ... }
+// replace: def operator+(a: v, b: v) : v { return a; }
+// dots: return self;
+mod tests.helps;
+import (std, std.io);
+
+class v { def operator+(a: v, b: v) : v { return a; } }
+
+def main() {
+    a := new v();
+    b := new v();
+    c := a + b;
+    d := a + b;
+}

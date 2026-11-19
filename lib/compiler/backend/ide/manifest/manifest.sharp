@@ -1,0 +1,75 @@
+mod backend.ide.manifest;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.ide.diagnostics,
+    backend.ide.files,
+    backend.ide.output,
+    backend.types.program
+)
+
+/**
+ * THE MANIFEST: `ide.json`, WRITTEN LAST
+ *
+ * The one file the plugin looks for first. It says what the run covers (the
+ * level), which files there are and what each one looked like, and it is
+ * written AFTER every other file, so that a reader that finds it finds
+ * everything it names.
+ *
+ * The files of this package (module `backend.ide.manifest`):
+ *
+ *      manifest.sharp     this front door: `write_manifest`, the level words
+ *      file_entries.sharp one `files[]` entry: size, hash, module, imports, groups
+ *
+ * The levels (doc/ide.md 4.2):
+ *
+ *      syntax-errors   a file did not parse: diagnostics only, no index
+ *      declarations    the program parsed but no function body was analysed
+ *      full            function bodies were analysed (there may be errors in them)
+ */
+const LEVEL_SYNTAX_ERRORS : string = "syntax-errors";
+const LEVEL_DECLARATIONS : string = "declarations";
+const LEVEL_FULL : string = "full";
+
+/**
+ * @param prog        the analysed program; null at level `syntax-errors`
+ * @param shown       the diagnostics that were written (for the two counts)
+ * @param started_ms  the clock when the writing began (`written_in_ms`)
+ */
+def write_manifest(folder: string, run: string, level: string, files: ide_files, prog: sharp_program?,
+                   shown: list<diagnostic>, started_ms: _int64) {
+    w := new json_writer();
+    w.begin_object();
+    w.key(KEY_FORMAT);  w.number(1);
+    w.key(KEY_RUN);  w.text(run);
+    w.key(KEY_LEVEL);  w.text(level);
+
+    errors : _int64 = 0;
+    warnings : _int64 = 0;
+    // the counts are of what diagnostics.json holds: it stops at MOST_DIAGNOSTICS entries
+    for(i : _int64 = 0; i < shown.size() && i < MOST_DIAGNOSTICS; i++) {
+        if(shown.at(i).severity == SEVERITY_WARNING) { warnings++; } else { errors++; }
+    }
+    w.key(KEY_ERRORS);  w.number(errors);
+    w.key(KEY_WARNINGS);  w.number(warnings);
+    w.key(KEY_WRITTEN_IN_MS);  w.number(clock_ms() - started_ms);
+
+    w.key(KEY_DIAGNOSTICS);  w.text("diagnostics.json");
+    w.key(KEY_TYPES);
+    if(level == LEVEL_SYNTAX_ERRORS) { w.null_value(); } else { w.text("types.json"); }
+    w.key(KEY_DECLARATIONS);
+    if(level == LEVEL_SYNTAX_ERRORS) { w.null_value(); } else { w.text("declarations.json"); }
+
+    w.key(KEY_FILES);
+    w.begin_array();
+    for(i : _int64 = 0; i < files.count(); i++) {
+        w.line();
+        write_file_entry(w, files.at(i), prog);
+    }
+    w.line();
+    w.end_array();
+    w.end_object();
+
+    write_file_atomically(folder, "ide.json", w.build());
+}

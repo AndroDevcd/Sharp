@@ -1,0 +1,258 @@
+mod std.math;
+
+/**
+ * Whole number mathematics: divisors, primes, factorials, Fibonacci numbers.
+ *
+ * All functions work on native numbers that hold WHOLE values. A native
+ * number is a 64-bit float, so results are exact up to 2^53
+ * (MAX_SAFE_INTEGER = 9007199254740991); use big_integer for anything larger.
+ */
+
+/** true when the whole number n is divisible by 2 (also for negative n) */
+def is_even(n: decimal): bool {
+    return (n - 2 * floor_of(n / 2)) == 0;
+}
+
+/** true when the whole number n is not divisible by 2 (also for negative n) */
+def is_odd(n: decimal): bool {
+    return (n - 2 * floor_of(n / 2)) == 1;
+}
+
+/**
+ * Greatest common divisor: the largest whole number that divides both a and
+ * b. Signs are ignored and the result is never negative: gcd(12, 18) == 6,
+ * gcd(-12, 18) == 6, gcd(0, 5) == 5, gcd(0, 0) == 0.
+ *
+ * Algorithm: Euclid - replace (a, b) by (b, a mod b) until b is 0.
+ */
+def gcd(a: decimal, b: decimal): decimal {
+    x : decimal = absolute(a);
+    y : decimal = absolute(b);
+
+    while(y != 0) {
+        remainder : decimal = x - floor_of(x / y) * y;
+        x = y;
+        y = remainder;
+    }
+    return x;
+}
+
+/**
+ * Least common multiple: the smallest positive whole number that both a and
+ * b divide. lcm(4, 6) == 12; lcm(0, n) == 0.
+ *
+ * Formula: |a| / gcd(a, b) * |b| (dividing first keeps the intermediate
+ * value small).
+ */
+def lcm(a: decimal, b: decimal): decimal {
+    if(a == 0 || b == 0) return 0;
+    return absolute(a) / gcd(a, b) * absolute(b);
+}
+
+/**
+ * n! = 1 * 2 * ... * n, with 0! == 1.
+ * Exact up to 18! (6402373705728000); larger results are rounded to 53
+ * bits and 171! and above are infinity. Use big_integer.factorial() when
+ * every digit matters.
+ *
+ * Throws illegal_argument_exception when n is negative or not whole.
+ */
+def factorial(n: decimal): decimal {
+    if(n < 0 || floor_of(n) != n)
+        throw new illegal_argument_exception("factorial: n must be a whole number >= 0");
+
+    result : decimal = 1;
+    for(i : decimal = 2; i <= n; i++) {
+        result = result * i;
+    }
+    return result;
+}
+
+/**
+ * The binomial coefficient "n choose k": the number of ways to pick k items
+ * out of n when the order does not matter. binomial(5, 2) == 10,
+ * binomial(n, 0) == 1, and 0 when k > n.
+ *
+ * Algorithm: the product (n - k + 1) / 1 * (n - k + 2) / 2 * ... * n / k,
+ * where every partial product is itself a binomial coefficient and so the
+ * division is always exact.
+ *
+ * Throws illegal_argument_exception when n or k is negative.
+ */
+def binomial(n: decimal, k: decimal): decimal {
+    if(n < 0 || k < 0)
+        throw new illegal_argument_exception("binomial: n and k must be >= 0");
+    if(k > n) return 0;
+
+    count : decimal = k;
+    if(n - k < count) count = n - k;        // C(n, k) == C(n, n - k)
+
+    result : decimal = 1;
+    for(i : decimal = 1; i <= count; i++) {
+        result = result * (n - count + i) / i;
+    }
+    return result;
+}
+
+/**
+ * The number of ways to pick k items out of n when the order DOES matter:
+ * n * (n - 1) * ... * (n - k + 1). permutations(5, 2) == 20; 0 when k > n.
+ *
+ * Throws illegal_argument_exception when n or k is negative.
+ */
+def permutations(n: decimal, k: decimal): decimal {
+    if(n < 0 || k < 0)
+        throw new illegal_argument_exception("permutations: n and k must be >= 0");
+    if(k > n) return 0;
+
+    result : decimal = 1;
+    for(i : decimal = 0; i < k; i++) {
+        result = result * (n - i);
+    }
+    return result;
+}
+
+/**
+ * True when n is a prime number (a whole number > 1 whose only divisors are
+ * 1 and itself). 0, 1, negative numbers and fractions are not prime.
+ *
+ * Algorithm: trial division. After 2 and 3 every prime has the form
+ * 6k - 1 or 6k + 1, so only those candidates up to sqrt(n) are tried:
+ * O(sqrt(n)) steps, fine up to about 10^12.
+ */
+def is_prime(n: decimal): bool {
+    if(n < 2 || floor_of(n) != n) return false;
+    if(n < 4) return true;                      // 2 and 3
+    if((n % 2) == 0 || (n % 3) == 0) return false;
+
+    for(i : decimal = 5; i * i <= n; i += 6) {
+        if((n % i) == 0 || (n % (i + 2)) == 0) return false;
+    }
+    return true;
+}
+
+/** the smallest prime that is greater than n: next_prime(7) == 11, next_prime(-5) == 2 */
+def next_prime(n: decimal): decimal {
+    candidate : decimal = floor_of(n) + 1;
+    if(candidate < 2) candidate = 2;
+
+    while(!is_prime(candidate)) {
+        candidate++;
+    }
+    return candidate;
+}
+
+/**
+ * The prime factors of n in rising order, repeated as often as they divide
+ * n: prime_factors(360) is { 2, 2, 2, 3, 3, 5 }. A prime gives an array
+ * holding just itself; 1 gives an empty array.
+ *
+ * Throws illegal_argument_exception when n is < 1 or not whole.
+ */
+def prime_factors(n: decimal): decimal[] {
+    if(n < 1 || floor_of(n) != n)
+        throw new illegal_argument_exception("prime_factors: n must be a whole number >= 1");
+
+    // a number below 2^53 has at most 52 prime factors
+    found := new decimal[53];
+    count : decimal = 0;
+    remaining : decimal = n;
+
+    for(divisor : decimal = 2; divisor * divisor <= remaining; divisor++) {
+        while((remaining % divisor) == 0) {
+            found[count++] = divisor;
+            remaining = remaining / divisor;
+        }
+    }
+    if(remaining > 1) {
+        found[count++] = remaining;
+    }
+
+    result := new decimal[count];
+    for(i : decimal = 0; i < count; i++) {
+        result[i] = found[i];
+    }
+    return result;
+}
+
+/**
+ * The n-th Fibonacci number, counting from fibonacci(0) == 0 and
+ * fibonacci(1) == 1: 0, 1, 1, 2, 3, 5, 8, 13 ... Exact up to
+ * fibonacci(78) == 8944394323791464.
+ *
+ * Algorithm: a loop that keeps the last two numbers (no recursion).
+ * Throws illegal_argument_exception when n is negative or not whole.
+ */
+def fibonacci(n: decimal): decimal {
+    if(n < 0 || floor_of(n) != n)
+        throw new illegal_argument_exception("fibonacci: n must be a whole number >= 0");
+
+    previous : decimal = 0;
+    current : decimal = 1;
+    if(n == 0) return 0;
+
+    for(i : decimal = 1; i < n; i++) {
+        following : decimal = previous + current;
+        previous = current;
+        current = following;
+    }
+    return current;
+}
+
+/**
+ * (base ^ exponent) mod modulus without ever forming the huge power:
+ * mod_pow(4, 13, 497) == 445. The result is in 0 .. modulus - 1.
+ *
+ * Algorithm: square-and-multiply, reducing after every multiplication.
+ * Every product of two reduced values must stay exact, which limits the
+ * modulus to 94906265 (just under 2^26.5, so products stay below 2^53).
+ *
+ * Throws illegal_argument_exception when exponent is negative, or modulus
+ * is < 1 or above that limit.
+ */
+def mod_pow(base_value: decimal, exponent: decimal, modulus: decimal): decimal {
+    if(exponent < 0)
+        throw new illegal_argument_exception("mod_pow: the exponent must be >= 0");
+    if(modulus < 1 || modulus > 94906265)
+        throw new illegal_argument_exception("mod_pow: the modulus must be in 1 .. 94906265");
+
+    result : decimal = 1 % modulus;
+    factor : decimal = base_value - floor_of(base_value / modulus) * modulus;
+    remaining : decimal = exponent;
+
+    while(remaining > 0) {
+        if((remaining % 2) == 1) {
+            result = (result * factor) % modulus;
+        }
+        factor = (factor * factor) % modulus;
+        remaining = floor_of(remaining / 2);
+    }
+    return result;
+}
+
+/**
+ * How many decimal digits the whole part of n has, ignoring the sign:
+ * digit_count(0) == 1, digit_count(999) == 3, digit_count(-1000) == 4.
+ */
+def digit_count(n: decimal): decimal {
+    remaining : decimal = floor_of(absolute(n));
+    count : decimal = 1;
+
+    while(remaining >= 10) {
+        remaining = floor_of(remaining / 10);
+        count++;
+    }
+    return count;
+}
+
+/** the sum of the decimal digits of the whole part of n, ignoring the sign: digit_sum(1234) == 10 */
+def digit_sum(n: decimal): decimal {
+    remaining : decimal = floor_of(absolute(n));
+    total : decimal = 0;
+
+    while(remaining > 0) {
+        total += remaining % 10;
+        remaining = floor_of(remaining / 10);
+    }
+    return total;
+}

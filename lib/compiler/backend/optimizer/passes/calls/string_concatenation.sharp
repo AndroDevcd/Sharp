@@ -1,0 +1,271 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * STRING CONCATENATION FLATTENING: `a + b + c + d` builds ONE string
+ *
+ * `+` on strings is a function of the library, `string.operator+`, and each
+ * one makes a new string: a copy of everything so far, with the next piece
+ * appended. So `a + b + c + d` - and a string template, which is the same
+ * thing written differently - makes three strings and copies the text of
+ * `a` three times, although only the last string is ever seen:
+ *
+ *      call %3, std#string.operator+(%0, %1)       t1 = copy of a, with b        (needed: a must stay as it is)
+ *      call %3, std#string.operator+(%3, %2)       t2 = copy of t1, with c       <- t1 is never used again
+ *      call %3, std#string.operator+(%3, %4)       t3 = copy of t2, with d       <- t2 is never used again
+ *
+ * A temporary that nobody else can see need not be copied: the next piece
+ * can be appended to it directly. For that every `operator+` gets a TWIN
+ * that does exactly what it does, except that it works on its own object
+ * instead of on a copy of it, and the calls whose left side is such a
+ * temporary go to the twin:
+ *
+ *      call %3, std#string.operator+(%0, %1)           t = copy of a, with b
+ *      call %3, std#string.operator+$append(%3, %2)    c appended to t
+ *      call %3, std#string.operator+$append(%3, %4)    d appended to t
+ *
+ * One string and one copy of `a`, however long the chain is.
+ *
+ * THE TWIN is made from the code of `operator+` itself, not written by
+ * hand, so whatever an overload does with its right side - turn a number
+ * into text, write "null" for null - the twin does too. Every overload of
+ * the library either begins by copying itself,
+ *
+ *      new_object %s, std#string
+ *      get_field  %d, %0.std#string.data
+ *      call       -, std#string.string(%s, %d)         s := new string(data)
+ *
+ * which in the twin is `copy %s, %0` (s := self), or hands on to another
+ * overload (`operator+(n: _int64)` is `operator+(new long(n).to_string())`),
+ * which in the twin hands on to THAT overload's twin. An overload that does
+ * neither gets no twin, and calls of it stay as they are.
+ *
+ * WHEN A CALL MAY GO TO THE TWIN. Its left side, the slot %t, must hold a
+ * string that this expression made and that is used for nothing else:
+ *
+ *   - the last instruction before the call that has to do with %t, in the
+ *     same block, is a call of a `string.operator+` that wrote it (which
+ *     always gives a new string), or the constructor call of a
+ *     `new_object std#string` just made into it (`"text" + x` starts so);
+ *   - after the call nobody reads %t before it is written again (liveness).
+ *
+ * `s + x` with a variable `s` is never changed: the variable must keep its
+ * text.
+ *
+ * WHEN IT RUNS. First of all, on the code as it was generated: the twin is
+ * cut from the generator's own pattern, which the other passes would take
+ * apart. The twins are functions like any other from then on.
+ *
+ *      C++ comparison: the C++ optimizer has no such pass. javac turns
+ *      `a + b + c` into one StringBuilder chain for the same reason, and
+ *      Java 9 into one call that sizes the result first (JEP 280).
+ */
+
+/** what the pass did */
+class concatenation_result {
+    sites : _int64 = 0;                             // calls that now append in place
+    twins : list<function_layout>;                  // the functions added
+
+    concatenation_result() {
+        twins = new list<function_layout>();
+    }
+}
+
+/** the twins of the `operator+` overloads, made when first asked for */
+class append_twins {
+    layout : program_layout;
+    twin_of : _int64[];             // per function address: -1 not asked, -2 has none, else the twin's address
+    is_append : _int64[];           // per function address: 1 for a `string.operator+` (and for a twin)
+    made : list<function_layout>;
+    known : _int64 = 0;             // how many functions the tables cover (the twins come after)
+
+    append_twins(layout: program_layout) {
+        self->layout = layout;
+        made = new list<function_layout>();
+        known = layout.functions.size().value as _int64;
+        twin_of = new _int64[known + 1];
+        is_append = new _int64[known + 1];
+        for(f : _int64 = 0; f < known; f++) {
+            twin_of[f] = 0 - 1;
+            function := layout.functions.at(f);
+            if(function.name == "operator+" && function.owner.full_name == "std#string" && function.is_static == 0) { is_append[f] = 1; }
+        }
+    }
+
+    /** is the function at this address a `string.operator+` (every one of which returns a string nobody else holds)? */
+    def gives_a_new_string(address: _int64) : _int64 {
+        if(address < 0) { return 0; }
+        if(address >= known) { return 1; }          // (behind the tables: a twin)
+        return is_append[address];
+    }
+
+    /** the twin of the `operator+` at this address, or null when it cannot have one */
+    def twin(address: _int64, depth: _int64) : function_layout? {
+        if(address < 0 || address >= known || is_append[address] == 0) { return null; }
+        if(twin_of[address] == 0 - 2) { return null; }
+        if(twin_of[address] >= 0) { return layout.functions.at(twin_of[address]); }
+        twin_of[address] = 0 - 2;                   // (until it is made: an overload that hands on to itself has none)
+        original := layout.functions.at(address);
+        if(original.ir == null || depth > 8 || !can_be_optimized(original.ir!!)) { return null; }
+        code := appending_code(original.ir!!, original.full_name + "$$append", depth);
+        if(code == null) { return null; }
+        added := add_copy_of_function(layout, original, original.name + "$$append", original.of.result_type);
+        added.ir = code;
+        twin_of[address] = added.address;
+        made.add(added);
+        return added;
+    }
+
+    /**
+     * The code of the twin: the original's, working on its own object. Null
+     * when the original neither copies itself the way the generator writes
+     * `s := new string(data)` nor hands on to another overload.
+     */
+    def appending_code(original: ir_function, name: string, depth: _int64) : ir_function? {
+        code := new ir_function(name);
+        code.slot_kinds.add_all(original.slot_kinds);
+        code.fixed_slots = original.fixed_slots;
+        code.label_count = original.label_count;
+        total : _int64 = original.instructions.size().value as _int64;
+        changed : _int64 = 0;
+        for(i : _int64 = 0; i < total; i++) {
+            at := original.instructions.at(i);
+            if(slot_written(at) == 0) { return null; }             // (`self` given another value: not a body to reason about)
+            // ---- s := new string(data)   ->   s := self
+            if(at.kind == IR_NEW_OBJECT && i + 2 < total && is_string_class(at.declaration)) {
+                read := original.instructions.at(i + 1);
+                build := original.instructions.at(i + 2);
+                if(read.kind == IR_GET_FIELD && read.first == 0 && read.declaration != null && read.declaration!!.name == "data"
+                   && build.kind == IR_CALL && build.number == CALL_HOW_DIRECT && build.target < 0 && build.arguments != null
+                   && build.arguments!!.count == 2 && build.arguments!!.at(0) == at.target && build.arguments!!.at(1) == read.target
+                   && is_string_constructor(build.declaration)) {
+                    same := new ir_instruction(IR_COPY);
+                    same.target = at.target;
+                    same.first = 0;
+                    code.instructions.add(same);
+                    changed++;
+                    i = i + 2;
+                    continue;
+                }
+            }
+            copied := copy_of_instruction(at);
+            // ---- operator+(self, x)   ->   the twin of that overload
+            if(at.kind == IR_CALL && at.number == CALL_HOW_DIRECT && at.declaration != null && at.arguments != null
+               && at.arguments!!.count > 0 && at.arguments!!.at(0) == 0 && at.declaration!!.address >= 0
+               && at.declaration!!.address < known && is_append[at.declaration!!.address] == 1) {
+                inner := twin(at.declaration!!.address, depth + 1);
+                if(inner == null) { return null; }
+                copied.declaration = inner!!.of;
+                changed++;
+            }
+            code.instructions.add(copied);
+        }
+        if(changed == 0) { return null; }
+        return code;
+    }
+
+    def is_string_class(declared: sharp_declaration?) : _int64 {
+        if(declared == null || declared!!.address < 0 || declared!!.address >= layout.classes.size()) { return 0; }
+        if(layout.classes.at(declared!!.address).full_name == "std#string") { return 1; }
+        return 0;
+    }
+
+    def is_string_constructor(declared: sharp_declaration?) : _int64 {
+        if(declared == null || declared!!.address < 0 || declared!!.address >= layout.functions.size()) { return 0; }
+        function := layout.functions.at(declared!!.address);
+        if(function.kind == FUNCTION_CONSTRUCTOR && function.owner.full_name == "std#string") { return 1; }
+        return 0;
+    }
+}
+
+/**
+ * Every `string.operator+` call whose left side is a temporary string of
+ * the same expression goes to the appending twin of its overload. `chosen`
+ * are the functions the optimizer works on; the twins are added to it (and
+ * looked through themselves, as the list grows).
+ */
+def flatten_string_concatenation(layout: program_layout, chosen: list<function_layout>) : concatenation_result {
+    result := new concatenation_result();
+    twins := new append_twins(layout);
+    added : _int64 = 0;                         // how many of twins.made are in `chosen` already
+    for(c : _int64 = 0; c < chosen.size(); c++) {
+        code : ir_function = chosen.at(c).ir!!;
+        total : _int64 = code.instructions.size().value as _int64;
+        graph : flow_graph? = null;
+        live : liveness? = null;
+        for(i : _int64 = 0; i < total; i++) {
+            call := code.instructions.at(i);
+            if(call.kind != IR_CALL || call.number != CALL_HOW_DIRECT || call.declaration == null || call.arguments == null) { continue; }
+            address : _int64 = call.declaration!!.address;
+            if(address < 0 || address >= twins.known || twins.is_append[address] == 0 || call.arguments!!.count < 1) { continue; }
+            left : _int64 = call.arguments!!.at(0);
+            if(times_read(call, left) != 1) { continue; }
+            if(graph == null) {
+                graph = build_flow_graph(code);
+                live = compute_liveness(graph!!);
+            }
+            if(!is_fresh_string(code, graph!!, twins, i, left) || read_afterwards(code, graph!!, live!!, i, left)) { continue; }
+            twin := twins.twin(address, 0);
+            if(twin == null) { continue; }
+            call.declaration = twin!!.of;
+            result.sites++;
+        }
+        // the twins made so far join the list (their own chains are looked at when the loop reaches them)
+        while(added < twins.made.size()) {
+            if(can_be_optimized(twins.made.at(added).ir!!)) { chosen.add(twins.made.at(added)); }
+            result.twins.add(twins.made.at(added));
+            added++;
+        }
+    }
+    return result;
+}
+
+/**
+ * Is the string in `slot`, as the call at `at` reads it, one this expression
+ * made: going back through the block, the first instruction that has to do
+ * with the slot is an `operator+` call that wrote it, or the constructor
+ * call of a `new_object std#string` made into it?
+ */
+def is_fresh_string(code: ir_function, graph: flow_graph, twins: append_twins, at: _int64, slot: _int64) : _int64 {
+    built : _int64 = 0;                         // 1: the constructor call was passed; the `new_object` must come next
+    for(i : _int64 = at - 1; i >= graph.starts[graph.block_of[at]]; i--) {
+        made := code.instructions.at(i);
+        writes : _int64 = slot_written(made) == slot;
+        reads : _int64 = reads_slot(made, slot);
+        if(!writes && !reads) { continue; }
+        if(built == 1) {
+            return writes && !reads && made.kind == IR_NEW_OBJECT && twins.is_string_class(made.declaration);
+        }
+        if(writes) {
+            return made.kind == IR_CALL && made.number == CALL_HOW_DIRECT && made.declaration != null
+                   && twins.gives_a_new_string(made.declaration!!.address);
+        }
+        // only read: the constructor call of the object, nothing else
+        if(made.kind != IR_CALL || made.number != CALL_HOW_DIRECT || made.target >= 0 || made.arguments == null
+           || made.arguments!!.count < 1 || made.arguments!!.at(0) != slot || times_read(made, slot) != 1
+           || !twins.is_string_constructor(made.declaration)) {
+            return 0;
+        }
+        built = 1;
+    }
+    return 0;
+}
+
+/** does anybody read `slot` after the instruction at `at` (which may write it itself) before it is written again? */
+def read_afterwards(code: ir_function, graph: flow_graph, live: liveness, at: _int64, slot: _int64) : _int64 {
+    if(slot_written(code.instructions.at(at)) == slot) { return 0; }
+    block : _int64 = graph.block_of[at];
+    for(i : _int64 = at + 1; i < graph.ends[block]; i++) {
+        made := code.instructions.at(i);
+        if(reads_slot(made, slot)) { return 1; }
+        if(slot_written(made) == slot) { return 0; }
+    }
+    return slot < live.slots && live.out_of(block).has(slot);
+}

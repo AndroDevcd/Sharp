@@ -1,0 +1,584 @@
+mod frontend.lexer;
+
+import (
+    std.io
+)
+
+/**
+ * THE TOKENIZER OF THE SELF-HOSTED COMPILER
+ *
+ * Turns the characters of one source file into tokens: scan(source).
+ *
+ * It replaces frontend/tokenizer (kept until the parser is moved over; that
+ * one makes an object and a copied string for every token and leaves the
+ * keywords to the parser). Measured on the whole standard library, 1.86 MB
+ * in 270 files, with the JIT:
+ *
+ *      frontend/tokenizer      2.3 MB per second, and it rejects 98 of the
+ *                              270 files (it predates `!!` and other syntax)
+ *      this one                69 MB per second, no file rejected
+ *
+ * Try it:  sharpc -lexstats file.sharp ...
+ *
+ * THE DESIGN
+ *
+ *   1. A token is three numbers, not an object:
+ *          kinds[i]    what it is (identifier, `+=`, the keyword `class`, ...)
+ *          starts[i]   where its first character is in the source
+ *          ends[i]     one past its last character
+ *      The text of a token is NOT copied. Whoever needs it (an identifier's
+ *      name, a literal's value) reads source[starts[i] .. ends[i]) when it
+ *      needs it. Most tokens - punctuation and keywords - never need it.
+ *
+ *      C++ comparison: std::vector<Token> where Token is { kind, start, end },
+ *      stored as three parallel vectors, instead of a vector of pointers to
+ *      heap objects that each own a std::string.
+ *
+ *   2. One table lookup says what a character can start (letter, digit,
+ *      space, quote, punctuation) instead of a chain of comparisons.
+ *
+ *   3. Keywords are recognised HERE, once, by hashing the identifier's
+ *      characters while they are scanned. The parser then compares small
+ *      numbers (kind == K_CLASS) instead of strings (text == "class").
+ *
+ *   4. Lines are not split up front. `line_starts` remembers where each line
+ *      begins; the line and column of a token are worked out from its start
+ *      position only when an error message needs them.
+ */
+
+// ---- token kinds ---------------------------------------------------------
+const T_EOF        : _int64 = 0;
+const T_IDENTIFIER : _int64 = 1;
+const T_INTEGER    : _int64 = 2;
+const T_DECIMAL    : _int64 = 3;
+const T_HEX        : _int64 = 4;
+const T_STRING     : _int64 = 5;
+const T_CHAR       : _int64 = 6;
+const T_ERROR      : _int64 = 7;
+
+// A string with something to work out inside it - "total: ${a + b} $unit" - is
+// not one token. The text pieces are tokens and what stands between them is
+// ordinary code, tokenized like any other code:
+//
+//      "total: ${a + b} $unit"
+//
+//      T_STRING_BEGIN      "total:           (the opening quote up to the $)
+//      P_INTERP_OPEN       ${
+//      a  +  b             three ordinary tokens
+//      P_INTERP_CLOSE      }
+//      T_STRING_MIDDLE     (one space)
+//      T_IDENTIFIER        unit              ($name: one identifier, the $ belongs to no token)
+//      T_STRING_END        "                 (up to and including the closing quote)
+//
+// There is always a piece between two interpolations and at both ends, even
+// when it is empty ("$a$b"), so the parser can simply alternate.
+// A string with no interpolation stays one T_STRING token.
+const T_STRING_BEGIN  : _int64 = 65;
+const T_STRING_MIDDLE : _int64 = 66;
+const T_STRING_END    : _int64 = 67;
+const P_INTERP_OPEN   : _int64 = 68;   // ${
+const P_INTERP_CLOSE  : _int64 = 69;   // the } that ends a ${
+const T_PUNCT      : _int64 = 10;   // 10 .. 79: punctuation, see punctuation_kind()
+const T_KEYWORD    : _int64 = 80;   // 80 ..   : keywords, in the order of keyword_list()
+
+// ---- character classes ---------------------------------------------------
+const C_OTHER   : _int64 = 0;
+const C_SPACE   : _int64 = 1;
+const C_NEWLINE : _int64 = 2;
+const C_LETTER  : _int64 = 3;       // a-z A-Z _
+const C_DIGIT   : _int64 = 4;
+const C_PUNCT   : _int64 = 5;
+const C_STRING  : _int64 = 6;       // "
+const C_CHAR    : _int64 = 7;       // '
+
+/** what the tokenizer produces for one source file */
+class token_table {
+    kinds  : _uint8[]?;
+    starts : _int32[]?;
+    ends   : _int32[]?;
+    count  : _int64 = 0;
+
+    line_starts : _int32[]?;        // line_starts[n] = position of the first character of line n + 1
+    line_count  : _int64 = 0;
+    error_count : _int64 = 0;
+}
+
+class lexer_tables {
+    classes : _int8[]?;             // character -> C_...
+    one_char  : _uint8[]?;            // punctuation character -> its one-character token kind
+
+    // keywords: an open addressing hash table of 256 slots
+    keyword_hash : _int32[]?;       // 0 = empty slot
+    keyword_kind : _uint8[]?;
+    keyword_text : string[]?;
+}
+
+tables : lexer_tables? = null;
+
+def keyword_list() : string[] {
+    return { "mod", "true", "false", "class", "static", "protected", "private", "def",
+             "import", "return", "self", "const", "public", "new", "excuse", "null",
+             "operator", "base", "if", "while", "do", "try", "catch", "finally", "throw",
+             "continue", "goto", "break", "else", "object", "asm", "for", "foreach",
+             "decimal", "sizeof", "_int8", "_int16", "_int32", "_int64", "_uint8",
+             "_uint16", "_uint32", "_uint64", "interface", "lock", "enum", "when",
+             "local", "native", "localized", "nil", "ext", "stable", "mutate", "init",
+             "get", "set", "alias", "as", "in", "override", "obfuscate", "is", "inject",
+             "component", "single", "factory", "bool" };
+}
+
+/** the hash the scanner computes over an identifier: h = h * 31 + c, kept in 31 bits, never 0 */
+def hash_of(text: _int8[]) : _int64 {
+    h : _int64 = 0;
+    n : _int64 = sizeof(text);
+    for(i : _int64 = 0; i < n; i++) {
+        h = (h * 31 + text[i]) & 2147483647;
+    }
+    if(h == 0) { h = 1; }
+    return h;
+}
+
+def build_tables() : lexer_tables {
+    t := new lexer_tables();
+
+    classes := new _int8[256];
+    for(c : _int64 = 0; c < 256; c++) { classes[c] = C_OTHER; }
+    for(c : _int64 = 'a'; c <= 'z'; c++) { classes[c] = C_LETTER; }
+    for(c : _int64 = 'A'; c <= 'Z'; c++) { classes[c] = C_LETTER; }
+    for(c : _int64 = '0'; c <= '9'; c++) { classes[c] = C_DIGIT; }
+    classes['_'] = C_LETTER;
+    classes[' '] = C_SPACE;
+    classes['\t'] = C_SPACE;
+    classes['\r'] = C_SPACE;
+    classes[11] = C_SPACE;
+    classes[8] = C_SPACE;
+    classes['\n'] = C_NEWLINE;
+    classes['"'] = C_STRING;
+    classes['\''] = C_CHAR;
+
+    // one-character tokens: kind = T_PUNCT + position in this text
+    one_char := new _uint8[256];
+    marks : string = "(){}[]#.+-*/%:;,<>=&|^!?$@";
+    for(i : _int64 = 0; i < sizeof(marks.data); i++) {
+        c : _int64 = marks.data[i];
+        classes[c] = C_PUNCT;
+        one_char[c] = T_PUNCT + i;
+    }
+    t.classes = classes;
+    t.one_char = one_char;
+
+    hashes := new _int32[256];
+    kinds := new _uint8[256];
+    texts := new string[256];
+    words := keyword_list();
+    for(i : _int64 = 0; i < sizeof(words); i++) {
+        h : _int64 = hash_of(words[i].data!!);
+        slot : _int64 = h & 255;
+        while(hashes[slot] != 0) { slot = (slot + 1) & 255; }
+        hashes[slot] = h;
+        kinds[slot] = T_KEYWORD + i;
+        texts[slot] = words[i];
+    }
+    t.keyword_hash = hashes;
+    t.keyword_kind = kinds;
+    t.keyword_text = texts;
+    return t;
+}
+
+// two- and three-character punctuation: kinds after the one-character ones
+const P_SAFE_DOT  : _int64 = 40;    // ?.
+const P_FORCE_DOT : _int64 = 41;    // !!.
+const P_EXPONENT  : _int64 = 42;    // **
+const P_LTE       : _int64 = 43;    // <=
+const P_GTE       : _int64 = 44;    // >=
+const P_EQEQ      : _int64 = 45;    // ==
+const P_ELVIS     : _int64 = 46;    // ?:
+const P_PLUSEQ    : _int64 = 47;    // +=
+const P_MINUSEQ   : _int64 = 48;    // -=
+const P_MULTEQ    : _int64 = 49;    // *=
+const P_DIVEQ     : _int64 = 50;    // /=
+const P_ANDEQ     : _int64 = 51;    // &=
+const P_OREQ      : _int64 = 52;    // |=
+const P_XOREQ     : _int64 = 53;    // ^=
+const P_MODEQ     : _int64 = 54;    // %=
+const P_NOTEQ     : _int64 = 55;    // !=
+const P_SHL       : _int64 = 56;    // <<
+const P_SHR       : _int64 = 57;    // >>
+const P_ANDAND    : _int64 = 58;    // &&
+const P_OROR      : _int64 = 59;    // ||
+const P_INFER     : _int64 = 60;    // :=
+const P_ARROW     : _int64 = 61;    // ->
+const P_INC       : _int64 = 62;    // ++
+const P_DEC       : _int64 = 63;    // --
+const P_FORCE     : _int64 = 64;    // !!
+
+/**
+ * Turn the characters of one file into tokens.
+ *
+ * Everything the loop touches is a local: the source, the tables, the three
+ * token arrays and their fill count. Nothing is allocated per token.
+ */
+def scan(source: _int8[]) : token_table {
+    if(tables == null) { tables = build_tables(); }
+    t : lexer_tables = tables!!;
+    classes : _int8[] = t.classes!!;
+    one_char : _uint8[] = t.one_char!!;
+    keyword_hash : _int32[] = t.keyword_hash!!;
+    keyword_kind : _uint8[] = t.keyword_kind!!;
+    keyword_text : string[] = t.keyword_text!!;
+
+    n : _int64 = sizeof(source);
+    capacity : _int64 = n / 4 + 16;
+    kinds := new _uint8[capacity];
+    starts := new _int32[capacity];
+    ends := new _int32[capacity];
+    count : _int64 = 0;
+
+    line_capacity : _int64 = n / 24 + 16;
+    line_starts := new _int32[line_capacity];
+    line_count : _int64 = 1;        // line 1 starts at 0
+    errors : _int64 = 0;
+
+    // ---- strings with interpolation (see T_STRING_BEGIN)
+    // string_resume: 1 right after a $name or the } of a ${ }: the characters
+    //                at i are string text again, not code.
+    // interp_depths: one entry per ${ that is open. Inside it braces are
+    //                counted, so that a } of the code - a lambda, a block -
+    //                is not taken for the one that ends the interpolation.
+    //                A stack, because a string inside ${ } can have its own ${ }.
+    string_resume : _int64 = 0;
+    interp_depths := new _int64[32];
+    interp_top : _int64 = 0;
+
+    i : _int64 = 0;
+    while(i < n) {
+        c : _int64 = source[i];
+        cls : _int64 = C_OTHER;
+        if(c >= 0) { cls = classes[c]; }
+
+        if(string_resume == 0 && cls == C_SPACE) {
+            i++;
+            continue;
+        }
+
+        if(string_resume == 0 && cls == C_NEWLINE) {
+            if(interp_top > 0) {
+                // The line ends inside "... ${ ...": the string cannot be
+                // finished any more. An error token marks the place, and the
+                // next line is ordinary code again - one mistake must not
+                // turn the rest of the file into "the inside of a string".
+                interp_top = 0;
+                errors++;
+                kinds[count] = T_ERROR;
+                starts[count] = i;
+                ends[count] = i;
+                count++;
+            }
+            i++;
+            if(line_count == line_capacity) {
+                bigger := new _int32[line_capacity * 2];
+                memcopy(line_starts, bigger, 0, 0, line_count);
+                line_starts = bigger;
+                line_capacity = line_capacity * 2;
+            }
+            line_starts[line_count] = i;
+            line_count++;
+            continue;
+        }
+
+        start : _int64 = i;
+        kind : _int64 = T_ERROR;
+
+        if(string_resume == 0 && cls == C_LETTER) {
+            // an identifier or a keyword; the hash is built on the way
+            h : _int64 = 0;
+            more : _int64 = 1;
+            while(more == 1) {
+                h = (h * 31 + c) & 2147483647;
+                i++;
+                if(i < n) {
+                    c = source[i];
+                    if(c < 0 || (classes[c] != C_LETTER && classes[c] != C_DIGIT)) { more = 0; }
+                } else {
+                    more = 0;
+                }
+            }
+            if(h == 0) { h = 1; }
+
+            kind = T_IDENTIFIER;
+            slot : _int64 = h & 255;
+            while(keyword_hash[slot] != 0 && kind == T_IDENTIFIER) {
+                if(keyword_hash[slot] == h) {
+                    // same hash: the characters decide
+                    word : _int8[] = keyword_text[slot].data!!;
+                    length : _int64 = sizeof(word);
+                    if(length == i - start) {
+                        same : _int64 = 1;
+                        for(k : _int64 = 0; k < length && same == 1; k++) {
+                            if(word[k] != source[start + k]) { same = 0; }
+                        }
+                        if(same == 1) { kind = keyword_kind[slot]; }
+                    }
+                }
+                slot = (slot + 1) & 255;
+            }
+        } else if(string_resume == 0 && cls == C_DIGIT) {
+            kind = T_INTEGER;
+            i++;
+            if(c == '0' && i < n && (source[i] == 'x' || source[i] == 'X')) {
+                kind = T_HEX;
+                i++;
+                hex : _int64 = 1;
+                while(i < n && hex == 1) {
+                    c = source[i];
+                    if((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '_') { i++; }
+                    else { hex = 0; }
+                }
+            } else {
+                while(i < n && ((source[i] >= '0' && source[i] <= '9') || source[i] == '_')) { i++; }
+                // a fraction: a `.` that a digit follows (so `5.to_string()` stays a call)
+                if(i + 1 < n && source[i] == '.' && source[i + 1] >= '0' && source[i + 1] <= '9') {
+                    kind = T_DECIMAL;
+                    i++;
+                    while(i < n && ((source[i] >= '0' && source[i] <= '9') || source[i] == '_')) { i++; }
+                }
+                if(i < n && (source[i] == 'e' || source[i] == 'E')) {
+                    j : _int64 = i + 1;
+                    if(j < n && (source[j] == '+' || source[j] == '-')) { j++; }
+                    if(j < n && source[j] >= '0' && source[j] <= '9') {
+                        kind = T_DECIMAL;
+                        i = j;
+                        while(i < n && source[i] >= '0' && source[i] <= '9') { i++; }
+                    }
+                }
+            }
+        } else if(string_resume == 1 || cls == C_STRING) {
+            // The text of a string: from its opening quote, or going on after
+            // an interpolation. It ends at the closing quote, or stops at the
+            // next $name / ${ and hands over to ordinary tokenizing.
+            first_piece : _int64 = 1;
+            if(string_resume == 1) {
+                first_piece = 0;
+                string_resume = 0;
+            } else {
+                i++;                            // the opening quote
+            }
+
+            scanning : _int64 = 1;
+            while(scanning == 1) {
+                if(i >= n || source[i] == '\n') {
+                    // a string ends on the line it starts on: this one does not
+                    kind = T_ERROR;
+                    errors++;
+                    scanning = 0;
+                } else {
+                    c = source[i];
+                    next_char : _int64 = 0;
+                    if(i + 1 < n) { next_char = source[i + 1]; }
+
+                    if(c == '"') {
+                        i++;
+                        kind = T_STRING_END;
+                        if(first_piece == 1) { kind = T_STRING; }
+                        scanning = 0;
+                    } else if(c == '\\') {
+                        i += 2;                 // a backslash takes the next character with it
+                    } else if(c == '$' && next_char == '$') {
+                        i += 2;                 // $$ is one dollar sign, not an interpolation
+                    } else if(c == '$' && (next_char == '{' || (next_char > 0 && classes[next_char] == C_LETTER))) {
+                        // the piece of text up to here is a token of its own
+                        kinds[count] = T_STRING_MIDDLE;
+                        if(first_piece == 1) { kinds[count] = T_STRING_BEGIN; }
+                        starts[count] = start;
+                        ends[count] = i;
+                        count++;
+
+                        if(next_char == '{') {
+                            // ${ ... }: code follows, up to the matching }
+                            start = i;
+                            i += 2;
+                            kind = P_INTERP_OPEN;
+                            if(interp_top < 32) {
+                                interp_depths[interp_top] = 0;
+                                interp_top++;
+                            } else {
+                                errors++;       // 32 strings inside each other: give up on this one
+                            }
+                        } else {
+                            // $name: one identifier, then text again
+                            i++;
+                            start = i;
+                            while(i < n && source[i] > 0 && (classes[source[i]] == C_LETTER || classes[source[i]] == C_DIGIT)) {
+                                i++;
+                            }
+                            kind = T_IDENTIFIER;
+                            string_resume = 1;
+                        }
+                        scanning = 0;
+                    } else {
+                        i++;
+                    }
+                }
+            }
+        } else if(cls == C_CHAR) {
+            // 'c' or '\n': up to the closing quote, on the same line
+            kind = T_CHAR;
+            i++;
+            open : _int64 = 1;
+            while(i < n && open == 1 && source[i] != '\n') {
+                c = source[i];
+                if(c == '\'') { open = 0; }
+                else if(c == '\\') { i++; }
+                i++;
+            }
+            if(open == 1) { kind = T_ERROR; errors++; }
+        } else if(cls == C_PUNCT) {
+            i++;
+            next : _int64 = 0;
+            if(i < n) { next = source[i]; }
+
+            if(c == '/' && next == '/') {
+                // a comment to the end of the line: no token
+                while(i < n && source[i] != '\n') { i++; }
+                continue;
+            }
+            if(c == '/' && next == '*') {
+                // a block comment; they nest
+                depth : _int64 = 1;
+                i++;
+                while(i < n && depth > 0) {
+                    c = source[i];
+                    if(c == '*' && i + 1 < n && source[i + 1] == '/') { depth--; i++; }
+                    else if(c == '/' && i + 1 < n && source[i + 1] == '*') { depth++; i++; }
+                    else if(c == '\n') {
+                        if(line_count == line_capacity) {
+                            bigger := new _int32[line_capacity * 2];
+                            memcopy(line_starts, bigger, 0, 0, line_count);
+                            line_starts = bigger;
+                            line_capacity = line_capacity * 2;
+                        }
+                        line_starts[line_count] = i + 1;
+                        line_count++;
+                    }
+                    i++;
+                }
+                if(depth > 0) { errors++; }
+                continue;
+            }
+
+            kind = one_char[c];
+
+            // inside ${ }: braces are counted, and the } that brings the
+            // count back to where the ${ started ends the interpolation
+            if(interp_top > 0) {
+                if(c == '{') {
+                    interp_depths[interp_top - 1] = interp_depths[interp_top - 1] + 1;
+                } else if(c == '}') {
+                    if(interp_depths[interp_top - 1] == 0) {
+                        interp_top--;
+                        kind = P_INTERP_CLOSE;
+                        string_resume = 1;      // string text follows
+                    } else {
+                        interp_depths[interp_top - 1] = interp_depths[interp_top - 1] - 1;
+                    }
+                }
+            }
+            if(next == '=') {
+                if(c == '<') { kind = P_LTE; i++; }
+                else if(c == '>') { kind = P_GTE; i++; }
+                else if(c == '=') { kind = P_EQEQ; i++; }
+                else if(c == '+') { kind = P_PLUSEQ; i++; }
+                else if(c == '-') { kind = P_MINUSEQ; i++; }
+                else if(c == '*') { kind = P_MULTEQ; i++; }
+                else if(c == '/') { kind = P_DIVEQ; i++; }
+                else if(c == '&') { kind = P_ANDEQ; i++; }
+                else if(c == '|') { kind = P_OREQ; i++; }
+                else if(c == '^') { kind = P_XOREQ; i++; }
+                else if(c == '%') { kind = P_MODEQ; i++; }
+                else if(c == '!') { kind = P_NOTEQ; i++; }
+                else if(c == ':') { kind = P_INFER; i++; }
+            } else if(next == c) {
+                if(c == '+') { kind = P_INC; i++; }
+                else if(c == '-') { kind = P_DEC; i++; }
+                else if(c == '&') { kind = P_ANDAND; i++; }
+                else if(c == '|') { kind = P_OROR; i++; }
+                else if(c == '<') { kind = P_SHL; i++; }
+                else if(c == '>') { kind = P_SHR; i++; }
+                else if(c == '*') { kind = P_EXPONENT; i++; }
+                else if(c == '!') {
+                    kind = P_FORCE;
+                    i++;
+                    if(i < n && source[i] == '.') { kind = P_FORCE_DOT; i++; }
+                }
+            } else if(c == '-' && next == '>') { kind = P_ARROW; i++; }
+            else if(c == '?' && next == '.') { kind = P_SAFE_DOT; i++; }
+            else if(c == '?' && next == ':') { kind = P_ELVIS; i++; }
+        } else {
+            // a character that starts nothing
+            i++;
+            errors++;
+        }
+
+        // room for this token and for the two a string piece can add before the next check
+        if(count + 3 >= capacity) {
+            more_kinds := new _uint8[capacity * 2];
+            more_starts := new _int32[capacity * 2];
+            more_ends := new _int32[capacity * 2];
+            memcopy(kinds, more_kinds, 0, 0, count);
+            memcopy(starts, more_starts, 0, 0, count);
+            memcopy(ends, more_ends, 0, 0, count);
+            kinds = more_kinds;
+            starts = more_starts;
+            ends = more_ends;
+            capacity = capacity * 2;
+        }
+        kinds[count] = kind;
+        starts[count] = start;
+        ends[count] = i;
+        count++;
+    }
+
+    if(interp_top > 0 || string_resume == 1) {
+        errors++;           // the file ends inside a string
+    }
+
+    result := new token_table();
+    result.kinds = kinds;
+    result.starts = starts;
+    result.ends = ends;
+    result.count = count;
+    result.line_starts = line_starts;
+    result.line_count = line_count;
+    result.error_count = errors;
+    return result;
+}
+
+/** the line (1 based) a source position is on: a binary search in line_starts */
+def line_of(table: token_table, position: _int64) : _int64 {
+    lines : _int32[] = table.line_starts!!;
+    low : _int64 = 0;
+    high : _int64 = table.line_count - 1;
+    while(low < high) {
+        middle : _int64 = (low + high + 1) / 2;
+        if(lines[middle] <= position) { low = middle; }
+        else { high = middle - 1; }
+    }
+    return low + 1;
+}
+
+/** the column (1 based) of a source position */
+def column_of(table: token_table, position: _int64) : _int64 {
+    lines : _int32[] = table.line_starts!!;
+    return position - lines[line_of(table, position) - 1] + 1;
+}
+
+/**
+ * The characters of token `index`, as a new string. For the few tokens whose
+ * text matters (an identifier's name, a literal); punctuation and keywords are
+ * fully described by their kind.
+ */
+def token_text(source: _int8[], table: token_table, index: _int64) : string {
+    starts : _int32[] = table.starts!!;
+    ends : _int32[] = table.ends!!;
+    return new string(source, starts[index], ends[index]);
+}

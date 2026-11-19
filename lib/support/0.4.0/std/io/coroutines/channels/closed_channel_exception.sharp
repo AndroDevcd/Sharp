@@ -1,0 +1,23 @@
+mod std.io.coroutines.channels;
+
+/**
+ * closed_channel_exception - thrown by channel.send() on a closed channel and
+ * by channel.receive() once a closed channel has nothing left.
+ *
+ * USAGE
+ *     try {
+ *         for( ;; ) { handle(inbox.receive()); }
+ *     } catch(e: closed_channel_exception) {
+ *         // the sender called close() and everything it sent was handled
+ *     }
+ *
+ * Usually nicer than catching it: inbox.for_each({ item: message -> handle(item); })
+ * or receive_or_null(), which end quietly when the channel is closed.
+ *
+ * Kotlin equivalents: ClosedSendChannelException and
+ * ClosedReceiveChannelException (one class here; catch clauses used to match
+ * the exact class only, and one name is easier to remember anyway).
+ */
+class closed_channel_exception base exception {
+    public closed_channel_exception(message : string?) -> base(message) {}
+}

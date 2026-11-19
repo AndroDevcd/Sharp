@@ -1,0 +1,133 @@
+mod main;
+
+// output:
+// -1
+// 41
+// -3
+// 3
+// 42
+// -9
+// 3
+// 43
+// 110
+// 111
+// 112
+// 3
+// 4
+// 122
+// 5
+// 6
+// 121
+// 7
+// 120
+// 123
+// 124
+// 114
+// 130
+// 133
+// 131
+// 132
+// 140
+// 141
+// 142
+// 143
+
+/*
+ * `when` with and without a subject, and `if` chains (doc/codegen.md 6.10).
+ *
+ *   - the subject is evaluated ONCE (subject_value prints each time it runs);
+ *   - a clause's tests are tried left to right and stop at the first that
+ *     holds; the first clause that holds runs and no other; `else` when none;
+ *   - a `string` subject is compared with `operator==` (a call);
+ *   - without a subject the conditions are tried in order, each one only when
+ *     the ones before it did not hold (value_of prints each that runs);
+ *   - a `when` without `else` where nothing holds does nothing; a `when` with
+ *     a block clause, one inside a loop with break / continue in its clauses;
+ *   - decimal subjects and conditions.
+ */
+
+def value_of(n: _int64) : _int64 { show(n); return n; }
+def subject_value(n: _int64) : _int64 { show(0 - n); return n; }
+
+def numbers(n: _int64) {
+    when(subject_value(n)) {
+        1 -> show(41);
+        2, value_of(3) -> show(42);
+        else -> show(43);
+    }
+}
+
+def strings(s: string) {
+    when(s) {
+        "a" -> show(110);
+        "b", "c" -> show(111);
+        else -> show(112);
+    }
+}
+
+def conditions(n: _int64) {
+    when {
+        value_of(n) > 5 -> show(120);
+        value_of(n + 1) > 5 -> show(121);
+        else -> show(122);
+    }
+    when {
+        n > 6 -> {
+            show(123);
+            show(124);
+        }
+    }
+}
+
+def in_a_loop() {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < 10; i++) {
+        when(i % 4) {
+            0 -> continue;
+            3 -> {
+                if(i > 5) { break; }
+                total += 100;
+            }
+            else -> total += i;
+        }
+    }
+    show(total);
+}
+
+def decimals(d: decimal) {
+    when(d) {
+        0.5 -> show(130);
+        1.5, 2.5 -> show(131);
+    }
+    when {
+        d > 2.0 -> show(132);
+        d -> show(133);
+    }
+}
+
+def chain(n: _int64) {
+    if(n < 0) { show(140); }
+    else if(n == 0) { show(141); }
+    else if(n < 10) { show(142); }
+    else { show(143); }
+}
+
+def main() {
+    numbers(1);
+    numbers(3);
+    numbers(9);
+    strings("a");
+    strings("c");
+    strings("z");
+    conditions(3);
+    conditions(5);
+    conditions(7);
+    in_a_loop();
+    decimals(0.5);
+    decimals(2.5);
+    decimals(0.0);
+    chain(0 - 4);
+    chain(0);
+    chain(4);
+    chain(40);
+}

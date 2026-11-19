@@ -1,0 +1,216 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * THE MESSAGES FOR A VALUE THAT DOES NOT FIT
+ *
+ *      E0410   the value's type does not convert to the type wanted
+ *      E0720   `null` given to something that can never hold null
+ *      E0721   a value that MAY be null given to something that cannot hold null
+ *      E0406   the expression has no value at all (a call of a function that returns nothing)
+ *      W1017   a base class value given where a class below it is wanted, without `as`
+ *
+ * Each says what was found, what was wanted, the rule that is in the way and
+ * - whenever there is one - the text to write instead.
+ */
+
+/** report why `value` cannot become `how.to`. `purpose` says what the value was for: "the value of `total`" */
+def report_no_conversion(context: analysis_context, value: bound_expression, how: conversion, purpose: string) {
+    from : resolved_type = how.from;
+    to : resolved_type = how.to;
+    node : _int64 = value.node;
+
+    if(how.problem == WHY_NO_VALUE) {
+        if(is_call_of_function_missing_its_result_type(value)) { return; }
+        d := problem_over(context, "E0406", "this expression has no value, but one is needed for " + purpose, node);
+        d.with_label("gives nothing back");
+        d.with_note("a function declared without a result type (or with `: nil`) returns nothing");
+        report(context, d);
+        return;
+    }
+
+    if(how.problem == WHY_NULL) {
+        d := problem_over(context, "E0720", "`null` cannot be used for " + purpose + ": `" + to.to_text() + "` can never be null",
+                          node);
+        d.with_label("`null` given to `" + to.to_text() + "`");
+        if(to.is_number()) {
+            d.with_note("a plain number is never null; only objects and arrays can be");
+            d.with_help("use a number, or the class `" + box_name_of(to) + "?` when \"no value\" must be possible");
+        } else {
+            d.with_note("a type holds null only when it is written with `?`");
+            d.with_help("declare it as `" + to.to_text() + "?`");
+        }
+        report(context, d);
+        return;
+    }
+
+    if(how.only_nullable_in_the_way == 1) {
+        d := problem_over(context, "E0721", "this value may be null, but " + purpose + " is `" + to.to_text()
+                          + "`, which cannot hold null", node);
+        d.with_label("`" + from.to_text() + "`: may be null");
+        if(from.as_non_null() == to) {
+            d.with_note("`" + from.to_text() + "` and `" + to.to_text() + "` differ only in the `?`: the value can be null, the target cannot");
+        } else {
+            d.with_note("a `" + from.as_non_null().to_text() + "` would be accepted here; only the `?` is in the way: the value can be null, the target cannot");
+        }
+        add_null_fixes(context, d, node);
+        report(context, d);
+        return;
+    }
+
+    found := described_type(from);
+    if(value.literal == LIT_TEXT) { found = "a text literal (an `_int8[]`)"; }
+    d := problem_over(context, "E0410", "expected `" + to.to_text() + "` for " + purpose + ", found " + found, node);
+    d.with_label("this is " + found);
+    explain_mismatch(context, d, value, how);
+    report(context, d);
+}
+
+/**
+ * The two ways out of "may be null", written with the programmer's own
+ * expression: `value!!` and `value ?: <fallback>`. An expression that is
+ * more than a name or a chain is put in parentheses so the suggestion is
+ * right as written (`(a ? b : c)!!`).
+ */
+def add_null_fixes(context: analysis_context, d: diagnostic, node: _int64) {
+    tree : syntax_tree = context.tree;
+    kind : _int64 = tree.kinds!![node];
+    written := source_text_of(context, node);
+
+    if(kind == N_ELVIS) {
+        // `maybe ?: other_maybe`: there already is a fallback, and it may be null itself
+        d.with_help("the fallback after `?:` may be null too: give one that is never null");
+        return;
+    }
+    written = as_operand_text(context, node);
+    d.with_help("when it is certainly not null here, say so: `" + written + "!!`");
+    d.with_help("or give a value to use instead: `" + written + " ?: <fallback>`");
+}
+
+/**
+ * The source text of the expression at `node`, ready to have something
+ * put after it - `!!`, `.value`, ` as t`: in parentheses unless it is a
+ * name, a chain, a call or an index, so the suggestion means what it says.
+ * (`r * r` + `.value` must be `(r * r).value`; `r * r.value` is still `int * _int64`.)
+ */
+def as_operand_text(context: analysis_context, node: _int64) : string {
+    kind : _int64 = context.tree.kinds!![node];
+    written := source_text_of(context, node);
+    is_simple : _int64 = kind == N_IDENTIFIER || kind == N_MEMBER || kind == N_CALL || kind == N_INDEX || kind == N_SELF
+        || kind == N_PAREN || kind == N_MODULE_NAME || kind == N_LITERAL;
+    if(is_simple == 0 && !(written == "<value>")) { return "(" + written + ")"; }
+    return written;
+}
+
+/** W1017: `d : dog = an_animal;` - accepted as the C++ compiler accepts it, tested when the program runs */
+def warn_implicit_downcast(context: analysis_context, value: bound_expression, how: conversion) {
+    written := source_text_of(context, value.node);
+    d := problem_over(context, "W1017", "`" + how.from.to_text() + "` is used as `" + how.to.to_text()
+                      + "` without a cast", value.node);
+    d.with_label("only some `" + how.from.to_text() + "` values are `" + how.to.to_text() + "`");
+    d.with_note("`" + how.to.to_text() + "` is below `" + how.from.to_text()
+                + "`; the program tests the object here when it runs and throws when it is something else");
+    d.with_help("write the cast so the reader sees it: `" + written + " as " + how.to.to_text() + "`");
+    report(context, d);
+}
+
+
+/**
+ * W1029: a function value passed as an argument whose parameters fit and
+ * whose result does not: `new thread("w", worker)` with `worker` returning a
+ * `decimal` where `(object[])(int)` is expected. The C++ compiler compares
+ * only the parameters of an argument of a function type, and programs rely on
+ * it (the thread ignores the result); whoever calls the value must not use
+ * its result as the type promised.
+ */
+def warn_result_ignored(context: analysis_context, value: bound_expression, how: conversion) {
+    given : resolved_type = how.from.as_non_null();
+    wanted : resolved_type = how.to.as_non_null();
+    what := "this function";
+    if(value.kind == BX_FUNCTION_REFERENCE) { what = "`" + (value as bound_function_reference).function.name + "`"; }
+    if(value.kind == BX_LAMBDA) { what = "this lambda"; }
+    returns := "returns `" + given.result!!.to_text() + "`";
+    if(given.result!!.kind == RT_NIL) { returns = "returns nothing"; }
+    d := problem_over(context, "W1029", what + " " + returns + ", but `" + wanted.to_text() + "` gives back "
+                      + result_words(wanted.result!!), value.node);
+    d.with_label("the parameters fit; the result does not");
+    d.with_note("accepted as the old compiler accepts it (it compares only the parameters of a function passed as an argument): whoever calls it must not rely on its result");
+    if(wanted.result!!.kind == RT_NIL) { d.with_help("make it return nothing"); }
+    else { d.with_help("make it return `" + wanted.result!!.to_text() + "`"); }
+    report(context, d);
+}
+
+/** "a `decimal`", "nothing" */
+def result_words(result: resolved_type) : string {
+    if(result.kind == RT_NIL) { return "nothing"; }
+    return "a `" + result.to_text() + "`";
+}
+
+/**
+ * The conversion of a function value given as an ARGUMENT where only the
+ * parameters of the two function types agree (W1029, see above). Null when
+ * they do not: then it is not an argument this rule lets through.
+ */
+def result_ignored_conversion(from: resolved_type, to: resolved_type) : conversion? {
+    if(from.kind != RT_FUNCTION || to.kind != RT_FUNCTION || from.is_array == 1 || to.is_array == 1) { return null; }
+    if(from.is_nullable == 1 && to.is_nullable == 0) { return null; }
+    given : resolved_type = from.as_non_null();
+    wanted : resolved_type = to.as_non_null();
+    if(given.parameters!!.size() != wanted.parameters!!.size()) { return null; }
+    for(i : _int64 = 0; i < given.parameters!!.size(); i++) {
+        if(!same_or_nullable_of(given.parameters!!.at(i), wanted.parameters!!.at(i))) { return null; }
+    }
+    made := new conversion(CONV_RESULT_IGNORED, from, to);
+    made.rank = 4;
+    return made;
+}
+
+/**
+ * Is `value` a call of a function that was declared WITHOUT a result type,
+ * though its body returns values?
+ *
+ *      def total(n: _int64) { if(n == 0) return 0; return n + total(n - 1); }     E0606 at `return 0`
+ *      a : _int64 = total(3);                                                       quiet
+ *
+ * The one mistake is the missing `: _int64` (E0606, with that help, at the
+ * function). Every caller that uses the result - five, ten in a real
+ * program - would otherwise get its own "this expression has no value"
+ * (E0406), all fixed by the one edit. The answer is looked up in the body's
+ * syntax tree (a `return` with a value, not inside a lambda), once per
+ * function: the callers are often analysed before the body.
+ */
+def is_call_of_function_missing_its_result_type(value: bound_expression) : _int64 {
+    if(value.kind != BX_CALL) { return 0; }
+    function : sharp_function = (value as bound_call).function;
+    if(function.returns_unwritten_value >= 0) { return function.returns_unwritten_value; }
+    function.returns_unwritten_value = 0;
+    if(function.kind != D_FUNCTION || function.is_lambda == 1 || function.return_type != null || function.returns_nil == 1) { return 0; }
+    if(function.body < 0 || function.unit.parsed == null) { return 0; }
+
+    tree : syntax_tree = function.unit.parsed!!.tree;
+    waiting := new list<int>();             // an explicit work list: a body can nest deeply (completeness, 10.8)
+    waiting.add(new int(function.body));
+    while(waiting.size() > 0) {
+        node : _int64 = waiting.pop_last().value as _int64;
+        kind : _int64 = tree.kinds!![node];
+        if(kind == N_LAMBDA) { continue; }                 // a lambda's `return` is its own
+        if(kind == N_RETURN && tree.first_child!![node] >= 0) {
+            function.returns_unwritten_value = 1;
+            return 1;
+        }
+        for(child : _int64 = tree.first_child!![node]; child >= 0; child = tree.next_sibling!![child]) { waiting.add(new int(child)); }
+    }
+    return 0;
+}

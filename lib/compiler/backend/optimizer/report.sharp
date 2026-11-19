@@ -1,0 +1,121 @@
+mod backend.optimizer;
+
+import (
+    std.io,
+    platform.kernel
+)
+
+/**
+ * WHAT THE OPTIMIZER DID: the numbers -Oreport prints
+ *
+ *      -- optimizer (-O) --
+ *      functions with code : 164
+ *      functions changed   : 120
+ *      left as they are    : 3 (an asm block)
+ *      IR instructions     : 4210 -> 2630
+ *        pass copy-propagation: changed 96 function(s), 820 change(s), 0 instruction(s) fewer; 310 run(s), 11 ms
+ *        ...
+ *        pass inline-calls: changed 41 function(s), 77 change(s), 420 instruction(s) more; 164 run(s), 8 ms
+ *
+ * For each pass: how many times it changed a function, how many things it
+ * changed (reads, instructions, calls: what the pass counts), how many
+ * instructions fewer - or, for a pass that copies code, more - the functions
+ * had after it, how often it ran and how long all its runs took.
+ *
+ *      C++ comparison: the end of `optimize_bytecode` (bytecode_optimizer.cpp)
+ *      prints the same kind of table.
+ */
+class pass_tally {
+    name : string;
+    functions : _int64 = 0;         // runs that changed something
+    changes : _int64 = 0;           // what the pass counts: reads changed, instructions folded, calls inlined ...
+    removed : _int64 = 0;           // instructions fewer after its runs
+    nanoseconds : _int64 = 0;       // the time its runs took, all of them (also the ones that changed nothing)
+    runs : _int64 = 0;              // how many times it ran
+
+    pass_tally(name: string) {
+        self->name = name;
+    }
+}
+
+/** the clock, in nanoseconds (for the time each pass takes) */
+def now() : _int64 {
+    return vm.time_in_nanoseconds().value;
+}
+
+class optimizer_report {
+    functions : _int64 = 0;         // functions with code
+    changed : _int64 = 0;           // functions whose IR the optimizer changed
+    with_asm : _int64 = 0;          // left alone: they have an asm block
+    too_large : _int64 = 0;         // left alone: too large for the tables of the analyses
+    pure_functions : string = "";   // what pure function detection found (passes/calls/pure_functions.sharp); "" when it did not run
+    append_twins : _int64 = 0;      // functions ADDED: the appending twins of string.operator+ (passes/calls/string_concatenation.sharp)
+    native_twins : _int64 = 0;      // functions ADDED: the twins of native returns (passes/calls/native_returns.sharp)
+    before : _int64 = 0;            // IR instructions of all functions before
+    after : _int64 = 0;             // ... and after
+    words : _int64 = 0;             // VM words of all functions after (filled in by code generation)
+    tallies : list<pass_tally>;
+
+    optimizer_report() {
+        tallies = new list<pass_tally>();
+    }
+
+    /** the tally of the pass with this name (made the first time it is asked for) */
+    def tally(name: string) : pass_tally {
+        for(i : _int64 = 0; i < tallies.size(); i++) {
+            if(tallies.at(i).name == name) { return tallies.at(i); }
+        }
+        made := new pass_tally(name);
+        tallies.add(made);
+        return made;
+    }
+
+    /** a run of a pass that made `changes` changes and left `removed` instructions fewer */
+    def count(name: string, changes: _int64, removed: _int64) {
+        if(changes <= 0 && removed <= 0) { return; }
+        made := tally(name);
+        made.functions++;
+        made.changes = made.changes + changes;
+        made.removed = made.removed + removed;
+    }
+
+    /** a run of a pass took the time since `started` (a reading of `now()`) */
+    def took(name: string, started: _int64) {
+        made := tally(name);
+        made.nanoseconds = made.nanoseconds + (now() - started);
+        made.runs++;
+    }
+
+    /** the report as text (-Oreport) */
+    def text(settings: optimizer_settings) : string {
+        out := new string_builder("\n-- optimizer (-O) --\n");
+        if(settings.left_out.size() > 0) {
+            out.append("left out            :");
+            for(i : _int64 = 0; i < settings.left_out.size(); i++) { out.append(" " + settings.left_out.at(i)); }
+            out.append("\n");
+        }
+        out.append("functions with code : " + functions + "\n");
+        out.append("functions changed   : " + changed + "\n");
+        if(with_asm > 0) { out.append("left as they are    : " + with_asm + " (an asm block: its slots and labels are written by hand)\n"); }
+        if(append_twins > 0) { out.append("functions added     : " + append_twins + " (twins of string.operator+ that append in place: string-concatenation)\n"); }
+        if(native_twins > 0) { out.append("functions added     : " + native_twins + " (twins that return the number of a number object: native-returns)\n"); }
+        if(sizeof(pure_functions.data) > 0) { out.append("function facts      : " + pure_functions + "\n"); }
+        if(too_large > 0) { out.append("left as they are    : " + too_large + " (too large for the tables of the analyses)\n"); }
+        out.append("IR instructions     : " + before + " -> " + after + "\n");
+        if(words > 0) { out.append("VM words            : " + words + "\n"); }
+        for(i : _int64 = 0; i < tallies.size(); i++) {
+            made := tallies.at(i);
+            // a pass that copies code (inlining, unrolling) leaves more instructions, not fewer: said so
+            size_change : string = "" + made.removed + " instruction(s) fewer";
+            if(made.removed < 0) { size_change = "" + (0 - made.removed) + " instruction(s) more"; }
+            milliseconds : _int64 = (made.nanoseconds / 1000000) as _int64;
+            out.append("  pass " + made.name + ": changed " + made.functions + " function(s), " + made.changes
+                       + " change(s), " + size_change + "; " + made.runs + " run(s), " + milliseconds + " ms\n");
+        }
+        names := optimization_names();
+        for(i : _int64 = 0; i < names.size(); i++) {
+            if(!is_done_here(names.at(i))) { out.append("  (" + names.at(i) + ": not in this optimizer)\n"); }
+        }
+        return out.build();
+    }
+}

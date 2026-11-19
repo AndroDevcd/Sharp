@@ -1,0 +1,385 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * number_parser
+ *
+ * Turns text into numbers and says exactly what is wrong when it cannot.
+ * All functions are static: `number_parser.parse_int("42")`.
+ *
+ * Every kind of number comes in three flavours (as in Kotlin):
+ *
+ *     parse_int(text)             throws number_format_exception if text is not a number
+ *     parse_int_or_null(text)     returns null instead of throwing
+ *     parse_int_or(text, 0)       returns the given fallback instead of throwing
+ *
+ * and is_int / is_long / is_double only answer whether the text would parse.
+ *
+ * What counts as a number
+ *  - integer: an optional '+' or '-' followed by at least one digit. With a
+ *    radix (2 to 36) the digits are 0-9 and then the letters a-z / A-Z
+ *    (parse_int("ff", 16) is 255). Nothing else is allowed: no spaces, no
+ *    digit separators, no "0x" prefix (use decode() for prefixes).
+ *  - `int` functions accept -2147483648 .. 2147483647 (32 bit).
+ *  - `long` functions accept -9007199254740991 .. 9007199254740991: Sharp
+ *    numbers are floating point and larger whole numbers are no longer exact.
+ *  - decimal: [sign] digits [. digits] [e|E [sign] digits], where the digits
+ *    before OR after the point may be left out ("5.", ".5") but not both.
+ *    "NaN", "Infinity" and hexadecimal fractions are not accepted.
+ *  - bool: "true" or "false" in any mix of capital and small letters.
+ *
+ * Surrounding whitespace is NOT ignored; trim() the text first if it may have some.
+ */
+class number_parser {
+
+    private static const max_int : decimal = 2147483647;
+    private static const max_long : decimal = 9007199254740991;
+
+    // results of check_integer / check_double (anything >= bad_char_base is bad_char_base + position)
+    private static const ok : decimal = 0;
+    private static const err_empty : decimal = 1;
+    private static const err_no_digits : decimal = 2;
+    private static const err_range : decimal = 3;
+    private static const bad_char_base : decimal = 1000;
+
+    // ------------------------------------------------------------------ helpers
+
+    /**
+     * The value of `c` as a digit: '0'-'9' are 0-9, 'a'-'z' and 'A'-'Z' are
+     * 10-35. Returns -1 for any other character. (The radix is not looked at
+     * here; the caller checks that the value is below it.)
+     */
+    private static def digit_of(c: decimal): decimal {
+        if(c >= '0' && c <= '9') return c - '0';
+        if(c >= 'a' && c <= 'z') return c - 'a' + 10;
+        if(c >= 'A' && c <= 'Z') return c - 'A' + 10;
+        return -1;
+    }
+
+    /** Throws illegal_argument_exception unless 2 <= radix <= 36. */
+    private static def check_radix(radix: decimal) {
+        if(radix < 2 || radix > 36)
+            throw new ill_arg_except("radix must be between 2 and 36, but was ${new int(radix)}");
+    }
+
+    /**
+     * Checks that `d` is an integer in the given radix whose size (ignoring
+     * the sign) is at most `limit` (`limit + 1` for negative numbers when
+     * `extra_negative` is set, as -2147483648 is a valid int).
+     * Returns ok, or the reason it is not.
+     */
+    private static def check_integer(d: _int8[]?, radix: decimal, limit: decimal, extra_negative: decimal): decimal {
+        n : decimal = sizeof(d);
+        if(n == 0) return err_empty;
+
+        i : decimal = 0;
+        negative : decimal = 0;
+        if(d[0] == '-') {
+            negative = 1;
+            i = 1;
+        } else if(d[0] == '+') {
+            i = 1;
+        }
+        if(i == n) return err_no_digits;
+
+        if(negative && extra_negative) limit = limit + 1;
+        value : decimal = 0;
+        for(; i < n; i++) {
+            digit : decimal = digit_of(d[i]);
+            if(digit < 0 || digit >= radix) return bad_char_base + i;
+            value = value * radix + digit;
+            if(value > limit) {
+                // too large - but a bad character further on is the better thing to report
+                for(j : decimal = i + 1; j < n; j++) {
+                    later : decimal = digit_of(d[j]);
+                    if(later < 0 || later >= radix) return bad_char_base + j;
+                }
+                return err_range;
+            }
+        }
+        return ok;
+    }
+
+    /** The value of an integer that check_integer accepted. */
+    private static def read_integer(d: _int8[]?, radix: decimal): decimal {
+        n : decimal = sizeof(d);
+        i : decimal = 0;
+        negative : decimal = 0;
+        if(d[0] == '-') {
+            negative = 1;
+            i = 1;
+        } else if(d[0] == '+') {
+            i = 1;
+        }
+
+        value : decimal = 0;
+        for(; i < n; i++) {
+            value = value * radix + digit_of(d[i]);
+        }
+        if(negative) return 0 - value;
+        return value;
+    }
+
+    /** Checks the decimal syntax described at the top of the file. Returns ok or the reason. */
+    private static def check_double(d: _int8[]?): decimal {
+        n : decimal = sizeof(d);
+        if(n == 0) return err_empty;
+
+        i : decimal = 0;
+        if(d[0] == '-' || d[0] == '+') i = 1;
+        if(i == n) return err_no_digits;
+
+        // digits before the point
+        digits : decimal = 0;
+        while(i < n && d[i] >= '0' && d[i] <= '9') {
+            i++;
+            digits++;
+        }
+        // the point and the digits after it
+        if(i < n && d[i] == '.') {
+            i++;
+            while(i < n && d[i] >= '0' && d[i] <= '9') {
+                i++;
+                digits++;
+            }
+        }
+        if(digits == 0) {
+            if(i < n) return bad_char_base + i;
+            return err_no_digits;
+        }
+        // the exponent
+        if(i < n && (d[i] == 'e' || d[i] == 'E')) {
+            i++;
+            if(i < n && (d[i] == '-' || d[i] == '+')) i++;
+            exponent_digits : decimal = 0;
+            while(i < n && d[i] >= '0' && d[i] <= '9') {
+                i++;
+                exponent_digits++;
+            }
+            if(exponent_digits == 0) {
+                if(i < n) return bad_char_base + i;
+                return err_no_digits;
+            }
+        }
+        if(i < n) return bad_char_base + i;
+        return ok;
+    }
+
+    /** Builds the exception for a text that failed a check (`what` is "integer", "decimal number" ...). */
+    private static def failure(text: string, what: string, problem: decimal): number_format_exception {
+        message := new text_buffer();
+        message.append("\"").append(text).append("\" is not a valid ").append(what).append(": ");
+        if(problem == err_empty) {
+            message.append("the text is empty");
+        } else if(problem == err_no_digits) {
+            message.append("there are no digits");
+        } else if(problem == err_range) {
+            message.append("the number is out of range");
+        } else {
+            at : decimal = problem - bad_char_base;
+            message.append("unexpected character '").append_char(text.data[at]).append("' at position ")
+                   .append(number_format.integer(at));
+        }
+        return new number_format_exception(message.to_string());
+    }
+
+    // ------------------------------------------------------------------ int (32 bit)
+
+    /**
+     * The whole number written in `text` in base 10.
+     * Throws number_format_exception if text is empty, has anything but an
+     * optional sign and digits, or is outside of -2147483648 .. 2147483647.
+     */
+    static def parse_int(text: string): decimal {
+        return parse_int(text, 10);
+    }
+
+    /**
+     * The whole number written in `text` in base `radix`
+     * (parse_int("ff", 16) is 255, parse_int("-101", 2) is -5).
+     * Throws number_format_exception as parse_int(text) does, and
+     * illegal_argument_exception if radix is not between 2 and 36.
+     */
+    static def parse_int(text: string, radix: int): decimal {
+        check_radix(radix.value);
+        problem : decimal = check_integer(text.data, radix.value, max_int, 1);
+        if(problem != ok) throw failure(text, "integer", problem);
+        return read_integer(text.data, radix.value);
+    }
+
+    /** parse_int(text) that returns null instead of throwing when text is not a valid int. */
+    static def parse_int_or_null(text: string): int? {
+        return parse_int_or_null(text, 10);
+    }
+
+    /**
+     * parse_int(text, radix) that returns null instead of throwing when text
+     * is not a valid int. (A radix outside of 2..36 still throws
+     * illegal_argument_exception: that is a mistake in the program, not in the text.)
+     */
+    static def parse_int_or_null(text: string, radix: int): int? {
+        check_radix(radix.value);
+        if(check_integer(text.data, radix.value, max_int, 1) != ok) return null;
+        return new int(read_integer(text.data, radix.value));
+    }
+
+    /** parse_int(text) that returns `fallback` instead of throwing when text is not a valid int. */
+    static def parse_int_or(text: string, fallback: int): decimal {
+        if(check_integer(text.data, 10, max_int, 1) != ok) return fallback.value;
+        return read_integer(text.data, 10);
+    }
+
+    /** 1 if parse_int(text) would succeed. */
+    static def is_int(text: string): decimal {
+        return check_integer(text.data, 10, max_int, 1) == ok;
+    }
+
+    // ------------------------------------------------------------------ long
+
+    /**
+     * The whole number written in `text` in base 10, with the larger range
+     * -9007199254740991 .. 9007199254740991.
+     * Throws number_format_exception if text is not such a number.
+     */
+    static def parse_long(text: string): decimal {
+        return parse_long(text, 10);
+    }
+
+    /**
+     * parse_long in base `radix` (2 to 36).
+     * Throws number_format_exception, or illegal_argument_exception for a bad radix.
+     */
+    static def parse_long(text: string, radix: int): decimal {
+        check_radix(radix.value);
+        problem : decimal = check_integer(text.data, radix.value, max_long, 0);
+        if(problem != ok) throw failure(text, "integer", problem);
+        return read_integer(text.data, radix.value);
+    }
+
+    /** parse_long(text) that returns null instead of throwing. */
+    static def parse_long_or_null(text: string): long? {
+        if(check_integer(text.data, 10, max_long, 0) != ok) return null;
+        return new long(read_integer(text.data, 10));
+    }
+
+    /** parse_long(text) that returns `fallback` instead of throwing. */
+    static def parse_long_or(text: string, fallback: long): decimal {
+        if(check_integer(text.data, 10, max_long, 0) != ok) return fallback.value;
+        return read_integer(text.data, 10);
+    }
+
+    /** 1 if parse_long(text) would succeed. */
+    static def is_long(text: string): decimal {
+        return check_integer(text.data, 10, max_long, 0) == ok;
+    }
+
+    /**
+     * A whole number with an optional sign and an optional base prefix:
+     * "0x" / "0X" hexadecimal, "0b" / "0B" binary, "0o" / "0O" octal, otherwise
+     * decimal. decode("0xFF") is 255, decode("-0b101") is -5, decode("42") is 42.
+     * The range is that of parse_long.
+     * Throws number_format_exception if text is not such a number.
+     */
+    static def decode(text: string): decimal {
+        d := text.data;
+        n : decimal = sizeof(d);
+        i : decimal = 0;
+        negative : decimal = 0;
+        if(n > 0 && (d[0] == '-' || d[0] == '+')) {
+            negative = d[0] == '-';
+            i = 1;
+        }
+
+        radix : decimal = 10;
+        if(i + 1 < n && d[i] == '0') {
+            marker : decimal = d[i + 1];
+            if(marker == 'x' || marker == 'X') radix = 16;
+            else if(marker == 'b' || marker == 'B') radix = 2;
+            else if(marker == 'o' || marker == 'O') radix = 8;
+        }
+        if(radix == 10) return parse_long(text, 10);
+
+        // the digits after the prefix must be a plain unsigned number
+        digits := new string(d!!, i + 2, n);
+        if(sizeof(digits.data) == 0 || digits.data[0] == '-' || digits.data[0] == '+')
+            throw failure(text, "integer", err_no_digits);
+        problem : decimal = check_integer(digits.data, radix, max_long, 0);
+        if(problem >= bad_char_base) problem = problem + i + 2;    // position in the whole text
+        if(problem != ok) throw failure(text, "integer", problem);
+
+        value : decimal = read_integer(digits.data, radix);
+        if(negative) return 0 - value;
+        return value;
+    }
+
+    // ------------------------------------------------------------------ double
+
+    /**
+     * The decimal number written in `text` ("3.25", "-0.5", "1e3", ".5", "7").
+     * Throws number_format_exception if text is not a decimal number (see the
+     * top of the file for the exact syntax).
+     */
+    static def parse_double(text: string): decimal {
+        problem : decimal = check_double(text.data);
+        if(problem != ok) throw failure(text, "decimal number", problem);
+        return strtod(text).value;
+    }
+
+    /** parse_double(text) that returns null instead of throwing. */
+    static def parse_double_or_null(text: string): double? {
+        if(check_double(text.data) != ok) return null;
+        return new double(strtod(text).value);
+    }
+
+    /** parse_double(text) that returns `fallback` instead of throwing. */
+    static def parse_double_or(text: string, fallback: double): decimal {
+        if(check_double(text.data) != ok) return fallback.value;
+        return strtod(text).value;
+    }
+
+    /** 1 if parse_double(text) would succeed. */
+    static def is_double(text: string): decimal {
+        return check_double(text.data) == ok;
+    }
+
+    // ------------------------------------------------------------------ bool
+
+    /** 1 for "true", 0 for "false", -1 for anything else (capital / small letters do not matter). */
+    private static def check_bool(d: _int8[]?): decimal {
+        n : decimal = sizeof(d);
+        if(n == 4) {
+            if((d[0] == 't' || d[0] == 'T') && (d[1] == 'r' || d[1] == 'R')
+                && (d[2] == 'u' || d[2] == 'U') && (d[3] == 'e' || d[3] == 'E')) return 1;
+        } else if(n == 5) {
+            if((d[0] == 'f' || d[0] == 'F') && (d[1] == 'a' || d[1] == 'A') && (d[2] == 'l' || d[2] == 'L')
+                && (d[3] == 's' || d[3] == 'S') && (d[4] == 'e' || d[4] == 'E')) return 0;
+        }
+        return -1;
+    }
+
+    /**
+     * 1 if text is "true", 0 if it is "false" (in any mix of capital and small letters).
+     * Throws number_format_exception for any other text ("yes", "1", "" ...).
+     */
+    static def parse_bool(text: string): decimal {
+        value : decimal = check_bool(text.data);
+        if(value < 0)
+            throw new number_format_exception("\"" + text + "\" is not a valid bool: expected true or false");
+        return value;
+    }
+
+    /** parse_bool(text) that returns null instead of throwing. */
+    static def parse_bool_or_null(text: string): boolean? {
+        value : decimal = check_bool(text.data);
+        if(value < 0) return null;
+        return new boolean(value != 0);
+    }
+
+    /** parse_bool(text) that returns `fallback` instead of throwing. */
+    static def parse_bool_or(text: string, fallback: bool): decimal {
+        value : decimal = check_bool(text.data);
+        if(value < 0) return fallback;
+        return value;
+    }
+}

@@ -1,0 +1,139 @@
+mod backend.postprocessor.imports;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.postprocessor.names,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * IMPORT GROUPS:  import (a.b, c.*) as g
+ * (the C++ compiler: import_group in types/import_group.cpp, process_import
+ * in postprocessor/import_processor.cpp)
+ *
+ *      import ( graphics.shapes, graphics.colors ) as gfx;
+ *
+ *      c : gfx#circle;         looked for in graphics.shapes, then graphics.colors - nowhere else
+ *
+ * An import with `as name` does NOT make its modules visible by plain names.
+ * It gives the LIST of modules a name; `name#thing` then looks for `thing`
+ * in those modules only, in the order they were written. It is the way to
+ * say which of two same-named things is meant without spelling out the
+ * module every time.
+ *
+ * The groups of a file are kept in sharp_file.import_groups. This is part
+ * of stage 2 (imports.sharp calls it): the type names of stage 3 already
+ * need to know that the word before a `#` may be a group.
+ *
+ *      E0393   two groups with one name in a file
+ *      W1008   the same module named twice in one import list
+ */
+def add_import_group(prog: sharp_program, file: sharp_file, statement: _int64, name_node: _int64,
+                     problems: list<diagnostic>) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+    name := node_text(unit, name_node);
+
+    earlier := file.import_group_named(name);
+    if(earlier != null) {
+        problems.add(error_at_node("E0393", "the import name `" + name + "` is used twice in this file", unit, name_node)
+            .with_label("a second group called `" + name + "`")
+            .with_related_place(place_of_node(unit, tree.child_of_kind(earlier!!.node, N_NAME), "the first one is here"))
+            .with_note("`" + name + "#thing` must mean one list of modules")
+            .with_help("give this group another name, or put all the modules into one `import ( ... ) as " + name + "`"));
+        return;
+    }
+
+    group := new import_group(name, statement);
+    item : _int64 = tree.first_child!![statement];
+    while(item >= 0) {
+        if(tree.kinds!![item] == N_IMPORT_ITEM) {
+            add_modules_of_item(prog, unit, item, group.modules, problems);
+        }
+        item = tree.next_sibling!![item];
+    }
+    file.import_groups.add(group);
+}
+
+/** the modules one entry of an import list names (`a.b`, or `a.b.*`), added to `modules` once each */
+def add_modules_of_item(prog: sharp_program, unit: source_unit, item: _int64, modules: list<sharp_module>,
+                        problems: list<diagnostic>) {
+    tree : syntax_tree = unit.parsed!!.tree;
+    name := dotted_name(unit, item);
+    everything_under : _int64 = tree.child_of_kind(item, N_STAR) >= 0;
+
+    found_any : _int64 = 0;
+    exact := prog.find_module(name);
+    if(exact != null) {
+        found_any = 1;
+        add_module_once(modules, exact!!);
+    }
+    if(everything_under == 1) {
+        prefix := name + ".";
+        for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+            candidate := prog.module_list.at(i);
+            if(candidate.name.starts_with(prefix)) {
+                found_any = 1;
+                add_module_once(modules, candidate);
+            }
+        }
+    }
+    if(found_any == 0) {
+        report_unknown_module(prog, unit, item, name, everything_under, problems);
+    }
+}
+
+/** add a module to a list unless it is in it already */
+def add_module_once(modules: list<sharp_module>, wanted: sharp_module) {
+    for(i : _int64 = 0; i < modules.size(); i++) {
+        if(modules.at(i) == wanted) { return; }
+    }
+    modules.add(wanted);
+}
+
+/**
+ * W1008: `import ( std.io, std.io )`. `named` collects the modules one
+ * import list has named so far (entries with `.*` are not counted: they are
+ * meant to overlap with what is there).
+ */
+def report_if_imported_twice(unit: source_unit, item: _int64, named: list<string>, problems: list<diagnostic>) {
+    tree : syntax_tree = unit.parsed!!.tree;
+    if(tree.child_of_kind(item, N_STAR) >= 0) { return; }
+
+    name := dotted_name(unit, item);
+    for(i : _int64 = 0; i < named.size(); i++) {
+        if(named.at(i) == name) {
+            problems.add(error_at_names("W1008", "module `" + name + "` is imported twice", unit, item)
+                .with_label("already in this import list")
+                .with_help("remove one of them")
+                .as_warning());
+            return;
+        }
+    }
+    named.add(name);
+}
+
+/** `gfx#crcle`: none of the modules of the group has that type */
+def report_not_in_group(file: sharp_file, part: _int64, name: string, group: import_group, problems: list<diagnostic>) {
+    d := error_at_node("E0304", "none of the modules imported as `" + group.name + "` has a type named `" + name + "`",
+                       file.unit, part)
+        .with_label("not declared in any module of `" + group.name + "`");
+
+    names := new list<string>();
+    listed := new string_builder("");
+    for(i : _int64 = 0; i < group.modules.size(); i++) {
+        add_type_names(group.modules.at(i).declared, names);
+        if(i > 0) { listed.append(", "); }
+        listed.append(group.modules.at(i).name);
+    }
+    d.with_note("`" + group.name + "` stands for: " + listed.build());
+
+    suggestion := did_you_mean(closest_names(name, names, 3));
+    if(sizeof(suggestion.data) > 0) { d.with_help(suggestion); }
+    problems.add(d);
+}

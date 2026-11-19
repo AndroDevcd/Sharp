@@ -1,7 +1,9 @@
 mod main;
 
-import std.io.task; // import the task scheduling api
-import std.io; // import the standard threading api
+import (
+    std.io.task, // import the task scheduling api
+    std.io // import the standard threading api
+)
 
 /**
  *
@@ -110,14 +112,14 @@ def recurring_task() {
  */
 def _deferred_task() {
 
-   deferred := new deferred_task<var>()
+   deferred := new deferred_task<decimal>()
     .for_result(
         task.builder()
           .with_name("deferred task")
           .with_timeout(1000),
         { task: object ->
            thread.sleep(500);
-           (task as deferred_task<var>).post(1500);
+           (task as deferred_task<decimal>).post(1500);
         }
     );
 
@@ -131,11 +133,11 @@ def _deferred_task() {
  */
 def streamed_task() {
 
-   deferred := new deferred_task<var>()
+   deferred := new deferred_task<decimal>()
     .for_result(
         task.builder(),
         { task: object ->
-           deferred := task as deferred_task<var>;
+           deferred := task as deferred_task<decimal>;
            for(i := 0; i < 10; i++) {
               thread.sleep(500);
               deferred.post(i);
@@ -143,7 +145,7 @@ def streamed_task() {
         }
     );
 
-    deferred.observe({ obs: observable<var> ->
+    deferred.observe({ obs: observable<decimal> ->
         if(obs.get_data() == 9) {
            obs.stop_listening(); // stop observing the task
         }

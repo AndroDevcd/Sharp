@@ -1,0 +1,254 @@
+mod main;
+
+import ( std.testing, std.math )
+
+/**
+ * std.math - number_theory.sharp (gcd, lcm, factorial, binomial, primes,
+ * Fibonacci, mod_pow, digits) and the bits class (bits.sharp).
+ */
+
+def check_divisors() {
+    test("is_even(4)") { expect_true(is_even(4)); };
+    test("is_even(7)") { expect_false(is_even(7)); };
+    test("is_even(0)") { expect_true(is_even(0)); };
+    test("is_even(-6)") { expect_true(is_even(0 - 6)); };
+    test("is_odd(7)") { expect_true(is_odd(7)); };
+    test("is_odd(-7)") { expect_true(is_odd(0 - 7)); };
+    test("is_odd(8)") { expect_false(is_odd(8)); };
+
+    test("gcd(12, 18)") { expect(gcd(12, 18)).should_be(6); };
+    test("gcd(18, 12)") { expect(gcd(18, 12)).should_be(6); };
+    test("gcd(-12, 18)") { expect(gcd(0 - 12, 18)).should_be(6); };
+    test("gcd(17, 5)") { expect(gcd(17, 5)).should_be(1); };
+    test("gcd(0, 5)") { expect(gcd(0, 5)).should_be(5); };
+    test("gcd(5, 0)") { expect(gcd(5, 0)).should_be(5); };
+    test("gcd(0, 0)") { expect(gcd(0, 0)).should_be(0); };
+    test("gcd(1071, 462)") { expect(gcd(1071, 462)).should_be(21); };
+    test("gcd of large numbers") { expect(gcd(600851475143, 6857)).should_be(6857); };
+    test("lcm(4, 6)") { expect(lcm(4, 6)).should_be(12); };
+    test("lcm(21, 6)") { expect(lcm(21, 6)).should_be(42); };
+    test("lcm(-4, 6)") { expect(lcm(0 - 4, 6)).should_be(12); };
+    test("lcm(0, 9)") { expect(lcm(0, 9)).should_be(0); };
+    test("lcm(7, 13)") { expect(lcm(7, 13)).should_be(91); };
+}
+
+def check_counting() {
+    test("factorial(0)") { expect(factorial(0)).should_be(1); };
+    test("factorial(1)") { expect(factorial(1)).should_be(1); };
+    test("factorial(5)") { expect(factorial(5)).should_be(120); };
+    test("factorial(10)") { expect(factorial(10)).should_be(3628800); };
+    test("factorial(18)") { expect(factorial(18)).should_be(6402373705728000); };
+    try {
+        factorial(0 - 1);
+        test("factorial(-1)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("factorial(-1) throws") { };
+    }
+    try {
+        factorial(2.5);
+        test("factorial(2.5)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("factorial(2.5) throws") { };
+    }
+
+    test("binomial(5, 2)") { expect(binomial(5, 2)).should_be(10); };
+    test("binomial(5, 0)") { expect(binomial(5, 0)).should_be(1); };
+    test("binomial(5, 5)") { expect(binomial(5, 5)).should_be(1); };
+    test("binomial(5, 6)") { expect(binomial(5, 6)).should_be(0); };
+    test("binomial(10, 3)") { expect(binomial(10, 3)).should_be(120); };
+    test("binomial(52, 5)") { expect(binomial(52, 5)).should_be(2598960); };
+    test("binomial(40, 20)") { expect(binomial(40, 20)).should_be(137846528820); };
+    test("permutations(5, 2)") { expect(permutations(5, 2)).should_be(20); };
+    test("permutations(5, 5)") { expect(permutations(5, 5)).should_be(120); };
+    test("permutations(5, 0)") { expect(permutations(5, 0)).should_be(1); };
+    test("permutations(3, 4)") { expect(permutations(3, 4)).should_be(0); };
+    test("permutations(10, 3)") { expect(permutations(10, 3)).should_be(720); };
+    try {
+        binomial(0 - 1, 2);
+        test("binomial(-1, 2)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("binomial(-1, 2) throws") { };
+    }
+}
+
+def check_primes() {
+    test("is_prime(0)") { expect_false(is_prime(0)); };
+    test("is_prime(1)") { expect_false(is_prime(1)); };
+    test("is_prime(2)") { expect_true(is_prime(2)); };
+    test("is_prime(3)") { expect_true(is_prime(3)); };
+    test("is_prime(4)") { expect_false(is_prime(4)); };
+    test("is_prime(5)") { expect_true(is_prime(5)); };
+    test("is_prime(9)") { expect_false(is_prime(9)); };
+    test("is_prime(25)") { expect_false(is_prime(25)); };
+    test("is_prime(49)") { expect_false(is_prime(49)); };
+    test("is_prime(97)") { expect_true(is_prime(97)); };
+    test("is_prime(91)") { expect_false(is_prime(91)); };
+    test("is_prime(7919)") { expect_true(is_prime(7919)); };
+    test("is_prime(1000003)") { expect_true(is_prime(1000003)); };
+    test("is_prime(1000001)") { expect_false(is_prime(1000001)); };
+    test("is_prime(2147483647)") { expect_true(is_prime(2147483647)); };
+    test("is_prime(-7)") { expect_false(is_prime(0 - 7)); };
+    test("is_prime(7.5)") { expect_false(is_prime(7.5)); };
+
+    // count the primes below 100: there are 25
+    count : decimal = 0;
+    for(n : decimal = 0; n < 100; n++) {
+        if(is_prime(n)) count++;
+    }
+    test("25 primes below 100") { expect(count).should_be(25); };
+
+    test("next_prime(7)") { expect(next_prime(7)).should_be(11); };
+    test("next_prime(8)") { expect(next_prime(8)).should_be(11); };
+    test("next_prime(-5)") { expect(next_prime(0 - 5)).should_be(2); };
+    test("next_prime(1)") { expect(next_prime(1)).should_be(2); };
+    test("next_prime(100)") { expect(next_prime(100)).should_be(101); };
+
+    factors := prime_factors(360);
+    test("360 has six prime factors") { expect(sizeof(factors)).should_be(6); };
+    test("360 factor 0") { expect(factors[0]).should_be(2); };
+    test("360 factor 2") { expect(factors[2]).should_be(2); };
+    test("360 factor 3") { expect(factors[3]).should_be(3); };
+    test("360 factor 4") { expect(factors[4]).should_be(3); };
+    test("360 factor 5") { expect(factors[5]).should_be(5); };
+    test("prime_factors(1) is empty") { expect(sizeof(prime_factors(1))).should_be(0); };
+    alone := prime_factors(97);
+    test("a prime has one factor") { expect(sizeof(alone)).should_be(1); };
+    test("...itself") { expect(alone[0]).should_be(97); };
+    semi := prime_factors(1000001);          // 101 * 9901
+    test("1000001 has two factors") { expect(sizeof(semi)).should_be(2); };
+    test("1000001 = 101 * ...") { expect(semi[0]).should_be(101); };
+    test("... * 9901") { expect(semi[1]).should_be(9901); };
+    try {
+        prime_factors(0);
+        test("prime_factors(0)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("prime_factors(0) throws") { };
+    }
+}
+
+def check_sequences() {
+    test("fibonacci(0)") { expect(fibonacci(0)).should_be(0); };
+    test("fibonacci(1)") { expect(fibonacci(1)).should_be(1); };
+    test("fibonacci(2)") { expect(fibonacci(2)).should_be(1); };
+    test("fibonacci(10)") { expect(fibonacci(10)).should_be(55); };
+    test("fibonacci(20)") { expect(fibonacci(20)).should_be(6765); };
+    test("fibonacci(50)") { expect(fibonacci(50)).should_be(12586269025); };
+    test("fibonacci(78)") { expect(fibonacci(78)).should_be(8944394323791464); };
+    try {
+        fibonacci(0 - 1);
+        test("fibonacci(-1)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("fibonacci(-1) throws") { };
+    }
+
+    test("mod_pow(4, 13, 497)") { expect(mod_pow(4, 13, 497)).should_be(445); };
+    test("mod_pow(2, 10, 1000)") { expect(mod_pow(2, 10, 1000)).should_be(24); };
+    test("mod_pow(3, 0, 7)") { expect(mod_pow(3, 0, 7)).should_be(1); };
+    test("mod_pow(5, 3, 1)") { expect(mod_pow(5, 3, 1)).should_be(0); };
+    test("mod_pow(2, 30, largest modulus)") { expect(mod_pow(2, 30, 94906265)).should_be(29772909); };     // 2^30 - 11 * 94906265
+    test("fermat: 3^(p-1) mod p") { expect(mod_pow(3, 7918, 7919)).should_be(1); };
+    try {
+        mod_pow(2, 3, 0);
+        test("mod_pow modulus 0") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("mod_pow modulus 0 throws") { };
+    }
+
+    test("digit_count(0)") { expect(digit_count(0)).should_be(1); };
+    test("digit_count(9)") { expect(digit_count(9)).should_be(1); };
+    test("digit_count(10)") { expect(digit_count(10)).should_be(2); };
+    test("digit_count(999)") { expect(digit_count(999)).should_be(3); };
+    test("digit_count(-1000)") { expect(digit_count(0 - 1000)).should_be(4); };
+    test("digit_sum(1234)") { expect(digit_sum(1234)).should_be(10); };
+    test("digit_sum(0)") { expect(digit_sum(0)).should_be(0); };
+    test("digit_sum(-999)") { expect(digit_sum(0 - 999)).should_be(27); };
+}
+
+def check_bits() {
+    test("count_ones(0)") { expect(bits.count_ones(0)).should_be(0); };
+    test("count_ones(13)") { expect(bits.count_ones(13)).should_be(3); };
+    test("count_ones(255)") { expect(bits.count_ones(255)).should_be(8); };
+    test("count_ones(2^32 - 1)") { expect(bits.count_ones(4294967295)).should_be(32); };
+    test("count_ones(2^52)") { expect(bits.count_ones(4503599627370496)).should_be(1); };
+    test("bit_length(0)") { expect(bits.bit_length(0)).should_be(0); };
+    test("bit_length(1)") { expect(bits.bit_length(1)).should_be(1); };
+    test("bit_length(255)") { expect(bits.bit_length(255)).should_be(8); };
+    test("bit_length(256)") { expect(bits.bit_length(256)).should_be(9); };
+    test("highest_one_bit(100)") { expect(bits.highest_one_bit(100)).should_be(64); };
+    test("highest_one_bit(64)") { expect(bits.highest_one_bit(64)).should_be(64); };
+    test("highest_one_bit(0)") { expect(bits.highest_one_bit(0)).should_be(0); };
+    test("lowest_one_bit(12)") { expect(bits.lowest_one_bit(12)).should_be(4); };
+    test("lowest_one_bit(7)") { expect(bits.lowest_one_bit(7)).should_be(1); };
+    test("lowest_one_bit(0)") { expect(bits.lowest_one_bit(0)).should_be(0); };
+    test("trailing_zeros(8)") { expect(bits.trailing_zeros(8)).should_be(3); };
+    test("trailing_zeros(1)") { expect(bits.trailing_zeros(1)).should_be(0); };
+    test("trailing_zeros(0)") { expect(bits.trailing_zeros(0)).should_be(32); };
+    test("leading_zeros(1)") { expect(bits.leading_zeros(1)).should_be(31); };
+    test("leading_zeros(0)") { expect(bits.leading_zeros(0)).should_be(32); };
+    test("leading_zeros(2^32 - 1)") { expect(bits.leading_zeros(4294967295)).should_be(0); };
+    test("leading_zeros(65536)") { expect(bits.leading_zeros(65536)).should_be(15); };
+
+    test("is_power_of_two(1)") { expect_true(bits.is_power_of_two(1)); };
+    test("is_power_of_two(64)") { expect_true(bits.is_power_of_two(64)); };
+    test("is_power_of_two(0)") { expect_false(bits.is_power_of_two(0)); };
+    test("is_power_of_two(96)") { expect_false(bits.is_power_of_two(96)); };
+    test("is_power_of_two(-4)") { expect_false(bits.is_power_of_two(0 - 4)); };
+    test("is_power_of_two(0.5)") { expect_false(bits.is_power_of_two(0.5)); };
+    test("next_power_of_two(100)") { expect(bits.next_power_of_two(100)).should_be(128); };
+    test("next_power_of_two(64)") { expect(bits.next_power_of_two(64)).should_be(64); };
+    test("next_power_of_two(0)") { expect(bits.next_power_of_two(0)).should_be(1); };
+    test("next_power_of_two(65)") { expect(bits.next_power_of_two(65)).should_be(128); };
+
+    test("test_bit(5, 2)") { expect_true(bits.test_bit(5, 2)); };
+    test("test_bit(5, 1)") { expect_false(bits.test_bit(5, 1)); };
+    test("test_bit(5, 0)") { expect_true(bits.test_bit(5, 0)); };
+    test("set_bit(4, 0)") { expect(bits.set_bit(4, 0)).should_be(5); };
+    test("set_bit(5, 0) stays") { expect(bits.set_bit(5, 0)).should_be(5); };
+    test("clear_bit(5, 0)") { expect(bits.clear_bit(5, 0)).should_be(4); };
+    test("clear_bit(4, 0) stays") { expect(bits.clear_bit(4, 0)).should_be(4); };
+    test("toggle_bit(5, 1)") { expect(bits.toggle_bit(5, 1)).should_be(7); };
+    test("toggle_bit(7, 1)") { expect(bits.toggle_bit(7, 1)).should_be(5); };
+    test("set_bit(0, 40)") { expect(bits.set_bit(0, 40)).should_be(1099511627776); };
+
+    test("rotate_left(1, 31)") { expect(bits.rotate_left(1, 31)).should_be(2147483648); };
+    test("rotate_left(2^31, 1)") { expect(bits.rotate_left(2147483648, 1)).should_be(1); };
+    test("rotate_left(0x12345678, 8)") { expect(bits.rotate_left(305419896, 8)).should_be(878082066); };     // 0x34567812
+    test("rotate_left by 0") { expect(bits.rotate_left(12345, 0)).should_be(12345); };
+    test("rotate_left by 32") { expect(bits.rotate_left(12345, 32)).should_be(12345); };
+    test("rotate_right(1, 1)") { expect(bits.rotate_right(1, 1)).should_be(2147483648); };
+    test("rotate_right(0x12345678, 8)") { expect(bits.rotate_right(305419896, 8)).should_be(2014458966); };  // 0x78123456
+    test("rotate_left by -8 is rotate_right by 8") { expect(bits.rotate_left(305419896, 0 - 8)).should_be(2014458966); };
+    test("reverse(1)") { expect(bits.reverse(1)).should_be(2147483648); };
+    test("reverse(2^32 - 1)") { expect(bits.reverse(4294967295)).should_be(4294967295); };
+    test("reverse(6)") { expect(bits.reverse(6)).should_be(1610612736); };                                    // 0x60000000
+    test("invert(0)") { expect(bits.invert(0)).should_be(4294967295); };
+    test("invert(255)") { expect(bits.invert(255)).should_be(4294967040); };
+
+    test("to_binary_string(10)") { expect(bits.to_binary_string(10)).should_be("1010"); };
+    test("to_binary_string(0)") { expect(bits.to_binary_string(0)).should_be("0"); };
+    test("to_binary_string(255)") { expect(bits.to_binary_string(255)).should_be("11111111"); };
+    test("parse_binary(1010)") { expect(bits.parse_binary("1010")).should_be(10); };
+    test("parse_binary(0)") { expect(bits.parse_binary("0")).should_be(0); };
+    test("parse_binary(11111111)") { expect(bits.parse_binary("11111111")).should_be(255); };
+
+    caught : decimal = 0;
+    try { bits.count_ones(0 - 1); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.count_ones(1.5); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.rotate_left(4294967296, 1); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.test_bit(1, 53); } catch(e: illegal_argument_exception) { caught++; }
+    try { bits.parse_binary("102"); } catch(e: number_format_exception) { caught++; }
+    try { bits.parse_binary(""); } catch(e: number_format_exception) { caught++; }
+    test("misuse throws") { expect(caught).should_be(6); };
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_math_number_theory") {
+        check_divisors();
+        check_counting();
+        check_primes();
+        check_sequences();
+        check_bits();
+    };
+    finish_tests("lib_math_number_theory");
+}

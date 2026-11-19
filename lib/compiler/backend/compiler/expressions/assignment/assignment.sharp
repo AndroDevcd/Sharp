@@ -1,0 +1,45 @@
+mod backend.compiler.expressions.assignment;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.expressions
+)
+
+/**
+ * ASSIGNMENT:  target = value   target += value   target++   --target
+ *
+ * The left side is analysed first and classified - a variable, a field, an
+ * array item, a property, an object indexed through operator[] - and the
+ * classification decides what the assignment is in the typed tree: a
+ * bound_assign / bound_increment into storage, or a call (a setter,
+ * operator=, put, operator+=, operator++). The value of an assignment
+ * expression is the target's new value: `x := (a.count = 5);` (doc/backend.md 7.10).
+ *
+ * The files of this package (module `backend.compiler.expressions.assignment`):
+ *
+ *      assignment.sharp            this front door: analyse_assign
+ *      assignment_targets.sharp    what may stand on the left (E0711); `const` (W1021)
+ *      plain_assignment.sharp      `=`: storage, setter, operator= (E0713)
+ *      compound_assignment.sharp   `+=` and the others (E0712)
+ *      increment_expression.sharp  `++` and `--`, prefix and postfix
+ *      index_store.sharp           `o[i] = v` on an object: put(i, v), or operator= on o[i]
+ *
+ *      C++ comparison: compiler/expressions/assign_expression.cpp.
+ */
+def analyse_assign(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    target_node : _int64 = tree.first_child!![node];
+    value_node : _int64 = tree.next_sibling!![target_node];
+    target := target_at(context, target_node);
+    operation : _int64 = token_kind_at(context, node);
+    if(operation == P_ASSIGN) { return plain_assignment(context, node, target, value_node); }
+    return compound_assignment(context, node, target, value_node, arithmetic_of(operation));
+}

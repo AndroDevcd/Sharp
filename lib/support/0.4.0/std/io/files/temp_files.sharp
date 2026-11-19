@@ -1,0 +1,205 @@
+mod std.io;
+
+import ( platform, platform.kernel )
+
+/**
+ * Temporary files and directories: where they go, unique names for them,
+ * and removing them again.
+ *
+ *     scratch := temp_files.create_file("report_", ".csv");
+ *     scratch.write_text("a,b\n");
+ *     ...
+ *     temp_files.cleanup();        // deletes everything created through this class
+ *
+ * Everything is static. The runtime has no hook that runs when the program
+ * ends, so nothing is deleted automatically: call cleanup() (or delete the
+ * files yourself) before the program exits.
+ *
+ * Where the temporary directory is:
+ *   - unix: "/tmp" (when that is not a directory: the current directory)
+ *   - windows: the folder the TEMP variable names; it is asked from the
+ *     command line once (the runtime cannot read environment variables), by
+ *     way of a small file in the current directory that is deleted again.
+ *     When that does not work the current directory is used.
+ *   - or whatever set_directory() was given.
+ *
+ * Not thread safe.
+ */
+class temp_files {
+    /** the temporary directory once it is known, "" before */
+    private static directory_path : string = "";
+    /** counts the names handed out, so two names made in the same millisecond differ */
+    private static counter : decimal = 0;
+    /**
+     * Differs from one running program to the next, so two programs started at the same
+     * moment do not pick the same name between looking for it and creating it (0: not made yet).
+     */
+    private static run_token : _int64 = 0;
+    /** the paths created through this class that cleanup() still has to delete */
+    private static created := new list<string>();
+
+    /**
+     * The directory temporary files are created in (without a separator at
+     * the end). Worked out on the first call and remembered.
+     */
+    static def directory() : string {
+        if(sizeof(directory_path.data) == 0) {
+            directory_path = find_directory();
+        }
+        return directory_path;
+    }
+
+    /**
+     * Use `path` as the temporary directory from now on.
+     * Throws io_exception when it is not an existing directory.
+     */
+    static def set_directory(path: string) {
+        dir := new file(path);
+        if(!dir.is_directory()) {
+            throw new io_exception("temp_files.set_directory: not a directory: " + path);
+        }
+        directory_path = dir.get_path();
+    }
+
+    /** look for the temporary directory of the system (see the class comment) */
+    private static def find_directory() : string {
+        if(build.is_windows()) {
+            probe := new file("sharp_tmpdir_probe_" + io_strings.int_to_string(utc_mills().value) + ".tmp");
+            found : string = ".";
+            command : string = "echo %TEMP%> " + io_strings.shell_quote(probe.get_path());
+            status := sys(command);
+            answer := file_natives.read(probe.get_path());
+            if(!io_strings.is_null(answer)) {
+                candidate := io_strings.trim(answer!!);
+                if(sizeof(candidate.data) > 0) {
+                    candidate_dir := new file(candidate);
+                    if(candidate_dir.is_directory()) {
+                        found = candidate;
+                    }
+                }
+            }
+            file_natives.delete_file(probe.get_path());
+            return found;
+        }
+
+        tmp := new file("/tmp");
+        if(tmp.is_directory()) {
+            return "/tmp";
+        }
+        return ".";
+    }
+
+    /**
+     * A name that is not used yet in the temporary directory:
+     * prefix + something unique + suffix, as a full path. Nothing is
+     * created. The unique part is made of the clock, a number of this program
+     * run and a counter, so names do not repeat within a run or between programs
+     * running at the same time, and old files are avoided by checking that
+     * nothing with the name exists.
+     */
+    static def new_path(prefix: string, suffix: string) : string {
+        return new_path_in(directory(), prefix, suffix);
+    }
+
+    /**
+     * The same as new_path(), for a name in the directory `dir` instead of
+     * the temporary directory.
+     */
+    static def new_path_in(dir: string, prefix: string, suffix: string) : string {
+        sep : decimal = file_natives.separator();
+        if(run_token == 0) {
+            run_token = vm.time_in_nanoseconds().value % 1000000000000 + 1;
+        }
+        while(true) {
+            counter++;
+            buf := new char_buffer(96);
+            buf.append(dir);
+            if(sizeof(dir.data) > 0 && dir.data[sizeof(dir.data) - 1] != sep) {
+                buf.append_char(sep);
+            }
+            buf.append(prefix);
+            buf.append(io_strings.int_to_hex(utc_mills().value, 0));
+            buf.append_char('_');
+            buf.append(io_strings.int_to_hex(run_token, 0));
+            buf.append_char('_');
+            buf.append_int(counter);
+            buf.append(suffix);
+
+            candidate := buf.to_string()!!;
+            taken := new file(candidate);
+            if(!taken.exists()) {
+                return candidate;
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Create a new empty file in the temporary directory, named
+     * prefix + something unique + suffix. The file is remembered for
+     * cleanup().
+     *
+     * Throws io_exception when the file cannot be created.
+     */
+    static def create_file(prefix: string, suffix: string) : file {
+        return create_file_in(directory(), prefix, suffix);
+    }
+
+    /**
+     * Create a new empty file in the directory `dir`, named
+     * prefix + something unique + suffix. The file is remembered for
+     * cleanup().
+     *
+     * Throws io_exception when the file cannot be created (e.g. `dir` does
+     * not exist).
+     */
+    static def create_file_in(dir: string, prefix: string, suffix: string) : file {
+        f := new file(new_path_in(dir, prefix, suffix));
+        if(!f.create_new()) {
+            throw new io_exception("could not create temporary file: " + f.get_path());
+        }
+        created.add(f.get_path());
+        return f;
+    }
+
+    /**
+     * Create a new empty directory in the temporary directory, named
+     * prefix + something unique. The directory is remembered for cleanup(),
+     * which deletes it with everything that was put in it.
+     *
+     * Throws io_exception when the directory cannot be created.
+     */
+    static def create_directory(prefix: string) : file {
+        dir := new file(new_path_in(directory(), prefix, ""));
+        if(dir.mkdir() != 0) {
+            throw new io_exception("could not create temporary directory: " + dir.get_path());
+        }
+        created.add(dir.get_path());
+        return dir;
+    }
+
+    /** how many files and directories created through this class cleanup() would try to delete */
+    static def pending() : decimal {
+        return created.size().value;
+    }
+
+    /**
+     * Delete every file and directory (with its content) that was created
+     * through this class and still exists. Returns how many were deleted.
+     * Things that were already deleted by the program are skipped quietly.
+     */
+    static def cleanup() : decimal {
+        deleted : decimal = 0;
+        count : decimal = created.size().value;
+        for(i : decimal = 0; i < count; i++) {
+            f := new file(created.at(i));
+            if(f.exists()) {
+                if(f.delete_recursively()) {
+                    deleted++;
+                }
+            }
+        }
+        created.clear();
+        return deleted;
+    }
+}

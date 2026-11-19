@@ -1,0 +1,82 @@
+mod std.util;
+
+/**
+ * @class lazy
+ *
+ * A value that is computed the first time it is asked for, and remembered
+ * from then on (Kotlin's `by lazy`). Use it for something expensive that
+ * may never be needed: a parsed configuration, a lookup table, a
+ * connection.
+ *
+ *     table := new lazy<string>({ -> (string) return build_big_table(); });
+ *     // nothing has been built yet
+ *     text := table.value();      // built now
+ *     again := table.value();     // the same object, not built again
+ *
+ * std#deferred_init is the older, thinner version of this class; lazy adds
+ * is_initialized(), reset(), a ready-made value, and it also remembers a
+ * null result instead of calling the supplier again.
+ *
+ * The supplier runs at most once (until reset()). If it throws, nothing is
+ * remembered and the next value() call runs it again. The class does no
+ * locking: when several threads may ask at the same time, guard the call.
+ *
+ * LIMITATION: T must be an object type.
+ */
+class lazy<T> {
+    private supplier : ()(T);
+    private item : T?;
+    private computed : decimal = 0;
+    private has_supplier : decimal = 1;
+
+    /** a lazy value that will be produced by calling `supplier` */
+    lazy(supplier: ()(T)) {
+        self->supplier = supplier;
+    }
+
+    /**
+     * A lazy value that is already known (nothing will be computed). Handy
+     * when an API wants a lazy<T> and the value happens to be at hand.
+     */
+    static def of_value(value: T): lazy<T> {
+        result := new lazy<T>();
+        result.item = value;
+        result.computed = 1;
+        return result;
+    }
+
+    /** internal: a lazy without a supplier, used by of_value() */
+    private lazy() {
+        has_supplier = 0;
+    }
+
+    /**
+     * The value: computed by the supplier on the first call, the remembered
+     * object on every later call.
+     * An exception thrown by the supplier passes through to the caller.
+     */
+    def value(): T {
+        if(!computed) {
+            item = supplier();
+            computed = 1;
+        }
+        return item!!;
+    }
+
+    /** true when the value has been computed (or was given ready-made) */
+    def is_initialized(): bool {
+        return computed != 0;
+    }
+
+    /**
+     * Forget the remembered value: the next value() call runs the supplier
+     * again. Does nothing when no value has been computed yet, and nothing
+     * for a lazy made with of_value() (it has no supplier to run again).
+     */
+    def reset() {
+        if(has_supplier) {
+            computed = 0;
+            item = null;
+        }
+    }
+}

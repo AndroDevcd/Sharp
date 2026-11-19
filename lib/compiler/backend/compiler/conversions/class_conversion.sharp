@@ -1,0 +1,197 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.postprocessor.inheritance,
+    backend.compiler.context
+)
+
+/**
+ * CONVERSIONS BETWEEN CLASSES
+ *
+ *      class animal { }    class dog base animal : printable { }    class cat base animal { }
+ *
+ *      a : animal = a_dog;         UP the base chain: always fine (every dog is an animal)
+ *      p : printable = a_dog;      to an interface the class (or a base of it) lists: fine
+ *      d : dog = an_animal;        DOWN: only some animals are dogs. The C++ compiler accepts
+ *                                  this without `as` and the program checks the object when it
+ *                                  runs; so does this compiler, with warning W1017.
+ *      c : cat = a_dog;            neither above nor below: refused
+ *
+ * Instances of a generic class are different classes: a list<dog> is not a
+ * list<animal>.
+ *
+ * And one more way, through the target class itself:
+ *
+ *      name : string = "text";     string has a constructor that takes an _int8[]
+ *      n : int = 5;                int has a constructor that takes a number
+ *      p : point = 3;              ... and so does any class with a one-parameter constructor
+ *                                  or an `init(x: t)` conversion block that takes the value
+ *
+ * The value is handed to that constructor: `new string("text")`. Conversions
+ * do not chain - the value must fit the constructor's parameter WITHOUT
+ * another construction.
+ *
+ *      C++ comparison: `match_constructor` / `match_initializer` and the
+ *      class branch of `is_explicit_type_match` in types/sharp_type.cpp.
+ */
+
+/** class to class (also `C[]` to `B[]`: an array converts like its items), without looking at `?` */
+def conversion_between_classes(session: analysis_session, from: resolved_type, to: resolved_type) : conversion {
+    from_class : sharp_class = from.class_of!!;
+    to_class : sharp_class = to.class_of!!;
+    if(from_class == to_class) { return accepted(CONV_TO_NULLABLE, from, to, 0); }
+    if(inherits_from(session.prog, from_class, to_class)) { return accepted(CONV_UPCAST, from, to, 2); }
+    if(inherits_from(session.prog, to_class, from_class)) {
+        down := accepted(CONV_DOWNCAST, from, to, 4);
+        down.checked = 1;
+        return down;
+    }
+    return refused(from, to, WHY_UNRELATED);
+}
+
+/**
+ * The conversion that BUILDS the target class from the value, or null when
+ * the class has no one-parameter constructor or init(x) that takes it.
+ *
+ * When several fit, the one whose parameter is nearest to the value's type
+ * wins (the lowest rank). When two are equally near, which one runs is a
+ * question of overload resolution: `function` stays null and the calls stage
+ * decides (or reports the call as ambiguous).
+ */
+def conversion_by_construction(session: analysis_session, from: resolved_type, to: resolved_type) : conversion? {
+    if(to.kind != RT_CLASS || to.is_array == 1) { return null; }      // an array is never built from one value
+    target : sharp_class = to.class_of!!;
+
+    // "A number is not text": string has a constructor from one CHARACTER,
+    // and only a character-sized number may use it. `takes_text(300)` is a mistake.
+    if(target == session.known.string_class && from.is_number()) {
+        if(from.kind != RT_INTEGER || from.bits != 8) { return null; }
+    }
+
+    // A value that already IS one of these (the class itself or a class below
+    // it) is never wrapped in a new one. What can stop it fitting is only its
+    // `?` - `w : item?` given where an `item` is wanted - and that is the null
+    // rule's business (E0501 / E0721 with the `w!!` help), not a reason to
+    // build a different object: with `item(owner: object)` the nullable `w`
+    // would otherwise slip into a NEW item, the null check bypassed and the
+    // meaning changed. The C++ compiler refuses the same code.
+    if(from.kind == RT_CLASS && from.is_array == 0) {
+        if(from.class_of!! == target || inherits_from(session.prog, from.class_of!!, target)) { return null; }
+    }
+
+    ensure_members(session.prog, target);
+    // the constructors first; an init(x) only when no constructor takes the value
+    built := best_construction(session, from, to, target.constructors);
+    if(built == null) { built = best_construction(session, from, to, target.init_blocks); }
+    return built;
+}
+
+/**
+ * The best of `candidates` (constructors, or init blocks) with one parameter
+ * that takes the value; null when none does. The order of overload
+ * resolution (doc/backend.md 7.6): a parameter that takes the value as it is
+ * wins at once - the first such, as in the C++ compiler; otherwise the lowest
+ * rank, then the best number grade. Two still equally good leave `function`
+ * null: E0503 where the conversion is used - unless the two take the same
+ * type, which is a declaration written twice and reported as that.
+ */
+def best_construction(session: analysis_session, from: resolved_type, to: resolved_type,
+                      candidates: list<sharp_function>) : conversion? {
+    best : conversion? = null;
+    best_function : sharp_function? = null;
+    is_tie : _int64 = 0;
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        candidate := candidates.at(i);
+        if(candidate.parameters.size() != 1 || candidate.declared_twice == 1) { continue; }
+        wanted := candidate.parameters.at(0).value_type;
+        if(wanted == null) { continue; }
+        inner := find_conversion(session, from, wanted!!, 0);
+        if(!inner.converts() || inner.kind == CONV_ERROR) { continue; }
+        if(inner.rank == 0) {
+            best = inner;
+            best_function = candidate;
+            is_tie = 0;
+            break;
+        }
+
+        comparison : _int64 = 0 - 1;        // -1: better than the best so far, 0: as good, 1: worse
+        if(best != null) { comparison = compare_constructions(inner, best!!); }
+        if(comparison < 0) {
+            best = inner;
+            best_function = candidate;
+            is_tie = 0;
+        } else if(comparison == 0 && !same_resolved_type(wanted!!, best_function!!.parameters.at(0).value_type!!)) {
+            // (two that take the very SAME type are one declared twice - E0332 / E0333, which
+            // for an instance of a generic class may only be found after this use: not a tie)
+            is_tie = 1;
+        }
+    }
+    if(best == null) { return null; }
+
+    built := accepted(CONV_CONSTRUCT, from, to, 5);
+    built.inner = best;
+    if(is_tie == 0) { built.function = best_function; }
+    else { session.counters.constructions_undecided++; }
+    return built;
+}
+
+/**
+ * Which of two ways to hand the value to a constructor is better: -1 when
+ * `a` is, 1 when `b` is, 0 when they are equally good. The rank first
+ * (identity before a number conversion before an upcast ...), then for two
+ * number conversions their grade (`new int(n)` with n an _int8 takes
+ * int(_int32) rather than int(decimal)) - the same order as overload
+ * resolution, so `x : int = small;` builds the object the call `int(small)`
+ * would.
+ */
+def compare_constructions(a: conversion, b: conversion) : _int64 {
+    if(a.rank < b.rank) { return 0 - 1; }
+    if(a.rank > b.rank) { return 1; }
+    if(a.kind == CONV_NUMERIC && b.kind == CONV_NUMERIC) {
+        grade_a : _int64 = number_grade(a.from, a.to);
+        grade_b : _int64 = number_grade(b.from, b.to);
+        if(grade_a < grade_b) { return 0 - 1; }
+        if(grade_a > grade_b) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * A DECLARED VARIABLE TAKES ITS VALUE THROUGH `init(x)` FIRST
+ *
+ *      class c { init(x: _int64) { ... }   c(x: _int64) { ... } }
+ *      v : c = 5;              runs init(x)        (a local, a global or a field with a value)
+ *      take(5);  return 5;     run the constructor
+ *
+ * The one rule of 7.5.4 (a constructor first, then `init(x)`) decides every
+ * other place. In a DECLARATION with a value, when an `init(x)` takes the
+ * value as well, the C++ compiler runs the `init(x)` (checked by running the
+ * program it builds: a declared local and a global print "init", an
+ * argument and a returned value print "ctor"). Both compilers accept such a
+ * program, so the bootstrap must run the same code: here the conversion a
+ * declaration's value got is turned to the init block when one fits.
+ *
+ *      C++ comparison: compile_local_variable_statement (local_variable_decl.cpp)
+ *      calls `compile_initialization_call` with the class's init functions.
+ */
+def with_init_block_preferred(context: analysis_context, value: bound_expression) : bound_expression {
+    if(value.kind != BX_CONVERSION) { return value; }
+    converted := value as bound_conversion;
+    how : conversion = converted.how;
+    if(how.kind != CONV_CONSTRUCT || how.function == null || how.function!!.kind != D_CONSTRUCTOR) { return value; }
+    target : sharp_class = how.to.class_of!!;
+    if(target.init_blocks.size() == 0) { return value; }
+
+    by_init := best_construction(context.session, how.from, how.to, target.init_blocks);
+    if(by_init == null || by_init!!.function == null) { return value; }
+    return new bound_conversion(converted.operand, by_init!!);
+}

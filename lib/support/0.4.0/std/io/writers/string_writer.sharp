@@ -1,0 +1,101 @@
+mod std.io;
+
+/**
+ * A text_writer that collects what is written in memory; to_string() gives
+ * the text. Useful to build a string with code that writes to a
+ * text_writer, and in tests in place of a file or the console.
+ *
+ *     out := new string_writer();
+ *     out.write("a = ");
+ *     out.write_int(1);
+ *     out.new_line();
+ *     text := out.to_string();        // "a = 1\n"
+ *
+ * The text stays available after close(). Not thread safe.
+ */
+class string_writer : text_writer {
+    private buf : char_buffer;
+    private closed : decimal = 0;
+
+    /** an empty writer */
+    string_writer() {
+        buf = new char_buffer();
+    }
+
+    /** an empty writer with room for `capacity` characters before its buffer has to grow */
+    string_writer(capacity: decimal) {
+        buf = new char_buffer(capacity);
+    }
+
+    private def check_open() {
+        if(closed) {
+            throw new io_exception("the writer is closed");
+        }
+    }
+
+    /** add all characters of `text`. Throws io_exception when closed. */
+    override def write(text: string) {
+        check_open();
+        buf.append(text);
+    }
+
+    /** add one character given as its code. Throws io_exception when closed. */
+    override def write_char(ch: decimal) {
+        check_open();
+        buf.append_char(ch);
+    }
+
+    /** add `text` and a line end ("\n"). Throws io_exception when closed. */
+    override def write_line(text: string) {
+        check_open();
+        buf.append(text);
+        buf.append_char('\n');
+    }
+
+    /** add a line end ("\n"). Throws io_exception when closed. */
+    def new_line() {
+        check_open();
+        buf.append_char('\n');
+    }
+
+    /** add a whole number in decimal ("42", "-7"). Throws io_exception when closed. */
+    def write_int(value: decimal) {
+        check_open();
+        buf.append_int(value);
+    }
+
+    /** add a number the short way ("3", "0.5" - see io_strings.number_to_string). Throws io_exception when closed. */
+    def write_number(value: decimal) {
+        check_open();
+        buf.append_number(value);
+    }
+
+    /** nothing to do: the text is already where it goes */
+    override def flush() {
+    }
+
+    /** finish writing; the collected text stays available. Closing twice is fine. */
+    override def close() {
+        closed = 1;
+    }
+
+    /** true once close() was called */
+    def is_closed() : bool {
+        return closed != 0;
+    }
+
+    /** the number of characters written so far */
+    def length() : decimal {
+        return buf.length();
+    }
+
+    /** forget everything written so far (allowed after close() too) */
+    def clear() {
+        buf.clear();
+    }
+
+    /** everything written so far as a string */
+    override def to_string() : string? {
+        return buf.to_string();
+    }
+}

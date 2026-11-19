@@ -1,0 +1,10 @@
+// expect: E0100
+// help: !done
+// replace: not done
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    done : _int64 = 0;
+    if(not done) { println("not yet"); }
+}

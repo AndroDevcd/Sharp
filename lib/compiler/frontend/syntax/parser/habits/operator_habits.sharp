@@ -1,0 +1,168 @@
+mod frontend.syntax.parser.habits;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    frontend.syntax.parser
+)
+
+/**
+ * HABITS IN OPERATORS (see habits.sharp for the idea)
+ *
+ *      if(a == 1 and b == 2)       Python          if(a == 1 && b == 2)
+ *      if(not done)                Python          if(!done)
+ *      o instanceof string         Java            o is string
+ *      x === 1     x !== 1         JavaScript      x == 1      x != 1
+ *      ok &&= check();             Ruby, JS        ok = ok && check();
+ *
+ * Called from parse_expressions.sharp. These functions are met inside the
+ * parser's precedence-climbing loop, which calls itself once per link of a
+ * long `? :` chain: they are written so that `parse_binary` and
+ * `parse_unary` need no extra local variable for them (a first version
+ * added three, and a 250-link chain ran out of stack).
+ */
+
+/**
+ * `a == 1 and b == 2`, `o instanceof string`: a WORD where an operator
+ * belongs - after a complete operand, on the same line, with an operand
+ * after it. A name can never follow an operand in Sharp, so this cannot
+ * misread correct code. Returns the token kind of the Sharp operator
+ * (`&&`, `||`, `is`), or 0.
+ */
+def word_operator_here(p: parse_state) : _int64 {
+    if(!p.at(T_IDENTIFIER) || p.position == 0 || !p.same_line(p.position - 1, p.position)) { return 0; }
+    next : _int64 = p.peek(1);
+    if(token_is_word(p, p.position, "instanceof") && (next == T_IDENTIFIER || is_native_type(next))) { return K_IS; }
+    if(!starts_a_plain_value(next) && next != P_LPAREN) { return 0; }
+    if(token_is_word(p, p.position, "and")) { return P_ANDAND; }
+    if(token_is_word(p, p.position, "or")) { return P_OROR; }
+    return 0;
+}
+
+/** the Sharp spelling of an operator kind, for the messages */
+def operator_spelling(kind: _int64) : string {
+    if(kind == P_ANDAND) { return "&&"; }
+    if(kind == P_OROR) { return "||"; }
+    if(kind == K_IS) { return "is"; }
+    if(kind == P_EQEQ) { return "=="; }
+    if(kind == P_NOTEQ) { return "!="; }
+    return "?";
+}
+
+/**
+ * Read `left and right` (the current token is the word; word_operator_here
+ * said it is one) as the Sharp operator, and report it.
+ * @return the N_BINARY (or N_IS) node
+ */
+def parse_word_operator(p: parse_state, left: _int64) : _int64 {
+    sharp_kind : _int64 = word_operator_here(p);
+    word : _int64 = p.position;
+    node : _int64 = 0;
+    if(sharp_kind == K_IS) {
+        node = p.node(N_IS);
+        p.advance();
+        p.tree.append(node, left);
+        parse_type(p, node);
+    } else {
+        node = p.node(N_BINARY);
+        p.advance();
+        p.tree.append(node, left);
+        p.tree.append(node, parse_binary(p, binary_power(sharp_kind) + 1));
+    }
+    report_word_operator(p, first_token_in(p.tree, left), word, sharp_kind);
+    return node;
+}
+
+/**
+ * Report a word operator, after its right side has been parsed: `start` is
+ * the first token of the left operand, `word` the token of `and` / `or` /
+ * `instanceof`, and the right side ends just before the current token.
+ */
+def report_word_operator(p: parse_state, start: _int64, word: _int64, sharp_kind: _int64) {
+    written := token_text(p.source, p.table, word);
+    sharp := operator_spelling(sharp_kind);
+    corrected := tokens_text(p, start, word - 1) + " " + sharp + " " + tokens_text(p, word + 1, p.position - 1);
+    d := report_habit(p, word, word, "`" + written + "` is written `" + sharp + "` in Sharp");
+    d.with_label("not an operator in Sharp");
+    if(sharp_kind == K_IS) { d.with_note("`value is type` tests what class an object is; `value as type` then gives it as that type"); }
+    else { d.with_note("the logical operators are written with symbols, as in C: `&&` (and), `||` (or), `!` (not)"); }
+    d.with_help("write: `" + corrected + "`");
+}
+
+/**
+ * `x === 1`, `x !== 1`: `==` (or `!=`) with a `=` right after it. Sharp has
+ * one equality: `==` compares numbers by value and objects with their
+ * `operator==` (or, without one, by identity). The current token is the `==`.
+ * @return 1 when it was this habit (both tokens are then read)
+ */
+def read_triple_equals(p: parse_state) : _int64 {
+    if(!(p.at(P_EQEQ) || p.at(P_NOTEQ)) || p.peek(1) != P_ASSIGN || !tokens_touch(p, p.position, p.position + 1)) { return 0; }
+    sharp := operator_spelling(p.kind());
+    d := report_habit(p, p.position, p.position + 1, "`" + tokens_text(p, p.position, p.position + 1) + "` is written `" + sharp + "` in Sharp");
+    d.with_label("Sharp has no `===`");
+    d.with_note("`==` already compares without converting: numbers by value, objects with their class's `operator==` (or, without one, whether they are the same object)");
+    d.with_help("write `" + sharp + "`");
+    p.advance();
+    p.advance();
+    return 1;
+}
+
+/** is the current `&&` / `||` followed at once by `=` (`&&=`)? */
+def logical_assignment_here(p: parse_state) : _int64 {
+    return (p.at(P_ANDAND) || p.at(P_OROR)) && p.peek(1) == P_ASSIGN && tokens_touch(p, p.position, p.position + 1);
+}
+
+/**
+ * `ok &&= check();`: `&&` or `||` with a `=` right after it. Sharp has the
+ * compound assignments of arithmetic and bits (`+=`, `&=` ...), not of the
+ * logical operators. The current token is the `&&` (logical_assignment_here
+ * said so); `left` is the target.
+ * @return the N_BINARY node of the repaired `target && value`
+ */
+def parse_logical_assignment(p: parse_state, left: _int64) : _int64 {
+    start : _int64 = first_token_in(p.tree, left);
+    at_operator : _int64 = p.position;
+    sharp := operator_spelling(p.kind());
+    node : _int64 = p.node(N_BINARY);
+    p.advance();
+    p.advance();
+    p.tree.append(node, left);
+    p.tree.append(node, parse_binary(p, 1));
+
+    target := tokens_text(p, start, at_operator - 1);
+    value := tokens_text(p, at_operator + 2, p.position - 1);
+    d := report_habit(p, at_operator, at_operator + 1, "Sharp has no `" + sharp + "=`");
+    d.with_label("a compound assignment of a logical operator");
+    d.with_note("`+=`, `-=`, `&=` ... exist for arithmetic and bits; `" + sharp + "` is written out");
+    d.with_help("write: `" + target + " = " + target + " " + sharp + " " + value + "`");
+    return node;
+}
+
+/**
+ * Is the current token Python's `not` in front of an operand (`not done`)?
+ * `not(x)` is left alone: it could be a call of a function `not`. (The
+ * cheap tests first: a name followed by a value is rare, the text is read
+ * only then.)
+ */
+def word_not_here(p: parse_state) : _int64 {
+    if(p.peek(1) == P_LPAREN || !starts_a_plain_value(p.peek(1)) || !p.same_line(p.position, p.position + 1)) { return 0; }
+    return token_is_word(p, p.position, "not");
+}
+
+/**
+ * `not done`, read as `!done` and reported (word_not_here said it is one).
+ * @return the N_UNARY node
+ */
+def parse_word_not(p: parse_state) : _int64 {
+    word : _int64 = p.position;
+    node : _int64 = p.node(N_UNARY);
+    p.advance();
+    p.tree.append(node, parse_unary(p));
+    d := report_habit(p, word, word, "`not` is written `!` in Sharp");
+    d.with_label("not an operator in Sharp");
+    d.with_note("the logical operators are written with symbols, as in C: `&&` (and), `||` (or), `!` (not)");
+    d.with_help("write: `!" + tokens_text(p, word + 1, p.position - 1) + "`");
+    return node;
+}

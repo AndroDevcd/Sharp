@@ -1,0 +1,216 @@
+mod std.util;
+
+/**
+ * @class hashing
+ *
+ * Well-known 32-bit hash and checksum functions over text and bytes. Only
+ * static functions; never instantiated.
+ *
+ *     hashing.fnv1a("hello")              // 1335831723
+ *     hashing.crc32("123456789")          // 3421780262 (0xCBF43926)
+ *     hashing.to_hex(hashing.crc32("123456789"))      // "cbf43926"
+ *     code : decimal = hashing.combine(name_hash, age);   // a hash for an object with two fields
+ *
+ * Which one to use:
+ *
+ *     fnv1a     hash tables and general purpose hashing: fast, spreads well
+ *     djb2      the classic "times 33" string hash; simple, common in older code
+ *     crc32     detecting accidental changes (files, network packets); the
+ *               same polynomial as zip, gzip, png and Ethernet
+ *     adler32   a cheaper but weaker checksum (zlib)
+ *
+ * None of these is cryptographic: it is easy to construct two inputs with
+ * the same result on purpose. Do not use them for passwords or signatures.
+ *
+ * All results are whole numbers in 0 .. 4294967295 (an unsigned 32-bit
+ * word) and are the same on every machine. Every function exists for a
+ * string and for a byte array (_int8[]); characters above 127 are treated
+ * as the unsigned bytes 128 .. 255, so a string and its bytes hash the same.
+ *
+ * Native numbers are 64-bit floats, exact up to 2^53, so two 32-bit words
+ * cannot simply be multiplied: multiply() below does the multiplication
+ * modulo 2^32 in 16-bit halves.
+ */
+class hashing {
+    private static const WORD : decimal = 4294967296;           // 2^32
+    private static const FNV_OFFSET : decimal = 2166136261;     // 0x811C9DC5
+    private static const FNV_PRIME : decimal = 16777619;        // 0x01000193
+    private static const CRC_POLYNOMIAL : decimal = 3988292384; // 0xEDB88320 (reflected 0x04C11DB7)
+    private static const ADLER_MODULUS : decimal = 65521;       // the largest prime below 2^16
+
+    /**
+     * (a * b) modulo 2^32 for two words in 0 .. 4294967295, exactly.
+     *
+     * With a = ah * 2^16 + al and b = bh * 2^16 + bl:
+     *     a * b = ah bh 2^32 + (ah bl + al bh) 2^16 + al bl
+     * The first term vanishes modulo 2^32, and of the middle term only the
+     * low 16 bits survive the shift, so every intermediate value stays
+     * below 2^34.
+     */
+    static def multiply(a: decimal, b: decimal): decimal {
+        a_high : decimal = a >> 16;
+        a_low : decimal = a & 65535;
+        b_high : decimal = b >> 16;
+        b_low : decimal = b & 65535;
+
+        middle : decimal = (a_high * b_low + a_low * b_high) & 65535;
+        return (middle * 65536 + a_low * b_low) % WORD;
+    }
+
+    /** the byte at `index` as an unsigned value 0 .. 255 (array elements are signed) */
+    private static def byte_at(data: _int8[], index: decimal): decimal {
+        value : decimal = data[index];
+        if(value < 0) return value + 256;
+        return value;
+    }
+
+    /**
+     * FNV-1a (Fowler-Noll-Vo), 32 bit. Start with the offset basis
+     * 2166136261; for every byte: XOR the byte in, then multiply by the FNV
+     * prime 16777619 (modulo 2^32). The hash of no bytes is 2166136261.
+     */
+    static def fnv1a(data: _int8[]): decimal {
+        result : decimal = FNV_OFFSET;
+        for(i : decimal = 0; i < sizeof(data); i++) {
+            result = multiply(result ^ byte_at(data, i), FNV_PRIME);
+        }
+        return result;
+    }
+
+    /** FNV-1a of the characters of a text (see fnv1a for bytes); 2166136261 for "" */
+    static def fnv1a(text: string): decimal {
+        if(text.size() == 0) return FNV_OFFSET;
+        return fnv1a(text.data!!);
+    }
+
+    /**
+     * djb2 (Daniel J. Bernstein): start with 5381; for every byte
+     * hash = hash * 33 + byte (modulo 2^32). The hash of no bytes is 5381.
+     */
+    static def djb2(data: _int8[]): decimal {
+        result : decimal = 5381;
+        for(i : decimal = 0; i < sizeof(data); i++) {
+            // result * 33 < 2^38: exact
+            result = (result * 33 + byte_at(data, i)) % WORD;
+        }
+        return result;
+    }
+
+    /** djb2 of the characters of a text (see djb2 for bytes); 5381 for "" */
+    static def djb2(text: string): decimal {
+        if(text.size() == 0) return 5381;
+        return djb2(text.data!!);
+    }
+
+    /**
+     * CRC-32 (the checksum of zip, gzip, png, Ethernet; "CRC-32/ISO-HDLC").
+     *
+     * Algorithm, bit by bit: start with all 32 bits set. For every byte: XOR
+     * it into the low 8 bits, then 8 times: shift right by one, and when the
+     * bit shifted out was 1, XOR with the polynomial 0xEDB88320. Finally
+     * invert all bits. The CRC of no bytes is 0; the CRC of "123456789" is
+     * 0xCBF43926.
+     */
+    static def crc32(data: _int8[]): decimal {
+        crc : decimal = 4294967295;
+        for(i : decimal = 0; i < sizeof(data); i++) {
+            crc = crc ^ byte_at(data, i);
+            for(bit : decimal = 0; bit < 8; bit++) {
+                if((crc & 1) == 1) {
+                    crc = (crc >> 1) ^ CRC_POLYNOMIAL;
+                } else {
+                    crc = crc >> 1;
+                }
+            }
+        }
+        return 4294967295 - crc;        // flipping every bit of a 32-bit word
+    }
+
+    /** CRC-32 of the characters of a text (see crc32 for bytes); 0 for "" */
+    static def crc32(text: string): decimal {
+        if(text.size() == 0) return 0;
+        return crc32(text.data!!);
+    }
+
+    /**
+     * Adler-32 (the checksum of zlib). Two running sums modulo 65521:
+     * a = 1 + the sum of all bytes, b = the sum of all values a has had.
+     * The result is b * 65536 + a. The checksum of no bytes is 1.
+     */
+    static def adler32(data: _int8[]): decimal {
+        a : decimal = 1;
+        b : decimal = 0;
+        for(i : decimal = 0; i < sizeof(data); i++) {
+            a = (a + byte_at(data, i)) % ADLER_MODULUS;
+            b = (b + a) % ADLER_MODULUS;
+        }
+        return b * 65536 + a;
+    }
+
+    /** Adler-32 of the characters of a text (see adler32 for bytes); 1 for "" */
+    static def adler32(text: string): decimal {
+        if(text.size() == 0) return 1;
+        return adler32(text.data!!);
+    }
+
+    /**
+     * Mix a further value into a hash code, for hashing an object field by
+     * field: start with seed 17 (or any number) and combine every field in.
+     *
+     *     code : decimal = hashing.combine(hashing.combine(17, x), y);
+     *
+     * Formula: (seed * 31 + value) modulo 2^32, the scheme of Java's
+     * Objects.hash. `value` may be any whole number; its sign is dropped and
+     * it is reduced modulo 2^32 first. The order of the values matters.
+     */
+    static def combine(seed: decimal, value: decimal): decimal {
+        return (multiply(to_word(seed), 31) + to_word(value)) % WORD;
+    }
+
+    /** combine() over all values of an array, starting from 17; 17 for an empty array */
+    static def combine_all(values: decimal[]): decimal {
+        result : decimal = 17;
+        for(i : decimal = 0; i < sizeof(values); i++) {
+            result = combine(result, values[i]);
+        }
+        return result;
+    }
+
+    /** reduce any finite number to a word 0 .. 4294967295: drop sign and fraction, then modulo 2^32 */
+    private static def to_word(value: decimal): decimal {
+        size : decimal = value;
+        if(size < 0) size = 0 - size;
+        if(size >= 9007199254740992) {
+            // too large to have a fraction or to convert to a 64-bit integer: scale down by 2^32 steps
+            while(size >= 9007199254740992) {
+                size = size / WORD;
+            }
+        }
+        whole : decimal = size as _int64;
+        return whole % WORD;
+    }
+
+    /**
+     * A 32-bit word as 8 lowercase hexadecimal digits, with leading zeros:
+     * to_hex(255) is "000000ff", to_hex(3421780262) is "cbf43926".
+     * Throws illegal_argument_exception when the value is not a whole
+     * number in 0 .. 4294967295.
+     */
+    static def to_hex(word: decimal): string {
+        if(word < 0 || word >= WORD || word != (word as _int64))
+            throw new illegal_argument_exception("hashing.to_hex: expected a whole number in 0 .. 4294967295");
+
+        text := new _int8[8];
+        remaining : decimal = word;
+        for(i : decimal = 7; i >= 0; i--) {
+            digit : decimal = remaining & 15;
+            if(digit < 10) {
+                text[i] = '0' + digit;
+            } else {
+                text[i] = 'a' + (digit - 10);
+            }
+            remaining = remaining >> 4;
+        }
+        return new string(text);
+    }
+}

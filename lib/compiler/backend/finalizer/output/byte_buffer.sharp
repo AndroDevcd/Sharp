@@ -1,0 +1,84 @@
+mod backend.finalizer.output;
+
+import (
+    std.io
+)
+
+/**
+ * THE BYTES OF THE FILE BEING WRITTEN
+ *
+ * The executable is built in memory, byte by byte, and written in one go at
+ * the end. The pieces it is made of (doc/codegen.md 3.1):
+ *
+ *      int32       4 bytes, BIG-endian (the high byte first): 0x0102 -> 00 00 01 02;
+ *                  a negative number in two's complement (-1 -> FF FF FF FF)
+ *      text        the bytes of the text, then one 00
+ *      flag char   ONE character: '1' (0x31) or '0' (0x30)
+ *      number text a number written in decimal digits, then 00
+ *
+ *      C++ comparison: `put_int32`, `stream << text << '\0'` in
+ *      finalizer/generation/file_generator.cpp.
+ */
+class byte_buffer {
+    bytes : _int8[];
+    count : _int64 = 0;
+
+    byte_buffer() {
+        bytes = new _int8[65536];
+    }
+
+    /** one byte (only the low 8 bits of `value` are kept) */
+    def byte(value: _int64) {
+        if(count >= sizeof(bytes)) {
+            grown := new _int8[sizeof(bytes) * 2];
+            for(i : _int64 = 0; i < count; i++) { grown[i] = bytes[i]; }
+            bytes = grown;
+        }
+        bytes[count] = value & 0xff;
+        count++;
+    }
+
+    /** a 32-bit number, high byte first */
+    def int32(value: _int64) {
+        word : _int64 = value & 0xffffffff;
+        byte((word >> 24) & 0xff);
+        byte((word >> 16) & 0xff);
+        byte((word >> 8) & 0xff);
+        byte(word & 0xff);
+    }
+
+    /** the bytes of a text, then 00 */
+    def text(value: string) {
+        raw : _int8[]? = value.data;
+        if(raw != null) {
+            characters : _int8[] = raw!!;
+            for(i : _int64 = 0; i < sizeof(characters); i++) { byte(characters[i]); }
+        }
+        byte(0);
+    }
+
+    /** the bytes of a text, without an end */
+    def raw_text(value: string) {
+        raw : _int8[]? = value.data;
+        if(raw == null) { return; }
+        characters : _int8[] = raw!!;
+        for(i : _int64 = 0; i < sizeof(characters); i++) { byte(characters[i]); }
+    }
+
+    /** '1' or '0' */
+    def flag_char(value: _int64) {
+        if(value != 0) { byte(0x31); } else { byte(0x30); }
+    }
+
+    /** a number as decimal digits, then 00 (the file version and the target in the manifest) */
+    def number_text(value: _int64) {
+        text("" + value);
+    }
+
+    /** exactly the bytes written so far */
+    def to_array() : _int8[] {
+        exact := new _int8[count];
+        for(i : _int64 = 0; i < count; i++) { exact[i] = bytes[i]; }
+        return exact;
+    }
+}

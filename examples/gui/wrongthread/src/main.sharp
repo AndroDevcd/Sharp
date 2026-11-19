@@ -1,0 +1,25 @@
+mod app;
+
+import (
+    std.guikit.*,
+    std.io.coroutines
+)
+
+// a deliberate mistake: a state changed from a background thread
+clicks := gui.state(0);
+
+def main() {
+    gui.after(0.8) {
+        launch_on(dispatchers.io(), { ->
+            try {
+                clicks.value = 1;               // WRONG: not on the main thread
+                println("the change went through (it must not)");
+            } catch(e: illegal_state_exception) {
+                println("stopped: " + e.get_message());
+            }
+        });
+    };
+    gui.run("Sharp GUI - wrongthread", 300, 200, { ->
+        return text("clicks " + clicks.value);
+    });
+}

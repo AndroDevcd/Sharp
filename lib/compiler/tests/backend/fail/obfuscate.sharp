@@ -1,0 +1,32 @@
+// expect: E0950 E0951 E0951 E0951 E0951 E0951 E0951 E0951 E0951 W1016 E0951 E0951
+mod app;
+
+/*
+ * `obfuscate` blocks that list names which name nothing. The C++ compiler
+ * rejects an unknown option ("expected obfuscation option"), an unknown name
+ * ("could not resolve symbol") and a function without its parameters.
+ */
+
+class point {
+    x : decimal;
+    def move(a: decimal, b: decimal) { }
+    def move(a: string) { }
+    class inner { depth : decimal; }
+}
+def start(args: string[]) { }
+total : decimal = 0;
+
+obfuscate -kep { point }                    // E0950 (did you mean -keep)
+obfuscate -keep {
+    "std.oi",                               // E0951 no such module (did you mean)
+    pont,                                   // E0951 (did you mean point)
+    point.y,                                // E0951 no member
+    point.move,                             // E0951 a function needs its parameters
+    point.move(decimal),                    // E0951 no such overload
+    start,                                  // E0951 needs parameters
+    total(decimal),                         // E0951 a field with parameters
+    nomod#point,                            // E0951 no such module
+    list,                                   // W1016 a generic class in a block that does not reach inside
+    point.inner.depth.more,                 // E0951 a name inside a field
+    _int64                                  // E0951 not a declared name
+}

@@ -1,0 +1,19 @@
+// expect: E0101 E0100 E0100 E0100 E0100
+//
+// Declarations that are not finished or stand in the wrong place.
+mod tests.fail;
+
+class {
+}
+
+def no_body() : decimal
+    return 1;
+
+class holder {
+    mod inner;
+    init { }
+}
+
+init { }
+
+}

@@ -1,0 +1,138 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.types.declarations
+)
+
+/**
+ * TYPED-TREE NODES FOR THE BUILT-IN OPERATIONS ON ONE VALUE
+ *
+ *      (implicit)      bound_conversion        every conversion the compiler applies without being
+ *                                              asked is an explicit node, so nothing is left implied
+ *      v as t          bound_cast
+ *      v is t          bound_is
+ *      v!!             bound_not_null
+ *      v?.a.b          bound_safe_navigation   with a bound_receiver inside (see below)
+ *      v ?: other      bound_elvis
+ *      c ? a : b       bound_ternary
+ *      sizeof(v)       bound_sizeof
+ *
+ * Arithmetic, comparison, assignment and calls are built by the calls stage.
+ */
+
+/** a conversion the compiler applies by itself: `count` (an _int64) given to a decimal */
+class bound_conversion base bound_expression {
+    operand : bound_expression;
+    how : conversion;
+
+    bound_conversion(operand: bound_expression, how: conversion) -> base(BX_CONVERSION, operand.unit, operand.node, how.to) {
+        self->operand = operand;
+        self->how = how;
+    }
+}
+
+/** `value as type`. `how.checked` says whether the VM has to test the object when the program runs */
+class bound_cast base bound_expression {
+    operand : bound_expression;
+    how : conversion;
+
+    bound_cast(unit: source_unit, node: _int64, operand: bound_expression, how: conversion, type: resolved_type)
+            -> base(BX_CAST, unit, node, type) {
+        self->operand = operand;
+        self->how = how;
+    }
+}
+
+/** `value is type`: 1 or 0. `constant` is set when the answer is known while compiling */
+class bound_is base bound_expression {
+    operand : bound_expression;
+    tested : resolved_type;
+
+    bound_is(unit: source_unit, node: _int64, operand: bound_expression, tested: resolved_type, type: resolved_type)
+            -> base(BX_IS, unit, node, type) {
+        self->operand = operand;
+        self->tested = tested;
+    }
+}
+
+/** `value!!`: the value, known not to be null - the VM raises an exception when it is */
+class bound_not_null base bound_expression {
+    operand : bound_expression;
+
+    bound_not_null(unit: source_unit, node: _int64, operand: bound_expression, type: resolved_type)
+            -> base(BX_NOT_NULL, unit, node, type) {
+        self->operand = operand;
+    }
+}
+
+/**
+ * `receiver?.a.b`: when the receiver is null the WHOLE chain gives null,
+ * otherwise the value of `rest`.
+ *
+ *      user?.address.city
+ *
+ *      bound_safe_navigation                   type: string?
+ *        receiver:  user                       evaluated once, tested for null
+ *        rest:      <receiver>.address.city    in which the receiver appears as a bound_receiver
+ *
+ * Saying the receiver once and the rest once is what lets a code generator
+ * emit "evaluate, test, jump over the rest" without reading the chain again.
+ */
+class bound_safe_navigation base bound_expression {
+    receiver : bound_expression;
+    rest : bound_expression?;                   // set when the end of the chain is reached
+    enclosing : bound_safe_navigation?;         // `a?.b?.c`: the navigation this one is the rest of
+
+    bound_safe_navigation(unit: source_unit, node: _int64, receiver: bound_expression)
+            -> base(BX_SAFE_NAVIGATION, unit, node, receiver.type) {
+        self->receiver = receiver;
+    }
+}
+
+/** inside the `rest` of a safe navigation: its receiver, already evaluated and known not to be null */
+class bound_receiver base bound_expression {
+    of : bound_safe_navigation;
+
+    bound_receiver(of: bound_safe_navigation, type: resolved_type) -> base(BX_RECEIVER, of.unit, of.node, type) {
+        self->of = of;
+    }
+}
+
+/** `value ?: fallback`: the value, or the fallback when the value is null */
+class bound_elvis base bound_expression {
+    value : bound_expression;
+    fallback : bound_expression;
+
+    bound_elvis(unit: source_unit, node: _int64, value: bound_expression, fallback: bound_expression, type: resolved_type)
+            -> base(BX_ELVIS, unit, node, type) {
+        self->value = value;
+        self->fallback = fallback;
+    }
+}
+
+/** `condition ? when_true : when_false`; both branches are already converted to the result type */
+class bound_ternary base bound_expression {
+    condition : bound_expression;
+    when_true : bound_expression;
+    when_false : bound_expression;
+
+    bound_ternary(unit: source_unit, node: _int64, condition: bound_expression, when_true: bound_expression,
+                  when_false: bound_expression, type: resolved_type) -> base(BX_TERNARY, unit, node, type) {
+        self->condition = condition;
+        self->when_true = when_true;
+        self->when_false = when_false;
+    }
+}
+
+/** `sizeof(value)`: the length of an array, the number of fields of an object */
+class bound_sizeof base bound_expression {
+    operand : bound_expression;
+
+    bound_sizeof(unit: source_unit, node: _int64, operand: bound_expression, type: resolved_type)
+            -> base(BX_SIZEOF, unit, node, type) {
+        self->operand = operand;
+    }
+}

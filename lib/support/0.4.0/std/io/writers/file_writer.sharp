@@ -1,0 +1,161 @@
+mod std.io;
+
+/**
+ * Writes text to a file.
+ *
+ *     out := new file_writer(new file("log.txt"));
+ *     out.write_line("started");
+ *     out.write("items: ");
+ *     out.write_int(3);
+ *     out.new_line();
+ *     out.close();                      // now the file is written
+ *
+ * The runtime has no file handles and writes a file in one piece. So the
+ * writer collects everything in memory and puts it into the file on flush()
+ * and close(). Nothing is on disk before that, and a program that ends
+ * without closing its writers loses what they hold.
+ *
+ * Two ways to open:
+ *   - replace (the default): the file starts empty; what was in it is gone
+ *     at the first flush() or close(), even when nothing was written.
+ *   - append: the content the file has when the writer is created is kept
+ *     and the new text goes behind it.
+ *
+ * Every flush() writes the whole content again (old and new), which costs
+ * time proportional to the size of the file: flush when it matters, not
+ * after every line. Not thread safe.
+ */
+class file_writer : text_writer {
+    private target : file;
+    /** the complete content the file will have */
+    private buf : char_buffer;
+    private closed : decimal = 0;
+    /** something was written (or the writer is new) since the last flush */
+    private dirty : decimal = 1;
+
+    /**
+     * A writer that replaces the content of `target`.
+     * Throws io_exception when `target` is a directory.
+     */
+    file_writer(target: file) {
+        prepare(target, false);
+    }
+
+    /**
+     * A writer for `target` that replaces its content (append = false) or
+     * adds to it (append = true).
+     * Throws io_exception when `target` is a directory.
+     */
+    file_writer(target: file, append: bool) {
+        prepare(target, append);
+    }
+
+    private def prepare(target: file, append: bool) {
+        if(target.is_directory()) {
+            throw new io_exception("cannot write to a directory: " + target.get_path());
+        }
+        self->target = target;
+        buf = new char_buffer(256);
+        if(append && target.exists()) {
+            buf.append(target.read_text());
+        }
+    }
+
+    private def check_open() {
+        if(closed) {
+            throw new io_exception("the writer is closed");
+        }
+    }
+
+    /** add all characters of `text`. Throws io_exception when closed. */
+    override def write(text: string) {
+        check_open();
+        buf.append(text);
+        dirty = 1;
+    }
+
+    /** add one character given as its code. Throws io_exception when closed. */
+    override def write_char(ch: decimal) {
+        check_open();
+        buf.append_char(ch);
+        dirty = 1;
+    }
+
+    /** add `text` and a line end ("\n"). Throws io_exception when closed. */
+    override def write_line(text: string) {
+        check_open();
+        buf.append(text);
+        buf.append_char('\n');
+        dirty = 1;
+    }
+
+    /** add a line end ("\n"). Throws io_exception when closed. */
+    def new_line() {
+        check_open();
+        buf.append_char('\n');
+        dirty = 1;
+    }
+
+    /** add a whole number in decimal ("42", "-7"). Throws io_exception when closed. */
+    def write_int(value: decimal) {
+        check_open();
+        buf.append_int(value);
+        dirty = 1;
+    }
+
+    /** add a number the short way ("3", "0.5" - see io_strings.number_to_string). Throws io_exception when closed. */
+    def write_number(value: decimal) {
+        check_open();
+        buf.append_number(value);
+        dirty = 1;
+    }
+
+    /**
+     * Put everything written so far into the file (the whole file is
+     * written again). Does nothing when nothing changed since the last
+     * flush.
+     *
+     * Throws io_exception when closed or when the file cannot be written
+     * (e.g. its directory does not exist).
+     */
+    override def flush() {
+        check_open();
+        if(dirty) {
+            target.write_text(buf.to_string()!!);
+            dirty = 0;
+        }
+    }
+
+    /**
+     * Write the file and finish; writing afterwards throws io_exception.
+     * Closing twice is fine.
+     *
+     * Throws io_exception when the file cannot be written; the writer is
+     * closed all the same.
+     */
+    override def close() {
+        if(closed) {
+            return;
+        }
+        closed = 1;
+        if(dirty) {
+            dirty = 0;
+            target.write_text(buf.to_string()!!);
+        }
+    }
+
+    /** true once close() was called */
+    def is_closed() : bool {
+        return closed != 0;
+    }
+
+    /** the file this writer writes to */
+    def get_file() : file {
+        return target;
+    }
+
+    /** the number of characters the file will have when it is written now (in append mode that includes what was there before) */
+    def length() : decimal {
+        return buf.length();
+    }
+}

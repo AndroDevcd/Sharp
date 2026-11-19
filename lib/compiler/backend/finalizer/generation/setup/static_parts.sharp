@@ -1,0 +1,154 @@
+mod backend.finalizer.generation.setup;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.statements,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * THE STATIC PART OF A CLASS: static_init<C>() (doc/codegen.md 6.15)
+ *
+ * Run once, by the first constructor of the class or by the start-up:
+ *
+ *      if @static_init_flag != 0: return
+ *      @static_init_flag = 1
+ *      the static field values, enum values and `static init { }` blocks, in order
+ *
+ * A module's globals are the static part of its __srt_global class.
+ */
+
+/** static_init<C>(): the static part of a class (or the globals of a module), once */
+def generate_static_init(g: generator) {
+    owner := g.made.owner;
+    for(i : _int64 = 0; i < owner.static_entries.size(); i++) {
+        entry := owner.static_entries.at(i);
+        if(entry.kind == D_INIT) {
+            g.add_locals(entry as sharp_function);
+            g.add_own_record((entry as sharp_function).closure);
+        }
+    }
+
+    done : _int64 = g.b.temp(SLOT_INT);
+    go_on : _int64 = g.b.new_label();
+    g.b.get_static(done, owner.address, owner.static_flag!!);
+    g.b.jump_unless(done, go_on);
+    g.b.emit(IR_RETURN);
+    g.b.place(go_on);
+    g.b.int_constant(done, 1);
+    g.b.set_static(owner.address, owner.static_flag!!, done, NARROW_I8);
+    g.b.release(done);
+
+    for(i : _int64 = 0; i < owner.static_entries.size(); i++) {
+        entry := owner.static_entries.at(i);
+        if(entry.kind == D_INIT) {
+            block := entry as sharp_function;
+            open_block_record(g, block);
+            if(block.bound_body != null) { generate_statement(g, block.bound_body!!); }
+            continue;
+        }
+        if(entry.kind == D_ENUM_VALUE) {
+            generate_enum_value(g, owner, entry as sharp_enum_value);
+            continue;
+        }
+        if(entry.kind != D_FIELD) { continue; }
+        field := entry as sharp_field;
+        value : _int64 = field_start_value(g, field);
+        if(value < 0) { continue; }
+        g.b.set_static(owner.address, field, value, narrowing_of(field.value_type));
+        g.b.release(value);
+    }
+    g.b.emit(IR_RETURN);
+}
+
+/**
+ * One enum value (6.15): an object of std#_enum_ made with its name and its
+ * number, stored in the value's static slot of its enum - as the C++
+ * compiler makes it. The number is the one the program fixes
+ * (`sharp_enum_value.constant`); a value whose `= e` is not a constant is
+ * worked out here; a value with no number at all gets the smallest number no
+ * fixed value of its enum has, in declaration order (codegen.md 10, G7).
+ */
+def generate_enum_value(g: generator, owner: class_layout, value: sharp_enum_value) {
+    constructor := enum_value_constructor(owner.of);
+    if(constructor == null || constructor!!.address < 0 || constructor!!.owner == null) {
+        g.stop("the value of an enum (the constructor of std#_enum_ is missing)", value.unit, value.node);
+    }
+    g.line_of_node(value.unit, value.node);
+    made : _int64 = g.b.temp(SLOT_REF);
+    g.b.new_object(made, constructor!!.owner!!);
+    name : _int64 = g.b.temp(SLOT_REF);
+    text := g.b.emit(IR_TEXT);
+    text.target = name;
+    text.number = g.layout.strings.number_of(value.name);
+    number : _int64 = 0 - 1;
+    if(value.constant != null) {
+        number = g.b.temp(SLOT_DEC);
+        fixed : decimal = value.constant!!.integer;
+        if(value.constant!!.kind == CONST_DECIMAL) { fixed = value.constant!!.number; }
+        g.b.decimal_constant(number, fixed, null);
+    } else if(value.bound_value != null) {
+        worked_out : _int64 = value_of(g, value.bound_value!!);
+        if(g.b.kind_of(worked_out) == SLOT_DEC) { number = worked_out; }
+        else {
+            number = g.b.temp(SLOT_DEC);
+            g.b.convert(number, worked_out, CONVERT_INT_TO_DECIMAL, NARROW_NONE);
+            g.b.release(worked_out);
+        }
+    } else {
+        number = g.b.temp(SLOT_DEC);
+        g.b.decimal_constant(number, unused_enum_number(owner.of, value), null);
+    }
+    arguments := new number_list();
+    arguments.add(made);
+    arguments.add(name);
+    arguments.add(number);
+    g.b.call(0 - 1, constructor!!, arguments, CALL_HOW_DIRECT);
+    g.b.release(name);
+    g.b.release(number);
+    g.b.set_static(owner.address, value, made, NARROW_NONE);
+    g.b.release(made);
+}
+
+/** for an enum value without a number: the smallest number no value of its enum fixes, counting the earlier ones */
+def unused_enum_number(an_enum: sharp_class, value: sharp_enum_value) : _int64 {
+    taken := new number_list();
+    for(i : _int64 = 0; i < an_enum.enum_values.size(); i++) {
+        other := an_enum.enum_values.at(i);
+        if(other.constant != null && other.constant!!.kind == CONST_INTEGER) { taken.add(other.constant!!.integer); }
+    }
+    candidate : _int64 = 0;
+    for(i : _int64 = 0; i < an_enum.enum_values.size(); i++) {
+        other := an_enum.enum_values.at(i);
+        if(other.constant != null) { continue; }
+        while(contains_number(taken, candidate)) { candidate++; }
+        if(other == value) { return candidate; }
+        taken.add(candidate);
+    }
+    return candidate;
+}
+
+/** is `wanted` one of the numbers of the list? */
+def contains_number(numbers: number_list, wanted: _int64) : _int64 {
+    for(i : _int64 = 0; i < numbers.count; i++) {
+        if(numbers.at(i) == wanted) { return 1; }
+    }
+    return 0;
+}
+
+/** call static_init<C> of every class that has one, in the initialisation order: the enums (1) or all the others (0) */
+def call_static_parts(g: generator, enums: _int64) {
+    order := g.layout.initialization_order;
+    for(i : _int64 = 0; i < order.size(); i++) {
+        made := order.at(i);
+        if(made.static_init == null) { continue; }
+        is_enum : _int64 = made.of.is_enum();
+        if(is_enum == enums) { g.b.call(0 - 1, made.static_init!!.of, new number_list(), CALL_HOW_DIRECT); }
+    }
+}

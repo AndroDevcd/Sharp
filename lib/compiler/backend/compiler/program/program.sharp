@@ -1,0 +1,103 @@
+mod backend.compiler.program;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.program.usage
+)
+
+/**
+ * STAGE 10: THE WHOLE-PROGRAM CHECKS, AND THE HAND-OVER TO CODE GENERATION
+ *
+ * Every body has been analysed, the flow of every function worked out, the
+ * components settled and the initialisation order fixed. What is left is
+ * what only the program AS A WHOLE can say:
+ *
+ *      def main(args: string[]) : int { ... }      the entry point: one of four forms, only one of them
+ *      def main() { ... }                          E0930: a second entry point
+ *
+ *      class holder { item : node; holder() { } } W1032: `item` is never given a value
+ *
+ *      class platform { static def tls_init() { x(); } }   E0961: the compiler writes this body itself
+ *
+ *      def main() { }      without the library             E0962: the classes the VM needs are missing
+ *
+ * and then the bookkeeping a code generator needs: which functions, classes
+ * and fields the program can reach from `main` (backend/compiler/program/usage),
+ * and one object that holds everything there is to generate - the
+ * `analysed_program` (backend/types/program/analysed_program.sharp). Section
+ * 12 of doc/backend.md tells the author of the code generator how to walk it.
+ *
+ * The files of this package (module `backend.compiler.program`):
+ *
+ *      program.sharp           this front door: check_program, the driver of the pass
+ *      main_function.sharp     which global `main` is the entry point (E0930, W1015)
+ *      platform_functions.sharp  `static_init` / `tls_init` of the platform class stay empty (E0961)
+ *      required_declarations.sharp  the modules and classes the VM itself needs in a program (E0962)
+ *      required_values.sharp   a field of a class type that nothing gives a value (W1032)
+ *      first_uses.sharp        ... the walk it rests on: what a constructor does first with each field
+ *      warning_options.sharp   -w, -w<kind>, -wextra, -werror and -errlmt applied to the diagnostics
+ *      completeness.sharp      the self-check run just before this pass (its own `completeness` entry on
+ *                              the time: line): no expression without a type and without a message (E0991)
+ *      usage/                  what the program uses and reaches from main; unused locals and
+ *                              private members (W1034, W1035, W1036)
+ *
+ *      C++ comparison: `check_main_method_signature` and the platform check in
+ *      compiler/functions/function_compiler.cpp; the finalizer's
+ *      optimization/dependency_runner.cpp (`mark`, the `used` flags,
+ *      `validate_required_dependencies`) and initialization_validator.cpp; `create_new_warning` in compiler_info.cpp
+ *      for the warning switches.
+ */
+def check_program(session: analysis_session) : analysed_program {
+    analysed := new analysed_program(session.prog);
+    collect_what_was_analysed(session, analysed);
+
+    find_main_function(session, analysed);
+    check_platform_functions(session, analysed);
+    check_required_declarations(session, analysed);
+    record_usage(session, analysed);
+    check_required_values(session, analysed);
+    report_unused(session, analysed);
+    count_problems(analysed, session.problems);
+    return analysed;
+}
+
+/** every function, class and module that has something to generate, each once */
+def collect_what_was_analysed(session: analysis_session, analysed: analysed_program) {
+    prog : sharp_program = session.prog;
+    functions : list<sharp_function> = session.analysed_functions;
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        analysed.functions.add(function);
+        if(function.is_lambda == 1) { analysed.lambdas.add(function); }
+    }
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) { analysed.modules.add(prog.module_list.at(i)); }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) { add_if_analysed(analysed, prog.all_classes.at(i)); }
+    for(i : _int64 = 0; i < prog.generic_instances.size(); i++) { add_if_analysed(analysed, prog.generic_instances.at(i)); }
+}
+
+/** a class goes to the code generator when its members were analysed: a real class, not a blueprint */
+def add_if_analysed(analysed: analysed_program, declared: sharp_class) {
+    if(declared.bodies_analysed == 1 && !declared.is_open()) { analysed.classes.add(declared); }
+}
+
+/**
+ * How many errors and warnings a list of diagnostics holds, kept on the
+ * analysed program: code generation runs only when there is no error.
+ * Counted here for everything the stages found, and once more by main.sharp
+ * for the list the warning switches leave (-werror turns warnings into
+ * errors, -w drops them): the second count is the one that decides.
+ */
+def count_problems(analysed: analysed_program, found: list<diagnostic>) {
+    analysed.errors = 0;
+    analysed.warnings = 0;
+    for(i : _int64 = 0; i < found.size(); i++) {
+        if(found.at(i).severity == SEVERITY_WARNING) { analysed.warnings++; }
+        else { analysed.errors++; }
+    }
+}

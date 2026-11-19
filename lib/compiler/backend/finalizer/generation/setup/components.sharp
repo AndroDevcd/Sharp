@@ -1,0 +1,95 @@
+mod backend.finalizer.generation.setup;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * COMPONENTS: `single { }`, `factory { }`, `get`, `inject` (doc/codegen.md 6.16)
+ *
+ *      component app {
+ *          single { new database("main") }
+ *          factory { new worker(get<database>()) }
+ *      }
+ *      inject db : database;           a field: init<C> stores @sub_component_init_0() into it
+ *      w := get<worker>();             a call: @sub_component_init_1()
+ *
+ * Analysis has bound every request to the definition that answers it
+ * (`bound_get_component.definition`, `injected_from`); layout made one
+ * function per kept definition (`type_definition.function`). Its code:
+ *
+ *      single                                      factory
+ *      if @sub_component_init_flag_<n> == 0:       return <the definition's value>
+ *          @sub_component_<n> = <value>
+ *          @sub_component_init_flag_<n> = 1
+ *      return @sub_component_<n>
+ *
+ * The flag is set after the value is made, as the C++ compiler does. A value
+ * that asks for its own definition while it is being made is a circle:
+ * analysis refuses it when the definition's type depends on it (E0908);
+ * otherwise it asks again and again, as the C++-built program does.
+ *
+ *      C++ comparison: component_compiler.cpp does the same for a `single`
+ *      and copies a factory's expression into every use (codegen.md 10, G10).
+ */
+
+/** the code of `@sub_component_init_<n>()` (the shape above) */
+def generate_component_function(g: generator) {
+    definition := g.made.definition!!;
+    if(definition.value == null) { g.stop("a component definition without its value", definition.unit, definition.node); }
+    g.line_of_node(definition.unit, definition.value_node);
+    if(definition.is_factory == 1) {
+        made : _int64 = value_of(g, definition.value!!);
+        give_back(g, made);
+        return;
+    }
+    globals : _int64 = g.made.owner.address;
+    ready : _int64 = g.b.temp(SLOT_INT);
+    have_it : _int64 = g.b.new_label();
+    g.b.get_static(ready, globals, definition.made_flag!!);
+    g.b.jump_if(ready, have_it);
+    made : _int64 = value_of(g, definition.value!!);
+    g.b.set_static(globals, definition.storage!!, made, NARROW_NONE);
+    g.b.release(made);
+    g.b.int_constant(ready, 1);
+    g.b.set_static(globals, definition.made_flag!!, ready, NARROW_I8);
+    g.b.place(have_it);
+    g.b.release(ready);
+    kept : _int64 = g.temp_for(definition.provides!!);
+    g.b.get_static(kept, globals, definition.storage!!);
+    give_back(g, kept);
+}
+
+/** `return` the value in a slot, as the function's result */
+def give_back(g: generator, value: _int64) {
+    returned := g.b.emit(IR_RETURN_VALUE);
+    returned.first = value;
+    returned.number = NARROW_NONE;
+    g.b.release(value);
+}
+
+/**
+ * The object a definition gives, into a new slot: a call of its function.
+ * Used for `get<t>()`, an injected field and an injected local.
+ */
+def component_value(g: generator, definition: type_definition, unit: source_unit, node: _int64) : _int64 {
+    if(definition.function == null || definition.function!!.address < 0) {
+        g.stop("a component definition that is not in the executable", unit, node);
+    }
+    target : _int64 = g.temp_for(definition.provides!!);
+    g.line_of_node(unit, node);
+    g.b.call(target, definition.function!!, new number_list(), CALL_HOW_DIRECT);
+    return target;
+}
+
+/** `get<t>()`, `get("name", app)`: the object its definition gives */
+def get_component_value(g: generator, e: bound_get_component) : _int64 {
+    return component_value(g, e.definition, e.unit, e.node);
+}

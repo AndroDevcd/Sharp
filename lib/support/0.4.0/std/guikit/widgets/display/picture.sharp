@@ -1,0 +1,57 @@
+mod std.guikit.widgets.display;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * picture - an image file on the screen. Made with image(...).
+ *
+ *      image("assets/logo.png")                              // at its own size
+ *      image("assets/photo.jpg", modifier().size(120, 80))   // stretched to a size
+ *      image("assets/bg.png", modifier().fill())             // as big as the room there is
+ *      image("assets/icon.png").opacity(120)                 // see-through
+ *
+ * The file is loaded the first time the picture is measured and shared from
+ * then on (the native side keeps one copy per file), so the same path in a
+ * hundred list rows costs one load. PNG transparency is kept.
+ * (Compose: Image. Android: ImageView. HTML: img.)
+ */
+stable class picture base widget : behavior {
+    private path : string = "";
+    private loaded : image?;
+    private solid : _int32 = 255;
+
+    picture(file: string) {
+        attach(self);
+        path = file;
+    }
+
+    /** how solid it is: 0 (invisible) .. 255 (solid) */
+    def opacity(amount: _int32) : picture {
+        solid = amount;
+        return self;
+    }
+
+    private def source() : image {
+        if(loaded == null) {
+            loaded = new image(path);
+        }
+        return loaded!!;
+    }
+
+    override def kind() : string { return "picture"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        from : image = source();
+        me.content_w = from.width;
+        me.content_h = from.height;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        p.image(source(), me.inner_x(), me.inner_y(), me.inner_w(), me.inner_h(), solid);
+    }
+}

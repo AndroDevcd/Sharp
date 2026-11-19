@@ -1,0 +1,186 @@
+mod backend.compiler.expressions.collections;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions
+)
+
+/**
+ * DICTIONARY LITERALS
+ *
+ *      ages := { "ann" : 31, "bob" : 45 };         dictionary<_int8[], _int32>
+ *      empty := { as <string, int> : };            dictionary<string, int>, no pairs
+ *
+ * A `std#dictionary<k, v>` made from an array of `std#pair<k, v>`, one pair
+ * per `key : value`. The key and value types are the ones written after
+ * `as`, or else the types of the FIRST pair as they are - a text literal is
+ * an `_int8[]`, a whole-number literal an `_int32` (the suite says so:
+ * dictionaries.sharp, "keys and values are NATIVE"). A later pair whose key
+ * (or value) does not fit the type so far, while the type so far fits IT,
+ * widens the type to its own (`{ "a" : 1, "b" : 2.5 }` has decimal values).
+ * Then every key and value must convert to its type (a construction
+ * included).
+ *
+ *      E0419   a key or value that does not fit; or the type cannot be told (no pairs and
+ *              no `as <k, v>`, or `null` first)
+ *
+ *      C++ comparison: compiler/expressions/dictionary_expression.cpp.
+ */
+def analyse_dictionary(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    error_type : resolved_type = context.session.types.error_type;
+    key_type : resolved_type? = null;
+    value_type : resolved_type? = null;
+    keys := new list<bound_expression>();
+    values := new list<bound_expression>();
+    written_types : _int64 = 0;
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind == N_DICTIONARY_TYPE) {
+            first_type : _int64 = tree.child_of_kind(child, N_TYPE);
+            if(first_type >= 0 && tree.next_sibling!![first_type] >= 0) {
+                key_type = resolve_type_at(context, first_type);
+                value_type = resolve_type_at(context, tree.next_sibling!![first_type]);
+                written_types = 1;
+            }
+        } else if(kind == N_DICTIONARY_PAIR) {
+            key_node : _int64 = tree.first_child!![child];
+            key := analyse_value(context, key_node, null);
+            value := analyse_value(context, tree.next_sibling!![key_node], null);
+            keys.add(key);
+            values.add(value);
+            if(written_types == 0) {
+                key_type = widened(context, key_type, key.type);
+                value_type = widened(context, value_type, value.type);
+            }
+        }
+        child = tree.next_sibling!![child];
+    }
+
+    if(key_type == null || value_type == null || key_type!!.kind == RT_NULL || value_type!!.kind == RT_NULL) {
+        d := problem_at(context, "E0419", "the types of this dictionary cannot be told", node);
+        d.with_label("no pair says what its keys and values are");
+        d.with_help("write the types: `{ as <string, int> : }`, or start with a pair whose key and value are not null");
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(key_type!!.kind == RT_ERROR || value_type!!.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+    return build_dictionary(context, node, key_type!!, value_type!!, keys, values, written_types);
+}
+
+/** the key (or value) type so far, after one more pair */
+def widened(context: analysis_context, so_far: resolved_type?, given: resolved_type) : resolved_type? {
+    if(so_far == null) { return given; }
+    if(given.kind == RT_ERROR) { return so_far; }
+    if(find_conversion(context.session, given, so_far!!, 1).converts()) { return so_far; }
+    if(find_conversion(context.session, so_far!!, given, 1).converts()) { return given; }
+    return so_far;
+}
+
+/** the instances of pair and dictionary, the constructors, every key and value converted */
+def build_dictionary(context: analysis_context, node: _int64, key_type: resolved_type, value_type: resolved_type,
+                     keys: list<bound_expression>, values: list<bound_expression>, written_types: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    known : well_known_classes = context.session.known;
+    if(known.pair_class == null || known.dictionary_class == null) { return new bound_error(context.unit, node, error_type); }
+    arguments := new list<resolved_type>();
+    arguments.add(key_type);
+    arguments.add(value_type);
+    written := new sharp_type(TYPE_NAMED, context.unit, node);
+    pair_class := instantiate(context.prog, known.pair_class!!, arguments, written, context.environment, context.session.problems);
+    dictionary_class := instantiate(context.prog, known.dictionary_class!!, arguments, written, context.environment, context.session.problems);
+    if(pair_class == null || dictionary_class == null) { return new bound_error(context.unit, node, error_type); }
+    ensure_members(context.prog, pair_class!!);
+    ensure_members(context.prog, dictionary_class!!);
+
+    // every pair: new pair<k, v>(key, value)
+    pair_constructor : sharp_function? = null;
+    converted_keys := new list<bound_expression>();
+    converted_values := new list<bound_expression>();
+    failed : _int64 = 0;
+    for(i : _int64 = 0; i < keys.size(); i++) {
+        key := fitted(context, keys.at(i), key_type, "key", written_types);
+        value := fitted(context, values.at(i), value_type, "value", written_types);
+        if(key == null || value == null) {
+            failed = 1;
+            continue;
+        }
+        converted_keys.add(key!!);
+        converted_values.add(value!!);
+        if(pair_constructor == null) {
+            pair_constructor = constructor_taking(context, pair_class!!, key!!, value!!);
+        }
+    }
+    if(failed == 1) { return new bound_error(context.unit, node, error_type); }
+
+    // the dictionary: new dictionary<k, v>(pairs)
+    pair_type := type_of_class(pair_class!!);
+    pairs := new bound_new_array(context.unit, node, pair_type, pair_type.array_of());
+    one := new list<call_argument>();
+    one.add(new call_argument(pairs, node));
+    result := resolve_overload(context, dictionary_class!!.constructors, one, null, null);
+    if(result.best == null) {
+        d := problem_at(context, "E0395", "the library's `" + dictionary_class!!.qualified_name() + "` has no constructor that takes `"
+                        + pair_type.to_text() + "[]`", node);
+        d.with_label("a dictionary literal is made through that constructor");
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+    made := new bound_dictionary(context.unit, node, pair_class!!, dictionary_class!!, result.best!!.function,
+                                 type_of_class(dictionary_class!!));
+    made.pair_constructor = pair_constructor;
+    made.keys = converted_keys;
+    made.values = converted_values;
+    return made;
+}
+
+/**
+ * A key or value converted to the dictionary's key or value type; null
+ * (E0419, reported) when it does not fit.
+ *
+ * @param written_types  1 when the literal wrote its types (`{ as <string, int> ... }`):
+ *                       then those are what the value has to fit, and the note says so
+ *                       rather than proposing what was already written
+ */
+def fitted(context: analysis_context, value: bound_expression, wanted: resolved_type, what: string,
+           written_types: _int64) : bound_expression? {
+    if(value.type.kind == RT_ERROR) { return value; }
+    how := find_conversion(context.session, value.type, wanted, 1);
+    if(how.converts()) { return apply_conversion(context, value, how); }
+    wanted_words := "`" + wanted.to_text() + "`";
+    if(is_text_array(wanted)) { wanted_words = "text literals (`" + wanted.to_text() + "`)"; }
+    d := problem_over(context, "E0419", "this " + what + " is " + described_value(value) + ", but the dictionary's "
+                      + what + "s are " + wanted_words, value.node);
+    d.with_label("does not fit the " + what + "s of this dictionary");
+    if(written_types == 1) {
+        d.with_note("the " + what + "s of this dictionary are the type written after `as`");
+    } else {
+        // the form the parser takes: `as <k, v>` and then the first pair, with no `:` between
+        d.with_note("the types of a dictionary literal are those of its first pair, unless they are written after `as`, with no `:` before the first pair: `{ as <string, int> \"a\" : 1 }`");
+    }
+    report(context, d);
+    return null;
+}
+
+/** pair<k, v>'s constructor for one key and value */
+def constructor_taking(context: analysis_context, pair_class: sharp_class, key: bound_expression, value: bound_expression) : sharp_function? {
+    arguments := new list<call_argument>();
+    arguments.add(new call_argument(key, key.node));
+    arguments.add(new call_argument(value, value.node));
+    result := resolve_overload(context, pair_class.constructors, arguments, null, null);
+    if(result.best == null) { return null; }
+    return result.best!!.function;
+}

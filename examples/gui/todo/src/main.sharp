@@ -1,0 +1,93 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * TO DO  -  the nested (Compose-like) way of writing a screen.
+ *
+ * Nobody calls .add() here, and nothing has `gui.` in front. A widget made
+ * inside a container's block belongs to that container; ordinary `if` and
+ * `for` decide what gets made.
+ *
+ * A widget's BOX (size, padding, fill, background ...) is only ever changed
+ * through a modifier passed in where the widget is made. Looks that repeat
+ * are named once (`page`, `card`) and passed to several widgets.
+ *
+ * Compare examples/gui/showcase, which builds the same kind of screen with
+ * .add(...) chains. Both styles are the same framework underneath and can be
+ * mixed.
+ */
+class todo_app base composable {
+    draft := state("");                             // what is typed in the field
+    tasks := state_of(new list<string>());          // the list itself (an object: call touch() after changing it)
+    finished := state(0);                           // how many were ticked off
+
+    override def build() : element {
+        t := gui.current_theme();
+
+        // looks used more than once, named
+        page := modifier().fill().padding(20);
+        card := modifier().fill_width().padding(14).background(t.surface).corner(10);
+
+        return column(page) {
+            row {
+                text("To do").size(28);
+                spacer();
+                text("" + finished.value + " done").dim();
+            };
+
+            row {
+                text_field(draft, modifier().grow(1)).hint("What needs doing?").on_submit({ -> add_task(); });
+                button("Add") { add_task(); };
+            }.gap(8);
+
+            column(card) {
+                count : _int64 = tasks.value.size().value;
+                if(count == 0) {
+                    text("Nothing yet. Type a task above and press Enter.").dim();
+                }
+                for(i : _int64 = 0; i < count; i++) {
+                    task_row(i);
+                    if(i < count - 1) { divider(); }
+                }
+            }.gap(8);
+
+            spacer();
+            button("Clear everything", modifier().enable(tasks.value.size().value)) { clear_all(); }.outline();
+        }.gap(14);
+    }
+
+    /** one task: its words, and a button that ticks it off. Made inside whichever block calls this. */
+    def task_row(index: _int64) {
+        row {
+            text(tasks.value.at(index), modifier().grow(1));
+            button("Done") { finish(index); }.plain();
+        }.gap(8);
+    }
+
+    def add_task() {
+        if(draft.value == "") {
+            return;
+        }
+        tasks.value.add(new string(draft.value));   // a copy: the state's own string is about to be emptied
+        tasks.touch();                              // the list changed INSIDE: tell the screen
+        draft.value = "";
+    }
+
+    def finish(index: _int64) {
+        tasks.value.remove_at(index);
+        tasks.touch();
+        finished.value += 1;
+    }
+
+    def clear_all() {
+        tasks.value.clear();
+        tasks.touch();
+    }
+}
+
+def main() {
+    gui.run("To do", 460, 520, todo_app());
+}

@@ -1,0 +1,220 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Hexadecimal: bytes written as two digits each (0-9, a-f), and the
+ * classic "hex dump" for looking at binary data.
+ *
+ *     hex.encode("Hi!")                 "486921"
+ *     hex.decode("486921")              "Hi!"
+ *     hex.from_number(255, 4)           "00ff"
+ *     hex.to_number("ff")               255
+ *     hex.dump("Hello, world! 123")
+ *         00000000  48 65 6c 6c 6f 2c 20 77  6f 72 6c 64 21 20 31 32  |Hello, world! 12|
+ *         00000010  33                                                |3|
+ *
+ * Strings stand for bytes here: every character of the input of encode()
+ * and dump() is one byte, and decode() gives a string whose characters are
+ * the decoded bytes. The _bytes variants take and give byte arrays.
+ *
+ * Everything is static. Malformed input throws parse_exception.
+ */
+class hex {
+    private static def digit(value: decimal, upper: decimal) : decimal {
+        if(value < 10) {
+            return '0' + value;
+        }
+        if(upper) {
+            return 'A' + (value - 10);
+        }
+        return 'a' + (value - 10);
+    }
+
+    /** the bytes of `data` (one per character) as lower case hexadecimal, two digits per byte; "" gives "" */
+    static def encode(data: string) : string {
+        return encode_with(data.data, 0, 0 - 1);
+    }
+
+    /** the bytes of `data` as upper case hexadecimal */
+    static def encode_upper(data: string) : string {
+        return encode_with(data.data, 1, 0 - 1);
+    }
+
+    /** `bytes` as lower case hexadecimal; null gives "" */
+    static def encode_bytes(bytes: _int8[]?) : string {
+        return encode_with(bytes, 0, 0 - 1);
+    }
+
+    /**
+     * The bytes of `data` as lower case hexadecimal with the character
+     * `separator` between the bytes: encode_separated("Hi!", ':') gives
+     * "48:69:21" (the way network addresses and fingerprints are written).
+     */
+    static def encode_separated(data: string, separator: decimal) : string {
+        return encode_with(data.data, 0, separator);
+    }
+
+    private static def encode_with(bytes: _int8[]?, upper: decimal, separator: decimal) : string {
+        n : decimal = sizeof(bytes);
+        if(n == 0) {
+            return "";
+        }
+        buf := new char_buffer(n * 3);
+        for(i : decimal = 0; i < n; i++) {
+            b : decimal = bytes[i] & 0xff;
+            if(i > 0 && separator >= 0) {
+                buf.append_char(separator);
+            }
+            buf.append_char(digit(b >> 4, upper));
+            buf.append_char(digit(b & 15, upper));
+        }
+        return buf.to_string()!!;
+    }
+
+    /**
+     * The bytes that the hexadecimal text encodes, as a string with one
+     * character per byte. Upper and lower case digits are accepted; spaces,
+     * tabs, line ends and the characters ':' and '-' between bytes are
+     * skipped, so "48 69 21", "48:69:21" and "486921" all work. An optional
+     * "0x" at the very beginning is skipped too.
+     *
+     * Throws parse_exception for any other character and for an odd number
+     * of digits.
+     */
+    static def decode(text: string) : string {
+        bytes := decode_bytes(text);
+        if(bytes == null) {
+            return "";
+        }
+        return new string(bytes!!);
+    }
+
+    /** the bytes that the hexadecimal text encodes as an array; null when there are none. Accepts and throws like decode(). */
+    static def decode_bytes(text: string) : _int8[]? {
+        n : decimal = sizeof(text.data);
+        buf := new char_buffer(n / 2 + 2);
+        i : decimal = 0;
+        if(n >= 2 && text.data[0] == '0' && (text.data[1] == 'x' || text.data[1] == 'X')) {
+            i = 2;
+        }
+
+        high : decimal = 0 - 1; // the first digit of the byte being read, or -1
+        for(; i < n; i++) {
+            ch : decimal = text.data[i];
+            if(ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == ':' || ch == '-') {
+                if(high >= 0) {
+                    throw new parse_exception("hex: a byte is cut in two at position " + io_strings.int_to_string(i));
+                }
+                continue;
+            }
+            value : decimal = io_strings.hex_value(ch);
+            if(value < 0) {
+                throw new parse_exception("hex: illegal character with code " + io_strings.int_to_string(ch & 0xff)
+                    + " at position " + io_strings.int_to_string(i));
+            }
+            if(high < 0) {
+                high = value;
+            } else {
+                buf.append_char(high * 16 + value);
+                high = 0 - 1;
+            }
+        }
+        if(high >= 0) {
+            throw new parse_exception("hex: odd number of digits");
+        }
+        return buf.to_array();
+    }
+
+    /** true when decode(text) would succeed */
+    static def is_valid(text: string) : bool {
+        try {
+            decode_bytes(text);
+            return true;
+        } catch(e: parse_exception) {
+        }
+        return false;
+    }
+
+    /**
+     * A whole number from 0 to 2^53 in lower case hexadecimal, padded with
+     * zeros on the left to at least `min_digits` digits (0 for no padding):
+     * from_number(255, 0) is "ff", from_number(255, 4) is "00ff".
+     * Throws illegal_argument_exception for a negative number.
+     */
+    static def from_number(value: decimal, min_digits: decimal) : string {
+        return io_strings.int_to_hex(value, min_digits);
+    }
+
+    /**
+     * The value of a hexadecimal number: "ff", "FF" and "0xff" give 255.
+     * Exact up to 2^53 (13 digits and a bit).
+     * Throws parse_exception for "", for other characters, and for more
+     * than 16 digits.
+     */
+    static def to_number(text: string) : decimal {
+        n : decimal = sizeof(text.data);
+        i : decimal = 0;
+        if(n >= 2 && text.data[0] == '0' && (text.data[1] == 'x' || text.data[1] == 'X')) {
+            i = 2;
+        }
+        if(i >= n || n - i > 16) {
+            throw new parse_exception("hex: not a hexadecimal number: \"" + text + "\"");
+        }
+        value : decimal = 0;
+        for(; i < n; i++) {
+            d : decimal = io_strings.hex_value(text.data[i]);
+            if(d < 0) {
+                throw new parse_exception("hex: not a hexadecimal number: \"" + text + "\"");
+            }
+            value = value * 16 + d;
+        }
+        return value;
+    }
+
+    /**
+     * A hex dump of the bytes of `data`: 16 bytes per line, each line with
+     * the offset of its first byte (8 hexadecimal digits), the bytes as two
+     * digits each (an extra space after the eighth), and the same bytes as
+     * text between '|' - printable ASCII as it is, everything else as '.'.
+     * Every line ends with "\n". "" gives "".
+     */
+    static def dump(data: string) : string {
+        return dump_bytes(data.data);
+    }
+
+    /** a hex dump of `bytes` (see dump()); null gives "" */
+    static def dump_bytes(bytes: _int8[]?) : string {
+        n : decimal = sizeof(bytes);
+        buf := new char_buffer(n * 5 + 16);
+        for(line : decimal = 0; line < n; line += 16) {
+            buf.append(io_strings.int_to_hex(line, 8));
+            buf.append_char(' ');
+            for(k : decimal = 0; k < 16; k++) {
+                if(k == 8) {
+                    buf.append_char(' ');
+                }
+                buf.append_char(' ');
+                if(line + k < n) {
+                    b : decimal = bytes[line + k] & 0xff;
+                    buf.append_char(digit(b >> 4, 0));
+                    buf.append_char(digit(b & 15, 0));
+                } else {
+                    buf.append_char(' ');
+                    buf.append_char(' ');
+                }
+            }
+            buf.append("  |");
+            for(k : decimal = 0; k < 16 && line + k < n; k++) {
+                b : decimal = bytes[line + k] & 0xff;
+                if(b >= 32 && b < 127) {
+                    buf.append_char(b);
+                } else {
+                    buf.append_char('.');
+                }
+            }
+            buf.append("|\n");
+        }
+        return buf.to_string()!!;
+    }
+}

@@ -1,0 +1,74 @@
+mod backend.finalizer.generation.collections;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation,
+    backend.finalizer.generation.calls
+)
+
+/**
+ * DICTIONARY LITERALS: { "a" : 1, "b" : 2 } (doc/codegen.md 6.6)
+ *
+ * A new `dictionary<k, v>` made from an array of `pair<k, v>` objects -
+ * analysis has chosen the two classes and their constructors, and converted
+ * every key and value to the pair's parameters:
+ *
+ *      %array = new pair<k, v>[n]
+ *      for each i:  %p = new pair<k, v>(key i, value i);  %array[i] = %p
+ *      %d = new dictionary<k, v>(%array)
+ *      the value is %d
+ *
+ * The pairs are made in the order they are written, each key before its
+ * value (6.0, measured: the pieces of a dictionary run left to right).
+ */
+def dictionary_value(g: generator, e: bound_dictionary) : _int64 {
+    if(e.pair_class.address < 0 || e.dictionary_class.address < 0 || e.dictionary_constructor.address < 0) {
+        g.stop("a dictionary of a class that is not in the executable", e.unit, e.node);
+    }
+    count : _int64 = g.b.temp(SLOT_INT);
+    g.b.int_constant(count, e.keys.size().value as _int64);
+    array : _int64 = g.b.temp(SLOT_REF);
+    made := g.b.emit(IR_NEW_ARRAY);
+    made.target = array;
+    made.first = count;
+    made.number = ELEMENT_REFERENCE;
+    made.detail = e.pair_class.address;
+    g.b.release(count);
+
+    for(i : _int64 = 0; i < e.keys.size(); i++) {
+        if(e.pair_constructor == null || e.pair_constructor!!.address < 0) { g.stop("a dictionary's pair", e.unit, e.node); }
+        pair : _int64 = g.b.temp(SLOT_REF);
+        g.b.new_object(pair, e.pair_class);
+        given := new list<bound_expression>();
+        given.add(e.keys.at(i));
+        given.add(e.values.at(i));
+        arguments := new number_list();
+        arguments.add(pair);
+        add_arguments(g, arguments, given);
+        g.b.call(0 - 1, e.pair_constructor!!, arguments, CALL_HOW_DIRECT);
+        for(j : _int64 = 1; j < arguments.count; j++) { g.b.release(arguments.at(j)); }
+        index : _int64 = g.b.temp(SLOT_INT);
+        g.b.int_constant(index, i);
+        stored := g.b.emit(IR_SET_ELEMENT);            // %array[i] = %p: an element that is a reference
+        stored.first = array;
+        stored.second = index;
+        stored.detail = pair;
+        stored.number = ELEMENT_REFERENCE;
+        g.b.release(index);
+        g.b.release(pair);
+    }
+
+    dictionary : _int64 = g.b.temp(SLOT_REF);
+    g.b.new_object(dictionary, e.dictionary_class);
+    arguments := new number_list();
+    arguments.add(dictionary);
+    arguments.add(array);
+    g.line_of_node(e.unit, e.node);
+    g.b.call(0 - 1, e.dictionary_constructor, arguments, CALL_HOW_DIRECT);
+    g.b.release(array);
+    return dictionary;
+}

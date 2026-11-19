@@ -1,0 +1,11 @@
+// expect: E0400
+// help: else if(x == 2) { ... }
+// replace: elif(x == 2) { }
+// dots: println("two");
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    x := 2;
+    if(x == 1) { println("one"); } elif(x == 2) { }
+}

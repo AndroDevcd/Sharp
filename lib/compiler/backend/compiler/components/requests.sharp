@@ -1,0 +1,204 @@
+mod backend.compiler.components;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.compiler.context
+)
+
+/**
+ * A REQUEST SETTLED: the definition it gets, or the message that says why not
+ *
+ * Every `get` and every `inject` ends here with its `component_request`
+ * (what is asked: a type, a name, a component). `settle_request` searches
+ * (definition_search.sharp) and reads the result:
+ *
+ *      the component named does not exist          E0909
+ *      a definition answers                        that one (W1013 when another component answers too)
+ *      a definition of that name, of another type  E0904
+ *      nothing answers                             E0903 for a `get`, E0906 for an `inject`
+ *      a definition in reach was reported as wrong nothing more is said (one mistake, one message)
+ *
+ * THE REQUEST THAT HAS TO WAIT. A definition is analysed when first asked
+ * for, so a request can be made while a definition that might answer it is
+ * still being analysed - its type is not known yet:
+ *
+ *      component {
+ *          single { new engine(get()) }        engine(c: car)   needs a car ...
+ *          single { new car(get()) }           car(e: engine)   ... which needs an engine
+ *      }
+ *
+ * Analysing the first asks for a `car`; that analyses the second, which asks
+ * for an `engine` - and the only definition that could provide one is the
+ * first, still in progress. Such a request is put on
+ * `session.unsettled_requests` with the chain of definitions in progress,
+ * and decided when every definition is known (`settle_waiting_requests`).
+ * (A definition analysed inside another's analysis is put back when a
+ * request of its own waits, and analysed again later: definitions.sharp,
+ * "analysed too early". So only the outermost one keeps a waiting request:
+ * here the first, and the car is analysed again afterwards and finds the engine.)
+ * If the definition that answers needs the request's own definition -
+ * directly or through others, by what the definitions were really resolved
+ * to - they need each other in a CIRCLE (E0908): making one would make the
+ * other would make the first again, without end. If it does not, the request
+ * only waited by accident of the order and is answered; if nothing answers,
+ * it is an ordinary request nothing answers.
+ *
+ * A `get` INSIDE A LAMBDA of a definition is not part of making the object:
+ *
+ *      single { new scheduler({ -> get<worker>().run(); }) }       asks for a worker when CALLED
+ *      factory { new worker(get()) }                               worker(s: scheduler)
+ *
+ * The scheduler is made without a worker; the worker is asked for later, when
+ * the lambda runs. That is the usual way to break a circle, so such a request
+ * (`component_request.in_lambda`) is no edge of the dependency graph: it adds
+ * nothing to `needs`, and when it had to wait it is simply answered. Only a
+ * lambda that asks for its OWN definition stays E0908: the type of that
+ * definition is what the request needs, while it is being worked out.
+ *
+ * A definition whose ONLY value is such a waiting request has no type at all:
+ *
+ *      component { factory { get<holder>() } }     what does it provide? what it asks for
+ *
+ * It is marked `unknown_by_waiting` (nothing was reported about it, so it
+ * must not keep requests quiet the way a definition reported as wrong does).
+ * When the requests are decided it answers nothing, and the request gets
+ * E0903 with a note that the definition it might have been cannot provide
+ * what it asks for itself.
+ *
+ *      C++ comparison: "No defined type found of app#holder" (component_manager.cpp).
+ */
+
+/**
+ * The definition that answers `request`; null when there is none (reported
+ * here, or put aside to be reported when every definition is known).
+ *
+ * @param missing_code  what "nothing answers" is called: E0903 (`get`) or E0906 (`inject`)
+ */
+def settle_request(context: analysis_context, request: component_request, missing_code: string) : type_definition? {
+    session : analysis_session = context.session;
+    request.missing_code = missing_code;
+    request.asked_in = context.definition;
+    request.in_lambda = asked_inside_a_lambda(context);
+    search := search_definitions(session, request);
+    // a definition that might answer is being analysed, or has no type yet only because a
+    // request of its own is waiting: this request waits too, and is decided with the others
+    waits : _int64 = search.in_progress.size().value > 0 || (search.unknown_by_waiting.size().value > 0 && search.broken == 0);
+    if(search.found == null && search.no_such_component == 0 && waits == 1) {
+        waiting := new list<type_definition>();
+        for(i : _int64 = 0; i < session.definitions_in_progress.size(); i++) { waiting.add(session.definitions_in_progress.at(i)); }
+        request.waiting_on = waiting;
+        session.unsettled_requests.add(request);
+        return null;
+    }
+    return read_search(context, request, search, missing_code);
+}
+
+/**
+ * 1 when the code being analysed is a lambda written in a component
+ * definition: its requests are carried out when the lambda is called, not
+ * when the definition's object is made.
+ */
+def asked_inside_a_lambda(context: analysis_context) : _int64 {
+    if(context.definition == null || context.function == null) { return 0; }
+    return context.function!!.is_lambda;
+}
+
+/** what a finished search means: the answer, or one message */
+def read_search(context: analysis_context, request: component_request, search: definition_search, missing_code: string) : type_definition? {
+    if(search.no_such_component == 1) {
+        report_no_such_component(context, request);
+        return null;
+    }
+    if(search.found != null) {
+        if(search.also_in.size() > 0) { warn_several_components(context, request, search); }
+        context.session.counters.requests++;
+        return search.found;
+    }
+    if(search.broken == 1) { return null; }     // the definition that might answer was reported as wrong
+    if(search.other_type != null) {
+        report_other_type(context, request, search.other_type!!);
+        return null;
+    }
+    report_nothing_answers(context, request, search, missing_code);
+    return null;
+}
+
+/**
+ * Every definition is analysed now: decide the requests that had to wait.
+ *
+ * When a definition answers now, the question is whether that answer NEEDS
+ * the definition the request is written in - directly or through the
+ * definitions it asked for in turn (`type_definition.needs`, a walk of the
+ * dependency graph; a request written in a lambda is no edge of it, see the
+ * header). If it does, the definitions form a circle (E0908). If it
+ * does not, the request only waited because the answer happened to be in
+ * progress at the time (definitions.sharp, "analysed too early"): the
+ * definition it is written in is analysed again, and this time its request
+ * finds the answer like any other.
+ *
+ * A request in ordinary code, or one nothing answers, gets what `read_search` says.
+ */
+def settle_waiting_requests(session: analysis_session) {
+    waiting : list<component_request> = session.unsettled_requests;
+    analysed_again := new list<type_definition>();
+    // a definition analysed again can add requests of its own: the list may grow while it is read
+    for(i : _int64 = 0; i < waiting.size(); i++) {
+        request := waiting.at(i);
+        file := session.prog.file_of(request.unit);
+        if(file == null) { continue; }
+        context := new analysis_context(session, file!!);
+        context.is_static = 1;
+
+        search := search_definitions(session, request);
+        if(search.found == null) {
+            read_search(context, request, search, request.missing_code);
+            continue;
+        }
+        if(request.asked_in == null) {
+            read_search(context, request, search, request.missing_code);
+            continue;
+        }
+        asker : type_definition = request.asked_in!!;
+        // (a request in a lambda runs later: a circle only when it asks for its own definition)
+        circle : list<type_definition>? = null;
+        if(request.in_lambda == 0 || search.found!! == asker) { circle = path_of_needs(search.found!!, asker); }
+        if(circle != null) {
+            report_circle(context, request, circle!!);
+        } else if(!analysed_again.contains(asker)) {
+            analysed_again.add(asker);
+            asker.state = TYPE_UNKNOWN;
+            analyse_definition(session, asker);
+        }
+    }
+    waiting.clear();
+}
+
+/**
+ * The chain of definitions from `start` to `goal` along what each one needs
+ * (`start` first, `goal` last); `[goal]` when they are the same definition;
+ * null when `start` does not need `goal` at all. A depth-first search of the
+ * dependency graph; each definition is entered once, so a circle elsewhere
+ * cannot make it run forever.
+ */
+def path_of_needs(start: type_definition, goal: type_definition) : list<type_definition>? {
+    path := new list<type_definition>();
+    entered := new list<type_definition>();
+    if(walk_needs(start, goal, path, entered) == 1) { return path; }
+    return null;
+}
+
+/** one step of `path_of_needs`: 1 when `goal` was reached from `at` (the path is then complete) */
+def walk_needs(at: type_definition, goal: type_definition, path: list<type_definition>, entered: list<type_definition>) : _int64 {
+    if(entered.contains(at)) { return 0; }
+    entered.add(at);
+    path.add(at);
+    if(at == goal) { return 1; }
+    for(i : _int64 = 0; i < at.needs.size(); i++) {
+        if(walk_needs(at.needs.at(i), goal, path, entered) == 1) { return 1; }
+    }
+    path.pop_last();
+    return 0;
+}

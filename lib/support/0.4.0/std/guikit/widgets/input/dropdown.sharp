@@ -1,0 +1,133 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * dropdown - pick one of several named choices from a menu that drops down.
+ *
+ *      size := state(1);                       // which option is chosen: 0 is the first
+ *
+ *      dropdown(size) {
+ *          option("Small");
+ *          option("Medium");
+ *          option("Large");
+ *      }
+ *
+ * Closed, it is a box showing the chosen option. A click opens the list under
+ * it (above it, when there is no room below); choosing an option writes its
+ * number into the state and closes the list; a click anywhere else, or
+ * Escape, closes it without choosing.
+ * (Android: Spinner. Compose: ExposedDropdownMenuBox. HTML: select.)
+ *
+ * option(...) ONLY WORKS INSIDE dropdown { }: written anywhere else it stops
+ * the program with an error that says so (scope.inside).
+ *
+ * THIS WIDGET IS BUILT FROM THE FRAMEWORK'S OWN PARTS - it is a composable,
+ * exactly like one you would write:
+ *
+ *   - whether the list is open is a state of its own (`open`). It is the
+ *     dropdown's business, not the program's, and because it is a composable
+ *     state it survives the rebuilds that typing or clicking elsewhere cause;
+ *   - build() returns a stack holding the closed box (a clickable row) and,
+ *     while open, a popup placed under that stack (popup.sharp).
+ *
+ * Nothing here reaches below the public API, so it doubles as an example of
+ * making your own compound widget.
+ */
+stable class dropdown base composable {
+    private titles : list<string>;
+    private bound : state<_int64>;
+    private open := state(0);
+
+    dropdown(choice: state<_int64>, options: list<string>) {
+        bound = choice;
+        titles = options;
+    }
+
+    override def build() : element {
+        t : theme = ui_host.current!!.look;
+        count : _int64 = titles.size().value;
+
+        shown : string = "";
+        if(bound.value >= 0 && bound.value < count) {
+            shown = titles.at(bound.value);
+        }
+
+        edge : color = t.border;
+        if(open.value == 1) { edge = t.primary; }
+        box := modifier().fill_width().height(t.control_height).padding(12, 0)
+                         .background(t.surface).corner(t.radius).border(1, edge)
+                         .click { toggle_open(); };
+
+        return stack(modifier().fill_width()) {
+            row(box) {
+                text(shown, modifier().grow(1)).max_lines(1);
+                // the little arrow: two short lines, drawn rather than typed so it needs no special letter
+                canvas(modifier().size(12, 12)) { p: painter, f: frame ->
+                    p.line(1, 4, 6, 9, 1.5, t.text_dim);
+                    p.line(6, 9, 11, 4, 1.5, t.text_dim);
+                }.still();
+            }.gap(8);
+
+            if(open.value == 1) {
+                menu := new popup(POPUP_BELOW, { -> open.value = 0; });
+                menu.content {
+                    column(modifier().fill_width().padding(4).background(t.surface_high).corner(t.radius).border(1, t.border).shadow(10)) {
+                        for(i : _int64 = 0; i < count; i++) {
+                            option_row(i, t);
+                        }
+                    };
+                };
+            }
+        };
+    }
+
+    private def toggle_open() {
+        if(open.value == 1) { open.value = 0; }
+        else { open.value = 1; }
+    }
+
+    /** one line of the open list: the option's words, tinted when it is the chosen one */
+    private def option_row(index: _int64, t: theme) {
+        look := modifier().fill_width().padding(10, 8).corner(6).click { choose(index); };
+        if(index == bound.value) {
+            look.background(t.primary.with_alpha(60));
+        }
+        row(look) {
+            text(titles.at(index));
+        };
+    }
+
+    private def choose(index: _int64) {
+        open.value = 0;
+        if(bound.value != index) {
+            bound.value = index;
+        }
+    }
+}
+
+/**
+ * One choice of a dropdown, as written in its block: option("Small"). It only
+ * carries its words to the dropdown that collects it; it is never shown itself.
+ */
+stable class menu_option base widget : behavior {
+    words : string = "";
+
+    menu_option(title: string) {
+        attach(self);
+        words = title;
+    }
+
+    override def kind() : string { return "option"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+    }
+}

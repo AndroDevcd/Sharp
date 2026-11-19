@@ -1,0 +1,69 @@
+mod main;
+
+// output:
+// 11
+// 100
+// 3
+// 2
+// 2
+// 6
+// 5
+// 12
+// 1
+// 7
+// 52
+
+/*
+ * Fields of every kind (doc/codegen.md 4.5, 4.8, 6.2): instance fields of
+ * the class and of the classes above it (inherited: their slots come first),
+ * a field of an object reached through a chain of fields, a static field read
+ * through the class and through an object, a global, and `localized` fields
+ * (one slot of the fiber's own stack each, given their value by the start-up)
+ * - a number and an object - read, assigned, `+=` and `++`.
+ */
+class base_shape {
+    name_length : _int64 = 4;
+    corners : _int64;
+}
+
+class square base base_shape {
+    side : _int64 = 3;
+    inner : square?;
+    static made : _int64 = 0;
+
+    square() { made++; corners = 4; }
+
+    def area() : _int64 { return side * side; }
+}
+
+class tally { count : _int64 = 1; }
+
+localized hits : _int64 = 5;
+localized log : tally = new tally();
+total : _int64 = 40;
+
+def main() {
+    s := new square();
+    show(s.name_length + s.corners + s.side);
+    s.inner = new square();
+    s.inner!!.side = 10;
+    show(s.inner!!.area());
+    s.inner!!.inner = s;
+    show(s.inner!!.inner!!.side);
+    show(square.made);
+    show(s.made);
+    s.corners += 2;
+    show(s.corners);
+
+    show(hits);
+    hits = hits * 2;
+    hits += 1;
+    hits++;
+    show(hits);
+    show(log.count);
+    log.count += 6;
+    log = log;
+    show(log.count);
+    total += hits;
+    show(total);
+}

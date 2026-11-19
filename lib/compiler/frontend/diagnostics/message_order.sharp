@@ -1,0 +1,105 @@
+mod frontend.diagnostics;
+
+import (
+    std.io
+)
+
+/**
+ * THE ORDER THE MESSAGES ARE PRINTED IN: THE ORDER OF THE PROGRAM TEXT
+ *
+ *      class a { def f() : string { return null; } }   // line 4
+ *      def g() : string { return null; }               // line 6
+ *
+ * The stages find problems in their own order - module functions before the
+ * functions of classes, declarations before bodies, a whole-program check
+ * last - so the message about line 6 used to be printed before the one
+ * about line 4, and in a long file the one at line 150 before the one at
+ * line 84. A reader goes DOWN the file; a list that jumps about sends them
+ * up and down it.
+ *
+ * So, just before printing, the list is sorted:
+ *
+ *   - file by file, the files in the order they were given to the compiler
+ *     (the command line). That order is the same on every run; the order the
+ *     files were PARSED in is not, because they are parsed in parallel;
+ *   - inside a file, by where each message points (`diagnostic.from`, the
+ *     position of its first character);
+ *   - two messages at the same place keep the order they were found in, so
+ *     a message and one that follows from it stay together.
+ *
+ * The sort is a MERGE SORT, written out bottom-up (runs of 1, 2, 4 ...
+ * messages are merged until one run is left). It is the textbook stable
+ * sort, and n log n: the list can hold a thousand errors.
+ *
+ *      C++ comparison: none. ErrorManager prints each error where it is
+ *      found, in the order of its passes.
+ */
+def in_source_order(found: list<diagnostic>, file_order: list<string>) : list<diagnostic> {
+    count : _int64 = found.size().value as _int64;
+    if(count < 2) { return found; }
+    ranks := file_ranks(found, file_order);
+
+    // `order` holds positions in `found`; each round merges neighbouring runs of `width` into `spare`
+    order := new _int64[count];
+    spare := new _int64[count];
+    for(i : _int64 = 0; i < count; i++) { order[i] = i; }
+    for(width : _int64 = 1; width < count; width = width * 2) {
+        for(start : _int64 = 0; start < count; start = start + 2 * width) {
+            middle : _int64 = start + width;
+            end : _int64 = start + 2 * width;
+            if(middle > count) { middle = count; }
+            if(end > count) { end = count; }
+            a : _int64 = start;
+            b : _int64 = middle;
+            for(k : _int64 = start; k < end; k++) {
+                take_a : _int64 = 0;
+                if(a < middle && b >= end) { take_a = 1; }
+                else if(a < middle && comes_before_or_with(found, ranks, order[a], order[b])) { take_a = 1; }
+                if(take_a == 1) { spare[k] = order[a]; a++; }
+                else { spare[k] = order[b]; b++; }
+            }
+        }
+        swap := order;
+        order = spare;
+        spare = swap;
+    }
+
+    sorted := new list<diagnostic>();
+    for(i : _int64 = 0; i < count; i++) { sorted.add(found.at(order[i])); }
+    return sorted;
+}
+
+/**
+ * For every diagnostic, the place of its file in the printed order: its
+ * position in `file_order`. A file that is not in that list (there should
+ * be none) comes after all that are, in the order its first message was
+ * found. One hash-table lookup per message.
+ */
+def file_ranks(found: list<diagnostic>, file_order: list<string>) : _int64[] {
+    rank_of := new hash_map<string, int>();
+    for(i : _int64 = 0; i < file_order.size(); i++) {
+        if(rank_of.at(file_order.at(i)) == null) { rank_of.put(file_order.at(i), new int(i)); }
+    }
+    next_rank : _int64 = file_order.size().value as _int64;
+
+    count : _int64 = found.size().value as _int64;
+    ranks := new _int64[count];
+    for(i : _int64 = 0; i < count; i++) {
+        file := found.at(i).file;
+        known := rank_of.at(file);
+        if(known == null) {
+            rank_of.put(file, new int(next_rank));
+            ranks[i] = next_rank;
+            next_rank++;
+        } else {
+            ranks[i] = known!!.value as _int64;
+        }
+    }
+    return ranks;
+}
+
+/** does the diagnostic at `first` come before the one at `second`, or at the same place? */
+def comes_before_or_with(found: list<diagnostic>, ranks: _int64[], first: _int64, second: _int64) : _int64 {
+    if(ranks[first] != ranks[second]) { return ranks[first] < ranks[second]; }
+    return found.at(first).from <= found.at(second).from;
+}

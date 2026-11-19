@@ -1,0 +1,300 @@
+mod std.io;
+
+import ( platform )
+
+/**
+ * The file system calls of the runtime, as plain static functions that take
+ * a path string. This is the lowest layer of the newer file functions
+ * (file.read_text, file.mkdirs, file.walk, file_utils, temp_files, ...);
+ * programs use those, not this class.
+ *
+ * Why it exists next to file_system: every function here hands the path to
+ * the runtime exactly as it is given. A path may be relative to the current
+ * directory, and it may name something that does not exist yet - writing a
+ * new file, asking for the size of a missing file and so on simply work
+ * (or report failure through their result), without exceptions about paths
+ * that cannot be resolved.
+ *
+ * What the runtime offers (and nothing more): read a whole file, write a
+ * whole file, create an empty file, delete a file, delete an empty
+ * directory, the size of a file, the absolute form of an existing path, and
+ * a list of the regular files in a directory tree. There are no file
+ * handles: a file is always read or written in one piece.
+ *
+ * Results that are numbers follow the operating system: 0 means success.
+ * A path must not be empty (the runtime throws nullptr_exception for that).
+ */
+class file_natives {
+
+    /** the character between the parts of a path on this system: '/' or the back slash (as a character code) */
+    static def separator() : decimal {
+        if(build.is_windows()) {
+            return 92;
+        }
+        return '/';
+    }
+
+    /**
+     * True when the path starts at a root of the file system: with a
+     * separator, or - on windows - with a drive ("C:...").
+     */
+    static def is_rooted(file_path: string) : decimal {
+        n : decimal = sizeof(file_path.data);
+        if(n == 0) {
+            return 0;
+        }
+        first : decimal = file_path.data[0];
+        if(first == '/' || first == 92) {
+            return 1;
+        }
+        if(build.is_windows() && n >= 2 && file_path.data[1] == ':' && io_strings.is_letter(first)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /** `dir` + separator + `name` (no separator is added when `dir` already ends with one) */
+    static def join(dir: string, name: string) : string {
+        sep : decimal = separator();
+        buf := new char_buffer(sizeof(dir.data) + sizeof(name.data) + 1);
+        buf.append(dir);
+        n : decimal = sizeof(dir.data);
+        if(n > 0 && dir.data[n - 1] != sep && dir.data[n - 1] != '/') {
+            buf.append_char(sep);
+        }
+        buf.append(name);
+        return buf.to_string()!!;
+    }
+
+    /**
+     * The path of the directory `file_path` lies in, or null when it has no
+     * parent: a bare name ("a.txt") or a root ("/"). "/home/joe/a.txt" gives
+     * "/home/joe", "/a.txt" gives "/". Only the separator of this system
+     * counts (paths held by `file` objects are normalized to it).
+     */
+    static def parent_of(file_path: string) : string? {
+        sep : decimal = separator();
+        n : decimal = sizeof(file_path.data);
+        at : decimal = 0 - 1;
+        for(i : decimal = n - 1; i >= 0; i--) {
+            if(file_path.data[i] == sep) {
+                at = i;
+                break;
+            }
+        }
+        if(at < 0 || at + 1 >= n) {
+            return null;
+        }
+        if(at == 0) {
+            return io_strings.slice(file_path, 0, 1); // "/a" -> "/"
+        }
+        if(file_path.data[at - 1] == ':') {
+            return io_strings.slice(file_path, 0, at + 1); // "C:\a" -> "C:\"
+        }
+        return io_strings.slice(file_path, 0, at);
+    }
+
+    /**
+     * The whole content of the file, every byte one character. Returns null
+     * when the file is empty, does not exist or cannot be read (the runtime
+     * does not tell these apart).
+     */
+    static def read(file_path: string) : string? {
+        raw := file_path.data;
+        data : string?;
+
+        /*
+        * This will perform the os call to request the
+        * file to be read
+        */
+        asm {
+            pushl [raw]
+            int 0x2f
+            popl [data]
+        };
+
+        return data;
+    }
+
+    /**
+     * Replace the content of the file with `text` (every character one
+     * byte), creating the file when it does not exist. Writing "" leaves an
+     * empty file. Returns 0 when the file was written and something else
+     * when it could not be (e.g. its directory does not exist).
+     */
+    static def write(file_path: string, text: string) : decimal {
+        raw_path := file_path.data;
+        raw_text := text.data;
+        result : _int64 = 0;
+
+        if(raw_text == null || sizeof(raw_text) == 0) {
+            /*
+            * The write call of the runtime needs at least one character.
+            * Creating the file anew leaves it empty, which is what writing
+            * nothing means.
+            */
+            create(file_path);
+            if(size(file_path) == 0) {
+                return 0;
+            }
+            return 1;
+        }
+
+        /*
+        * This will perform the os call to request the
+        * file to be written
+        */
+        asm {
+            pushl [raw_text]
+            pushl [raw_path]
+            int 0x31
+            smovr2 [result], ebx
+        };
+
+        return result;
+    }
+
+    /**
+     * Create an empty file. An existing file with that name is emptied.
+     * Nothing happens when the file cannot be created; check afterwards.
+     */
+    static def create(file_path: string) {
+        raw := file_path.data;
+
+        asm {
+            pushl [raw]
+            int 0x28
+        };
+    }
+
+    /**
+     * Delete a file (or, on unix, an empty directory or a link). Returns 0
+     * when it was removed.
+     */
+    static def delete_file(file_path: string) : decimal {
+        raw := file_path.data;
+        result : _int64 = 0;
+
+        asm {
+            pushl [raw]
+            int 0x29
+            smovr2 [result], ebx
+        };
+
+        return result;
+    }
+
+    /** delete an empty directory. Returns 0 when it was removed. */
+    static def delete_directory(file_path: string) : decimal {
+        raw := file_path.data;
+        result : _int64 = 0;
+
+        asm {
+            pushl [raw]
+            int 0x2c
+            smovr2 [result], ebx
+        };
+
+        return result;
+    }
+
+    /**
+     * Rename (move) the file or directory at `from_path` to `to_path`.
+     * Returns 0 when it worked; it fails across disks, when the source does
+     * not exist, or when the directory of the destination does not exist.
+     */
+    static def rename(from_path: string, to_path: string) : decimal {
+        raw_from := from_path.data;
+        raw_to := to_path.data;
+        result : _int64 = 0;
+
+        asm {
+            pushl [raw_to]
+            pushl [raw_from]
+            int 0x30
+            smovr2 [result], ebx
+        };
+
+        return result;
+    }
+
+    /** the size of the file in bytes, or -1 when it does not exist (for a directory the number means nothing) */
+    static def size(file_path: string) : decimal {
+        raw := file_path.data;
+        result : _int64 = 0;
+
+        asm {
+            pushl [raw]
+            int 0x27
+            smovr2 [result], ebx
+        };
+
+        return result;
+    }
+
+    /**
+     * The absolute form of the path. For a path that exists the operating
+     * system works it out (on unix symbolic links are followed and "." and
+     * ".." removed). For a path that does not exist it is put behind the
+     * current directory as it is (a path that is rooted already is returned
+     * unchanged).
+     */
+    static def absolute(file_path: string) : string {
+        raw := file_path.data;
+
+        asm {
+            pushl [raw]
+            int 0x20
+            popl [raw]
+        };
+
+        if(raw != null && sizeof(raw) > 0) {
+            return new string(raw);
+        }
+        if(is_rooted(file_path)) {
+            return file_path;
+        }
+        return join(file.current_directory(), file_path);
+    }
+
+    /**
+     * The paths of all regular files below the directory, in every sub
+     * directory, as the runtime reports them (the directory + separator +
+     * the path below it), in no particular order; null when there are none.
+     *
+     * Limits of this runtime call: names that start with '.' are skipped
+     * (files and whole directories), and directories themselves are not
+     * reported, so an empty directory is invisible. directory_listing works
+     * around that.
+     */
+    static def tree_files(dir_path: string) : string[]? {
+        raw := dir_path.data;
+        files: string[];
+
+        asm {
+            pushl [raw]
+            int 0x2a
+            popl [files]
+        };
+
+        return files;
+    }
+
+    /**
+     * Bytes of the disk the program runs on: `which` 0 gives the size of
+     * the disk, 1 the bytes that are not in use, 2 the bytes this program
+     * may use. -1 when the operating system does not tell.
+     */
+    static def disk_space(which: decimal) : decimal {
+        request : _int64 = which;
+        result : _int64 = 0;
+
+        asm {
+            loadl ebx, [request]
+            int 0x32
+            smovr2 [result], ebx
+        };
+
+        return result;
+    }
+}

@@ -1,0 +1,486 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.io,
+    std.math,
+    std.guikit.*
+)
+
+// how a thing is packed for the graphics side: 26 numbers (native/g3_core.cpp, NODE_...)
+const NODE_NUMBERS : _int64 = 26;
+const LAMP_NUMBERS : _int64 = 8;
+const LOOK_NUMBERS : _int64 = 32;
+
+/** one piece of on_frame code, kept by its scene */
+local stable class frame_code {
+    run : (frame)();
+
+    frame_code(what: (frame)()) {
+        run = what;
+    }
+}
+
+/**
+ * scene - a 3D view: a widget like any other, with a world in it.
+ *
+ *      scene {
+ *          cube(1).texture("assets/crate.png").spin(40);
+ *      }
+ *
+ *      scene(modifier().grow(1).fill_height()) {
+ *          camera().orbit();
+ *          sun().from(0.8, 0.5, 0.3).shadows();
+ *          ground(20).texture("assets/concrete.png", 8);
+ *          model("assets/car.obj").color(paint.value);
+ *      }
+ *
+ * IT WORKS LIKE A COLUMN DOES: the block runs, and what it makes belongs to
+ * the scene - things (cube, sphere, model, group ...) in the order the lines
+ * run, with ordinary `if` and `for` deciding what is there. When a state the
+ * block read changes, the screen is built again and the scene shows the new
+ * world. Its box (size, place in the layout) comes from the modifier, like
+ * every widget's.
+ *
+ * WHAT A SCENE HAS BESIDES THINGS
+ *
+ *      camera()    the eye (camera.sharp)                 - else: far enough back to see everything
+ *      sun()       the light (lights.sharp)               - else: a high sun, no shadows
+ *      lamp()      lights at a place
+ *      sky(top, horizon)       the colours of the sky     - else: a clear day
+ *      backdrop(colour)        one flat colour instead of a sky
+ *      fog(colour, from, to)   far things fade into it
+ *      on_frame { f -> ... }   your code, run before every frame: move things, read the keys
+ *      hud { ... }             ordinary widgets over the view
+ *
+ * EVERY FRAME the scene is drawn again by the graphics card (native/g3_core.cpp),
+ * in one call, however much is in it. Things that only spin or bob cost the
+ * program nothing; what on_frame changes is handed over again.
+ *
+ * (three.js / react-three-fiber: Canvas + Scene. Godot: SubViewport with a
+ * world. SwiftUI: RealityView.)
+ */
+stable class scene base widget : behavior, pointer_target, wheel_target, stateful {
+    root : thing;                               // everything in the scene is inside it
+    eye : camera = new camera();
+    light : sun = new sun();
+    lamps : list<lamp> = new list<lamp>();
+
+    sky_shown : bool = true;
+    sky_top : _int64 = 0x3D6FB6FF;
+    sky_horizon : _int64 = 0xBFD9F2FF;
+    sky_below : _int64 = 0x8C9AA6FF;            // what shows under the horizon where no ground is
+    behind : _int64 = 0x1B1E26FF;               // the colour behind everything when there is no sky (backdrop)
+    sky_light : _int64 = 0x5F6E88FF;            // the light from the sky on what faces up ...
+    ground_light : _int64 = 0x39342DFF;         // ... and from the ground on what faces down
+    fog_color : _int64 = 0;
+    fog_from : decimal = 0;
+    fog_to : decimal = 0;
+
+    private every_frame : list<frame_code> = new list<frame_code>();
+    private id : _int64 = 0;                    // the scene on the graphics side (0: not made yet)
+    private nodes : decimal[] = new decimal[NODE_NUMBERS * 64];
+    private node_room : _int64 = 64;
+    private node_count : _int64 = 0;
+    private order : list<thing> = new list<thing>();        // the thing of every packed node, by its number
+    private lamp_numbers : decimal[] = new decimal[LAMP_NUMBERS * 8];
+    private look : decimal[] = new decimal[LOOK_NUMBERS];
+    private hit : decimal[] = new decimal[3];
+    private packed_at : _int64 = 0 - 1;         // thing.changes when the scene was last handed over
+    private info : frame = new frame();
+    private quiet : bool = false;
+    private framed : bool = false;              // was the camera put far enough back yet?
+
+    // the mouse, from press to release
+    private press_x : decimal = 0;
+    private press_y : decimal = 0;
+    private last_x : decimal = 0;
+    private last_y : decimal = 0;
+    private moved_far : bool = false;
+
+    /** the triangles the last frame sent to the graphics card */
+    drawn : _int64 = 0;
+
+    scene(block: ()()) {
+        attach(self);
+
+        // the scene's own root belongs to no group, whatever is open around the scene
+        open_before : thing? = stage.open;
+        stage.open = null;
+        root = new thing();
+        stage.open = open_before;
+
+        // run the block: things join the root, and camera() & co. speak to this scene.
+        // (Widgets made in the block belong nowhere - except inside hud { }.)
+        scene_before : scene? = stage.building;
+        widgets_before : view? = scope.open;
+        stage.building = self;
+        scope.open = null;
+        stage.fill(root, block);
+        scope.open = widgets_before;
+        stage.building = scene_before;
+    }
+
+    /** draw only when the rest of the screen does: for a scene in which nothing moves by itself */
+    def still() : scene {
+        quiet = true;
+        return self;
+    }
+
+    /** your code, run before every frame is drawn */
+    def each_frame(what: (frame)()) : scene {
+        every_frame.add(new frame_code(what));
+        return self;
+    }
+
+    /** widgets over the view: made in the block, laid out over the scene's box */
+    def over(block: ()()) : scene {
+        scope.fill(me, block);
+        return self;
+    }
+
+    override def kind() : string { return "scene"; }
+
+    // ---------------------------------------------------------------- its box, and the widgets over it
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        // no size of its own: give it one with a modifier - .fill(), .grow(1), .size(w, h) ...
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            kid.measure(0, max_w, 0, max_h);
+        }
+        me.content_w = 0;
+        me.content_h = 0;
+    }
+
+    override def arrange() {
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            kid.arrange(me.inner_x(), me.inner_y(), num.smaller(kid.want_w, me.inner_w()), num.smaller(kid.want_h, me.inner_h()));
+        }
+    }
+
+    // ---------------------------------------------------------------- a rebuild: carry on where the last one was
+
+    override def adopt(old: behavior) {
+        if(old is scene) {
+            before := old as scene;
+            id = before.id;                     // the same scene on the graphics side
+            eye.continue_from(before.eye);
+            framed = before.framed && eye.mode != CAMERA_STILL;
+        }
+    }
+
+    // ---------------------------------------------------------------- the mouse
+
+    override def pointer(what: _int64, px: decimal, py: decimal) {
+        if(what == POINTER_PRESS) {
+            press_x = px;
+            press_y = py;
+            last_x = px;
+            last_y = py;
+            moved_far = false;
+        } else if(what == POINTER_DRAG) {
+            if(num.larger(absolute(px - press_x), absolute(py - press_y)) > 4) { moved_far = true; }
+            if(moved_far) {
+                eye.dragged(px - last_x, py - last_y);
+                ui_host.current!!.request_frame();
+            }
+            last_x = px;
+            last_y = py;
+        } else if(what == POINTER_RELEASE) {
+            if(!moved_far) {
+                clicked := under(px, py);
+                if(clicked != null && clicked!!.on_click != null) { clicked!!.on_click!!(); }
+            }
+        } else if(what == POINTER_DOUBLE) {
+            clicked := under(px, py);
+            if(clicked != null && clicked!!.on_double_click != null) { clicked!!.on_double_click!!(); }
+        }
+    }
+
+    override def wheel(dx: decimal, dy: decimal) : _int64 {
+        if(eye.wheeled(dy)) {
+            ui_host.current!!.request_frame();
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * the thing under a point of the window that answers to clicks: the
+     * nearest one hit, or the group around it that does (a click on a wheel
+     * is a click on the car). null: none.
+     */
+    def under(px: decimal, py: decimal) : thing? {
+        if(id == 0) { return null; }
+        found : _int64 = g3_scene_pick(id, px - me.inner_x(), py - me.inner_y(), me.inner_w(), me.inner_h(), hit);
+        if(found < 0 || found >= order.size().value) { return null; }
+        at : thing? = order.at(found);
+        while(at != null) {
+            if(at!!.on_click != null || at!!.on_double_click != null || at!!.on_right_click != null) { return at; }
+            at = at!!.parent;
+        }
+        return null;
+    }
+
+    /** where in the world the last click or under(...) hit: [x, y, z] */
+    def hit_point() : decimal[] {
+        return hit;
+    }
+
+    // ---------------------------------------------------------------- every frame
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        left : decimal = me.inner_x();
+        top : decimal = me.inner_y();
+        if(me.inner_w() < 1 || me.inner_h() < 1) { return; }
+        if(id == 0) { id = g3_scene(); packed_at = 0 - 1; }
+
+        info.width = me.inner_w();
+        info.height = me.inner_h();
+        info.time = host.now;
+        info.step = host.step;
+        info.mouse_x = host.mouse_x - left;
+        info.mouse_y = host.mouse_y - top;
+        info.mouse_down = host.mouse_held;
+
+        // your code first: what it moves is in this frame
+        count : _int64 = every_frame.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            every_frame.at(i).run(info);
+        }
+
+        if(packed_at != thing.changes) {
+            pack();
+            packed_at = thing.changes;
+        }
+        if(!framed) {
+            stand_back();
+            framed = true;
+        }
+        eye.stepped(info);
+        if(eye.mode == CAMERA_ORBIT) { eye.settle_orbit(); }
+        pack_look();
+        g3_scene_look(id, look);
+        g3_scene_draw(id, p.origin_x() + left, p.origin_y() + top, info.width, info.height, host.now, p.opacity());
+        drawn = g3_scene_drawn(id);
+
+        if(!quiet) {
+            host.request_frame();
+        }
+    }
+
+    // ---------------------------------------------------------------- handing the world over
+
+    /** every thing of the scene as numbers, parents before their children, and the lamps */
+    private def pack() {
+        node_count = 0;
+        order.clear();
+        pack_thing(root, 0 - 1);
+
+        lamp_count : _int64 = lamps.size().value;
+        if(sizeof(lamp_numbers) < lamp_count * LAMP_NUMBERS) {
+            lamp_numbers = new decimal[lamp_count * LAMP_NUMBERS * 2];
+        }
+        for(i : _int64 = 0; i < lamp_count; i++) {
+            from : lamp = lamps.at(i);
+            at : _int64 = i * LAMP_NUMBERS;
+            lamp_numbers[at] = from.x;
+            lamp_numbers[at + 1] = from.y;
+            lamp_numbers[at + 2] = from.z;
+            lamp_numbers[at + 3] = from.tinted;
+            lamp_numbers[at + 4] = from.far;
+            lamp_numbers[at + 5] = from.bright;
+            lamp_numbers[at + 6] = 0 - 1;
+            if(from.on != null && from.on!!.slot >= 0) { lamp_numbers[at + 6] = from.on!!.slot; }
+        }
+        g3_scene_nodes(id, nodes, node_count, lamp_numbers, lamp_count);
+    }
+
+    private def pack_thing(what: thing, parent: _int64) {
+        what.prepare();
+        if(what.shape != null) {
+            what.model = what.shape!!.ready();          // a mesh that changed is sent again here
+        }
+        if(node_count == node_room) {
+            node_room = node_room * 2;
+            realloc(nodes, node_room * NODE_NUMBERS);
+        }
+        mine : _int64 = node_count;
+        node_count = node_count + 1;
+        what.slot = mine;
+        order.add(what);
+
+        at : _int64 = mine * NODE_NUMBERS;
+        nodes[at] = parent;
+        nodes[at + 1] = what.model;
+        nodes[at + 2] = what.x;
+        nodes[at + 3] = what.y;
+        nodes[at + 4] = what.z;
+        nodes[at + 5] = what.heading;
+        nodes[at + 6] = what.pitch;
+        nodes[at + 7] = what.roll;
+        nodes[at + 8] = what.size_x;
+        nodes[at + 9] = what.size_y;
+        nodes[at + 10] = what.size_z;
+        nodes[at + 11] = what.spin_heading;
+        nodes[at + 12] = what.spin_pitch;
+        nodes[at + 13] = what.spin_roll;
+        nodes[at + 14] = what.tinted;
+        nodes[at + 15] = what.picture;
+        nodes[at + 16] = what.shine;
+        nodes[at + 17] = what.light;
+        flags : _int64 = 0;
+        if(what.hidden) { flags = flags + 1; }
+        if(what.faces_eye) { flags = flags + 2; }
+        if(what.shadowless) { flags = flags + 4; }
+        if(what.plain) { flags = flags + 8; }
+        if(what.deaf) { flags = flags + 16; }
+        nodes[at + 18] = flags;
+        nodes[at + 19] = what.copies;
+        nodes[at + 20] = what.far_model;
+        nodes[at + 21] = what.far_from;
+        nodes[at + 22] = what.bob_height;
+        nodes[at + 23] = what.bob_rate;
+        nodes[at + 24] = what.repeats;
+        nodes[at + 25] = what.own_shader;
+
+        if(what.kids != null) {
+            count : _int64 = what.kids!!.size().value;
+            for(i : _int64 = 0; i < count; i++) {
+                pack_thing(what.kids!!.at(i), mine);
+            }
+        }
+    }
+
+    /** the camera, the sun, the sky and the fog as 32 numbers (native/g3_core.cpp, LOOK_...) */
+    private def pack_look() {
+        look[0] = eye.x;
+        look[1] = eye.y;
+        look[2] = eye.z;
+        look[3] = eye.heading;
+        look[4] = eye.tilt;
+        look[5] = eye.wide;
+        look[6] = eye.nearest;
+        look[7] = eye.furthest;
+        look[8] = light.x;
+        look[9] = light.y;
+        look[10] = light.z;
+        look[11] = light.tinted;
+        look[12] = light.bright;
+        look[13] = sky_light;
+        look[14] = ground_light;
+        look[15] = sky_top;
+        look[16] = sky_horizon;
+        look[17] = 0;
+        if(sky_shown) { look[17] = 1; }
+        look[18] = fog_color;
+        look[19] = fog_from;
+        look[20] = fog_to;
+        look[21] = 0;
+        if(light.shadowed) { look[21] = 1; }
+        look[22] = light.shadow_reach;
+        look[23] = behind;
+        look[24] = 0;
+        if(eye.aimed) { look[24] = 1; }
+        look[25] = eye.aim_x;
+        look[26] = eye.aim_y;
+        look[27] = eye.aim_z;
+        look[28] = sky_below;
+    }
+
+    /**
+     * A camera the program did not place: stand far enough back, a little up
+     * and to one side, to see everything that stands in the scene (a floor
+     * under the things does not count: the things on it do). (An orbiting camera
+     * turns round the middle of it.)
+     */
+    private def stand_back() {
+        if(eye.placed && (eye.mode != CAMERA_ORBIT || eye.round_set)) {
+            if(eye.mode == CAMERA_ORBIT && eye.away <= 0) { eye.away = 6; }
+            return;
+        }
+        // the box round every thing that stands directly in the scene
+        low := new decimal[3];
+        high := new decimal[3];
+        any : bool = false;
+        if(root.kids != null) {
+            count : _int64 = root.kids!!.size().value;
+            for(i : _int64 = 0; i < count; i++) {
+                any = widen(root.kids!!.at(i), 0, 0, 0, 1, low, high, any, true);
+            }
+            if(!any) {                                      // nothing but flat ground: then that is what there is to see
+                for(i : _int64 = 0; i < count; i++) {
+                    any = widen(root.kids!!.at(i), 0, 0, 0, 1, low, high, any, false);
+                }
+            }
+        }
+        if(!any) {
+            low[0] = 0 - 1;  low[1] = 0;  low[2] = 0 - 1;
+            high[0] = 1;     high[1] = 1; high[2] = 1;
+        }
+        mid_x : decimal = (low[0] + high[0]) / 2;
+        mid_y : decimal = (low[1] + high[1]) / 2;
+        mid_z : decimal = (low[2] + high[2]) / 2;
+        across : decimal = square_root((high[0] - low[0]) * (high[0] - low[0]) + (high[1] - low[1]) * (high[1] - low[1])
+                                       + (high[2] - low[2]) * (high[2] - low[2]));
+        if(across < 0.5) { across = 0.5; }
+        back : decimal = across * 0.5 / tan_of(eye.wide * PI_VALUE / 360) * 1.25 + across * 0.25;
+
+        if(!eye.round_set) {
+            eye.round_x = mid_x;
+            eye.round_y = mid_y;
+            eye.round_z = mid_z;
+        }
+        if(eye.away <= 0) { eye.away = back; }
+        if(!eye.placed) {
+            eye.heading = 0 - 25;
+            eye.tilt = 18;
+            eye.aimed = false;
+            along := eye.looks_along();
+            eye.x = mid_x - along[0] * back;
+            eye.y = mid_y - along[1] * back;
+            eye.z = mid_z - along[2] * back;
+        }
+    }
+
+    /** make the box [low, high] hold a thing and what is in it (places only: turning is left out) */
+    private def widen(what: thing, ox: decimal, oy: decimal, oz: decimal, grown: decimal,
+                      low: decimal[], high: decimal[], any: bool, skip_flat: bool) : bool {
+        if(what.hidden) { return any; }
+        px : decimal = ox + what.x * grown;
+        py : decimal = oy + what.y * grown;
+        pz : decimal = oz + what.z * grown;
+        size : decimal = grown * num.larger(what.size_x, num.larger(what.size_y, what.size_z));
+        if(what.shape != null) { what.model = what.shape!!.ready(); }
+        if(what.model != 0 && what.copies == 0) {
+            box := new decimal[6];
+            g3_model_box(what.model, box);
+            // (turned things: the furthest corner in every direction, so the box holds it whichever way it faces)
+            far : decimal = num.larger(num.larger(absolute(box[0]), absolute(box[3])), num.larger(absolute(box[2]), absolute(box[5]))) * size;
+            // a floor or a field under the things is not what the camera frames: the things on it are
+            flat : bool = skip_flat && (box[4] - box[1]) * size < far * 0.04;
+            edges := new decimal[] { px - far, py + box[1] * size, pz - far, px + far, py + box[4] * size, pz + far };
+            if(!flat) {
+                for(k : _int64 = 0; k < 3; k++) {
+                    if(!any || edges[k] < low[k]) { low[k] = edges[k]; }
+                    if(!any || edges[k + 3] > high[k]) { high[k] = edges[k + 3]; }
+                }
+                any = true;
+            }
+        }
+        if(what.kids != null) {
+            count : _int64 = what.kids!!.size().value;
+            for(i : _int64 = 0; i < count; i++) {
+                any = widen(what.kids!!.at(i), px, py, pz, size, low, high, any, skip_flat);
+            }
+        }
+        return any;
+    }
+}

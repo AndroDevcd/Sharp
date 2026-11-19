@@ -1,0 +1,259 @@
+mod std.math;
+
+/**
+ * @class vector2
+ *
+ * A 2D vector (or point) with native number components x and y.
+ *
+ * Vectors are VALUES: every operator and every method that produces a
+ * vector returns a NEW object and leaves its operands alone, so vectors can
+ * be shared freely. The fields are public and may be written directly when
+ * an object really should change in place (v.x = 5).
+ *
+ *     a := new vector2(3, 4);
+ *     b := new vector2(1, 0);
+ *     c := a + b * 2;             // (5, 4)
+ *     len : decimal = a.length();     // 5
+ *     d : decimal = a.dot(b);         // 3
+ *
+ * Operators: + - (vector), * / (number), unary -, == !=, [0] [1].
+ * Angles are in radians, measured counter clockwise from the +x axis.
+ */
+class vector2 {
+    x : decimal = 0;
+    y : decimal = 0;
+
+    /** the zero vector (0, 0) */
+    vector2() {
+    }
+
+    /** the vector (x, y) */
+    vector2(x: decimal, y: decimal) {
+        self->x = x;
+        self->y = y;
+    }
+
+    /** a copy of another vector */
+    vector2(other: vector2) {
+        x = other.x;
+        y = other.y;
+    }
+
+    /** (0, 0) */
+    static def zero(): vector2 { return new vector2(0, 0); }
+
+    /** (1, 1) */
+    static def one(): vector2 { return new vector2(1, 1); }
+
+    /** the unit vector along the x axis, (1, 0) */
+    static def unit_x(): vector2 { return new vector2(1, 0); }
+
+    /** the unit vector along the y axis, (0, 1) */
+    static def unit_y(): vector2 { return new vector2(0, 1); }
+
+    /**
+     * The vector of the given length pointing in direction `radians`
+     * (polar -> cartesian): (length * cos, length * sin).
+     */
+    static def from_angle(radians: decimal, length: decimal): vector2 {
+        return new vector2(cos_of(radians) * length, sin_of(radians) * length);
+    }
+
+    /** component-wise sum */
+    def operator+(other: vector2): vector2 {
+        return new vector2(x + other.x, y + other.y);
+    }
+
+    /** component-wise difference */
+    def operator-(other: vector2): vector2 {
+        return new vector2(x - other.x, y - other.y);
+    }
+
+    /** the vector pointing the opposite way: (-x, -y) */
+    def operator-(): vector2 {
+        return new vector2(0 - x, 0 - y);
+    }
+
+    /** every component multiplied by a number */
+    def operator*(factor: decimal): vector2 {
+        return new vector2(x * factor, y * factor);
+    }
+
+    /**
+     * Every component divided by a number.
+     * Throws division_by_zero_exception when divisor is 0.
+     */
+    def operator/(divisor: decimal): vector2 {
+        if(divisor == 0)
+            throw new division_by_zero_exception("vector2: division by zero");
+        return new vector2(x / divisor, y / divisor);
+    }
+
+    /** true when both components are exactly equal */
+    def operator==(other: vector2): bool {
+        return x == other.x && y == other.y;
+    }
+
+    /** true when at least one component differs */
+    def operator!=(other: vector2): bool {
+        return x != other.x || y != other.y;
+    }
+
+    /**
+     * Component by position: [0] is x, [1] is y.
+     * Throws out_of_bounds_exception for any other index.
+     */
+    def operator[](index: decimal): decimal {
+        if(index == 0) return x;
+        if(index == 1) return y;
+        throw new out_of_bounds_exception("vector2: index must be 0 or 1");
+    }
+
+    /** dot product x1 * x2 + y1 * y2; 0 when the vectors are perpendicular */
+    def dot(other: vector2): decimal {
+        return x * other.x + y * other.y;
+    }
+
+    /**
+     * The 2D cross product x1 * y2 - y1 * x2 (the z component of the 3D cross
+     * product). Positive when `other` is counter clockwise from this vector,
+     * negative when clockwise, 0 when they are parallel. Its size is the area
+     * of the parallelogram the two vectors span.
+     */
+    def cross(other: vector2): decimal {
+        return x * other.y - y * other.x;
+    }
+
+    /** the length sqrt(x^2 + y^2) (computed without overflow, see hypot) */
+    def length(): decimal {
+        return hypot(x, y);
+    }
+
+    /** the length squared, x^2 + y^2: cheaper than length() for comparisons */
+    def length_squared(): decimal {
+        return x * x + y * y;
+    }
+
+    /** the distance between this point and another */
+    def distance_to(other: vector2): decimal {
+        return hypot(x - other.x, y - other.y);
+    }
+
+    /** the distance squared between this point and another */
+    def distance_squared_to(other: vector2): decimal {
+        dx : decimal = x - other.x;
+        dy : decimal = y - other.y;
+        return dx * dx + dy * dy;
+    }
+
+    /** true when both components are exactly 0 */
+    def is_zero(): bool {
+        return x == 0 && y == 0;
+    }
+
+    /**
+     * The vector of length 1 pointing the same way.
+     * Throws arithmetic_exception for the zero vector, which has no direction.
+     */
+    def normalized(): vector2 {
+        size : decimal = length();
+        if(size == 0)
+            throw new arithmetic_exception("vector2: the zero vector cannot be normalized");
+        return new vector2(x / size, y / size);
+    }
+
+    /** the direction of the vector as an angle in -pi .. pi: atan2(y, x) */
+    def angle(): decimal {
+        return atan2(y, x);
+    }
+
+    /**
+     * The signed angle to turn this vector onto `other`, in -pi .. pi
+     * (positive = counter clockwise): atan2(cross, dot).
+     */
+    def angle_to(other: vector2): decimal {
+        return atan2(cross(other), dot(other));
+    }
+
+    /** this vector turned counter clockwise by `radians` around the origin */
+    def rotated(radians: decimal): vector2 {
+        c : decimal = cos_of(radians);
+        s : decimal = sin_of(radians);
+        return new vector2(x * c - y * s, x * s + y * c);
+    }
+
+    /** this vector turned a quarter turn counter clockwise: (-y, x) */
+    def perpendicular(): vector2 {
+        return new vector2(0 - y, x);
+    }
+
+    /** the point a fraction t of the way from this vector to `other` (t = 0: this, t = 1: other) */
+    def lerp(other: vector2, t: decimal): vector2 {
+        return new vector2(x + (other.x - x) * t, y + (other.y - y) * t);
+    }
+
+    /** component-wise product (x1 * x2, y1 * y2) */
+    def scaled_by(other: vector2): vector2 {
+        return new vector2(x * other.x, y * other.y);
+    }
+
+    /**
+     * The part of this vector that lies along `other`:
+     * other * (this . other) / (other . other).
+     * Throws arithmetic_exception when `other` is the zero vector.
+     */
+    def project_on(other: vector2): vector2 {
+        size : decimal = other.length_squared();
+        if(size == 0)
+            throw new arithmetic_exception("vector2: cannot project on the zero vector");
+        factor : decimal = dot(other) / size;
+        return new vector2(other.x * factor, other.y * factor);
+    }
+
+    /**
+     * This vector bounced off a surface whose unit normal is `normal`:
+     * v - normal * 2 (v . normal). The normal must have length 1.
+     */
+    def reflect(normal: vector2): vector2 {
+        twice : decimal = 2 * dot(normal);
+        return new vector2(x - normal.x * twice, y - normal.y * twice);
+    }
+
+    /** (|x|, |y|) */
+    def abs(): vector2 {
+        return new vector2(absolute(x), absolute(y));
+    }
+
+    /** the smaller x and the smaller y of the two vectors */
+    def component_min(other: vector2): vector2 {
+        return new vector2(min(x, other.x), min(y, other.y));
+    }
+
+    /** the larger x and the larger y of the two vectors */
+    def component_max(other: vector2): vector2 {
+        return new vector2(max(x, other.x), max(y, other.y));
+    }
+
+    /** true when both components differ by at most `tolerance` */
+    def approx_equals(other: vector2, tolerance: decimal): bool {
+        return absolute(x - other.x) <= tolerance && absolute(y - other.y) <= tolerance;
+    }
+
+    /** the components as a new array { x, y } */
+    def to_array(): decimal[] {
+        result := new decimal[2];
+        result[0] = x;
+        result[1] = y;
+        return result;
+    }
+
+    /** "(x, y)", e.g. "(3, -0.5)" */
+    override def to_string(): string? {
+        return "(" + number_to_string(x) + ", " + number_to_string(y) + ")";
+    }
+
+    /** a hash code built from both components (equal vectors have equal hashes) */
+    override def hash(): int {
+        return (x * 31 + y) % 2147483647;
+    }
+}

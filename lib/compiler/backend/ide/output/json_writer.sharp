@@ -1,0 +1,185 @@
+mod backend.ide.output;
+
+import (
+    std.io
+)
+
+/**
+ * A SMALL JSON WRITER
+ *
+ * Writing JSON by gluing strings together goes wrong at the commas. This
+ * class keeps a "nothing written at this level yet" flag per nesting level, so
+ * the callers say WHAT they write and never write punctuation:
+ *
+ *      w := new json_writer();
+ *      w.begin_object();
+ *      w.key("format");  w.number(1);
+ *      w.key("names");   w.begin_array();  w.text("a");  w.text("b");  w.end_array();
+ *      w.end_object();
+ *      w.build()           ->  {"format":1,"names":["a","b"]}
+ *
+ * (The writers of this package pass the names as constants, `w.key(KEY_FORMAT)`:
+ * json_keys.sharp says why.)
+ *
+ * Output is compact. `line()` puts a line end in front of whatever comes next
+ * (JSON does not care), so that big files can be read, diffed and grepped one
+ * entry per line.
+ *
+ * WHY IT KEEPS ITS OWN BYTE BUFFER instead of a `string_builder`: the index of
+ * the standard library is a megabyte of JSON built from tens of thousands of
+ * small pieces, and a number turned into text with `"" + n` makes two objects
+ * per number. Here a number is written digit by digit straight into the
+ * buffer, a string is copied into it in one `memcopy`, and nothing is
+ * allocated per value; the buffer doubles when it is full (as a
+ * string_builder does) and `build()` copies it out once at the end.
+ *
+ *      C++ comparison: what nlohmann::json's streaming API or rapidjson's
+ *      Writer give you, in 150 lines and without a document tree in memory.
+ */
+class json_writer {
+    data : _int8[];                 // the bytes written so far: data[0 .. size - 1]
+    size : _int64 = 0;
+    fresh : _int8[];                // fresh[level] = 1 while nothing was written at that nesting level
+    depth : _int64 = 0;
+    after_key : _int64 = 0;         // a key was just written: the value that follows needs no comma
+    digits : _int8[];               // scratch space for turning a number into digits
+
+    json_writer() {
+        data = new _int8[4096];
+        fresh = new _int8[64];
+        digits = new _int8[24];
+        fresh[0] = 1;
+    }
+
+    /** start again with an empty buffer (the memory is kept): for one writer used for many small values */
+    def reset() {
+        size = 0;
+        depth = 0;
+        after_key = 0;
+        fresh[0] = 1;
+    }
+
+    /** room for `extra` more bytes */
+    def reserve(extra: _int64) {
+        needed : _int64 = size + extra;
+        if(needed <= sizeof(data)) { return; }
+        bigger : _int64 = sizeof(data) * 2;
+        if(bigger < needed) { bigger = needed; }
+        copy := new _int8[bigger];
+        memcopy(data, copy, 0, 0, size);
+        data = copy;
+    }
+
+    /** one byte */
+    def put(b: _int64) {
+        if(size >= sizeof(data)) { reserve(1); }
+        data[size] = b;
+        size++;
+    }
+
+    /** all the bytes of a string, as they are */
+    def put_string(text: string) {
+        source : _int8[]? = text.data;
+        n : _int64 = sizeof(source);
+        if(n == 0) { return; }
+        reserve(n);
+        memcopy(source!!, data, size, 0, n);
+        size = size + n;
+    }
+
+    /** a whole number as digits (a minus sign first when it is negative) */
+    def put_number(value: _int64) {
+        if(value < 0) { put('-'); value = 0 - value; }
+        if(value == 0) { put('0'); return; }
+        count : _int64 = 0;
+        while(value > 0) {
+            digits[count] = '0' + (value % 10);
+            count++;
+            value = value / 10;
+        }
+        while(count > 0) {
+            count--;
+            put(digits[count]);
+        }
+    }
+
+    /** the comma (or not) that goes in front of a value or key */
+    private def separate() {
+        if(fresh[depth] == 1) { fresh[depth] = 0; }
+        else { put(','); }
+    }
+
+    /** what goes in front of a value: nothing after a key, else a comma when it is not the first */
+    private def before_value() {
+        if(after_key == 1) { after_key = 0; return; }
+        separate();
+    }
+
+    def begin_object() { before_value(); put('{'); depth++; fresh[depth] = 1; }
+    def end_object() { depth--; put('}'); }
+    def begin_array() { before_value(); put('['); depth++; fresh[depth] = 1; }
+    def end_array() { depth--; put(']'); }
+
+    /** the name of the next member of an object */
+    def key(name: string) {
+        separate();
+        append_json_string(self, name);
+        put(':');
+        after_key = 1;
+    }
+
+    def text(value: string) { before_value(); append_json_string(self, value); }
+
+    /**
+     * A string written in pieces, so that nothing has to be glued together first:
+     *      begin_string();  put_escaped("area(");  put_escaped(name);  put_string(")");  end_string();
+     * `put_escaped` escapes what is put through it; `put_string` copies as it is (for text that is
+     * known to need no escaping: a keyword, a number).
+     */
+    def begin_string() { before_value(); put('"'); }
+    def end_string() { put('"'); }
+    def put_escaped(value: string) { append_escaped(self, value); }
+    def number(value: _int64) { before_value(); put_number(value); }
+
+    /**
+     * `true`, `false` and `null` are written letter by letter: a string literal makes a new string
+     * object every time its line runs (json_keys.sharp says what that cost), a character makes nothing.
+     */
+    def flag(value: _int64) {
+        before_value();
+        if(value != 0) { put('t');  put('r');  put('u');  put('e'); }
+        else { put('f');  put('a');  put('l');  put('s');  put('e'); }
+    }
+    def null_value() { before_value();  put('n');  put('u');  put('l');  put('l'); }
+
+    /** a value that is JSON already (an entry kept as text, a compact array): written as it is */
+    def raw(json: string) { before_value(); put_string(json); }
+
+    /** a line end before the next element, so the file has one entry per line */
+    def line() { put(10); }
+
+    /** `[a,b]` */
+    def pair(a: _int64, b: _int64) {
+        before_value();
+        put('[');  put_number(a);  put(',');  put_number(b);  put(']');
+    }
+
+    /** `[a,b,c,d]` */
+    def quad(a: _int64, b: _int64, c: _int64, d: _int64) {
+        before_value();
+        put('[');  put_number(a);  put(',');  put_number(b);  put(',');  put_number(c);  put(',');  put_number(d);  put(']');
+    }
+
+    /** `[a,b,c,d,e,f]` */
+    def sextet(a: _int64, b: _int64, c: _int64, d: _int64, e: _int64, f: _int64) {
+        before_value();
+        put('[');  put_number(a);  put(',');  put_number(b);  put(',');  put_number(c);  put(',');
+        put_number(d);  put(',');  put_number(e);  put(',');  put_number(f);  put(']');
+    }
+
+    /** everything written, as a string */
+    def build() : string {
+        if(size == 0) { return new string(); }
+        return new string(data, 0, size);
+    }
+}

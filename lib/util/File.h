@@ -81,8 +81,6 @@ public:
             return *this;
         }
 
-        buffer& operator<<(native_string* buf);
-
         buffer& operator<<(const long long& _X)
         {
             operator<<((char)_X);
@@ -129,7 +127,11 @@ public:
 
     static void read_alltext(const char *file, buffer& out);
 
+    static void read_alltext(const char *file, string& out);
+
     static int write(const char *file, buffer& data);
+
+    static uInt length(const char *file);
 
     static bool empty(const char *file);
 
@@ -138,7 +140,27 @@ public:
     static bool endswith(string ext, string f);
 
     static int write(const char *f, string data);
+
+    static uInt getFileAttrs(string& path);
+
+    static void resolvePath(string& path, string &fullPath);
+
+    static long makeDir(string &path);
+
+    static string name(string&);
+
+    static void list(string &path, std::list<string> &files);
+
+    static void currentDirectory(string&);
 };
 
+extern int FILE_EXISTS      ;
+extern int FILE_REGULAR     ;
+extern int FILE_DIRECTORY   ;
+extern int FILE_BLOCK_DEVICE;
+extern int FILE_CHARACTER   ;
+extern int FILE_FIFO_PIPE   ;
+extern int _FILE_UNKNOWN    ;
+extern int FILE_HIDDEN      ;
 
 #endif //SHARP_FILE_H

@@ -1,0 +1,169 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.generation,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * EXCEPTIONS: `try` / `catch` / `finally` and `throw` (doc/codegen.md 4.7, 6.11)
+ *
+ * The VM does the searching. When an exception is raised it asks the try
+ * records of the running function - the last first - whether a record's
+ * BLOCK range holds the pc (then the first catch clause whose class takes the
+ * object runs, the object stored into the clause's slot), else whether its
+ * GUARDED range does and it has a finally (then the finally block runs, the
+ * object stored into the finally's slot); with neither, the function is left
+ * and its caller asked. So a `try` becomes ordinary code plus a try record
+ * (ir_try in the IR):
+ *
+ *          nop                         R2: a call just before the try must not fall into its ranges
+ *      start:
+ *          <the try block>
+ *          jump normal                 R1: the last word of the block range is this jump, never a call
+ *      block_end:
+ *      handler 1:                      the VM enters here with the exception in the clause's variable
+ *          <catch body 1>
+ *          jump normal
+ *      ... every catch clause ...
+ *      end:                            the guarded range: the block and the handlers
+ *      finally_start:                  the VM enters here with the exception in a hidden slot %e ...
+ *          <the finally block>
+ *          throw %e                    ... and it goes on to the handlers around this try
+ *      finally_end:
+ *      normal:                         (only with a finally) the way out when nothing was thrown:
+ *          <the finally block>
+ *          jump after
+ *      <a stub per other way out: exits.sharp>
+ *      after:
+ *
+ * Why the rules R1 and R2 (codegen.md 4.7): the interpreter looks up the
+ * exception of a CALL at the word after the call. A call that ends a try
+ * block is still caught because the closing jump is inside the range; a call
+ * just before the try is not caught by it because the `nop` is outside. (The
+ * C++ compiler writes no `nop`, so a `try` right after a call catches that
+ * call's exception: 11.4, G14.) An exception in a catch handler is offered
+ * only to the finally (the handlers are outside the block range); one in a
+ * finally copy or a stub goes to the handlers AROUND the try, because all of
+ * them lie outside its ranges.
+ *
+ * `throw v;` is `pushl v; throw`. Unless `v` is a `new` object it is first
+ * checked with `cast` to a class above it: the VM crashes on `throw` of a null
+ * object (probed, Q5), and `cast` raises nullptr_exception instead - an
+ * exception the program can catch (G15). The TYPE of `v` does not say whether
+ * it is null: `x!!` tests nothing (6.5), and a local written `e : oops;` holds
+ * null until it is given a value.
+ *
+ *      C++ comparison: try_catch_statement.cpp and throw_statement.cpp in
+ *      compiler/functions/statements.
+ */
+
+/** `try { } catch(...) { } finally { }`: the layout at the top of this file */
+def generate_try(g: generator, statement: bound_try) {
+    region := g.b.new_try();
+    after : _int64 = g.b.new_label();
+    normal : _int64 = after;
+    exits : try_exits? = null;
+    if(statement.finally_part != null) {
+        normal = g.b.new_label();
+        exits = new try_exits(statement);
+        g.finally_tries.add(exits!!);
+    }
+
+    g.b.emit(IR_NOP);
+    g.b.place(region.start);
+    generate_statement(g, statement.body);
+    g.b.jump(normal);
+    g.b.place(region.block_end);
+
+    for(i : _int64 = 0; i < statement.catches.size(); i++) {
+        clause := statement.catches.at(i);
+        if(clause.caught == null || clause.caught!!.kept == 0 || clause.caught!!.address < 0) {
+            g.stop("a catch clause of a class the program does not keep", clause.unit, clause.node);
+        }
+        handler : _int64 = g.b.new_label();
+        slot : _int64 = 0 - 1;
+        // the VM stores the caught object into a frame slot (4.7); a variable a lambda captures lives in
+        // its closure record instead, so it is caught in a slot of its own and stored there first thing
+        stored_elsewhere : _int64 = 0;
+        if(clause.variable != null) { stored_elsewhere = 1 - lives_in_frame(clause.variable!!); }
+        if(clause.variable != null) {
+            if(stored_elsewhere == 1) { slot = g.b.temp(SLOT_REF); }
+            else { slot = g.slot_of(clause.variable!!, clause.unit, clause.node); }
+        }
+        region.handlers.add(handler);
+        region.catch_slots.add(slot);
+        region.catch_classes.add(clause.caught!!.address);
+        g.b.place(handler);
+        g.line_of_node(clause.unit, clause.node);
+        if(stored_elsewhere == 1) { store_local(g, clause.variable!!, slot, clause.unit, clause.node); }
+        generate_statement(g, clause.body);
+        g.b.jump(normal);
+    }
+    g.b.place(region.end);
+    if(exits == null) {
+        g.b.place(after);
+        return;
+    }
+
+    // the finally block: the copy the VM enters with an exception, then the normal way out, then a stub per way out
+    g.finally_tries.pop_last();
+    finally_block : bound_statement = statement.finally_part!!;
+    region.has_finally = 1;
+    region.finally_start = g.b.new_label();
+    region.finally_end = g.b.new_label();
+    region.finally_slot = g.b.finally_exception_slot();
+    g.b.place(region.finally_start);
+    generate_statement(g, finally_block);
+    g.b.throw_value(region.finally_slot);
+    g.b.place(region.finally_end);
+    g.b.release(region.finally_slot);
+
+    g.b.place(normal);
+    generate_statement(g, finally_block);
+    g.b.jump(after);
+
+    ways := exits!!.ways;
+    for(i : _int64 = 0; i < ways.size(); i++) {
+        way := ways.at(i);
+        g.b.place(way.label);
+        generate_statement(g, finally_block);
+        leave_by(g, way.kind, way.loop, way.leaves, way.at + 1, statement.unit, statement.node);
+    }
+    g.b.place(after);
+}
+
+/** `throw v;`, with the null check of every value that is not a `new` object (the comment at the top of this file) */
+def generate_throw(g: generator, statement: bound_throw) {
+    value : _int64 = value_of(g, statement.value);
+    if(statement.value.kind != BX_NEW) {
+        checked := g.b.emit(IR_CAST);
+        checked.first = value;
+        checked.number = kept_class_above(g, statement.value.type.class_of, statement);
+    }
+    g.b.throw_value(value);
+    g.b.release(value);
+}
+
+/**
+ * The address of the class a thrown value's `cast` checks against: its own
+ * class or the first one above it that the program keeps (a value of type
+ * `exception?` may be declared where no `exception` object is ever made;
+ * `throwable` itself is always kept, codegen.md 3.11). Every real exception
+ * passes; only null fails.
+ */
+def kept_class_above(g: generator, declared: sharp_class?, statement: bound_throw) : _int64 {
+    current : sharp_class? = declared;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        if(current!!.kept == 1 && current!!.address >= 0) { return current!!.address; }
+        current = current!!.base_class;
+    }
+    g.stop("a `throw` of a value whose class is not kept", statement.unit, statement.node);
+    return 0;
+}

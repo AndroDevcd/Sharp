@@ -1,0 +1,138 @@
+mod std.guikit.navigation;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * nav_bar - the bar that switches between an app's tabs. Made with nav_bar(nav).
+ *
+ *      column(modifier().fill()) {
+ *          screens(nav, to_home(), modifier().grow(1)) {
+ *              tab<to_home>("Home")       { home_screen(nav); };
+ *              tab<to_library>("Library") { library_screen(nav); };
+ *              screen<to_detail>()        { detail_screen(nav, it.id); };
+ *          };
+ *          nav_bar(nav);                               // under the screens: a bottom bar
+ *      }
+ *
+ * It shows one item per tab<...>(...) line of the screen list, in the order
+ * they are listed, and marks the tab that is showing. Clicking an item
+ * switches to that tab; clicking the tab that is already showing takes it
+ * back to its first screen.
+ *
+ * THE BAR HIDES WHILE A SCREEN IS OPEN ON TOP OF A TAB. A detail screen owns
+ * the whole window and has its own way back (top_bar); the tabs come back with
+ * the tab's first screen. Call .always() to keep the bar there throughout.
+ *
+ * Where the bar sits is up to you: put it after the screens for a bottom bar,
+ * before them for a top bar.
+ * (Android: BottomNavigationView. Compose: NavigationBar.)
+ *
+ * HOW IT WORKS: the bar is built AFTER screens(...) in the same build(), so
+ * the navigator's screen list is already written and the bar simply asks it:
+ * how many tabs, their words, which one is showing. It reads the navigator's
+ * state while it is made, so every move of the navigator rebuilds it - that
+ * is how it appears, disappears and moves its mark without being told.
+ */
+stable class nav_bar base widget : behavior, pointer_target {
+    private nav : navigator;
+    private stays : _int64 = 0;             // 1: shown also while a screen is open on top of a tab
+
+    nav_bar(owner: navigator) {
+        attach(self);
+        nav = owner;
+        nav.watch();                        // rebuild whoever is building when the navigator moves
+        me.fill_w = 1;
+        hide_or_show();
+    }
+
+    /** keep the bar there also while a screen is open on top of a tab */
+    def always() : nav_bar {
+        stays = 1;
+        hide_or_show();
+        return self;
+    }
+
+    private def hide_or_show() {
+        me.shown = 1;
+        if(nav.tab_count() == 0) { me.shown = 0; }
+        if(stays == 0 && nav.on_tab_root() == 0) { me.shown = 0; }
+    }
+
+    override def kind() : string { return "nav_bar"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        t : theme = ui_host.current!!.look;
+        me.content_w = 200;
+        me.content_h = t.control_height + 20;
+    }
+
+    override def arrange() {
+    }
+
+    /** the width of one item: the bar, split evenly */
+    private def item_wide() : decimal {
+        count : _int64 = nav.tab_count();
+        if(count == 0) {
+            return me.w;
+        }
+        return me.w / count;
+    }
+
+    /** which item the window point x is over (-1: none) */
+    private def item_at(x: decimal) : _int64 {
+        count : _int64 = nav.tab_count();
+        if(count == 0 || x < me.x || x >= me.x + me.w) {
+            return 0 - 1;
+        }
+        index : _int64 = num.whole((x - me.x) / item_wide());
+        if(index >= count) { index = count - 1; }
+        return index;
+    }
+
+    /** a press that is released over the same item switches to that tab */
+    override def pointer(what: _int64, x: decimal, y: decimal) {
+        if(what == POINTER_RELEASE && me.contains(x, y) == 1) {
+            index : _int64 = item_at(x);
+            if(index >= 0) {
+                nav.open_tab(index);
+            }
+        }
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        count : _int64 = nav.tab_count();
+        wide : decimal = item_wide();
+
+        p.rect(me.x, me.y, me.w, me.h, t.surface);
+        p.rect(me.x, me.y, me.w, 1, t.border);             // the line between the screens and the bar
+
+        over : _int64 = 0 - 1;
+        if(me.hovered == 1) { over = item_at(host.mouse_x); }
+
+        for(i : _int64 = 0; i < count; i++) {
+            left : decimal = me.x + wide * i;
+            chosen : _int64 = 0;
+            if(i == nav.tab_showing()) { chosen = 1; }
+
+            // the pill behind the item: solid tint for the tab that is showing, a faint one under the mouse
+            pill_w : decimal = num.smaller(wide - 16, 132);
+            pill_h : decimal = me.h - 16;
+            pill_x : decimal = left + (wide - pill_w) / 2;
+            if(chosen == 1) {
+                p.rect(pill_x, me.y + 8, pill_w, pill_h, pill_h / 2, t.primary.with_alpha(46));
+            } else if(i == over) {
+                p.rect(pill_x, me.y + 8, pill_w, pill_h, pill_h / 2, t.text.with_alpha(14));
+            }
+
+            f : font = host.font_of(t.text_size, chosen);   // the tab that is showing is bold
+            words : string = nav.tab_title(i);
+            ink : color = t.text_dim;
+            if(chosen == 1) { ink = t.primary; }
+            p.text(words, left + (wide - f.width_of(words)) / 2, me.y + (me.h - f.line_height) / 2, f, ink);
+        }
+    }
+}

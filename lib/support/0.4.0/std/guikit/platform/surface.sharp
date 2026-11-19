@@ -1,0 +1,159 @@
+mod std.guikit.platform;
+
+import (
+    std.guikit.*,
+    platform
+)
+
+/**
+ * THE SURFACE - the one and only place the native SDL2 backend is named.
+ *
+ * Nothing else in Sharp declares these. The friendly classes (window, painter,
+ * font, image) call them; you do not. This is the whole point of making the GUI
+ * a library: the `native "sharpgui"` block lives HERE, once, and every program
+ * that writes `import gui` shares it - nobody copy-pastes a native block.
+ *
+ * Each `def` below is a C++ function in the sharpgui library (the .cpp files in
+ * gui/platform/native), driving SDL2. The naming rule of the Sharp Native Interface: function
+ * `draw_rect` of library "sharpgui" is `sharpgui_draw_rect` in C++. The names
+ * are plain and low-level on purpose, so they never clash with the friendly
+ * methods that wrap them.
+ *
+ * TWO CONVENTIONS used by every drawing function:
+ *   - positions and sizes are `decimal` pixels, (0, 0) is the top-left corner
+ *     of the window, x grows to the right and y grows DOWN;
+ *   - a colour is ONE whole number, 0xRRGGBBAA (color.packed in color.sharp).
+ *
+ * WHY A SEPARATE LIBRARY, not a system interrupt: the GUI is big and optional.
+ * Baking SDL2 into the VM would force every program - a script, a server, a
+ * build tool - to carry a graphics stack it never asked for. As a native module
+ * it is pulled in ONLY by a program that imports gui and opens a window.
+ */
+native "sharpgui" {
+    // --- the window and the frame (native/sharpgui.cpp) ---
+    def surface_open(title: string, width: _int32, height: _int32) : _int64;   // 0 = would not open, else a window id
+    def surface_close(handle: _int64);                                         // take the window down
+    def surface_width() : _int32;                                              // the drawing area right now
+    def surface_height() : _int32;
+    def surface_time() : decimal;                                              // seconds since the window opened
+    def surface_fill(color: _int64);                                           // paint the whole surface one colour
+    def surface_present();                                                     // show the painted frame
+    def surface_mode(mode: _int64) : _int64;                                   // 0 windowed, 1 maximized, 2 fullscreen; else: only ask
+    def surface_screen_width() : _int32;                                       // the whole screen, in units
+    def surface_screen_height() : _int32;
+    def surface_paced() : _int64;                                              // frames a second surface_present holds to, 0 = none
+    def surface_pace(on: _int64) : _int64;                                     // wait for the screen's refresh (1) or not (0)
+
+    // --- events (native/sharpgui.cpp; what a, b, c, d mean per kind: event.sharp) ---
+    def surface_poll() : _int64;                                               // the kind of the next event, 0 when none
+    def surface_wait(ms: _int64) : _int64;                                     // sleep until an event waits (1) or ms pass (0)
+    def surface_wake();                                                        // from ANY thread: end the sleep of surface_wait
+    def surface_event_a() : _int64;
+    def surface_event_b() : _int64;
+    def surface_event_c() : _int64;
+    def surface_event_d() : _int64;
+    def surface_event_text() : string;                                         // the typed text of a text event
+
+    // --- the clipboard (native/sharpgui.cpp): the system's, shared with every other program
+    def clipboard_read() : string;                                             // the text on the clipboard ("" when none)
+    def clipboard_write(text: string);                                         // put text on the clipboard
+
+    // --- shapes (native/shapes.cpp) ---
+    def draw_rect(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, color: _int64);
+    def draw_rect_line(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, thickness: decimal, color: _int64);
+    def draw_line(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, color: _int64);
+    def draw_circle(cx: decimal, cy: decimal, radius: decimal, color: _int64);
+    def draw_circle_line(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, color: _int64);
+    def draw_clip(x: decimal, y: decimal, w: decimal, h: decimal);             // paint only inside this area ...
+    def draw_unclip();                                                         // ... until this
+    def draw_polygon(points: string, color: _int64);                           // any outline, filled: "x y x y x y ..." (slow: text)
+    def fill_polygon(xs: decimal[], ys: decimal[], count: _int64,
+                     shift_x: decimal, shift_y: decimal, color: _int64);       // the same from the first `count` corners, each shifted
+
+    // --- many shapes in one call (native/shapes.cpp): positions are moved by the shift, alphas scaled by the level ---
+    def draw_shapes(kinds: _int8[], data: decimal[], colors: _int64[], count: _int64,
+                    shift_x: decimal, shift_y: decimal, level: decimal);       // a mixed list, six numbers a shape (shape_batch.sharp)
+    def fill_rects(xs: decimal[], ys: decimal[], ws: decimal[], hs: decimal[], colors: _int64[], count: _int64,
+                   shift_x: decimal, shift_y: decimal, level: decimal);
+    def fill_circles(xs: decimal[], ys: decimal[], radii: decimal[], colors: _int64[], count: _int64,
+                     shift_x: decimal, shift_y: decimal, level: decimal);
+    def draw_lines(x1s: decimal[], y1s: decimal[], x2s: decimal[], y2s: decimal[], thickness: decimal, colors: _int64[],
+                   count: _int64, shift_x: decimal, shift_y: decimal, level: decimal);
+    def fill_triangles(xs: decimal[], ys: decimal[], colors: _int64[], count: _int64,
+                       shift_x: decimal, shift_y: decimal, level: decimal);    // three corners a triangle
+
+    // --- layers (native/layers.cpp): paint to one side, then put it on the screen turned, scaled, blurred, cut ---
+    def layer_begin() : _int64;                                                // 1: painting now goes into a new layer
+    def layer_mask(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal) : _int64;   // keep only what is inside
+    def layer_end(x: decimal, y: decimal, w: decimal, h: decimal, angle: decimal, scale: decimal, opacity: _int64, blur: decimal);
+
+    // --- how many real pixels one unit is (native/sharpgui.cpp); before the window opens: set it (0 = ask the screen) ---
+    def surface_scale(factor: decimal) : decimal;
+
+    // --- text (native/text.cpp) ---
+    def font_load(path: string, size: decimal) : _int64;                       // "" = the system's standard font
+    def font_line_height(font: _int64) : decimal;
+    def text_width(font: _int64, text: string) : decimal;
+    def draw_text(font: _int64, text: string, x: decimal, y: decimal, color: _int64);
+
+    // --- images (native/images.cpp) ---
+    def image_load(path: string) : _int64;
+    def image_width(image: _int64) : _int32;
+    def image_height(image: _int64) : _int32;
+    def draw_image(image: _int64, x: decimal, y: decimal, w: decimal, h: decimal, opacity: _int32);
+
+    // --- sprites: parts of a picture (native/images.cpp) ---
+    def image_smooth(image: _int64, on: _int64);                               // scaled smoothly (1) or every pixel a sharp square (0)
+    def draw_image_part(image: _int64, sx: decimal, sy: decimal, sw: decimal, sh: decimal,
+                        x: decimal, y: decimal, w: decimal, h: decimal,
+                        opacity: _int32, flip: _int32, angle: decimal);        // flip 1: left to right, 2: top to bottom, 3: both
+    def draw_image_parts(image: _int64, sources: decimal[], places: decimal[], count: _int64,
+                         shift_x: decimal, shift_y: decimal, opacity: _int32); // four numbers a sprite in each list (sprite_batch.sharp)
+    def draw_tiles(image: _int64, tiles: _int32[], map_columns: _int64, map_rows: _int64,
+                   first_column: _int64, first_row: _int64, columns: _int64, rows: _int64,
+                   frame_w: decimal, frame_h: decimal, margin: decimal, spacing: decimal, sheet_columns: _int64,
+                   x: decimal, y: decimal, tile_w: decimal, tile_h: decimal, opacity: _int32);   // a grid of tiles (tile_map.sharp)
+
+    // --- 3D (native/g3_core.cpp, g3_load.cpp): scenes drawn by the graphics card with OpenGL. std/guikit/three wraps all of it ---
+    def g3_card() : string;                                                    // what draws: the card and its OpenGL (or why 3D is not available)
+    def g3_texture(path: string) : _int64;                                     // a picture file as a texture: its id
+    def g3_texture_pixels(name: string, pixels: _int64[], width: _int64, height: _int64) : _int64;   // one made by the program: 0xRRGGBBAA, row after row
+    def g3_texture_made(kind: string, seed: _int64) : _int64;                  // one drawn by the library: bark, leaves, needles, grass, rock, sand (native/g3_make.cpp)
+    def g3_shader(code: string) : _int64;                                      // a program's own pixel code (GLSL): its id
+    def g3_model() : _int64;                                                   // a new, empty model: its id
+    def g3_model_part(model: _int64, part: _int64, points: decimal[], normals: decimal[], uvs: decimal[],
+                      colors: _int64[], faces: _int32[], corner_count: _int64, face_count: _int64) : _int64;   // part -1: a new part; its number
+    def g3_part_look(model: _int64, part: _int64, color: _int64, texture: _int64,
+                     shiny: decimal, glow: decimal, flags: _int64);            // what a part is made of (part -1: all). flags: mesh.sharp
+    def g3_model_load(path: string) : _int64;                                  // an .obj, .gltf or .glb file with its textures: its id
+    def g3_model_box(model: _int64, into: decimal[]) : _int64;                 // the box round it (low x y z, high x y z); returns its triangles
+    def g3_copies(places: decimal[], count: _int64) : _int64;                  // where many copies stand: x y z heading scale each. Its id
+    def g3_scene() : _int64;                                                   // a new scene: its id
+    def g3_scene_nodes(scene: _int64, nodes: decimal[], count: _int64, lamps: decimal[], lamp_count: _int64);   // what is in it (scene.sharp packs it)
+    def g3_scene_look(scene: _int64, look: decimal[]);                         // its camera, sun, sky and fog: 32 numbers
+    def g3_scene_draw(scene: _int64, x: decimal, y: decimal, w: decimal, h: decimal, time: decimal, opacity: _int32);
+    def g3_scene_drawn(scene: _int64) : _int64;                                // triangles the last draw sent to the card
+    def g3_scene_pick(scene: _int64, px: decimal, py: decimal, w: decimal, h: decimal, hit: decimal[]) : _int64;   // the node under a point, -1: none
+}
+
+/**
+ * surface - loads the native backend exactly once, the first time any window is
+ * made. The user never calls load_library: the window constructor asks here, and
+ * here we load it from beside the `sharp` runtime (runtime_folder()), wherever
+ * the install put it. `ready` makes it happen once and no more.
+ */
+stable class surface {
+    static ready : _int64 = 0;      // 1 once the library is loaded (a number, not a bool: bools are shared objects)
+
+    static def ensure_loaded() {
+        if(ready == 1) {
+            return;
+        }
+
+        // The install drops sharpgui(.so/.dll) next to the `sharp` binary; the
+        // VM tells us that folder. The ending is left off so one line works on
+        // every system.
+        load_library(runtime_folder() + "/sharpgui");
+        ready = 1;
+    }
+}

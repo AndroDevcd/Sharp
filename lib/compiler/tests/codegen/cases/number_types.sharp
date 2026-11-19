@@ -1,0 +1,167 @@
+mod main;
+
+// output:
+// 200
+// -56
+// 300
+// 20000
+// 44
+// -1
+// 0
+// 1
+// 2147483648
+// -2147483648
+// 4294967295
+// 1
+// -1
+// 1
+// -4
+// -28
+// -9223372036854775808
+// 1
+// 2
+// -1
+// -4
+// 4095
+// 1048560
+// -1
+// -1
+// 1
+// 7
+// 6
+// 251
+// -9223372036854775808
+// -2
+// 3.5
+// 1
+// 1024
+// -3.5
+// 3
+// -3
+// 3
+// 44
+// 44
+// 2.5
+// 5
+// 1
+// 1
+// 0
+// 1
+// -10
+// -3.75
+// 128
+// -128
+// 66
+// 0
+// 255
+// -128
+// -128
+// 49
+// 27
+// 50
+// 2.6457513110645907
+
+/*
+ * The numbers of every type with the VM's exact meaning (doc/codegen.md 4.3,
+ * 6.4): sums of `_int8` / `_uint8` that leave their type (the value is 64
+ * bits until it is stored, then cut), wrap-around of `_int32` and `_int64`,
+ * `_uint64` and `_uint32` compared as the VM compares (signed 64-bit), `%`
+ * with negative operands, shifts (arithmetic `>>`, counts of 64 and more as
+ * the VM takes them), the bit operators, `/` and `**` (always decimals), `%`
+ * written with a decimal, decimal to whole numbers (cut toward 0, then to
+ * the type), `!`, `-` of the smallest `_int8`, `++` / `+=` cutting at the
+ * type's edge, and `**` of two whole numbers (a whole number again).
+ */
+def main() {
+    a : _int8 = 100;
+    b : _int8 = 100;
+    show(a + b);
+    c : _int8 = a + b;
+    show(c);
+    u : _uint8 = 200;
+    v : _uint8 = 100;
+    show(u + v);
+    show(u * v);
+    w : _uint8 = u + v;
+    show(w);
+    big : _uint64 = 0 - 1;
+    show(big);
+    show(big > 5);
+    show(big < 5);
+    i32 : _int32 = 2147483647;
+    show(i32 + 1);
+    j32 : _int32 = i32 + 1;
+    show(j32);
+    u32 : _uint32 = 0 - 1;
+    show(u32);
+    show(u32 > 5);
+    s : _int64 = 0 - 7;
+    show(s % 3);
+    show(7 % (0 - 3));
+    show(s >> 1);
+    show(s << 2);
+    show(1 << 63);
+    show(1 << 64);
+    show(1 << 65);
+    show(s >> 70);
+    ub : _uint64 = 0 - 8;
+    show(ub >> 1);
+    u16 : _uint16 = 65535;
+    show(u16 >> 4);
+    show(u16 << 4);
+    sh : _int16 = 0 - 1;
+    show(sh);
+    show(sh >> 1);
+    show(5 & 3);
+    show(5 | 3);
+    show(5 ^ 3);
+    show(0 - 5 & 0xff);
+    m : _int64 = 9223372036854775807;
+    show(m + 1);
+    show(m * 2);
+    show_decimal(7 / 2);
+    show_decimal(7.5 % 2);
+    show_decimal(2 ** 10);
+    show_decimal(0 - 7 / 2);
+    d : decimal = 3.75;
+    show(d as _int64);
+    show((0 - d) as _int64);
+    show(d as _int8);
+    e : decimal = 300.9;
+    show(e as _int8);
+    show(e as _uint8);
+    n : _int64 = 10;
+    show_decimal(n / 4);
+    show_decimal(n * 0.5);
+    show(n == 10.0);
+    show(d > 3);
+    show(!n);
+    show(!0);
+    show(-n);
+    show_decimal(-d);
+    x : _int8 = 0 - 128;
+    show(-x);
+    y : _int8 = -x;
+    show(y);
+    ch : _int8 = 'A';
+    show(ch + 1);
+    q : _uint8 = 255;
+    q++;
+    show(q);
+    q--;
+    show(q);
+    r : _int8 = 127;
+    r += 1;
+    show(r);
+    r = r * 3;
+    show(r);
+
+    // `**` of two whole numbers: worked out on decimals, a whole number again
+    seven : _int64 = 7;
+    three : _int32 = 3;
+    show(seven ** 2);
+    show(three ** three);
+    squared : _int64 = (seven ** 2) + 1;
+    show(squared);
+    show_decimal(seven ** 0.5);
+}

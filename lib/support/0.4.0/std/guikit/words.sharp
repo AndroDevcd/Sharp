@@ -1,0 +1,296 @@
+mod std.guikit;
+
+import (
+    std.guikit.*,
+    std.time
+)
+
+/**
+ * THE BARE WORDS - every widget as a plain function, no `gui.` in front.
+ *
+ *      import ( gui )
+ *
+ *      column(modifier().fill().padding(16)) {
+ *          text("Hello").size(24);
+ *          row {
+ *              text_field(name, modifier().grow(1)).hint("Your name");
+ *              button("Greet") { greet(); };
+ *          }.gap(8);
+ *      }
+ *
+ * This is the way Compose reads (Column { Text(...) ... }), in Sharp's own
+ * lower-case style. Each function below is exactly its `gui.` twin
+ * (gui.column, gui.text ...): use whichever reads better, and mix them.
+ *
+ * THE SHAPE OF EVERY ONE OF THEM
+ *
+ *      name(what it needs)                 text("Hello")
+ *      name(what it needs, modifier)       text("Hello", modifier().padding(8))
+ *      ... a block last, where it has one  column(modifier().fill()) { ... }
+ *                                          button("Save") { save(); }
+ *
+ * The modifier is the one place a widget's box is changed (modifier.sharp).
+ *
+ * Why the `gui.` twins exist too: the bare words are the shortest thing to
+ * type and read. The `gui.` form says where a name comes from, and is the way
+ * out if one of these words is also a name in your own program (your own
+ * `text` function, a variable called `row`).
+ *
+ * A function here may have the same name as the class it makes (`button(...)`
+ * makes a `button`): Sharp keeps functions and classes apart, so
+ * `def toolbar() : row { return row { ... }; }` means what it says.
+ *
+ * Not here on purpose: gui.run, gui.use_theme and gui.state stay behind
+ * `gui.` - they are said once per program, and short everyday words like
+ * `run` and `state` are the likeliest to already mean something in yours.
+ * (Inside a composable, `state(0)` is the composable's own function.)
+ */
+
+// ==================================================================== the box of a widget
+
+/** a new, empty modifier: modifier().padding(16).fill_width() ... (core/style/modifier.sharp) */
+def modifier() : modifier { return gui.modifier(); }
+
+// ==================================================================== containers
+
+/** children stacked top to bottom (layout/flow/column.sharp) */
+def column() : column { return gui.column(); }
+def column(look: modifier) : column { return gui.column(look); }
+def column(block: ()()) : column { return gui.column(block); }
+def column(look: modifier, block: ()()) : column { return gui.column(look, block); }
+
+/** children side by side, left to right (layout/flow/row.sharp) */
+def row() : row { return gui.row(); }
+def row(look: modifier) : row { return gui.row(look); }
+def row(block: ()()) : row { return gui.row(block); }
+def row(look: modifier, block: ()()) : row { return gui.row(look, block); }
+
+/** children on top of each other, the first at the bottom (layout/stacking/stack.sharp) */
+def stack() : stack { return gui.stack(); }
+def stack(look: modifier) : stack { return gui.stack(look); }
+def stack(block: ()()) : stack { return gui.stack(block); }
+def stack(look: modifier, block: ()()) : stack { return gui.stack(look, block); }
+
+/** a scrolling window onto content taller than the room there is (layout/scrolling/scroller.sharp) */
+def scroll(content: element) : scroller { return gui.scroll(content); }
+def scroll(look: modifier, content: element) : scroller { return gui.scroll(look, content); }
+def scroll(block: ()()) : scroller { return gui.scroll(block); }
+def scroll(look: modifier, block: ()()) : scroller { return gui.scroll(look, block); }
+
+/** a sideways scroller: the widgets made in the block sit side by side and scroll left-right */
+def scroll_row(block: ()()) : scroller { return gui.scroll_row(block); }
+def scroll_row(look: modifier, block: ()()) : scroller { return gui.scroll_row(look, block); }
+
+/** a scrolling list that only builds the rows in view; inside: item { } and items(n) { i -> } (layout/scrolling/lazy_list.sharp) */
+def lazy_column(block: ()()) : lazy_list { return gui.lazy_column(block); }
+def lazy_column(look: modifier, block: ()()) : lazy_list { return gui.lazy_column(look, block); }
+
+/** inside lazy_column { }: one row */
+def item(block: ()()) { gui.item(block); }
+
+/** inside lazy_column { }: `count` rows; the block builds row i (from 0) when it scrolls into view */
+def items(count: _int64, each: (_int64)()) { gui.items(count, each); }
+
+/** children in `columns` equal columns, row after row (layout/grids/grid.sharp) */
+def grid(columns: _int64, block: ()()) : grid { return gui.grid(columns, block); }
+def grid(columns: _int64, look: modifier, block: ()()) : grid { return gui.grid(columns, look, block); }
+
+/** a grid with as many equal columns as fit, each at least `least` pixels wide */
+def grid_fit(least: decimal, block: ()()) : grid { return gui.grid_fit(least, block); }
+def grid_fit(least: decimal, look: modifier, block: ()()) : grid { return gui.grid_fit(least, look, block); }
+
+/** children side by side, folding onto the next line when the line is full (layout/flow/wrap.sharp) */
+def wrap(block: ()()) : wrap { return gui.wrap(block); }
+def wrap(look: modifier, block: ()()) : wrap { return gui.wrap(look, block); }
+
+/** content that fades in while `visible` is not 0 and fades out when it turns 0 (animation/fader.sharp) */
+def fade(visible: _int64, block: ()()) : fader { return gui.fade(visible, block); }
+def fade(visible: _int64, look: modifier, block: ()()) : fader { return gui.fade(visible, look, block); }
+
+/** a context menu at the mouse, there while `open` is not 0 (overlay/menu.sharp) */
+def menu(open: state<_int64>, block: ()()) : popup { return gui.menu(open, block); }
+
+/** inside menu { }: one choice; choosing it runs `action` and closes the menu */
+def menu_item(title: string, action: ()()) : row { return gui.menu_item(title, action); }
+
+/** a card in the middle of the window, there while `open` is not 0 (overlay/popup.sharp) */
+def dialog(open: state<_int64>, block: ()()) : popup { return gui.dialog(open, block); }
+
+/** a panel that rises from the bottom of the window while `open` is not 0 (overlay/popup.sharp) */
+def sheet(open: state<_int64>, block: ()()) : popup { return gui.sheet(open, block); }
+
+/** a raised panel that groups what belongs together; children stacked like a column's */
+def card(block: ()()) : column { return gui.card(block); }
+def card(look: modifier, block: ()()) : column { return gui.card(look, block); }
+
+/** the floating action button: in a stack, after the content it floats over (widgets/input/fab.sharp) */
+def fab(words: string, action: ()()) : fab { return gui.fab(words, action); }
+def fab(words: string, look: modifier, action: ()()) : fab { return gui.fab(words, look, action); }
+
+/** a small rounded label - a tag, or with a block, a filter you click (widgets/display/chip.sharp) */
+def chip(words: string) : chip { return gui.chip(words); }
+def chip(words: string, action: ()()) : chip { return gui.chip(words, action); }
+
+/** a small filled dot with a count; nothing when the count is 0 */
+def badge(count: _int64) : badge { return gui.badge(count); }
+
+/**
+ * the app's screens in one list, and the place they are shown; `start` is the route the app opens with
+ * (navigation/screens.sharp):
+ *
+ *      screens(nav, to_home(), modifier().grow(1)) {
+ *          tab<to_home>("Home")   { home_screen(nav); };
+ *          screen<to_detail>()    { detail_screen(nav, it.id); };
+ *      }
+ */
+def screens(nav: navigator, start: route, block: ()()) : screen_host { return gui.screens(nav, start, block); }
+def screens(nav: navigator, start: route, look: modifier, block: ()()) : screen_host { return gui.screens(nav, start, look, block); }
+
+/** inside screens { }: what is shown for routes of type t; `it` is the route */
+def screen<t base route>(content: (t)()) { gui.screen<t>(content); }
+
+/** inside screens { }: a top-level screen the tab bar switches between */
+def tab<t base route>(title: string, content: (t)()) { gui.tab<t>(title, content); }
+
+/** the bar that switches between the app's tabs (navigation/nav_bar.sharp) */
+def nav_bar(nav: navigator) : nav_bar { return gui.nav_bar(nav); }
+
+/** the bar across the top of a screen: its title, and a back button when there is a screen to go back to */
+def top_bar(title: string, nav: navigator) : row { return gui.top_bar(title, nav); }
+
+/** empty room that takes whatever is left over in a row or column: pushes things apart */
+def spacer() : spacer { return gui.spacer(); }
+
+/** exactly this many pixels of empty room */
+def gap(pixels: decimal) : spacer { return gui.gap(pixels); }
+
+/** a thin line between things (widgets/display/divider.sharp) */
+def divider() : divider { return gui.divider(); }
+
+// ==================================================================== showing things
+
+/** text; wraps when it does not fit (widgets/display/label.sharp) */
+def text(words: string) : label { return gui.text(words); }
+def text(words: string, look: modifier) : label { return gui.text(words, look); }
+
+/** a picture from a file: PNG, JPG, BMP, GIF (widgets/display/picture.sharp) */
+def image(path: string) : picture { return gui.image(path); }
+def image(path: string, look: modifier) : picture { return gui.image(path, look); }
+
+/** a bar that shows how far along something is: 0 = nothing, 1 = done (widgets/display/progress_bar.sharp) */
+def progress(fraction: decimal) : progress_bar { return gui.progress(fraction); }
+def progress(fraction: decimal, look: modifier) : progress_bar { return gui.progress(fraction, look); }
+
+// ==================================================================== taking input
+
+/** words you can click: button("Save") { save(); } (widgets/input/button.sharp) */
+def button(words: string, action: ()()) : button { return gui.button(words, action); }
+def button(words: string, look: modifier, action: ()()) : button { return gui.button(words, look, action); }
+
+/** a box you tick, bound to a 0/1 state (widgets/input/checkbox.sharp) */
+def checkbox(words: string, value: state<_int64>) : checkbox { return gui.checkbox(words, value); }
+def checkbox(words: string, value: state<_int64>, look: modifier) : checkbox { return gui.checkbox(words, value, look); }
+
+/** an on/off switch, bound to a 0/1 state (widgets/input/toggle.sharp) */
+def toggle(value: state<_int64>) : toggle { return gui.toggle(value); }
+def toggle(value: state<_int64>, look: modifier) : toggle { return gui.toggle(value, look); }
+
+/** a knob on a track that picks a number between `from` and `to`, bound to a decimal state (widgets/input/slider.sharp) */
+def slider(value: state<decimal>, from: decimal, to: decimal) : slider { return gui.slider(value, from, to); }
+def slider(value: state<decimal>, from: decimal, to: decimal, look: modifier) : slider { return gui.slider(value, from, to, look); }
+
+/** a box to type one line of text into, bound to a text state (widgets/input/text_field.sharp) */
+/** one text with parts that look different: rich { plain("Due "); bold("tomorrow"); } (widgets/display/rich_label.sharp) */
+def rich(block: ()()) : rich_text { return gui.rich(block); }
+def plain(words: string) { gui.plain(words); }
+def bold(words: string) { gui.bold(words); }
+def colored(words: string, c: color) { gui.colored(words, c); }
+def quiet(words: string) { gui.quiet(words); }
+def text(words: rich_text) : rich_label { return gui.text(words); }
+def text(words: rich_text, look: modifier) : rich_label { return gui.text(words, look); }
+
+/** content that grows open while `visible` is not 0 and shrinks away when it is 0 (animation/revealer.sharp) */
+def animated_show(visible: _int64, block: ()()) : revealer { return gui.animated_show(visible, block); }
+def animated_show(visible: _int64, how: _int64, block: ()()) : revealer { return gui.animated_show(visible, how, block); }
+
+/** a row that can be pushed off the screen sideways; `action` must take the item out of the list (gestures/swipe_row.sharp) */
+def swipe_to_dismiss(action: ()(), block: ()()) : swipe_row { return gui.swipe_to_dismiss(action, block); }
+def swipe_to_dismiss(look: modifier, action: ()(), block: ()()) : swipe_row { return gui.swipe_to_dismiss(look, action, block); }
+
+/** a month as a calendar page to pick a day from (widgets/pickers/month_grid.sharp) */
+def month_view(value: state<date>) : month_grid { return gui.month_view(value); }
+def month_view(value: state<date>, look: modifier) : month_grid { return gui.month_view(value, look); }
+
+/** hours and minutes with arrows (widgets/pickers/time_spinner.sharp) */
+def time_view(value: state<time_of_day>) : time_spinner { return gui.time_view(value); }
+def time_view(value: state<time_of_day>, look: modifier) : time_spinner { return gui.time_view(value, look); }
+
+/** dialogs to pick a date / a time of day, there while `open` is not 0 */
+def date_picker(open: state<_int64>, value: state<date>) : popup { return gui.date_picker(open, value); }
+def time_picker(open: state<_int64>, value: state<time_of_day>) : popup { return gui.time_picker(open, value); }
+
+/** "Tue 17 Nov 2026" and "09:30" */
+def date_words(day: date) : string { return gui.date_words(day); }
+def time_words(at: time_of_day) : string { return gui.time_words(at); }
+
+/** run `action` on the main thread, from any thread: the way back to where states may be changed (core/runtime/main_queue.sharp) */
+def on_main(action: ()()) { gui.on_main(action); }
+
+/** the screen's model of class t: made once, the same one after, dropped with the screen (core/model/view_model.sharp) */
+def model_of<t base view_model>() : t { return gui.model_of<t>(); }
+
+/** the model of class t shared by every screen of the app; it lives until the window closes */
+def shared_model_of<t base view_model>() : t { return gui.shared_model_of<t>(); }
+
+/** a list the screen watches (core/state/state_list.sharp) */
+def state_list<t>() : state_list<t> { return gui.state_list<t>(); }
+
+/** a state that is kept between runs of the program (core/model/saved.sharp) */
+def saved(key: string, first: _int64) : state<_int64> { return gui.saved(key, first); }
+def saved(key: string, first: decimal) : state<decimal> { return gui.saved(key, first); }
+def saved(key: string, first: string) : state<string> { return gui.saved(key, first); }
+
+/** a watched list that is kept between runs: one item per line, with functions to turn an item into text and back */
+def saved_list<t>(key: string, to_text: (t)(string), from_text: (string)(t)) : state_list<t> { return gui.saved_list<t>(key, to_text, from_text); }
+
+/** a box for text of several lines (widgets/input/text_area.sharp) */
+def text_area(value: state<string>) : text_area { return gui.text_area(value); }
+def text_area(value: state<string>, look: modifier) : text_area { return gui.text_area(value, look); }
+
+/** the rules a set of fields must pass before something is saved (widgets/input/form.sharp) */
+def form() : form { return gui.form(); }
+
+def text_field(value: state<string>) : text_field { return gui.text_field(value); }
+def text_field(value: state<string>, look: modifier) : text_field { return gui.text_field(value, look); }
+
+/** one choice out of several: radios sharing a state form a group (widgets/input/radio.sharp) */
+def radio(words: string, choice: state<_int64>, stands_for: _int64) : radio { return gui.radio(words, choice, stands_for); }
+def radio(words: string, choice: state<_int64>, stands_for: _int64, look: modifier) : radio { return gui.radio(words, choice, stands_for, look); }
+
+/** a strip of titles that chooses a page: tabs(page) { tab("One"); tab("Two"); } (widgets/input/tabs.sharp) */
+def tabs(choice: state<_int64>, block: ()()) : tab_strip { return gui.tabs(choice, block); }
+def tabs(choice: state<_int64>, look: modifier, block: ()()) : tab_strip { return gui.tabs(choice, look, block); }
+
+/** inside tabs { }: one title */
+def tab(title: string) : tab_item { return gui.tab(title); }
+
+/** pick one named choice from a drop-down menu: dropdown(choice) { option("A"); option("B"); } (widgets/input/dropdown.sharp) */
+def dropdown(choice: state<_int64>, block: ()()) : dropdown { return gui.dropdown(choice, block); }
+def dropdown(choice: state<_int64>, look: modifier, block: ()()) : dropdown { return gui.dropdown(choice, look, block); }
+
+/** inside dropdown { }: one choice */
+def option(title: string) : menu_option { return gui.option(title); }
+
+// ==================================================================== drawing it yourself
+
+/** an area you paint yourself every frame: canvas(modifier().fill()) { p: painter, f: frame -> ... } (widgets/drawing/canvas.sharp) */
+def canvas(drawing: (painter, frame)()) : canvas { return gui.canvas(drawing); }
+def canvas(look: modifier, drawing: (painter, frame)()) : canvas { return gui.canvas(look, drawing); }
+
+// ==================================================================== colours
+
+/** a solid colour, each channel 0..255 */
+def rgb(r: _int32, g: _int32, b: _int32) : color { return gui.rgb(r, g, b); }
+
+/** a colour that can be see-through: alpha 0 (invisible) .. 255 (solid) */
+def rgba(r: _int32, g: _int32, b: _int32, a: _int32) : color { return gui.rgba(r, g, b, a); }

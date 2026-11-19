@@ -1,0 +1,8 @@
+mod corners;
+
+// The second file of the `corners` sample: a member added to a class from outside it.
+// In the editor files such a member is written in its class with a `file` of its own.
+
+mutate counter {
+    def bonus() : _int64 { return amount + 1; }
+}

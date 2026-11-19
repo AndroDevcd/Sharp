@@ -1,0 +1,117 @@
+mod backend.compiler.expressions.primary;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.inheritance,
+    backend.compiler.context
+)
+
+/**
+ * `self` AND `base`
+ *
+ *      self            the object the function was called on
+ *      self->name      its field `name` - how a field is reached when a parameter has the same name
+ *      base            the same object, seen as its base class
+ *      base->area()    the function of the base class, also when this class overrides it
+ *      base@shape      "seen as `shape`", when it has to be said which class above is meant
+ *
+ * Both need an object, so neither exists in static code - a static function,
+ * the value of a static field, a function outside any class (E0421).
+ *
+ *      E0421   `self` or `base` where there is no object
+ *      E0422   `base@t` where `t` is not a class above this one
+ *
+ *      C++ comparison: primary/self_expression.cpp, base_expression.cpp.
+ */
+
+/** `self`: the object the function runs on */
+def analyse_self(context: analysis_context, node: _int64) : bound_expression {
+    if(context.is_static == 1 || context.class_of == null) {
+        report_no_object_here(context, node, "self");
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    made := new bound_self(context.unit, node, context.self_type());
+    made.depth = note_self_capture(context);      // inside a lambda: the object of the function around it
+    return made;
+}
+
+/** "`strongbox` inherits from `vault` and has the interface `printable`": what `base@` may name, for E0422 */
+def what_is_above(context: analysis_context, declared: sharp_class) : string {
+    text := new string_builder("`" + declared.written.name + "`");
+    above := real_base_of(context.prog, declared);
+    if(above != null) { text.append(" inherits from `" + above!!.qualified_name() + "`"); }
+    for(i : _int64 = 0; i < declared.interfaces.size(); i++) {
+        if(i == 0 && above != null) { text.append(" and has the interface "); }
+        else if(i == 0) { text.append(" has the interface "); }
+        else { text.append(", "); }
+        text.append("`" + declared.interfaces.at(i).qualified_name() + "`");
+    }
+    if(above == null && declared.interfaces.size() == 0) { text.append(" has nothing above it"); }
+    text.append("; plain `base` means the class directly above");
+    return text.build();
+}
+
+/**
+ * `base` and `base@type`: the object seen as a class above this one - the
+ * class directly above, or the one named after the `@`.
+ */
+def analyse_base(context: analysis_context, node: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    if(context.is_static == 1 || context.class_of == null) {
+        report_no_object_here(context, node, "base");
+        return new bound_error(context.unit, node, error_type);
+    }
+    declared : sharp_class = context.class_of!!;
+
+    // base@type: the class above that is meant
+    type_node : _int64 = context.tree.child_of_kind(node, N_TYPE);
+    if(type_node >= 0) {
+        named := resolve_type_at(context, type_node);
+        if(named.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+        above := named.class_or_null();
+        if(above == null || above == declared || !inherits_from(context.prog, declared, above!!)) {
+            d := problem_over(context, "E0422", "`" + named.to_text() + "` is not a class above `" + declared.written.name + "`", type_node);
+            d.with_label("`base@` needs a base class or an interface of `" + declared.written.name + "`");
+            d.with_related_place(place_of_declaration(declared.written, "`" + declared.written.name + "` and what it inherits from are declared here"));
+            d.with_help(what_is_above(context, declared));
+            report(context, d);
+            return new bound_error(context.unit, node, error_type);
+        }
+        return based(context, node, above!!);
+    }
+
+    above := real_base_of(context.prog, declared);
+    if(above == null) { return new bound_error(context.unit, node, error_type); }    // only std#_object_ has none
+    return based(context, node, above!!);
+}
+
+/** E0421 */
+def report_no_object_here(context: analysis_context, node: _int64, word: string) {
+    d := problem_at(context, "E0421", "`" + word + "` cannot be used here: this code does not run on an object", node);
+    if(context.class_of == null) {
+        d.with_label("not inside a class");
+        d.with_note("`" + word + "` is the object a function of a class was called on; a function declared in a module has none");
+    } else if(context.function != null) {
+        d.with_label("`" + static_owner_name(context) + "` is static");
+        d.with_note("a static function belongs to the class itself and is called without an object");
+        d.with_help("remove `static` from `" + static_owner_name(context) + "`, or hand the object in as a parameter");
+    } else {
+        d.with_label("the value of a static field");
+        d.with_note("a static field gets its value before any object of the class exists");
+    }
+    report(context, d);
+}
+
+/** `base` seen as `above`; inside a lambda the object is the one of the function around it (a capture) */
+def based(context: analysis_context, node: _int64, above: sharp_class) : bound_expression {
+    made := new bound_base(context.unit, node, above, type_of_class(above));
+    made.depth = note_self_capture(context);
+    return made;
+}

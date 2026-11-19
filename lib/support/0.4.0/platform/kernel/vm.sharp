@@ -1,0 +1,512 @@
+mod platform.kernel;
+
+import (
+    platform,
+    std.io,
+    std.io.fiber
+)
+
+class vm {
+
+    static def exit(value: _int64) {
+        asm {
+            ipushl [value]
+            int 0x1d
+        }
+    }
+
+    /**
+     * The path of a native library as the VM is handed it: exactly as written.
+     * The VM adds the system's ending when it is left off; it searches no
+     * folders (lib/runtime/sni/sni_runtime.cpp, places_for).
+     */
+    private static def get_lib_path(name: string) : _int8[] {
+        return name.data!!;
+    }
+
+    static def load_library(name: string) {
+        lib_name : _int8[] = get_lib_path(name);
+
+        asm {
+            pushl [lib_name]
+            int 0x39
+        }
+    }
+
+    /**
+     * The whole path of the file of the running program
+     * (`sharp build/outputs/app` -> C:/project/build/outputs/app).
+     */
+    static def program_path() : string {
+        path : _int8[];
+
+        asm {
+            int 0x53
+            popl [path]
+        };
+
+        return "$path";
+    }
+
+    /**
+     * The whole path of the `sharp` runtime binary itself - NOT the program it
+     * is running. Libraries that ship with the install (the GUI's native
+     * backend) live beside this binary, so std.gui finds them here wherever the
+     * program is started from.
+     */
+    static def runtime_path() : string {
+        path : _int8[];
+
+        asm {
+            int 0x55
+            popl [path]
+        };
+
+        return "$path";
+    }
+
+    static def free_library(name: string): int {
+        lib_name : _int8[] = get_lib_path(name);
+        result :_int64 = 0;
+
+        asm {
+            pushl [lib_name]
+            int 0x3a
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def link_func(name: string, library: string): int {
+        lib_name : _int8[] = get_lib_path(library);
+        func_name := name.data;
+        result : _int64 = 0;
+        asm {
+            pushl [func_name]
+            pushl [lib_name]
+            int 0x3b
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def get_frame_info() : stack_state? {
+        asm {
+            int 0x35
+            popObj2
+            returnObj
+            ret 0
+        }
+        return null;
+    }
+
+    static def get_stack_trace(info : stack_state) : string? {
+        asm {
+            pushl [info]
+            int 0x36
+            popObj2
+            returnObj
+            ret 0
+        }
+        return null;
+    }
+
+    static def thread_create(daemon: _int64) : int {
+        result: _int64;
+        asm {
+            movi adx, $std.io#__srt_global[_srt_thread_start]
+            loadl ebx, [daemon]
+            int 0x10
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def start_fiber(fib: fiber, t: thread?, args: object[]?, main: (object[]?)(decimal)) : int {
+        result: _int64;
+        name := fib.name.data;
+        threadid : _int64 = -1; // -1 to unbind from thread
+
+        if(t != null)
+           threadid = t!!.get_native_handle().value;
+
+        asm {
+            pushl [args]
+            pushl [fib]
+            ipushl [threadid]
+            pushl [main]        // a function value is an object (function_value.sharp)
+            pushl [name]
+            int 0x45
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def suspend_fiber(fib: fiber) : int {
+        id : _int64 = fib.id;
+        result: _int64;
+
+        asm {
+            ipushl [id]
+            int 0x46
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def unsuspend_fiber(fib: fiber) : int {
+        id : _int64 = fib.id;
+        result: _int64;
+
+        asm {
+            ipushl [id]
+            int 0x47
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def kill_fiber(fib: fiber) : int {
+        id : _int64 = fib.id;
+        result: _int64;
+
+        asm {
+            ipushl [id]
+            int 0x48
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def bind_fiber(fib: fiber, t: thread?) : int {
+        id : _int64 = fib.id;
+        threadid : _int64 = -1; // -1 to unbind from thread (a number: it is pushed with ipushl)
+
+        if(t != null)
+           threadid = t!!.get_native_handle().value;
+        result: _int64;
+
+        asm {
+            ipushl [threadid]
+            ipushl [id]
+            int 0x49
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def get_bound_fibers(t: thread?) : int {
+        threadid : _int64;
+        result: _int64;
+
+        if(t != null)
+            threadid = t!!.get_native_handle().value;
+
+        asm {
+            ipushl [threadid]
+            int 0x4a
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def get_fiber_state(fib: fiber) : int {
+        id : _int64 = fib.id;
+        result: _int64;
+
+        asm {
+            ipushl [id]
+            int 0x4b
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def current_fiber() : fiber {
+        result: fiber;
+
+        asm {
+            int 0x4c
+            movl [result]
+            popObj
+        }
+
+        return result;
+    }
+
+    static def suspend(t: thread) : thread_result {
+        id : _int64 = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
+        result: _int64;
+
+        asm {
+            loadl adx, [id]
+            int 0x12
+            smovr2 [result], cmt
+        }
+
+        return thread_result.at(result);
+    }
+
+    static def unsuspend(t: thread, wait: _int64) : thread_result {
+        id : _int64 = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
+        result: _int64;
+
+        asm {
+            loadl adx, [id]
+            loadl ebx, [wait]
+            int 0x13
+            smovr2 [result], cmt
+        }
+
+        return thread_result.at(result);
+    }
+
+    static def get_os_time(tr : _int64) : long {
+       result: _int64;
+       asm {
+          loadl ebx, [tr]
+          int 0x2
+          smovr2 [result], bmr
+       }
+
+       return result;
+    }
+
+    /**
+     * Wait until thread `t` has finished.
+     *
+     * A thread that has already finished gives result_ok: there is nothing
+     * left to wait for. (When a thread finishes it gives up its native handle,
+     * so the runtime no longer knows it and would answer "illegal join".)
+     */
+    static def thread_join(t: thread) : thread_result {
+        if(t.is_exited()) {
+            return result_ok;
+        }
+
+        id : _int64 = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
+        result: _int64;
+
+        asm {
+            loadl adx, [id]
+            int 0xd
+            smovr2 [result], cmt
+        }
+
+        // it may have finished between the check above and the call
+        if(result != 0 && t.is_exited()) {
+            return result_ok;
+        }
+
+        return thread_result.at(result);
+    }
+
+    static def kill(t: thread) : thread_result {
+        id : _int64 = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
+        result: _int64;
+
+        asm {
+            loadl adx, [id]
+            int 0xe
+            smovr2 [result], cmt
+        }
+
+        t.set_finished(1);
+        return thread_result.at(result);
+    }
+
+    static def current_thread() : thread {
+        asm {
+            int 0x15
+            popObj2
+            returnObj
+            ret 0
+        }
+
+        excuse no_val: thread;
+        return no_val;
+    }
+
+    static def thread_yield() {
+        asm {
+            int 0x1c
+        }
+    }
+
+    static def thread_start(t: thread, args: object[]?) : thread_result {
+        id : _int64 = t.get_native_handle().value;
+        stack_size : _int64 = t.get_stack_size();
+        result: _int64;
+
+        asm {
+            loadl ebx, [stack_size]
+            loadl adx, [id]
+            pushl [args]
+            pushl [t]
+            int 0xc
+            smovr2 [result], cmt
+        }
+
+        if(result == 0) {
+           while(!t.is_started()) {
+               if(t.is_exited()) {
+                   // It started AND already finished (a short thread; `started`
+                   // is cleared again when a thread ends). That is a successful
+                   // start - it used to be reported as result_thread_not_started.
+                   break;
+               } else {
+                  delay(0);
+               }
+           }
+        }
+
+        return thread_result.at(result);
+    }
+
+    static def set_thread_priority(t: thread, priority: _int64) : thread_result {
+        id : _int64 = t.get_native_handle().value;   // the number, not the int object: `loadl adx, [id]` reads a number slot
+        result: _int64;
+
+        asm {
+            loadl adx, [id]
+            loadl egx, [priority]
+            int 0x11
+            smovr2 [result], cmt
+        }
+
+        return thread_result.at(result);
+    }
+
+    static def set_thread(t: thread) {
+        asm {
+            pushl [t]
+            int 0x17
+        }
+    }
+
+    static def thread_args() : object[] {
+        asm {
+            int 0x16
+            popObj2
+            returnObj
+            ret 0
+        }
+
+        excuse no_val: object[];
+        return no_val;
+    }
+
+    static def hardware_concurrency() : int {
+        result: _int64;
+
+        asm {
+            int 0x38
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def random_int() : int {
+        result: _int64;
+
+        asm {
+           int 0x19
+           smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def random_int(min: _int64, max : _int64) : int {
+       result: _int64;
+
+       asm {
+          loadl ebx, [min]
+          loadl egx, [max]
+          int 0x3f
+          smovr2 [result], ebx
+       }
+
+       return result;
+    }
+
+    static def random_double() : double {
+        result: decimal;
+
+        asm {
+           int 0x40
+           smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    static def random_double(min: decimal, max : decimal) : double {
+       result: decimal;
+
+       asm {
+          loadl ebx, [min]
+          loadl egx, [max]
+          int 0x41
+          smovr2 [result], ebx
+       }
+
+       return result;
+    }
+
+    static def time_in_nanoseconds() : long {
+        now: _int64;
+
+        asm
+        {
+            int 0xb
+            smovr2 [now], bmr
+        };
+
+        return now;
+    }
+
+    static def lock_object(o: object) {
+        asm {
+            movl 0
+            lock
+        }
+    }
+
+    static def unlock_object(o: object) {
+        asm {
+            movl 0
+            ulock
+        }
+    }
+
+    static def delay(tm: long) {
+       mills : _int64 = tm.value;
+
+       asm {
+          loadl ebx, [mills]
+          int 0x44
+       }
+    }
+
+    static def random_seed(seed : int) {
+        _seed : _int64 = seed.value;
+       asm {
+          loadl adx, [_seed]
+          int 0x42
+       }
+    }
+
+
+}

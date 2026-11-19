@@ -1,0 +1,246 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string_builder - editing (part of the `string_builder` class in std/string_builder.sharp)
+ *
+ * insert, delete, delete_char_at, replace_range, set_char_at, reverse, clear,
+ * set_length, and the extra appends: append_line, append_int, append_number,
+ * append_bool, append_repeat, append_all.
+ *
+ * All of these change the builder itself and return it, so calls chain:
+ *
+ *     sb.append("total: ").append_int(count).append_line();
+ *
+ * Positions are 0-based; ranges are `start` up to, not including, `end`.
+ * The methods are ordinary members of string_builder: no import is needed.
+ */
+mutate string_builder {
+
+    /** INTERNAL. Throws out_of_bounds_exception unless 0 <= start <= end <= length. */
+    private def check_range(what: string, start: decimal, end: decimal) {
+        if(start < 0 || end > cursor || end < start)
+            throw new bounds_except("$what: range ${new int(start)}..${new int(end)} is not inside a text of ${size()} characters");
+    }
+
+    /**
+     * INTERNAL. Opens a gap of `count` characters at `pos`: the text from pos
+     * on moves right. The gap still holds old characters; the caller fills it.
+     */
+    private def open_gap(pos: decimal, count: decimal) {
+        if(count <= 0) return;
+        reserve(count);
+        // move right, starting from the end so nothing is overwritten before it is moved
+        for(i : decimal = cursor - 1; i >= pos; i--) {
+            data[i + count] = data[i];
+        }
+        cursor += count;
+    }
+
+    /** INTERNAL. Removes the characters start .. end - 1: the text from end on moves left. */
+    private def close_gap(start: decimal, end: decimal) {
+        count : decimal = end - start;
+        if(count <= 0) return;
+        for(i : decimal = end; i < cursor; i++) {
+            data[i - count] = data[i];
+        }
+        cursor -= count;
+    }
+
+    /**
+     * Inserts `text` before position `pos` ("held".insert(3, "lo wor") gives
+     * "hello word"). pos == length appends. Inserting "" changes nothing.
+     * Throws out_of_bounds_exception if pos is negative or > length.
+     */
+    def insert(pos: int, text: string) : string_builder {
+        at : decimal = pos.value;
+        check_range("insert", at, at);
+        len : decimal = sizeof(text.data);
+        if(len > 0) {
+            open_gap(at, len);
+            memcopy(text.data!!, data!!, at, 0, len);
+        }
+        return self;
+    }
+
+    /**
+     * Inserts the character `c` before position `pos`; pos == length appends.
+     * Throws out_of_bounds_exception if pos is negative or > length.
+     */
+    def insert_char(pos: int, c: char) : string_builder {
+        at : decimal = pos.value;
+        check_range("insert_char", at, at);
+        open_gap(at, 1);
+        data[at] = c.value;
+        return self;
+    }
+
+    /**
+     * Removes the characters from `start` up to (not including) `end`.
+     * start == end removes nothing.
+     * Throws out_of_bounds_exception if the range is not inside the text
+     * (start < 0, end > length or end < start).
+     */
+    def delete(start: int, end: int) : string_builder {
+        check_range("delete", start.value, end.value);
+        close_gap(start.value, end.value);
+        return self;
+    }
+
+    /**
+     * Removes the character at `pos`.
+     * Throws out_of_bounds_exception if pos is not a position inside the text.
+     */
+    def delete_char_at(pos: int) : string_builder {
+        at : decimal = pos.value;
+        if(at < 0 || at >= cursor)
+            throw new bounds_except("delete_char_at: index $pos is outside of a text of ${size()} characters");
+        close_gap(at, at + 1);
+        return self;
+    }
+
+    /**
+     * Replaces the characters from `start` up to (not including) `end` with
+     * `text`, which may be shorter or longer than the range.
+     * Throws out_of_bounds_exception if the range is not inside the text.
+     */
+    def replace_range(start: int, end: int, text: string) : string_builder {
+        from : decimal = start.value;
+        to : decimal = end.value;
+        check_range("replace_range", from, to);
+
+        len : decimal = sizeof(text.data);
+        old_len : decimal = to - from;
+        if(len > old_len) open_gap(to, len - old_len);
+        else if(len < old_len) close_gap(from + len, to);
+        if(len > 0) memcopy(text.data!!, data!!, from, 0, len);
+        return self;
+    }
+
+    /**
+     * Overwrites the character at `pos` with `c`.
+     * Throws out_of_bounds_exception if pos is not a position inside the text.
+     */
+    def set_char_at(pos: int, c: char) : string_builder {
+        at : decimal = pos.value;
+        if(at < 0 || at >= cursor)
+            throw new bounds_except("set_char_at: index $pos is outside of a text of ${size()} characters");
+        data[at] = c.value;
+        return self;
+    }
+
+    /** Puts the characters in opposite order ("abc" becomes "cba"). */
+    def reverse() : string_builder {
+        i : decimal = 0;
+        j : decimal = cursor - 1;
+        while(i < j) {
+            tmp : decimal = data[i];
+            data[i] = data[j];
+            data[j] = tmp;
+            i++;
+            j--;
+        }
+        return self;
+    }
+
+    /** Removes all text. The buffer is kept, so the builder can be filled again without allocating. */
+    def clear() : string_builder {
+        cursor = 0;
+        return self;
+    }
+
+    /**
+     * Makes the text exactly `new_length` characters long: a longer text is
+     * cut off, a shorter one is filled up with spaces.
+     * Throws illegal_argument_exception if new_length is negative.
+     */
+    def set_length(new_length: int) : string_builder {
+        return set_length(new_length, ' ');
+    }
+
+    /** set_length that fills up with the character `fill` instead of spaces. */
+    def set_length(new_length: int, fill: char) : string_builder {
+        wanted : decimal = new_length.value;
+        if(wanted < 0)
+            throw new ill_arg_except("set_length: the length cannot be negative: $new_length");
+
+        if(wanted > cursor) {
+            reserve(wanted - cursor);
+            for(i : decimal = cursor; i < wanted; i++) {
+                data[i] = fill.value;
+            }
+        }
+        cursor = wanted;
+        return self;
+    }
+
+    /** Appends a line end ("\n"). */
+    def append_line() : string_builder {
+        return append_char('\n');
+    }
+
+    /** Appends `text` followed by a line end ("\n"). */
+    def append_line(text: string) : string_builder {
+        append(text);
+        return append_char('\n');
+    }
+
+    /**
+     * Appends a whole number in base 10 without decimals: append_int(42)
+     * appends "42". A fraction is cut off (2.9 appends "2", -2.9 appends "-2").
+     */
+    def append_int(number: decimal) : string_builder {
+        return append(number_format.integer(number));
+    }
+
+    /**
+     * Appends a number with exactly `decimals` digits after the point, rounded:
+     * append_number(3.14159, 2) appends "3.14".
+     * Throws illegal_argument_exception if decimals is not between 0 and 15.
+     */
+    def append_number(number: decimal, decimals: int) : string_builder {
+        return append(number_format.fixed(number, decimals));
+    }
+
+    /** Appends "true" if `value` is not 0, otherwise "false". */
+    def append_bool(value: decimal) : string_builder {
+        if(value) return append("true");
+        return append("false");
+    }
+
+    /**
+     * Appends `text` `count` times in a row (append_repeat("-", 10) draws a rule).
+     * A count of 0 appends nothing.
+     * Throws illegal_argument_exception if count is negative.
+     */
+    def append_repeat(text: string, count: int) : string_builder {
+        times : decimal = count.value;
+        if(times < 0)
+            throw new ill_arg_except("append_repeat: count cannot be negative: $count");
+
+        len : decimal = sizeof(text.data);
+        if(len > 0 && times > 0) {
+            reserve(len * times);
+            for(i : decimal = 0; i < times; i++) {
+                memcopy(text.data!!, data!!, cursor, 0, len);
+                cursor += len;
+            }
+        }
+        return self;
+    }
+
+    /**
+     * Appends every string of `parts` with `separator` between them
+     * (not before the first or after the last). Null elements are skipped.
+     */
+    def append_all(parts: string[], separator: string) : string_builder {
+        count : decimal = sizeof(parts);
+        for(i : decimal = 0; i < count; i++) {
+            if(i > 0) append(separator);
+            part := parts[i];
+            if((part as object) != null) append(part);
+        }
+        return self;
+    }
+}

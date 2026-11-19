@@ -1,0 +1,32 @@
+// expect: E0393 W1008 E0381 E0380 E0383 E0382 E0304
+mod mutate_mistakes;
+
+import ( std.io ) as tools;
+import ( std.collections ) as tools;        // E0393  the name `tools` twice
+import ( std.io, std.io )                   // W1008  the same module twice
+
+stable class fixed { }
+alias fixed as same;
+class open_one { }
+
+mutate fixed { n : int; }                   // E0381  a stable class
+mutate same { }                             // E0380  not a class
+mutate open_one { n : int; }                // fine
+
+class holder_of<T> { item : T; }
+mutate holder_of { second : T; }            // fine: the class as a whole
+mutate holder_of<T> { third : T; }          // fine: the same, with its own parameter names
+mutate holder_of<int> { fourth : int; }     // E0383  a mutate cannot pick one instance
+
+class first_base { }
+class second_base { }
+interface marked { }
+class has_base base first_base { }
+mutate has_base base second_base { }        // E0382  it has one already
+mutate open_one base first_base : marked { }    // fine: a base and an interface for a class that had none
+
+x : tools#nothing_here?;                    // E0304  no module of the group has it
+y : tools#file?;                            // fine
+
+def main() {
+}

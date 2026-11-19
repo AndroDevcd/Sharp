@@ -1,0 +1,140 @@
+mod std.time;
+
+/**
+ * Small whole-number helpers shared by the classes in std.time.
+ *
+ * Why they are needed
+ * -------------------
+ * `decimal` is a 64-bit floating point number. Whole numbers are exact up to
+ * 2^53 (9,007,199,254,740,992), `/` keeps the fraction (7 / 2 == 3.5) and `%`
+ * first drops the fraction of both sides and then gives the remainder with
+ * the sign of the LEFT side, like C (-7 % 3 == -1).
+ *
+ * Calendar arithmetic needs FLOOR division instead: the day before
+ * 1970-01-01 is day -1 and belongs to the week, month and year that came
+ * before, not to a mirrored copy of the ones after. floor_div and floor_mod
+ * round towards negative infinity:
+ *
+ *     floor_div(-7, 3) == -3      floor_mod(-7, 3) == 2      (-3 * 3 + 2 == -7)
+ *     floor_div( 7, 3) ==  2      floor_mod( 7, 3) == 1
+ *
+ * All functions expect whole numbers whose size is below 2^53.
+ */
+class time_math {
+
+    /** the largest whole number a `decimal` holds exactly: 2^53 */
+    static const max_exact : decimal = 9007199254740992;
+
+    /**
+     * The remainder of a / b that is never negative: a value in 0 .. b-1.
+     * `b` must be greater than 0.
+     */
+    static def floor_mod(a: decimal, b: decimal): decimal {
+        r : decimal = a % b;
+        if(r < 0) {
+            r += b;
+        }
+        return r;
+    }
+
+    /**
+     * a / b rounded DOWN (towards negative infinity). `b` must be greater
+     * than 0. The remainder is taken off first, so the division itself has
+     * no fraction and the result is exact.
+     */
+    static def floor_div(a: decimal, b: decimal): decimal {
+        return (a - floor_mod(a, b)) / b;
+    }
+
+    /** a / b with the fraction dropped (rounded towards zero), b greater than 0 */
+    static def trunc_div(a: decimal, b: decimal): decimal {
+        return (a - (a % b)) / b;
+    }
+
+    /** drops the fraction of `n` (rounds towards zero): 2.9 -> 2, -2.9 -> -2 */
+    static def trunc(n: decimal): decimal {
+        return n - fraction_of(n);
+    }
+
+    /** the part of `n` after the decimal point, with the sign of n: 2.75 -> 0.75 */
+    static def fraction_of(n: decimal): decimal {
+        whole : _int64 = n as _int64;
+        return n - whole;
+    }
+
+    /** 1 when `n` has no fraction, otherwise 0 */
+    static def is_whole(n: decimal): decimal {
+        return fraction_of(n) == 0;
+    }
+
+    /** the size of `n` without its sign */
+    static def abs(n: decimal): decimal {
+        if(n < 0) {
+            return 0 - n;
+        }
+        return n;
+    }
+
+    /** -1 when a is less than b, 0 when they are equal, 1 when a is greater */
+    static def compare(a: decimal, b: decimal): decimal {
+        if(a < b) {
+            return 0 - 1;
+        }
+        if(a > b) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * Makes sure `value` is a whole number in min .. max (both included).
+     *
+     * @throws date_time_exception "<what> must be <min> to <max> but was <value>"
+     */
+    static def check_range(what: string, value: decimal, min: decimal, max: decimal) {
+        if(value < min || value > max || !is_whole(value)) {
+            throw new date_time_exception(what + " must be " + whole_text(min) + " to " + whole_text(max)
+                + " but was " + number_text(value));
+        }
+    }
+
+    /**
+     * Makes sure `value` is a whole number that a `decimal` can hold exactly.
+     *
+     * @throws date_time_exception when it has a fraction or is 2^53 or more in size
+     */
+    static def check_whole(what: string, value: decimal) {
+        if(!is_whole(value) || value >= max_exact || value <= (0 - max_exact)) {
+            throw new date_time_exception(what + " must be a whole number below 2^53 but was " + number_text(value));
+        }
+    }
+
+    /**
+     * The digits of a whole number as text, without the ".0000" that
+     * `"" + number` prints: 42 -> "42", -7 -> "-7". A fraction is dropped.
+     */
+    static def whole_text(n: decimal): string {
+        w := new time_text_writer();
+        w.put_number(trunc(n));
+        return w.text();
+    }
+
+    /**
+     * A number as text for error messages: whole numbers as `whole_text`,
+     * others with up to 9 digits after the point (2.5 -> "2.5").
+     */
+    static def number_text(n: decimal): string {
+        w := new time_text_writer();
+        whole : decimal = trunc(n);
+        frac : decimal = abs(n - whole);
+        if(n < 0 && whole == 0 && frac != 0) {
+            w.put('-');
+        }
+        w.put_number(whole);
+        if(frac != 0) {
+            w.put('.');
+            w.put_fraction(trunc(frac * 1000000000), 0);
+        }
+        return w.text();
+    }
+}

@@ -1,0 +1,88 @@
+mod frontend.syntax.tree;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.parser
+)
+
+/**
+ * ONE SOURCE FILE ON ITS WAY THROUGH THE COMPILER
+ *
+ *      file        where it is
+ *      text        what it says
+ *      parsed      its tokens, its syntax tree and its syntax errors
+ *                  (null when the file could not be read at all)
+ *
+ * This is what the stages of the compiler hand to each other, what the build
+ * cache stores, and what the compile loop in main.sharp waits for: one
+ * source_unit per file, parsed on its own coroutine.
+ *
+ * (It replaces the `parser` object of frontend/parser, which was the parser,
+ * its result and its error list in one.)
+ */
+class source_unit {
+    file : string;
+    text : string = "";
+    parsed : parse_state?;
+    problem : string = "";      // why there is no `parsed`: the file is missing, unreadable ...
+    from_cache : decimal = 0;   // 1 when it was read back from the build cache instead of parsed
+    unchanged : decimal = 0;    // 1 when the build cache says the file is the same as in the last build
+    size : decimal = 0 - 1;     // the file's size and last-change time when it was read (the build cache
+    modified : decimal = 0 - 1; //   stores them; -1: not looked at)
+
+    source_unit(file: string) {
+        self->file = file;
+    }
+
+    /** 1 when the file was read and has no syntax error */
+    def is_good() : decimal {
+        if(parsed == null) { return 0; }
+        return parsed!!.error_count == 0;
+    }
+
+    /** how many problems the file has (not being readable counts as one) */
+    def problem_count() : decimal {
+        if(parsed == null) { return 1; }
+        return parsed!!.error_count;
+    }
+}
+
+/**
+ * Read and parse one file. Never throws: a file that cannot be read gives a
+ * unit with `problem` set, so that the compile loop gets exactly one answer
+ * per file whatever happens. (The old code let the exception escape; nothing
+ * was sent back and the compiler waited for ever.)
+ */
+def parse_file_unit(path: string) : source_unit {
+    unit := new source_unit(path);
+
+    try {
+        source := new file(path);
+        if(!source.exists()) {
+            unit.problem = "the file does not exist";
+            return unit;
+        }
+
+        text : string? = source.read();
+        if(text == null) {
+            // read() gives null for an empty file too: an empty file is fine
+            if(source.length() > 0) {
+                unit.problem = "the file could not be read";
+                return unit;
+            }
+            text = "";
+        }
+
+        // `mock<T>()` is a built-in that writes a class: here it becomes `new mock_of_T()` (mocks.sharp)
+        unit.text = expand_mock_calls(text!!);
+        characters : _int8[]? = unit.text.data;
+        if(characters == null) {
+            characters = new _int8[0];
+        }
+        unit.parsed = parse_source(path, characters!!);
+    } catch(e: throwable) {
+        unit.problem = "the file could not be read: " + e.get_message();
+    }
+    return unit;
+}

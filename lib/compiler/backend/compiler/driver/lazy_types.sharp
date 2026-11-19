@@ -1,0 +1,100 @@
+mod backend.compiler.driver;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * TYPES ON DEMAND
+ *
+ *      class cart {
+ *          total := price * 2;         no type written: it is the type of the value
+ *          def twice() := total * 2;   no result type written: the type of the expression
+ *      }
+ *
+ * Another body may use `total` before the driver has reached that field.
+ * So the type is worked out the moment it is first asked for: the field's
+ * value (or the function's body) is analysed right then, in a fresh context
+ * of its own, and the result is stored - the driver later finds it done.
+ * "Compute on first use and remember" is the textbook treatment of
+ * declarations that may refer to each other in any order.
+ *
+ * A CIRCLE cannot be worked out:
+ *
+ *      a := b;
+ *      b := a;         the type of a is the type of b is the type of a ...
+ *
+ * While a declaration is being analysed its state is TYPE_IN_PROGRESS;
+ * meeting it again in that state is the circle (E0408). It gets the error
+ * type, so nothing that uses it complains a second time.
+ *
+ *      C++ comparison: the old compiler orders the work with flags per
+ *      field (`field->request`, "resolve_hard_type") and re-enters the
+ *      compiler for the field's file.
+ */
+
+/** the type of a field; for `name := value;` this analyses the value now if that has not happened yet */
+def type_of_field(context: analysis_context, field: sharp_field, node: _int64) : resolved_type {
+    if(field.value_type != null) { return field.value_type!!; }
+
+    if(field.value_state == TYPE_IN_PROGRESS) {
+        report_type_circle(context, field, node);
+        return context.session.types.error_type;
+    }
+    analyse_field_value(context.session, field);
+    if(field.value_type != null) { return field.value_type!!; }
+    return context.session.types.error_type;
+}
+
+/**
+ * Did the written type of this field refuse the value the field is declared
+ * with (`ages : _int64 = { 1, 2 };`, E0410 at the value)? Then every use of
+ * the field would be judged by a type that was perhaps never meant, and the
+ * one mistake would get a message per use (`ages[0]`: "a number cannot be
+ * indexed"). The uses are read as the error type instead, as for a local
+ * (conversions/convert.sharp `written_type_refused`).
+ *
+ * This is a question of ORDER: the uses are in function bodies, and the
+ * driver may come to those before it comes to the field. So the field's
+ * value is analysed here, the first time the field is read - "compute on
+ * first use and remember", as for `name := value` above. A field that is
+ * read inside its own value (state TYPE_IN_PROGRESS) is read as written.
+ */
+def field_value_refused(context: analysis_context, field: sharp_field) : _int64 {
+    if(!field.has_initializer()) { return 0; }
+    if(field.value_state == TYPE_UNKNOWN) { analyse_field_value(context.session, field); }
+    if(field.value_state != TYPE_KNOWN) { return 0; }
+    return written_type_refused(field.bound_initializer);
+}
+
+/** the result type of a function; for `def f() := value;` this analyses the body now if need be */
+def result_of_function(context: analysis_context, function: sharp_function, node: _int64) : resolved_type {
+    if(function.result_type != null) { return function.result_type!!; }
+
+    if(function.body_state == TYPE_IN_PROGRESS) {
+        report_type_circle(context, function, node);
+        return context.session.types.error_type;
+    }
+    analyse_function_body(context.session, function);
+    if(function.result_type != null) { return function.result_type!!; }
+    return context.session.types.error_type;
+}
+
+/** E0408: the type of `declared` is asked for while it is being worked out */
+def report_type_circle(context: analysis_context, declared: sharp_declaration, node: _int64) {
+    d := problem_at(context, "E0408", "the type of `" + declared.name + "` depends on itself", node);
+    d.with_label("needs the type of `" + declared.name + "`, which is being worked out from this very value");
+    d.with_related_place(place_of_declaration(declared, "`" + declared.name + "` is declared without a type here"));
+    d.with_note("a declaration written `name := value` takes the type of its value, so the value cannot (directly or through others) use the name");
+    d.with_help("write the type of `" + declared.name + "` out: `" + declared.name + " : <type> = ...`");
+    report(context, d);
+}

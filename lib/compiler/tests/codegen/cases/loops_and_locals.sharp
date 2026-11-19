@@ -1,0 +1,335 @@
+mod main;
+
+import ( std.io )
+
+// output:
+// 1 0.25 set 0 0 -56
+// 2 0.25 set 1 1 -56
+// 3 0.25 set 2 2 -56
+// 3
+// 2
+// 2.5
+// -56 44 4464 65535 705032704 4294967295
+// []
+// a 0
+// a 1
+// b 0
+// b 1
+// c 0
+// c 1
+// i 5
+// do 8
+// say 8
+// left 0.5
+// in 0 1
+// in 0 3
+// in 1 1
+// in 1 3
+// say 0
+// say 1
+// dec 0
+// dec 0.5
+// make 3
+// n 0
+// n 1
+// n 4
+// byte 
+// byte þ
+// byte 
+// dec 1.5
+// dec 2.5
+// word a
+// word ccc
+// make 2
+// make 1
+// x 0
+// make 1
+// x 1
+// make 3
+// make 3
+// xy 0 0
+// xy 0 4
+// make 3
+// xy 1 0
+// xy 1 4
+// make 3
+// item 3
+// item 4
+// p 11
+// p 12
+// other
+// point 3
+// ch h
+// ch e
+// ch y
+// say 1
+// one
+// is a
+// red
+// half
+// say 1
+// nested small d
+// point ==
+// p1
+// loop 0
+// after when 0
+// loop 2
+// after when 2
+// say 2
+// two or three
+// text_of 2
+// is b or n
+// not red
+// whole
+// say 2
+// two exactly
+// point ==
+// point ==
+// p2
+// loop 0
+// after when 0
+// loop 2
+// after when 2
+// say 5
+// say 4
+// say 5
+// four or five
+// text_of 5
+// is b or n
+// not red
+// some
+// big
+// point ==
+// point ==
+// loop 0
+// after when 0
+// loop 2
+// after when 2
+// say 9
+// say 4
+// say 5
+// other
+// text_of 9
+// not red
+// some
+// big
+// point ==
+// point ==
+// loop 0
+// after when 0
+// loop 2
+// after when 2
+// negzerooddevenbig
+
+/*
+ * Locals, loops, `foreach`, `when` and `if` in the forms the other cases do
+ * not have (doc/codegen.md 6.9, 6.10), every line checked against the
+ * C++-built program:
+ *
+ *   - a local written without a value starts again in every round of a loop:
+ *     0, 0.0, null, and for a number class (`boxed : int;`) a new object; a
+ *     store into a narrow local is cut to its width; blocks inside blocks
+ *     with the same names;
+ *   - `for` with each of its three parts left out, `for(;;)`, a step that is
+ *     a call, a decimal counter; `do` (the body before the first test, left
+ *     by `break`); a decimal as a `while` condition; `continue` and `break`
+ *     of an inner endless loop;
+ *   - `foreach` over the result of a call (made once), over _int8[],
+ *     decimal[], string[], an object[] and an array of objects whose fields
+ *     the body changes, over a null array and an empty one (no round), over a
+ *     variable the body assigns to (the loop keeps the array it started
+ *     with), nested with `break` / `continue`, over a list (get_elements) and
+ *     over the characters of a text;
+ *   - `when` on a call (run once), with calls among the values (run only
+ *     until one fits), on a `string`, an enum, a decimal, an object with its
+ *     own `operator==`, without a subject, nested, and with `continue` /
+ *     `break` of the loop around it; `if` / `else if` with single statements.
+ *
+ * (`continue` in a `do` loop is own/jump_rules.sharp: there the C++-built
+ * program differs.)
+ */
+
+enum color { red, green, blue }
+
+class point {
+    x : _int64 = 0;
+    y : decimal = 0.5;
+    point() { }
+    point(x: _int64) { self->x = x; }
+    def operator==(other: point) : _int64 { println("point =="); return x == other.x; }
+}
+
+def say(n: _int64) : _int64 { println("say " + n); return n; }
+def text_of(n: _int64) : string { println("text_of " + n); return "" + n; }
+def make(n: _int64) : _int64[] {
+    println("make " + n);
+    a : _int64[] = new _int64[n];
+    for(i : _int64 = 0; i < n; i++) { a[i] = i * i; }
+    return a;
+}
+
+def locals() {
+    // start values inside a loop begin again every round
+    for(i : _int64 = 0; i < 3; i++) {
+        count : _int64;
+        ratio : decimal;
+        name : string?;
+        boxed : int;
+        small : _int8;
+        count += i + 1;
+        ratio += 0.25;
+        small += 100; small += 100;
+        if(name == null) { name = "set " + i; }
+        boxed += i;
+        println("" + count + " " + ratio + " " + name + " " + boxed + " " + (small + 0));
+    }
+    // shadowing in nested blocks
+    v : _int64 = 1;
+    {
+        w : _int64 = v + 1;
+        { w2 : _int64 = w + 1; println("" + w2); }
+        println("" + w);
+    }
+    { w : decimal = 2.5; println("" + w); }
+    a : _int8 = 200;
+    b : _uint8 = 300;
+    c : _int16 = 70000;
+    d : _uint16 = 0 - 1;
+    e : _int32 = 5000000000;
+    f : _uint32 = 0 - 1;
+    println("" + (a + 0) + " " + (b + 0) + " " + c + " " + d + " " + e + " " + f);
+    s : string;
+    println("[" + s + "]");
+}
+
+def loops() {
+    // for: every part missing in turn
+    i : _int64 = 0;
+    for(; i < 2; i++) { println("a " + i); }
+    for(k : _int64 = 0; ; k++) { if(k == 2) { break; } println("b " + k); }
+    for(k : _int64 = 0; k < 2;) { println("c " + k); k++; }
+    for(;;) { i++; if(i > 4) { break; } }
+    println("i " + i);
+    // do-while: the body runs before the condition is asked the first time
+    n : _int64 = 7;
+    do {
+        n++;
+        if(n == 9) { break; }
+        println("do " + n);
+    } while(say(n) < 4 || n == 8);
+    // while with a decimal condition and break in nested
+    left : decimal = 2.5;
+    while(left) { left -= 0.5; if(left < 1) { break; } }
+    println("left " + left);
+    outer : _int64 = 0;
+    while(outer < 3) {
+        inner : _int64 = 0;
+        while(true) {
+            inner++;
+            if(inner == 2) { continue; }
+            if(inner > 3) { break; }
+            println("in " + outer + " " + inner);
+        }
+        outer++;
+        if(outer == 2) { break; }
+    }
+    // a step with a call whose result is dropped, a post-increment, an assignment
+    for(k : _int64 = 0; k < 2; say(k++)) { }
+    for(k : decimal = 0; k < 1; k += 0.5) { println("dec " + k); }
+}
+
+def foreaches() {
+    foreach(n in make(3)) { println("n " + n); }
+    bytes : _int8[] = new _int8[] { 1, 0 - 2, 3 };
+    foreach(x in bytes) { println("byte " + x); }
+    decs : decimal[] = new decimal[] { 1.5, 2.5 };
+    foreach(x in decs) { println("dec " + x); }
+    words : string[] = new string[] { "a", "bb", "ccc" };
+    foreach(w in words) {
+        if(w == "bb") { continue; }
+        println("word " + w);
+    }
+    nothing : _int64[]? = null;
+    foreach(x in nothing) { println("never"); }
+    empty : string[] = new string[0];
+    foreach(x in empty) { println("never"); }
+    // the collection is evaluated once: changing the variable inside does not change the loop
+    again : _int64[] = make(2);
+    foreach(x in again) { again = make(1); println("x " + x); }
+    // nested, and breaks
+    foreach(x in make(3)) {
+        foreach(y in make(3)) {
+            if(y == 1) { continue; }
+            if(x == 4) { break; }
+            println("xy " + x + " " + y);
+        }
+    }
+    items := new list<int>();
+    items.add(3); items.add(4);
+    foreach(item in items) { println("item " + item); }
+    points : point[] = new point[] { new point(1), new point(2) };
+    foreach(p in points) { p.x += 10; }
+    foreach(p in points) { println("p " + p.x); }
+    objects : object[] = new object[] { "s", new point(3) };
+    foreach(o in objects) { if(o is point) { println("point " + (o as point).x); } else { println("other"); } }
+    chars := "hey";
+    foreach(ch in chars.data) { println("ch " + ch); }
+}
+
+def whens(n: _int64, word: string, c: color, d: decimal) {
+    when(say(n)) {
+        1 -> println("one");
+        2, 3 -> println("two or three");
+        say(4), say(5) -> println("four or five");
+        else -> println("other");
+    }
+    when(word) {
+        "a" -> println("is a");
+        text_of(n), "b" -> println("is b or n");
+    }
+    when(c) {
+        color.red -> println("red");
+        color.green, color.blue -> { println("not red"); }
+    }
+    when(d) {
+        0.5 -> println("half");
+        1 -> println("whole");
+        else -> println("some");
+    }
+    when {
+        n > 3 -> println("big");
+        say(n) == 2 -> println("two exactly");
+        else -> { when { d > 0.7 -> println("nested big d"); else -> println("nested small d"); } }
+    }
+    p := new point(n);
+    when(p) {
+        new point(1) -> println("p1");
+        new point(2) -> println("p2");
+    }
+    for(i : _int64 = 0; i < 5; i++) {
+        when(i) {
+            1 -> continue;
+            3 -> break;
+            else -> println("loop " + i);
+        }
+        println("after when " + i);
+    }
+}
+
+def ifs(n: _int64) : string {
+    if(n < 0) return "neg";
+    else if(n == 0) return "zero";
+    else if(n < 10) { if(n % 2) return "odd"; return "even"; }
+    return "big";
+}
+
+def main() {
+    locals();
+    loops();
+    foreaches();
+    whens(1, "a", color.red, 0.5);
+    whens(2, "2", color.green, 1);
+    whens(5, "b", color.blue, 0.75);
+    whens(9, "zz", color.blue, 0.1);
+    println(ifs(0 - 1) + ifs(0) + ifs(3) + ifs(4) + ifs(50));
+}

@@ -1,0 +1,45 @@
+// expect: E0324 E0324 W1041 W1041
+mod recovery;
+
+import ( std, std.io )
+
+/**
+ * ERROR RECOVERY BY REPAIR, AND A FUNCTION THAT ONLY HIDES
+ *
+ * `class job_failed : exception` (the C# / Kotlin way to write a base class)
+ * is E0324, and the rest of the program is checked as if `base exception`
+ * were written: the constructor's `-> base(message)`, `throw` and `catch`
+ * say nothing more. One mistake, one message - also for a class below it.
+ *
+ * A function with a body is never replaced at run time: `leaf.plain`
+ * standing below `base_node.plain` with the same parameters hides it
+ * (W1041, D44). So does a `static` function below a `static` one.
+ */
+
+class job_failed : exception {                          // E0324
+    job_failed(message: string) -> base(message) { }
+}
+class retry_failed : job_failed {                       // E0324
+    retry_failed() -> base("again") { }
+}
+
+class base_node {
+    def plain(s: string) : string { return "base"; }
+    static def named(s: string) : string { return "base"; }
+    def other(n: _int64) : string { return "base"; }
+}
+class leaf base base_node {
+    def plain(s: string) : string { return "leaf"; }    // W1041
+    static def named(s: string) : string { return "leaf"; }     // W1041: two static functions as well
+    def other(s: string) : string { return "leaf"; }    // fine: other parameters, an overload
+    def to_string() : string { return "leaf"; }         // fine: without parameters no call is ambiguous
+}
+
+def main(args: string[]) {
+    try {
+        throw new retry_failed();
+    } catch(e: job_failed) {
+        println(e.get_message());
+    }
+    println(new leaf().plain(new string("x")));
+}

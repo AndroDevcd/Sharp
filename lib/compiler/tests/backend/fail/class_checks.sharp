@@ -1,0 +1,63 @@
+// expect: E0330 E0310 E0310 E0323 E0323 E0321 E0322 E0320 E0324 E0325 E0341 E0342 E0344 E0343 E0341 E0342 E0342 E0330 E0332 E0331 E0330 E0340
+mod mistakes;
+
+interface printable2 { def show() : string; def size(scale: decimal) : decimal; }
+interface comparable2<T> { def compare(other: T) : int; }
+enum color { red, green, red }
+
+alias first_alias as second_alias;
+alias second_alias as first_alias;
+
+class a1 base b1 { }
+class b1 base c1 { }
+class c1 base a1 { }
+class selfish base selfish { }
+
+class wrong_base base printable2 { }
+class enum_base base color { }
+alias _int64 as whole_number;
+class number_base base whole_number { }           // E0320  a number is not a class
+
+class shape { def area() : decimal { return 0; } def outline() : decimal; }
+class not_interface : shape { }
+class twice : printable2, printable2 {
+    override def show() : string { return ""; }
+    override def size(scale: decimal) : decimal { return 0; }
+}
+
+class missing_all : printable2, comparable2<missing_all> { }
+class wrong_parameters : printable2 {
+    override def show() : string { return ""; }
+    override def size(scale: string) : decimal { return 0; }     // E0342 only: an attempt at size(decimal), not also E0341
+}
+class no_override : printable2 {
+    def show() : string { return ""; }
+    override def size(scale: decimal) : decimal { return 0; }
+}
+class wrong_result : printable2 {
+    override def show() : int { return 0; }
+    override def size(scale: decimal) : decimal { return 0; }
+}
+class circle base shape {
+    override def area() : decimal { return 1; }
+    override def outlin() : decimal { return 1; }
+}
+class good base shape : comparable2<good> {
+    override def outline() : decimal { return 1; }
+    override def compare(other: good) : int { return 0; }
+}
+
+class doubles {
+    count : decimal;
+    count : string;
+    doubles(x: decimal) { }
+    doubles(y: decimal) { }
+    def add(x: decimal) : decimal { return x; }
+    def add(y: decimal) : string { return ""; }
+    def add(y: string) : string { return y; }
+}
+
+total : decimal = 0;
+total : decimal = 1;
+def helper(x: decimal);
+def main() { }

@@ -1,0 +1,137 @@
+mod std.time;
+
+/**
+ * One of the seven days of the week.
+ *
+ * The days are numbered the ISO-8601 way: Monday is 1 and Sunday is 7. There
+ * are exactly seven objects, one per day, reachable as `day_of_week.monday`
+ * ... `day_of_week.sunday` or through `day_of_week.of(number)`. Because there
+ * is only ever one object per day, two values can be compared with `==`.
+ *
+ * (It is a class and not an `enum` because an enum cannot have functions such
+ * as `plus` or `short_name`.)
+ *
+ *     d := date.of(2000, 1, 1).day_of_week();   // day_of_week.saturday
+ *     d.value()            // 6
+ *     d.name()             // "Saturday"
+ *     d.short_name()       // "Sat"
+ *     d.plus(2)            // day_of_week.monday
+ *     d.is_weekend()       // 1
+ */
+class day_of_week {
+    private static const full_names : string[] = new string[] {
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    };
+    private static const short_names : string[] = new string[] {
+        "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
+    };
+
+    static const monday : day_of_week = new day_of_week(1);
+    static const tuesday : day_of_week = new day_of_week(2);
+    static const wednesday : day_of_week = new day_of_week(3);
+    static const thursday : day_of_week = new day_of_week(4);
+    static const friday : day_of_week = new day_of_week(5);
+    static const saturday : day_of_week = new day_of_week(6);
+    static const sunday : day_of_week = new day_of_week(7);
+
+    /** ISO number of the day: 1 (Monday) .. 7 (Sunday) */
+    private number : decimal = 1;
+
+    private day_of_week(n: decimal) {
+        number = n;
+    }
+
+    /**
+     * The day with ISO number `n`: 1 = Monday ... 7 = Sunday.
+     * @throws date_time_exception when `n` is not 1 .. 7
+     */
+    static def of(n: decimal): day_of_week {
+        time_math.check_range("day of week", n, 1, 7);
+        if(n == 1) { return monday; }
+        if(n == 2) { return tuesday; }
+        if(n == 3) { return wednesday; }
+        if(n == 4) { return thursday; }
+        if(n == 5) { return friday; }
+        if(n == 6) { return saturday; }
+        return sunday;
+    }
+
+    /** all seven days in order, Monday first */
+    static def values(): day_of_week[] {
+        return new day_of_week[] { monday, tuesday, wednesday, thursday, friday, saturday, sunday };
+    }
+
+    /**
+     * The day whose full name ("Monday") or three letter name ("Mon") is
+     * `text`, ignoring upper and lower case.
+     * @throws date_time_exception when it is not the name of a day
+     */
+    static def parse(text: string): day_of_week {
+        r := new time_text_reader(text, "day of week");
+        index : decimal = r.accept_word(full_names);
+        if(index < 0) {
+            index = r.accept_word(short_names);
+        }
+        if(index < 0) {
+            throw r.failure("not the name of a day");
+        }
+        r.expect_end();
+        return of(index + 1);
+    }
+
+    /** the ISO number: 1 (Monday) .. 7 (Sunday) */
+    def value(): decimal {
+        return number;
+    }
+
+    /** the full English name: "Monday" .. "Sunday" */
+    def name(): string {
+        return full_names[number - 1];
+    }
+
+    /** the three letter English name: "Mon" .. "Sun" */
+    def short_name(): string {
+        return short_names[number - 1];
+    }
+
+    /**
+     * The day `days` days later; negative numbers go back. The week wraps
+     * around: sunday.plus(1) is monday, monday.plus(-1) is sunday.
+     */
+    def plus(days: decimal): day_of_week {
+        return of(time_math.floor_mod(number - 1 + days, 7) + 1);
+    }
+
+    /** the day `days` days earlier (see `plus`) */
+    def minus(days: decimal): day_of_week {
+        return plus(0 - days);
+    }
+
+    /**
+     * How many days forward it is from this day to the next `other`:
+     * 0 .. 6. monday.days_until(wednesday) is 2, wednesday.days_until(monday) is 5.
+     */
+    def days_until(other: day_of_week): decimal {
+        return time_math.floor_mod(other.number - number, 7);
+    }
+
+    /** 1 for Saturday and Sunday */
+    def is_weekend(): decimal {
+        return number >= 6;
+    }
+
+    /** the full name, as `name()` */
+    override def to_string(): string? {
+        return name();
+    }
+
+    /** the full names, Monday first (used by the formatter) */
+    static def names(): string[] {
+        return full_names;
+    }
+
+    /** the three letter names, Monday first (used by the formatter) */
+    static def abbreviations(): string[] {
+        return short_names;
+    }
+}

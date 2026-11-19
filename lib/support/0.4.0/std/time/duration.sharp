@@ -1,0 +1,639 @@
+mod std.time;
+
+/**
+ * An amount of time: "2 hours 30 minutes", "1.5 seconds", "-10 milliseconds".
+ *
+ * A duration is not tied to a calendar. It is a length measured in seconds,
+ * so a day is always exactly 86,400 seconds. For amounts in calendar units
+ * (months, years) use `period`.
+ *
+ * How the value is stored - and why
+ * ---------------------------------
+ * A `decimal` holds whole numbers exactly only up to 2^53 (about 9.0e15). In
+ * nanoseconds that is just 104 days, so a single nanosecond count cannot hold
+ * a long duration without losing its low digits. A duration therefore keeps
+ * TWO numbers, the same way java.time.Duration does:
+ *
+ *     seconds   whole seconds, may be negative        (exact up to 2^53 s = 285 million years)
+ *     nanos     nanoseconds on top of that, 0 .. 999,999,999  (never negative)
+ *
+ * The value is always seconds + nanos / 1e9. A negative duration has negative
+ * seconds and a positive nano adjustment: -0.5 s is stored as seconds = -1,
+ * nanos = 500,000,000.
+ *
+ * Durations are immutable: every operation returns a new duration.
+ *
+ *     d := duration.of_minutes(90) + duration.of_seconds(30);
+ *     d.to_minutes()        // 90
+ *     d.to_string()         // "1h 30m 30s"
+ *     d.to_iso_string()     // "PT1H30M30S"
+ *     duration.parse("PT1.5S") == duration.of_millis(1500)   // true
+ */
+class duration {
+    static const nanos_per_second : decimal = 1000000000;
+    static const nanos_per_milli : decimal = 1000000;
+    static const nanos_per_micro : decimal = 1000;
+    static const seconds_per_minute : decimal = 60;
+    static const seconds_per_hour : decimal = 3600;
+    static const seconds_per_day : decimal = 86400;
+
+    /** a duration of no time at all */
+    static const zero : duration = new duration(0, 0);
+
+    /** whole seconds, rounded down (so -0.5 s has secs == -1) */
+    private secs : decimal = 0;
+    /** nanoseconds to add to `secs`: always 0 .. 999,999,999 */
+    private nano_part : decimal = 0;
+
+    /** use the of_... functions; the constructor does not normalise its arguments */
+    private duration(seconds: decimal, nanos: decimal) {
+        secs = seconds;
+        nano_part = nanos;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /**
+     * A duration of `seconds` whole seconds plus `nano_adjustment`
+     * nanoseconds. The adjustment may be any whole number, also negative or
+     * more than a second; it is carried into the seconds:
+     * of_seconds(3, -1) is 2.999999999 s.
+     *
+     * @throws date_time_exception when an argument is not a whole number below 2^53
+     */
+    static def of_seconds(seconds: decimal, nano_adjustment: decimal): duration {
+        time_math.check_whole("seconds", seconds);
+        time_math.check_whole("nanoseconds", nano_adjustment);
+        carry : decimal = time_math.floor_div(nano_adjustment, nanos_per_second);
+        return new duration(seconds + carry, time_math.floor_mod(nano_adjustment, nanos_per_second));
+    }
+
+    /**
+     * A duration of `seconds` seconds. A fraction is allowed and kept to the
+     * nanosecond: of_seconds(1.5) is 1 s 500,000,000 ns. (A `decimal` has about
+     * 15-16 significant digits, so a fraction on a huge second count is not
+     * exact - pass whole seconds and nanoseconds separately for that.)
+     */
+    static def of_seconds(seconds: decimal): duration {
+        if(time_math.is_whole(seconds)) {
+            return new duration(seconds, 0);
+        }
+        // split off the whole seconds below the value, the rest is 0 < f < 1
+        whole : decimal = time_math.trunc(seconds);
+        if(seconds < 0) {
+            whole -= 1;
+        }
+        nanos : decimal = time_math.trunc((seconds - whole) * nanos_per_second + 0.5);
+        if(nanos >= nanos_per_second) {
+            return new duration(whole + 1, 0);
+        }
+        return new duration(whole, nanos);
+    }
+
+    /** `days` days of exactly 24 hours each (whole number) */
+    static def of_days(days: decimal): duration {
+        time_math.check_whole("days", days);
+        return new duration(days * seconds_per_day, 0);
+    }
+
+    /** `hours` hours (whole number) */
+    static def of_hours(hours: decimal): duration {
+        time_math.check_whole("hours", hours);
+        return new duration(hours * seconds_per_hour, 0);
+    }
+
+    /** `minutes` minutes (whole number) */
+    static def of_minutes(minutes: decimal): duration {
+        time_math.check_whole("minutes", minutes);
+        return new duration(minutes * seconds_per_minute, 0);
+    }
+
+    /** `millis` milliseconds (whole number, may be negative) */
+    static def of_millis(millis: decimal): duration {
+        time_math.check_whole("milliseconds", millis);
+        return new duration(time_math.floor_div(millis, 1000), time_math.floor_mod(millis, 1000) * nanos_per_milli);
+    }
+
+    /** `micros` microseconds (whole number, may be negative) */
+    static def of_micros(micros: decimal): duration {
+        time_math.check_whole("microseconds", micros);
+        return new duration(time_math.floor_div(micros, 1000000), time_math.floor_mod(micros, 1000000) * nanos_per_micro);
+    }
+
+    /**
+     * `nanos` nanoseconds (whole number, may be negative). Because the
+     * argument is a `decimal` it is exact only below 2^53 ns (about 104 days).
+     */
+    static def of_nanos(nanos: decimal): duration {
+        time_math.check_whole("nanoseconds", nanos);
+        return new duration(time_math.floor_div(nanos, nanos_per_second), time_math.floor_mod(nanos, nanos_per_second));
+    }
+
+    /**
+     * The time from `start` to `end`: positive when `end` is later, negative
+     * when it is earlier. Exact to the nanosecond.
+     */
+    static def between(start: instant, end: instant): duration {
+        return of_seconds(end.epoch_second() - start.epoch_second(), end.nano() - start.nano());
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    /**
+     * The whole-seconds part as it is stored: rounded DOWN, so it is -1 for
+     * -0.5 s. Together with `nanos()` it is the exact value. For "how many
+     * seconds, fraction dropped" use `to_seconds()`.
+     */
+    def seconds(): decimal {
+        return secs;
+    }
+
+    /** the nanoseconds stored on top of `seconds()`: 0 .. 999,999,999 */
+    def nanos(): decimal {
+        return nano_part;
+    }
+
+    /** 1 when the duration is exactly zero */
+    def is_zero(): decimal {
+        return secs == 0 && nano_part == 0;
+    }
+
+    /** 1 when the duration is less than zero */
+    def is_negative(): decimal {
+        return secs < 0;
+    }
+
+    /** 1 when the duration is greater than zero */
+    def is_positive(): decimal {
+        return secs > 0 || (secs == 0 && nano_part > 0);
+    }
+
+    // ------------------------------------------------------------------
+    //  arithmetic (each returns a new duration)
+    // ------------------------------------------------------------------
+
+    /** this duration plus `other` */
+    def plus(other: duration): duration {
+        return of_seconds(secs + other.secs, nano_part + other.nano_part);
+    }
+
+    /** this duration minus `other` */
+    def minus(other: duration): duration {
+        return of_seconds(secs - other.secs, nano_part - other.nano_part);
+    }
+
+    def plus_days(days: decimal): duration { return plus(of_days(days)); }
+    def plus_hours(hours: decimal): duration { return plus(of_hours(hours)); }
+    def plus_minutes(minutes: decimal): duration { return plus(of_minutes(minutes)); }
+    def plus_seconds(seconds: decimal): duration { return plus(of_seconds(seconds)); }
+    def plus_millis(millis: decimal): duration { return plus(of_millis(millis)); }
+    def plus_nanos(nanos: decimal): duration { return plus(of_nanos(nanos)); }
+
+    /**
+     * This duration `factor` times. `factor` must be a whole number (it may
+     * be negative). The nanosecond part is multiplied on its own, which is
+     * exact as long as the factor is below 9,000,000 in size
+     * (999,999,999 * 9,000,000 is still under 2^53).
+     *
+     * @throws date_time_exception when `factor` is not a whole number
+     */
+    def multiplied_by(factor: decimal): duration {
+        time_math.check_whole("factor", factor);
+        return of_seconds(secs * factor, nano_part * factor);
+    }
+
+    /**
+     * This duration divided into `divisor` equal parts, rounded DOWN to the
+     * nanosecond. `divisor` must be a whole number that is not 0.
+     *
+     * Method (long division in two steps so nothing leaves the exact range):
+     *     q   = floor(seconds / divisor)           whole seconds of the answer
+     *     rem = seconds - q * divisor              0 .. divisor-1 seconds left over
+     *     nanos of the answer = floor((rem * 1e9 + nanos) / divisor)
+     * `rem * 1e9` is exact while the divisor is below 9,000,000 in size.
+     *
+     * @throws date_time_exception when `divisor` is 0 or not a whole number
+     */
+    def divided_by(divisor: decimal): duration {
+        time_math.check_whole("divisor", divisor);
+        if(divisor == 0) {
+            throw new date_time_exception("cannot divide a duration by zero");
+        }
+        if(divisor < 0) {
+            return negated().divided_by(0 - divisor);
+        }
+        q : decimal = time_math.floor_div(secs, divisor);
+        rem : decimal = secs - q * divisor;
+        left_over_nanos : decimal = rem * nanos_per_second + nano_part;
+        return new duration(q, time_math.floor_div(left_over_nanos, divisor));
+    }
+
+    /**
+     * How many times `other` fits into this duration, as a number with a
+     * fraction: 90 min / 1 h == 1.5. The two durations are turned into
+     * fractional seconds first, so the result has ordinary `decimal` precision
+     * (15-16 digits).
+     *
+     * @throws date_time_exception when `other` is zero
+     */
+    def divided_by(other: duration): decimal {
+        if(other.is_zero()) {
+            throw new date_time_exception("cannot divide a duration by a zero duration");
+        }
+        return to_fractional_seconds() / other.to_fractional_seconds();
+    }
+
+    /** the same length with the opposite sign */
+    def negated(): duration {
+        return of_seconds(0 - secs, 0 - nano_part);
+    }
+
+    /** the length without its sign */
+    def abs(): duration {
+        if(is_negative()) {
+            return negated();
+        }
+        return self;
+    }
+
+    /** a copy with the whole-seconds part replaced (the nanosecond part is kept) */
+    def with_seconds(seconds: decimal): duration {
+        time_math.check_whole("seconds", seconds);
+        return new duration(seconds, nano_part);
+    }
+
+    /**
+     * A copy with the nanosecond part replaced.
+     * @throws date_time_exception when `nanos` is not 0 .. 999,999,999
+     */
+    def with_nanos(nanos: decimal): duration {
+        time_math.check_range("nanoseconds", nanos, 0, 999999999);
+        return new duration(secs, nanos);
+    }
+
+    // ------------------------------------------------------------------
+    //  operators
+    // ------------------------------------------------------------------
+
+    def operator+(other: duration): duration { return plus(other); }
+    def operator-(other: duration): duration { return minus(other); }
+    def operator*(factor: decimal): duration { return multiplied_by(factor); }
+    def operator/(divisor: decimal): duration { return divided_by(divisor); }
+
+    def operator==(other: duration): decimal { return secs == other.secs && nano_part == other.nano_part; }
+    def operator!=(other: duration): decimal { return secs != other.secs || nano_part != other.nano_part; }
+    def operator<(other: duration): decimal { return compare_to(other) < 0; }
+    def operator<=(other: duration): decimal { return compare_to(other) <= 0; }
+    def operator>(other: duration): decimal { return compare_to(other) > 0; }
+    def operator>=(other: duration): decimal { return compare_to(other) >= 0; }
+
+    /** -1 when this duration is shorter than `other`, 0 when equal, 1 when longer */
+    def compare_to(other: duration): decimal {
+        if(secs != other.secs) {
+            return time_math.compare(secs, other.secs);
+        }
+        return time_math.compare(nano_part, other.nano_part);
+    }
+
+    /** a hash that is the same for equal durations */
+    override def hash(): int {
+        return (secs * 31 + nano_part) % 2147483647;
+    }
+
+    // ------------------------------------------------------------------
+    //  converting to one unit. All to_... functions drop the fraction, i.e.
+    //  they round TOWARDS ZERO: 90 s is 1 minute and -90 s is -1 minute.
+    // ------------------------------------------------------------------
+
+    /** whole days of 24 hours */
+    def to_days(): decimal { return whole_units(seconds_per_day); }
+
+    /** whole hours */
+    def to_hours(): decimal { return whole_units(seconds_per_hour); }
+
+    /** whole minutes */
+    def to_minutes(): decimal { return whole_units(seconds_per_minute); }
+
+    /** whole seconds (unlike `seconds()` this is -0 for -0.5 s, not -1) */
+    def to_seconds(): decimal { return whole_units(1); }
+
+    /** whole milliseconds. Exact while the result is below 2^53 (285,000 years). */
+    def to_millis(): decimal {
+        if(is_negative()) {
+            return 0 - negated().to_millis();
+        }
+        return secs * 1000 + time_math.trunc_div(nano_part, nanos_per_milli);
+    }
+
+    /** whole microseconds. Exact while the result is below 2^53 (285 years). */
+    def to_micros(): decimal {
+        if(is_negative()) {
+            return 0 - negated().to_micros();
+        }
+        return secs * 1000000 + time_math.trunc_div(nano_part, nanos_per_micro);
+    }
+
+    /**
+     * The whole duration in nanoseconds. The result is a `decimal`, so it is
+     * exact only while it is below 2^53 ns (about 104 days); beyond that the
+     * last digits are rounded. Use `seconds()` and `nanos()` to stay exact.
+     */
+    def to_nanos(): decimal {
+        return secs * nanos_per_second + nano_part;
+    }
+
+    /** the duration in seconds with its fraction: 1500 ms -> 1.5 (ordinary `decimal` precision) */
+    def to_fractional_seconds(): decimal {
+        return secs + nano_part / nanos_per_second;
+    }
+
+    /** whole multiples of `unit_seconds` in this duration, rounded towards zero */
+    private def whole_units(unit_seconds: decimal): decimal {
+        if(is_negative()) {
+            return 0 - negated().whole_units(unit_seconds);
+        }
+        return time_math.trunc_div(secs, unit_seconds);
+    }
+
+    // ------------------------------------------------------------------
+    //  the parts of a duration shown as  d h m s . fraction
+    //  They describe the LENGTH (the sign is ignored - ask is_negative()).
+    // ------------------------------------------------------------------
+
+    /** the hours left after taking out the whole days: 0 .. 23 */
+    def hours_part(): decimal { return time_math.trunc_div(abs().secs, seconds_per_hour) % 24; }
+
+    /** the minutes left after taking out the whole hours: 0 .. 59 */
+    def minutes_part(): decimal { return time_math.trunc_div(abs().secs, seconds_per_minute) % 60; }
+
+    /** the seconds left after taking out the whole minutes: 0 .. 59 */
+    def seconds_part(): decimal { return abs().secs % 60; }
+
+    /** the milliseconds left after taking out the whole seconds: 0 .. 999 */
+    def millis_part(): decimal { return time_math.trunc_div(abs().nano_part, nanos_per_milli); }
+
+    /** the nanoseconds left after taking out the whole seconds: 0 .. 999,999,999 */
+    def nanos_part(): decimal { return abs().nano_part; }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * A short readable form with the units d, h, m and s; units that are
+     * zero are left out, the fraction of a second has no trailing zeros:
+     *
+     *     "0s"   "45s"   "1h 2m 3.5s"   "2d 12h"   "0.001s"   "-1h 30m"
+     *
+     * A negative duration is the positive text with one '-' in front.
+     * `duration.parse` reads this form back.
+     */
+    override def to_string(): string? {
+        if(is_zero()) {
+            return "0s";
+        }
+        w := new time_text_writer();
+        d : duration = abs();
+        if(is_negative()) {
+            w.put('-');
+        }
+        days : decimal = d.to_days();
+        first : decimal = 1;
+        if(days > 0) {
+            w.put_number(days).put('d');
+            first = 0;
+        }
+        if(d.hours_part() > 0) {
+            if(!first) { w.put(' '); }
+            w.put_number(d.hours_part()).put('h');
+            first = 0;
+        }
+        if(d.minutes_part() > 0) {
+            if(!first) { w.put(' '); }
+            w.put_number(d.minutes_part()).put('m');
+            first = 0;
+        }
+        if(d.seconds_part() > 0 || d.nano_part > 0) {
+            if(!first) { w.put(' '); }
+            w.put_number(d.seconds_part());
+            if(d.nano_part > 0) {
+                w.put('.').put_fraction(d.nano_part, 0);
+            }
+            w.put('s');
+        }
+        return w.text();
+    }
+
+    /**
+     * The ISO-8601 form used by java.time and kotlin: `PT` followed by hours,
+     * minutes and seconds, each left out when zero. Days are not used (48
+     * hours is "PT48H"). The fraction has no trailing zeros.
+     *
+     *     "PT0S"   "PT45S"   "PT1H2M3.5S"   "PT48H"   "PT0.001S"
+     *
+     * For a negative duration every part carries its own '-', as java.time
+     * prints it: -90 minutes is "PT-1H-30M", -0.5 s is "PT-0.5S".
+     */
+    def to_iso_string(): string {
+        if(is_zero()) {
+            return "PT0S";
+        }
+        w := new time_text_writer();
+        d : duration = abs();
+        negative : decimal = is_negative();
+        w.put('P').put('T');
+        hours : decimal = d.to_hours();
+        if(hours > 0) {
+            if(negative) { w.put('-'); }
+            w.put_number(hours).put('H');
+        }
+        if(d.minutes_part() > 0) {
+            if(negative) { w.put('-'); }
+            w.put_number(d.minutes_part()).put('M');
+        }
+        if(d.seconds_part() > 0 || d.nano_part > 0) {
+            if(negative) { w.put('-'); }
+            w.put_number(d.seconds_part());
+            if(d.nano_part > 0) {
+                w.put('.').put_fraction(d.nano_part, 0);
+            }
+            w.put('S');
+        }
+        return w.text();
+    }
+
+    /**
+     * Reads a duration from text. Two forms are understood, upper and lower
+     * case alike:
+     *
+     * 1. ISO-8601, what `to_iso_string` writes: `[-+]P[nD][T[nH][nM][n[.f]S]]`
+     *        "PT1H2M3.5S"  "P2DT12H"  "PT-1H-30M"  "-PT1H30M"  "PT0.001S"
+     *    A sign before the P negates the whole value; each number may also
+     *    have its own sign. A day is 24 hours. At least one part must be
+     *    present. The fraction (after '.' or ',') may have 1-9 digits and is
+     *    only allowed on the seconds.
+     *
+     * 2. The readable form, what `to_string` writes: numbers followed by a
+     *    unit, separated by optional spaces, with an optional leading '-':
+     *        "1h 2m 3.5s"  "2d 12h"  "-1h 30m"  "250ms"  "10us"  "5ns"  "0s"
+     *    Units: d, h, m, s, ms, us, ns. Only `s` may have a fraction.
+     *
+     * @throws date_time_exception when the text is neither form
+     */
+    static def parse(text: string): duration {
+        r := new time_text_reader(text, "duration");
+        negative : decimal = 0;
+        if(r.accept('-')) {
+            negative = 1;
+        } else {
+            r.accept('+');
+        }
+
+        result : duration = zero;
+        if(r.accept_ignore_case('P')) {
+            result = parse_iso(r);
+        } else {
+            result = parse_readable(r);
+        }
+        r.expect_end();
+        if(negative) {
+            return result.negated();
+        }
+        return result;
+    }
+
+    /** the part of an ISO duration after the 'P' */
+    private static def parse_iso(r: time_text_reader): duration {
+        total : duration = zero;
+        parts : decimal = 0;
+        in_time : decimal = 0;
+        // 0 = nothing yet, 1 = days seen, 2 = hours, 3 = minutes, 4 = seconds: units must come in order
+        last_unit : decimal = 0;
+
+        while(!r.at_end()) {
+            if(!in_time && r.accept_ignore_case('T')) {
+                in_time = 1;
+                if(r.at_end()) {
+                    throw r.failure("expected a number after 'T'");
+                }
+                continue;
+            }
+
+            sign : decimal = 1;
+            if(r.accept('-')) {
+                sign = 0 - 1;
+            } else {
+                r.accept('+');
+            }
+            amount : decimal = r.read_digits(1, 15);
+            nanos : decimal = 0;
+            has_fraction : decimal = 0;
+            if(r.accept('.') || r.accept(',')) {
+                nanos = r.read_fraction_as_nanos(1, 9);
+                has_fraction = 1;
+            }
+
+            unit : decimal = time_text_reader.lower(r.next());
+            part : duration = zero;
+            order : decimal = 0;
+            if(unit == 'd' && !in_time) {
+                part = of_days(amount);
+                order = 1;
+            } else if(unit == 'h' && in_time) {
+                part = of_hours(amount);
+                order = 2;
+            } else if(unit == 'm' && in_time) {
+                part = of_minutes(amount);
+                order = 3;
+            } else if(unit == 's' && in_time) {
+                part = of_seconds(amount, nanos);
+                order = 4;
+            } else {
+                r.seek(r.index() - 1);
+                throw r.failure("unknown or misplaced unit");
+            }
+            if(has_fraction && order != 4) {
+                r.seek(r.index() - 1);
+                throw r.failure("only seconds may have a fraction");
+            }
+            if(order <= last_unit) {
+                r.seek(r.index() - 1);
+                throw r.failure("units must appear once and in the order D, H, M, S");
+            }
+            last_unit = order;
+            if(sign < 0) {
+                part = part.negated();
+            }
+            total = total.plus(part);
+            parts++;
+        }
+
+        if(parts == 0) {
+            throw r.failure("expected at least one of D, H, M, S");
+        }
+        return total;
+    }
+
+    /** the readable form: "1h 2m 3.5s" (the leading sign is already consumed) */
+    private static def parse_readable(r: time_text_reader): duration {
+        total : duration = zero;
+        parts : decimal = 0;
+
+        while(!r.at_end()) {
+            while(r.accept(' ')) { }
+            if(r.at_end()) {
+                break;
+            }
+
+            amount : decimal = r.read_digits(1, 15);
+            nanos : decimal = 0;
+            has_fraction : decimal = 0;
+            if(r.accept('.')) {
+                nanos = r.read_fraction_as_nanos(1, 9);
+                has_fraction = 1;
+            }
+
+            unit : decimal = time_text_reader.lower(r.next());
+            second : decimal = time_text_reader.lower(r.peek());
+            part : duration = zero;
+            fraction_allowed : decimal = 0;
+            if(unit == 'm' && second == 's') {
+                r.next();
+                part = of_millis(amount);
+            } else if(unit == 'u' && second == 's') {
+                r.next();
+                part = of_micros(amount);
+            } else if(unit == 'n' && second == 's') {
+                r.next();
+                part = of_nanos(amount);
+            } else if(unit == 'd') {
+                part = of_days(amount);
+            } else if(unit == 'h') {
+                part = of_hours(amount);
+            } else if(unit == 'm') {
+                part = of_minutes(amount);
+            } else if(unit == 's') {
+                part = of_seconds(amount, nanos);
+                fraction_allowed = 1;
+            } else {
+                r.seek(r.index() - 1);
+                throw r.failure("unknown unit (use d, h, m, s, ms, us or ns)");
+            }
+            if(has_fraction && !fraction_allowed) {
+                r.seek(r.index() - 1);
+                throw r.failure("only seconds may have a fraction");
+            }
+            total = total.plus(part);
+            parts++;
+        }
+
+        if(parts == 0) {
+            throw r.failure("expected a number and a unit");
+        }
+        return total;
+    }
+}

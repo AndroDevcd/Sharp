@@ -1,0 +1,144 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * text_buffer
+ *
+ * A small, fast buffer for building a string character by character. It is
+ * what the classes of std.text use internally (number_format, regex,
+ * template, text_wrap ...), and it can be used directly wherever text is
+ * produced in a loop:
+ *
+ *     out := new text_buffer();
+ *     for(i : decimal = 0; i < n; i++) {
+ *         out.append_char('a' + i);
+ *     }
+ *     out.append(" done");
+ *     text := out.build();
+ *
+ * Compared with std#string_builder it is deliberately minimal: it only
+ * appends at the end (plus drop_last and clear), and everything is native
+ * numbers - characters, positions and lengths are `decimal`, so no number objects
+ * are created while building. For inserting, deleting or searching inside
+ * the text use string_builder.
+ *
+ * The buffer grows by doubling, so appending n characters costs about n
+ * copies in total (a `+=` on a string copies the whole string every time).
+ * Every append returns the buffer itself, so calls can be chained.
+ * A text_buffer must not be shared between threads without a lock.
+ */
+class text_buffer {
+    /* the characters; only the first `used` of them are text, the rest is spare room */
+    data : _int8[]? = null;
+        private set value -> { data = value; }
+
+    /* the number of characters of text */
+    private used : decimal = 0;
+
+    /* size of the array a buffer starts with */
+    private static const start_capacity : decimal = 32;
+
+    /** An empty buffer. */
+    text_buffer() {
+        data = new _int8[start_capacity];
+    }
+
+    /** An empty buffer with room for `capacity` characters before it has to grow (at least 1 is reserved). */
+    text_buffer(capacity: int) {
+        data = new _int8[capacity.value > 0 ? capacity.value : 1];
+    }
+
+    /** Makes sure `extra` more characters fit, at least doubling the array when it has to grow. */
+    private def reserve(extra: decimal) {
+        needed : decimal = used + extra;
+        if(needed > sizeof(data)) {
+            bigger : decimal = sizeof(data) * 2;
+            if(bigger < needed) bigger = needed;
+            realloc(data!!, bigger);
+        }
+    }
+
+    /** Appends one character, given as a native number or a character literal. Returns this buffer. */
+    def append_char(c: decimal): text_buffer {
+        if(used >= sizeof(data)) reserve(1);
+        data[used++] = c;
+        return self;
+    }
+
+    /** Appends the text of `text` (nothing if it is empty). Returns this buffer. */
+    def append(text: string): text_buffer {
+        len : decimal = sizeof(text.data);
+        if(len > 0) {
+            reserve(len);
+            memcopy(text.data!!, data!!, used, 0, len);
+            used += len;
+        }
+        return self;
+    }
+
+    /** Appends the character `c` `count` times (nothing for a count of 0 or less). Returns this buffer. */
+    def append_repeat(c: decimal, count: decimal): text_buffer {
+        if(count > 0) {
+            reserve(count);
+            for(i : decimal = 0; i < count; i++) {
+                data[used++] = c;
+            }
+        }
+        return self;
+    }
+
+    /** The number of characters appended so far. */
+    def length(): decimal {
+        return used;
+    }
+
+    /** 1 if nothing has been appended (or everything was cleared). */
+    def is_empty(): decimal {
+        return used == 0;
+    }
+
+    /**
+     * The character at `index` (0 = first), or -1 if index is outside of the
+     * text. Never throws.
+     */
+    def char_at(index: decimal): decimal {
+        if(index < 0 || index >= used) return -1;
+        return data[index];
+    }
+
+    /** The last character, or -1 if the buffer is empty. */
+    def last(): decimal {
+        if(used == 0) return -1;
+        return data[used - 1];
+    }
+
+    /** Removes the last character (does nothing if the buffer is empty). Returns this buffer. */
+    def drop_last(): text_buffer {
+        if(used > 0) used--;
+        return self;
+    }
+
+    /** Makes sure the buffer can hold `capacity` characters in total without growing again. Returns this buffer. */
+    def ensure_capacity(capacity: decimal): text_buffer {
+        if(capacity > used) reserve(capacity - used);
+        return self;
+    }
+
+    /** Removes all text. The array is kept, so the buffer can be filled again without allocating. */
+    def clear(): text_buffer {
+        used = 0;
+        return self;
+    }
+
+    /** The text as a new string ("" if the buffer is empty). The buffer can be used further. */
+    def build(): string {
+        if(used == 0) return new string();
+        return new string(data!!, 0, used);
+    }
+
+    /** Same as build(), so a buffer can be printed directly. */
+    override def to_string() : string? {
+        return build();
+    }
+}

@@ -1,0 +1,45 @@
+// expect: E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100
+//
+// Habits of other languages that the parser translates (frontend/syntax/
+// parser/habits.sharp). Each gets ONE message with the Sharp spelling, and
+// the parser reads on as if that had been written: no follow-on error, and
+// the line after each mistake is read normally. The last lines are correct
+// code that looks like a habit and must not be taken for one.
+mod tests.fail;
+import (std.io);
+
+int add(int a, int b) { return a + b; }
+function greet() { println("hi"); }
+class shape { }
+class circle extends shape { }
+interface drawable { }
+class square implements drawable { }
+class both base shape base drawable { }
+class dot base shape { dot() -> super() { } }
+def give(s: string) : string := s;
+
+def main() {
+    x := 1;
+    if(x == 1 and x == 2) { }
+    if(not x) { }
+    if(x === 1) { }
+    x &&= 0;
+    o : object = x;
+    y := o instanceof string;
+    z := (_int64) x;
+    w : string? = nil;
+    v : _int64 = 0; get { return 1; }
+    q := new nil[3];
+    for(item in items) { }
+    foreach(i in 0..10) { }
+    for(j in 1..<x) { }
+
+    // not habits: a call through parentheses, a subtraction, a variable called `and`, dots that are
+    // not a range, a C `for`
+    r := (f)(x);
+    s := (x) - 1;
+    and := 2;
+    t := and + 1;
+    foreach(k in shapes.all(0.5)) { }
+    for(m := 0; m < 2; m++) { }
+}

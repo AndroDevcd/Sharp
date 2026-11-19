@@ -1,0 +1,27 @@
+mod main;
+
+/*
+ * THE PROBE of tests/kindcheck.sh: a program that is WRONG on purpose, to
+ * prove the kind-check runtime is awake before its silence is believed.
+ *
+ * The `asm` block reads a decimal local into a register and adds it with the
+ * whole-number instruction - the mistake a code generator makes when it
+ * mixes up the kind of a slot. Code generation takes an asm block as written,
+ * so the program builds. On a runtime built with -DSHARP_TYPE_CHECK it must
+ * print
+ *
+ *      [type check] main#__srt_global.main pc 5 (opcode 0x10): register ebx holds a decimal, an integer is needed
+ *
+ * If it does not, the runtime kindcheck.sh was given is not a kind-check
+ * runtime, and "no report" from it would mean nothing.
+ */
+def main() {
+    d : decimal = 2.5;
+    asm {
+        loadl ebx, [d]
+        add ebx, ebx, ebx
+        put ebx
+        movi ebx, 10
+        putc ebx
+    }
+}

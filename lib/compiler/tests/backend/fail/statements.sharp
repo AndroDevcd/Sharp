@@ -1,0 +1,102 @@
+// expect: E0606 E0607 E0606 E0606 E0606 E0410 E0410 E0720 E0406 E0612 E0612 E0612 E0612 E0613 E0613 E0613 E0614 W1019 E0615 E0615 E0406 E0609 E0609 E0609 E0610 E0610 E0610 E0609 E0400 E0616 E0616 W1020 E0411 E0411 E0406 E0619 E0619 E0411 E0411 E0411 E0411 W1028 E0600 E0600 E0600 E0600 E0600 E0617 E0600 E0400 E0400 E0410 E0406 W1018 W1018 W1018 E0920 E0921 E0922 E0923 E0923 E0920 E0922 E0926 E0411 E0612 E0609 E0410
+mod app;
+
+/*
+ * The mistakes the statements stage reports, one per line (each checked
+ * against the C++ compiler, which rejects the same line - except where the
+ * comment says otherwise).
+ */
+
+class not_thrown { }
+class oops base exception { oops() -> base("oops") { } }
+class plain { }
+def nothing() { }
+
+// ---- return
+def r1() { return 5; }                                      // E0606
+def r2() : _int64 { return; }                               // E0607
+class maker { maker() { return 1; } }                       // E0606 a constructor returns nothing
+class starter { init { return 1; } }                        // E0606 nor does an init block
+class kept { size : _int64 = 0; set v -> { return 1; } }    // E0606 nor a setter
+class shown { size : _int64 = 0; get { return "big"; } }    // E0410 a getter returns what its field holds
+def r3() : plain { return new not_thrown(); }               // E0410
+def r4() : plain { return null; }                           // E0720
+def r5() : _int64 { return nothing(); }                     // E0406
+
+// ---- throw, catch
+def t1() { throw new not_thrown(); }                        // E0612
+def t2() { throw "disk full"; }                             // E0612
+def t8() { throw 5; }                                       // E0612
+def t9() { throw null; }                                    // E0612
+def t3() { try { } catch(e: not_thrown) { } }               // E0613
+def t4() { try { } catch(oops[]) { } }                      // E0613
+def t5() { try { } catch(e: _int64) { } }                   // E0613
+def t6() { try { } catch(e: oops) { } catch(e2: oops) { } }    // E0614
+def t7() { try { } catch(e: exception) { } catch(e2: oops) { } }    // W1019 (C++: nothing)
+
+// ---- lock
+def k1() { n : _int64 = 1; lock(n) { } }                    // E0615
+def k2() { lock(null) { } }                                 // E0615
+def k3() { lock(nothing()) { } }                            // E0406
+
+// ---- foreach
+def f1() { n : _int64 = 1; foreach(x in n) { } }            // E0609
+def f2() { o := new plain(); foreach(x in o) { } }          // E0609
+def f3() { x : object = new plain(); foreach(y in x) { } }  // E0609
+def f4() { a := new string[3]; foreach(x: _int64 in a) { } }    // E0610
+def f5() { a := new _int64[3]; foreach(x: _int64[] in a) { } }  // E0610
+def f6() { l := new list<string>(); foreach(x: plain in l) { } }    // E0610
+def f7() { foreach(x in null) { } }                         // E0609
+def f8() { foreach(x in new _int64[2]) { } x = 1; }         // E0400 the variable is gone after the loop
+
+// ---- when, conditions
+def w1() { n : _int64 = 1; when(n) { "a" -> { } } }         // E0616
+def w2() { o := new plain(); when(o) { 5 -> { } } }         // E0616
+def w3() { n : _int64 = 1; when(n) { 1 -> { } 2, 1 -> { } } }  // W1020 (C++: nothing)
+def w4() { when { "x" -> { } } }                            // E0411
+def c1() { o := new plain(); while(o) { } }                 // E0411
+def w5() { when(nothing()) { 1 -> { } } }                   // E0406
+def w6(n: _int64) { when(n) { else -> { } 1 -> { } } }      // E0619 (C++: the parser refuses it)
+def w7(n: _int64) { when(n) { 1 -> { } else -> { } else -> { } } }  // E0619 (C++: the parser refuses it)
+def c2() { o := new plain(); do { } while(o); }             // E0411
+def c3() { o := new plain(); for(; o;) { } }                // E0411
+def c4() { i := 5; if(i) { } }                              // E0411 of the number classes only bool is a condition
+def c5() { if(true) { } else if("s") { } }                  // E0411
+def c6() { b : boolean? = null; if(b) { } }                    // W1028 (C++: nothing)
+
+// ---- names: a second local, a second alias
+def n1(p: _int64) { p : _int64 = 2; }                       // E0600
+def n2() { a : _int64 = 1; { a : _int64 = 2; } }            // E0600
+def n3() { a : _int64 = 1; foreach(a in new _int64[2]) { } }    // E0600
+def n4() { a : _int64 = 1; try { } catch(a: oops) { } }     // E0600
+def n5() { alias string as s; alias _int64 as s; }          // E0600
+def n6() { inject x : string = "a"; }                       // E0617
+def n7() { a : _int64 = 1, a = 2; }                         // E0600
+def n8() { for(i : _int64 = 0; i < 2; i++) { } i = 1; }     // E0400 the variable is gone after the loop
+def n9() { if(true) x := 1; x = 2; }                        // E0400 one statement is a scope of its own
+def n10() { x : _int64 = "a"; }                             // E0410
+def n11() { x := nothing(); }                               // E0406
+
+// ---- expression statements that do nothing (C++: nothing)
+def e1() { x : _int64 = 1; x + 1; }                         // W1018
+def e2() { nothing; }                                       // W1018
+def e3() { for(i : _int64 = 0; i < 3; i + 1) { } }          // W1018 the step of a for
+
+// ---- asm
+def a1() { asm { movi ebx, [nowhere] } }                    // E0920
+def a2() { asm { .here: .here: nop } }                      // E0921 (C++: nothing)
+def a3() { asm { jmp @nowhere } }                           // E0922 (C++: nothing)
+def a4() { asm { movi ebx, $_int64 } }                      // E0923
+def a5() { asm { movi ebx, $plain[nowhere] } }              // E0923
+def a6() { count : _int64 = 0; asm { movi ebx, [coutn] } }  // E0920 did you mean `count`?
+def a7() { asm { .again: nop jmp @agian } }                 // E0922 did you mean `again`? (C++: nothing)
+def a8() { asm { movi ebx, 5000000000 } }                   // E0926 wider than 32 bits (C++: cut to 705032704)
+
+
+// ---- a function NAME used where a statement needs a value (its type is a function type now)
+def fv1() { if(nothing) { } }                                 // E0411
+def fv2() { throw nothing; }                                 // E0612
+def fv3() { foreach(x in nothing) { } }                      // E0609
+def fv4() { x : _int64 = nothing; }                          // E0410
+
+def main() { }

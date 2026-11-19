@@ -1,0 +1,283 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * CATALOGUE  -  an app with several screens.
+ *
+ *   three tabs       Grid      cards in a grid that refits itself to the window; click one to open it
+ *   (the bar at      List      five thousand rows in a lazy list (only the visible ones are built)
+ *    the bottom)     Settings  radio buttons, a dropdown, tags that wrap, a theme switch
+ *   item screen      opened on top of a tab; "Back" (or Escape) returns, and the tab is
+ *                    exactly as it was left. The tab bar hides while it is open.
+ *
+ * What to look at in the code:
+ *   - ROUTES: one small class per screen, extending `route`; its fields are what the screen needs;
+ *   - THE SCREEN LIST: catalogue_app.build() lists every screen in one place - tab<...>(...) for the
+ *     top-level ones, screen<...>() for the rest;
+ *   - going somewhere is nav.go(to_item(7)): a screen never needs to know another screen;
+ *   - each tab keeps its own back stack: open an item from the grid, switch to List, switch back -
+ *     the item is still open;
+ *   - what a widget's box looks like is always a modifier passed in;
+ *   - the dialog exists while its state is 1; nothing "shows" or "hides" it.
+ */
+
+/** seconds since the program started: counted by a timer in main, shown in the bar of the tabs */
+uptime := gui.state(0);
+
+/** grid spacing, chosen in Settings and used by Grid: a state outside any screen, because two screens share it */
+density := gui.state(1);
+
+/** a colour for item number n: the same n always gives the same colour */
+def tint_of(n: _int64) : color {
+    return rgb(70 + (n * 53) % 150, 80 + (n * 29) % 130, 110 + (n * 71) % 120);
+}
+
+// ============================================================================ the routes: where the app can go
+
+class to_grid base route { }
+class to_list base route { }
+class to_settings base route { }
+
+/** one item, opened on top of whichever tab asked for it */
+class to_item base route {
+    number : _int64;
+    to_item(n: _int64) { number = n; }
+}
+
+// ============================================================================ the app: its screens, in one list
+
+class catalogue_app base composable {
+    nav : navigator = navigator();
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            screens(nav, to_grid(), modifier().grow(1).fill_width()) {
+                tab<to_grid>("Grid")         { grid_screen(nav); };
+                tab<to_list>("List")         { list_screen(nav); };
+                tab<to_settings>("Settings") { settings_screen(); };
+                screen<to_item>()            { item_screen(nav, it.number); };
+            };
+            nav_bar(nav);
+        };
+    }
+}
+
+/** the bar across the top of every tab: the title, and how long the app has been running */
+def tab_header(title: string) {
+    row(modifier().fill_width().padding(16, 12)) {
+        text(title).size(20).bold();
+        spacer();
+        text("running " + uptime.value + " s").dim();
+    };
+}
+
+// ============================================================================ tab 1: the grid
+
+class grid_screen base composable {
+    nav : navigator;
+
+    grid_screen(n: navigator) {
+        nav = n;
+    }
+
+    override def build() : element {
+        t := gui.current_theme();
+        gap_between : decimal = 12;
+        if(density.value == 0) { gap_between = 6; }
+        if(density.value == 2) { gap_between = 20; }
+
+        // cards in a grid: as many columns as fit, each at least 170 wide
+        return column(modifier().fill()) {
+            tab_header("Catalogue");
+            scroll(modifier().grow(1).fill_width()) {
+                grid_fit(170, modifier().fill_width().padding(16)) {
+                    for(i : _int64 = 1; i <= 24; i++) {
+                        product_card(i, t);
+                    }
+                }.gap(gap_between);
+            };
+        };
+    }
+
+    /** one card: a coloured picture area with a fixed shape, and two lines of text; the whole card is clickable */
+    def product_card(n: _int64, t: theme) {
+        card := modifier().background(t.surface).corner(10).shadow(6).click { nav.go(to_item(n)); };
+        column(card) {
+            // a 4:3 picture area, whatever width the grid gives the card
+            stack(modifier().fill_width().aspect(4.0 / 3).background(tint_of(n)).corner(10)) {
+                text("#" + n, modifier().place(ALIGN_END, ALIGN_END).margin(8)).bold();
+            };
+            column(modifier().padding(10)) {
+                text("Item " + n).bold().max_lines(1);
+                text("a short description that may need more room than there is").dim().size(13).max_lines(2);
+            }.gap(2);
+        };
+    }
+
+}
+
+// ============================================================================ tab 2: the list
+
+class list_screen base composable {
+    nav : navigator;
+
+    list_screen(n: navigator) {
+        nav = n;
+    }
+
+    /** five thousand rows; only the ones in view exist */
+    override def build() : element {
+        return column(modifier().fill()) {
+            tab_header("All items");
+            lazy_column(modifier().grow(1).fill_width().padding(16, 8)) {
+                item {
+                    text("5000 rows, built only as they scroll into view").dim();
+                }
+                items(5000) { i: _int64 ->
+                    list_row(i + 1);
+                }
+            }.gap(6);
+        };
+    }
+
+    def list_row(n: _int64) {
+        t := gui.current_theme();
+        line := modifier().fill_width().padding(12, 10).background(t.surface).corner(8).click { nav.go(to_item(n)); };
+        row(line) {
+            stack(modifier().size(28, 28).background(tint_of(n)).corner(14)) { };
+            text("Row " + n, modifier().grow(1));
+            text("open").dim();
+        }.gap(12);
+    }
+
+}
+
+// ============================================================================ tab 3: settings
+
+class settings_screen base composable {
+    sort_by := state(0);            // a dropdown
+    about := state(0);              // is the "about" dialog open
+
+    override def build() : element {
+        t := gui.current_theme();
+        card := modifier().fill_width().padding(16).background(t.surface).corner(10);
+
+        return column(modifier().fill()) {
+            tab_header("Settings");
+            settings_list(card);
+
+            dialog(about) {
+                text("Catalogue").size(20).bold();
+                text("An example of a Sharp GUI app with several screens. Click outside this box, or press Escape, to close it.");
+                row(modifier().fill_width()) {
+                    spacer();
+                    button("Close") { about.value = 0; };
+                };
+            };
+        };
+    }
+
+    def settings_list(card: modifier) {
+        scroll(modifier().grow(1).fill_width()) {
+            column(modifier().fill_width().padding(16)) {
+                column(card) {
+                    text("Grid spacing").bold();
+                    radio("Compact", density, 0);
+                    radio("Normal", density, 1);
+                    radio("Roomy", density, 2);
+                }.gap(8);
+
+                column(card) {
+                    text("Sort by").bold();
+                    dropdown(sort_by, modifier().width(220)) {
+                        option("Name");
+                        option("Price, low to high");
+                        option("Price, high to low");
+                        option("Newest first");
+                    };
+                    text("chosen: option " + sort_by.value).dim();
+                }.gap(8);
+
+                column(card) {
+                    text("Tags (they wrap to the width)").bold();
+                    wrap {
+                        tag("kitchen"); tag("outdoor"); tag("new"); tag("on sale"); tag("handmade");
+                        tag("gift idea"); tag("limited"); tag("eco"); tag("best seller"); tag("clearance");
+                    }.gap(8);
+                }.gap(8);
+
+                row(modifier().fill_width()) {
+                    button("Light theme") { gui.use_theme(theme.light()); }.outline();
+                    button("Dark theme") { gui.use_theme(theme.dark()); }.outline();
+                    spacer();
+                    button("About") { about.value = 1; };
+                }.gap(8);
+            }.gap(12);
+        };
+    }
+
+    def tag(words: string) {
+        t := gui.current_theme();
+        text(words, modifier().padding(10, 5).background(t.surface_high).corner(12)).size(13);
+    }
+}
+
+// ============================================================================ the item screen
+
+class item_screen base composable {
+    nav : navigator;
+    number : _int64;
+    wanted := state(1);             // how many
+    confirm := state(0);            // is the "added" dialog open
+
+    item_screen(n: navigator, which: _int64) {
+        nav = n;
+        number = which;
+    }
+
+    override def build() : element {
+        t := gui.current_theme();
+
+        return column(modifier().fill()) {
+            top_bar("Item " + number, nav);
+
+            row(modifier().grow(1).fill_width().padding(16)) {
+                stack(modifier().width_part(0.4).aspect(1).background(tint_of(number)).corner(12).shadow(8).align(ALIGN_START)) { };
+
+                column(modifier().grow(1)) {
+                    text("Item " + number).size(26).bold();
+                    text("This screen was opened on top of a tab. Go back and you will find the tab as you left it: the same scroll position.").dim();
+
+                    row {
+                        button("-") { if(wanted.value > 1) { wanted.value -= 1; } }.outline();
+                        text("" + wanted.value, modifier().width(36)).align(ALIGN_CENTER).bold();
+                        button("+") { wanted.value += 1; }.outline();
+                    }.gap(8);
+
+                    row {
+                        button("Add to basket") { confirm.value = 1; };
+                        button("Next item") { nav.go(to_item(number + 1)); }.plain();
+                        button("Back to the tab") { nav.reset(); }.plain();
+                    }.gap(8);
+                }.gap(14);
+            }.gap(24).align(ALIGN_START);
+
+            dialog(confirm) {
+                text("Added").size(20).bold();
+                text("" + wanted.value + " of item " + number + " are in the basket.");
+                row(modifier().fill_width()) {
+                    spacer();
+                    button("OK") { confirm.value = 0; };
+                };
+            };
+        };
+    }
+}
+
+def main() {
+    gui.every(1) { uptime.value += 1; };
+    gui.run("Sharp GUI - catalogue", 920, 640, catalogue_app());
+}

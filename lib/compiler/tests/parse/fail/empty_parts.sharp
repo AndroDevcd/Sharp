@@ -1,0 +1,19 @@
+// expect: E0100 E0100 E0100 E0100 E0100 E0100
+//
+// Parts that may not be empty (each line is refused by the C++ parser too):
+// a `when` with no clause, a `when` with only an `else`, a `when` without a
+// subject and without a clause; a `;` standing alone in a class - alone, after
+// a function, and after a field's own `;`.
+mod tests.fail;
+
+def main(args: string[]) {
+    n := 1;
+    when(n) { }
+    when(n) { else -> { } }
+    when { }
+    when(n) { 1 -> { } else -> { } }
+}
+
+class lone { ; }
+class after_function { def f() { }; }
+class after_field { n : _int64 = 0;; }

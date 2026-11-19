@@ -1,0 +1,117 @@
+// expect: E0350 E0353 E0353 E0353 E0354 E0355 E0356 E0356 E0357 E0351 E0351 E0350 E0354 E0352 E0355 E0342 E0342 E0342 E0341 E0343 E0332 E0331 E0325 E0351 E0368 E0368 E0323 E0320 E0321 E0322 E0324 E0342
+mod generic_mistakes;
+
+import ( std.io )
+
+class box<T> { item : T; }
+class shape { }
+class circle base shape { }
+class only_shapes<S base shape> { held : S; }
+alias box<string> as text_box;
+alias int[] as row;
+
+// ---- what is wrong with a use, whatever the type arguments are
+a : box<int, int>?;                     // E0350  two arguments for one parameter
+b : string<int>?;                       // E0353  string is not generic
+c : text_box<int>?;                     // E0353  neither is an alias
+class d<T> { x : T<int>?; }             // E0353  nor a type parameter
+e : box?;                               // E0354  which box?
+f : _int64?;                            // E0355  a plain number is never null
+g : string??;                           // E0356  nullable items, but no array
+h : _int64[]??;                         // E0356  nullable items of numbers
+i : row[]?;                             // E0357  an array of arrays, through an alias
+
+// ---- constraints
+j : only_shapes<string>?;               // E0351  string is not a shape
+k : only_shapes<_int64>?;               // E0351  a number is not a shape
+l : only_shapes<circle>?;               // fine: a class below shape
+
+// ---- inside a blueprint that is never used: still checked
+class unused<T> {
+    m : box<T, T>?;                     // E0350
+    n : list?;                          // E0354
+    o : unused?;                        // fine: its own name
+}
+
+// ---- mistakes that only an instance shows
+class endless<T> { deeper : endless<endless<T> >?; }
+p : endless<int>?;                      // E0352  an instance of an instance of ...
+
+class optional<T> { value : T?; }
+q : optional<string>?;                  // fine
+r : optional<_int64>?;                  // E0355  T? with T a number
+
+// ---- overriding compared with the real types
+interface comparable_to<T> { def compare(other: T) : int; }
+class holder<T> : comparable_to<T> {
+    override def compare(other: T) : int { return 0; }
+}
+class wrong base holder<string> {
+    override def compare(other: int) : int { return 0; }       // E0342  holder<string> has compare(string)
+}
+
+class needs<T> : comparable_to<T> {
+    override def compare(other: string) : int { return 0; }
+}
+s : needs<string>?;                     // fine: compare(string) is what comparable_to<string> asks for
+t : needs<int>?;                        // E0342  not what comparable_to<int> asks for
+
+interface ordered<T> base comparable_to<T> { def before(other: T) : int; }
+class version : ordered<version> {
+    override def before(other: version) : int { return 0; }
+    override def compare(other: version) : int { return 0; }
+}
+class half_done<T> : ordered<T> {
+    override def before(other: T) : int { return 0; }
+    override def compare(other: version) : int { return 0; }
+}
+u : half_done<version>?;                // fine
+v : half_done<int>?;                    // E0342 for compare(version) - and nothing else for the same mistake
+
+class nothing_done base holder<int> : comparable_to<string> { }    // E0341  compare(string) is missing
+
+interface source_of<T> { def next() : T; }
+class words<U> : source_of<U> {
+    override def next() : string { return ""; }
+}
+w1 : words<string>?;                    // fine
+w2 : words<int>?;                       // E0343  source_of<int> promises an int
+
+// ---- declared twice, but only with these type arguments
+class either<A, B> {
+    either(first: A) { }
+    either(second: B) { }
+    def put(value: A) { }
+    def put(value: B) { }
+}
+x1 : either<int, string>?;              // fine
+x2 : either<int, int>?;                 // E0332 E0331  two constructors and two put(int)
+
+class both<A, B> : comparable_to<A>, comparable_to<B> {
+    override def compare(other: A) : int { return 0; }
+}
+y1 : both<int, int>?;                   // E0325  comparable_to<int> twice (and so one compare is enough)
+
+// ---- a constraint and a type that may be null
+z1 : only_shapes<circle?>?;             // E0351  the class uses its S without asking for null
+
+// ---- a class inside a generic class, named from outside
+class outer<T> { class inner { held : T; } }
+class stranger { lost : outer.inner?; }                 // E0368  which outer?
+class heir base outer<int> { mine : inner?; }           // E0368  also through the base class
+
+// ---- a type parameter as base class or interface: checked per instance
+enum color { red }
+class mixin<T> base T { }
+class tagged<T> : T { }
+m1 : mixin<_int64>?;                    // E0320  not a class
+m2 : mixin<described_thing>?;           // E0321  an interface
+m3 : mixin<color>?;                     // E0322  an enum
+class loop_back base mixin<loop_back> { }               // E0323  mixin<loop_back> inherits from loop_back, which inherits from it
+m4 : tagged<shape>?;                    // E0324  not an interface
+interface described_thing { def describe() : string; }
+class early<T> base T { override def nothing_like_it() { } }
+m5 : early<shape>?;                     // E0342  shape has nothing to override
+
+def main() {
+}

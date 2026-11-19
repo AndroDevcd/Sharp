@@ -1,0 +1,78 @@
+mod std.math;
+
+/**
+ * Native (unboxed) access to the runtime's math procedures.
+ *
+ * math.sharp wraps the same system call (int 0x18) but takes and returns
+ * `double` OBJECTS, which costs an allocation per call. The functions in the
+ * other files of this module (rounding.sharp, powers.sharp, trigonometry.sharp
+ * ...) work on native `decimal` numbers and go through math_call() instead.
+ *
+ * Procedure numbers (the same table as lib/Modules/math/cmath.cpp):
+ *
+ *     0x00 sin    0x01 cos    0x02 tan    0x03 sinh   0x04 cosh   0x05 tanh
+ *     0x06 asin   0x07 acos   0x08 atan   0x09 atan2(a, b)        0x0a exp
+ *     0x0b log    0x0c log10  0x0d pow(a, b)          0x0e sqrt   0x0f ceil
+ *     0x10 floor  0x11 fabs   0x12 ldexp(a, b)        0x13 fmod(a, b)
+ */
+
+/**
+ * Run math procedure `proc` on `a` (and `b` for the two argument procedures;
+ * pass 0 when the procedure takes one argument) and return the result as a
+ * native number.
+ *
+ * Throws invalid_operation_exception (raised by the runtime) when `proc` is
+ * not one of the numbers in the table above.
+ */
+def math_call(a: decimal, b: decimal, proc: _int64): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [a]
+        loadl egx, [b]
+        loadl ecx, [proc]
+        int 0x18
+        smovr2 [result], cmt
+    }
+
+    return result;
+}
+
+/** sine of an angle in radians, as a native number */
+def sin_of(radians: decimal): decimal { return math_call(radians, 0, 0x0); }
+
+/** cosine of an angle in radians, as a native number */
+def cos_of(radians: decimal): decimal { return math_call(radians, 0, 0x1); }
+
+/** tangent of an angle in radians, as a native number */
+def tan_of(radians: decimal): decimal { return math_call(radians, 0, 0x2); }
+
+/** e raised to the power v, as a native number */
+def exp_of(v: decimal): decimal { return math_call(v, 0, 0xa); }
+
+/**
+ * natural logarithm of v, as a native number.
+ * v == 0 gives negative infinity, v < 0 gives NaN.
+ */
+def ln(v: decimal): decimal { return math_call(v, 0, 0xb); }
+
+/**
+ * base raised to the power exponent, as a native number (the C pow()):
+ * power(2, 10) == 1024, power(2, 0.5) == sqrt(2), power(x, 0) == 1.
+ * A negative base with a fractional exponent gives NaN.
+ */
+def power(base_value: decimal, exponent: decimal): decimal { return math_call(base_value, exponent, 0xd); }
+
+/** square root as a native number; NaN for a negative argument */
+def square_root(v: decimal): decimal { return math_call(v, 0, 0xe); }
+
+/** the largest whole number that is <= v, as a native number: floor_of(-2.5) == -3 */
+def floor_of(v: decimal): decimal { return math_call(v, 0, 0x10); }
+
+/** the smallest whole number that is >= v, as a native number: ceil_of(-2.5) == -2 */
+def ceil_of(v: decimal): decimal { return math_call(v, 0, 0xf); }
+
+/** the distance of v from zero, as a native number: absolute(-3) == 3 */
+def absolute(v: decimal): decimal {
+    if(v < 0) return 0 - v;
+    return v;
+}

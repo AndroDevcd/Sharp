@@ -1,0 +1,192 @@
+mod std;
+
+import ( std.math )
+
+/**
+ * Convenience functions on top of the runtime's random number generator
+ * (the one behind rand(), rand_int() and set_seed() in std/random.sharp).
+ *
+ *     if(rand_bool().value) { ... }           // a coin flip
+ *     roll : decimal = rand_range(1, 6);          // a die: 1 .. 6, both included
+ *     noise : decimal = rand_gaussian(0, 0.1);
+ *     rand_shuffle(cards);
+ *     token := rand_string(12);
+ *
+ * The numbers differ from run to run unless set_seed() is called first.
+ * For sequences that are the same on every machine use the class
+ * std#seeded_random, which offers the same operations as methods.
+ * None of this is cryptographically secure.
+ */
+
+/**
+ * A random number in 0 <= result < 1.
+ * (rand() itself may return exactly 1; that one value is folded back to 0
+ * here so the result can safely be scaled to an index.)
+ */
+def rand_unit(): decimal {
+    value : decimal = rand().value;
+    if(value >= 1 || value < 0) return 0;
+    return value;
+}
+
+/** true or false with equal chance */
+def rand_bool(): bool {
+    return rand_unit() < 0.5;
+}
+
+/**
+ * true with the given probability (0 = never, 1 = always).
+ * Throws illegal_argument_exception when probability is outside 0 .. 1.
+ */
+def rand_bool(probability: decimal): bool {
+    if(probability < 0 || probability > 1 || probability != probability)
+        throw new illegal_argument_exception("rand_bool: a probability must be in 0 .. 1");
+    return rand_unit() < probability;
+}
+
+/**
+ * A random index for something with `size` elements: a whole number in
+ * 0 .. size - 1.
+ * Throws illegal_argument_exception when size is < 1.
+ */
+def rand_index(size: decimal): decimal {
+    if(size < 1)
+        throw new illegal_argument_exception("rand_index: the size must be at least 1");
+    return (rand_unit() * size) as _int64;
+}
+
+/**
+ * A random whole number in low .. high, BOTH ends included:
+ * rand_range(1, 6) is a die roll.
+ * Throws illegal_argument_exception when low > high.
+ */
+def rand_range(low: decimal, high: decimal): decimal {
+    if(low > high)
+        throw new illegal_argument_exception("rand_range: low is greater than high");
+    return low + rand_index(high - low + 1);
+}
+
+/**
+ * A normally distributed random number with mean 0 and standard deviation
+ * 1 (the "bell curve").
+ *
+ * Algorithm: the Box-Muller transform. From two uniform numbers u1 (in
+ * 0 < u1 <= 1) and u2:  sqrt(-2 ln(u1)) * cos(2 pi u2).
+ */
+def rand_gaussian(): decimal {
+    u1 : decimal = 1 - rand_unit();         // 0 < u1 <= 1, so the logarithm is finite
+    u2 : decimal = rand_unit();
+    return square_root(0 - 2 * ln(u1)) * cos_of(TAU * u2);
+}
+
+/**
+ * A normally distributed random number with the given mean and standard
+ * deviation.
+ * Throws illegal_argument_exception when deviation is negative.
+ */
+def rand_gaussian(mean: decimal, deviation: decimal): decimal {
+    if(deviation < 0)
+        throw new illegal_argument_exception("rand_gaussian: the standard deviation cannot be negative");
+    return mean + deviation * rand_gaussian();
+}
+
+/**
+ * One of the numbers of the array, each with equal chance.
+ * Throws illegal_argument_exception when the array is empty.
+ */
+def rand_pick(values: decimal[]): decimal {
+    if(sizeof(values) == 0)
+        throw new illegal_argument_exception("rand_pick: the array is empty");
+    return values[rand_index(sizeof(values))];
+}
+
+/**
+ * One of the strings of the list, each with equal chance.
+ * Throws illegal_argument_exception when the list is empty.
+ */
+def rand_pick(values: list<string>): string {
+    if(values.size() == 0)
+        throw new illegal_argument_exception("rand_pick: the list is empty");
+    return values.at(rand_index(values.size().value));
+}
+
+/**
+ * One of the objects of the array, each with equal chance. The result has
+ * the type `object`; cast it back (`rand_pick_object(names) as string`).
+ * Throws illegal_argument_exception when the array is empty.
+ */
+def rand_pick_object(values: object[]): object {
+    if(sizeof(values) == 0)
+        throw new illegal_argument_exception("rand_pick_object: the array is empty");
+    return values[rand_index(sizeof(values))];
+}
+
+/**
+ * Put the numbers of the array into a random order, in place
+ * (Fisher-Yates: from the last position down, swap each element with a
+ * randomly chosen one at or before it).
+ */
+def rand_shuffle(values: decimal[]) {
+    for(i : decimal = sizeof(values) - 1; i > 0; i--) {
+        j : decimal = rand_index(i + 1);
+        held : decimal = values[i];
+        values[i] = values[j];
+        values[j] = held;
+    }
+}
+
+/** put the objects of the array (strings, your own classes ...) into a random order, in place (Fisher-Yates) */
+def rand_shuffle_objects(values: object[]) {
+    for(i : decimal = sizeof(values) - 1; i > 0; i--) {
+        j : decimal = rand_index(i + 1);
+        held := values[i];
+        values[i] = values[j];
+        values[j] = held;
+    }
+}
+
+/**
+ * The numbers 0 .. count - 1 in a random order: shuffled indexes, usable
+ * to visit any collection in random order.
+ * Throws illegal_argument_exception when count is negative.
+ */
+def rand_permutation(count: decimal): decimal[] {
+    if(count < 0)
+        throw new illegal_argument_exception("rand_permutation: the count cannot be negative");
+
+    result := new decimal[count];
+    for(i : decimal = 0; i < count; i++) {
+        result[i] = i;
+    }
+    rand_shuffle(result);
+    return result;
+}
+
+/**
+ * A random text of `length` characters drawn from a-z, A-Z and 0-9.
+ * Throws illegal_argument_exception when length is negative.
+ */
+def rand_string(length: decimal): string {
+    return rand_string(length, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+}
+
+/**
+ * A random text of `length` characters, each drawn with equal chance from
+ * the characters of `alphabet`.
+ * Throws illegal_argument_exception when length is negative or the
+ * alphabet is empty.
+ */
+def rand_string(length: decimal, alphabet: string): string {
+    if(length < 0)
+        throw new illegal_argument_exception("rand_string: the length cannot be negative");
+    choices : decimal = alphabet.size().value;
+    if(choices == 0)
+        throw new illegal_argument_exception("rand_string: the alphabet is empty");
+    if(length == 0) return "";
+
+    text := new _int8[length];
+    for(i : decimal = 0; i < length; i++) {
+        text[i] = alphabet.at(rand_index(choices)).value;
+    }
+    return new string(text);
+}

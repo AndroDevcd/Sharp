@@ -1,0 +1,10 @@
+mod tests.trees;
+
+def f() {
+    a := 1 + 2 * 3 - -4 ** 2 ** 3;
+    b := x == -1 || y && !z;
+    c = d = e ?: g;
+    h := i ? j : k ? l : m;
+    n := o as p + q;
+    r := "n=$s".size();
+}

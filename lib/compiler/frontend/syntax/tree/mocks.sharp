@@ -1,0 +1,604 @@
+mod frontend.syntax.tree;
+
+import (
+    std.io,
+    frontend.syntax.parser
+)
+
+/**
+ * mock<T>() - A BUILT-IN THAT WRITES A CLASS
+ *
+ *      store := mock<note_store>();
+ *
+ * `mock<T>()` gives an object that implements the interface T without anyone
+ * having written a class for it: every function of T notes that it was
+ * called and gives back what a test set up (lib/support/.../std/testing/mock.sharp
+ * is the other half - the class `mock` that does the noting).
+ *
+ * The compiler does it in two small steps, both HERE, both on source text,
+ * before any other stage sees the program:
+ *
+ *   1. WHILE A FILE IS READ (expand_mock_calls): every `mock<T>()` in its
+ *      text becomes `new mock_of_T()`. From then on it is an ordinary
+ *      expression; the parser and everything after it know nothing of mocks.
+ *
+ *   2. WHEN ALL FILES ARE PARSED (make_mock_units): for every T that was
+ *      asked for, the interface T is looked up and a class is written out as
+ *      source text -
+ *
+ *          mod <the module of T>;
+ *          <the imports of the file T is in>
+ *          import ( std.testing )
+ *
+ *          stable class mock_of_T base mock : T {
+ *              override def load() : list<string> {
+ *                  args := new mock_args();
+ *                  r : object? = mock_call("load", args);
+ *                  if(r == null) { return new list<string>(); }
+ *                  return (r as list<string>);
+ *              }
+ *              ...
+ *          }
+ *
+ *      - and parsed like a file of the program. It lives in T's own module,
+ *      with the imports of T's own file, so every type in T's signatures
+ *      means exactly what it means where T was written.
+ *
+ * WHY TEXT. The alternative is to build the class inside the compiler's typed
+ * tree, by hand, declaration by declaration - a great deal of code in the
+ * stages that are hardest to get right. Written as text, the generated class
+ * goes through the same parser, the same checks and the same code generator
+ * as a class a person typed in, and those stages are not touched at all.
+ * (C++ comparison: this is a macro, the one place this compiler has one.
+ * Java's Mockito makes the class while the program runs, with a proxy; a
+ * Kotlin compiler plugin - KSP - writes it as source, as here.)
+ *
+ * WHAT A FUNCTION OF THE MOCK GIVES BACK when no test set it up is decided
+ * here, from the text of its return type:
+ *
+ *      no result                               nothing
+ *      a plain number (_int64, decimal ...)    0            (mock_number)
+ *      bool                                    false
+ *      string                                  ""
+ *      list<...>, hash_map<...>                a new, empty one
+ *      T? (may be null)                        null
+ *      any other object                        mock_missing(...): there is no harmless value
+ *
+ * LIMITS, said plainly: T must be an interface that is not generic, found by
+ * its plain name among the files being compiled. Its functions are read from
+ * its text (`def name(parameters) : type;`); inherited interfaces are followed.
+ * Anything else gives a message that says so instead of a wrong class.
+ */
+
+// ------------------------------------------------------------------ small text helpers (on the raw characters: fast)
+
+/** is this character part of a name: a letter, a digit, an underscore? */
+def mock_is_name_char(c: _int64) : _int64 {
+    if(c >= 'a' && c <= 'z') { return 1; }
+    if(c >= 'A' && c <= 'Z') { return 1; }
+    if(c >= '0' && c <= '9') { return 1; }
+    if(c == '_') { return 1; }
+    return 0;
+}
+
+def mock_is_space(c: _int64) : _int64 {
+    if(c == ' ' || c == 9 || c == 10 || c == 13) { return 1; }
+    return 0;
+}
+
+/** the characters from..to (not including to) as a string; "" when there are none */
+def mock_piece(chars: _int8[], from: _int64, to: _int64) : string {
+    if(to <= from) { return ""; }
+    made := new string_builder();
+    for(i : _int64 = from; i < to; i++) {
+        made.append_char(chars[i]);
+    }
+    return made.build();
+}
+
+/** the characters of a string ("" gives an empty array) */
+def mock_chars(text: string) : _int8[] {
+    data : _int8[]? = text.data;
+    if(data == null) { return new _int8[0]; }
+    return data!!;
+}
+
+/** `text` without spaces and line ends at either end */
+def mock_trimmed(text: string) : string {
+    chars : _int8[] = mock_chars(text);
+    from : _int64 = 0;
+    to : _int64 = sizeof(chars);
+    while(from < to && mock_is_space(chars[from]) == 1) { from++; }
+    while(to > from && mock_is_space(chars[to - 1]) == 1) { to--; }
+    return mock_piece(chars, from, to);
+}
+
+/** does `word` stand at `at` in chars? */
+def mock_word_at(chars: _int8[], at: _int64, word: string) : _int64 {
+    letters : _int8[] = mock_chars(word);
+    count : _int64 = sizeof(letters);
+    if(at < 0 || at + count > sizeof(chars)) { return 0; }
+    for(i : _int64 = 0; i < count; i++) {
+        if(chars[at + i] != letters[i]) { return 0; }
+    }
+    return 1;
+}
+
+/**
+ * Is the place `at` inside a comment or inside quotes? Looked at within its
+ * own line: after a `//`, on a line of a block comment (which this code base
+ * writes with a `*` in front), or after an odd number of quotes.
+ */
+def mock_in_comment_or_text(chars: _int8[], at: _int64) : _int64 {
+    start : _int64 = at;
+    while(start > 0 && chars[start - 1] != 10) { start--; }
+
+    first : _int64 = start;
+    while(first < at && (chars[first] == ' ' || chars[first] == 9)) { first++; }
+    if(first < at && chars[first] == '*') { return 1; }
+    if(first + 1 < at && chars[first] == '/' && chars[first + 1] == '*') { return 1; }
+
+    in_quotes : _int64 = 0;
+    for(i : _int64 = start; i < at; i++) {
+        c : _int64 = chars[i];
+        if(c == '"' && (i == start || chars[i - 1] != 92)) {       // 92: the backslash that escapes a quote
+            in_quotes = 1 - in_quotes;
+        } else if(in_quotes == 0 && c == '/' && i + 1 < at && chars[i + 1] == '/') {
+            return 1;
+        }
+    }
+    return in_quotes;
+}
+
+// ------------------------------------------------------------------ step 1: mock<T>() becomes new mock_of_T()
+
+/**
+ * The text of a file with every `mock<T>()` written as `new mock_of_T()`
+ * (a T with a module in front, `app#store`, keeps it: `new app#mock_of_store()`).
+ * A text without one comes back as it is, untouched and uncopied.
+ */
+def expand_mock_calls(text: string) : string {
+    chars : _int8[] = mock_chars(text);
+    length : _int64 = sizeof(chars);
+    made : string_builder? = null;
+    copied : _int64 = 0;                    // everything before this is already in `made`
+
+    i : _int64 = 0;
+    while(i + 7 < length) {
+        // `mock<`, not as the end of a longer name and not as a member (`x.mock<`)
+        found : _int64 = 0;
+        if(chars[i] == 'm' && chars[i + 4] == '<' && mock_word_at(chars, i, "mock<") == 1) {
+            found = 1;
+            if(i > 0 && (mock_is_name_char(chars[i - 1]) == 1 || chars[i - 1] == '.')) { found = 0; }
+        }
+        if(found == 0) {
+            i++;
+            continue;
+        }
+
+        // the type, then `>`, `(`, `)` with any spaces between
+        at : _int64 = i + 5;
+        while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+        name_from : _int64 = at;
+        while(at < length && (mock_is_name_char(chars[at]) == 1 || chars[at] == '.' || chars[at] == '#')) { at++; }
+        name_to : _int64 = at;
+        while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+
+        whole : _int64 = 0;
+        if(name_to > name_from && at < length && chars[at] == '>') {
+            at++;
+            while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+            if(at < length && chars[at] == '(') {
+                at++;
+                while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+                if(at < length && chars[at] == ')') { whole = 1; }
+            }
+        }
+        if(whole == 0 || mock_in_comment_or_text(chars, i) == 1) {
+            i++;
+            continue;
+        }
+
+        // the plain name is what follows the last `#` (the module, when there is one, stays in front)
+        plain_from : _int64 = name_from;
+        for(k : _int64 = name_from; k < name_to; k++) {
+            if(chars[k] == '#') { plain_from = k + 1; }
+        }
+
+        if(made == null) { made = new string_builder(); }
+        made!!.append(mock_piece(chars, copied, i));
+        made!!.append("new ");
+        made!!.append(mock_piece(chars, name_from, plain_from));
+        made!!.append("mock_of_");
+        made!!.append(mock_piece(chars, plain_from, name_to));
+        made!!.append("()");
+        copied = at + 1;
+        i = at + 1;
+    }
+
+    if(made == null) {
+        return text;
+    }
+    made!!.append(mock_piece(chars, copied, length));
+    return made!!.build();
+}
+
+// ------------------------------------------------------------------ step 2: the classes
+
+/** one function of an interface, as read from its text */
+class mock_function {
+    name : string = "";
+    parameters : string = "";               // the text between the brackets, as written
+    gives : string = "";                    // the return type, as written ("" for none)
+    names : list<string> = new list<string>();          // each parameter's name ...
+    types : list<string> = new list<string>();          // ... and its type
+}
+
+/**
+ * A unit for every interface a `mock<T>()` asked for: the class mock_of_T,
+ * written as source and parsed. Add them to the program's units.
+ *
+ * A T that cannot be mocked (not found, generic) gives a unit with its
+ * `problem` set, which the driver prints like a file that could not be read.
+ */
+def make_mock_units(units: list<source_unit>) : list<source_unit> {
+    made := new list<source_unit>();
+
+    // which interfaces were asked for: every `new mock_of_<name>(` in any file
+    wanted := new list<string>();
+    for(u : _int64 = 0; u < units.size(); u++) {
+        chars : _int8[] = mock_chars(units.at(u).text);
+        length : _int64 = sizeof(chars);
+        for(i : _int64 = 0; i + 12 < length; i++) {
+            if(chars[i] == 'n' && chars[i + 4] == 'm' && mock_word_at(chars, i, "new mock_of_") == 1
+               && mock_in_comment_or_text(chars, i) == 0) {      // (not the ones a comment or a text only talks about)
+                from : _int64 = i + 12;
+                to : _int64 = from;
+                while(to < length && mock_is_name_char(chars[to]) == 1) { to++; }
+                name : string = mock_piece(chars, from, to);
+                known : _int64 = 0;
+                for(k : _int64 = 0; k < wanted.size(); k++) {
+                    if(wanted.at(k) == name) { known = 1; }
+                }
+                if(known == 0 && to > from) { wanted.add(name); }
+            }
+        }
+    }
+
+    for(w : _int64 = 0; w < wanted.size(); w++) {
+        made.add(mock_unit_for(units, wanted.at(w)));
+    }
+    return made;
+}
+
+/** where `interface <name>` is declared: the unit's place in `units` (-1: nowhere); `found_at` gets the place of the name */
+def mock_find_interface(units: list<source_unit>, name: string, found_at: list<string>) : _int64 {
+    letters : _int8[] = mock_chars(name);
+    count : _int64 = sizeof(letters);
+    for(u : _int64 = 0; u < units.size(); u++) {
+        chars : _int8[] = mock_chars(units.at(u).text);
+        length : _int64 = sizeof(chars);
+        for(i : _int64 = 0; i + 10 + count <= length; i++) {
+            if(chars[i] != 'i' || mock_word_at(chars, i, "interface") == 0) { continue; }
+            if(i > 0 && mock_is_name_char(chars[i - 1]) == 1) { continue; }
+            at : _int64 = i + 9;
+            if(mock_is_space(chars[at]) == 0) { continue; }
+            while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+            if(mock_word_at(chars, at, name) == 0) { continue; }
+            after : _int64 = at + count;
+            if(after < length && mock_is_name_char(chars[after]) == 1) { continue; }
+            if(mock_in_comment_or_text(chars, i) == 1) { continue; }
+            found_at.add("" + after);
+            return u;
+        }
+    }
+    return 0 - 1;
+}
+
+/** a whole number from its digits */
+def mock_number_of(digits: string) : _int64 {
+    chars : _int8[] = mock_chars(digits);
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < sizeof(chars); i++) {
+        if(chars[i] >= '0' && chars[i] <= '9') { total = total * 10 + (chars[i] - '0'); }
+    }
+    return total;
+}
+
+/** a unit that only carries a message: why this mock could not be written */
+def mock_problem(name: string, why: string) : source_unit {
+    unit := new source_unit("mock<" + name + ">()");
+    unit.problem = why;
+    return unit;
+}
+
+/** the unit with the class mock_of_<name> */
+def mock_unit_for(units: list<source_unit>, name: string) : source_unit {
+    place := new list<string>();
+    home : _int64 = mock_find_interface(units, name, place);
+    if(home < 0) {
+        return mock_problem(name, "no interface named `" + name + "` was found. mock<...>() stands in for an INTERFACE: "
+            + "a class's functions have bodies and cannot be replaced, so write what the test should stand in for as an interface");
+    }
+    home_text : string = units.at(home).text;
+
+    functions := new list<mock_function>();
+    visited := new list<string>();
+    why : string = mock_read_interface(units, name, functions, visited);
+    if(why != "") {
+        return mock_problem(name, why);
+    }
+
+    text := new string_builder();
+    text.append(mock_module_line(home_text));
+    text.append("\n");
+    text.append(mock_imports(home_text));
+    text.append("import ( std.testing )\n\n");
+    text.append("/** written by the compiler for mock<" + name + ">() (frontend/syntax/tree/mocks.sharp) */\n");
+    text.append("stable class mock_of_" + name + " base mock : " + name + " {\n");
+    for(f : _int64 = 0; f < functions.size(); f++) {
+        mock_write_function(text, functions.at(f));
+    }
+    text.append("}\n");
+
+    unit := new source_unit("mock<" + name + "> written for " + units.at(home).file);
+    unit.text = text.build();
+    unit.parsed = parse_source(unit.file, mock_chars(unit.text));
+    return unit;
+}
+
+/**
+ * Read the functions of interface `name` (and of the interfaces it extends)
+ * into `functions`. Gives "" when all went well, or why it cannot be mocked.
+ */
+def mock_read_interface(units: list<source_unit>, name: string, functions: list<mock_function>, visited: list<string>) : string {
+    for(v : _int64 = 0; v < visited.size(); v++) {
+        if(visited.at(v) == name) { return ""; }
+    }
+    visited.add(name);
+
+    place := new list<string>();
+    home : _int64 = mock_find_interface(units, name, place);
+    if(home < 0) {
+        return "the interface `" + name + "` (which a mocked interface extends) was not found among the files being compiled";
+    }
+    chars : _int8[] = mock_chars(units.at(home).text);
+    length : _int64 = sizeof(chars);
+    at : _int64 = mock_number_of(place.at(0));
+
+    // the head: from the name to the `{` - type parameters, and the interfaces it extends
+    head_from : _int64 = at;
+    while(at < length && chars[at] != '{') { at++; }
+    if(at >= length) {
+        return "the interface `" + name + "` has no body to read";
+    }
+    head : string = mock_trimmed(mock_piece(chars, head_from, at));
+    head_chars : _int8[] = mock_chars(head);
+    if(sizeof(head_chars) > 0 && head_chars[0] == '<') {
+        return "`" + name + "` is a generic interface, and mock<...>() cannot write a class for one yet: write the mock class by hand, on top of `mock`";
+    }
+
+    // the body, without its comments
+    body := new string_builder();
+    depth : _int64 = 1;
+    at++;
+    while(at < length && depth > 0) {
+        c : _int64 = chars[at];
+        if(c == '/' && at + 1 < length && chars[at + 1] == '/') {
+            while(at < length && chars[at] != 10) { at++; }
+            continue;
+        }
+        if(c == '/' && at + 1 < length && chars[at + 1] == '*') {
+            at = at + 2;
+            while(at + 1 < length && !(chars[at] == '*' && chars[at + 1] == '/')) { at++; }
+            at = at + 2;
+            continue;
+        }
+        if(c == '{') { depth++; }
+        if(c == '}') {
+            depth--;
+            if(depth == 0) { break; }
+        }
+        body.append_char(c);
+        at++;
+    }
+    mock_read_functions(body.build(), functions);
+
+    // the interfaces it extends: `: a, b`
+    if(sizeof(head_chars) > 0 && head_chars[0] == ':') {
+        from : _int64 = 1;
+        for(i : _int64 = 1; i <= sizeof(head_chars); i++) {
+            if(i == sizeof(head_chars) || head_chars[i] == ',') {
+                parent : string = mock_trimmed(mock_piece(head_chars, from, i));
+                if(parent != "") {
+                    why : string = mock_read_interface(units, parent, functions, visited);
+                    if(why != "") { return why; }
+                }
+                from = i + 1;
+            }
+        }
+    }
+    return "";
+}
+
+/** every `def name(parameters) : type;` of an interface's body (comments already gone) */
+def mock_read_functions(body: string, functions: list<mock_function>) {
+    chars : _int8[] = mock_chars(body);
+    length : _int64 = sizeof(chars);
+    at : _int64 = 0;
+    while(at + 4 < length) {
+        if(!(chars[at] == 'd' && mock_word_at(chars, at, "def") == 1 && mock_is_space(chars[at + 3]) == 1
+             && (at == 0 || mock_is_name_char(chars[at - 1]) == 0))) {
+            at++;
+            continue;
+        }
+        at = at + 3;
+        while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+        name_from : _int64 = at;
+        while(at < length && mock_is_name_char(chars[at]) == 1) { at++; }
+        name_to : _int64 = at;
+        while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+        if(name_to == name_from || at >= length || chars[at] != '(') {
+            continue;                               // not a plain function (an operator, a property): left alone
+        }
+
+        // the parameters: up to the bracket that closes this one
+        open : _int64 = at;
+        nesting : _int64 = 0;
+        while(at < length) {
+            if(chars[at] == '(') { nesting++; }
+            if(chars[at] == ')') {
+                nesting--;
+                if(nesting == 0) { break; }
+            }
+            at++;
+        }
+        close : _int64 = at;
+        at++;
+
+        // then `: type` (or nothing), up to the `;`
+        rest_from : _int64 = at;
+        while(at < length && chars[at] != ';' && chars[at] != '{' && chars[at] != '=') { at++; }
+        if(at >= length || chars[at] != ';') {
+            continue;                               // it has a body of its own: nothing to stand in for
+        }
+        rest : string = mock_trimmed(mock_piece(chars, rest_from, at));
+        rest_chars : _int8[] = mock_chars(rest);
+        gives : string = "";
+        if(sizeof(rest_chars) > 0 && rest_chars[0] == ':') {
+            gives = mock_trimmed(mock_piece(rest_chars, 1, sizeof(rest_chars)));
+        }
+
+        made := new mock_function();
+        made.name = mock_piece(chars, name_from, name_to);
+        made.parameters = mock_trimmed(mock_piece(chars, open + 1, close));
+        made.gives = gives;
+        mock_read_parameters(made);
+
+        // an interface and one it extends may both declare the function: once is enough
+        known : _int64 = 0;
+        for(k : _int64 = 0; k < functions.size(); k++) {
+            if(functions.at(k).name == made.name && functions.at(k).names.size() == made.names.size()) { known = 1; }
+        }
+        if(known == 0) { functions.add(made); }
+    }
+}
+
+/** split `a: string, b: list<int>` into names and types (commas inside brackets do not split) */
+def mock_read_parameters(function: mock_function) {
+    chars : _int8[] = mock_chars(function.parameters);
+    length : _int64 = sizeof(chars);
+    from : _int64 = 0;
+    nesting : _int64 = 0;
+    for(i : _int64 = 0; i <= length; i++) {
+        if(i < length) {
+            c : _int64 = chars[i];
+            if(c == '<' || c == '(' || c == '[') { nesting++; }
+            if(c == '>' || c == ')' || c == ']') { nesting--; }
+        }
+        if(i == length || (chars[i] == ',' && nesting == 0)) {
+            one : _int8[] = mock_chars(mock_trimmed(mock_piece(chars, from, i)));
+            colon : _int64 = 0 - 1;
+            for(k : _int64 = 0; k < sizeof(one) && colon < 0; k++) {
+                if(one[k] == ':') { colon = k; }
+            }
+            if(colon > 0) {
+                function.names.add(mock_trimmed(mock_piece(one, 0, colon)));
+                function.types.add(mock_trimmed(mock_piece(one, colon + 1, sizeof(one))));
+            }
+            from = i + 1;
+        }
+    }
+}
+
+/** is this the name of a plain number type (a value, not an object)? */
+def mock_is_number_type(type_name: string) : _int64 {
+    if(type_name == "decimal" || type_name == "var") { return 1; }
+    if(type_name == "_int8" || type_name == "_int16" || type_name == "_int32" || type_name == "_int64") { return 1; }
+    if(type_name == "_uint8" || type_name == "_uint16" || type_name == "_uint32" || type_name == "_uint64") { return 1; }
+    return 0;
+}
+
+/** one function of the mock class (the table at the top of this file says what each kind gives back) */
+def mock_write_function(text: string_builder, function: mock_function) {
+    text.append("    override def " + function.name + "(" + function.parameters + ")");
+    if(function.gives != "") { text.append(" : " + function.gives); }
+    text.append(" {\n");
+
+    text.append("        args := new mock_args();\n");
+    for(p : _int64 = 0; p < function.names.size(); p++) {
+        if(mock_is_number_type(function.types.at(p)) == 1) {
+            text.append("        args.number(" + function.names.at(p) + ");\n");
+        } else {
+            text.append("        args.thing(" + function.names.at(p) + ");\n");
+        }
+    }
+
+    gives : string = function.gives;
+    call : string = "(\"" + function.name + "\", args)";
+    if(gives == "") {
+        text.append("        mock_call" + call + ";\n");
+    } else if(mock_is_number_type(gives) == 1) {
+        text.append("        return mock_number" + call + ";\n");
+    } else if(gives == "bool") {
+        text.append("        return mock_number" + call + " != 0;\n");
+    } else {
+        gives_chars : _int8[] = mock_chars(gives);
+        last : _int64 = sizeof(gives_chars) - 1;
+        text.append("        r : object? = mock_call" + call + ";\n");
+        if(last >= 0 && gives_chars[last] == '?') {
+            // may be null: null is the answer when nothing was set up
+            text.append("        if(r == null) { return null; }\n");
+            text.append("        return (r as " + mock_piece(gives_chars, 0, last) + ");\n");
+        } else {
+            if(gives == "string") {
+                text.append("        if(r == null) { return \"\"; }\n");
+            } else if(mock_word_at(gives_chars, 0, "list<") == 1 || mock_word_at(gives_chars, 0, "hash_map<") == 1) {
+                text.append("        if(r == null) { return new " + gives + "(); }\n");
+            } else {
+                text.append("        if(r == null) { mock_missing(\"" + function.name + "\", \"" + gives + "\"); }\n");
+            }
+            text.append("        return (r as " + gives + ");\n");
+        }
+    }
+    text.append("    }\n");
+}
+
+/** the `mod name;` line of a file ("" when it has none) */
+def mock_module_line(text: string) : string {
+    chars : _int8[] = mock_chars(text);
+    length : _int64 = sizeof(chars);
+    for(i : _int64 = 0; i + 4 < length; i++) {
+        if(chars[i] == 'm' && mock_word_at(chars, i, "mod") == 1 && mock_is_space(chars[i + 3]) == 1
+           && (i == 0 || chars[i - 1] == 10 || mock_is_space(chars[i - 1]) == 1) && mock_in_comment_or_text(chars, i) == 0) {
+            to : _int64 = i;
+            while(to < length && chars[to] != ';') { to++; }
+            return mock_piece(chars, i, to) + ";\n";
+        }
+    }
+    return "";
+}
+
+/** every `import ...` of a file, as written, one after the other */
+def mock_imports(text: string) : string {
+    chars : _int8[] = mock_chars(text);
+    length : _int64 = sizeof(chars);
+    made := new string_builder();
+    i : _int64 = 0;
+    while(i + 7 < length) {
+        if(!(chars[i] == 'i' && mock_word_at(chars, i, "import") == 1 && (i == 0 || chars[i - 1] == 10)
+             && mock_is_name_char(chars[i + 6]) == 0 && mock_in_comment_or_text(chars, i) == 0)) {
+            i++;
+            continue;
+        }
+        at : _int64 = i + 6;
+        while(at < length && mock_is_space(chars[at]) == 1) { at++; }
+        closer : _int64 = ';';
+        if(at < length && chars[at] == '(') { closer = ')'; }
+        while(at < length && chars[at] != closer) { at++; }
+        made.append(mock_piece(chars, i, at + 1));
+        made.append("\n");
+        i = at + 1;
+    }
+    return made.build();
+}

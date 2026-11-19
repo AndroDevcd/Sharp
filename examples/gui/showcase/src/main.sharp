@@ -1,0 +1,146 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * SHOWCASE  -  one of everything, in one window, written with .add(...) chains.
+ *
+ * Left: a form (text field, checkbox, switch, slider, buttons).
+ * Right: a scrolling list whose rows are small composables with their own state.
+ * Bottom: a canvas that animates.
+ *
+ * This file uses the CHAIN style on purpose: a container is made, and
+ * children are handed to it with .add(...). examples/gui/todo shows the nested
+ * block style. They are the same framework and can be mixed.
+ *
+ * In both styles a widget's box (size, padding, fill, background ...) is
+ * changed only through a modifier passed in where the widget is made.
+ *
+ * Things worth noticing while you play with it:
+ *   - typing your name updates the greeting as you type, and you keep typing:
+ *     the field is rebuilt on every key, yet cursor and focus survive;
+ *   - each list row counts on its own, and keeps its count and the list keeps
+ *     its scroll position when the form on the left changes;
+ *   - "Continue" enables itself when the box is ticked - nobody tells it to.
+ */
+
+/** one row of the list: a name and its own little counter */
+class tally_row base composable {
+    title : string;
+    count := state(0);
+
+    tally_row(name: string) {
+        title = name;
+    }
+
+    override def build() : element {
+        return row(modifier().fill_width().padding(10, 6)).gap(8)
+            .add(text(title))
+            .add(spacer())
+            .add(text("" + count.value).dim())
+            .add(button("+", { -> count.value += 1; }).outline());
+    }
+}
+
+/** the bouncing ball of the canvas: plain fields, moved every frame */
+class ball {
+    x : decimal = 60;
+    y : decimal = 40;
+    speed_x : decimal = 170;
+    speed_y : decimal = 120;
+}
+
+class showcase base composable {
+    name := state("");
+    agreed := state(0);
+    alerts := state(1);
+    volume := state(0.4);
+    saved := state(0);
+
+    bouncer : ball = ball();
+
+    override def build() : element {
+        t := gui.current_theme();
+
+        // one look, named once, used for both panels and (with a size) the canvas
+        card := modifier().padding(16).background(t.surface).corner(10);
+        panel := card.then(modifier().grow(1));
+
+        return column(modifier().fill().padding(16)).gap(12)
+            .add(row().gap(12)
+                .add(text("Sharp GUI").size(26))
+                .add(text("showcase").dim())
+                .add(spacer())
+                .add(text("saved " + saved.value + " times").dim()))
+            .add(divider())
+            .add(row(modifier().grow(1)).gap(16).align(ALIGN_STRETCH)
+                .add(form(panel))
+                .add(list_panel(panel)))
+            .add(canvas(modifier().height(110).fill_width().background(t.surface).corner(10),
+                        { p: painter, f: frame -> draw_ball(p, f); }));
+    }
+
+    /** the left side: every input widget, bound to the states above */
+    def form(look: modifier) : column {
+        percent : _int64 = volume.value * 100;
+
+        greeting : string = "Type your name above";
+        if(name.value != "") { greeting = "Hello, " + name.value + "!"; }
+
+        return column(look).gap(12)
+            .add(text("A form").size(18))
+            .add(text_field(name).hint("Your name"))
+            .add(text(greeting).dim())
+            .add(checkbox("I agree to the terms", agreed))
+            .add(row().gap(10)
+                .add(text("Alerts"))
+                .add(spacer())
+                .add(toggle(alerts)))
+            .add(row().gap(10)
+                .add(text("Volume"))
+                .add(slider(volume, 0, 1, modifier().grow(1)))
+                .add(text("" + percent + "%", modifier().width(44)).align(ALIGN_END)))
+            .add(progress(volume.value))
+            .add(spacer())
+            .add(row().gap(8)
+                .add(button("Continue", modifier().enable(agreed.value), { -> saved.value += 1; }))
+                .add(button("Clear", { -> name.value = ""; }).outline())
+                .add(spacer())
+                .add(button("Delete", { -> saved.value = 0; }).danger()));
+    }
+
+    /** the right side: a long list in a scroller; every row is its own composable */
+    def list_panel(look: modifier) : column {
+        rows := column(modifier().fill_width());
+        for(i : _int64 = 1; i <= 30; i++) {
+            rows.add(tally_row("Item " + i));
+            if(i < 30) { rows.add(divider()); }
+        }
+
+        return column(look).gap(8)
+            .add(text("A scrolling list").size(18))
+            .add(text("Each row keeps its own count. This caption is long on purpose, to show that text wraps onto more lines when the panel is narrow.").dim())
+            .add(scroll(modifier().grow(1).fill_width(), rows));
+    }
+
+    /** the canvas: move the ball by its speed and the time that passed, bounce off the edges, paint */
+    def draw_ball(p: painter, f: frame) {
+        b := bouncer;
+        radius : decimal = 14;
+        b.x = b.x + b.speed_x * f.step;
+        b.y = b.y + b.speed_y * f.step;
+        if(b.x < radius) { b.x = radius; b.speed_x = 0 - b.speed_x; }
+        if(b.x > f.width - radius) { b.x = f.width - radius; b.speed_x = 0 - b.speed_x; }
+        if(b.y < radius) { b.y = radius; b.speed_y = 0 - b.speed_y; }
+        if(b.y > f.height - radius) { b.y = f.height - radius; b.speed_y = 0 - b.speed_y; }
+
+        p.circle(b.x, b.y, radius, rgb(255, 160, 60));
+        p.circle(f.mouse_x, f.mouse_y, 5, rgba(255, 255, 255, 120));
+    }
+}
+
+def main() {
+    gui.run("Sharp GUI - showcase", 900, 640, showcase());
+}

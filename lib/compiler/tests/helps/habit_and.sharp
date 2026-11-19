@@ -1,0 +1,10 @@
+// expect: E0100
+// help: x == 1 && x == 2
+// replace: x == 1 and x == 2
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    x := 1;
+    if(x == 1 and x == 2) { println("both"); }
+}

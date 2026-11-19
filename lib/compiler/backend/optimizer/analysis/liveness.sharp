@@ -1,0 +1,160 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * LIVENESS: which slots still hold a value someone will read
+ *
+ * A slot is LIVE at a point of the code when some path from there reads it
+ * before writing it. A value written into a slot that is not live right
+ * after is never read: the write is dead (passes/removal/dead_stores.sharp).
+ * This is the textbook backward data-flow problem (the dragon book, 9.2.5):
+ *
+ *      live_in(B)  = reads(B) + (live_out(B) - writes(B))
+ *      live_out(B) = the union of live_in(S) over every successor S
+ *
+ * solved by going over the blocks again and again, last to first, until no
+ * set grows. Inside a block, going backwards over the instructions:
+ *
+ *      live before i  =  (live after i - the slot i writes)  +  the slots i reads
+ *
+ * EXCEPTIONS. An instruction inside a `try` that may raise can go to a
+ * handler with every slot as it was BEFORE it (the VM writes the target
+ * last). So at such an instruction everything live at the start of those
+ * handlers is live before it too:
+ *
+ *      live before i  =  ... as above ...  +  live_in(each handler of i's block)
+ *
+ * and the slot the VM itself writes when it enters a handler (the catch
+ * variable) is not live into the handler from outside: `entry_slot`.
+ *
+ *      int_constant %3, 1      dead when %3 is overwritten before anyone reads it -
+ *      call %3, f()            unless f() can raise into a catch that reads %3
+ *
+ * The sets of all blocks are rows of two flat tables (slot_set.sharp, `load`):
+ * a function's liveness is made by several passes each round, so it is made
+ * of a few arrays, not of two objects per block.
+ *
+ *      C++ comparison: analysis/liveness.cpp of the C++ optimizer, over VM slots.
+ */
+class liveness {
+    graph : flow_graph;
+    slots : _int64;
+    width : _int64;                 // words per set
+    live_in : _int64[];             // [block * width + word]
+    live_out : _int64[];
+
+    liveness(graph: flow_graph) {
+        self->graph = graph;
+        slots = graph.code.slot_count();
+        width = (slots / 64) + 1;
+        live_in = new _int64[graph.blocks * width + 1];
+        live_out = new _int64[graph.blocks * width + 1];
+    }
+
+    /** `into` becomes the set of slots live at the end of block b */
+    def load_out(b: _int64, into: slot_set) {
+        into.load(live_out, b * width);
+    }
+
+    /** the slots live at the end of block b, as a set of its own */
+    def out_of(b: _int64) : slot_set {
+        made := new slot_set(slots);
+        made.load(live_out, b * width);
+        return made;
+    }
+
+    /** the slots live on entry to every handler an exception in block `b` can go to; null when it has none */
+    def live_into_handlers(b: _int64) : slot_set? {
+        if(!graph.has_handlers(b)) { return null; }
+        joined := new slot_set(slots);
+        first : _int64[] = graph.first_handler!!;
+        handlers : _int64[] = graph.handler_blocks!!;
+        for(i : _int64 = first[b]; i < first[b + 1]; i++) { joined.add_row(live_in, handlers[i] * width); }
+        return joined;
+    }
+}
+
+/** the live slots at the start and the end of every block of the graph */
+def compute_liveness(graph: flow_graph) : liveness {
+    result := new liveness(graph);
+    blocks : _int64 = graph.blocks;
+    width : _int64 = result.width;
+    working := new slot_set(result.slots);
+    changed : _int64 = 1;
+    while(changed == 1) {
+        changed = 0;
+        for(b : _int64 = blocks - 1; b >= 0; b--) {
+            working.clear();
+            for(e : _int64 = 0; e < 2; e++) {
+                next : _int64 = graph.successor(b, e);
+                if(next >= 0) { working.add_row(result.live_in, next * width); }
+            }
+            working.store(result.live_out, b * width);
+            step_back_over_block(result, b, working);
+            if(working.add_into_row(result.live_in, b * width) == 1) { changed = 1; }
+        }
+    }
+    return result;
+}
+
+/**
+ * `live` holds what is live at the end of block `b`; afterwards it holds what
+ * is live at its start (the rules in the header, instruction by instruction).
+ */
+def step_back_over_block(result: liveness, b: _int64, live: slot_set) {
+    graph := result.graph;
+    into_handlers := result.live_into_handlers(b);
+    for(i : _int64 = graph.ends[b] - 1; i >= graph.starts[b]; i--) {
+        step_back(graph.code.instructions.at(i), live, into_handlers);
+    }
+    // the VM writes this slot as it enters the block: nobody before it needs to
+    if(graph.entry_slot[b] >= 0) { live.remove(graph.entry_slot[b]); }
+}
+
+/**
+ * The slots some block reads before it writes them ("upward exposed": the
+ * dragon book's use set of a block): 1 per slot. A slot that is not among
+ * them is always written in a block before that block reads it, so what it
+ * held when the block began never matters - the forward passes need to carry
+ * only these slots from block to block (values/constant_propagation.sharp,
+ * values/copy_propagation.sharp), and follow the others inside a block alone.
+ * A slot the VM writes on entering a handler counts as written there.
+ */
+def read_before_written(graph: flow_graph) : _int64[] {
+    code := graph.code;
+    exposed := new _int64[code.slot_count() + 1];
+    written_in := new _int64[code.slot_count() + 1];      // per slot: 1 + the block that last wrote it
+    for(b : _int64 = 0; b < graph.blocks; b++) {
+        if(graph.entry_slot[b] >= 0) { written_in[graph.entry_slot[b]] = b + 1; }
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+            made := code.instructions.at(i);
+            k : _int64 = 0;
+            read : _int64 = slot_read(made, 0);
+            while(read >= 0) {
+                if(written_in[read] != b + 1) { exposed[read] = 1; }
+                k++;
+                read = slot_read(made, k);
+            }
+            written : _int64 = slot_written(made);
+            if(written >= 0) { written_in[written] = b + 1; }
+        }
+    }
+    return exposed;
+}
+
+/** what is live after one instruction -> what is live before it (`into_handlers`: see the header; null outside a try) */
+def step_back(made: ir_instruction, live: slot_set, into_handlers: slot_set?) {
+    live.remove(slot_written(made));
+    k : _int64 = 0;
+    read : _int64 = slot_read(made, 0);
+    while(read >= 0) {
+        live.add(read);
+        k++;
+        read = slot_read(made, k);
+    }
+    if(into_handlers != null && may_raise(made)) { live.add_all(into_handlers!!); }
+}

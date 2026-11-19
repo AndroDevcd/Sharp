@@ -1,0 +1,28 @@
+mod main;
+
+// output:
+// 0.30000000000000004
+// -7.9
+// 5
+// 0.3333333333333333
+// 1000.5
+// 0.0015
+// -2.5
+// 4886718345
+
+/*
+ * Constants the compiler works out itself (doc/codegen.md 3.6, 6.1): analysis
+ * folds `0.1 + 0.2` into one decimal, which has no text of its own in the
+ * program - it is written into the constant section in the exact hexadecimal
+ * form, while a literal keeps its own digits (`1_000.5` without the `_`).
+ */
+def main() {
+    show_decimal(0.1 + 0.2);
+    show_decimal(0 - 7.9);
+    show_decimal(2.5 * 2);
+    show_decimal(1.0 / 3.0);
+    show_decimal(1_000.5);
+    show_decimal(1.5e-3);
+    show_decimal(-2.5);
+    show(0x123456789);
+}

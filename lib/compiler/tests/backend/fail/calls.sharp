@@ -1,0 +1,68 @@
+// expect: E0501 E0503 E0504 E0505 E0505 E0506 E0507 E0507 E0704 E0515 E0516 E0517 E0400 E0500 W1022 E0402 E0508 E0518 E0501 E0501 E0704 E0509 E0509 E0509
+mod call_mistakes;
+
+import ( std.io )
+
+/**
+ * CALLS: one mistake per line, in the order the compiler prints them.
+ */
+
+class animal {
+    def speak() : string { return "..."; }
+    private def secret() : _int64 { return 1; }
+}
+class dog base animal { }
+class cat base animal { }
+interface printable { def print_me(); }
+enum color { red, green }
+
+def add(a: _int64, b: _int64) : _int64 { return a + b; }
+def three(c: cat) : _int64 { return 1; }
+def three(d: dog) : _int64 { return 2; }
+def identity<T>(x: T) : T { return x; }
+def empty<T>() : list<T> { return new list<T>(); }
+def only_animals<T base animal>(x: T) : T { return x; }
+alias _int64 as num;
+
+def mistakes(an_animal: animal, handler: (_int64)(nil)) {
+    a : _int64 = add("x", 1);                   // E0501: no `add` takes (_int8[], _int32)
+    b : _int64 = three(an_animal);              // E0503: cat and dog fit equally (both base to derived)
+    count : _int64 = 3;
+    c := count(3);                              // E0504: a number is not a function
+    handler(1, 2);                              // E0505: the function value takes 1 argument
+    handler("one");                             // E0505: ... an _int64
+    d := new dog(1, 2);                         // E0506: no constructor of dog takes two numbers
+    e := new printable();                       // E0507: an interface
+    f := new color();                           // E0507: an enum
+    g := animal.speak();                        // E0704: an instance function through the class
+    h : _int64 = identity<_int64, _int64>(1);   // E0515: one type argument, two written
+    i : _int64 = add<_int64>(1, 2);             // E0516: add is not generic
+    j := empty();                               // E0517: T cannot be worked out
+    k := prnt(1);                               // E0400: did you mean `print`?
+    m := num(5);                                // E0500: an alias of a number cannot be called
+    n : _int64 = an_animal.secret();            // W1022: private to animal
+    o := an_animal.bark();                      // E0402: animal has no `bark`
+    p := an_animal.animal();                    // E0508: the constructor is not a function of the object
+    q := only_animals(5);                       // E0518: T must be an animal
+    r := identity(1, 2);                        // E0501: the wrong number of arguments, not a type-argument problem
+    s := add(add);                              // E0501: a function where a number is expected
+}
+
+class kennel {
+    def feed() { }
+    static def open() {
+        feed();                                 // E0704: no `self` in a static function
+    }
+}
+
+/** the base constructor: chosen like any constructor, among those of the class above */
+class named {
+    named(name: string) { }
+}
+class pet base named {
+    pet() -> base(1, 2) { }                     // E0509: no constructor of named takes two numbers
+    pet(age: _int64) -> base(age) { }           // E0509: ... nor one number
+}
+class stray {
+    stray() -> base("x") { }                    // E0509: stray names no base class
+}

@@ -7,7 +7,7 @@ def main() {
    }
 }
 
-def factorial(n: var) : var {
+def factorial(n: decimal) : decimal {
     result := 1;
     for(i := 2; i <= n; i++)
        result *= i;

@@ -1,0 +1,74 @@
+mod backend.ide.manifest;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.ide.output,
+    backend.types.program
+)
+
+/**
+ * ONE `files[]` ENTRY OF THE MANIFEST
+ *
+ *      { "path": "/mnt/c/x/shapes.sharp", "module": "shapes", "library": false,
+ *        "size": 1834, "hash": "5d1c0f3a", "imports": ["shapes", "std"],
+ *        "groups": [ { "name": "g", "modules": ["std.io"] } ], "bodies": "bodies/0.json" }
+ *
+ * Where each field comes from:
+ *
+ *      path       the path on the command line (`source_unit.file`)
+ *      module     the module its `mod` line names (`sharp_file.module`); null when nothing was declared
+ *      library    the module is `std`, `std.*`, `platform` or `platform.*` (`sharp_module.is_library`)
+ *      size       the bytes the compiler read
+ *      hash       FNV-1a of those bytes (file_hash.sharp)
+ *      imports    the modules the file can see, in the order they are searched (`sharp_file.imports`)
+ *      groups     `import (a, b) as g` (`sharp_file.import_groups`)
+ *      bodies     the file's bodies file, or null when it was not asked for
+ *
+ * A file that could not be read has `size` -1, `hash` null and says why in `problem`.
+ */
+def write_file_entry(w: json_writer, f: ide_file, prog: sharp_program?) {
+    w.begin_object();
+    w.key(KEY_PATH);  w.text(f.path);
+
+    declared : sharp_file? = null;
+    if(prog != null && f.is_readable() == 1) { declared = prog!!.file_of(f.unit); }
+
+    w.key(KEY_MODULE);
+    if(declared == null) { w.null_value(); } else { w.text(declared!!.module.name); }
+    w.key(KEY_LIBRARY);
+    if(declared != null && declared!!.module.is_library() == 1) { w.flag(1); } else { w.flag(0); }
+
+    w.key(KEY_SIZE);
+    if(f.is_readable() == 1) { w.number(sizeof(f.source())); } else { w.number(0 - 1); }
+    w.key(KEY_HASH);
+    if(f.is_readable() == 1) { w.text(file_hash(f.source())); } else { w.null_value(); }
+    if(f.is_readable() == 0) { w.key(KEY_PROBLEM);  w.text(f.unit.problem); }
+
+    w.key(KEY_IMPORTS);
+    w.begin_array();
+    if(declared != null) {
+        for(i : _int64 = 0; i < declared!!.imports.size(); i++) { w.text(declared!!.imports.at(i).name); }
+    }
+    w.end_array();
+
+    w.key(KEY_GROUPS);
+    w.begin_array();
+    if(declared != null) {
+        for(i : _int64 = 0; i < declared!!.import_groups.size(); i++) {
+            group := declared!!.import_groups.at(i);
+            w.begin_object();
+            w.key(KEY_NAME);  w.text(group.name);
+            w.key(KEY_MODULES);
+            w.begin_array();
+            for(j : _int64 = 0; j < group.modules.size(); j++) { w.text(group.modules.at(j).name); }
+            w.end_array();
+            w.end_object();
+        }
+    }
+    w.end_array();
+
+    w.key(KEY_BODIES);
+    if(f.bodies_written == 1) { w.text("bodies/" + f.index + ".json"); } else { w.null_value(); }
+    w.end_object();
+}

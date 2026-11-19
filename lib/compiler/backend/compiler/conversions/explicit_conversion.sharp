@@ -1,0 +1,111 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.inheritance,
+    backend.compiler.context
+)
+
+/**
+ * EXPLICIT CONVERSION: what `value as type` may do
+ *
+ * A cast is the programmer saying "I know what this is". It allows what the
+ * implicit table refuses when the object's real class decides (the VM then
+ * tests the object when the program runs and throws when the claim was
+ * wrong), and it converts between number types. It does NOT turn a number
+ * into an object or back - those are `new int(n)` and `.value`.
+ *
+ *      from                    to                          answer
+ *      ----------------------  --------------------------  ------------------------------
+ *      the same type                                       allowed (warning W1003: redundant)
+ *      number                  number                      converts; never fails
+ *      object                  a class, an array           allowed, tested at run time
+ *      a class                 a class above it, object    allowed, nothing to test
+ *      a class                 a class below it            allowed, tested at run time
+ *      class or interface      an interface, or back       allowed, tested at run time (another
+ *                                                          class below may implement it)
+ *      a class                 an unrelated class          NO: it can never be one (E0412)
+ *      a number                a class, or back            NO (E0412; new int(n) / .value)
+ *      anything                a function type, nil        NO (E0412)
+ *      object, object[]        an array of a function type NO (E0412: no run-time test can tell)
+ *
+ * A value that may be null can be cast like one that cannot: the result has
+ * the type written after `as`.
+ *
+ *      C++ comparison: compiler/expressions/primary/cast_expression.cpp.
+ */
+def find_cast(session: analysis_session, from: resolved_type, to: resolved_type) : conversion {
+    if(from == to) { return session.nothing_to_do; }
+    if(from.kind == RT_ERROR || to.kind == RT_ERROR || from.is_open_type == 1 || to.is_open_type == 1) {
+        return session.after_an_error;
+    }
+    if(from.kind == RT_NIL) { return refused(from, to, WHY_NO_VALUE); }
+    if(to.kind == RT_NIL || to.kind == RT_NULL || (to.kind == RT_FUNCTION && to.is_array == 0)) { return refused(from, to, WHY_NOT_CASTABLE); }
+
+    if(from.is_number() || to.is_number()) {
+        if(to.is_boolean() && from.is_number() && !from.is_boolean()) { return refused(from, to, WHY_NUMBER_TO_BOOL); }
+        if(from.is_number() && to.is_number()) { return accepted(CONV_NUMERIC, from, to, 1); }
+        if(from.is_number()) { return refused(from, to, WHY_NUMBER_TO_OBJECT); }
+        if(from.kind == RT_NULL) { return refused(from, to, WHY_NULL); }
+        return refused(from, to, WHY_OBJECT_TO_NUMBER);
+    }
+    if(from.kind == RT_NULL) { return accepted(CONV_NULL, from, to, 1); }
+    if(from.kind == RT_FUNCTION && from.is_array == 1 && to.kind == RT_FUNCTION && function_types_fit(from.as_non_null(), to.as_non_null())) {
+        return accepted(CONV_TO_NULLABLE, from, to, 0);
+    }
+    if(from.kind == RT_FUNCTION || to.kind == RT_FUNCTION) {
+        // an array of function values is an array of objects: `object[]` and `object` take it.
+        // The way back is refused: nothing at run time can test that an object is an array of
+        // values of ONE function type, so `o as fn[]` (also `o as T[]` in an instance where T is
+        // a function type) is E0412, as in the C++ compiler ("cast expression of type
+        // `*(decimal)(decimal)[]` not allowed")
+        if(to.kind == RT_OBJECT && (to.is_array == 0 || from.is_array == 1)) { return accepted(CONV_TO_OBJECT, from, to, 3); }
+        return refused(from, to, WHY_NOT_CASTABLE);
+    }
+
+    // `object` is "anything": to it nothing is tested, from it everything is
+    if(to.kind == RT_OBJECT && to.is_array == 0) {
+        if(from.kind == RT_OBJECT && from.is_array == 0) { return accepted(CONV_TO_NULLABLE, from, to, 0); }
+        return accepted(CONV_TO_OBJECT, from, to, 3);
+    }
+    if(from.kind == RT_OBJECT && from.is_array == 0) { return tested_at_run_time(from, to); }
+    if(from.is_array != to.is_array) { return refused(from, to, WHY_ARRAY); }
+
+    // both arrays, or both single objects: decided by what the items are
+    if(to.kind == RT_OBJECT) {
+        // C[] as object[]; an array of plain numbers holds no objects, so it is never an object[]
+        if(from.kind == RT_INTEGER || from.kind == RT_DECIMAL) { return refused(from, to, WHY_UNRELATED); }
+        return accepted(CONV_TO_OBJECT, from, to, 3);
+    }
+    if(from.kind == RT_OBJECT) { return tested_at_run_time(from, to); }               // object[] as C[]
+    if(from.kind != RT_CLASS || to.kind != RT_CLASS) {
+        // arrays of numbers: only the very same item type
+        if(from.kind == to.kind && from.bits == to.bits && from.is_signed == to.is_signed) {
+            return accepted(CONV_TO_NULLABLE, from, to, 0);
+        }
+        return refused(from, to, WHY_UNRELATED);
+    }
+
+    from_class : sharp_class = from.class_of!!;
+    to_class : sharp_class = to.class_of!!;
+    if(from_class == to_class) { return accepted(CONV_TO_NULLABLE, from, to, 0); }
+    if(inherits_from(session.prog, from_class, to_class)) { return accepted(CONV_UPCAST, from, to, 2); }
+    if(inherits_from(session.prog, to_class, from_class)) { return tested_at_run_time(from, to); }
+    // an interface on either side: some class below may be both
+    if(from_class.is_interface() || to_class.is_interface()) { return tested_at_run_time(from, to); }
+    return refused(from, to, WHY_UNRELATED);
+}
+
+/** a cast only the object itself can confirm */
+def tested_at_run_time(from: resolved_type, to: resolved_type) : conversion {
+    down := accepted(CONV_DOWNCAST, from, to, 4);
+    down.checked = 1;
+    return down;
+}

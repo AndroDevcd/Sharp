@@ -1,0 +1,75 @@
+mod shop;
+
+import ( std.io )
+
+// The program the completion, hover and navigation tests ask questions of.
+// It compiles with no error; the tests then type more text into it and ask again.
+
+interface priced {
+    def price() : decimal;
+}
+
+class item : priced {
+    title : string = "";
+    cost : decimal = 0;
+    private secret : _int64 = 0;
+    static created : _int64 = 0;
+
+    item(title: string) { self->title = title; }
+
+    override def price() : decimal { return cost; }
+    def label() : string { return title; }
+    static def make(title: string) : item { return new item(title); }
+}
+
+class book base item {
+    pages : _int64 = 0;
+
+    book(title: string) -> base(title) { }
+
+    def summary() : string {
+        text := self.label();
+        return text;
+    }
+}
+
+enum color { red, green, blue }
+
+class holder<T> {
+    value : T;
+
+    holder(value: T) { self->value = value; }
+
+    def get_value() : T { return value; }
+}
+
+class labelled<K> base holder<K> {
+    caption : string = "";
+
+    labelled(value: K) -> base(value) { }
+}
+
+def string.shout() : string { return self + "!"; }
+
+def make_book() : book { return new book("b"); }
+
+def probe(names: list<string>, owner: book) : _int64 {
+    local_book := new book("x");
+    box := new holder<string>("v");
+    tagged := new labelled<string>("t");
+    count := names.size();
+    first_name := names.at(0).shout();
+    owner_title := owner.title;
+    summary := local_book.summary();
+    unboxed := box.get_value();
+    through_base := tagged.get_value();
+    made := make_book().label();
+    first := item.make("m");
+    shade := color.green;
+    return count.value;
+}
+
+def main(args: string[]) : int {
+    println("done: " + probe(new list<string>(), make_book()));
+    return 0;
+}

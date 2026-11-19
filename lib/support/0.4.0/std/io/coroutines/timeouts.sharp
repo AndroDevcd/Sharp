@@ -1,0 +1,149 @@
+mod std.io.coroutines;
+
+/**
+ * timeouts.sharp - time limits: with_timeout { } and with_timeout_or_null { }.
+ *
+ * USAGE
+ *     try {
+ *         with_timeout(500, { ->
+ *             answer.value = slow_request();       // in-line: may capture locals
+ *         });
+ *     } catch(e: timeout_cancellation_exception) {
+ *         println("no answer in half a second");
+ *     }
+ *
+ *     page := with_timeout_or_null(500, { -> (object) return download(); });
+ *     if(page == null) { println("too slow"); }
+ *
+ * HOW IT WORKS
+ * The block runs in-line in the calling fiber, inside a scope of its own. A
+ * timer coroutine (on the one timer thread of the program) cancels that scope
+ * when the time is up. Like every cancellation this is cooperative: the block
+ * is interrupted at its next cancellation point (delay, yield, ensure_active,
+ * channel operations, join, await, mutex, semaphore). A block that only
+ * computes and never reaches one is NOT interrupted; the time out is then
+ * reported when the block returns.
+ *
+ * Coroutines launched inside the block are children of the scope: they are
+ * cancelled by the time out too, and with_timeout does not return before they
+ * have stopped.
+ *
+ * Both are in-line scope functions: THE NESTING RULE of scope/scopes.sharp
+ * applies (with_timeout directly inside with_timeout on the same fiber is
+ * refused; put with_timeout_or_null inside with_timeout, or the other way
+ * round, or launch the inner part).
+ *
+ * Kotlin equivalents: withTimeout(ms) { }, withTimeoutOrNull(ms) { }.
+ */
+
+/**
+ * Run `block`, but give it at most `ms` milliseconds.
+ *
+ * SUSPENDS (the block does; and at the end while children finish).
+ * Cancellation: a cancellation of the caller cancels the block as well.
+ * @throws timeout_cancellation_exception when the time ran out
+ * @throws whatever the block throws
+ * @throws illegal_state_exception directly inside another with_timeout { } of
+ *         the same fiber (THE NESTING RULE)
+ * Kotlin: withTimeout(ms) { }
+ */
+def with_timeout(ms: decimal, block: ()()) {
+    check_scope_nesting(8, "with_timeout");
+
+    limit : int = ms;
+    error := new timeout_cancellation_exception("timed out after $limit ms");
+    scope_job := open_scope(0);
+    ticking := start_timer(scope_job, ms, error);
+
+    outer := current_job();
+    failure : throwable? = null;
+    cancellation : decimal = 0;
+
+    mark_scope(8);
+    set_current_job(scope_job);
+    try {
+        block();
+    } catch(c: cancellation_exception) {
+        failure = c;
+        cancellation = 1;
+    } catch(t: throwable) {
+        failure = t;
+    }
+    set_current_job(outer);
+    unmark_scope(8);
+
+    ticking.cancel();
+    close_scope(scope_job, failure, cancellation);
+}
+
+/**
+ * with_timeout() that returns the block's result, or null when the time ran
+ * out, instead of throwing.
+ *
+ *     r := with_timeout_or_null(200, { -> (object) return queue.receive(); });
+ *
+ * The result is an `object`: cast it to what the block returns (r as int).
+ * A block whose own result is null cannot be told from a time out.
+ *
+ * SUSPENDS; cancellation as for with_timeout().
+ * @throws whatever the block throws, except its own time out
+ * @throws illegal_state_exception directly inside another
+ *         with_timeout_or_null { } of the same fiber (THE NESTING RULE)
+ * Kotlin: withTimeoutOrNull(ms) { }
+ */
+def with_timeout_or_null(ms: decimal, block: ()(object)) : object? {
+    check_scope_nesting(16, "with_timeout_or_null");
+
+    limit : int = ms;
+    error := new timeout_cancellation_exception("timed out after $limit ms");
+    scope_job := open_scope(0);
+    ticking := start_timer(scope_job, ms, error);
+
+    outer := current_job();
+    failure : throwable? = null;
+    cancellation : decimal = 0;
+    result : object? = null;
+
+    mark_scope(16);
+    set_current_job(scope_job);
+    try {
+        result = block();
+    } catch(c: cancellation_exception) {
+        failure = c;
+        cancellation = 1;
+    } catch(t: throwable) {
+        failure = t;
+    }
+    set_current_job(outer);
+    unmark_scope(16);
+
+    ticking.cancel();
+
+    timed_out : decimal = 0;
+    try {
+        close_scope(scope_job, failure, cancellation);
+    } catch(late: timeout_cancellation_exception) {
+        // only OUR time out turns into null; one of an enclosing with_timeout travels on
+        if((late as object) == (error as object)) {
+            timed_out = 1;
+        } else {
+            throw late;
+        }
+    }
+
+    if(timed_out != 0) {
+        return null;
+    }
+    return result;
+}
+
+/** start the coroutine that cancels `scope_job` with `error` after `ms` milliseconds */
+private def start_timer(scope_job: job, ms: decimal, error: timeout_cancellation_exception) : job {
+    ticking := new job(new timeout_timer(scope_job, ms, error));
+
+    // no parent: the timer must not keep any scope alive, and nobody waits for it
+    ticking.quiet = 1;
+    ticking.dispatcher = dispatchers.timers();
+    ticking.start();
+    return ticking;
+}

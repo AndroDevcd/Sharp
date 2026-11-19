@@ -1,0 +1,368 @@
+mod main;
+
+// output:
+// area: 40
+// name of null: -1 of a square: 4
+// loud: 99 11
+// pick: 774 732
+// noisy 1
+// unused: 3001 count 1
+// fields: 10303033 15253133
+// statics: 121010
+// elements: 1010 1018
+// through if: 2542552 2543070
+// tests: 10142 142 112
+// nothing there: 11 10
+// count: 6
+// shrinking: 4 10
+// never runs: 1
+// begins with null: -5 3
+// nested: 246
+// sum: 198 0
+// skipping: 132 0
+// other array: -1 3
+// replaced: -4
+// from below: -77 63
+// no array: 1
+
+/*
+ * THE OPTIMIZER: PURE FUNCTIONS, DEVIRTUALIZATION, COMMON SUBEXPRESSIONS, NULL TESTS,
+ * LOOP INVARIANTS, BOUNDS CHECKS (doc/codegen.md 7.2, doc/optimizations.md 3a steps 2 - 5)
+ *
+ * Like cases/optimizer.sharp: codegen.sh builds the file plain and with -O, and both must print
+ * the block above (what the C++-built program prints). Each part is a way one of these goes wrong:
+ *
+ *   devirtualization   an interface with ONE class behind it (the call goes straight to it) - also
+ *                      on a null object, which must raise as before even when the body never
+ *                      touches `self`; an interface with two classes (must stay a lookup); an
+ *                      object made here whose class overrides (straight to the override); a slot
+ *                      that can hold objects of two classes (must stay a lookup)
+ *   pure functions     an unused call of a function that does nothing else goes; one that prints,
+ *                      raises, or changes a field must stay
+ *   common             a field read twice with nothing between is read once; with a write between -
+ *   subexpressions     through the same object under another name, inside a call - it is read again;
+ *                      the same for statics and elements; across an `if`
+ *   null tests         a second test of the same object; a test after the object was replaced; an array
+ *                      of no elements and an empty text, which ARE null on this VM
+ *   loop invariants    a field that does not change in the loop; one that changes on a later round
+ *                      (through another name); a loop that never runs must not raise for what was
+ *                      moved in front of it; one that begins with a read of a null object must
+ *   bounds checks      a loop over an array's own length; the index changed inside the loop, another
+ *                      array, an array replaced in the loop, an index that starts below 0: all must
+ *                      still raise where they did
+ */
+
+interface shape { def area() : _int64; def name() : _int64; }
+class square : shape {
+    side : _int64 = 0;
+    square(s: _int64) { side = s; }
+    override def area() : _int64 { return side * side; }
+    override def name() : _int64 { return 4; }                // never touches `self`
+}
+
+interface sound { def loud() : _int64; }
+class bell : sound { override def loud() : _int64 { return 9; } }
+class whisper : sound { override def loud() : _int64 { return 1; } }
+
+interface animal { def noise() : _int64; def legs() : _int64; }
+class dog : animal {
+    override def noise() : _int64 { return 7; }
+    override def legs() : _int64 { return 4; }
+}
+class bird : animal {
+    override def noise() : _int64 { return 3; }
+    override def legs() : _int64 { return 2; }
+}
+
+def total_area(s: shape, rounds: _int64) : _int64 {
+    sum : _int64 = 0;
+    for(i : _int64 = 0; i < rounds; i++) { sum += s.area(); }
+    return sum + s.name();
+}
+
+def name_of(s: shape?) : _int64 {
+    try {
+        return s!!.name();
+    } catch(e: exception) {
+        return 0 - 1;
+    }
+}
+
+def loudness(s: sound) : _int64 { return s.loud() * 10 + s.loud(); }
+
+def pick(flag: _int64) : _int64 {
+    a : animal = new dog();
+    first : _int64 = a.noise();                 // the object was made here: dog.noise
+    if(flag == 1) { a = new bird(); }
+    return first * 100 + a.noise() * 10 + a.legs();      // dog or bird: looked up
+}
+
+// ---- pure functions
+class tally { count : _int64 = 0; }
+counter := new tally();
+
+def twice(n: _int64) : _int64 { return n + n; }
+def noisy(n: _int64) : _int64 { println("noisy " + n); return n; }
+def counting(n: _int64) : _int64 { counter.count = counter.count + 1; return n; }
+def dividing(n: _int64, by: _int64) : _int64 { return n % by; }
+def looping(n: _int64) : _int64 {
+    sum : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) { sum += i; }
+    return sum;
+}
+
+def unused_calls(zero: _int64) : _int64 {
+    twice(21);
+    noisy(1);
+    counting(2);
+    looping(5);
+    reached : _int64 = 1;
+    try {
+        dividing(10, zero);
+        reached = 2;
+    } catch(e: exception) {
+        reached = 3;
+    }
+    return reached * 1000 + counter.count;
+}
+
+// ---- common subexpressions
+class pair {
+    x : _int64 = 0;
+    y : _int64 = 0;
+    static shared : _int64 = 5;
+    def bump() { x = x + 100; }
+    def sum() : _int64 { return x + y; }
+}
+
+def raise_shared() { pair.shared = pair.shared + 1; }
+
+def fields(a: pair, b: pair) : _int64 {
+    first : _int64 = a.x + a.y;
+    second : _int64 = a.x + a.y;                // the same again: nothing between
+    b.x = 50;                                   // a and b may be one object
+    third : _int64 = a.x + a.y;
+    a.bump();
+    fourth : _int64 = a.x + a.y;
+    return first + second * 10 + third * 1000 + fourth * 100000;
+}
+
+def statics() : _int64 {
+    first : _int64 = pair.shared * 2;
+    second : _int64 = pair.shared * 2;
+    raise_shared();
+    third : _int64 = pair.shared * 2;
+    return first + second * 100 + third * 10000;
+}
+
+def elements(a: _int64[], b: _int64[], at: _int64) : _int64 {
+    first : _int64 = a[at] + a[at];
+    b[at] = 9;                                  // a and b may be one array
+    second : _int64 = a[at] + a[at];
+    return first * 100 + second;
+}
+
+def through_if(p: pair, flag: _int64) : _int64 {
+    before : _int64 = p.sum() + p.x * p.y;
+    if(flag == 1) { p.y = p.y + 1; }
+    after : _int64 = p.sum() + p.x * p.y;       // changed on one way in: computed again
+    plain : _int64 = (flag + 3) * (flag + 3) + (3 + flag);
+    return before * 10000 + after * 10 + plain;
+}
+
+// ---- null tests
+class node {
+    next : node?;
+    value : _int64 = 0;
+    node(v: _int64) { value = v; }
+}
+
+def tests(n: node?, other: node?) : _int64 {
+    sum : _int64 = 0;
+    if(n != null) {
+        sum += n!!.value;
+        if(n == null) { sum += 100000; }        // known: never
+        n = other;
+        if(n == null) { sum += 1000; }          // another object now: asked again
+    }
+    made := new node(5);
+    if(made == null) { sum += 100000; }
+    current : node? = made;
+    made.next = new node(6);
+    steps : _int64 = 0;
+    while(current != null) {                    // null on the third round
+        sum += current!!.value;
+        current = current!!.next;
+        steps++;
+    }
+    return sum * 10 + steps;
+}
+
+/** an array without elements IS null on this VM: `new T[0]` and `""` must not be taken for "never null" */
+def nothing_there(n: _int64) : _int64 {
+    seen : _int64 = 0;
+    made := new _int64[n];
+    if(made == null) { seen += 1; }
+    empty := new string("");
+    if(empty.data == null) { seen += 10; }
+    full := new string("x");
+    if(full.data == null) { seen += 100; }
+    return seen;
+}
+
+// ---- loop invariants
+class limit {
+    top : _int64 = 0;
+    step : _int64 = 1;
+    limit(t: _int64) { top = t; }
+}
+
+def count_to(l: limit) : _int64 {
+    rounds : _int64 = 0;
+    for(i : _int64 = 0; i < l.top; i++) { rounds += l.step; }
+    return rounds;
+}
+
+def shrinking(l: limit, same: limit) : _int64 {
+    rounds : _int64 = 0;
+    for(i : _int64 = 0; i < l.top; i++) {
+        rounds++;
+        if(i == 2) { same.top = 4; }            // the loop's own limit, under another name
+    }
+    return rounds;
+}
+
+def never_runs(l: limit?, by: _int64) : _int64 {
+    seen : _int64 = 0;
+    for(i : _int64 = 0; i < 0; i++) {
+        seen += l!!.top;                        // a null object, a division by zero: never reached
+        seen += 100 % by;
+    }
+    return seen + 1;
+}
+
+def begins_with_null(l: limit?) : _int64 {
+    rounds : _int64 = 0;
+    try {
+        for(i : _int64 = 0; i < l!!.top; i++) { rounds++; }
+    } catch(e: exception) {
+        return 0 - 5;
+    }
+    return rounds;
+}
+
+def nested(grid: _int64[], width: _int64, l: limit) : _int64 {
+    sum : _int64 = 0;
+    for(row : _int64 = 0; row < l.top; row++) {
+        for(column : _int64 = 0; column < width; column++) {
+            sum += grid[row * width + column] * l.step + row * width;
+        }
+    }
+    return sum;
+}
+
+// ---- bounds checks
+def sum_of(a: _int64[]) : _int64 {
+    sum : _int64 = 0;
+    for(i : _int64 = 0; i < sizeof(a); i++) { sum += a[i]; }
+    return sum;
+}
+
+def fill(a: _int64[]) {
+    for(i : _int64 = 0; i < sizeof(a); i++) { a[i] = i * 3; }
+}
+
+def skipping(a: _int64[]) : _int64 {
+    sum : _int64 = 0;
+    try {
+        for(i : _int64 = 0; i < sizeof(a); i++) {
+            sum += a[i];
+            i += 2;
+            sum += a[i];                        // i has moved: may be past the end
+        }
+    } catch(e: exception) {
+        return 0 - sum;
+    }
+    return sum;
+}
+
+def other_array(a: _int64[], b: _int64[]) : _int64 {
+    sum : _int64 = 0;
+    try {
+        for(i : _int64 = 0; i < sizeof(a); i++) { sum += b[i]; }
+    } catch(e: exception) {
+        return 0 - sum - 1;
+    }
+    return sum;
+}
+
+def replaced(a: _int64[], shorter: _int64[]) : _int64 {
+    sum : _int64 = 0;
+    n : _int64 = sizeof(a);
+    try {
+        for(i : _int64 = 0; i < n; i++) {
+            sum += a[i];
+            if(i == 1) { a = shorter; }         // n is no longer the length of a
+        }
+    } catch(e: exception) {
+        return 0 - sum - 1;
+    }
+    return sum;
+}
+
+def from_below(a: _int64[], start: _int64) : _int64 {
+    sum : _int64 = 0;
+    try {
+        for(i : _int64 = start; i < sizeof(a); i++) { sum += a[i]; }
+    } catch(e: exception) {
+        return 0 - 77;
+    }
+    return sum;
+}
+
+def no_array(a: _int64[]?) : _int64 {
+    sum : _int64 = 0;
+    for(i : _int64 = 0; i < sizeof(a); i++) { sum += a!![i]; }      // a null array has length 0
+    return sum + 1;
+}
+
+def main(args: string[]) {
+    println("area: " + total_area(new square(3), 4));
+    println("name of null: " + name_of(null) + " of a square: " + name_of(new square(2)));
+    println("loud: " + loudness(new bell()) + " " + loudness(new whisper()));
+    println("pick: " + pick(0) + " " + pick(1));
+
+    println("unused: " + unused_calls(0) + " count " + counter.count);
+
+    p := new pair();
+    p.x = 1; p.y = 2;
+    q := new pair();
+    q.x = 3; q.y = 4;
+    println("fields: " + fields(p, q) + " " + fields(p, p));
+    println("statics: " + statics());
+    numbers := new _int64[4];
+    more := new _int64[4];
+    numbers[1] = 5;
+    println("elements: " + elements(numbers, more, 1) + " " + elements(numbers, numbers, 1));
+    println("through if: " + through_if(q, 0) + " " + through_if(q, 1));
+
+    println("tests: " + tests(new node(3), null) + " " + tests(new node(3), new node(4)) + " " + tests(null, null));
+
+    println("nothing there: " + nothing_there(0) + " " + nothing_there(2));
+
+    println("count: " + count_to(new limit(6)));
+    l := new limit(10);
+    println("shrinking: " + shrinking(l, l) + " " + shrinking(new limit(10), new limit(1)));
+    println("never runs: " + never_runs(null, 0));
+    println("begins with null: " + begins_with_null(null) + " " + begins_with_null(new limit(3)));
+    grid := new _int64[12];
+    fill(grid);
+    println("nested: " + nested(grid, 4, new limit(3)));
+
+    println("sum: " + sum_of(grid) + " " + sum_of(new _int64[0]));
+    println("skipping: " + skipping(grid) + " " + skipping(new _int64[4]));
+    println("other array: " + other_array(grid, new _int64[5]) + " " + other_array(new _int64[2], grid));
+    println("replaced: " + replaced(grid, new _int64[1]));
+    println("from below: " + from_below(grid, 0 - 1) + " " + from_below(grid, 10));
+    println("no array: " + no_array(null));
+}

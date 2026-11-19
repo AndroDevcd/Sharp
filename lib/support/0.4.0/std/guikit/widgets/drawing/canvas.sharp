@@ -1,0 +1,109 @@
+mod std.guikit.widgets.drawing;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * frame - what a canvas's drawing function is told about this frame: how big
+ * the canvas is, how much time has passed, where the mouse is, which keys are
+ * held.
+ */
+stable class frame {
+    width : decimal = 0;            // the size of the canvas, in pixels
+    height : decimal = 0;
+    time : decimal = 0;             // seconds since the window opened
+    step : decimal = 0;             // seconds since the previous frame: move things by speed * step
+    mouse_x : decimal = 0;          // the mouse, measured from the canvas's top-left corner
+    mouse_y : decimal = 0;
+    mouse_down : _int64 = 0;        // 1 while the left button is held
+
+    /** is this key held down right now? f.key_down(KEY_LEFT), f.key_down('a') */
+    def key_down(key: _int64) : _int64 {
+        if(ui_host.current == null) { return 0; }
+        return ui_host.current!!.key_held(key);
+    }
+}
+
+/**
+ * canvas - an area you paint yourself, every frame. Made with canvas(...).
+ *
+ * This is the escape hatch out of the widgets: a chart, a drawing surface, a
+ * whole game. You get the painter and draw whatever you like; the rest of the
+ * screen around it is still ordinary widgets.
+ *
+ *      ball_x : decimal = 50;
+ *
+ *      canvas(modifier().fill()) { p: painter, f: frame ->
+ *          if(f.key_down(KEY_RIGHT) == 1) { ball_x = ball_x + 200 * f.step; }
+ *          p.rect(0, 0, f.width, f.height, sky);
+ *          p.circle(ball_x, f.height / 2, 20, red);
+ *      }
+ *
+ * INSIDE THE FUNCTION, (0, 0) is the canvas's own top-left corner and nothing
+ * you draw can spill outside the canvas - so the same drawing code works
+ * wherever the canvas sits in the layout and whatever size it is given.
+ *
+ * A canvas is painted again EVERY frame (about 60 times a second), which is
+ * what animation and games need. For a picture that only changes when your
+ * state does (a chart), call .still(): it is then painted only when the screen
+ * is, and an idle app goes back to sleep.
+ *
+ * (Compose: Canvas. Android: a custom View's onDraw. HTML: the canvas element
+ * with requestAnimationFrame.)
+ */
+stable class canvas base widget : behavior {
+    private draw : (painter, frame)();
+    private quiet : _int64 = 0;                 // 1: do not ask for a frame every frame
+    private info : frame = new frame();
+
+    canvas(drawing: (painter, frame)()) {
+        attach(self);
+        draw = drawing;
+    }
+
+    /** only paint when the rest of the screen does (for drawings that do not animate) */
+    def still() : canvas {
+        quiet = 1;
+        return self;
+    }
+
+    override def kind() : string { return "canvas"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        // no size of its own: give it one with a modifier: .fill(), .grow(1), .size(w, h) ...
+        me.content_w = 0;
+        me.content_h = 0;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        left : decimal = me.inner_x();
+        top : decimal = me.inner_y();
+
+        info.width = me.inner_w();
+        info.height = me.inner_h();
+        info.time = host.now;
+        info.step = host.step;
+        info.mouse_x = host.mouse_x - left;
+        info.mouse_y = host.mouse_y - top;
+        info.mouse_down = host.mouse_held;
+
+        // the drawing function gets a painter whose (0, 0) is the canvas's corner,
+        // cut off at the canvas's edges; both are put back afterwards
+        was_x : decimal = p.origin_x();
+        was_y : decimal = p.origin_y();
+        p.clip(left, top, info.width, info.height);
+        p.move_origin(left, top);
+        draw(p, info);
+        p.restore_origin(was_x, was_y);
+        p.unclip();
+
+        if(quiet == 0) {
+            host.request_frame();
+        }
+    }
+}

@@ -1,0 +1,98 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * THE TYPE OF `name := value;`
+ *
+ * A variable, a field or a function result declared without a type takes the
+ * type of its value. One table for all three:
+ *
+ *      the value is                    the variable is
+ *      ------------------------------  ---------------------------------------------
+ *      5, 0xff, 2 + 3                  an `int` OBJECT   (not a plain _int32)
+ *      1.5                             a `double` object
+ *      'a'                             a `char` object
+ *      true, false                     a `bool` object
+ *      "text"                          a `string` object
+ *      null                            object?
+ *      anything else                   the value's own type, `?` included
+ *      something without a value       not allowed (E0406)
+ *      a type name (x := string;)      not allowed (E0404, reported where the name is read)
+ *
+ * The first five rows are why a LITERAL keeps a mark of what it was written
+ * as (`bound_expression.literal`): `x := 5` and `y : _int64 = 5; x := y` give
+ * different types although both values are whole numbers.
+ *
+ * The value is then converted to that type like any value given to a typed
+ * variable, which is where "5 becomes an `int` object" turns into a
+ * constructor call in the typed tree.
+ *
+ *      C++ comparison: `validate_field_type` in
+ *      postprocessor/field_processor.cpp.
+ */
+def inferred_type_of(session: analysis_session, value: bound_expression) : resolved_type {
+    known : well_known_classes = session.known;
+    made : sharp_class? = null;
+    if(value.literal == LIT_INTEGER) { made = known.int_class; }
+    else if(value.literal == LIT_DECIMAL) { made = known.double_class; }
+    else if(value.literal == LIT_CHAR) { made = known.char_class; }
+    else if(value.literal == LIT_TEXT) { made = known.string_class; }
+    if(made != null) { return type_of_class(made!!); }
+    if(value.literal == LIT_BOOL) { return session.types.bool_type; }      // `x := true` is a plain bool
+    if(value.literal != LIT_NONE) { return session.types.error_type; }     // the library class is missing (reported by stage 5)
+
+    if(value.type.kind == RT_NULL) { return session.types.object_type.as_nullable(); }
+    return value.type;
+}
+
+/**
+ * THE RESULT TYPE OF `def f() := value;` - a different table from the one
+ * above (checked with the C++ compiler, `validate_function_type` in
+ * postprocessor/function_processor.cpp):
+ *
+ *      the value is                            the function returns
+ *      --------------------------------------  ------------------------------------------
+ *      5                                       _int32     (a literal stays a plain number)
+ *      1.5                                     decimal
+ *      'a'                                     _int8
+ *      true, false, or any other bool          bool
+ *      "text"                                  _int8[]
+ *      null                                    object
+ *      a variable or field by its name (`w`)   the variable's type: `def width() := w;`
+ *                                              returns what `w` is
+ *      any other plain number (`w * 2`,        its number CLASS: int, long, double ...
+ *      `sizeof(data)`, `g()`, `w as _int64`)   (`def size() := sizeof(data);` returns an
+ *                                              `int` object, and `s.size().value` is its number)
+ *      anything else                           the value's type
+ */
+def inferred_result_of(session: analysis_session, value: bound_expression) : resolved_type {
+    types : type_table = session.types;
+    if(value.literal == LIT_INTEGER) {
+        if(value.type == types.int64) { return types.int64; }
+        return types.int32;
+    }
+    if(value.literal == LIT_DECIMAL) { return types.decimal_type; }
+    if(value.literal == LIT_CHAR) { return types.int8; }
+    if(value.type.is_boolean()) { return types.bool_type; }
+    if(value.literal == LIT_TEXT) { return types.int8.array_of(); }
+    if(value.type.kind == RT_NULL) { return types.object_type; }
+
+    is_variable : _int64 = value.kind == BX_LOCAL || value.kind == BX_FIELD;
+    if(value.kind == BX_CALL && (value as bound_call).written_as == AS_GETTER) { is_variable = 1; }
+    if(is_variable == 0 && value.type.is_number() && value.type.is_nullable == 0) {
+        box := session.known.box_of(value.type);
+        if(box != null) { return type_of_class(box!!); }
+    }
+    return value.type;
+}

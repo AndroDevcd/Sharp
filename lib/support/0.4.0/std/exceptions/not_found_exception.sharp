@@ -1,0 +1,20 @@
+mod std;
+
+/**
+ * @class not_found_exception
+ *
+ * Thrown when something that was looked up by name, key or path does not
+ * exist: a missing key, file, resource or record.
+ *
+ * Use no_such_element_exception for "the container is empty / exhausted"
+ * and this type for "the thing you named is not there".
+ *
+ * Example:
+ *     throw new not_found_exception("no user with id 42");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class not_found_exception base exception {
+    public not_found_exception(message : string?) -> base(message) {}
+}

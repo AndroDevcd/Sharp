@@ -1,0 +1,250 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * THE MESSAGES OF THE OVERRIDE CHECK (overrides.sharp finds; this file says)
+ *
+ *      E0341   a class does not define what it is required to - ONE message for the
+ *              class, listing every function it lacks and where each comes from
+ *      E0342   `override`, and nothing above to override (with the closest name, or the
+ *              function of that name whose parameters differ)
+ *      E0343   name and parameters fit a function above, the result does not
+ *      E0346   a function of an interface the class lists, declared again without a body
+ *
+ * and the texts they share: a function as the class below must write it
+ * (`compare(other: money) : _int64`, type parameters replaced by what they
+ * stand for there), "interface `printable`" / "class `shape`".
+ *
+ *      C++ comparison: "delegate function `draw(): nil` must be defined in
+ *      class `app#shape`", "function `f` overrides nothing" in
+ *      postprocessor/delegate_processor.cpp - one line each, per function.
+ */
+
+/**
+ * A function as its declaration would be written:  name(a: type, b: type) : type
+ * With bindings, the type parameters of the class it comes from are written
+ * as what they stand for - `compare(other: money)` rather than `compare(other: T)`.
+ */
+def function_text(function: sharp_function, bindings: type_bindings?) : string {
+    text := new string_builder(function.name + "(");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        parameter := function.parameters.at(i);
+        text.append(parameter.name);
+        if(parameter.type != null) { text.append(": " + type_text_with(parameter.type!!, bindings)); }
+    }
+    text.append(")");
+
+    if(function.return_type != null) { text.append(" : " + type_text_with(function.return_type!!, bindings)); }
+    return text.build();
+}
+
+/** a type as written, with bound type parameters replaced by what they stand for */
+def type_text_with(type: sharp_type, bindings: type_bindings?) : string {
+    if(bindings == null) { return type.to_text(); }
+
+    text := new string_builder("");
+    if(type.form == TYPE_NAMED && type.declaration != null) {
+        declared : sharp_declaration = type.declaration!!;
+        bound : sharp_type? = null;
+        if(declared.kind == D_TYPE_PARAMETER) { bound = bindings!!.bound_to(declared); }
+
+        if(bound != null) {
+            // T[] where T is string: the text of string, then the [] and ? of the T
+            text.append(bound!!.to_text());
+        } else {
+            if(declared.kind == D_TYPE_PARAMETER) { text.append(declared.name); }
+            else { text.append(declared.qualified_name()); }
+
+            if(type.arguments.size() > 0) {
+                text.append("<");
+                for(i : _int64 = 0; i < type.arguments.size(); i++) {
+                    if(i > 0) { text.append(", "); }
+                    text.append(type_text_with(type.arguments.at(i), bindings));
+                }
+                text.append(">");
+            }
+        }
+    } else if(type.form == TYPE_FUNCTION) {
+        text.append("(");
+        for(i : _int64 = 0; i < type.parameters.size(); i++) {
+            if(i > 0) { text.append(", "); }
+            text.append(type_text_with(type.parameters.at(i), bindings));
+        }
+        text.append(")(");
+        if(type.result != null) { text.append(type_text_with(type.result!!, bindings)); }
+        text.append(")");
+    } else {
+        return type.to_text();
+    }
+
+    if(type.is_array == 1) { text.append("[]"); }
+    if(type.is_nullable == 1) { text.append("?"); }
+    if(type.has_nullable_items == 1) { text.append("?"); }
+    return text.build();
+}
+
+/** "interface `printable`" / "class `shape`" */
+def kind_and_name(declared: sharp_class) : string {
+    return declaration_kind_name(declared.kind) + " `" + declared.name + "`";
+}
+
+/** E0341: one message for the class, listing everything it lacks */
+def report_missing(declared: sharp_class, missing: list<inherited_function>, problems: list<diagnostic>) {
+    count : _int64 = missing.size().value as _int64;
+    title : string = "`" + declared.name + "` does not define `" + missing.at(0).function.name + "`, which "
+                     + kind_and_name(missing.at(0).from) + " requires";
+    if(count > 1) {
+        title = "`" + declared.name + "` does not define " + count + " functions it is required to";
+    }
+
+    declared.missing_reported = 1;      // (the exact check of stage 5, override_families.sharp, then leaves this class alone)
+    d := error_at_node("E0341", title, declared.unit, declared.node);
+    if(count == 1) { d.with_label("must define `" + missing.at(0).function.name + "`"); }
+    else { d.with_label("" + count + " functions are missing"); }
+
+    stubs := new string_builder("add to `" + declared.name + "`:");
+    for(i : _int64 = 0; i < count; i++) {
+        wanted := missing.at(i);
+        signature := function_text(wanted.function, wanted.bindings);
+
+        if(i < 3) {
+            d.with_related_place(place_of_node(wanted.function.unit, wanted.function.node,
+                                               "`" + wanted.function.name + "` is declared without a body in "
+                                               + kind_and_name(wanted.from)));
+        }
+
+        // is there a function of this name that does not fit? say what it has instead
+        near := declared.members!!.find(wanted.function.name);
+        if(near != null) {
+            for(j : _int64 = 0; j < near!!.size(); j++) {
+                if(near!!.at(j).kind == D_FUNCTION && near!!.at(j).owner == declared) {
+                    d.with_note("`" + declared.name + "` has `" + function_text(near!!.at(j) as sharp_function, null)
+                                + "`, but the parameters must be those of `" + signature + "`");
+                }
+            }
+        }
+        stubs.append("\n            override def " + signature + " { ... }");
+    }
+    d.with_help(stubs.build());
+    problems.add(d);
+}
+
+/** E0343: name and parameters fit, the result does not */
+def report_other_result(definition: sharp_function, wanted: inherited_function, problems: list<diagnostic>) {
+    expected : string = "nothing";
+    if(wanted.function.return_type != null) {
+        expected = "`" + type_text_with(wanted.function.return_type!!, wanted.bindings) + "`";
+    }
+    actual : string = "nothing";
+    if(definition.return_type != null) { actual = "`" + definition.return_type!!.to_text() + "`"; }
+
+    problems.add(error_at_node("E0343", "`" + definition.name + "` returns " + actual + ", but the function it overrides returns "
+                               + expected, definition.unit, definition.node)
+        .with_label("must return " + expected)
+        .with_related_place(place_of_node(wanted.function.unit, wanted.function.node,
+                                          "declared in " + kind_and_name(wanted.from) + " here"))
+        .with_note("code that calls `" + definition.name + "` through `" + wanted.from.name
+                   + "` relies on the result it promises")
+        .with_help("write:  override def " + function_text(wanted.function, wanted.bindings)));
+}
+
+/** E0342: `override`, and nothing above to override */
+def report_overrides_nothing(declared: sharp_class, function: sharp_function, inherited: list<inherited_function>,
+                             problems: list<diagnostic>) {
+    d := error_at_node("E0342", "`" + function.signature() + "` is marked `override` but there is nothing for it to override",
+                       function.unit, function.node);
+
+    // 1. the name is right, the parameters are not
+    names := new list<string>();
+    same_name : _int64 = 0;
+    for(i : _int64 = 0; i < inherited.size(); i++) {
+        wanted := inherited.at(i);
+        if(wanted.function.name == function.name) {
+            if(same_name < 3) {
+                d.with_related_place(place_of_node(wanted.function.unit, wanted.function.node,
+                                                   kind_and_name(wanted.from) + " declares `"
+                                                   + function_text(wanted.function, wanted.bindings) + "`"));
+            }
+            same_name++;
+        } else {
+            names.add(wanted.function.name);
+        }
+    }
+
+    if(same_name > 0) {
+        d.with_label("no function above has these parameter types");
+        d.with_help("an overriding function takes exactly the parameters of the function it overrides; change them to match, or remove `override` to make this a separate function");
+    } else {
+        d.with_label("no base class or interface of `" + declared.name + "` declares a function `" + function.name + "` without a body");
+
+        // 2. a name that is close
+        suggestion := did_you_mean(closest_names(function.name, names, 3));
+        if(sizeof(suggestion.data) > 0) { d.with_help(suggestion); }
+
+        // 3. the base class has it, with a body
+        defined_above := defined_in_base(declared, function.name);
+        if(defined_above != null) {
+            d.with_related_place(place_of_node(defined_above!!.unit, defined_above!!.node,
+                                               "this `" + function.name + "` has a body"));
+            d.with_note("only a function declared WITHOUT a body can be overridden");
+            // (removing `override` alone would make `f` HIDE the one above: W1041)
+            d.with_help("to choose by the object's class when the program runs, declare it without a body above (`def "
+                        + function.name + "(...);`) and give each class below its own `override def " + function.name + "`");
+            d.with_help("or give this function another name: with the same name and parameters it only hides the one above (W1041)");
+        } else {
+            d.with_help("remove `override` if this is a function of its own");
+        }
+    }
+    problems.add(d);
+}
+
+/** a function called `name` with a body somewhere up the base chain, or null */
+def defined_in_base(declared: sharp_class, name: string) : sharp_declaration? {
+    up : sharp_class? = declared.base_class;
+    for(depth : _int64 = 0; up != null && depth < 256; depth++) {
+        found := up!!.members!!.find(name);
+        if(found != null) {
+            for(i : _int64 = 0; i < found!!.size(); i++) {
+                if(found!!.at(i).kind == D_FUNCTION) { return found!!.at(i); }
+            }
+        }
+        up = up!!.base_class;
+    }
+    return null;
+}
+
+/**
+ * E0346: a class lists an interface and declares one of its functions
+ * again, without a body.
+ *
+ *      interface drawable { def draw(n: _int64); }
+ *      class shape : drawable { def draw(n: _int64); }     E0346
+ *
+ * The interface is a promise the CLASS that lists it keeps (rule 1). Written
+ * again without a body, the promise would quietly become a function of
+ * `shape` that is left to the classes below - and if none defines it, a
+ * call through a `drawable` finds no code. The C++ compiler refuses it too
+ * ("function `draw` is already defined", "delegate function `draw` must be
+ * defined in class `shape`"). One message: the class is not also listed as
+ * missing the function (E0341).
+ */
+def report_interface_function_without_body(declared: sharp_class, definition: sharp_function, wanted: inherited_function,
+                                           problems: list<diagnostic>) {
+    declared.missing_reported = 1;
+    problems.add(error_at_node("E0346", "`" + declared.name + "` declares `" + definition.name + "` of interface `" + wanted.from.name
+                               + "` again, without a body", definition.unit, definition.node)
+        .with_label("a class that lists `" + wanted.from.name + "` must define this function, not declare it again")
+        .with_related_place(place_of_node(wanted.function.unit, wanted.function.node, "the interface declares it here"))
+        .with_note("the class that names an interface after `:` keeps its promises itself; it cannot pass them on to the classes below it")
+        .with_help("define it here:  override def " + function_text(definition, null) + " { ... }")
+        .with_help("or, to leave it to the classes below, name the interface on them instead of on `" + declared.name + "`"));
+}

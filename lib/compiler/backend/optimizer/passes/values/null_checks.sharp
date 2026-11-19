@@ -1,0 +1,75 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * NULL CHECK ELIMINATION: a test for null whose answer is known is not made
+ *
+ *      new_object  %7, main#node                   new_object  %7, main#node
+ *      ...                                         ...
+ *      is_null     %6, %7              ->          int_constant %6, 0
+ *      jump_unless %6, L5                          jump_unless %6, L5      (constant propagation: `jump L5`,
+ *      ...   (the code for "it is null")           ...                      and the code for null is unreachable)
+ *
+ * Where a slot is known not to hold null (analysis/not_null.sharp: it was
+ * just made, it was used and did not raise, the program tested it already,
+ * and it was not written since), `is_null` of it is 0. The pass only writes
+ * that 0; constant propagation, jump cleanup and unreachable code do the
+ * rest, and often box elimination after them - the test was the one thing
+ * that needed the object to exist.
+ *
+ * In Sharp's source these are `x == null`, `x != null`, and what `?.` and
+ * `?:` test; a second test of what was tested before is the common case.
+ * (`x!!` makes no test of its own: the use that follows raises for null.)
+ *
+ * The VM's OWN check inside every field read stays: it is part of the
+ * instruction, not an instruction, and costs a compare the processor
+ * predicts. Taking it out would need a second, unchecked instruction in the
+ * VM and both JITs (doc/optimizations.md).
+ *
+ * Not for a function with a `try` (nothing is known there).
+ *
+ *      C++ comparison: the C++ optimizer has no such pass. HotSpot and LLVM
+ *      fold null tests from the same facts; HotSpot goes further and drops
+ *      the machine's check too, catching the processor's fault instead.
+ */
+def eliminate_null_checks(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0) { return 0; }
+    total : _int64 = code.instructions.size().value as _int64;
+    any : _int64 = 0;
+    for(i : _int64 = 0; i < total && any == 0; i++) {
+        if(code.instructions.at(i).kind == IR_IS_NULL) { any = 1; }
+    }
+    if(any == 0) { return 0; }
+    graph := analyses.graph();
+    facts := find_not_null(graph);
+    if(facts.valid == 0) { return 0; }
+    known := new slot_set(facts.slots);
+    found : _int64 = 0;
+    for(b : _int64 = 0; b < graph.blocks; b++) {
+        facts.load_before_block(b, known);
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+            made := code.instructions.at(i);
+            if(made.kind == IR_IS_NULL && made.first >= 0 && made.first < facts.slots && known.has(made.first)) {
+                // (after `step`: it reads what the instruction was, and the slot written is the same)
+                facts.step(i, known);
+                made.kind = IR_INT_CONSTANT;
+                made.first = 0 - 1;
+                made.number = 0;
+                made.second = 0 - 1;
+                made.detail = 0;
+                found++;
+                continue;
+            }
+            facts.step(i, known);
+        }
+    }
+    // (an instruction now reads one slot fewer: the blocks stand, liveness does not)
+    if(found > 0) { analyses.changed_reads(); }
+    return found;
+}

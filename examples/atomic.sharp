@@ -1,10 +1,12 @@
 mod main;
 
-import std.io;
+import (
+    std.io
+)
 
-count := new atomic<var>(0); // setup our atomic number
+count := new atomic<decimal>(0); // setup our atomic number
 
-def foo_main(args: object[]) : var {
+def foo_main(args: object[]) : decimal {
    for(i := 0; i < 1000; i++) {
       count++;
    }

@@ -1,0 +1,53 @@
+mod main;
+
+import ( std.testing )
+
+/**
+ * KNOWN BUGS found while writing std.text (expected to FAIL today).
+ *
+ * 1. A whole-number literal beyond 32 bit with a minus sign in front of it,
+ *    and the constant expression `0 - <such a literal>`, are compiled as
+ *    -2147483648. The same number computed from a variable is right.
+ *    (std.text#number_format works around it by computing its negative
+ *    limits from variables.)
+ *
+ * 2. A number is silently accepted where a `string` parameter is expected: it
+ *    is converted through the constructor string(_int8) into a string of ONE
+ *    character with that code. takes_text(3) compiles and receives "\x03".
+ *    This is why std.text never overloads a method on string / number
+ *    (text_wrap.indent_by, string.format_one ... have their own names):
+ *    such overloads are reported as ambiguous, and without the overload the
+ *    wrong call compiles silently.
+ */
+
+def takes_text(text: string): decimal {
+    return text.size().value;
+}
+
+def first_code(text: string): decimal {
+    return text.at(0).value;
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_text_literals") {
+        big : decimal = 12345678901;
+
+        // ---- 1. large negative literals
+        literal : decimal = -12345678901;
+        test("a large literal with a minus sign") { expect(literal).should_be(0 - big); };              // actual: -2147483648
+        folded : decimal = 0 - 12345678901;
+        test("0 - a large literal") { expect(folded).should_be(0 - big); };                             // actual: -2147483648
+        test("a large positive literal (correct today)") { expect(big + 1).should_be(12345678902); };
+        limit : decimal = -1.7976931348623157e308;
+        test("a large negative decimal literal") { expect_true(limit < 0 - 1e300); };         // actual: false
+
+        // ---- 2. a number is not accepted where a string is expected
+        // takes_text(300) is a compile error now (it used to pass a one-character
+        // string). A character still becomes a string by itself, and a number is
+        // made text explicitly.
+        test("a character passed as a string") { expect(first_code('3')).should_be('3'); };
+        test("\"\" + 300 passed as a string") { expect(takes_text("" + 300)).should_be(3); };
+    };
+    finish_tests("lib_text_literals");
+}

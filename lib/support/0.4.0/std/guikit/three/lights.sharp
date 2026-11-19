@@ -1,0 +1,113 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.guikit.*
+)
+
+/**
+ * sun - the one light that reaches everywhere in a scene, from one direction.
+ *
+ *      sun().from(0.8, 0.3, -0.5);                 // low in the east
+ *      sun().from(-0.4, 0.8, 0.5).shadows();       // high, and things throw shadows
+ *      sun().color(0xFFD9A0FF).strength(1.2);      // warm evening light
+ *
+ * from(x, y, z) is the direction the light comes FROM: (0, 1, 0) is straight
+ * overhead, a small y is a low sun and long shadows.
+ *
+ * A scene always has a sun (a high one from the front left, without shadows,
+ * until it is told otherwise). It also shows in the sky as a disc.
+ *
+ * SHADOWS cost drawing the scene a second time, from the sun; shadows(reach)
+ * says how far from the eye they are drawn - 60 metres unless told. Things
+ * beyond it are lit but throw none.
+ *
+ * (three.js: DirectionalLight. Godot: DirectionalLight3D.)
+ */
+stable class sun {
+    x : decimal = 0 - 0.4;
+    y : decimal = 0.8;
+    z : decimal = 0.5;
+    tinted : _int64 = 0xFFF4E0FF;
+    bright : decimal = 1;
+    shadowed : bool = false;
+    shadow_reach : decimal = 60;
+
+    def from(px: decimal, py: decimal, pz: decimal) : sun {
+        x = px;
+        y = py;
+        z = pz;
+        return self;
+    }
+
+    def color(packed: _int64) : sun {
+        tinted = packed;
+        return self;
+    }
+
+    /** 1 is daylight; 0 puts it out (a night scene lit by lamps) */
+    def strength(amount: decimal) : sun {
+        bright = amount;
+        return self;
+    }
+
+    def shadows() : sun {
+        shadowed = true;
+        return self;
+    }
+
+    /** shadows up to this many metres from the eye */
+    def shadows(reach: decimal) : sun {
+        shadowed = true;
+        shadow_reach = reach;
+        return self;
+    }
+}
+
+/**
+ * lamp - a light at a place, reaching a few metres round it: a street lamp, a
+ * fire, a torch.
+ *
+ *      lamp().at(0, 3, 0).reach(8).color(0xFFE9A0FF);
+ *
+ * Made inside a group, its place is the group's (the lamp of a street lamp
+ * moves with the post). The four lamps nearest the camera light the scene; a
+ * scene may have as many as it likes.
+ *
+ * (three.js: PointLight. Godot: OmniLight3D.)
+ */
+stable class lamp {
+    x : decimal = 0;
+    y : decimal = 0;
+    z : decimal = 0;
+    tinted : _int64 = 0xFFE9B0FF;
+    far : decimal = 6;              // how many metres it reaches
+    bright : decimal = 1;
+    on : thing? = null;             // the group it hangs in (null: the scene itself)
+
+    def at(px: decimal, py: decimal, pz: decimal) : lamp {
+        x = px;
+        y = py;
+        z = pz;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    def reach(metres: decimal) : lamp {
+        far = metres;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    def color(packed: _int64) : lamp {
+        tinted = packed;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    def strength(amount: decimal) : lamp {
+        bright = amount;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+}

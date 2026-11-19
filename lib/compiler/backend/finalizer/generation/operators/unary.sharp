@@ -1,0 +1,47 @@
+mod backend.finalizer.generation.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation
+)
+
+/**
+ * `-a` AND `!a` ON A NUMBER (doc/codegen.md 6.4)
+ *
+ *      -count          negate %t, %count               neg / dneg
+ *      !done           not %t, %done                   not / dnot: always the whole number 1 or 0
+ *
+ * `-` of the smallest whole number wraps around to itself, as in the
+ * C++-built program (the VM's `neg` on 64 bits; a narrower result is cut to
+ * its type where it is stored).
+ */
+
+/** `-a`, `!a` on a number (6.4); `!` always gives an integer 0 or 1 */
+def unary_value(g: generator, e: bound_unary) : _int64 {
+    value : _int64 = value_of(g, e.operand);
+    decimal_operand : _int64 = e.operands == OPERANDS_DECIMAL;
+    if(e.operation == P_MINUS) {
+        value = as_operand(g, value, e.operands);
+        g.b.release(value);
+        target : _int64 = g.b.temp(g.b.kind_of(value));
+        made := g.b.emit(IR_NEGATE);
+        made.target = target;
+        made.first = value;
+        made.detail = decimal_operand;
+        return target;
+    }
+    if(e.operation == P_NOT) {
+        target : _int64 = g.b.temp(SLOT_INT);
+        made := g.b.emit(IR_NOT);
+        made.target = target;
+        made.first = value;
+        made.detail = g.b.kind_of(value) == SLOT_DEC;
+        g.b.release(value);
+        return target;
+    }
+    g.stop("the unary operator of this expression", e.unit, e.node);
+    return value;
+}

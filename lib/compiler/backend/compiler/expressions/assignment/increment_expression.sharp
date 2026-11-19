@@ -1,0 +1,114 @@
+mod backend.compiler.expressions.assignment;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions,
+    backend.compiler.expressions.calls,
+    backend.compiler.expressions.arithmetic
+)
+
+/**
+ * `++x`, `--x`, `x++`, `x--`
+ *
+ *      operand                     meaning
+ *      --------------------------  ------------------------------------------------------
+ *      a number variable, field,   one more / less, stored back: a bound_increment. `++x`
+ *      array item                  is the new value, `x++` the old one
+ *      a number property           read through the getter, written through the setter
+ *      an object                   its class's operator++ / operator--: without a
+ *                                  parameter for `++x`, with one `decimal` parameter that
+ *                                  is given 1 for `x++` (doc/backend.md 7.8.2)
+ *      a number that is no place   E0711: `5++`, `f()++` change nothing
+ *      `object`                    E0512
+ *      an array, text ...          E0514
+ *
+ *      C++ comparison: `compile_unary_prefix_expression` /
+ *      `compile_unary_postfix_expression` in unary/unary_expression.cpp and
+ *      `compile_property_step` in assign_expression.cpp.
+ */
+def analyse_increment(context: analysis_context, node: _int64, is_postfix: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    operation : _int64 = token_kind_at(context, node);
+    operand_node : _int64 = context.tree.first_child!![node];
+    read := analyse_value(context, operand_node, null);
+    type : resolved_type = read.type;
+    if(type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+
+    target := target_from(context, operand_node, read);
+    if(read.kind == BX_ENUM_VALUE) {
+        // `color.red++`: an enum value is a constant, not a place - E0711, as for `color.red = x`
+        // (not "the enum has no operator++": no operator could make it storable)
+        report_not_assignable(context, target, node, "changed with `" + name_at(context, node) + "`");
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(type.kind == RT_CLASS && type.is_array == 0 && target.kind != TARGET_PROPERTY) {
+        return increment_object(context, node, read, is_postfix);
+    }
+    if(type.kind == RT_OBJECT && type.is_array == 0) {
+        report_operator_on_object(context, node, read);
+        return new bound_error(context.unit, node, error_type);
+    }
+    is_place : _int64 = target.kind == TARGET_STORAGE || target.kind == TARGET_PROPERTY;
+    if(!type.is_number() || (type.is_boolean() && is_place == 1)) {     // (`true++`, `5++`: no place - E0711 below)
+        report_unary_does_not_apply(context, node, read);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(target.kind != TARGET_STORAGE && target.kind != TARGET_PROPERTY) {
+        report_not_assignable(context, target, node, "changed with `" + name_at(context, node) + "`");
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    check_const(context, target, node);
+    made := new bound_increment(context.unit, node, target.storage!!, operation == P_DEC, is_postfix);
+    made.getter = target.getter;
+    made.setter = target.setter;
+    return made;
+}
+
+/** `x++` / `++x` on an object: its operator++ / operator-- */
+def increment_object(context: analysis_context, node: _int64, read: bound_expression, is_postfix: _int64) : bound_expression {
+    name := "operator" + name_at(context, node);
+    arguments := new list<call_argument>();
+    if(is_postfix == 1) {
+        // the postfix form takes one `decimal`, given 1 (that is how the two forms are told apart)
+        one := new bound_literal(context.unit, node, context.session.types.int32, integer_constant(1), LIT_INTEGER);
+        arguments.add(new call_argument(one, node));
+    }
+    called := call_operator(context, node, read, name, arguments);
+    if(called != null) { return called!!; }
+
+    form := name + "()";
+    if(is_postfix == 1) { form = name + "(step: decimal)"; }
+    if(read.type.class_of != null && read.type.class_of!!.is_enum()) {
+        // `x := colour.red; x++;`: refused, but "declare operator++ in the enum" would be no fix
+        d := problem_at(context, "E0511", "an enum value cannot be counted with `" + name_at(context, node) + "`", node);
+        d.with_label("`" + source_text_of(context, read.node) + "` is a `" + read.type.to_text() + "`");
+        explain_enum_arithmetic(context, d, read);
+        report(context, d);
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    if(reported_as_misdeclared(context, node, read.type.class_of!!, name, is_postfix)) {
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    d := problem_at(context, "E0511", "`" + read.type.to_text() + "` has no `" + form + "`", node);
+    d.with_label("no such operator");
+    if(is_postfix == 1) {
+        d.with_note("`x" + name_at(context, node) + "` on an object calls `" + form + "` of its class, given 1; `"
+                    + name_at(context, node) + "x` calls `" + name + "()`");
+    } else {
+        d.with_note("`" + name_at(context, node) + "x` on an object calls `" + name + "()` of its class");
+    }
+    add_number_in_text_help(context, d, read, name_at(context, node));
+    report(context, d);
+    return new bound_error(context.unit, node, context.session.types.error_type);
+}

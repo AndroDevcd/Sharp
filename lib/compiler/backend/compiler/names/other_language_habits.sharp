@@ -1,0 +1,333 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * AN UNKNOWN NAME THAT IS A HABIT FROM ANOTHER LANGUAGE
+ *
+ * Some unknown names are not typing slips: the programmer wrote what another
+ * language wants, and the useful message is the Sharp way to say it. These
+ * are the cases not_found.sharp (E0400) asks about before it falls back to
+ * "there is no ... named ...":
+ *
+ *      total = 0;                      declaring by assigning    ->  `total := 0;`
+ *      for(count; count < 3; count++)  a `for` that declares nothing  ->  `for(count := 0; ...)`
+ *      area(width = 2, height = 3)     named arguments           ->  `area(2, 3)`
+ *      brake;  contine;  retrun;       a misspelt statement keyword  ->  `break;`
+ *      this, super, nullptr, None ...  another language's word   ->  `self`, `base`, `null`
+ *
+ * Each either reports the E0400 itself, with the fix ready to paste, or adds
+ * a help to the one not_found.sharp is building.
+ *
+ *      C++ comparison: none; "could not resolve symbol" is all it says.
+ */
+
+/**
+ * `total = 0;` (or `for(i = 0; ...)`) where nothing is named `total`: the
+ * programmer meant to declare it. The help is the declaration to write at
+ * that very place, with the value already written.
+ */
+def add_declare_by_assignment(context: analysis_context, d: diagnostic, name: string, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    assign : _int64 = tree.parents!![node];
+    if(assign < 0 || tree.kinds!![assign] != N_ASSIGN || tree.first_child!![assign] != node) { return 0; }
+    if(token_kind_at(context, assign) != P_ASSIGN) { return 0; }
+    holder : _int64 = tree.parents!![assign];
+    if(holder < 0 || (tree.kinds!![holder] != N_EXPRESSION_STATEMENT && tree.kinds!![holder] != N_FOR_INIT)) { return 0; }
+    value : _int64 = tree.next_sibling!![node];
+    if(value < 0) { return 0; }
+    end := ";";
+    if(tree.kinds!![holder] == N_FOR_INIT) { end = ""; }
+    d.with_note("`=` gives a new value to a variable that exists; a new variable is declared with `:=` (or `" + name + " : <type> = ...`)");
+    d.with_help("declare it here: `" + name + " := " + source_text_of(context, value) + end + "`");
+    return 1;
+}
+
+/**
+ * `f(alpha = 1)`: a name on the left of a plain `=` that is itself an
+ * argument of a call - another language's named argument. The N_CALL node,
+ * or -1.
+ */
+def call_of_named_argument(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    assign : _int64 = tree.parents!![node];
+    if(assign < 0 || tree.kinds!![assign] != N_ASSIGN || tree.first_child!![assign] != node) { return 0 - 1; }
+    if(token_kind_at(context, assign) != P_ASSIGN) { return 0 - 1; }
+    arguments : _int64 = tree.parents!![assign];
+    if(arguments < 0 || tree.kinds!![arguments] != N_ARGUMENTS) { return 0 - 1; }
+    call : _int64 = tree.parents!![arguments];
+    if(call < 0 || tree.kinds!![call] != N_CALL) { return 0 - 1; }
+    return call;
+}
+
+/**
+ * E0400 for `f(alpha = 1, betta = 2)`. Sharp has no named arguments: the
+ * `=` is an assignment to a variable `alpha`, which does not exist. The
+ * help is the call with the values in order; the name is compared with the
+ * parameter names of the function called (did-you-mean), so a misspelt
+ * "named argument" is still caught.
+ */
+def report_named_argument(context: analysis_context, name: string, node: _int64, call: _int64, key: string) {
+    tree : syntax_tree = context.tree;
+    // `area(widht = 2, height = 3)`: one call written with named arguments is ONE
+    // mistake - the second name is a place of the first message, not a message
+    call_key := context.unit.file + ":named arguments:" + call;
+    first : diagnostic? = context.session.unknown_names.at(call_key);
+    if(first != null) {
+        p : parse_state = context.state;
+        token : _int64 = tree.tokens!![node];
+        first!!.with_related(p.start_of(token), p.end_of(token), "`" + name + " = ...` is another one");
+        context.session.unknown_names.put(key, first!!);
+        return;
+    }
+    d := problem_at(context, "E0400", "there is no variable named `" + name + "`: Sharp has no named arguments", node);
+    context.session.unknown_names.put(call_key, d);
+    d.with_label("`" + name + " = ...` here assigns to a variable `" + name + "`");
+    d.with_note("arguments are matched to parameters by their ORDER; `name = value` inside the parentheses is an assignment");
+
+    // the call written with the values only
+    callee : _int64 = tree.first_child!![call];
+    arguments : _int64 = tree.child_of_kind(call, N_ARGUMENTS);
+    values := new string_builder("");
+    argument : _int64 = tree.first_child!![arguments];
+    count : _int64 = 0;
+    while(argument >= 0) {
+        if(count > 0) { values.append(", "); }
+        value : _int64 = argument;
+        if(tree.kinds!![argument] == N_ASSIGN && token_kind_at(context, argument) == P_ASSIGN && tree.next_sibling!![tree.first_child!![argument]] >= 0) {
+            value = tree.next_sibling!![tree.first_child!![argument]];
+        }
+        values.append(source_text_of(context, value));
+        count++;
+        argument = tree.next_sibling!![argument];
+    }
+    d.with_help("pass the values in the order of the parameters: `" + source_text_of(context, callee) + "(" + values.build() + ")`");
+
+    // did-you-mean among the parameters of the functions of that name
+    if(tree.kinds!![callee] == N_IDENTIFIER) {
+        found := look_up_name(context, name_at(context, callee), callee);
+        if(found.functions != null) {
+            parameters := new list<string>();
+            for(i : _int64 = 0; i < found.functions!!.size(); i++) {
+                function := found.functions!!.at(i);
+                for(j : _int64 = 0; j < function.parameters.size(); j++) { parameters.add(function.parameters.at(j).name); }
+            }
+            exact : _int64 = 0;
+            for(i : _int64 = 0; i < parameters.size(); i++) {
+                if(parameters.at(i) == name) { exact = 1; }
+            }
+            if(exact == 1) {
+                d.with_note("`" + name + "` is the name of a parameter of `" + name_at(context, callee) + "`, but a call cannot name it");
+            } else {
+                close := closest_names(name, parameters, 3);
+                if(close.size() > 0) { d.with_help(did_you_mean(close) + " (a parameter of `" + name_at(context, callee) + "`; its value is still given by position)"); }
+            }
+        }
+    }
+    context.session.unknown_names.put(key, d);
+    report(context, d);
+}
+
+/** is the name at `node` the whole start part of a `for`: `for(count; ...)`? */
+def is_named_by_for_start(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    parent : _int64 = tree.parents!![node];
+    return parent >= 0 && tree.kinds!![parent] == N_FOR_INIT && tree.kinds!![node] == N_IDENTIFIER;
+}
+
+/** E0400 at `for(count; count < 3; count++)`: the start part names a variable and declares nothing */
+def report_for_start_declares_nothing(context: analysis_context, name: string, node: _int64, key: string) {
+    d := problem_at(context, "E0400", "there is no variable named `" + name + "`: the start part of this `for` declares nothing", node);
+    d.with_label("only names `" + name + "`");
+    d.with_note("the start part of a `for` runs once before the loop; to have a loop variable, declare it there");
+    d.with_help("write `for(" + name + " := 0; ...)` - or `" + name + " : _int64 = 0` for a plain number");
+    context.session.unknown_names.put(key, d);
+    report(context, d);
+}
+
+/**
+ * `brake;` / `contine;` - a name standing alone as a statement that is one
+ * slip away from a statement keyword: the keyword was meant.
+ */
+def add_statement_keyword(context: analysis_context, d: diagnostic, name: string, node: _int64) {
+    tree : syntax_tree = context.tree;
+    parent : _int64 = tree.parents!![node];
+    if(parent < 0 || tree.kinds!![parent] != N_EXPRESSION_STATEMENT) { return; }
+    keywords := new list<string>();
+    keywords.add("break");
+    keywords.add("continue");
+    keywords.add("return");
+    meant := "";
+    close := closest_names(name, keywords, 1);
+    if(close.size() > 0) { meant = close.at(0); }
+    for(i : _int64 = 0; i < keywords.size() && sizeof(meant.data) == 0; i++) {
+        if(same_letters(name, keywords.at(i))) { meant = keywords.at(i); }      // `brake`: two letters swapped
+    }
+    if(sizeof(meant.data) == 0) { return; }
+    d.with_help("did you mean the keyword `" + meant + "`? write `" + meant + ";`");
+}
+
+/** the Sharp word for a word of another language; "" when there is none */
+def word_in_sharp(name: string) : string {
+    if(name == "this") { return "self"; }
+    if(name == "super") { return "base"; }
+    if(name == "nullptr" || name == "NULL" || name == "None" || name == "undefined") { return "null"; }
+    if(name == "True") { return "true"; }
+    if(name == "False") { return "false"; }
+    return "";
+}
+
+/**
+ * `elif(x == 2) { }`, `switch(x) { }`, `whlie(x) { }`, `retrun(x);`: a statement written
+ * in a form that PARSES as a call - a name, its parentheses, and a block
+ * after them (read as a trailing lambda) - so the parser has nothing to
+ * say, and the name is "not found". The name is another language's keyword
+ * (`elif`, `elsif`, `switch`), or a Sharp keyword with a slip in it, or
+ * Python's `len`. The help is the Sharp statement, with the parentheses as
+ * written.
+ *
+ * @return 1 when a help was added
+ */
+def add_call_form_keyword(context: analysis_context, d: diagnostic, name: string, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    call : _int64 = tree.parents!![node];
+    if(call < 0 || tree.kinds!![call] != N_CALL || tree.first_child!![call] != node) { return 0; }
+    arguments_node : _int64 = tree.child_of_kind(call, N_ARGUMENTS);
+    arguments := "(...)";
+    if(arguments_node >= 0) {
+        if(tree.first_child!![arguments_node] < 0) { arguments = "()"; }
+        else {
+            inside := source_text_of(context, tree.first_child!![arguments_node]);
+            if(tree.next_sibling!![tree.first_child!![arguments_node]] < 0 && !(inside == "<value>")) { arguments = "(" + inside + ")"; }
+        }
+    }
+
+    // `if(a) { } esle { }`: a name and a block, no parentheses - read as a call with a trailing lambda
+    if(context.state.kinds[tree.tokens!![node] + 1] == P_LBRACE
+       && (same_letters(name, "else") || closest_names(name, single_word("else"), 1).size() > 0)) {
+        d.with_help("did you mean the keyword `else`? write `else { ... }`");
+        return 1;
+    }
+    if(name == "elif" || name == "elsif" || name == "elseif" || name == "else_if") {
+        d.with_help("`" + name + "` is written `else if` in Sharp: `else if" + arguments + " { ... }`");
+        return 1;
+    }
+    if(name == "switch") {
+        d.with_note("Sharp's multi-way branch is `when`: one clause per value, `value -> { ... }`, without `case` and without `break` (only the clause that matches runs)");
+        d.with_help("write: `when" + arguments + " { 1 -> { ... } else -> { ... } }`");
+        return 1;
+    }
+    if(name == "len") {
+        d.with_help("`len` is Python's: the length of an array is `sizeof" + arguments + "`, the size of a list or a text `" + inside_of(arguments) + ".size()`");
+        return 1;
+    }
+
+    // `retrun(x);` - a slip in `return`, which takes its value without parentheses
+    // (only as a statement of its own: a `return` cannot stand inside an expression)
+    statement : _int64 = tree.parents!![call];
+    if(statement >= 0 && tree.kinds!![statement] == N_EXPRESSION_STATEMENT
+       && (same_letters(name, "return") || closest_names(name, single_word("return"), 1).size() > 0)) {
+        value := inside_of(arguments);
+        if(arguments == "()") { d.with_help("did you mean the keyword `return`? write `return;`"); }
+        else { d.with_help("did you mean the keyword `return`? write `return " + value + ";`"); }
+        return 1;
+    }
+
+    keywords := new list<string>();
+    keywords.add("if");
+    keywords.add("while");
+    keywords.add("for");
+    keywords.add("foreach");
+    keywords.add("when");
+    keywords.add("lock");
+    keywords.add("catch");
+    keywords.add("sizeof");
+    meant := "";
+    close := closest_names(name, keywords, 1);
+    if(close.size() > 0) { meant = close.at(0); }
+    for(i : _int64 = 0; i < keywords.size() && sizeof(meant.data) == 0; i++) {
+        if(same_letters(name, keywords.at(i))) { meant = keywords.at(i); }      // `whlie`: two letters swapped
+    }
+    if(sizeof(meant.data) == 0) { return 0; }
+    if(meant == "sizeof") { d.with_help("did you mean the keyword `sizeof`? write `sizeof" + arguments + "`"); }
+    else { d.with_help("did you mean the keyword `" + meant + "`? write `" + meant + arguments + " { ... }`"); }
+    return 1;
+}
+
+/** a list holding one word, to ask `closest_names` about that word alone */
+def single_word(word: string) : list<string> {
+    words := new list<string>();
+    words.add(word);
+    return words;
+}
+
+/** "(items)" -> "items": what stands between the parentheses of an argument list as written */
+def inside_of(arguments: string) : string {
+    length : _int64 = sizeof(arguments.data);
+    if(length < 2) { return arguments; }
+    return new string(arguments.data!!, 1, length - 1);
+}
+
+/**
+ * `math.sqrt(x)` with no `math` anywhere: the LAST PART of a module's name
+ * used as if it were an object, the way Python and Java reach a module's
+ * functions. In Sharp a module is imported and its names are then used as
+ * they are (`sqrt(x)`), or written `std.math#sqrt(x)`. When some module of
+ * the program is called `name` (or ends in `.name`) and declares the member
+ * written after the dot, that is said - and nothing else is guessed (a
+ * did-you-mean of `path` for `math` would only mislead).
+ *
+ * @return 1 when such a module was found and the help added
+ */
+def add_module_named_by_last_part(context: analysis_context, d: diagnostic, name: string, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    member_node : _int64 = tree.parents!![node];
+    if(member_node < 0 || tree.kinds!![member_node] != N_MEMBER || tree.first_child!![member_node] != node) { return 0; }
+    member_name_node : _int64 = tree.last_child!![member_node];
+    if(member_name_node == node) { return 0; }
+    member := name_at(context, member_name_node);
+    // `Math.sqrt(x)`, Java's spelling: module names are lower case, so `Math` means `math`
+    part := name.to_lower();
+
+    for(i : _int64 = 0; i < context.prog.module_list.size(); i++) {
+        module := context.prog.module_list.at(i);
+        if(!(module.name == part) && !module.name.ends_with("." + part)) { continue; }
+        found := module.declared.find(member);
+        if(found == null || found!!.size() == 0) { continue; }
+
+        // the call as written, without `math.` in front: `sqrt(re * re)`
+        written := member;
+        whole : _int64 = member_node;
+        if(tree.parents!![member_node] >= 0 && tree.kinds!![tree.parents!![member_node]] == N_CALL) { whole = tree.parents!![member_node]; }
+        text := source_text_of(context, whole);
+        prefix : _int64 = sizeof(name.data) + 1;
+        if(!(text == "<value>") && sizeof(text.data) > prefix) { written = new string(text.data!!, prefix, sizeof(text.data)); }
+
+        if(part == name) {
+            d.with_note("`" + name + "` is not a variable or a class: it is the last part of the module `" + module.name
+                        + "`, and a module is not reached with `.`");
+        } else {
+            d.with_note("`" + name + "` is not a variable or a class; written `" + part + "` (names are case-sensitive) it is the last part of the module `"
+                        + module.name + "`, and a module is not reached with `.`");
+        }
+        if(context.file.imports_module(module)) {
+            d.with_help("the module is imported, so its names are used as they are: `" + written + "`");
+        } else {
+            d.with_help("add `import (" + module.name + ")` to this file, and use the name as it is: `" + written + "`");
+        }
+        d.with_help("or write the module in front of it with `#`: `" + module.name + "#" + written + "`");
+        return 1;
+    }
+    return 0;
+}

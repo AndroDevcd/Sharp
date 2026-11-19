@@ -1,0 +1,151 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - basic queries (part of the `string` class)
+ *
+ * The `string` class itself lives in std/string.sharp and is kept small because
+ * the compiler generates code against it. Everything else a string can do is
+ * added to the class from the files in this folder (each is a mutate declaration),
+ * one topic per file:
+ *
+ *     string_core.sharp      length, is_empty / is_blank, char_at, first / last, chars   (this file)
+ *     string_slice.sharp     substring_before / after, take / drop, remove_prefix, reversed, repeat
+ *     string_trim.sharp      trim, pad_start / pad_end, center
+ *     string_search.sharp    index_of, last_index_of, contains, count
+ *     string_replace.sharp   replace_all / first / last, replace_char, remove
+ *     string_split.sharp     split, lines, chunked, join
+ *     string_case.sharp      to_upper, capitalize, swap_case, title_case
+ *     string_compare.sharp   compare_to, equals_ignore_case, is_digits ...
+ *     string_convert.sharp   to_int / to_double / to_bool (+ _or_null and _or variants)
+ *     string_format.sharp    format, quote, escape, ellipsize, string.of_int ...
+ *
+ * The methods are ordinary members of `string`: no import is needed to call them.
+ *
+ * Conventions used by all of these files
+ *  - a string is never changed by these methods; they return a new string
+ *    (the older `append` and `replace(pos, ch)` in std/string.sharp do change it)
+ *  - positions and counts are returned as native numbers (`decimal`), -1 = not found
+ *  - yes/no answers are returned as native numbers too (1 / 0), so they can be
+ *    used directly in `if(...)` and assigned to a `bool`
+ *  - characters are single bytes (ASCII); letters outside ASCII are left alone
+ *  - an empty string has `data == null`; all methods accept empty strings
+ */
+mutate string {
+
+    /**
+     * The number of characters, as a native number.
+     * (`size()` returns the same count as an `int` object.)
+     */
+    def length(): decimal {
+        return sizeof(data);
+    }
+
+    /** 1 if the string has no characters at all, otherwise 0. */
+    def is_empty(): decimal {
+        return sizeof(data) == 0;
+    }
+
+    /** 1 if the string has at least one character, otherwise 0. */
+    def is_not_empty(): decimal {
+        return sizeof(data) != 0;
+    }
+
+    /**
+     * 1 if the string is empty or holds nothing but whitespace
+     * (space, tab, newline, carriage return, vertical tab, form feed).
+     */
+    def is_blank(): decimal {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            if(!string_support.is_space(data[i])) return 0;
+        }
+        return 1;
+    }
+
+    /** 1 if the string holds at least one character that is not whitespace. */
+    def is_not_blank(): decimal {
+        return !is_blank();
+    }
+
+    /**
+     * The character at `pos` (0 = first) as a native number.
+     * Throws out_of_bounds_exception if pos is negative or >= length.
+     * (`at(pos)` and `[pos]` do the same but return a `char` object.)
+     */
+    def char_at(pos: int): decimal {
+        p : decimal = pos.value;
+        if(p < 0 || p >= sizeof(data))
+            throw new bounds_except("char_at: index $pos is outside of a string of ${size()} characters");
+        return data[p];
+    }
+
+    /**
+     * The character at `pos`, or `fallback` when pos is outside of the string.
+     * Never throws.
+     */
+    def char_at_or(pos: int, fallback: char): decimal {
+        p : decimal = pos.value;
+        if(p < 0 || p >= sizeof(data)) return fallback.value;
+        return data[p];
+    }
+
+    /**
+     * The first character.
+     * Throws out_of_bounds_exception if the string is empty.
+     */
+    def first(): decimal {
+        if(sizeof(data) == 0)
+            throw new bounds_except("first: the string is empty");
+        return data[0];
+    }
+
+    /** The first character, or `fallback` if the string is empty. */
+    def first_or(fallback: char): decimal {
+        if(sizeof(data) == 0) return fallback.value;
+        return data[0];
+    }
+
+    /**
+     * The last character.
+     * Throws out_of_bounds_exception if the string is empty.
+     */
+    def last(): decimal {
+        n : decimal = sizeof(data);
+        if(n == 0)
+            throw new bounds_except("last: the string is empty");
+        return data[n - 1];
+    }
+
+    /** The last character, or `fallback` if the string is empty. */
+    def last_or(fallback: char): decimal {
+        n : decimal = sizeof(data);
+        if(n == 0) return fallback.value;
+        return data[n - 1];
+    }
+
+    /**
+     * The characters as an array of `char` objects, one per character.
+     * An empty string gives an array of length 0.
+     */
+    def chars(): char[] {
+        n : decimal = sizeof(data);
+        result := new char[n];
+        for(i : decimal = 0; i < n; i++) {
+            result[i] = new char(data[i]);
+        }
+        return result;
+    }
+
+    /**
+     * A copy of the raw characters as native numbers (changing the copy does
+     * not change the string). An empty string gives an array of length 0.
+     */
+    def to_bytes(): _int8[] {
+        n : decimal = sizeof(data);
+        result := new _int8[n];
+        if(n > 0) memcopy(data!!, result, 0, 0, n);
+        return result;
+    }
+}

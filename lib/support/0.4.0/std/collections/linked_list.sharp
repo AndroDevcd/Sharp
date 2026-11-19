@@ -1,0 +1,366 @@
+mod std.collections;
+
+/**
+ * @class linked_list
+ *
+ * A doubly linked list: every element lives in its own node that points to
+ * the node before and after it.
+ *
+ * Compared to the array backed `list`:
+ *   - adding or removing at either END is O(1) and never copies elements
+ *   - reaching an element by index is O(n) (the list walks to it, starting
+ *     from whichever end is closer)
+ *
+ * Use it when elements mostly come and go at the ends, or when a list is
+ * built once and then walked from front to back. Use `list` when elements
+ * are looked up by index a lot.
+ *
+ *     names := new linked_list<string>();
+ *     names.add_last("b");
+ *     names.add_first("a");
+ *     foreach(name in names) println(name);        // a, b
+ *
+ * Elements are compared with `==` (contains, index_of, remove): numbers and
+ * strings compare by value, other objects by identity.
+ *
+ * Limitation: the element type has to be an object type (int, string, your
+ * own classes). Native types such as `decimal` cannot be used as T.
+ */
+class linked_list<T> : loopable<T>, iterable<T> {
+    /** first node, null when the list is empty */
+    private head : linked_node<T>?;
+    /** last node, null when the list is empty */
+    private tail : linked_node<T>?;
+    /** number of elements */
+    private count : decimal;
+
+    /** Create an empty list. */
+    linked_list() {
+        count = 0;
+    }
+
+    /** Create a list holding the elements of an array, in the same order. O(n). */
+    linked_list(items: T[]) {
+        count = 0;
+        for(i : decimal = 0; i < sizeof(items); i++)
+            add_last(items[i]);
+    }
+
+    /** Number of elements in the list. O(1). */
+    def size() : decimal {
+        return count;
+    }
+
+    /** 1 when the list has no elements, otherwise 0. O(1). */
+    def is_empty() : decimal {
+        return count == 0;
+    }
+
+    /** Add an element at the end of the list (same as add_last). O(1). */
+    def add(element: T) {
+        add_last(element);
+    }
+
+    /** Add an element in front of all others. O(1). */
+    def add_first(element: T) {
+        node := new linked_node<T>(element);
+        if(head == null) {
+            head = node;
+            tail = node;
+        } else {
+            node.next = head;
+            head!!.prev = node;
+            head = node;
+        }
+        count++;
+    }
+
+    /** Add an element behind all others. O(1). */
+    def add_last(element: T) {
+        node := new linked_node<T>(element);
+        if(tail == null) {
+            head = node;
+            tail = node;
+        } else {
+            node.prev = tail;
+            tail!!.next = node;
+            tail = node;
+        }
+        count++;
+    }
+
+    /** Append every element of a `list`, keeping their order. O(n) in the size of `other`. */
+    def add_all(other: list<T>) {
+        n : decimal = other.size().value;
+        for(i : decimal = 0; i < n; i++)
+            add_last(other.at(i));
+    }
+
+    /**
+     * The first element. O(1).
+     *
+     * @throws no_such_element_exception when the list is empty
+     */
+    def first() : T {
+        if(head == null) throw empty_error("first");
+        return head!!.value;
+    }
+
+    /**
+     * The last element. O(1).
+     *
+     * @throws no_such_element_exception when the list is empty
+     */
+    def last() : T {
+        if(tail == null) throw empty_error("last");
+        return tail!!.value;
+    }
+
+    /** The first element, or null when the list is empty. O(1). */
+    def first_or_null() : T? {
+        if(head == null) return null;
+        return head!!.value;
+    }
+
+    /** The last element, or null when the list is empty. O(1). */
+    def last_or_null() : T? {
+        if(tail == null) return null;
+        return tail!!.value;
+    }
+
+    /**
+     * Remove the first element and return it. O(1).
+     *
+     * @throws no_such_element_exception when the list is empty
+     */
+    def remove_first() : T {
+        if(head == null) throw empty_error("remove_first");
+        node := head!!;
+        unlink(node);
+        return node.value;
+    }
+
+    /**
+     * Remove the last element and return it. O(1).
+     *
+     * @throws no_such_element_exception when the list is empty
+     */
+    def remove_last() : T {
+        if(tail == null) throw empty_error("remove_last");
+        node := tail!!;
+        unlink(node);
+        return node.value;
+    }
+
+    /**
+     * The element at a position (0 = first). O(n): the list walks to it from
+     * the closer end.
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
+    def at(index: int) : T {
+        return node_at(index.value).value;
+    }
+
+    /**
+     * Replace the element at a position and return the element that was
+     * there before. O(n).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
+    def put(index: int, element: T) : T {
+        node := node_at(index.value);
+        old := node.value;
+        node.value = element;
+        return old;
+    }
+
+    /**
+     * Insert an element so that it ends up at position `index`; the element
+     * that was there and all behind it move one position back.
+     * insert(0, x) is add_first(x), insert(size(), x) is add_last(x). O(n).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index > size()
+     */
+    def insert(index: int, element: T) {
+        i : decimal = index.value;
+        if(i < 0 || i > count) throw bounds_error(i);
+
+        if(i == 0) {
+            add_first(element);
+        } else if(i == count) {
+            add_last(element);
+        } else {
+            after := node_at(i);
+            before := after.prev!!;
+            node := new linked_node<T>(element);
+            node.prev = before;
+            node.next = after;
+            before.next = node;
+            after.prev = node;
+            count++;
+        }
+    }
+
+    /**
+     * Remove the element at a position and return it. O(n).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
+    def remove_at(index: int) : T {
+        node := node_at(index.value);
+        unlink(node);
+        return node.value;
+    }
+
+    /**
+     * Remove the first element that equals `element`. O(n).
+     *
+     * @return 1 when an element was removed, 0 when the list does not contain it
+     */
+    def remove(element: T) : decimal {
+        node := head;
+        while(node != null) {
+            current := node!!;
+            if(current.value == element) {
+                unlink(current);
+                return 1;
+            }
+            node = current.next;
+        }
+        return 0;
+    }
+
+    /**
+     * Position of the first element that equals `element`, or -1 when the
+     * list does not contain it. O(n).
+     */
+    def index_of(element: T) : decimal {
+        i : decimal = 0;
+        node := head;
+        while(node != null) {
+            current := node!!;
+            if(current.value == element) return i;
+            node = current.next;
+            i++;
+        }
+        return -1;
+    }
+
+    /** 1 when at least one element equals `element`, otherwise 0. O(n). */
+    def contains(element: T) : decimal {
+        return index_of(element) >= 0;
+    }
+
+    /** Remove every element. O(1). */
+    def clear() {
+        head = null;
+        tail = null;
+        count = 0;
+    }
+
+    /** Reverse the order of the elements in place. O(n), no allocation. */
+    def reverse() {
+        node := head;
+        while(node != null) {
+            current := node!!;
+            following := current.next;
+            current.next = current.prev;
+            current.prev = following;
+            node = following;
+        }
+        old_head := head;
+        head = tail;
+        tail = old_head;
+    }
+
+    /** A new array with the elements in list order (length 0 for an empty list). O(n). */
+    def to_array() : T[] {
+        items := new T[count];
+        i : decimal = 0;
+        node := head;
+        while(node != null) {
+            current := node!!;
+            items[i++] = current.value;
+            node = current.next;
+        }
+        return items;
+    }
+
+    /** A new `list` with the elements in list order. O(n). */
+    def to_list() : list<T> {
+        result := new list<T>();
+        node := head;
+        while(node != null) {
+            current := node!!;
+            result.add(current.value);
+            node = current.next;
+        }
+        return result;
+    }
+
+    /**
+     * The elements as an array, or null when the list is empty. This is the
+     * function `foreach` uses, so `foreach(x in my_linked_list)` works. O(n).
+     */
+    override def get_elements() : T[]? {
+        if(count == 0) return null;
+        return to_array();
+    }
+
+    /** An iterator from the first element to the last. */
+    override def iterator() : iterator<T> {
+        return new linked_list_iterator<T>(head, 1);
+    }
+
+    /** An iterator from the last element to the first. */
+    def descending_iterator() : iterator<T> {
+        return new linked_list_iterator<T>(tail, 0);
+    }
+
+    /**
+     * Find the node at an index, walking from the head for the front half of
+     * the list and from the tail for the back half.
+     */
+    private def node_at(index: decimal) : linked_node<T> {
+        if(index < 0 || index >= count) throw bounds_error(index);
+
+        if(index < count / 2) {
+            node := head!!;
+            for(i : decimal = 0; i < index; i++)
+                node = node.next!!;
+            return node;
+        } else {
+            node := tail!!;
+            for(i : decimal = count - 1; i > index; i--)
+                node = node.prev!!;
+            return node;
+        }
+    }
+
+    /** Take a node out of the chain and fix head / tail / count. */
+    private def unlink(node: linked_node<T>) {
+        before := node.prev;
+        after := node.next;
+
+        if(before == null) head = after;
+        else before!!.next = after;
+
+        if(after == null) tail = before;
+        else after!!.prev = before;
+
+        node.next = null;
+        node.prev = null;
+        count--;
+    }
+
+    private def bounds_error(index: decimal) : out_of_bounds_exception {
+        i : int = index;
+        n : int = count;
+        return new out_of_bounds_exception("linked_list: index $i is out of bounds (size $n)");
+    }
+
+    private def empty_error(operation: string) : no_such_element_exception {
+        return new no_such_element_exception("linked_list: $operation called on an empty list");
+    }
+}

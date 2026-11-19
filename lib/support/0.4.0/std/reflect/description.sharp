@@ -1,0 +1,15 @@
+mod std.reflect;
+
+class description {
+    type: data_type;
+    is_array: bool;
+    data: object;
+
+    def is_class() : bool = type.type == _type_class;
+    def is_object() : bool = type.type == _type_object;
+    def is_primitive() : bool = type.type <= _type_var;
+
+    override def to_string(): string? {
+        return "describe(type=$type, is_array=$is_array)";
+    }
+}

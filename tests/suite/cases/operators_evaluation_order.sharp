@@ -1,0 +1,31 @@
+mod main;
+
+import ( testing )
+
+/**
+ * THE RULE (decided 2026-11-12): the operands of a binary operator are
+ * evaluated RIGHT TO LEFT.
+ *   In `f() + g()` g is called before f. It only shows when the calls have
+ *   side effects, e.g. `box.swap(x) + box.take()`: write such calls as
+ *   separate statements when the order matters.
+ *   Same result in all four configurations ({no -O, -O} x {JIT, -nojit}).
+ */
+
+trace : decimal = 0;
+
+/* appends its digit to trace, so trace shows the order of the calls */
+def mark(digit: decimal): decimal {
+    trace = trace * 10 + digit;
+    return digit;
+}
+
+def main(args: string[]) {
+    x : decimal = mark(1) + mark(2);
+    expect("a + b evaluates b first", trace, 21);
+
+    trace = 0;
+    x = mark(1) - mark(2) * mark(3);
+    expect("a - b * c evaluates c, then b, then a", trace, 321);
+
+    finish("operators_evaluation_order");
+}

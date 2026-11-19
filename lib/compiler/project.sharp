@@ -1,0 +1,168 @@
+mod main;
+
+import (
+    std.io,
+    std.io.*,
+    platform,
+    platform.kernel,
+    configuration
+)
+
+/*
+ * PROJECTS, THE OUTPUT FILE, AND RUNNING IT
+ *
+ * A compile is asked for in one of two ways:
+ *
+ *      sharpc main.sharp util.sharp -o app -L <library>      FILE MODE: the files named
+ *      sharpc -p        (or  -P <folder>)                    PROJECT MODE: a folder
+ *
+ * A project is a folder laid out like this (`sharpc --new-project demo`
+ * makes one):
+ *
+ *      demo/
+ *          settings.json           the options of the build (settings_processor.sharp)
+ *          src/main.sharp          the sources: every .sharp file anywhere in the folder
+ *          build/outputs/<output>  the executable the compile writes
+ *          build/cache/            the build cache (cache/)
+ *
+ * Where the executable goes (`output_path`):
+ *
+ *      file mode       the name `-o` gave, as it was given; without `-o`: `out`
+ *      project mode    <project>/build/outputs/<name>, where <name> is the
+ *                      "output" of settings.json (or `-o`), else `out`
+ *
+ * `-run` then starts the program: the runtime `sharp` is looked up on the
+ * PATH and handed the file that was just written; the compiler ends with the
+ * program's exit code.
+ *
+ *      C++ comparison: create_project() in lib/grammar/main.cpp; the output
+ *      path is worked out where the file is written
+ *      (backend/finalizer/generation/file_generator.cpp, the end of
+ *      generate_exe()). The C++ compiler has no -run.
+ *
+ * In this file:
+ *      output_path             where the executable is written
+ *      create_project          --new-project <folder>
+ *      run_program             -run
+ */
+
+/**
+ * The path the executable is written to. In project mode the folder
+ * build/outputs is made when it is not there (the C++ compiler does the
+ * same); when it cannot be made the compiler stops and says so.
+ */
+def output_path() : string {
+    if(options.compile_mode != compilation_mode.project_mode) {
+        return options.out;
+    }
+
+    outputs := new file(options.project_dir + "/build/outputs");
+    if(!outputs.mkdirs()) {
+        error("could not create the output folder of the project: " + outputs.get_path());
+    }
+    return options.project_dir + "/build/outputs/" + options.out;
+}
+
+/**
+ * --new-project <folder>: make the folder, its sub-folders, a first
+ * main.sharp and a settings.json, then stop. Nothing is overwritten: a file
+ * or folder of that name is an error.
+ */
+def create_project() {
+    dir := new file(options.new_project_dir);
+
+    try{
+       if(dir.exists()) {
+             println("could not create project, a ${dir.is_directory() ? "directory" : "file"} with the name ${options.new_project_dir} already exists!");
+             exit(1);
+       }
+
+       if(dir.mkdir() != 0) {
+          println("failed to create project directory: ${options.new_project_dir}");
+          exit(1);
+       }
+
+       src_dir := new file(options.new_project_dir + "/src/");
+       build_dir := new file(options.new_project_dir + "/build/");
+       cache_dir := new file(options.new_project_dir + "/build/cache/");
+       outputs_dir := new file(options.new_project_dir + "/build/outputs/");
+       files_dir := new file(options.new_project_dir + "/build/cache/files/");
+
+       if(src_dir.mkdir() || build_dir.mkdir() || cache_dir.mkdir()
+          || outputs_dir.mkdir() || files_dir.mkdir()) {
+          println("failed to create all necessary directories for project: ${options.new_project_dir}");
+          exit(1);
+       }
+
+       main_template_file : file;
+       settings_template_file : file;
+       main_file := new file(options.new_project_dir + "/src/main.sharp");
+       settings_file := new file("${options.new_project_dir}/$settings_file_name");
+
+       if(build.is_windows()) {
+          main_template_file = new file("C:\\Program Files\\Sharp\\proj-template\\main.sharp");
+          settings_template_file = new file("C:\\Program Files\\Sharp\\proj-template\\$settings_file_name");
+       } else {
+          main_template_file = new file("/usr/include/sharp/proj-template/main.sharp");
+          settings_template_file = new file("/usr/include/sharp/proj-template/$settings_file_name");
+       }
+
+       data : string = "";
+       if(main_template_file.exists()) {
+          data = main_template_file.read() ?: "";
+       } else {
+         data = "mod main;\n\ndef main() {\n  println(\"hello, world!\");\n}\n";
+       }
+
+       main_file.create();
+       if(main_file.write(data) != 0) {
+          println("failed to create the main file for project: ${dir.get_name()}");
+          exit(1);
+       }
+
+       if(settings_template_file.exists()) {
+           data = settings_template_file.read() ?: "";
+       } else {
+           // JSON: the names in quotes, as the C++ compiler writes the file
+           data = "{\n  \"name\": \"${dir.get_name()}\",\n  \"version\": \"1.0\",\n  \"output\": \"${dir.get_name()}\",\n"
+              + "  \"ignore_folders\": [\n     \"build\"\n  ]\n}\n";
+       }
+
+       settings_file.create();
+       if(settings_file.write(data) != 0) {
+          println("failed to create the settings file for project: ${dir.get_name()}");
+          exit(1);
+       }
+    } catch(t: throwable) {
+          println("failed to create all necessary directories for project: ${options.new_project_dir}. Error: ${t.get_message()}");
+          exit(1);
+    }
+
+    println("Project: \"${dir.get_name()}\" successfully created!");
+}
+
+/**
+ * -run: start the program that was just written, wait for it, and give back
+ * its exit code. The runtime is `sharp`, found on the PATH (the compiler
+ * does not know where it was installed); when the command line of the
+ * operating system cannot start it, that is said, with the command to run by
+ * hand, and the compiler ends with 1 (not the shell's own 127, and without
+ * the shell's "sharp: not found" in front of the message: the runtime is
+ * looked for first, with `command -v`).
+ *
+ * The exit code is what the program ended with: what `def main() : int`
+ * returns, the n of `exit(n)`, 1 after an exception nobody caught (the
+ * runtime sets these; before this build it ended every program with 0).
+ */
+def run_program(executable: string) : _int64 {
+    found : _int64 = sys("command -v sharp > /dev/null 2>&1").value as _int64;
+    if(found != 0) {
+        error_with_help("could not start the runtime `sharp`: it is not on the PATH",
+                        "run the program by hand:  <path of the runtime>/sharp $executable");
+    }
+    command := "sharp " + io_strings.shell_quote(executable);
+    status : _int64 = sys(command).value as _int64;
+    // (the operating system hands back the status of the command shifted left by 8 on unix)
+    if(status > 255) { status = status / 256; }
+    return status;
+}

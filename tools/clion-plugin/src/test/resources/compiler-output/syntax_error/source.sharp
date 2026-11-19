@@ -1,0 +1,13 @@
+mod syntax_error;
+
+import ( std.io )
+
+// A file that does not parse: the compiler stops after parsing, and the editor gets the
+// syntax errors only (no index: the plugin keeps its last good one).
+
+class broken {
+    def run() : _int64 {
+        value := (1 + ;
+        return value;
+    }
+}

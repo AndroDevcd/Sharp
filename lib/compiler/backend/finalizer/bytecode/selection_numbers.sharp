@@ -1,0 +1,198 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * SELECTION: NUMBERS (doc/codegen.md 4.3, 6.1, 6.3, 6.4)
+ *
+ * The VM sequences of the IR instructions that work on whole numbers and
+ * decimals. Each loads its operands from their slots into `ebx` / `ecx`, does
+ * one VM operation and stores the result into its slot:
+ *
+ *      int_constant %3, 5            ->  istorel 3, 5
+ *      convert int_to_decimal %4, %3 ->  loadl ebx, 3;  i2d ebx, ebx;  smovr_2 ebx, 4
+ *      int_binary add %5, %1, %2     ->  loadl ebx, 1;  loadl ecx, 2;  add ebx, ecx -> ebx;  smovr_2 ebx, 5
+ *      int_compare lt %6, %1, %2     ->  loadl ebx, 1;  loadl ecx, 2;  lt ebx, ecx;  smovr_2 cmt, 6
+ *
+ * Whole numbers are 64 bits in a register; a narrower type exists only where
+ * a value is STORED, and `narrow` is the cut made there (`mov8` ... `movu32`).
+ * The comparisons and the bit operators write fixed registers (`cmt`, `bmr`),
+ * which is why their results are stored from those.
+ */
+
+/**
+ * An integer into a slot. One that fits 32 bits is `istorel` with the number
+ * in its second word. A wider one is built exactly - the high half, shifted,
+ * or-ed with the low half (codegen.md 4.3; the C++ compiler loads it from the
+ * decimal table, exact only up to 2^53: G3).
+ */
+def select_int_constant(out: code_emitter, target: _int64, value: _int64) {
+    if(value <= 2147483647 && value >= 0 - 2147483648) {
+        out.d_and_raw(OP_ISTOREL, target, value);
+        return;
+    }
+    high : _int64 = value >> 32;
+    low : _int64 = value & 0xffffffff;
+    if(low > 2147483647) { low = low - 4294967296; }
+    out.d_and_raw(OP_MOVI, REG_EBX, high);
+    out.d_and_raw(OP_MOVI, REG_EGX, 32);
+    out.class_b(OP_SHL, REG_EBX, REG_EGX, REG_EBX);
+    out.d_and_raw(OP_MOVI, REG_EGX, low);
+    out.class_c(OP_MOVU32, REG_EGX, REG_EGX);
+    out.class_c(OP_OR, REG_EBX, REG_EGX);
+    out.class_c(OP_SMOVR_2, REG_BMR, target);
+}
+
+/**
+ * A decimal into a slot: `distorel` when it is a whole number of 32 bits
+ * (and not -0.0), otherwise `ldc` from the constant section, whose text is
+ * the literal's own digits or the exact hexadecimal form (codegen.md 3.6).
+ */
+def select_decimal_constant(out: code_emitter, made: ir_instruction, context: selection_context) {
+    value : decimal = made.real;
+    if(value == value && value <= 2147483647 && value >= 0 - 2147483648) {
+        whole : _int64 = value as _int64;
+        if(whole == value && !(whole == 0 && is_negative_zero(value))) {
+            out.d_and_raw(OP_DISTOREL, made.target, whole);
+            return;
+        }
+    }
+    text : string = "";
+    if(made.text != null) { text = made.text!!; } else { text = exact_decimal_text(value); }
+    out.class_c(OP_LDC, REG_EBX, context.constants.number_of(text));
+    out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+}
+
+/** a copy between slots of one kind; a number can be narrowed on the way */
+def select_copy(out: code_emitter, made: ir_instruction, context: selection_context) {
+    if(context.is_reference(made.first)) {
+        out.class_d(OP_PUSHL, made.first);
+        out.class_d(OP_POPL, made.target);
+        return;
+    }
+    if(made.number == NARROW_NONE) {
+        out.d_and_raw(OP_SMOVR_4, made.target, made.first);
+        return;
+    }
+    out.class_c(OP_LOADL, REG_EBX, made.first);
+    narrow(out, REG_EBX, made.number);
+    out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+}
+
+/** `movN r, r`: cut a register to a smaller integer type and extend it back to 64 bits (codegen.md 4.3) */
+def narrow(out: code_emitter, register: _int64, narrowing: _int64) {
+    if(narrowing == NARROW_I8) { out.class_c(OP_MOV8, register, register); }
+    else if(narrowing == NARROW_I16) { out.class_c(OP_MOV16, register, register); }
+    else if(narrowing == NARROW_I32) { out.class_c(OP_MOV32, register, register); }
+    else if(narrowing == NARROW_U8) { out.class_c(OP_MOVU8, register, register); }
+    else if(narrowing == NARROW_U16) { out.class_c(OP_MOVU16, register, register); }
+    else if(narrowing == NARROW_U32) { out.class_c(OP_MOVU32, register, register); }
+}
+
+/** a conversion between number kinds, then the cut to a narrower integer when one is asked for */
+def select_convert(out: code_emitter, made: ir_instruction) {
+    out.class_c(OP_LOADL, REG_EBX, made.first);
+    how : _int64 = made.number;
+    if(how == CONVERT_INT_TO_DECIMAL) { out.class_c(OP_I2D, REG_EBX, REG_EBX); }
+    else if(how == CONVERT_DECIMAL_TO_INT) { out.class_c(OP_D2I, REG_EBX, REG_EBX); }
+    else if(how == CONVERT_TRUTH) {
+        // a decimal as a condition: !!x, so 0.0 and -0.0 are false, everything else true (codegen.md 6.3)
+        out.class_c(OP_DNOT, REG_EBX, REG_EBX);
+        out.class_c(OP_NOT, REG_EBX, REG_EBX);
+    }
+    narrow(out, REG_EBX, made.detail);
+    out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+}
+
+/** d = a op b: both operands into registers, the operation, the result into its slot */
+def select_binary(out: code_emitter, made: ir_instruction) {
+    out.class_c(OP_LOADL, REG_EBX, made.first);
+    out.class_c(OP_LOADL, REG_ECX, made.second);
+    operation : _int64 = made.number;
+    if(made.kind == IR_INT_BINARY) {
+        if(operation == ARITH_AND || operation == ARITH_OR || operation == ARITH_XOR) {
+            // these write bmr
+            if(operation == ARITH_AND) { out.class_c(OP_UAND, REG_EBX, REG_ECX); }
+            else if(operation == ARITH_OR) { out.class_c(OP_OR, REG_EBX, REG_ECX); }
+            else { out.class_c(OP_XOR, REG_EBX, REG_ECX); }
+            out.class_c(OP_SMOVR_2, REG_BMR, made.target);
+            return;
+        }
+        // (division and `**` are done on decimals: analysis decides that, backend.md 7.8.1)
+        opcode : _int64 = 0 - 1;
+        if(operation == ARITH_ADD) { opcode = OP_ADD; }
+        else if(operation == ARITH_SUB) { opcode = OP_SUB; }
+        else if(operation == ARITH_MUL) { opcode = OP_MUL; }
+        else if(operation == ARITH_REM) { opcode = OP_MOD; }
+        else if(operation == ARITH_SHL) { opcode = OP_SHL; }
+        else if(operation == ARITH_SHR) { opcode = OP_SHR; }
+        if(opcode < 0) { out.cannot_select("the integer operation " + operation); return; }
+        out.class_b(opcode, REG_EBX, REG_ECX, REG_EBX);
+    } else {
+        // (`%` and the bit operators are done on integers)
+        opcode : _int64 = 0 - 1;
+        if(operation == ARITH_ADD) { opcode = OP_DADD; }
+        else if(operation == ARITH_SUB) { opcode = OP_DSUB; }
+        else if(operation == ARITH_MUL) { opcode = OP_DMUL; }
+        else if(operation == ARITH_DIV) { opcode = OP_DDIV; }
+        else if(operation == ARITH_POW) { opcode = OP_DEXP; }
+        if(opcode < 0) { out.cannot_select("the decimal operation " + operation); return; }
+        out.class_b(opcode, REG_EBX, REG_ECX, REG_EBX);
+    }
+    out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+}
+
+/**
+ * d = a op k with k a 32-bit constant (the optimizer's int_immediate, ir.sharp).
+ * When d is a itself - `i = i + 1` - the VM does it on the slot in one
+ * instruction (`iaddl n, k`: fp[n] += k); otherwise the operand is loaded and
+ * the constant added in the register (`iadd r, k`). Both wrap around like `add`.
+ */
+def select_int_immediate(out: code_emitter, made: ir_instruction) {
+    operation : _int64 = made.number;
+    on_slot : _int64 = 0 - 1;
+    in_register : _int64 = 0 - 1;
+    if(operation == ARITH_ADD) { on_slot = OP_IADDL; in_register = OP_IADD; }
+    else if(operation == ARITH_SUB) { on_slot = OP_ISUBL; in_register = OP_ISUB; }
+    else if(operation == ARITH_MUL) { on_slot = OP_IMULL; in_register = OP_IMUL; }
+    if(on_slot < 0) { out.cannot_select("the integer operation with a constant " + operation); return; }
+    if(made.target == made.first) {
+        out.d_and_raw(on_slot, made.target, made.detail);
+        return;
+    }
+    out.class_c(OP_LOADL, REG_EBX, made.first);
+    out.d_and_raw(in_register, REG_EBX, made.detail);
+    out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+}
+
+/** d = (a op b), 1 or 0: `==` / `!=` write bmr, the ordered comparisons write cmt */
+def select_compare(out: code_emitter, made: ir_instruction) {
+    out.class_c(OP_LOADL, REG_EBX, made.first);
+    out.class_c(OP_LOADL, REG_ECX, made.second);
+    operation : _int64 = made.number;
+    decimals : _int64 = made.kind == IR_DECIMAL_COMPARE;
+    if(operation == CMP_EQ || operation == CMP_NE) {
+        if(operation == CMP_EQ) {
+            if(decimals == 1) { out.class_c(OP_DTEST, REG_EBX, REG_ECX); } else { out.class_c(OP_TEST, REG_EBX, REG_ECX); }
+        } else {
+            if(decimals == 1) { out.class_c(OP_DTNE, REG_EBX, REG_ECX); } else { out.class_c(OP_TNE, REG_EBX, REG_ECX); }
+        }
+        out.class_c(OP_SMOVR_2, REG_BMR, made.target);
+        return;
+    }
+    opcode : _int64 = 0 - 1;
+    if(operation == CMP_LT) { opcode = OP_LT; }
+    else if(operation == CMP_GT) { opcode = OP_GT; }
+    else if(operation == CMP_LE) { opcode = OP_LTE; }
+    else if(operation == CMP_GE) { opcode = OP_GTE; }
+    if(opcode < 0) { out.cannot_select("the comparison " + operation); return; }
+    if(decimals == 1) { opcode = opcode + (OP_DLT - OP_LT); }      // dlt dgt dlte dgte follow in the same order
+    out.class_c(opcode, REG_EBX, REG_ECX);
+    out.class_c(OP_SMOVR_2, REG_CMT, made.target);
+}

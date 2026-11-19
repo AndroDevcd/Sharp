@@ -1,0 +1,115 @@
+mod backend.compiler.obfuscation;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.compiler.context
+)
+
+/**
+ * `obfuscate` BLOCKS: the names listed must exist
+ *
+ *      obfuscate -keep {
+ *          "std.io",                       a module, in quotes
+ *          point,                          a class
+ *          point.x,                        a field (also a global: `total`)
+ *          point.move(decimal, decimal),   a function, with its parameter types
+ *          std#string.at(int)              ... the module may be named
+ *      }
+ *
+ * The block tells the obfuscator which names keep their spelling
+ * (types/program/obfuscation_rule.sharp explains the four forms). Nothing
+ * in it runs; the one thing analysis can get wrong for the programmer is to
+ * accept a name that names nothing - the block would then silently protect
+ * nothing. So every name is looked up, and the answers are kept for the code
+ * generator in `sharp_program.obfuscation_rules`.
+ *
+ *      E0950   the word after `-` is not one the compiler knows
+ *      E0951   a listed name is not a module, class, field or function of the program
+ *              (obfuscated_names.sharp)
+ *      W1016   a generic class listed without type arguments, in a block that does not
+ *              reach inside classes: there is nothing of that name to keep
+ *      E0952   a generic function listed: it has no one function to keep or rename
+ *
+ * The files of this package (module `backend.compiler.obfuscation`):
+ *
+ *      obfuscation.sharp       this front door: the pass over every block; the option (E0950)
+ *      obfuscated_names.sharp  one listed name looked up: a module, a class, a field, a function
+ *                              by its parameter types (E0951, E0952, W1016)
+ *
+ *      C++ comparison: compiler/obfuscate_compiler.cpp ("unknown obfuscation
+ *      modifier", "cannot locate module", "invalid type found ... in obfuscation block").
+ */
+def check_obfuscate_blocks(session: analysis_session) {
+    prog : sharp_program = session.prog;
+    for(m : _int64 = 0; m < prog.module_list.size(); m++) {
+        units := prog.module_list.at(m).units;
+        for(u : _int64 = 0; u < units.size(); u++) {
+            file := prog.file_of(units.at(u));
+            if(file != null) { check_blocks_of_file(session, file!!); }
+        }
+    }
+}
+
+/** every `obfuscate` block written in one file (they stand at the top of a file or in a class) */
+def check_blocks_of_file(session: analysis_session, file: sharp_file) {
+    if(file.unit.parsed == null) { return; }
+    tree : syntax_tree = file.unit.parsed!!.tree;
+    context : analysis_context? = null;
+    for(node : _int64 = 0; node < tree.count; node++) {
+        if(tree.kinds!![node] != N_OBFUSCATE) { continue; }
+        if(context == null) {
+            context = new analysis_context(session, file);
+            context!!.is_static = 1;
+        }
+        check_block(context!!, node);
+    }
+}
+
+/** one block: its option, then each name listed */
+def check_block(context: analysis_context, block: _int64) {
+    tree : syntax_tree = context.tree;
+    mode : _int64 = OBFUSCATE_PLAIN;
+    option : _int64 = tree.child_of_kind(block, N_NAME);
+    if(option >= 0) {
+        mode = mode_named(name_at(context, option));
+        if(mode < 0) {
+            report_unknown_option(context, option);
+            mode = OBFUSCATE_PLAIN;         // the names are still checked
+        }
+    }
+
+    for(element : _int64 = tree.first_child!![block]; element >= 0; element = tree.next_sibling!![element]) {
+        if(tree.kinds!![element] != N_OBFUSCATE_ELEMENT) { continue; }
+        rule := rule_for_element(context, element, mode);
+        if(rule != null) { context.prog.obfuscation_rules.add(rule!!); }
+    }
+}
+
+/** OBFUSCATE_... for the word after `-`; -1 when it is not one of the three */
+def mode_named(word: string) : _int64 {
+    if(word == "keep") { return OBFUSCATE_KEEP; }
+    if(word == "keep_inclusive") { return OBFUSCATE_KEEP_INCLUSIVE; }
+    if(word == "inclusive") { return OBFUSCATE_INCLUSIVE; }
+    return 0 - 1;
+}
+
+/** E0950 */
+def report_unknown_option(context: analysis_context, option: _int64) {
+    word := name_at(context, option);
+    d := problem_at(context, "E0950", "`-" + word + "` is not an option of `obfuscate`", option);
+    d.with_label("not known");
+    d.with_note("the options are `-keep` (these names stay as written), `-keep_inclusive` (and everything inside each class), `-inclusive` (rename, and everything inside each class); no option: these may be renamed");
+    known := new list<string>();
+    known.add("keep");
+    known.add("keep_inclusive");
+    known.add("inclusive");
+    close := closest_names(word, known, 1);
+    if(close.size() > 0) { d.with_help("did you mean `-" + close.at(0) + "`?"); }
+    else { d.with_help("write `obfuscate -keep { ... }` to keep the names listed"); }
+    report(context, d);
+}

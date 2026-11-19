@@ -1,0 +1,64 @@
+mod std.util;
+
+/**
+ * @class comparators
+ *
+ * Ready-made comparators ("natural order") for strings and for the number
+ * classes. Only static functions; never instantiated.
+ *
+ *     names := new string[] { "pear", "Apple", "fig" };
+ *     comparators.strings().sort(names);                  // Apple fig pear
+ *     comparators.strings_ignore_case().sort(names);      // Apple fig pear
+ *     comparators.string_length().then_by(comparators.strings()).sort(names);    // fig pear Apple
+ *     comparators.ints().reversed().sort(scores);         // largest first
+ *
+ * Every function returns a new comparator<T> that can be combined further
+ * with reversed() and then_by().
+ */
+class comparators {
+
+    /**
+     * Strings by character code, character by character ("Zebra" < "apple"
+     * because capital letters have smaller codes; "ab" < "abc").
+     */
+    static def strings(): comparator<string> {
+        return new comparator<string>({ a: string, b: string -> (decimal) return comparator<string>.compare_text(a, b); });
+    }
+
+    /** strings compared after turning A-Z into a-z, so "apple" and "Apple" are equal and "apple" < "Zebra" */
+    static def strings_ignore_case(): comparator<string> {
+        return new comparator<string>({ a: string, b: string -> (decimal)
+            return comparator<string>.compare_text(a.to_lower(), b.to_lower());
+        });
+    }
+
+    /** strings by their length, shortest first (equal lengths compare as equal) */
+    static def string_length(): comparator<string> {
+        return comparator<string>.by_key({ s: string -> (decimal) return s.size().value; });
+    }
+
+    /** int objects, smallest first */
+    static def ints(): comparator<int> {
+        return comparator<int>.by_key({ n: int -> (decimal) return n.value; });
+    }
+
+    /** long objects, smallest first */
+    static def longs(): comparator<long> {
+        return comparator<long>.by_key({ n: long -> (decimal) return n.value; });
+    }
+
+    /** double objects, smallest first */
+    static def doubles(): comparator<double> {
+        return comparator<double>.by_key({ n: double -> (decimal) return n.value; });
+    }
+
+    /** char objects by character code */
+    static def chars(): comparator<char> {
+        return comparator<char>.by_key({ c: char -> (decimal) return c.value; });
+    }
+
+    /** bool objects: false before true */
+    static def bools(): comparator<boolean> {
+        return comparator<boolean>.by_key({ b: boolean -> (decimal) return b.to_var(); });
+    }
+}

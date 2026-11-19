@@ -1,0 +1,279 @@
+mod std.time;
+
+/**
+ * An amount of time in calendar units: years, months and days, e.g.
+ * "1 year, 2 months and 3 days".
+ *
+ * Unlike a `duration`, a period has no fixed length in seconds: adding
+ * "1 month" to a date moves it to the same day of the next month, however
+ * many days that is. The three fields are independent whole numbers and each
+ * may be negative; "14 months" and "1 year 2 months" are different periods
+ * until `normalized()` is called. Days are never converted into months
+ * because a month has no fixed number of days.
+ *
+ * Periods are immutable.
+ *
+ *     p := period.between(date.of(2020, 1, 15), date.of(2024, 3, 1));
+ *     p.to_string()                      // "P4Y1M15D"
+ *     date.of(2024, 1, 31) + period.of_months(1)    // 2024-02-29
+ *     period.of(0, 14, 0).normalized()   // P1Y2M
+ */
+class period {
+    /** a period of nothing */
+    static const zero : period = new period(0, 0, 0);
+
+    private year_count : decimal = 0;
+    private month_count : decimal = 0;
+    private day_count : decimal = 0;
+
+    private period(years: decimal, months: decimal, days: decimal) {
+        year_count = years;
+        month_count = months;
+        day_count = days;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /**
+     * A period of `years` years, `months` months and `days` days. Each may be
+     * negative; nothing is normalised (of(0, 14, 0) stays 14 months).
+     * @throws date_time_exception when an argument is not a whole number
+     */
+    static def of(years: decimal, months: decimal, days: decimal): period {
+        time_math.check_whole("years", years);
+        time_math.check_whole("months", months);
+        time_math.check_whole("days", days);
+        return new period(years, months, days);
+    }
+
+    static def of_years(years: decimal): period { return of(years, 0, 0); }
+    static def of_months(months: decimal): period { return of(0, months, 0); }
+    static def of_days(days: decimal): period { return of(0, 0, days); }
+
+    /** a period of `weeks` weeks, stored as weeks * 7 days */
+    static def of_weeks(weeks: decimal): period { return of(0, 0, weeks * 7); }
+
+    /**
+     * The years, months and days from `start` to `end`, such that
+     * `start.plus(result)` is `end`. The result is negative in every field
+     * when `end` is before `start`. Months are always -11 .. 11.
+     *
+     * Method (the one java.time.LocalDate.until uses): count the whole
+     * months between the two dates; when the day of the month of `end` is
+     * before that of `start` the last month is not complete, so take one
+     * month off and count the remaining days from `start` moved forward by
+     * the whole months.
+     *
+     *     2024-01-31 -> 2024-03-01   P1M1D   (31 Jan + 1 month = 29 Feb, + 1 day)
+     *     2020-02-29 -> 2021-02-28   P11M30D
+     *     2024-03-15 -> 2024-01-10   P-2M-5D
+     */
+    static def between(start: date, end: date): period {
+        total_months : decimal = (end.year() * 12 + end.month_value()) - (start.year() * 12 + start.month_value());
+        days : decimal = end.day() - start.day();
+        if(total_months > 0 && days < 0) {
+            total_months--;
+            days = start.plus_months(total_months).days_until(end);
+        } else if(total_months < 0 && days > 0) {
+            total_months++;
+            days -= end.length_of_month();
+        }
+        years : decimal = time_math.trunc_div(total_months, 12);
+        months : decimal = total_months % 12;
+        return new period(years, months, days);
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    def years(): decimal { return year_count; }
+    def months(): decimal { return month_count; }
+    def days(): decimal { return day_count; }
+
+    /** years * 12 + months: the period's years and months as one number of months */
+    def to_total_months(): decimal {
+        return year_count * 12 + month_count;
+    }
+
+    /** 1 when all three fields are 0 */
+    def is_zero(): decimal {
+        return year_count == 0 && month_count == 0 && day_count == 0;
+    }
+
+    /** 1 when at least one of the three fields is negative */
+    def is_negative(): decimal {
+        return year_count < 0 || month_count < 0 || day_count < 0;
+    }
+
+    // ------------------------------------------------------------------
+    //  arithmetic (each returns a new period)
+    // ------------------------------------------------------------------
+
+    /** field by field sum: years + years, months + months, days + days */
+    def plus(other: period): period {
+        return new period(year_count + other.year_count, month_count + other.month_count, day_count + other.day_count);
+    }
+
+    /** field by field difference */
+    def minus(other: period): period {
+        return new period(year_count - other.year_count, month_count - other.month_count, day_count - other.day_count);
+    }
+
+    def plus_years(years: decimal): period { return of(year_count + years, month_count, day_count); }
+    def plus_months(months: decimal): period { return of(year_count, month_count + months, day_count); }
+    def plus_days(days: decimal): period { return of(year_count, month_count, day_count + days); }
+
+    /** a copy with the years replaced */
+    def with_years(years: decimal): period { return of(years, month_count, day_count); }
+    /** a copy with the months replaced */
+    def with_months(months: decimal): period { return of(year_count, months, day_count); }
+    /** a copy with the days replaced */
+    def with_days(days: decimal): period { return of(year_count, month_count, days); }
+
+    /**
+     * Every field multiplied by `factor` (a whole number, may be negative).
+     * @throws date_time_exception when `factor` is not a whole number
+     */
+    def multiplied_by(factor: decimal): period {
+        time_math.check_whole("factor", factor);
+        return new period(year_count * factor, month_count * factor, day_count * factor);
+    }
+
+    /** every field with the opposite sign */
+    def negated(): period {
+        return new period(0 - year_count, 0 - month_count, 0 - day_count);
+    }
+
+    /**
+     * The same amount with the months brought into -11 .. 11 by moving whole
+     * dozens into the years, and years and months given the same sign:
+     * 14 months -> 1 year 2 months; 1 year -1 month -> 11 months;
+     * -1 year 3 months -> -9 months. The days are left alone.
+     */
+    def normalized(): period {
+        total : decimal = to_total_months();
+        return new period(time_math.trunc_div(total, 12), total % 12, day_count);
+    }
+
+    def operator+(other: period): period { return plus(other); }
+    def operator-(other: period): period { return minus(other); }
+    def operator*(factor: decimal): period { return multiplied_by(factor); }
+
+    /**
+     * 1 when all three fields are the same. Periods are compared field by
+     * field without normalising: 12 months is NOT equal to 1 year.
+     */
+    def operator==(other: period): decimal {
+        return year_count == other.year_count && month_count == other.month_count && day_count == other.day_count;
+    }
+
+    def operator!=(other: period): decimal {
+        return year_count != other.year_count || month_count != other.month_count || day_count != other.day_count;
+    }
+
+    /** a hash that is the same for equal periods */
+    override def hash(): int {
+        return (year_count * 961 + month_count * 31 + day_count) % 2147483647;
+    }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * The ISO-8601 form: 'P', then each field that is not zero with its
+     * letter: "P1Y2M3D", "P14M", "P-1Y-2D". A zero period is "P0D".
+     */
+    override def to_string(): string? {
+        if(is_zero()) {
+            return "P0D";
+        }
+        w := new time_text_writer();
+        w.put('P');
+        if(year_count != 0) {
+            w.put_number(year_count).put('Y');
+        }
+        if(month_count != 0) {
+            w.put_number(month_count).put('M');
+        }
+        if(day_count != 0) {
+            w.put_number(day_count).put('D');
+        }
+        return w.text();
+    }
+
+    /**
+     * Reads an ISO-8601 period: `[-+]P[nY][nM][nW][nD]`, upper or lower case.
+     * Each number may have its own sign, a sign before the P negates all
+     * fields, and weeks are turned into days (n * 7, added to the D field):
+     *
+     *     "P1Y2M3D"   "P2W"  (14 days)   "P1W3D"  (10 days)   "-P1Y"   "P-1Y2M"
+     *
+     * @throws date_time_exception when the text has another shape, has no
+     *         field at all ("P"), or has the fields out of order
+     */
+    static def parse(text: string): period {
+        r := new time_text_reader(text, "period");
+        negate : decimal = 0;
+        if(r.accept('-')) {
+            negate = 1;
+        } else {
+            r.accept('+');
+        }
+        if(!r.accept_ignore_case('P')) {
+            throw r.failure("expected 'P'");
+        }
+
+        years : decimal = 0;
+        months : decimal = 0;
+        days : decimal = 0;
+        parts : decimal = 0;
+        // 1 = years, 2 = months, 3 = weeks, 4 = days: each at most once, in this order
+        last_unit : decimal = 0;
+        while(!r.at_end()) {
+            sign : decimal = 1;
+            if(r.accept('-')) {
+                sign = 0 - 1;
+            } else {
+                r.accept('+');
+            }
+            amount : decimal = sign * r.read_digits(1, 15);
+            unit : decimal = time_text_reader.lower(r.next());
+            order : decimal = 0;
+            if(unit == 'y') {
+                years = amount;
+                order = 1;
+            } else if(unit == 'm') {
+                months = amount;
+                order = 2;
+            } else if(unit == 'w') {
+                days += amount * 7;
+                order = 3;
+            } else if(unit == 'd') {
+                days += amount;
+                order = 4;
+            } else {
+                r.seek(r.index() - 1);
+                throw r.failure("unknown unit (use Y, M, W or D)");
+            }
+            if(order <= last_unit) {
+                r.seek(r.index() - 1);
+                throw r.failure("units must appear once and in the order Y, M, W, D");
+            }
+            last_unit = order;
+            parts++;
+        }
+        if(parts == 0) {
+            throw r.failure("expected at least one of Y, M, W, D");
+        }
+
+        result : period = new period(years, months, days);
+        if(negate) {
+            return result.negated();
+        }
+        return result;
+    }
+}

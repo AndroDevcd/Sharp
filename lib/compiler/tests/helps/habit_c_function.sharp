@@ -1,0 +1,11 @@
+// expect: E0100
+// help: def add(a: _int64, b: _int64) : _int64
+// replace: _int64 add(_int64 a, _int64 b)
+mod tests.helps;
+import (std, std.io);
+
+_int64 add(_int64 a, _int64 b) { return a + b; }
+
+def main() {
+    println("" + add(1, 2));
+}

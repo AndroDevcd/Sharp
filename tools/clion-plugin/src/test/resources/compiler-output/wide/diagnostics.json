@@ -1,0 +1,3 @@
+{"format":1,"run":"18e7e1a446555dfd","truncated":false,"diagnostics":[
+{"severity":"error","code":"E0400","message":"there is no variable, field or type named `missing_name` here","file":"/mnt/c/Users/Braxton Nunnally/.claude/jobs/c4f2c674/tmp/wide.sharp","from":74,"to":86,"line":6,"column":11,"end_line":6,"end_column":23,"label":"not declared in this function, in module `wide` or in anything this file imports","notes":[],"helps":["declare it above this line: `missing_name := <value>;` or `missing_name : <type>;` (names are case-sensitive)"],"related":[]}
+],"unreadable":[]}

@@ -1,0 +1,99 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * toggle - an on/off switch. Made with gui.toggle(...).
+ *
+ *      dark_mode := state(1);                  // 0 = off, 1 = on
+ *      gui.row().gap(12)
+ *          .add(gui.text("Dark mode"))
+ *          .add(gui.spacer())
+ *          .add(gui.toggle(dark_mode))
+ *
+ * Bound to a state like a checkbox: it shows the state's value and a click
+ * flips it. The knob SLIDES to its new side instead of jumping.
+ *
+ * HOW THE SLIDE WORKS: `slid` is where the knob is drawn, from 0 (off side) to
+ * 1 (on side). Every frame it moves a little toward where the state says it
+ * should be, and while it is not there yet the toggle asks the host for
+ * another frame (request_frame). When it arrives it stops asking, and the app
+ * goes back to sleep. `slid` is the toggle's own memory - not your state - so
+ * a rebuilt toggle adopts it from the one it replaces; otherwise every rebuild
+ * would snap the knob to the end. (Compose: Switch. Android: SwitchCompat.)
+ */
+stable class toggle base widget : behavior, stateful {
+    private bound : state<_int64>;
+    private slid : decimal = 0 - 1;         // 0 .. 1; -1: not placed yet (the first paint puts it at its side, no slide)
+
+    private static const WIDE : decimal = 44;
+    private static const TALL : decimal = 24;
+    private static const SLIDE_TIME : decimal = 0.12;       // seconds from one side to the other
+
+    toggle(value: state<_int64>) {
+        attach(self);
+        bound = value;
+        me.on_click = { -> flip(); };
+    }
+
+    private def flip() {
+        if(bound.value == 0) { bound.value = 1; }
+        else { bound.value = 0; }
+    }
+
+    override def kind() : string { return "toggle"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = WIDE;
+        me.content_h = TALL;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+
+        goal : decimal = 0;
+        if(bound.value != 0) { goal = 1; }
+        if(slid < 0) {
+            slid = goal;
+        } else if(slid != goal) {
+            // move toward the goal by the time that passed; never past it
+            move : decimal = host.step / SLIDE_TIME;
+            if(slid < goal) { slid = num.smaller(goal, slid + move); }
+            else { slid = num.larger(goal, slid - move); }
+            if(slid != goal) { host.request_frame(); }
+        }
+
+        left : decimal = me.inner_x();
+        top : decimal = me.inner_y() + (me.inner_h() - TALL) / 2;
+
+        track : color = t.surface_high;
+        if(goal == 1) {
+            track = t.primary;
+            if(me.hovered == 1) { track = t.primary_high; }
+        }
+        if(me.enabled == 0) { track = t.surface; }
+        p.rect(left, top, WIDE, TALL, TALL / 2, track);
+        if(goal == 0) {
+            p.outline(left, top, WIDE, TALL, TALL / 2, 1.5, t.border);
+        }
+
+        knob : decimal = TALL / 2 - 3;
+        travel : decimal = WIDE - TALL;
+        ink : color = t.on_primary;
+        if(goal == 0) { ink = t.text_dim; }
+        p.circle(left + TALL / 2 + travel * slid, top + TALL / 2, knob, ink);
+    }
+
+    override def adopt(old: behavior) {
+        if(old is toggle) {
+            before := old as toggle;
+            slid = before.slid;
+        }
+    }
+}

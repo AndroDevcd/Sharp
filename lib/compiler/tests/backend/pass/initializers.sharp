@@ -1,0 +1,52 @@
+mod app;
+
+/*
+ * How objects, classes and the program are set up: constructors with and
+ * without `-> base(...)`, constructors the compiler adds, default objects of
+ * fields, field values that read fields declared further down (put in an
+ * order in which that works - D70), enum numbers worked out while compiling,
+ * `const` fields, init blocks. Look at the result with -analysis.
+ */
+
+const top : _int64 = 10;
+limit : _int64 = 4;
+
+// globals that read each other in the order they are NOT written
+first := second + 1;
+second := 5;
+
+enum level { low = top + 1, high }                  // 11, 12: known while compiling
+enum size { small = limit * 2, medium, large }      // small when the program starts; the others unnumbered
+enum frac { half = 2.5, whole }                     // 2, 3
+enum letter { a_letter = 'a', b_letter }
+
+class animal {
+    legs : _int64 = 0;
+    name : string;                                  // starts as "" (a default object)
+    count : int;                                    // starts as an int object holding 0
+    animal(n: _int64) { legs = n; }
+}
+
+class dog base animal {
+    total := tail + legs_too;                       // reads two fields declared further down
+    tail : _int64 = 1;
+    legs_too : _int64 = 4;
+    static made : _int64 = 0;
+    static next_id := made + 1;
+
+    init { made++; }
+    static init { made = 0; }
+
+    dog() { }                                       // runs animal() - the one the compiler added
+    dog(n: _int64) -> base(n) { }
+}
+
+class plain {
+    x : _int64 = 2;                                 // no constructor: one is added
+}
+
+def main() {
+    d := new dog(4);
+    p := new plain();
+    n : decimal = level.high.ordinal + size.small.ordinal + frac.whole.ordinal + first;
+}

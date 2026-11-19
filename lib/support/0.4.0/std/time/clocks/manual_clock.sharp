@@ -1,0 +1,94 @@
+mod std.time;
+
+/**
+ * A clock that only moves when it is told to - the clock to use in tests.
+ *
+ * It starts at a chosen moment and stays there until `advance` or
+ * `set_time` is called, so code that measures time (a stopwatch, a
+ * deadline, a rate limiter) can be tested exactly and without sleeping:
+ *
+ *     c := new manual_clock(instant.of_epoch_second(1000));
+ *     watch := stopwatch.started(c);
+ *     c.advance(duration.of_millis(1500));
+ *     watch.elapsed().to_millis()      // exactly 1500
+ *
+ * It may also be told to tick by itself: with `auto_advance(step)` every call
+ * of `now()` moves the clock forward by `step` AFTER returning the current
+ * moment, which is handy for code that reads the clock in a loop.
+ *
+ * This is the one class in std.time that is not immutable. It does no
+ * locking: when several threads share it, they must synchronise themselves.
+ */
+class manual_clock : clock {
+    private moment : instant;
+    /** added to the clock after every now(); zero unless auto_advance was called */
+    private step : duration;
+    /** how often now() has been called (lets a test check that code read the clock) */
+    private reads : decimal = 0;
+
+    /** a clock standing at 1970-01-01T00:00:00Z */
+    manual_clock() {
+        moment = instant.epoch;
+        step = duration.zero;
+    }
+
+    /** a clock standing at `start` */
+    manual_clock(start: instant) {
+        moment = start;
+        step = duration.zero;
+    }
+
+    /** the moment the clock currently stands at (then it ticks by the auto-advance step, if one is set) */
+    override def now(): instant {
+        current : instant = moment;
+        reads++;
+        if(!step.is_zero()) {
+            moment = moment.plus(step);
+        }
+        return current;
+    }
+
+    /** the moment the clock stands at, WITHOUT counting as a read and without auto-advancing */
+    def peek(): instant {
+        return moment;
+    }
+
+    /**
+     * Moves the clock by `amount`. A negative amount moves it back, which is
+     * how a test imitates the system clock being corrected.
+     */
+    def advance(amount: duration): manual_clock {
+        moment = moment.plus(amount);
+        return self;
+    }
+
+    /** moves the clock forward by `millis` milliseconds (back when negative) */
+    def advance_millis(millis: decimal): manual_clock {
+        return advance(duration.of_millis(millis));
+    }
+
+    /** moves the clock forward by `seconds` whole seconds (back when negative) */
+    def advance_seconds(seconds: decimal): manual_clock {
+        return advance(duration.of_seconds(seconds));
+    }
+
+    /** puts the clock at `at` */
+    def set_time(at: instant): manual_clock {
+        moment = at;
+        return self;
+    }
+
+    /**
+     * From now on every `now()` moves the clock forward by `tick` after
+     * returning. Pass duration.zero to switch it off again.
+     */
+    def auto_advance(tick: duration): manual_clock {
+        step = tick;
+        return self;
+    }
+
+    /** how many times `now()` has been called */
+    def read_count(): decimal {
+        return reads;
+    }
+}

@@ -1,0 +1,18 @@
+// expect: E0410 E0410 E0412 E0511 E0511 E0511 E0514 E0514 E0410 E0405 E0355
+mod app;
+
+/*
+ * `bool` is true or false, not a number: a number does not become one by
+ * itself, and a bool takes no arithmetic.
+ */
+def b1() { flag : bool = 1; }                               // E0410 write `true`
+def b2(n: _int64) { flag : bool = n; }                      // E0410 write the test: n != 0
+def b3(n: _int64) { flag := n as bool; }                    // E0412 a cast does not decide it either
+def b4(f: bool) { x : _int64 = f + 1; }                     // E0511
+def b5(f: bool) { if(f == 1) { } }                          // E0511 write `if(f)`
+def b6(a: bool, b: bool) { if(a < b) { } }                  // E0511 two bools have no order
+def b7(f: bool) { x : bool = -f; }                          // E0514
+def b8(f: bool) { f++; }                                    // E0514
+def b9() : bool { return 1; }                               // E0410
+def b10(f: bool) : bool { return f.value; }                 // E0405 only the object `boolean` has a value
+def b11() { q : bool? = null; }                             // E0355 the type that may be null is `boolean?`

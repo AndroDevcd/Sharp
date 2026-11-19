@@ -1,0 +1,272 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+const CAMERA_STILL : _int64 = 0;        // where the program puts it
+const CAMERA_ORBIT : _int64 = 1;        // drag to look round a point, wheel to come closer
+const CAMERA_WALK  : _int64 = 2;        // keys to walk, drag to look; feet on the ground
+const CAMERA_FLY   : _int64 = 3;        // the same, moving the way it looks
+
+/**
+ * camera - the eye a scene is seen through. Inside a scene:
+ *
+ *      camera().at(0, 2, 6).look_at(0, 1, 0);          // stands here, looks there
+ *      camera().at(x, y, z).facing(heading, tilt);     // stands here, looks this way
+ *      camera().orbit();                               // drag to look round the scene, wheel to zoom
+ *      camera().walk(land);                            // a person walking over the land
+ *
+ * A scene that says nothing about its camera gets one that stands back far
+ * enough to see everything in it.
+ *
+ * DIRECTIONS: a heading is degrees round the up axis - 0 looks along -z, 90
+ * along +x, like a compass seen from above. The tilt is degrees DOWN (below 0:
+ * up).
+ *
+ * THE THREE THAT MOVE BY THEMSELVES
+ *
+ *      orbit()     the mouse dragged turns the eye round a point - the middle of the scene, or
+ *                  the point given - and the wheel moves it closer or away. For looking AT
+ *                  something: a model, a product, a board.
+ *      walk()      W A S D or the arrow keys walk (left and right arrows turn), dragging the
+ *                  mouse looks round. With walk(land) the eye stays a person's height above
+ *                  the land. For being IN a world.
+ *      fly()       like walk, but forward is wherever the eye looks - up included.
+ *
+ * Each keeps where it has got to when the screen is rebuilt.
+ *
+ * (three.js: PerspectiveCamera + OrbitControls / PointerLockControls. Godot: Camera3D.)
+ */
+stable class camera {
+    x : decimal = 0;
+    y : decimal = 1.6;
+    z : decimal = 6;
+    heading : decimal = 0;
+    tilt : decimal = 0;
+
+    aimed : bool = false;           // looks at a point (look_at) instead of along heading and tilt
+    aim_x : decimal = 0;
+    aim_y : decimal = 0;
+    aim_z : decimal = 0;
+
+    wide : decimal = 60;            // how much it takes in, top to bottom, in degrees
+    nearest : decimal = 0.1;        // nothing nearer than this is drawn ...
+    furthest : decimal = 1000;      // ... or further than this
+
+    mode : _int64 = CAMERA_STILL;
+    placed : bool = false;          // the program said where it stands (else: far enough back to see it all)
+
+    // orbit: round this point, this far away
+    round_x : decimal = 0;
+    round_y : decimal = 0;
+    round_z : decimal = 0;
+    round_set : bool = false;
+    away : decimal = 0;             // 0: far enough to see everything
+
+    // walk and fly
+    pace : decimal = 5;             // metres a second
+    eye_height : decimal = 1.7;
+    ground : thing? = null;
+
+    def at(px: decimal, py: decimal, pz: decimal) : camera {
+        x = px;
+        y = py;
+        z = pz;
+        placed = true;
+        return self;
+    }
+
+    /** look at this point, wherever the camera stands */
+    def look_at(px: decimal, py: decimal, pz: decimal) : camera {
+        aimed = true;
+        aim_x = px;
+        aim_y = py;
+        aim_z = pz;
+        return self;
+    }
+
+    /** look this way: degrees round (0 along -z, 90 along +x), and degrees down */
+    def facing(degrees: decimal, down: decimal) : camera {
+        aimed = false;
+        heading = degrees;
+        tilt = down;
+        return self;
+    }
+
+    /** how much it takes in, top to bottom, in degrees: 60 is natural, 30 a long lens, 90 a wide one */
+    def lens(degrees: decimal) : camera {
+        wide = degrees;
+        return self;
+    }
+
+    /** draw only what is between `near` and `far` metres from the eye */
+    def sees(near: decimal, far: decimal) : camera {
+        nearest = near;
+        furthest = far;
+        return self;
+    }
+
+    /** drag to look round the middle of the scene, wheel to come closer */
+    def orbit() : camera {
+        mode = CAMERA_ORBIT;
+        return self;
+    }
+
+    /** the same round a point of your own, starting `distance` metres from it */
+    def orbit(px: decimal, py: decimal, pz: decimal, distance: decimal) : camera {
+        mode = CAMERA_ORBIT;
+        round_x = px;
+        round_y = py;
+        round_z = pz;
+        round_set = true;
+        away = distance;
+        return self;
+    }
+
+    /** walk with the keys, look with the mouse, at the height the camera was put */
+    def walk() : camera {
+        mode = CAMERA_WALK;
+        return self;
+    }
+
+    /** the same with the eye a person's height above this land */
+    def walk(land: thing) : camera {
+        mode = CAMERA_WALK;
+        ground = land;
+        return self;
+    }
+
+    /** like walk, but forward is wherever it looks */
+    def fly() : camera {
+        mode = CAMERA_FLY;
+        return self;
+    }
+
+    /** how fast it walks or flies, in metres a second */
+    def speed(metres_a_second: decimal) : camera {
+        pace = metres_a_second;
+        return self;
+    }
+
+    /** how high the eye is above the land when walking */
+    def height(metres: decimal) : camera {
+        eye_height = metres;
+        return self;
+    }
+
+    /** take over where a camera of the screen before had got to (the scene calls this on a rebuild) */
+    def continue_from(old: camera) {
+        if(mode == CAMERA_STILL || old.mode != mode) {
+            return;                                     // the program places it itself, or it is another kind now
+        }
+        x = old.x;
+        y = old.y;
+        z = old.z;
+        heading = old.heading;
+        tilt = old.tilt;
+        away = old.away;
+        placed = true;
+        if(!round_set) {
+            round_x = old.round_x;
+            round_y = old.round_y;
+            round_z = old.round_z;
+            round_set = old.round_set;
+        }
+    }
+
+    /** the way it looks, as a direction of length 1: [x, y, z] */
+    def looks_along() : decimal[] {
+        along := new decimal[3];
+        if(aimed) {
+            along[0] = aim_x - x;
+            along[1] = aim_y - y;
+            along[2] = aim_z - z;
+            length : decimal = square_root(along[0] * along[0] + along[1] * along[1] + along[2] * along[2]);
+            if(length > 0) {
+                along[0] = along[0] / length;
+                along[1] = along[1] / length;
+                along[2] = along[2] / length;
+            } else {
+                along[2] = 0 - 1;
+            }
+            return along;
+        }
+        round : decimal = heading * PI_VALUE / 180;
+        down : decimal = tilt * PI_VALUE / 180;
+        along[0] = sin_of(round) * cos_of(down);
+        along[1] = 0 - sin_of(down);
+        along[2] = 0 - cos_of(round) * cos_of(down);
+        return along;
+    }
+
+    // ---------------------------------------------------------------- moving by itself (the scene calls these)
+
+    /** orbit: put the eye where its heading, tilt and distance say */
+    def settle_orbit() {
+        along := looks_along();
+        x = round_x - along[0] * away;
+        y = round_y - along[1] * away;
+        z = round_z - along[2] * away;
+    }
+
+    /** the mouse was dragged this far, in pixels */
+    def dragged(dx: decimal, dy: decimal) {
+        if(mode == CAMERA_STILL) { return; }
+        heading = heading + dx * 0.35;
+        tilt = tilt + dy * 0.3;
+        if(mode != CAMERA_ORBIT) {                      // looking round: the picture follows the hand the other way
+            heading = heading - dx * 0.7;
+            tilt = tilt - dy * 0.6;
+        }
+        if(tilt > 88) { tilt = 88; }
+        if(tilt < 0 - 88) { tilt = 0 - 88; }
+        aimed = false;
+    }
+
+    /** the wheel was turned; true when the camera used it */
+    def wheeled(turn: decimal) : bool {
+        if(mode != CAMERA_ORBIT) { return false; }
+        if(turn > 0) { away = away * 0.88; }
+        if(turn < 0) { away = away / 0.88; }
+        if(away < 0.05) { away = 0.05; }
+        return true;
+    }
+
+    /** walk or fly for `step` seconds by the keys that are held; true when it moved */
+    def stepped(f: frame) : bool {
+        if(mode != CAMERA_WALK && mode != CAMERA_FLY) { return false; }
+        ahead : decimal = 0;
+        aside : decimal = 0;
+        turn : decimal = 0;
+        if(f.key_down(KEY_UP) == 1 || f.key_down('w') == 1) { ahead = ahead + 1; }
+        if(f.key_down(KEY_DOWN) == 1 || f.key_down('s') == 1) { ahead = ahead - 1; }
+        if(f.key_down('d') == 1) { aside = aside + 1; }
+        if(f.key_down('a') == 1) { aside = aside - 1; }
+        if(f.key_down(KEY_RIGHT) == 1) { turn = turn + 1; }
+        if(f.key_down(KEY_LEFT) == 1) { turn = turn - 1; }
+
+        moved : bool = ahead != 0 || aside != 0 || turn != 0;
+        heading = heading + turn * 90 * f.step;
+        round : decimal = heading * PI_VALUE / 180;
+        far : decimal = pace * f.step;
+        if(mode == CAMERA_FLY) {
+            along := looks_along();
+            x = x + along[0] * ahead * far;
+            y = y + along[1] * ahead * far;
+            z = z + along[2] * ahead * far;
+        } else {
+            x = x + sin_of(round) * ahead * far;
+            z = z - cos_of(round) * ahead * far;
+        }
+        x = x + cos_of(round) * aside * far;
+        z = z + sin_of(round) * aside * far;
+        if(mode == CAMERA_WALK && ground != null) {
+            y = ground!!.height_at(x, z) + eye_height;
+        }
+        aimed = false;
+        return moved;
+    }
+}

@@ -1,0 +1,154 @@
+mod std.io;
+
+/**
+ * More members of the class `file` (see file.sharp), added with `mutate`:
+ * reading and writing the content as text, as lines and as bytes, and
+ * appending.
+ *
+ *     f := new file("notes.txt");
+ *     f.write_text("first line\n");
+ *     f.append_line("second line");
+ *     foreach(line in f.read_lines()) { println(line); }
+ *
+ * The runtime reads and writes a file in one piece, so every function here
+ * handles the whole file. Appending reads the file, adds to the text and
+ * writes everything back: fine for small files and occasional appends; to
+ * write many pieces use a file_writer, which collects them in memory and
+ * writes once.
+ *
+ * Unlike the older read() / write() these functions work for files that do
+ * not exist yet, can write an empty file, and throw io_exception when
+ * something goes wrong instead of returning null or a number.
+ */
+mutate file {
+
+    /**
+     * The whole content of the file as a string, every byte one character.
+     * An empty file gives "".
+     *
+     * Throws io_exception when the file does not exist or is a directory.
+     */
+    def read_text() : string {
+        if(!exists()) {
+            throw new io_exception("file not found: " + path);
+        }
+        if(is_directory()) {
+            throw new io_exception("cannot read a directory: " + path);
+        }
+
+        text := file_natives.read(path);
+        if(io_strings.is_null(text)) {
+            return "";
+        }
+        return text!!;
+    }
+
+    /**
+     * The lines of the file. A line ends with "\n", "\r\n" or "\r"; the
+     * line ends are not part of the strings. A line end at the very end of
+     * the file does not make another, empty line. An empty file has no
+     * lines.
+     *
+     * Throws io_exception when the file does not exist or is a directory.
+     */
+    def read_lines() : list<string> {
+        return io_strings.split_lines(read_text());
+    }
+
+    /**
+     * Replace the content of the file with `text`, creating the file when
+     * it does not exist. Writing "" leaves an empty file.
+     *
+     * Throws io_exception when the file cannot be written (its directory
+     * does not exist, it is a directory, no permission).
+     */
+    def write_text(text: string) {
+        if(is_directory()) {
+            throw new io_exception("cannot write to a directory: " + path);
+        }
+        if(file_natives.write(path, text) != 0) {
+            throw new io_exception("could not write file: " + path);
+        }
+    }
+
+    /**
+     * Replace the content of the file with the given lines, each followed
+     * by "\n". An empty list leaves an empty file.
+     *
+     * Throws io_exception when the file cannot be written.
+     */
+    def write_lines(lines: list<string>) {
+        buf := new char_buffer(256);
+        count : decimal = lines.size().value;
+        for(i : decimal = 0; i < count; i++) {
+            buf.append(lines.at(i));
+            buf.append_char('\n');
+        }
+        write_text(buf.to_string()!!);
+    }
+
+    /**
+     * Add `text` at the end of the file, creating the file when it does not
+     * exist. The file is read and written back as a whole (see the comment
+     * at the top).
+     *
+     * Throws io_exception when the file cannot be written.
+     */
+    def append_text(text: string) {
+        if(is_directory()) {
+            throw new io_exception("cannot write to a directory: " + path);
+        }
+
+        old := file_natives.read(path);
+        if(io_strings.is_null(old)) {
+            write_text(text);
+            return;
+        }
+
+        buf := new char_buffer(sizeof(old!!.data) + sizeof(text.data));
+        buf.append(old!!);
+        buf.append(text);
+        write_text(buf.to_string()!!);
+    }
+
+    /**
+     * Add `line` and a "\n" at the end of the file, creating the file when
+     * it does not exist.
+     *
+     * Throws io_exception when the file cannot be written.
+     */
+    def append_line(line: string) {
+        buf := new char_buffer(sizeof(line.data) + 1);
+        buf.append(line);
+        buf.append_char('\n');
+        append_text(buf.to_string()!!);
+    }
+
+    /**
+     * The content of the file as bytes: one array element per byte, each a
+     * signed 8-bit number (-128..127; use `b & 0xff` for 0..255). Returns
+     * null for an empty file (an array cannot be empty). See byte_buffer
+     * for a more comfortable way to take binary data apart.
+     *
+     * Throws io_exception when the file does not exist or is a directory.
+     */
+    def read_bytes() : _int8[]? {
+        text := read_text();
+        return text.data;
+    }
+
+    /**
+     * Replace the content of the file with the given bytes (only the low 8
+     * bits of each element are written), creating the file when it does not
+     * exist. null leaves an empty file.
+     *
+     * Throws io_exception when the file cannot be written.
+     */
+    def write_bytes(bytes: _int8[]?) {
+        if(bytes == null) {
+            write_text("");
+            return;
+        }
+        write_text(new string(bytes!!));
+    }
+}

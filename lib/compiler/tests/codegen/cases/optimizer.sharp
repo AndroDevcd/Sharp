@@ -1,0 +1,293 @@
+mod main;
+
+// output:
+// 42
+// 0
+// -9223372036854775808
+// -9223372036854775808
+// -4
+// 2
+// -2
+// 44
+// 255
+// -25536
+// 4294967295
+// 1
+// 0.30000000000000004
+// 0.3333333333333333
+// 3
+// 7
+// -7
+// 0
+// 0
+// 1
+// 0
+// 6
+// 6
+// 4
+// 0
+// 4
+// 45
+// 25
+// 8
+// 3
+// 0
+// 18
+// 10
+// 3
+// 13
+// 9
+// 9
+// 42
+// 99
+// 2
+// 4
+// 7
+// 42
+// 35
+// -35
+// 120
+// 2147483687
+// 2147483688
+// 2147483688
+// -40
+// 15
+// 14
+// 1
+// 3.75
+// 4
+// 3
+// 7
+// 12
+// 43
+// 22
+
+/*
+ * THE OPTIMIZER (doc/codegen.md 7, 13.6): shapes each pass changes, with what they must still give
+ *
+ * codegen.sh builds every case twice: as it is, and with -O (its optimizer step), and both
+ * programs must print the block - which the C++-built program prints too. So nothing here
+ * tests a result of its own: every line is something an optimizer pass rewrites, and the
+ * rewritten program must say exactly what the plain one says.
+ *
+ *   - constant folding at the edges: 64-bit wrap-around, shifts by 62 and 63, `%` of negative
+ *     numbers, every narrowing, decimal arithmetic, decimal -> whole number of both signs,
+ *     -0.0 (never folded), a branch on a known value;
+ *   - copies held over while an expression changes the local (codegen.md 5.3);
+ *   - loops of every shape the rotation looks for, with `continue` and `break`, and the shapes
+ *     it must leave alone (a test with `&&`, a do loop);
+ *   - a variable that only feeds itself (dead code) next to one that is printed;
+ *   - small functions that are inlined: a getter, a setter, a static one with an if, a
+ *     constructor's empty base call, one that raises (a getter of a null object) inside a try;
+ *   - values a catch handler reads, set just before something raises (dead stores must keep
+ *     them), also when what raises is an inlined getter;
+ *   - immediates: `+ k`, `- k`, `k - x`, `* k`, the largest and smallest 32-bit k, and one just
+ *     past 32 bits (no immediate form);
+ *   - values handed on in a register: a comparison feeding a jump, chains of arithmetic;
+ *   - box elimination: three objects in one function that are only read through their fields
+ *     (all three become plain slots), with constants and a call between them - written after a
+ *     slip in which replacing the second box overwrote an instruction where the first had been
+ *     (the indexes had moved), which only the suite case objects_without_new had shown.
+ */
+
+class point {
+    x : _int64;
+    y : _int64;
+    point(x: _int64, y: _int64) { self->x = x; self->y = y; }
+    def x_value() : _int64 { return x; }
+    def set_y(value: _int64) { y = value; }
+    def sum() : _int64 { return x + y; }
+}
+
+class oops base exception {
+    oops() -> base("oops") { }
+}
+
+def larger(a: _int64, b: _int64) : _int64 {
+    if(a > b) { return a; }
+    return b;
+}
+
+def twice(n: _int64) : _int64 { return n + n; }
+
+def risky(n: _int64) : _int64 {
+    if(n > 0) { throw new oops(); }
+    return n;
+}
+
+def folding() {
+    seven : _int64 = 7;
+    show(seven * 6);
+    one : _int64 = 1;
+    big : _int64 = one << 62;
+    show(big * 4);
+    show(big * 2);
+    show(one << 63);
+    minus_eight : _int64 = 0 - 8;
+    show(minus_eight >> 1);
+    seventeen : _int64 = 17;
+    show(seventeen % 5);
+    show((0 - seventeen) % 5);
+    wide : _int64 = 300;
+    show(wide as _int8);
+    show((0 - 1) as _uint8);
+    show(40000 as _int16);
+    show((0 - 1) as _uint32);
+    show(4294967297 as _int32);
+    tenth : decimal = 0.1;
+    show_decimal(tenth + 0.2);
+    show_decimal(1.0 / 3.0);
+    show_decimal(tenth * 30);
+    almost : decimal = 7.9;
+    show(almost as _int64);
+    show((0 - almost) as _int64);
+    zero : decimal = 0.0;
+    show_decimal(0 - zero);
+    show_decimal(zero * (0 - 1.0));
+    if(seven > 5) { show(1); } else { show(2); }
+    if(seven == 8) { show(3); }
+    while(seven < 0) { show(4); }
+    flag : _int64 = seven != 7;
+    show(flag);
+}
+
+def held_over() {
+    x : _int64 = 1;
+    show((x = 5) + x);
+    i : _int64 = 3;
+    show(i++ + i);
+    show(i);
+    k : _int64 = 10;
+    show(k - (k = 4));
+    show(k);
+}
+
+def loops() {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < 10; i++) { total += i; }
+    show(total);
+    odd : _int64 = 0;
+    n : _int64 = 0;
+    while(n < 10) {
+        n++;
+        if(n % 2 == 0) { continue; }
+        odd += n;
+    }
+    show(odd);
+    found : _int64 = 0 - 1;
+    for(i : _int64 = 0; i < 100; i++) {
+        if(i * i > 50) { found = i; break; }
+    }
+    show(found);
+    both : _int64 = 0;
+    a : _int64 = 0;
+    while(a < 5 && both < 3) { a++; both++; }
+    show(a);
+    down : _int64 = 3;
+    do { down--; } while(down > 0);
+    show(down);
+    grid : _int64 = 0;
+    for(r : _int64 = 0; r < 4; r++) {
+        for(c : _int64 = 0; c < 3; c++) { grid += r * c; }
+    }
+    show(grid);
+    steps : _int64 = 0;
+    sum : _int64 = 0;
+    for(i : _int64 = 1; i <= 4; i++) { steps = steps + 1; sum += i; }
+    show(sum);
+}
+
+def inlining() {
+    p := new point(3, 4);
+    show(p.x_value());
+    p.set_y(10);
+    show(p.sum());
+    show(larger(2, 9));
+    show(larger(9, 2));
+    show(twice(21));
+    missing : point? = null;
+    try {
+        show(missing!!.x_value());
+    } catch(e: nullptr_exception) {
+        show(99);
+    }
+}
+
+def handlers() {
+    v : _int64 = 1;
+    try {
+        v = 2;
+        risky(1);
+        v = 3;
+    } catch(e: oops) {
+        show(v);
+    }
+    missing : point? = null;
+    w : _int64 = 0;
+    try {
+        w = 4;
+        w = missing!!.x_value();
+        w = 5;
+    } catch(e: nullptr_exception) {
+        show(w);
+    }
+    u : _int64 = 6;
+    try {
+        u = risky(0) + 7;
+    } finally {
+        show(u);
+    }
+}
+
+def immediates() {
+    i : _int64 = 40;
+    show(i + 2);
+    show(i - 5);
+    show(5 - i);
+    show(i * 3);
+    show(i + 2147483647);
+    show(i - (0 - 2147483648));
+    show(i + 2147483648);
+    show(i * (0 - 1));
+    j : _int64 = 0;
+    for(k : _int64 = 0; k < 5; k++) { j = j + 3; }
+    show(j);
+}
+
+def hand_offs() {
+    a : _int64 = 6;
+    b : _int64 = 7;
+    c : _int64 = 2;
+    show(a + b * c - a);
+    show(((a < b) as _int64) + ((b < a) as _int64) * 10);
+    d : decimal = 1.5;
+    show_decimal(d * d + d);
+    count : _int64 = 0;
+    for(x : _int64 = 0; x < 20; x++) {
+        if(x % 3 == 0 && x % 2 == 0) { count++; }
+    }
+    show(count);
+}
+
+def boxes() {
+    a := new point(1, 2);
+    b := new point(3, 4);
+    show(a.sum());
+    c := new point(5, 6);
+    show(7);
+    show(b.sum() + c.x_value());
+    b.set_y(40);
+    show(b.sum());
+    show(c.sum() * 2);
+}
+
+def main() {
+    folding();
+    held_over();
+    loops();
+    inlining();
+    handlers();
+    immediates();
+    hand_offs();
+    boxes();
+}

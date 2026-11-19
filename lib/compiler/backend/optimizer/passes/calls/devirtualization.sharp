@@ -1,0 +1,255 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * DEVIRTUALIZATION: a call the object's class decides becomes a call of one known function
+ *
+ * A virtual call (`invoke_delegate`) makes the VM look, at run time, through
+ * the methods of the object's class and of every class above it for the one
+ * that answers for the family - a search, for every call. And because nobody
+ * knows which body will run, the call cannot be inlined, and nothing is
+ * known about what it does (pure_functions.sharp). When the compiler can
+ * work out the ONE body that can run, the call becomes a plain `call` of it.
+ *
+ * The generator already does the commonest case without -O (generation/
+ * calls/dispatch.sharp): the function named has a body and no class below
+ * overrides it. Two more are found here:
+ *
+ *   1. ONE BODY IN THE WHOLE PROGRAM ("class hierarchy analysis"). The
+ *      function named has no body - it is a function of an interface, or
+ *      one only promised - or it is overridden somewhere, but among all the
+ *      classes the executable keeps, exactly one body answers for the
+ *      family. Whatever the object is, that body runs.
+ *
+ *              interface shape { def area() : decimal; }
+ *              class square : shape { override def area() ... }     // the only one kept
+ *              s.area()         ->   call square.area(s)
+ *
+ *      This compiler sees the whole program and writes only what `main`
+ *      reaches, so "the only one kept" is a fact, not a guess. (A compiler
+ *      that builds libraries separately - C++, Java - has to guard such a
+ *      call or be ready to undo it when another class is loaded.)
+ *
+ *   2. THE OBJECT'S CLASS IS KNOWN HERE. The slot the call is made on can
+ *      only hold objects this function made with `new_object` of one class
+ *      (reaching definitions, object_paths.sharp) - then the body is the one
+ *      that class has, however many other classes override it.
+ *
+ *              a : animal = new dog();
+ *              a.sound()        ->   call dog.sound(a)
+ *
+ * WHAT A NULL OBJECT DOES. `invoke_delegate` on null raises
+ * nullptr_exception; `call` does not look at the object at all. So that an
+ * optimized program raises exactly what the plain one does, a call on an
+ * object that MAY be null is made direct behind a test:
+ *
+ *      is_null   %t, %s
+ *      jump_if   %t, SLOW
+ *      call      square.area(%s)       <- every object that is there: straight to the body (and inlined)
+ *      jump      DONE
+ *  SLOW:
+ *      call virtual shape.area(%s)     <- null: the VM raises as it always did
+ *  DONE:
+ *
+ * ("guarded devirtualization"). Where the object is known not to be null
+ * (analysis/not_null.sharp: it was made here, used before, tested) there is
+ * no test - and null check elimination takes out a test that turns out to be
+ * unnecessary later. In case 2 the object was just made: never a test.
+ *
+ * Run before each round of inlining (the calls it makes direct are then
+ * small-function candidates like any other), and it finds more after each
+ * round (an inlined body brings the `new` and the call into one function).
+ *
+ *      C++ comparison: the C++ optimizer has no such pass (it sees bytecode,
+ *      where the family is only a number). LLVM does case 1 at link time
+ *      ("whole program devirtualization") and case 2 as part of its ordinary
+ *      passes, once the constructor's store of the vtable pointer is visible.
+ */
+
+/** the answers for the whole program, worked out once and asked for every call */
+class virtual_targets {
+    layout : program_layout;
+    only_body : _int64[];           // per family root address: -1 not asked, -2 more than one body (or none), else the body's address
+
+    virtual_targets(layout: program_layout) {
+        self->layout = layout;
+        only_body = new _int64[layout.functions.size().value as _int64 + 1];
+        for(i : _int64 = 0; i < sizeof(only_body); i++) { only_body[i] = 0 - 1; }
+    }
+
+    /** case 1: the one kept body of the family whose root has this address, or -1 */
+    def the_only_body(root_address: _int64) : _int64 {
+        if(root_address < 0 || root_address >= sizeof(only_body) - 1) { return 0 - 1; }
+        if(only_body[root_address] == 0 - 1) { only_body[root_address] = find_only_body(root_address); }
+        if(only_body[root_address] < 0) { return 0 - 1; }
+        return only_body[root_address];
+    }
+
+    def find_only_body(root_address: _int64) : _int64 {
+        // every function of the executable that answers for this family: the root itself when it
+        // has code, and each kept body that names the root as its delegate
+        found : _int64 = 0 - 2;
+        count : _int64 = layout.functions.size().value as _int64;
+        for(f : _int64 = 0; f < count; f++) {
+            made := layout.functions.at(f);
+            if(f != root_address && made.delegate_address != root_address) { continue; }
+            if(made.kind == FUNCTION_DELEGATE) { continue; }        // no body (the root, or a promise repeated): it never runs
+            if(made.kind == FUNCTION_NATIVE || made.ir == null) { return 0 - 2; }   // not code a `call` can name
+            if(found >= 0) { return 0 - 2; }            // a second one
+            found = f;
+        }
+        return found;
+    }
+
+    /** case 2: the body an object of exactly this class runs for the family, or -1 */
+    def body_in_class(class_address: _int64, root_address: _int64) : _int64 {
+        if(class_address < 0 || class_address >= layout.classes.size()) { return 0 - 1; }
+        at : class_layout? = layout.classes.at(class_address);
+        for(depth : _int64 = 0; at != null && depth < 64; depth++) {
+            // (the VM searches the same way: the class, then each class above; in a class, the last method first)
+            for(m : _int64 = (at!!.methods.size().value as _int64) - 1; m >= 0; m--) {
+                made := at!!.methods.at(m);
+                if(made.address != root_address && made.delegate_address != root_address) { continue; }
+                if(made.kind == FUNCTION_DELEGATE || made.kind == FUNCTION_NATIVE || made.ir == null) { return 0 - 1; }
+                return made.address;
+            }
+            at = at!!.base_layout;
+        }
+        return 0 - 1;
+    }
+}
+
+/** every virtual call of the function whose one body can be worked out becomes a direct call: how many */
+def devirtualize_calls(analyses: function_analyses, targets: virtual_targets) : _int64 {
+    code := analyses.code;
+    total : _int64 = code.instructions.size().value as _int64;
+    any : _int64 = 0;
+    for(i : _int64 = 0; i < total && any == 0; i++) {
+        at := code.instructions.at(i);
+        if(at.kind == IR_CALL && at.number == CALL_HOW_VIRTUAL) { any = 1; }
+    }
+    if(any == 0) { return 0; }
+
+    // ---- which calls, to which body, and is the object known not to be null there (decided on
+    // the code as it is; the code is changed afterwards)
+    graph := analyses.graph();
+    not_null := find_not_null(graph);
+    known := new slot_set(code.slot_count());
+    body_of := new _int64[total + 1];           // per instruction: the body its call goes to, -1 none
+    guarded := new _int64[total + 1];           // 1: the object may be null there
+    found := new number_list();
+    done : _int64 = 0;
+    guards : _int64 = 0;
+    for(b : _int64 = 0; b < graph.blocks; b++) {
+        not_null.load_before_block(b, known);
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+            call := code.instructions.at(i);
+            body_of[i] = 0 - 1;
+            if(call.kind == IR_CALL && call.number == CALL_HOW_VIRTUAL && call.detail >= 0
+               && call.arguments != null && call.arguments!!.count > 0) {
+                receiver : _int64 = call.arguments!!.at(0);
+                body : _int64 = targets.the_only_body(call.detail);
+                fresh : _int64 = 0;
+                if(body < 0 && code.tries.size() == 0) {
+                    // case 2: every object the slot can hold here was made in this function, all of one class
+                    body = body_for_fresh_object(code, graph, targets, i, receiver, call.detail, found);
+                    fresh = body >= 0;
+                }
+                if(body >= 0) {
+                    body_of[i] = body;
+                    done++;
+                    if(fresh == 0 && !(not_null.valid == 1 && receiver < not_null.slots && known.has(receiver))) {
+                        guarded[i] = 1;
+                        guards++;
+                    }
+                }
+            }
+            if(not_null.valid == 1) { not_null.step(i, known); }
+        }
+    }
+    if(done == 0) { return 0; }
+
+    // ---- the calls rewritten
+    if(guards == 0) {
+        for(i : _int64 = 0; i < total; i++) {
+            if(body_of[i] >= 0) { make_direct(code.instructions.at(i), targets, body_of[i]); }
+        }
+        // (only how a call reaches its function changed: no slot, no block - the analyses stand)
+        return done;
+    }
+    made_list := new list<ir_instruction>();
+    for(i : _int64 = 0; i < total; i++) {
+        call := code.instructions.at(i);
+        if(body_of[i] < 0) {
+            made_list.add(call);
+            continue;
+        }
+        if(guarded[i] == 0) {
+            make_direct(call, targets, body_of[i]);
+            made_list.add(call);
+            continue;
+        }
+        // is_null %t, %object ; jump_if %t, SLOW ; call body ; jump DONE ; SLOW: the virtual call ; DONE:
+        answer : _int64 = code.slot_kinds.count;
+        code.slot_kinds.add(SLOT_INT);
+        slow : _int64 = code.label_count;
+        after : _int64 = code.label_count + 1;
+        code.label_count = code.label_count + 2;
+        test := new ir_instruction(IR_IS_NULL);
+        test.target = answer;
+        test.first = call.arguments!!.at(0);
+        made_list.add(test);
+        branch := new ir_instruction(IR_JUMP_IF);
+        branch.first = answer;
+        branch.number = slow;
+        made_list.add(branch);
+        direct := copy_of_instruction(call);
+        make_direct(direct, targets, body_of[i]);
+        made_list.add(direct);
+        leave := new ir_instruction(IR_JUMP);
+        leave.number = after;
+        made_list.add(leave);
+        made_list.add(label_instruction(slow));
+        made_list.add(call);                    // the object is null: the VM raises as it always did
+        made_list.add(label_instruction(after));
+    }
+    code.instructions = made_list;
+    analyses.changed();
+    return done;
+}
+
+/** case 2: the body for the family `root_address` when `slot`, as instruction `at` reads it, can only hold new objects of one class; else -1 */
+def body_for_fresh_object(code: ir_function, graph: flow_graph, targets: virtual_targets, at: _int64, slot: _int64,
+                          root_address: _int64, found: number_list) : _int64 {
+    found.count = 0;
+    if(!reaching_definitions(code, graph, at, slot, found) || found.count == 0) { return 0 - 1; }
+    made_class : _int64 = 0 - 1;
+    for(d : _int64 = 0; d < found.count; d++) {
+        made := code.instructions.at(found.at(d));
+        if(made.kind != IR_NEW_OBJECT || made.declaration == null) { return 0 - 1; }
+        if(made_class >= 0 && made.declaration!!.address != made_class) { return 0 - 1; }
+        made_class = made.declaration!!.address;
+    }
+    return targets.body_in_class(made_class, root_address);
+}
+
+/** the call goes straight to the function with this address */
+def make_direct(call: ir_instruction, targets: virtual_targets, body: _int64) {
+    call.declaration = targets.layout.functions.at(body).of;
+    call.number = CALL_HOW_DIRECT;
+    call.detail = 0 - 1;
+}
+
+/** `label:` */
+def label_instruction(label: _int64) : ir_instruction {
+    made := new ir_instruction(IR_LABEL);
+    made.number = label;
+    return made;
+}

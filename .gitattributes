@@ -1,0 +1,12 @@
+# Files that Linux / WSL reads must keep Unix line endings on every machine, also on a Windows
+# checkout: bash cannot run a script with Windows line endings, and the tests compare their
+# expected output byte by byte.
+*.sh                                        text eol=lf
+*.py                                        text eol=lf
+build-scripts/internal/zip-contents/linux/* text eol=lf
+lib/compiler/tests/**                       text eol=lf
+tests/suite/**                              text eol=lf
+
+# ... and what only Windows runs keeps Windows line endings
+*.cmd                                       text eol=crlf
+*.bat                                       text eol=crlf

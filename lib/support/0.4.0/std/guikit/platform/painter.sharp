@@ -1,0 +1,485 @@
+mod std.guikit.platform;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * One area drawing is cut down to (see painter.clip). Kept in a stack so
+ * areas can nest: a list inside a panel inside a window.
+ */
+local stable class clip_area {
+    x : decimal;
+    y : decimal;
+    w : decimal;
+    h : decimal;
+
+    clip_area(ax: decimal, ay: decimal, aw: decimal, ah: decimal) {
+        x = ax;
+        y = ay;
+        w = aw;
+        h = ah;
+    }
+}
+
+/**
+ * painter - the thing you draw with. Shapes, lines, text and pictures.
+ *
+ * Get it from the window and paint between clear() and show():
+ *
+ *      p := w.painter();
+ *      w.clear(background);
+ *      p.rect(20, 20, 200, 80, 12, card);               // a round-cornered box
+ *      p.circle(60, 60, 18, accent);
+ *      p.text("Hello", 90, 48, title_font, white);
+ *      w.show();
+ *
+ * HOW POSITIONS WORK: (0, 0) is the top-left corner, x grows to the right, y
+ * grows DOWN. Every shape is placed by its top-left corner and its width and
+ * height - except circles, placed by their centre. Numbers are decimals, so
+ * things can move smoothly between pixels.
+ *
+ * Things painted later cover things painted earlier (like real paint).
+ * Colours with alpha below 255 let what is underneath show through.
+ *
+ * TWO THINGS THE FRAMEWORK USES (and you may too):
+ *   - clip(x, y, w, h) ... unclip(): paint only inside an area. They nest.
+ *   - move_origin(x, y) ... restore_origin(): make (0, 0) mean somewhere else,
+ *     so a piece of drawing code can pretend it owns the whole window. A canvas
+ *     in the middle of a layout is handed a painter set up like this.
+ *
+ * This is the "immediate" layer: you say what to paint, every frame. Games use
+ * it directly (the canvas); the declarative layer - gui.column(), gui.button()
+ * - is built ON it and calls it for you. Java comparison: Graphics2D.
+ * Android: Canvas. HTML: the 2D canvas context.
+ */
+stable class painter {
+    // where (0, 0) is right now, in window pixels
+    private ox : decimal = 0;
+    private oy : decimal = 0;
+
+    // the clip areas that are open, innermost last (in window pixels)
+    private clips : list<clip_area> = new list<clip_area>();
+
+    // how solid everything is painted right now: 1 fully, 0 not at all (see fade)
+    private level : decimal = 1;
+
+    // ---------------------------------------------------------------- boxes
+
+    /** a filled rectangle */
+    def rect(x: decimal, y: decimal, w: decimal, h: decimal, c: color) {
+        draw_rect(ox + x, oy + y, w, h, 0, ink(c));
+    }
+
+    /** a filled rectangle with round corners (`radius` pixels) */
+    def rect(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, c: color) {
+        draw_rect(ox + x, oy + y, w, h, radius, ink(c));
+    }
+
+    /**
+     * Only the border of a rectangle, `thickness` pixels wide, drawn inside
+     * the area (a border never makes the box bigger). radius 0: square corners.
+     */
+    def outline(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, thickness: decimal, c: color) {
+        draw_rect_line(ox + x, oy + y, w, h, radius, thickness, ink(c));
+    }
+
+    // ---------------------------------------------------------------- lines and circles
+
+    /** a straight line from (x1, y1) to (x2, y2), `thickness` pixels wide */
+    def line(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, c: color) {
+        draw_line(ox + x1, oy + y1, ox + x2, oy + y2, thickness, ink(c));
+    }
+
+    /** a filled circle around the centre (cx, cy) */
+    def circle(cx: decimal, cy: decimal, radius: decimal, c: color) {
+        draw_circle(ox + cx, oy + cy, radius, ink(c));
+    }
+
+    /** only the ring of a circle, `thickness` pixels wide, inside the radius */
+    def ring(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, c: color) {
+        draw_circle_line(ox + cx, oy + cy, radius, thickness, ink(c));
+    }
+
+    // ---------------------------------------------------------------- the same, with the colour as ONE NUMBER
+    //
+    // A colour can also be given as the number 0xRRGGBBAA - red, green, blue
+    // and alpha, two hex digits each: 0xFF0000FF is solid red, 0x00000080 is
+    // black at half strength. gui.pack(r, g, b) makes that number from channels.
+    //
+    //      p.rect(0, 0, 200, 80, 0x3C3F46FF);
+    //
+    // Nothing is made for it (a `color` is an object, and gui.rgb(...) makes a
+    // new one every time it is called), so this is the way to paint a scene
+    // that draws hundreds of shapes a frame.
+
+    def rect(x: decimal, y: decimal, w: decimal, h: decimal, packed: _int64) {
+        draw_rect(ox + x, oy + y, w, h, 0, ink(packed));
+    }
+
+    def rect(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, packed: _int64) {
+        draw_rect(ox + x, oy + y, w, h, radius, ink(packed));
+    }
+
+    def outline(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, thickness: decimal, packed: _int64) {
+        draw_rect_line(ox + x, oy + y, w, h, radius, thickness, ink(packed));
+    }
+
+    def line(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, packed: _int64) {
+        draw_line(ox + x1, oy + y1, ox + x2, oy + y2, thickness, ink(packed));
+    }
+
+    def circle(cx: decimal, cy: decimal, radius: decimal, packed: _int64) {
+        draw_circle(ox + cx, oy + cy, radius, ink(packed));
+    }
+
+    def ring(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, packed: _int64) {
+        draw_circle_line(ox + cx, oy + cy, radius, thickness, ink(packed));
+    }
+
+    def polygon(xs: decimal[], ys: decimal[], packed: _int64) {
+        fill_polygon(xs, ys, sizeof(xs), ox, oy, ink(packed));
+    }
+
+    def polygon(xs: decimal[], ys: decimal[], count: _int64, packed: _int64) {
+        fill_polygon(xs, ys, count, ox, oy, ink(packed));
+    }
+
+    def text(words: string, x: decimal, y: decimal, f: font, packed: _int64) {
+        draw_text(f.id, words, ox + x, oy + y, ink(packed));
+    }
+
+    // ---------------------------------------------------------------- many shapes in one call
+    //
+    // Each call above crosses into the graphics side once, and that crossing
+    // costs far more than the shape - on a small machine a few hundred shapes
+    // are a whole frame. These hand over LISTS instead: one crossing for all
+    // of them. Colours are numbers (0xRRGGBBAA), one for each shape; `count`
+    // says how many shapes of the lists to paint, so the same arrays can be
+    // filled again every frame.
+    //
+    // For a mix of shapes painted in order, fill a shape_batch and draw(...) it.
+
+    /** `count` plain rectangles: rectangle i is at (xs[i], ys[i]) and ws[i] x hs[i] */
+    def rects(xs: decimal[], ys: decimal[], ws: decimal[], hs: decimal[], colors: _int64[], count: _int64) {
+        fill_rects(xs, ys, ws, hs, colors, count, ox, oy, level);
+    }
+
+    /** `count` filled circles: circle i is around (xs[i], ys[i]) */
+    def circles(xs: decimal[], ys: decimal[], radii: decimal[], colors: _int64[], count: _int64) {
+        fill_circles(xs, ys, radii, colors, count, ox, oy, level);
+    }
+
+    /** `count` lines, all `thickness` wide: line i runs from (x1s[i], y1s[i]) to (x2s[i], y2s[i]) */
+    def lines(x1s: decimal[], y1s: decimal[], x2s: decimal[], y2s: decimal[], thickness: decimal, colors: _int64[], count: _int64) {
+        draw_lines(x1s, y1s, x2s, y2s, thickness, colors, count, ox, oy, level);
+    }
+
+    /** `count` triangles: triangle i has the corners 3i, 3i + 1 and 3i + 2 of xs and ys */
+    def triangles(xs: decimal[], ys: decimal[], colors: _int64[], count: _int64) {
+        fill_triangles(xs, ys, colors, count, ox, oy, level);
+    }
+
+    /** everything a shape_batch holds, in the order it was added (the batch is not emptied: clear() does that) */
+    def draw(shapes: shape_batch) {
+        draw_shapes(shapes.kinds, shapes.data, shapes.colors, shapes.count, ox, oy, level);
+    }
+
+    /**
+     * any outline, filled: corner i is (xs[i], ys[i]), in order around the shape.
+     *
+     *      p.polygon(new decimal[] { 10, 60, 35 }, new decimal[] { 50, 50, 10 }, red);     // a triangle
+     */
+    def polygon(xs: decimal[], ys: decimal[], c: color) {
+        fill_polygon(xs, ys, sizeof(xs), ox, oy, ink(c));
+    }
+
+    /** the same from only the first `count` corners - so one pair of arrays can be filled again every frame */
+    def polygon(xs: decimal[], ys: decimal[], count: _int64, c: color) {
+        fill_polygon(xs, ys, count, ox, oy, ink(c));
+    }
+
+    /**
+     * the same with the corners as text, "x y x y x y ...", already moved by the
+     * painter's origin (at_x, at_y). Much slower than the arrays: every number is
+     * turned into text here and read back on the other side.
+     */
+    def polygon(points: string, c: color) {
+        draw_polygon(points, ink(c));
+    }
+
+    // ---------------------------------------------------------------- layers
+    //
+    // Painting "to one side" first, so that a whole box - with everything in
+    // it - can then be put on the screen turned, enlarged, blurred or cut to a
+    // shape (native/layers.cpp explains how). Between begin_layer() and
+    // end_layer(...) everything is painted exactly as usual.
+
+    /** from now on paint into a new layer. Gives 1 - or 0 when no layer could be made (then do not call end_layer) */
+    def begin_layer() : _int64 {
+        made : _int64 = layer_begin();
+        if(made == 1) {
+            reclip();                       // the new layer starts with nothing cut off: put the open clip back
+        }
+        return made;
+    }
+
+    /** of what the open layer holds, keep only what is inside this box with round corners */
+    def mask_layer(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal) {
+        layer_mask(ox + x, oy + y, w, h, radius);
+        reclip();
+    }
+
+    /**
+     * Close the layer and put its area (x, y, w, h) on what is underneath:
+     * turned `angle` degrees clockwise and `scale` times its size, both
+     * around the area's middle, and blurred by about `blur` pixels (0: sharp).
+     */
+    def end_layer(x: decimal, y: decimal, w: decimal, h: decimal, angle: decimal, scale: decimal, blur: decimal) {
+        layer_end(ox + x, oy + y, w, h, angle, scale, 255, blur);
+        reclip();
+    }
+
+    /** make the graphics card's clip area the innermost open one again (a change of layer forgets it) */
+    private def reclip() {
+        open : _int64 = clips.size().value;
+        if(open == 0) {
+            draw_unclip();
+        } else {
+            outer := clips.at(open - 1);
+            draw_clip(outer.x, outer.y, outer.w, outer.h);
+        }
+    }
+
+    /** where the painter's (0, 0) is right now, across - for code that hands whole coordinates to the graphics card */
+    def at_x(x: decimal) : decimal { return ox + x; }
+    def at_y(y: decimal) : decimal { return oy + y; }
+
+    // ---------------------------------------------------------------- text
+
+    /**
+     * One line of text. (x, y) is the TOP-LEFT corner of the text, like every
+     * other shape. For more lines, step y by f.line_height.
+     */
+    def text(words: string, x: decimal, y: decimal, f: font, c: color) {
+        draw_text(f.id, words, ox + x, oy + y, ink(c));
+    }
+
+    // ---------------------------------------------------------------- pictures
+
+    /** a picture at its own size */
+    def image(picture: image, x: decimal, y: decimal) {
+        draw_image(picture.id, ox + x, oy + y, picture.width, picture.height, solid(255));
+    }
+
+    /** a picture stretched (or shrunk) to w x h */
+    def image(picture: image, x: decimal, y: decimal, w: decimal, h: decimal) {
+        draw_image(picture.id, ox + x, oy + y, w, h, solid(255));
+    }
+
+    /** a picture stretched to w x h and see-through: opacity 0 (invisible) .. 255 (solid) */
+    def image(picture: image, x: decimal, y: decimal, w: decimal, h: decimal, opacity: _int32) {
+        draw_image(picture.id, ox + x, oy + y, w, h, solid(opacity));
+    }
+
+    /** only the box (sx, sy, sw, sh) of a picture - in the picture's own pixels - stretched to the area (x, y, w, h) */
+    def image(picture: image, sx: decimal, sy: decimal, sw: decimal, sh: decimal, x: decimal, y: decimal, w: decimal, h: decimal) {
+        draw_image_part(picture.id, sx, sy, sw, sh, ox + x, oy + y, w, h, solid(255), 0, 0);
+    }
+
+    // ---------------------------------------------------------------- sprites (game/sprite_sheet.sharp)
+
+    /** frame number `frame` of a sprite sheet, at the frame's own size */
+    def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal) {
+        draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
+                        ox + x, oy + y, sheet.frame_width, sheet.frame_height, solid(255), 0, 0);
+    }
+
+    /** a frame stretched to w x h */
+    def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal) {
+        draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
+                        ox + x, oy + y, w, h, solid(255), 0, 0);
+    }
+
+    /** a frame stretched to w x h, and mirrored left to right when `flipped` (a character walking the other way) */
+    def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal, flipped: bool) {
+        mirror : _int32 = 0;
+        if(flipped) { mirror = 1; }
+        draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
+                        ox + x, oy + y, w, h, solid(255), mirror, 0);
+    }
+
+    /**
+     * a frame with everything: mirrored or not, turned `angle` degrees clockwise
+     * around its middle, and see-through - opacity 0 (invisible) .. 255 (solid)
+     */
+    def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal,
+               flipped: bool, angle: decimal, opacity: _int32) {
+        mirror : _int32 = 0;
+        if(flipped) { mirror = 1; }
+        draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
+                        ox + x, oy + y, w, h, solid(opacity), mirror, angle);
+    }
+
+    /** every sprite a sprite_batch holds, in one call (the batch is not emptied: clear() does that) */
+    def draw(sprites: sprite_batch) {
+        draw_image_parts(sprites.sheet.picture.id, sprites.sources, sprites.places, sprites.count, ox, oy, solid(255));
+    }
+
+    /**
+     * the part of a tile map that shows in a view `view_w` x `view_h` whose
+     * top-left corner is here at (0, 0), with the camera - the top-left corner
+     * of the view - at (camera_x, camera_y) of the map. Only the tiles in the
+     * view are painted, all in one call, however large the map is.
+     */
+    def tiles(ground: tile_map, camera_x: decimal, camera_y: decimal, view_w: decimal, view_h: decimal) {
+        first_column : _int64 = camera_x / ground.tile_width;
+        first_row : _int64 = camera_y / ground.tile_height;
+        if(camera_x < 0) { first_column = 0; }
+        if(camera_y < 0) { first_row = 0; }
+        columns : _int64 = view_w / ground.tile_width + 2;
+        rows : _int64 = view_h / ground.tile_height + 2;
+        tiles_of := ground.sheet;
+        draw_tiles(tiles_of.picture.id, ground.tiles, ground.columns, ground.rows, first_column, first_row, columns, rows,
+                   tiles_of.frame_width, tiles_of.frame_height, tiles_of.margin, tiles_of.spacing, tiles_of.columns,
+                   ox - camera_x, oy - camera_y, ground.tile_width, ground.tile_height, solid(255));
+    }
+
+    /** how solid things are painted right now: 255 fully, 0 not at all (what fade() has made of it) */
+    def opacity() : _int32 {
+        return solid(255);
+    }
+
+    // ---------------------------------------------------------------- clipping
+
+    /**
+     * From now on, paint only inside this area; anything outside it is cut
+     * off. A scrolling list uses this so its rows do not spill over its edge.
+     * Areas nest: inside another clip, only the part BOTH allow is painted.
+     * Every clip() needs its unclip().
+     */
+    def clip(x: decimal, y: decimal, w: decimal, h: decimal) {
+        left : decimal = ox + x;
+        top : decimal = oy + y;
+        right : decimal = left + w;
+        bottom : decimal = top + h;
+
+        // cut it down to the area that is already open, if there is one
+        open : _int64 = clips.size().value;
+        if(open > 0) {
+            outer := clips.at(open - 1);
+            if(left < outer.x) { left = outer.x; }
+            if(top < outer.y) { top = outer.y; }
+            if(right > outer.x + outer.w) { right = outer.x + outer.w; }
+            if(bottom > outer.y + outer.h) { bottom = outer.y + outer.h; }
+        }
+        if(right < left) { right = left; }
+        if(bottom < top) { bottom = top; }
+
+        clips.add(new clip_area(left, top, right - left, bottom - top));
+        draw_clip(left, top, right - left, bottom - top);
+    }
+
+    /** end the innermost clip(): back to the area that was open before it */
+    def unclip() {
+        open : _int64 = clips.size().value;
+        if(open == 0) {
+            return;
+        }
+        clips.remove_at(open - 1);
+        if(open == 1) {
+            draw_unclip();
+        } else {
+            outer := clips.at(open - 2);
+            draw_clip(outer.x, outer.y, outer.w, outer.h);
+        }
+    }
+
+    // ---------------------------------------------------------------- moving (0, 0)
+
+    /** where (0, 0) is now, in window pixels (to hand back to restore_origin) */
+    def origin_x() : decimal { return ox; }
+    def origin_y() : decimal { return oy; }
+
+    /** from now on (0, 0) means the point (x, y) of the current coordinates */
+    def move_origin(x: decimal, y: decimal) {
+        ox = ox + x;
+        oy = oy + y;
+    }
+
+    /** put (0, 0) back where origin_x() / origin_y() said it was */
+    def restore_origin(x: decimal, y: decimal) {
+        ox = x;
+        oy = y;
+    }
+
+    // ---------------------------------------------------------------- fading
+
+    /**
+     * From now on, paint everything this much more see-through: 1 changes
+     * nothing, 0.5 makes everything half as solid, 0 invisible. It multiplies
+     * with a fade that is already on, so a faded panel inside a faded screen is
+     * fainter still. Returns the level that was on before: hand it to unfade()
+     * when done.
+     *
+     *      before := p.fade(0.5);
+     *      ... paint things ...
+     *      p.unfade(before);
+     *
+     * This is how a widget's opacity and the fade animations work: the whole
+     * subtree is painted between a fade() and its unfade(). Every colour passes
+     * through the level on its way to the native side (ink, below), so nothing
+     * that paints needs to know it is being faded.
+     */
+    def fade(amount: decimal) : decimal {
+        before : decimal = level;
+        level = level * amount;
+        if(level < 0) { level = 0; }
+        if(level > 1) { level = 1; }
+        return before;
+    }
+
+    /** put back the level fade() returned */
+    def unfade(before: decimal) {
+        level = before;
+    }
+
+    /** a colour as the native side wants it (0xRRGGBBAA), with its alpha scaled by the fade level */
+    private def ink(c: color) : _int64 {
+        if(level >= 1) {
+            return c.packed;
+        }
+        faded : _int64 = c.alpha * level;
+        return c.packed - c.alpha + faded;       // alpha is the lowest byte: swap it for the faded one
+    }
+
+    /** the same for a colour that is already that number */
+    private def ink(packed: _int64) : _int64 {
+        if(level >= 1) {
+            return packed;
+        }
+        alpha : _int64 = packed % 256;
+        faded : _int64 = alpha * level;
+        return packed - alpha + faded;
+    }
+
+    /** an opacity 0..255 scaled by the fade level */
+    private def solid(opacity: _int32) : _int32 {
+        if(level >= 1) {
+            return opacity;
+        }
+        scaled : _int32 = opacity * level;
+        return scaled;
+    }
+
+    /** forget every clip, move and fade: the start of a frame (the framework calls this) */
+    def reset() {
+        ox = 0;
+        oy = 0;
+        level = 1;
+        if(clips.size().value > 0) {
+            clips.clear();
+            draw_unclip();
+        }
+    }
+}

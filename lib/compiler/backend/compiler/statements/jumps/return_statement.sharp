@@ -1,0 +1,154 @@
+mod backend.compiler.statements.jumps;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * `return;` AND `return value;`
+ *
+ * What a `return` must give is what the function returns (doc/backend.md
+ * 7.13), which the driver puts on the context (`expected_result`):
+ *
+ *      declared                        result      return
+ *      ------------------------------  ----------  -------------------------------------------
+ *      def f() : t { }                 t           `return e;` - e must convert to t (E0410,
+ *                                                  E0721 when only a `?` is in the way)
+ *      def f() { }   def f() : nil     nothing     `return;` (`return e;` is E0606)
+ *      constructor, init, setter       nothing     `return;`
+ *      get { }                         the field's type, as `: t`
+ *
+ * `return;` in a function that returns a value is E0607. One case the C++
+ * compiler accepts and so does this one: `return log("x");` in a function
+ * that returns nothing, when `log` returns nothing too - the call is made
+ * and the function returns (the value of the return has the nil type).
+ *
+ * A lambda written without its result type and with none expected takes it
+ * from its `return`s: while its body is analysed (`context.inferring_result`)
+ * each `return` is kept on the context, and the lambda stage converts the
+ * values once the type is known (lambdas/lambda_body.sharp).
+ *
+ * A function whose result is written `:= value` gets its type from that
+ * value; its body is an expression, never a block with `return`s (the
+ * driver handles it: driver/function_body.sharp).
+ *
+ *      E0410 / E0721   the value does not convert to the result (conversions/)
+ *      E0604           leaving a finally block (jumps.sharp)
+ *      E0606           a value returned from a function that returns nothing
+ *      E0607           no value returned from a function that returns one
+ *
+ *      C++ comparison: compiler/functions/statements/return_statement.cpp
+ *      ("returning `X` from a function returning `Y`").
+ */
+def analyse_return(context: analysis_context, node: _int64) : bound_statement {
+    value_node : _int64 = context.tree.first_child!![node];
+    expected : resolved_type? = context.expected_result;
+    value : bound_expression? = null;
+
+    if(context.inferring_result == 1) {
+        // a lambda whose result is worked out from its `return`s (lambdas/lambda_body.sharp):
+        // the value is taken as it is and converted once the result is known
+        if(value_node >= 0) {
+            found := analyse_expression(context, value_node, null);
+            if(found.type.kind != RT_NIL) { found = as_value(context, found); }
+            value = found;
+        }
+    } else if(expected == null || expected!!.kind == RT_ERROR) {
+        // nothing is known about the result (it was reported): check the names in the value, nothing more
+        if(value_node >= 0) { value = analyse_value(context, value_node, null); }
+    } else if(expected!!.kind == RT_NIL) {
+        if(value_node >= 0) {
+            found := analyse_expression(context, value_node, null);
+            if(found.type.kind != RT_NIL) {
+                found = as_value(context, found);
+                if(found.type.kind != RT_ERROR) { report_value_from_nothing(context, value_node, found); }
+            }
+            value = found;
+        }
+    } else if(value_node < 0) {
+        report_no_value(context, node, expected!!);
+    } else {
+        value = analyse_converted(context, value_node, expected!!, "the result of " + result_owner_text(context));
+    }
+
+    made := new bound_return(context.unit, node, value);
+    if(context.inferring_result == 1) { context.returns!!.add(made); }
+    path := passed_on_the_way(context, 0);
+    for(i : _int64 = 0; i < path.leaves.size(); i++) { made.leaves.add(path.leaves.at(i)); }
+    if(path.finally_crossed != null) {
+        report_leaving_finally(context, node, "return", path.finally_crossed!!);
+        made.broken = 1;
+    }
+    return made;
+}
+
+/** "`area`", "the getter of `size`", "the constructor `shape`": whose result a returned value is, for messages */
+def result_owner_text(context: analysis_context) : string {
+    if(context.function == null) { return "this function"; }
+    function : sharp_function = context.function!!;
+    if(function.is_lambda == 1) { return "this lambda"; }
+    if(function.kind == D_GETTER && function.field != null) { return "the getter of `" + function.field!!.name + "`"; }
+    if(function.kind == D_SETTER && function.field != null) { return "the setter of `" + function.field!!.name + "`"; }
+    if(function.kind == D_CONSTRUCTOR) { return "the constructor `" + function.name + "`"; }
+    if(function.kind == D_INIT) { return "an `init` block"; }
+    return "`" + function.name + "`";
+}
+
+/** E0606: `return 5;` in a function that returns nothing */
+def report_value_from_nothing(context: analysis_context, value_node: _int64, value: bound_expression) {
+    d := problem_over(context, "E0606", result_owner_text(context) + " returns nothing, but this `return` gives a value", value_node);
+    d.with_label(described_value(value));
+    function : sharp_function? = context.function;
+    if(function != null && (function!!.kind == D_CONSTRUCTOR || function!!.kind == D_INIT)) {
+        d.with_note("a constructor or init block makes the object; it gives nothing back itself");
+        d.with_help("write `return;` to stop early");
+    } else if(function != null && function!!.kind == D_SETTER) {
+        d.with_note("a setter stores a value; it gives nothing back");
+        d.with_help("write `return;` to stop early");
+    } else if(function != null && function!!.is_lambda == 1 && value.type.kind != RT_ERROR) {
+        d.with_note("the function type this lambda is given to (or the result written after its arrow) returns nothing");
+        d.with_help("write `return;`, or give the lambda a function type that returns a value: `{ ... -> (" + value.type.to_text() + ") ... }`");
+    } else if(function != null && function!!.kind == D_FUNCTION && value.type.kind != RT_ERROR) {
+        d.with_note("a function declared without a result type returns nothing");
+        d.with_help("declare what it returns: `" + declaration_with_result(function!!, value) + "`; or write `return;`");
+    }
+    report(context, d);
+}
+
+/**
+ * The head of `function` as it would read with a result type, ready to
+ * paste over the one written: `def total(n: _int64) : _int64`. The type is
+ * that of the value returned - for a literal the type a declared variable
+ * would take: a whole number is the everyday `_int64` (not the `_int32` a
+ * literal is), a text literal a `string`.
+ */
+def declaration_with_result(function: sharp_function, value: bound_expression) : string {
+    text := new string_builder("def " + function.name + "(");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        parameter := function.parameters.at(i);
+        text.append(parameter.name);
+        if(parameter.type != null) { text.append(": " + parameter.type!!.to_text()); }
+    }
+    result := value.type.to_text();
+    if(value.literal == LIT_INTEGER) { result = "_int64"; }
+    else if(value.literal == LIT_TEXT) { result = "string"; }
+    text.append(") : " + result);
+    return text.build();
+}
+
+/** E0607: `return;` in a function that returns a value */
+def report_no_value(context: analysis_context, node: _int64, expected: resolved_type) {
+    d := problem_at(context, "E0607", "`return;` without a value, but " + result_owner_text(context) + " returns `" + expected.to_text() + "`", node);
+    d.with_label("a value is missing");
+    d.with_note("every way out of a function that returns a value must give one");
+    d.with_help("write `return <" + expected.to_text() + " value>;`");
+    report(context, d);
+}

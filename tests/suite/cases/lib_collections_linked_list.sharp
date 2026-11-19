@@ -1,0 +1,195 @@
+mod main;
+
+import ( std.testing, std.collections )
+
+/**
+ * std.collections - linked_list (with linked_list_iterator) and array_iterator:
+ * the iterator / iterable protocol every collection of the module shares.
+ */
+
+/** "1,2,3" for an array of ints ("" for null or empty) */
+def join(items: int[]?) : string {
+    text := "";
+    if(items == null) return text;
+    for(i : decimal = 0; i < sizeof(items); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items[i];
+    }
+    return text;
+}
+
+/** "1,2,3" for everything an iterator still has to give */
+def drain(it: iterator<int>) : string {
+    text := "";
+    first : decimal = 1;
+    while(it.has_next()) {
+        if(!first) text = text + ",";
+        first = 0;
+        text = text + it.next();
+    }
+    return text;
+}
+
+/** works with ANY collection of the module: that is the point of `iterable` */
+def total(numbers: iterable<int>) : decimal {
+    sum : decimal = 0;
+    it := numbers.iterator();
+    while(it.has_next()) sum += it.next().value;
+    return sum;
+}
+
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
+
+def test_linked_list() {
+    l := new linked_list<int>();
+    test("ll new size") { expect(l.size()).should_be(0); };
+    test("ll new is_empty") { expect(l.is_empty()).should_be(1); };
+    test("ll empty get_elements") { expect_null(l.get_elements()); };
+    test("ll empty to_array") { expect(sizeof(l.to_array())).should_be(0); };
+    test("ll first_or_null empty") { expect_null(l.first_or_null()); };
+    test("ll last_or_null empty") { expect_null(l.last_or_null()); };
+    test("ll empty iterator") { expect(l.iterator().has_next()).should_be(0); };
+
+    l.add(2);
+    l.add_last(3);
+    l.add_first(1);
+    test("ll add order") { expect(join(l.to_array())).should_be("1,2,3"); };
+    test("ll size 3") { expect(l.size()).should_be(3); };
+    test("ll is_empty 0") { expect(l.is_empty()).should_be(0); };
+    test("ll first") { expect(l.first().value).should_be(1); };
+    test("ll last") { expect(l.last().value).should_be(3); };
+    test("ll first_or_null") { expect(l.first_or_null()!!.value).should_be(1); };
+    test("ll last_or_null") { expect(l.last_or_null()!!.value).should_be(3); };
+
+    // insert at the front, the middle, the back
+    l.insert(0, 0);
+    l.insert(4, 4);
+    l.insert(2, 9);
+    test("ll insert") { expect(join(l.to_array())).should_be("0,1,9,2,3,4"); };
+    test("ll at 0") { expect(l.at(0).value).should_be(0); };
+    test("ll at 2") { expect(l.at(2).value).should_be(9); };
+    test("ll at 5 (walks from the tail)") { expect(l.at(5).value).should_be(4); };
+    test("ll at 4") { expect(l.at(4).value).should_be(3); };
+
+    test("ll put returns old") { expect(l.put(2, 7).value).should_be(9); };
+    test("ll after put") { expect(join(l.to_array())).should_be("0,1,7,2,3,4"); };
+
+    test("ll index_of") { expect(l.index_of(7)).should_be(2); };
+    test("ll index_of last") { expect(l.index_of(4)).should_be(5); };
+    test("ll index_of missing") { expect(l.index_of(42)).should_be(0 - 1); };
+    test("ll contains") { expect(l.contains(3)).should_be(1); };
+    test("ll contains missing") { expect(l.contains(8)).should_be(0); };
+
+    test("ll remove_at middle") { expect(l.remove_at(2).value).should_be(7); };
+    test("ll remove_first") { expect(l.remove_first().value).should_be(0); };
+    test("ll remove_last") { expect(l.remove_last().value).should_be(4); };
+    test("ll after removes") { expect(join(l.to_array())).should_be("1,2,3"); };
+    test("ll remove value") { expect(l.remove(2)).should_be(1); };
+    test("ll remove missing value") { expect(l.remove(2)).should_be(0); };
+    test("ll after remove value") { expect(join(l.to_array())).should_be("1,3"); };
+    test("ll size after removes") { expect(l.size()).should_be(2); };
+
+    // foreach and both iterators
+    l.add(5); l.add(8);
+    digits : decimal = 0;
+    foreach(x in l) { digits = digits * 10 + x.value; }
+    test("ll foreach") { expect(digits).should_be(1358); };
+    test("ll iterator") { expect(drain(l.iterator())).should_be("1,3,5,8"); };
+    test("ll descending_iterator") { expect(drain(l.descending_iterator())).should_be("8,5,3,1"); };
+    test("ll through iterable") { expect(total(l)).should_be(17); };
+
+    l.reverse();
+    test("ll reverse") { expect(join(l.to_array())).should_be("8,5,3,1"); };
+    test("ll reverse first") { expect(l.first().value).should_be(8); };
+    test("ll reverse last") { expect(l.last().value).should_be(1); };
+    test("ll reverse backwards") { expect(drain(l.descending_iterator())).should_be("1,3,5,8"); };
+
+    as_list := l.to_list();
+    test("ll to_list size") { expect(as_list.size().value).should_be(4); };
+    test("ll to_list[1]") { expect(as_list.at(1).value).should_be(5); };
+
+    l.add_all(as_list);
+    test("ll add_all") { expect(join(l.to_array())).should_be("8,5,3,1,8,5,3,1"); };
+    test("ll index_of finds the first") { expect(l.index_of(1)).should_be(3); };
+
+    // errors
+    try { l.at(8); test("ll at(size)") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("ll at(size)") { }; }
+    try { l.at(0 - 1); test("ll at(-1)") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("ll at(-1)") { }; }
+    try { l.insert(9, 1); test("ll insert(size+1)") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("ll insert(size+1)") { }; }
+    try { l.remove_at(8); test("ll remove_at(size)") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("ll remove_at(size)") { }; }
+    try { l.put(8, 1); test("ll put(size)") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("ll put(size)") { }; }
+
+    l.clear();
+    test("ll clear") { expect(l.size()).should_be(0); };
+    try { l.first(); test("ll first empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("ll first empty") { }; }
+    try { l.last(); test("ll last empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("ll last empty") { }; }
+    try { l.remove_first(); test("ll remove_first empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("ll remove_first empty") { }; }
+    try { l.remove_last(); test("ll remove_last empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("ll remove_last empty") { }; }
+    it := l.iterator();
+    try { it.next(); test("ll next on finished iterator") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("ll next on finished iterator") { }; }
+
+    // a single element is both head and tail
+    l.add_first(6);
+    test("ll single first") { expect(l.first().value).should_be(6); };
+    test("ll single last") { expect(l.last().value).should_be(6); };
+    test("ll single remove_last") { expect(l.remove_last().value).should_be(6); };
+    test("ll empty again") { expect(l.is_empty()).should_be(1); };
+    l.add(1);
+    test("ll usable after becoming empty") { expect(join(l.to_array())).should_be("1"); };
+
+    // from an array, and with strings (compared by value)
+    words := new linked_list<string>(new string[] { "b", "c" });
+    words.add_first("a");
+    test("ll<string> size") { expect(words.size()).should_be(3); };
+    test("ll<string> at") { expect(words.at(1)).should_be("b"); };
+    test("ll<string> index_of") { expect(words.index_of("c")).should_be(2); };
+    test("ll<string> remove") { expect(words.remove("b")).should_be(1); };
+    test("ll<string> last") { expect(words.last()).should_be("c"); };
+
+    // scale: 3000 elements, sum of 0..2999 = 4498500
+    big := new linked_list<int>();
+    for(i : decimal = 0; i < 3000; i++) {
+        if(i % 2 == 0) big.add_last(i);
+        else big.add_first(i);
+    }
+    test("ll big size") { expect(big.size()).should_be(3000); };
+    test("ll big sum") { expect(total(big)).should_be(4498500); };
+    test("ll big first") { expect(big.first().value).should_be(2999); };
+    test("ll big last") { expect(big.last().value).should_be(2998); };
+    test("ll big at(1499) is the last odd one") { expect(big.at(1499).value).should_be(1); };
+    test("ll big at(1500) is the first even one") { expect(big.at(1500).value).should_be(0); };
+    removed : decimal = 0;
+    while(big.size() > 10) { big.remove_first(); big.remove_last(); removed += 2; }
+    test("ll big removed") { expect(removed).should_be(2990); };
+    test("ll big middle") { expect(join(big.to_array())).should_be("9,7,5,3,1,0,2,4,6,8"); };
+}
+
+def test_array_iterator() {
+    numbers := new int[] { 4, 5, 6, 7 };
+    it := new array_iterator<int>(numbers);
+    test("array_iterator remaining") { expect(it.remaining()).should_be(4); };
+    test("array_iterator next") { expect(it.next().value).should_be(4); };
+    test("array_iterator remaining after next") { expect(it.remaining()).should_be(3); };
+    test("array_iterator rest") { expect(drain(it)).should_be("5,6,7"); };
+    test("array_iterator finished") { expect(it.has_next()).should_be(0); };
+    try { it.next(); test("array_iterator next when finished") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("array_iterator next when finished") { }; }
+
+    part := new array_iterator<int>(numbers, 1, 3);
+    test("array_iterator range") { expect(drain(part)).should_be("5,6"); };
+    none := new array_iterator<int>(numbers, 2, 2);
+    test("array_iterator empty range") { expect(none.has_next()).should_be(0); };
+    try { bad := new array_iterator<int>(numbers, 2, 5); test("array_iterator bad range") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("array_iterator bad range") { }; }
+    nothing : int[]? = null;
+    empty := new array_iterator<int>(nothing);
+    test("array_iterator over null") { expect(empty.has_next()).should_be(0); };
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_collections_linked_list") {
+        test_linked_list();
+        test_array_iterator();
+    };
+    finish_tests("lib_collections_linked_list");
+}

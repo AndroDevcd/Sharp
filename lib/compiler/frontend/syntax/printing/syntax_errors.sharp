@@ -1,0 +1,21 @@
+mod frontend.syntax.printing;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree
+)
+
+/**
+ * Print every problem of one file (frontend/diagnostics does the drawing).
+ * @return how many there were
+ */
+def print_unit_errors(unit: source_unit) : decimal {
+    if(unit.parsed == null) {
+        println("error[E0001]: " + unit.file + ": " + unit.problem);
+        println("");
+        return 1;
+    }
+    return print_diagnostics(unit.parsed!!.errors);
+}

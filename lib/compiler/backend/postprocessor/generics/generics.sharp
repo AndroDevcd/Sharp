@@ -1,0 +1,16 @@
+mod backend.postprocessor.generics;
+
+/**
+ * GENERICS AND RESOLVED TYPES (stage 5): from a written type to what it means
+ *
+ * The files of this package (module `backend.postprocessor.generics`):
+ *
+ *      resolve_written_type.sharp  the one way from a written type to a resolved type; names generic instances
+ *      type_use_messages.sharp     the messages of resolve_written_type
+ *      generic_classes.sharp       instantiate: the copy of a generic class for one list of type arguments; ensure_members
+ *      generic_functions.sharp     generic functions and instantiate_function
+ *      instance_duplicates.sharp   members that fall together in one instance
+ *      member_types.sharp          the resolved type of every field, parameter and result
+ *
+ * This file is the package's front door: it only says what is where.
+ */

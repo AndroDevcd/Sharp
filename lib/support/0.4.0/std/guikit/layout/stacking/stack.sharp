@@ -1,0 +1,117 @@
+mod std.guikit.layout.stacking;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * stack - children on top of each other, like sheets of paper. The first
+ * child is at the bottom, the last on top.
+ *
+ *      stack {
+ *          image("photo.png", modifier().fill());               // the background
+ *          text("Caption", modifier().padding(8));              // over it, top-left
+ *      }
+ *
+ *      stack(modifier().fill()) {                               // children sit bottom-right ...
+ *          content_of_the_page();                               // ... except ones that fill
+ *          button("+") { add(); };                              // a floating button
+ *      }.place(ALIGN_END, ALIGN_END)
+ *
+ * The stack is as big as its biggest child (or whatever its modifier
+ * says). A child that fills covers the whole stack; any other child keeps its
+ * own size and sits where place(across, down) says - top-left by default.
+ * (Compose: Box. Android: FrameLayout. CSS: position: absolute children.)
+ */
+stable class stack base widget : behavior {
+    private across : _int64 = ALIGN_START;      // left / center / right
+    private down : _int64 = ALIGN_START;        // top / center / bottom
+
+    stack() {
+        attach(self);
+    }
+
+    /** put a widget on top of the ones already added */
+    def add(child: element) : stack {
+        me.add_kid(child.node());
+        return self;
+    }
+
+    /**
+     * The nested way to fill the stack: every widget made inside the block
+     * becomes a child, each on top of the one before.
+     * gui.stack { ... } is the short form. (scope.sharp)
+     */
+    def content(block: ()()) : stack {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** where children that do not fill sit: across (ALIGN_START left, _CENTER, _END right) and down (top, center, bottom) */
+    def place(sideways: _int64, vertical: _int64) : stack {
+        across = sideways;
+        down = vertical;
+        return self;
+    }
+
+    /** children in the middle */
+    def center() : stack {
+        across = ALIGN_CENTER;
+        down = ALIGN_CENTER;
+        return self;
+    }
+
+    override def kind() : string { return "stack"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        widest : decimal = 0;
+        tallest : decimal = 0;
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            // any size up to the room there is; a child that fills makes
+            // itself exactly that room (view.measure), and so sets the stack's size
+            kid.measure(0, max_w, 0, max_h);
+            widest = num.larger(widest, kid.want_w);
+            tallest = num.larger(tallest, kid.want_h);
+        }
+        me.content_w = widest;
+        me.content_h = tallest;
+    }
+
+    override def arrange() {
+        box_x : decimal = me.inner_x();
+        box_y : decimal = me.inner_y();
+        box_w : decimal = me.inner_w();
+        box_h : decimal = me.inner_h();
+
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+
+            kid_w : decimal = num.smaller(kid.want_w, box_w);
+            kid_h : decimal = num.smaller(kid.want_h, box_h);
+
+            // the child's own modifier().place(...) wins over where the stack puts its children
+            sideways : _int64 = across;
+            vertical : _int64 = down;
+            if(kid.self_across >= 0) {
+                sideways = kid.self_across;
+                vertical = kid.self_down;
+            }
+            kid.arrange(num.nearest(box_x + offset_for(sideways, box_w - kid_w)), num.nearest(box_y + offset_for(vertical, box_h - kid_h)), kid_w, kid_h);
+        }
+    }
+
+    /** how far in a child starts, given the room it leaves free */
+    private static def offset_for(how: _int64, free: decimal) : decimal {
+        if(how == ALIGN_CENTER) { return free / 2; }
+        if(how == ALIGN_END) { return free; }
+        return 0;
+    }
+
+    override def paint(p: painter) {
+    }
+}

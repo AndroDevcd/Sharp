@@ -1,0 +1,130 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    backend.types.declarations
+)
+
+/**
+ * THE TABLES OF TEXTS THE EXECUTABLE CARRIES
+ *
+ *      strings     every text a `newstring` instruction names: text literals, the
+ *                  names enum values are made with, texts of asm blocks
+ *      constants   every decimal that `ldc` loads: one that is not a whole number
+ *                  of 32 bits (those are written into the instruction itself)
+ *      files       the source files named by functions (stack traces print them)
+ *
+ * Each is a list (the position is the number an instruction uses) plus a hash
+ * table from the text to its position, so that equal texts share one entry
+ * and finding one is constant time (doc/codegen.md 3.6, 3.9).
+ *
+ *      t := new text_table();
+ *      t.number_of("hello")   -> 0         t.number_of("bye") -> 1
+ *      t.number_of("hello")   -> 0         (the same entry)
+ */
+class text_table {
+    texts : list<string>;
+    numbers : name_table<numbered>;
+
+    text_table() {
+        texts = new list<string>();
+        numbers = new name_table<numbered>();
+    }
+
+    /** the position of `text`, added at the end when it is not there yet */
+    def number_of(text: string) : _int64 {
+        found := numbers.at(text);
+        if(found != null) { return found!!.value; }
+        made := new numbered(texts.size().value as _int64);
+        numbers.put(text, made);
+        texts.add(text);
+        return made.value;
+    }
+
+    /** the position of `text`, or -1 */
+    def find(text: string) : _int64 {
+        found := numbers.at(text);
+        if(found == null) { return 0 - 1; }
+        return found!!.value;
+    }
+
+    /** how many texts the table holds */
+    def count() : _int64 {
+        return texts.size().value as _int64;
+    }
+}
+
+/** a number kept as an object (the value of a hash table entry) */
+class numbered {
+    value : _int64;
+
+    numbered(value: _int64) {
+        self->value = value;
+    }
+}
+
+/**
+ * A DECIMAL AS EXACT TEXT (doc/codegen.md 3.6)
+ *
+ * The constant section holds decimals as TEXT, which the VM turns back into
+ * numbers with C's `strtod`. The text must give back exactly the double the
+ * compiler means. Two cases:
+ *
+ *   - a literal written in the program: its own digits (`2.5`, `1e-3`), which
+ *     `strtod` reads to the same double the compiler's own lexer made of them
+ *     (the bootstrap's lexer uses the runtime's strtod too). That text comes
+ *     from the literal's token, not from here.
+ *   - a value the compiler computed (constant folding): C99's hexadecimal
+ *     floating form, which strtod reads EXACTLY:
+ *
+ *          3.0     ->  0x1.8p+1        (1.5 * 2^1)
+ *          0.1     ->  0x1.999999999999ap-4
+ *          -0.0    ->  -0x0p+0         inf, -inf, nan
+ *
+ *     The digits are found with arithmetic only: scaling by 2 is exact in
+ *     binary floating point, so the value is brought into [1, 2) by halving or
+ *     doubling, then its 52 fraction bits are read off four at a time.
+ *
+ *      C++ comparison: it writes `std::scientific` with 17 significant digits,
+ *      which also round-trips; Sharp has no such formatting to rely on.
+ */
+def exact_decimal_text(value: decimal) : string {
+    if(value != value) { return "nan"; }
+    if(value > 1.7976931348623157e308) { return "inf"; }
+    if(value < 0 - 1.7976931348623157e308) { return "-inf"; }
+
+    out := new string_builder("");
+    magnitude : decimal = value;
+    if(value < 0 || (value == 0 && is_negative_zero(value))) {
+        out.append("-");
+        magnitude = 0 - value;
+    }
+    if(magnitude == 0) {
+        out.append("0x0p+0");
+        return out.build();
+    }
+
+    exponent : _int64 = 0;
+    while(magnitude >= 2) { magnitude = magnitude / 2; exponent++; }
+    while(magnitude < 1) { magnitude = magnitude * 2; exponent--; }
+
+    out.append("0x1.");
+    fraction : decimal = magnitude - 1;
+    for(i : _int64 = 0; i < 13; i++) {
+        fraction = fraction * 16;
+        digit : _int64 = fraction as _int64;
+        if(digit < 10) { out.append_char(48 + digit); }      // '0' .. '9'
+        else { out.append_char(87 + digit); }               // 'a' .. 'f'
+
+        fraction = fraction - digit;
+    }
+    out.append("p");
+    if(exponent >= 0) { out.append("+"); }
+    out.append("" + exponent);
+    return out.build();
+}
+
+/** is this zero the negative one? (1 / -0.0 is -infinity) */
+def is_negative_zero(value: decimal) : _int64 {
+    return (1 / value) < 0;
+}

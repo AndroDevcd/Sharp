@@ -1,0 +1,35 @@
+mod std.data;
+
+/**
+ * Thrown by the JSON classes: by json_parser for text that is not valid
+ * JSON, by json_value when a value is used as something it is not (asking a
+ * string for its number, a missing member, an index outside an array), and
+ * by json_writer for a number JSON cannot express (NaN, infinity).
+ *
+ * For a parse error the place is recorded: `position` is the index of the
+ * offending character in the text (from 0), `line` and `column` count from
+ * 1. The message already contains them, e.g.
+ *
+ *     expected ',' or '}' but found ']' at line 3, column 14
+ *
+ * For the other errors all three are -1.
+ */
+class json_exception base exception {
+    /** index in the text of the character that is wrong (from 0), or -1 when the error is not about text */
+    position : decimal = 0 - 1;
+    /** line of that character, counting from 1, or -1 */
+    line : decimal = 0 - 1;
+    /** place of that character in its line, counting from 1, or -1 */
+    column : decimal = 0 - 1;
+
+    /** an error that is not about a place in a text */
+    public json_exception(message: string) -> base(message) {
+    }
+
+    /** a parse error at a known place; `message` should already mention the place */
+    public json_exception(message: string, position: decimal, line: decimal, column: decimal) -> base(message) {
+        self->position = position;
+        self->line = line;
+        self->column = column;
+    }
+}

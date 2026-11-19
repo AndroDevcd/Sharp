@@ -1,0 +1,435 @@
+mod main;
+
+import (
+    std.io,
+    std.system,
+    platform,
+    configuration
+)
+
+/**
+ * BUILDING THE C++ OF A PROJECT (the Sharp Native Interface, doc/sni.md 9)
+ *
+ * A project that has `native` functions needs a C++ library beside its
+ * executable. With this in settings.json the compiler builds it:
+ *
+ *      "native": { "sources": [ "src/cpp" ] }
+ *
+ * ("sources" may also be written for one system or one processor - source_entries, below.)
+ *
+ *      sharpc -P .
+ *        1. the Sharp code           -> build/outputs/app
+ *        2. the glue                 -> build/outputs/sni/foo_sni.h, foo_sni.cpp, sni.h
+ *        3. THE C++ (this file)      -> build/outputs/foo.dll   (foo.so on Linux)
+ *
+ * One library per group of native functions (`native "foo" { }` is the group
+ * `foo`): the project's C++ sources and the group's glue file, compiled by
+ * the C++ compiler with the flags a Sharp native library needs on this
+ * system. Nobody has to remember the g++ line.
+ *
+ * WHICH C++ COMPILER - the first of these that says one:
+ *
+ *      1. -cxx <compiler>                    the command line, for one build
+ *      2. "native": { "toolchain": { "compiler": ... } }     settings.json
+ *      3. SHARP_CXX                          an environment variable: this machine's default
+ *      4. the search: g++ then clang++ on the PATH; on Windows also the usual
+ *         places a MinGW g++ is installed (CLion brings one)
+ *
+ * A compiler is a path (C:/.../g++.exe) or a name looked up on the PATH
+ * (g++, clang++). The build always prints which one it used and who said so.
+ * g++ and clang++ are supported; Microsoft's cl.exe takes other flags and is
+ * refused with a message.
+ *
+ * THE FLAGS, in this order - the user's come last, so they win:
+ *
+ *      -shared -std=c++17 -static (Windows) | -fPIC (elsewhere)
+ *      -I <the glue folder>  -I <each "sources" folder>  -I <each "include">
+ *      <the sources>  <the group's glue file>
+ *      -o build/outputs/<group>.dll|.so
+ *      -l<each "libraries">  <each "flags">
+ *      ... and after them the include folders, libraries and flags of every
+ *      "processor" block that fits what the compiler builds for (processors_for)
+ *
+ * `-static` on Windows puts the C++ runtime inside the library: without it
+ * the .dll needs libstdc++-6.dll and friends at run time, which are on the
+ * PATH only inside the compiler's own shell.
+ *
+ * NOTHING IS BUILT TWICE. A library is built again only when it is missing,
+ * when a source, a header or its glue changed, or when the command changed
+ * (another compiler, other flags): what the last build was made from is
+ * kept beside the glue, in <group>.build (build_record).
+ *
+ *      C++ comparison: what a CMakeLists.txt with add_library(foo SHARED ...)
+ *      does - for the one shape of library SNI needs.
+ */
+
+/** the C++ compiler that was chosen: what to run, and who said so (for the line the build prints) */
+class cxx_choice {
+    compiler : string = "";         // a path, or a name on the PATH
+    said_by : string = "";          // "the command line (-cxx)", "settings.json", ...
+    problem : string = "";          // why there is none ("" when there is one)
+}
+
+/** does `text` have a `/` or a `\` in it (is it a path, not a bare name)? */
+def is_a_path(text: string) : _int64 {
+    size : _int64 = sizeof(text.data);
+    for(i : _int64 = 0; i < size; i++) {
+        ch : _int64 = text.data!![i];
+        if(ch == '/' || ch == '\\') { return 1; }
+    }
+    return 0;
+}
+
+/** the folder part of a path ("" for a bare name): C:/mingw/bin/g++.exe -> C:/mingw/bin */
+def folder_of(path: string) : string {
+    size : _int64 = sizeof(path.data);
+    for(i : _int64 = size - 1; i >= 0; i--) {
+        ch : _int64 = path.data!![i];
+        if(ch == '/' || ch == '\\') { return new string(path.data!!, 0, i); }
+    }
+    return "";
+}
+
+/** the last part of a path: C:/mingw/bin/g++.exe -> g++.exe */
+def name_of(path: string) : string {
+    size : _int64 = sizeof(path.data);
+    for(i : _int64 = size - 1; i >= 0; i--) {
+        ch : _int64 = path.data!![i];
+        if(ch == '/' || ch == '\\') { return new string(path.data!!, i + 1, size); }
+    }
+    return path;
+}
+
+def file_is_there(path: string) : _int64 {
+    candidate := new file(path);
+    if(candidate.exists() && !candidate.is_directory()) { return 1; }
+    return 0;
+}
+
+/**
+ * The places a C++ compiler for Windows is usually installed, for a machine
+ * that has none on its PATH. (The g++ inside WSL is never one of them: it
+ * writes Linux libraries, which Windows cannot load.)
+ */
+def usual_windows_compilers() : list<string> {
+    places := new list<string>();
+    local_programs := process.environment("LOCALAPPDATA");
+    if(local_programs != null) {
+        places.add(local_programs!! + "\\Programs\\CLion\\bin\\mingw\\bin\\g++.exe");
+    }
+    // CLion installed for every user: C:\Program Files\JetBrains\CLion <version>\bin\mingw\bin
+    jetbrains := new file("C:\\Program Files\\JetBrains");
+    if(jetbrains.exists() && jetbrains.is_directory()) {
+        foreach(installed in jetbrains.list_files()) {
+            places.add(installed.get_path() + "\\bin\\mingw\\bin\\g++.exe");
+        }
+    }
+    places.add("C:\\msys64\\ucrt64\\bin\\g++.exe");
+    places.add("C:\\msys64\\mingw64\\bin\\g++.exe");
+    places.add("C:\\mingw64\\bin\\g++.exe");
+    places.add("C:\\Program Files\\LLVM\\bin\\clang++.exe");
+    return places;
+}
+
+/** a compiler somebody named: it has to be there */
+def named_compiler(compiler: string, said_by: string) : cxx_choice {
+    choice := new cxx_choice();
+    choice.compiler = compiler;
+    choice.said_by = said_by;
+    program : string = name_of(compiler).to_lower();
+    if(program == "cl" || program == "cl.exe") {
+        choice.problem = "`" + compiler + "` (from " + said_by + ") is Microsoft's compiler, which takes other flags and is not supported yet\n"
+                       + "  = help: use g++ or clang++ (MinGW-w64 on Windows; CLion brings one)";
+    } else if(is_a_path(compiler) == 1) {
+        if(file_is_there(compiler) == 0 && file_is_there(compiler + ".exe") == 0) {
+            choice.problem = "the C++ compiler `" + compiler + "` (from " + said_by + ") is not there\n"
+                           + "  = help: give the path of g++ or clang++, or just the name of one that is on the PATH";
+        }
+    } else if(!process.command_exists(compiler)) {
+        choice.problem = "the C++ compiler `" + compiler + "` (from " + said_by + ") is not on the PATH\n"
+                       + "  = help: give its whole path instead, for example C:/msys64/ucrt64/bin/g++.exe";
+    }
+    return choice;
+}
+
+/** the C++ compiler for this build (the order is at the top of this file) */
+def choose_cxx() : cxx_choice {
+    if(options.cxx != "") { return named_compiler(options.cxx, "the command line (-cxx)"); }
+    if(options.native_compiler != "") { return named_compiler(options.native_compiler, "settings.json"); }
+    from_environment := process.environment("SHARP_CXX");
+    if(from_environment != null) { return named_compiler(from_environment!!, "the environment variable SHARP_CXX"); }
+
+    choice := new cxx_choice();
+    if(process.command_exists("g++")) { choice.compiler = "g++"; choice.said_by = "found on the PATH"; return choice; }
+    if(process.command_exists("clang++")) { choice.compiler = "clang++"; choice.said_by = "found on the PATH"; return choice; }
+    if(build.is_windows()) {
+        foreach(place in usual_windows_compilers()) {
+            if(file_is_there(place) == 1) {
+                choice.compiler = place;
+                choice.said_by = "found where it is usually installed";
+                return choice;
+            }
+        }
+        choice.problem = "no C++ compiler was found: there is no g++ or clang++ on the PATH, and none where MinGW is usually installed\n"
+                       + "  = note: the g++ inside WSL does not count - it writes Linux libraries, which Windows cannot load\n"
+                       + "  = help: install MinGW-w64 (CLion and MSYS2 bring one), or say where yours is:\n"
+                       + "          settings.json:  \"native\": { \"toolchain\": { \"compiler\": \"C:/.../g++.exe\" } }\n"
+                       + "          or for every project on this machine: the environment variable SHARP_CXX";
+        return choice;
+    }
+    choice.problem = "no C++ compiler was found: there is no g++ or clang++ on the PATH\n"
+                   + "  = help: install one (`sudo apt install g++`), or say where yours is:\n"
+                   + "          settings.json:  \"native\": { \"toolchain\": { \"compiler\": \"/path/to/g++\" } }\n"
+                   + "          or for every project on this machine: the environment variable SHARP_CXX";
+    return choice;
+}
+
+/** is this a C++ (or C) source file by its name? */
+def is_cxx_source(name: string) : _int64 {
+    lower := name.to_lower();
+    if(lower.ends_with(".cpp") || lower.ends_with(".cc") || lower.ends_with(".cxx") || lower.ends_with(".c")) { return 1; }
+    return 0;
+}
+
+/** is this a header by its name? (a changed header builds the library again) */
+def is_cxx_header(name: string) : _int64 {
+    lower := name.to_lower();
+    if(lower.ends_with(".h") || lower.ends_with(".hpp") || lower.ends_with(".hh") || lower.ends_with(".hxx") || lower.ends_with(".inl")) { return 1; }
+    return 0;
+}
+
+/**
+ * EVERY "sources" ENTRY THAT COUNTS FOR THIS BUILD, as written in settings.json:
+ *
+ *      "native": { "sources": [...] }                          always
+ *      "windows" / "linux": { "sources": [...] }               on that system (added when the settings were read)
+ *      "processor": { "arm": { "sources": [...] } }            for that processor (the blocks in `fitting`)
+ *
+ * One rule for all of them: an entry is a C++ file or a folder of them, it is COMPILED, and its
+ * folder is SEARCHED FOR HEADERS. A folder of C++ is named once.
+ */
+def source_entries(fitting: list<processor_settings>) : list<string> {
+    entries := new list<string>();
+    foreach(written in options.native_sources) { entries.add(written); }
+    foreach(block in fitting) {
+        foreach(written in block.sources) { entries.add(written); }
+    }
+    return entries;
+}
+
+/**
+ * The project's C++ files: every "sources" entry is a file, or a folder whose
+ * whole tree is taken. `sources` gets the files to compile, `headers` the
+ * ones that are only watched for changes. Returns "" or what is wrong.
+ */
+def collect_cxx_files(entries: list<string>, sources: list<string>, headers: list<string>) : string {
+    foreach(written in entries) {
+        path := project_path(written);
+        entry := new file(path);
+        if(!entry.exists()) {
+            return "settings.json: \"native\": \"sources\" names `" + written + "`, which is not there\n"
+                 + "  = help: name a C++ file or a folder of them, as a path inside the project: \"sources\": [ \"src/cpp\" ]";
+        }
+        if(!entry.is_directory()) {
+            sources.add(path);
+            continue;
+        }
+        foreach(found in entry.walk()) {
+            if(found.is_directory()) { continue; }
+            found_path := found.get_path();
+            if(is_cxx_source(found_path) == 1) { sources.add(found_path); }
+            else if(is_cxx_header(found_path) == 1) { headers.add(found_path); }
+        }
+    }
+    if(sources.size() == 0) {
+        return "settings.json: \"native\": \"sources\" has no C++ file in it (.cpp, .cc, .cxx, .c)\n"
+             + "  = help: put the C++ of the native functions there; the prototypes to define are in build/outputs/sni/<group>_sni.h";
+    }
+    return "";
+}
+
+/**
+ * What a build was made from, as text: the command, then every file that went
+ * into it with its size and the time it last changed. The text of the last
+ * build is kept beside the glue (<group>.build); a library is up to date
+ * exactly when the text made now is the same.
+ *
+ * (Size AND time: times are whole seconds, so a file saved twice within one
+ * second has the time it had - but hardly ever the size.)
+ */
+def build_record(command: string, inputs: list<string>) : string {
+    text := new string_builder("");
+    text.append(command);
+    text.append("\n");
+    foreach(path in inputs) {
+        // (a local for the file: the C++ compiler that builds this compiler stops on `new file(x).method()`)
+        watched := new file(path);
+        text.append(path + "|" + (watched.length().value as _int64) + "|" + (watched.last_modified().value as _int64) + "\n");
+    }
+    return text.build();
+}
+
+/**
+ * The C++ compiler as a command: quoted, and - for one given by its path - with
+ * its folder put on the PATH first. A MinGW g++ started by its path alone does
+ * not find its own programs and ends without a word. (cxx_command, below,
+ * adds everything after it: the flags, the sources, the output.)
+ */
+def cxx_program(choice: cxx_choice) : string {
+    line := new string_builder("");
+    folder : string = folder_of(choice.compiler);
+    if(folder != "") {
+        if(build.is_windows()) { line.append("set \"PATH=" + folder + ";%PATH%\" && "); }
+        else {
+            // PATH='<folder>':"$PATH"      (36 is the dollar sign: in a Sharp string it would start an interpolation)
+            line.append("PATH=" + process.quote(folder) + ":\"");
+            line.append_char(36);
+            line.append("PATH\" ");
+        }
+    }
+    line.append(process.quote(choice.compiler));
+    return line.build();
+}
+
+/**
+ * THE PROCESSOR A BUILD IS FOR: "arm" or "x86", the two names a "processor" block may have
+ * (settings_processor.sharp, read_processors); "" for anything else. The C++ compiler is asked
+ * what it builds for (`-dumpmachine`: arm-linux-gnueabihf, aarch64-linux-gnu,
+ * x86_64-w64-mingw32 ...), so a cross compiler on a PC counts as what it produces and the PC's
+ * own does not.
+ *
+ *      arm..., aarch64, arm64          arm         (32 and 64 bit alike)
+ *      x86_64, amd64, i386 .. i686     x86         (32 and 64 bit alike)
+ */
+def processor_of(choice: cxx_choice) : string {
+    asked := process.run_merged(cxx_program(choice) + " -dumpmachine");
+    machine := asked.output().to_lower();
+    if(machine.starts_with("arm") || machine.starts_with("aarch64")) { return "arm"; }
+    if(machine.starts_with("x86_64") || machine.starts_with("amd64") || machine.starts_with("i386")
+       || machine.starts_with("i486") || machine.starts_with("i586") || machine.starts_with("i686")) { return "x86"; }
+    return "";
+}
+
+/** the "processor" blocks of settings.json that fit this build, in the order they were written */
+def processors_for(choice: cxx_choice) : list<processor_settings> {
+    fitting := new list<processor_settings>();
+    if(options.native_processors.size() == 0) { return fitting; }
+    name := processor_of(choice);
+    foreach(block in options.native_processors) {
+        if(block.name == name) { fitting.add(block); }
+    }
+    return fitting;
+}
+
+/** the folder a "sources" entry stands for: the entry itself when it is a folder, the folder of a single file */
+def source_folder_of(path: string) : string {
+    entry := new file(path);
+    if(entry.is_directory()) { return path; }
+    return folder_of(path);
+}
+
+def cxx_command(choice: cxx_choice, fitting: list<processor_settings>, group: string, sources: list<string>, glue_folder: string, library: string) : string {
+    line := new string_builder("");
+    line.append(cxx_program(choice));
+    line.append(" -shared -std=c++17");
+    if(build.is_windows()) { line.append(" -static"); } else { line.append(" -fPIC"); }
+    line.append(" -I " + process.quote(glue_folder));
+    // Every "sources" folder is searched for headers too: the headers of a project's C++ live with
+    // its C++, and naming the same folder a second time under "include" told the build nothing new.
+    // ("include" is for folders that hold ONLY headers - another library's.)
+    foreach(written in source_entries(fitting)) {
+        folder := source_folder_of(project_path(written));
+        if(folder != "") { line.append(" -I " + process.quote(folder)); }
+    }
+    foreach(include in options.native_includes) { line.append(" -I " + process.quote(project_path(include))); }
+    foreach(block in fitting) {
+        foreach(include in block.includes) { line.append(" -I " + process.quote(project_path(include))); }
+    }
+    foreach(source in sources) { line.append(" " + process.quote(source)); }
+    line.append(" " + process.quote(glue_folder + "/" + group + "_sni.cpp"));
+    line.append(" -o " + process.quote(library));
+    foreach(linked in options.native_libraries) { line.append(" -l" + linked); }
+    foreach(flag in options.native_flags) { line.append(" " + flag); }
+    foreach(block in fitting) {
+        foreach(linked in block.libraries) { line.append(" -l" + linked); }
+        foreach(flag in block.flags) { line.append(" " + flag); }
+    }
+    return line.build();
+}
+
+/**
+ * Build the library of every group of native functions of the project.
+ *
+ * @param groups        the names of the groups whose glue was just written
+ * @param glue_folder   where it was written (build/outputs/sni)
+ * @return 1 when every library is there and up to date, 0 when one did not build
+ */
+def build_native_libraries(groups: list<string>, glue_folder: string) : _int64 {
+    if(groups.size() == 0) { return 1; }
+    if(!options.native_configured) {
+        // the project has native functions and does not say where their C++ is: said once, not an error
+        println("native interface: to have the C++ built too, name its folder in settings.json:  \"native\": { \"sources\": [ \"src/cpp\" ] }");
+        return 1;
+    }
+
+    // (the compiler first: which "sources" count depends on the processor it builds for)
+    choice := choose_cxx();
+    if(choice.problem != "") {
+        println("error: " + choice.problem);
+        return 0;
+    }
+    // (which compiler, and a library that needed no work: the debug compiler says so; the standard one
+    //  says only that a library was BUILT - and shows the C++ compiler when the C++ does not build)
+    progress("C++ compiler: " + choice.compiler + "   (" + choice.said_by + ")");
+    fitting := processors_for(choice);
+    foreach(block in fitting) { progress("C++ compiler: the toolchain's settings for the processor `" + block.name + "` are added"); }
+
+    sources := new list<string>();
+    headers := new list<string>();
+    problem := collect_cxx_files(source_entries(fitting), sources, headers);
+    if(problem != "") {
+        println("error: " + problem);
+        return 0;
+    }
+
+    outputs : string = options.project_dir + "/build/outputs";
+    ending : string = ".so";
+    if(build.is_windows()) { ending = ".dll"; }
+    ok : _int64 = 1;
+    foreach(group in groups) {
+        library : string = outputs + "/" + group + ending;
+        command := cxx_command(choice, fitting, group, sources, glue_folder, library);
+
+        // ---- is the library of the last build still right?
+        inputs := new list<string>();
+        foreach(source in sources) { inputs.add(source); }
+        foreach(header in headers) { inputs.add(header); }
+        inputs.add(glue_folder + "/" + group + "_sni.cpp");
+        inputs.add(glue_folder + "/" + group + "_sni.h");
+        inputs.add(glue_folder + "/sni.h");
+        stamp := new file(glue_folder + "/" + group + ".build");
+        built := new file(library);
+        record := build_record(command, inputs);
+        if(built.exists() && stamp.exists() && stamp.read_text() == record) {
+            progress("native library: " + library + " is up to date");
+            continue;
+        }
+
+        // ---- build it
+        if(stamp.exists()) { stamp.remove(); }
+        result := process.run_merged(command);
+        said := result.output();
+        if(said != "") { print(said); }
+        made := new file(library);
+        if(!result.succeeded() || !made.exists()) {
+            println("error: the C++ of the native group `" + group + "` did not build (the C++ compiler ended with " + (result.exit_code() as _int64) + ")");
+            println("  = note: the C++ compiler was " + choice.compiler + " (" + choice.said_by + ")");
+            println("  = note: the command was:  " + command);
+            ok = 0;
+            continue;
+        }
+        stamp.write_text(record);
+        println("native library: " + library + " built from " + (sources.size().value as _int64) + " C++ file(s)");
+    }
+    return ok;
+}

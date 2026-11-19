@@ -1,0 +1,101 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.generation,
+    backend.finalizer.generation.values
+)
+
+/**
+ * BRANCHES: `if` / `else` and `when` (doc/codegen.md 6.10)
+ *
+ *      if(c) a else b          c' = c; jump_unless c', else; a; jump end; else: b; end:
+ *      if(c) a else if(d) b    the same, rung after rung, with one `end` behind them all
+ *
+ *      when(n) {               n -> %subject                  (evaluated once, into its hidden local)
+ *          1 -> a;             c = (%subject == 1); jump_if c, body1; jump next1
+ *                              body1: a; jump end
+ *          2, 3 -> b;          next1: c = (%subject == 2); jump_if c, body2
+ *                                     c = (%subject == 3); jump_if c, body2; jump next2
+ *                              body2: b; jump end
+ *          else -> z;          next2: z
+ *      }                       end:
+ *
+ * A clause's tests are tried left to right and the first clause one of whose
+ * tests holds runs, and no other - the same order the C++-built program tries
+ * them in (probed). Analysis has made every test a finished condition: with a
+ * subject, "subject == value" bound like the operator `==` would be (an
+ * `operator==` of the subject's class is a call); without one, the written
+ * condition. A decimal condition is first made a whole number by its truth (6.3).
+ *
+ *      C++ comparison: if_statement.cpp and when_statement.cpp in
+ *      compiler/functions/statements.
+ */
+
+/**
+ * `if(c) a else b`: the shape at the top of this file. An `else if` ladder -
+ * an `if` that is the else part of an `if`, any number of times - is followed
+ * in a LOOP, not by calling this function again for each rung: a ladder of a
+ * thousand rungs is ordinary code (a generated dispatcher), and one level of
+ * recursion per rung would run the compiler out of stack (backend.md D103).
+ * Every rung jumps to the one `finish` label behind the whole ladder.
+ */
+def generate_if(g: generator, statement: bound_if) {
+    finish : _int64 = g.b.new_label();
+    rung : bound_if = statement;
+    while(true) {
+        otherwise : _int64 = g.b.new_label();
+        condition : _int64 = condition_of(g, rung.condition);
+        g.b.jump_unless(condition, otherwise);
+        g.b.release(condition);
+        generate_statement(g, rung.then_part);
+        if(rung.else_part == null) {
+            g.b.place(otherwise);
+            break;
+        }
+        g.b.jump(finish);
+        g.b.place(otherwise);
+        next : bound_statement = rung.else_part!!;
+        if(next.kind != BS_IF) {
+            generate_statement(g, next);
+            break;
+        }
+        // `else if(...)`: the next rung; its `line` mark is what generate_statement would have written
+        g.line_of_node(next.unit, next.node);
+        rung = next as bound_if;
+    }
+    g.b.place(finish);
+}
+
+/** `when(subject) { ... }` and `when { ... }`: the shape at the top of this file */
+def generate_when(g: generator, statement: bound_when) {
+    if(statement.subject != null) {
+        if(statement.subject_variable == null) { g.stop("a `when` subject without its variable", statement.unit, statement.node); }
+        variable := statement.subject_variable!!;
+        slot : _int64 = g.slot_of(variable, statement.unit, statement.node);
+        value : _int64 = value_of(g, statement.subject!!);
+        g.b.copy(slot, value, narrowing_of(variable.type));
+        g.b.release(value);
+    }
+    finish : _int64 = g.b.new_label();
+    for(i : _int64 = 0; i < statement.clauses.size(); i++) {
+        clause := statement.clauses.at(i);
+        body : _int64 = g.b.new_label();
+        next : _int64 = g.b.new_label();
+        for(j : _int64 = 0; j < clause.tests.size(); j++) {
+            condition : _int64 = condition_of(g, clause.tests.at(j));
+            g.b.jump_if(condition, body);
+            g.b.release(condition);
+        }
+        g.b.jump(next);
+        g.b.place(body);
+        generate_statement(g, clause.body);
+        g.b.jump(finish);
+        g.b.place(next);
+    }
+    if(statement.else_part != null) { generate_statement(g, statement.else_part!!); }
+    g.b.place(finish);
+}

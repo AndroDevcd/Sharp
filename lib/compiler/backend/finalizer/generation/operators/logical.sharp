@@ -1,0 +1,121 @@
+mod backend.finalizer.generation.operators;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation,
+    backend.finalizer.generation.values
+)
+
+/**
+ * VALUES THAT CHOOSE A PATH: `&&`, `||`, `? :` (doc/codegen.md 6.4)
+ *
+ * Each is a small piece of control flow inside an expression: labels and
+ * conditional jumps, with ONE result slot that every path writes before it
+ * reaches the end label (the textbook "jumping code" for boolean
+ * expressions, the dragon book 6.6):
+ *
+ *      a && b              %d = 0; c = a; jump_unless c, end; c = b; jump_unless c, end; %d = 1; end:
+ *      c ? x : y           c' = c; jump_unless c', else; %d = x; jump end; else: %d = y; end:
+ *
+ * The part that is not taken never runs: `ok && check()` does not call
+ * check() when ok is 0, and `x > 0 ? f(x) : g()` calls one of the two.
+ */
+
+/**
+ * `a && b`, `a || b` (6.4): 0 or 1, and `b` runs only when `a` does not
+ * decide.
+ *
+ *      &&:   %d = 0; c = a; jump_unless c, end; c = b; jump_unless c, end; %d = 1; end:
+ */
+def logical_value(g: generator, e: bound_logical) : _int64 {
+    // down the left side: `a || b || c` is `(a || b) || c`, each operator the left operand of the
+    // next. Every one gets its result slot (holding the answer its left side alone would decide)
+    // and its end label, outermost first - what one call of this function per operator would do,
+    // done in a loop so that a condition of some hundred terms does not run the compiler out of
+    // stack (backend.md D103)
+    chain := new list<bound_logical>();
+    targets := new number_list();
+    finishes := new number_list();
+    link : bound_logical = e;
+    while(true) {
+        target : _int64 = g.b.temp(SLOT_INT);
+        g.b.int_constant(target, link.is_or);       // `||` is decided by a left side that holds (1), `&&` by one that does not (0)
+        chain.add(link);
+        targets.add(target);
+        finishes.add(g.b.new_label());
+        if(link.left.kind != BX_LOGICAL || link.left.constant != null) { break; }
+        link = link.left as bound_logical;
+    }
+
+    // back up: the innermost left side, then each operator with the result so far as its left side
+    left : _int64 = condition_of(g, link.left);
+    for(i : _int64 = (chain.size().value as _int64) - 1; i >= 0; i--) {
+        link = chain.at(i);
+        target : _int64 = targets.at(i);
+        finish : _int64 = finishes.at(i);
+        if(link.is_or == 1) { g.b.jump_if(left, finish); } else { g.b.jump_unless(left, finish); }
+        g.b.release(left);
+        right : _int64 = condition_of(g, link.right);
+        if(link.is_or == 1) { g.b.jump_if(right, finish); } else { g.b.jump_unless(right, finish); }
+        g.b.release(right);
+        g.b.int_constant(target, 1 - link.is_or);
+        g.b.place(finish);
+        left = target;
+    }
+    return left;
+}
+
+/**
+ * `condition ? when_true : when_false` (6.4): the condition, then ONE of the
+ * two values into the result slot. Both are converted to the result's type
+ * by analysis; a whole number given where the result is a decimal (analysis
+ * leaves `t > 3 ? 1.5 : t` with the `t` unconverted, as for operators) is
+ * made a decimal here, as the C++-built program does.
+ */
+def ternary_value(g: generator, e: bound_ternary) : _int64 {
+    target : _int64 = g.temp_for(e.type);
+    finish : _int64 = g.b.new_label();
+    link : bound_ternary = e;
+    while(true) {
+        otherwise : _int64 = g.b.new_label();
+        condition : _int64 = condition_of(g, link.condition);
+        g.b.jump_unless(condition, otherwise);
+        g.b.release(condition);
+        copy_into(g, target, value_of(g, link.when_true));
+        g.b.jump(finish);
+        g.b.place(otherwise);
+        rest : bound_expression = link.when_false;
+        if(!continues_ladder(g, rest, target)) {
+            copy_into(g, target, value_of(g, rest));
+            break;
+        }
+        link = rest as bound_ternary;
+    }
+    g.b.place(finish);
+    return target;
+}
+
+/**
+ * `a ? 1 : b ? 2 : c ? 3 : 4`: is the "else" value the next `? :` of a
+ * ladder? Then it is followed in a loop and writes the SAME result slot
+ * (one call of ternary_value per rung would run the compiler out of stack on
+ * a long ladder: backend.md D103). Not when its value is known (value_of
+ * writes the constant) or lives in another kind of slot.
+ */
+def continues_ladder(g: generator, rest: bound_expression, target: _int64) : _int64 {
+    if(rest.kind != BX_TERNARY || rest.constant != null) { return 0; }
+    return slot_kind_of(rest.type) == g.b.kind_of(target);
+}
+
+/** target = value (a whole number made a decimal when the target holds decimals); the value's slot is given back */
+def copy_into(g: generator, target: _int64, value: _int64) {
+    if(g.b.kind_of(target) == SLOT_DEC && g.b.kind_of(value) == SLOT_INT) {
+        g.b.convert(target, value, CONVERT_INT_TO_DECIMAL, NARROW_NONE);
+    } else {
+        g.b.copy(target, value, NARROW_NONE);
+    }
+    g.b.release(value);
+}

@@ -1,0 +1,18 @@
+mod std;
+
+/**
+ * @class overflow_exception
+ *
+ * Thrown when a result is too large (or too small) for the type that has to
+ * hold it, e.g. converting a big_integer that does not fit to a native
+ * number, or a factorial beyond the exact range of a 64-bit float.
+ *
+ * Example:
+ *     throw new overflow_exception("value does not fit in 53 bits");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class overflow_exception base arithmetic_exception {
+    public overflow_exception(message : string?) -> base(message) {}
+}

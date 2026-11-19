@@ -1,0 +1,136 @@
+mod std.guikit.platform;
+
+import (
+    std.io,
+    std.guikit.*
+)
+
+/**
+ * shape_batch - many shapes, painted with ONE call.
+ *
+ *      shapes := new shape_batch();                // once, before the frame loop
+ *
+ *      shapes.clear();                             // every frame: fill it again ...
+ *      shapes.rect(0, 0, 200, 80, 0x3C3F46FF);
+ *      shapes.circle(60, 60, 18, 0xFFD65AFF);
+ *      shapes.line(0, 0, 200, 80, 2, 0x000000FF);
+ *      p.draw(shapes);                             // ... and paint all of it
+ *
+ * WHY: every p.rect(...) crosses into the graphics side on its own, and that
+ * crossing costs far more than the rectangle - a few hundred shapes a frame is
+ * all a small machine (a Raspberry Pi) has time for. A batch only writes
+ * numbers into its lists; p.draw(batch) crosses once for all of them, and the
+ * graphics card gets them as one list too.
+ *
+ * The shapes are painted in the order they were added, later ones over earlier
+ * ones, exactly as separate calls would. Colours are numbers, 0xRRGGBBAA
+ * (gui.pack(r, g, b) makes one). Positions are the painter's, like p.rect's.
+ *
+ * A batch keeps what it holds until clear(): one that never changes (a
+ * background) can be filled once and drawn every frame.
+ *
+ * (In a game engine: a sprite batch or a vertex buffer. HTML canvas: a Path2D.)
+ */
+stable class shape_batch {
+    // the lists the graphics side reads (native/shapes.cpp, draw_shapes): for
+    // shape i its kind, its colour, and six numbers at data[i * 6 ...]
+    kinds : _int8[];
+    data : decimal[];
+    colors : _int64[];
+    count : _int64 = 0;             // how many shapes are in it
+
+    private room : _int64 = 0;      // how many it can hold before the lists grow
+
+    shape_batch() {
+        room = 256;
+        kinds = new _int8[room];
+        data = new decimal[room * 6];
+        colors = new _int64[room];
+    }
+
+    /** a batch with room for this many shapes to begin with (it grows by itself when more are added) */
+    shape_batch(shapes: _int64) {
+        room = shapes;
+        if(room < 16) { room = 16; }
+        kinds = new _int8[room];
+        data = new decimal[room * 6];
+        colors = new _int64[room];
+    }
+
+    /** forget every shape (the lists are kept, so filling it again makes nothing new) */
+    def clear() {
+        count = 0;
+    }
+
+    /** a filled rectangle */
+    def rect(x: decimal, y: decimal, w: decimal, h: decimal, packed: _int64) {
+        at : _int64 = add(0, packed);
+        data[at] = x;
+        data[at + 1] = y;
+        data[at + 2] = w;
+        data[at + 3] = h;
+        data[at + 4] = 0;
+    }
+
+    /** a filled rectangle with round corners */
+    def rect(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, packed: _int64) {
+        at : _int64 = add(0, packed);
+        data[at] = x;
+        data[at + 1] = y;
+        data[at + 2] = w;
+        data[at + 3] = h;
+        data[at + 4] = radius;
+    }
+
+    /** a filled circle around (cx, cy) */
+    def circle(cx: decimal, cy: decimal, radius: decimal, packed: _int64) {
+        at : _int64 = add(1, packed);
+        data[at] = cx;
+        data[at + 1] = cy;
+        data[at + 2] = radius;
+    }
+
+    /** a straight line, `thickness` wide */
+    def line(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, packed: _int64) {
+        at : _int64 = add(2, packed);
+        data[at] = x1;
+        data[at + 1] = y1;
+        data[at + 2] = x2;
+        data[at + 3] = y2;
+        data[at + 4] = thickness;
+    }
+
+    /** a filled triangle */
+    def triangle(x1: decimal, y1: decimal, x2: decimal, y2: decimal, x3: decimal, y3: decimal, packed: _int64) {
+        at : _int64 = add(3, packed);
+        data[at] = x1;
+        data[at + 1] = y1;
+        data[at + 2] = x2;
+        data[at + 3] = y2;
+        data[at + 4] = x3;
+        data[at + 5] = y3;
+    }
+
+    /** only the ring of a circle, `thickness` wide, inside the radius */
+    def ring(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, packed: _int64) {
+        at : _int64 = add(4, packed);
+        data[at] = cx;
+        data[at + 1] = cy;
+        data[at + 2] = radius;
+        data[at + 3] = thickness;
+    }
+
+    /** a place for one more shape of this kind and colour: where its six numbers start */
+    private def add(kind: _int8, packed: _int64) : _int64 {
+        if(count == room) {
+            room = room * 2;
+            realloc(kinds, room);
+            realloc(data, room * 6);
+            realloc(colors, room);
+        }
+        kinds[count] = kind;
+        colors[count] = packed;
+        count = count + 1;
+        return (count - 1) * 6;
+    }
+}

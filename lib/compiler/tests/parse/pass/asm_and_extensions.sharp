@@ -1,0 +1,38 @@
+mod tests.asm_and_extensions;
+
+class worker {
+    id : _int64;
+}
+
+// ---- extension functions
+def string.shout() : string { return self + "!"; }
+def list<T>.second() : T { return self.at(1); }
+def worker.operator-(other: worker) : worker { return self; }
+def std.io#file.is_source() : bool { return true; }
+
+// ---- asm
+def start(w: worker, args: object[]?) : decimal {
+    result : _int64;
+    stack_size : _int64 = 0;
+
+    asm {
+        nop
+        loadl ebx, [stack_size]
+        loadl adx, [stack_size]
+        movi adx, 12
+        movi adx, -1
+        movi adx, 0xff
+        movi adx, 'c'
+        pushl [args]
+        pushl [w]
+        int 0xc
+        .retry:
+        smovr2 [result], cmt
+        movg $worker
+        movn $worker[id]
+        movi adx, $std.io#__srt_global[println]
+        mov8 ebx, %ecx
+        hlt
+    }
+    return result;
+}

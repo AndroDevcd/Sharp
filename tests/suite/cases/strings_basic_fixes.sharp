@@ -1,0 +1,72 @@
+mod main;
+
+import ( testing )
+
+/**
+ * KNOWN BUGS in basic string handling. This file is expected to FAIL.
+ * Each section is one bug; the comment says what happens today.
+ * (Same result with and without -O, with and without the JIT.)
+ */
+
+def main(args: string[]) {
+    empty := "";
+    a := "a";
+
+    // ---- BUG 1: joining an empty string adds the text "null"
+    //      today: "a" + "" is "anull" (5 characters), "" + "" is "null"
+    expect_str("a + empty variable", a + empty, "a");
+    expect("...its size", (a + empty).size().value, 1);
+    expect("a + \"\" size", (a + "").size().value, 1);
+    expect("empty + empty size", (empty + empty).size().value, 0);
+
+    // ---- BUG 2: an empty string in "$name" also becomes "null"
+    //      today: "[$empty]" is "[null]" (6 characters)
+    brackets := "[$empty]";
+    expect("[$$empty] size", brackets.size().value, 2);
+
+    // ---- BUG 3: s += s does nothing
+    //      today: "ab" stays "ab" (string.append returns early when given its own data)
+    twice := "ab";
+    twice += twice;
+    expect_str("s += s", twice, "abab");
+
+    // ---- BUG 4: += with a number or a number object adds nothing useful
+    //      today: all four stay "x" (+= 2.5 adds one unprintable character)
+    s1 := "x";
+    s1 += 5;
+    expect_str("s += 5", s1, "x5");
+    count : int = 7;
+    s2 := "x";
+    s2 += count;
+    expect_str("s += int object", s2, "x7");
+    yes : bool = true;
+    s3 := "x";
+    s3 += yes;
+    expect_str("s += bool object", s3, "xtrue");
+    fraction : decimal = 2.5;
+    s4 := "x";
+    s4 += fraction;
+    expect_str("s += var", s4, "x2.5");
+
+    // ---- BUG 5: a string object + a whole number literal past 32 bits is cut to 32 bits
+    //      today: "n=0" and "n=-727379968" ("n=" + 4294967296 with two literals is right)
+    prefix := "n=";
+    expect_str("string + 4294967296", prefix + 4294967296, "n=4294967296");
+    expect_str("string + 1000000000000", prefix + 1000000000000, "n=1000000000000");
+
+    // ---- BUG 6: a literal sum prints with decimals although a single literal does not
+    //      today: "n" + 5 is "n5", but "n" + (2 + 3) is "n5"
+    expect_str("string + (2 + 3)", "n" + (2 + 3), "n5");
+
+    // ---- BUG 7: comparing a null string with null throws nullptr_exception
+    //      (== calls string.operator== on the null object instead of comparing references)
+    //      This check ends the program, so it is last.
+    nothing : string? = null;
+    if(nothing == null) {
+        pass("null string == null");
+    } else {
+        fail("null string == null", "the else branch ran");
+    }
+
+    finish("strings_basic_fixes");
+}

@@ -1,0 +1,379 @@
+mod backend.types.type_system;
+
+import (
+    std.io,
+    frontend.lexer,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * WHAT A VALUE IS: THE RESOLVED TYPE
+ *
+ * A sharp_type (sharp_type.sharp) is a PLACE in the source where a type is
+ * written. It may be an alias, it may be the `T` of a generic class, and one
+ * written `T` means something different in every instance of that class:
+ *
+ *      class box<T> { item : T?; }         one sharp_type for `T?`
+ *      a : box<string>;                    ... here it means "a string, may be null"
+ *      b : box<shape>;                     ... and here "a shape, may be null"
+ *
+ * A resolved_type is the answer: what a value IS, with every alias and every
+ * type parameter looked through. It is what the later stages compare,
+ * convert and report with.
+ *
+ *      written type  --resolve_written_type(written, environment)-->  resolved type
+ *      (resolve_written_type.sharp)
+ *
+ * ONE OBJECT PER TYPE. The built-in types exist once (type_table, below). The
+ * type "an object of class c" exists once per class (sharp_class.plain_type) -
+ * and because every instance of a generic class is a class of its own
+ * (generic_classes.sharp), `list<string>` is simply the type of one class
+ * object. `t[]`, `t?` and `t[]??` are made from the plain type on first use
+ * and remembered in it (`with_marks`). So for everything except function
+ * types, "are these the same type?" is "are these the same object?".
+ *
+ * A resolved_type is never changed after it is made. That is what allows
+ * them to be shared.
+ *
+ *      C++ comparison: the old compiler's sharp_type does both jobs (written
+ *      and resolved, plus "this is a field", "this is a literal") and is
+ *      copied wherever it is used. Textbook name for sharing one object per
+ *      distinct type: "hash-consing" / type interning.
+ */
+
+// ---- what kind of type it is
+const RT_ERROR          : _int64 = 1;   // something that was already reported; it fits everywhere, so one mistake gives one message
+const RT_NIL            : _int64 = 2;   // "no value": what a function that returns nothing returns
+const RT_NULL           : _int64 = 3;   // the type of the word `null`
+const RT_INTEGER        : _int64 = 4;   // _int8 ... _uint64, and bool (is_bool_type)
+const RT_DECIMAL        : _int64 = 5;   // decimal
+const RT_OBJECT         : _int64 = 6;   // the built-in `object`: any object or array
+const RT_CLASS          : _int64 = 7;   // an object of a class, interface or enum
+const RT_FUNCTION       : _int64 = 8;   // a function value: (int, int)(decimal)
+const RT_TYPE_PARAMETER : _int64 = 9;   // "depends on a type parameter": only in the declarations of a
+                                        // generic class or function as written (a blueprint), never in an instance
+
+/** what a value is, once every name in its type has been followed (see the top of this file) */
+class resolved_type {
+    kind : _int64;                      // RT_...
+
+    // ---- RT_INTEGER
+    bits : _int64 = 0;                  // 8, 16, 32, 64
+    is_signed : _int64 = 0;             // _int8: 1, _uint8: 0
+    is_bool_type : _int64 = 0;          // 1: `bool` - stored like an _uint8 (one byte, 0 or 1), but a type of its own
+
+    // ---- RT_CLASS: the class. For a generic class this is the INSTANCE
+    // (list<string> is one class object), so there is no argument list here.
+    class_of : sharp_class?;
+
+    // ---- RT_FUNCTION
+    parameters : list<resolved_type>?;
+    result : resolved_type?;            // the nil type for a function that returns nothing
+
+    // ---- RT_TYPE_PARAMETER: which one; null for a type that only CONTAINS
+    // one (`list<T>` inside the blueprint of a generic class)
+    parameter : sharp_type_parameter?;
+    is_open_type : _int64 = 0;          // 1: a type parameter somewhere in it is not known
+
+    // ---- what can be added to any of them
+    is_array : _int64 = 0;              // t[]
+    is_nullable : _int64 = 0;           // t?
+    has_nullable_items : _int64 = 0;    // t[]??   the items of the array may be null
+
+    // The same type without `[]` and `?` (itself, for a plain type), and the
+    // marked forms made from it so far. Index: is_array + 2 * is_nullable +
+    // 4 * has_nullable_items.
+    plain : resolved_type?;
+    marked_forms : resolved_type[]??;
+
+    resolved_type(kind: _int64) {
+        self->kind = kind;
+    }
+
+    /** this type with exactly these marks: the SAME object every time it is asked for */
+    def with_marks(array: _int64, nullable: _int64, nullable_items: _int64) : resolved_type {
+        if(array == is_array && nullable == is_nullable && nullable_items == has_nullable_items) {
+            return self;
+        }
+
+        root : resolved_type = self;
+        if(plain != null) { root = plain!!; }
+        if(array == 0 && nullable == 0 && nullable_items == 0) { return root; }
+
+        if(root.marked_forms == null) { root.marked_forms = new resolved_type[8]; }
+        slot : _int64 = array + 2 * nullable + 4 * nullable_items;
+        found := root.marked_forms!![slot];
+        if(found != null) { return found!!; }
+
+        made := new resolved_type(root.kind);
+        made.bits = root.bits;
+        made.is_signed = root.is_signed;
+        made.is_bool_type = root.is_bool_type;
+        made.class_of = root.class_of;
+        made.parameters = root.parameters;
+        made.result = root.result;
+        made.parameter = root.parameter;
+        made.is_open_type = root.is_open_type;
+        made.is_array = array;
+        made.is_nullable = nullable;
+        made.has_nullable_items = nullable_items;
+        made.plain = root;
+        root.marked_forms!![slot] = made;
+        return made;
+    }
+
+    /** t? */
+    def as_nullable() : resolved_type { return with_marks(is_array, 1, has_nullable_items); }
+
+    /** t without the `?` */
+    def as_non_null() : resolved_type { return with_marks(is_array, 0, has_nullable_items); }
+
+    /** t[] */
+    def array_of() : resolved_type { return with_marks(1, 0, 0); }
+
+    /** the type of one item of an array: `string` for `string[]`, `string?` for `string[]??` */
+    def element_type() : resolved_type { return with_marks(0, has_nullable_items, 0); }
+
+    /** an integer or a decimal - one number, not an array of them */
+    def is_number() : _int64 {
+        return (kind == RT_INTEGER || kind == RT_DECIMAL) && is_array == 0;
+    }
+
+    /** `bool`: true or false - one value, not an array of them */
+    def is_boolean() : _int64 {
+        return is_bool_type == 1 && is_array == 0;
+    }
+
+    /** everything `null` can stand for: an object of a class, `object`, a function value, any array */
+    def is_reference() : _int64 {
+        return is_array == 1 || kind == RT_CLASS || kind == RT_OBJECT || kind == RT_FUNCTION || kind == RT_NULL;
+    }
+
+    /**
+     * May a value of this type be null? Written `?` - or the type `object`,
+     * the one type that takes null without the mark (backend.md 7.5.1).
+     */
+    def can_be_null() : _int64 {
+        return is_nullable == 1 || kind == RT_NULL || (kind == RT_OBJECT && is_array == 0);
+    }
+
+    /** the type of something already reported; it fits everywhere */
+    def is_error() : _int64 { return kind == RT_ERROR; }
+    /** "no value": the result of a function that returns nothing */
+    def is_nil() : _int64 { return kind == RT_NIL; }
+    /** does a type parameter in it still stand for nothing? (only inside a blueprint) */
+    def is_open() : _int64 { return is_open_type; }
+
+    /** the class of a value of this type; null for an array and for everything that is not an object of a class */
+    def class_or_null() : sharp_class? {
+        if(kind == RT_CLASS && is_array == 0) { return class_of; }
+        return null;
+    }
+
+    /** the type as a programmer would write it, for messages: `list<string>[]?` */
+    def to_text() : string {
+        return text_of(0);
+    }
+
+    /**
+     * The type as one canonical text: the same type always gives the same
+     * key and two different types never do. Classes are written with their
+     * module (`std#list<std#string>`). The key of a generic instance is built
+     * from the keys of its type arguments (generic_classes.sharp).
+     */
+    def key() : string {
+        return text_of(1);
+    }
+
+    /** the type as text: for a message (canonical 0, `list<string>`) or as a key (canonical 1, `std#list<std#string>`) */
+    def text_of(canonical: _int64) : string {
+        text := new string_builder("");
+
+        if(kind == RT_ERROR) { text.append("?"); }
+        else if(kind == RT_NIL) { text.append("nil"); }
+        else if(kind == RT_NULL) { text.append("null"); }
+        else if(kind == RT_DECIMAL) { text.append("decimal"); }
+        else if(kind == RT_OBJECT) { text.append("object"); }
+        else if(kind == RT_INTEGER && is_bool_type == 1) { text.append("bool"); }
+        else if(kind == RT_INTEGER) {
+            if(is_signed == 1) { text.append("_int"); } else { text.append("_uint"); }
+            text.append("" + bits);
+        }
+        else if(kind == RT_CLASS) {
+            if(canonical == 1) { text.append(class_key(class_of!!)); }
+            else { text.append(class_of!!.qualified_name()); }
+        }
+        else if(kind == RT_FUNCTION) {
+            text.append("(");
+            for(i : _int64 = 0; i < parameters!!.size(); i++) {
+                if(i > 0) { text.append(", "); }
+                text.append(parameters!!.at(i).text_of(canonical));
+            }
+            text.append(")(");
+            if(result != null && result!!.kind != RT_NIL) { text.append(result!!.text_of(canonical)); }
+            text.append(")");
+        }
+        else if(kind == RT_TYPE_PARAMETER) {
+            if(parameter != null) { text.append(parameter!!.name); }
+            else if(class_of != null) {
+                // some instance of a generic class, or a class inside one: which is not known in a blueprint
+                text.append(class_of!!.qualified_name());
+                if(class_of!!.type_parameters.size() > 0) { text.append("<...>"); }
+            }
+            else { text.append("?"); }
+        }
+
+        if(is_array == 1) { text.append("[]"); }
+        if(is_nullable == 1) { text.append("?"); }
+        if(has_nullable_items == 1) { text.append("?"); }
+        return text.build();
+    }
+}
+
+/**
+ * Are two resolved types the same type? One pointer test for everything but
+ * function types, which are compared part by part. The error type is the
+ * same as nothing but itself here; "fits everywhere" is a rule of the
+ * CONVERSIONS (stage 6), not of sameness.
+ */
+def same_resolved_type(a: resolved_type, b: resolved_type) : _int64 {
+    if(a == b) { return 1; }
+    if(a.kind != RT_FUNCTION || b.kind != RT_FUNCTION) { return 0; }
+    if(a.is_array != b.is_array || a.is_nullable != b.is_nullable || a.has_nullable_items != b.has_nullable_items) {
+        return 0;
+    }
+
+    if(a.parameters!!.size() != b.parameters!!.size()) { return 0; }
+    for(i : _int64 = 0; i < a.parameters!!.size(); i++) {
+        if(!same_resolved_type(a.parameters!!.at(i), b.parameters!!.at(i))) { return 0; }
+    }
+    return same_resolved_type(a.result!!, b.result!!);
+}
+
+/**
+ * The name of a class as it is known program-wide, with the type arguments
+ * of generic instances written canonically: `std#list<std#string>`,
+ * `main#outer<_int64>.inner`.
+ */
+def class_key(declared: sharp_class) : string {
+    if(declared.canonical_name != null) { return declared.canonical_name!!; }
+
+    text := new string_builder("");
+    if(declared.owner != null) {
+        text.append(class_key(declared.owner!!) + ".");
+    } else if(sizeof(declared.module.name.data) > 0) {
+        text.append(declared.module.name + "#");
+    }
+
+    if(declared.is_instance()) {
+        text.append(declared.written.name + "<" + declared.instance_key + ">");
+    } else {
+        text.append(declared.name);
+    }
+
+    declared.canonical_name = text.build();
+    return declared.canonical_name!!;
+}
+
+/**
+ * THE TYPES THAT EXIST ONCE
+ *
+ * The built-in types, and the three that are not written by anyone: the
+ * error type, the nil type and the type of `null`. One table per program
+ * (sharp_program.types); everything that needs "the type _int64" takes it
+ * from here, so two `_int64`s are the same object.
+ */
+class type_table {
+    error_type : resolved_type;     // already reported: fits everywhere
+    nil_type : resolved_type;       // no value
+    null_type : resolved_type;      // the word `null`
+    object_type : resolved_type;
+    decimal_type : resolved_type;
+    bool_type : resolved_type;
+    int8 : resolved_type;
+    int16 : resolved_type;
+    int32 : resolved_type;
+    int64 : resolved_type;
+    uint8 : resolved_type;
+    uint16 : resolved_type;
+    uint32 : resolved_type;
+    uint64 : resolved_type;
+    open : resolved_type;           // "depends on a type parameter", when which one does not matter
+
+    type_table() {
+        error_type = new resolved_type(RT_ERROR);
+        nil_type = new resolved_type(RT_NIL);
+        null_type = new resolved_type(RT_NULL);
+        object_type = new resolved_type(RT_OBJECT);
+        decimal_type = new resolved_type(RT_DECIMAL);
+        bool_type = integer(8, 0);
+        bool_type.is_bool_type = 1;
+        int8 = integer(8, 1);
+        int16 = integer(16, 1);
+        int32 = integer(32, 1);
+        int64 = integer(64, 1);
+        uint8 = integer(8, 0);
+        uint16 = integer(16, 0);
+        uint32 = integer(32, 0);
+        uint64 = integer(64, 0);
+        open = new resolved_type(RT_TYPE_PARAMETER);
+        open.is_open_type = 1;
+    }
+
+    private def integer(bits: _int64, is_signed: _int64) : resolved_type {
+        made := new resolved_type(RT_INTEGER);
+        made.bits = bits;
+        made.is_signed = is_signed;
+        return made;
+    }
+
+    /** the type a built-in type keyword stands for (K_DECIMAL, K_OBJECT, K_INT8 ...) */
+    def native_type(keyword: _int64) : resolved_type {
+        if(keyword == K_INT64) { return int64; }
+        if(keyword == K_DECIMAL) { return decimal_type; }
+        if(keyword == K_BOOL) { return bool_type; }
+        if(keyword == K_INT8) { return int8; }
+        if(keyword == K_INT32) { return int32; }
+        if(keyword == K_OBJECT) { return object_type; }
+        if(keyword == K_INT16) { return int16; }
+        if(keyword == K_UINT8) { return uint8; }
+        if(keyword == K_UINT16) { return uint16; }
+        if(keyword == K_UINT32) { return uint32; }
+        if(keyword == K_UINT64) { return uint64; }
+        return error_type;
+    }
+}
+
+/** the type "an object of this class" - one object per class */
+def type_of_class(declared: sharp_class) : resolved_type {
+    if(declared.plain_type == null) {
+        made := new resolved_type(RT_CLASS);
+        made.class_of = declared;
+        declared.plain_type = made;
+    }
+    return declared.plain_type!!;
+}
+
+/** the type "whatever this type parameter stands for" - one object per type parameter */
+def type_of_parameter(parameter: sharp_type_parameter) : resolved_type {
+    if(parameter.plain_type == null) {
+        made := new resolved_type(RT_TYPE_PARAMETER);
+        made.parameter = parameter;
+        made.is_open_type = 1;
+        parameter.plain_type = made;
+    }
+    return parameter.plain_type!!;
+}
+
+/** a function type; open when any part of it is */
+def function_type_of(parameters: list<resolved_type>, result: resolved_type) : resolved_type {
+    made := new resolved_type(RT_FUNCTION);
+    made.parameters = parameters;
+    made.result = result;
+    made.is_open_type = result.is_open_type;
+    for(i : _int64 = 0; i < parameters.size(); i++) {
+        if(parameters.at(i).is_open_type == 1) { made.is_open_type = 1; }
+    }
+    return made;
+}

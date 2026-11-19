@@ -1,0 +1,117 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * One row of CSV data: its fields in order, and - when the reader read a
+ * header - the names of the columns, so that a field can be asked for by
+ * name.
+ *
+ *     row := reader.next_row();
+ *     row.at(0)                 // the first field
+ *     row.field("email")        // the field in the column called "email"
+ *     row.size()                // how many fields this row has
+ *
+ * Rows of one file may have different numbers of fields. A row can also be
+ * built by hand to give to a csv_writer:
+ *
+ *     row := new csv_row();
+ *     row.add("Ada").add("36");
+ */
+class csv_row {
+    private values := new list<string>();
+    /** the column names of the header, or null when no header was read */
+    private names : list<string>?;
+
+    /** a row without fields */
+    csv_row() {
+    }
+
+    /** a row with the given fields (the list is used as it is, not copied) */
+    csv_row(fields: list<string>) {
+        values = fields;
+    }
+
+    /** a row with the given fields that belongs to the header `header` */
+    csv_row(fields: list<string>, header: list<string>?) {
+        values = fields;
+        names = header;
+    }
+
+    /** add a field at the end; returns this row so calls can be chained */
+    def add(field: string) : csv_row {
+        values.add(field);
+        return self;
+    }
+
+    /** the number of fields */
+    def size() : decimal {
+        return values.size().value;
+    }
+
+    /**
+     * The field at position `index` (0 is the first).
+     * Throws out_of_bounds_exception when the row has no such field.
+     */
+    def at(index: decimal) : string {
+        return values.at(index);
+    }
+
+    /** the field at position `index`, or `fallback` when the row is shorter than that */
+    def at_or(index: decimal, fallback: string) : string {
+        if(index < 0 || index >= values.size().value) {
+            return fallback;
+        }
+        return values.at(index);
+    }
+
+    /** the position of the column called `name` in the header, or -1 (also when there is no header) */
+    def column_index(name: string) : decimal {
+        if(names == null) {
+            return 0 - 1;
+        }
+        total : decimal = names!!.size().value;
+        for(i : decimal = 0; i < total; i++) {
+            if(io_strings.equals(names!!.at(i), name)) {
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /** true when the header has a column `name` and this row is long enough to have a field in it */
+    def has_field(name: string) : bool {
+        index : decimal = column_index(name);
+        return index >= 0 && index < values.size().value;
+    }
+
+    /**
+     * The field in the column called `name`.
+     * Throws csv_exception when no header was read, the header has no such
+     * column, or this row is too short to have that column.
+     */
+    def field(name: string) : string {
+        if(names == null) {
+            throw new csv_exception("csv: no header was read, so there is no column \"" + name + "\"");
+        }
+        index : decimal = column_index(name);
+        if(index < 0) {
+            throw new csv_exception("csv: there is no column \"" + name + "\"");
+        }
+        if(index >= values.size().value) {
+            throw new csv_exception("csv: the row has only " + io_strings.int_to_string(values.size().value)
+                + " fields, none for column \"" + name + "\"");
+        }
+        return values.at(index);
+    }
+
+    /** the fields as a list (the list of this row itself: changing it changes the row) */
+    def fields() : list<string> {
+        return values;
+    }
+
+    /** the fields joined with ", " - for messages and debugging, not valid CSV (see csv_writer) */
+    override def to_string() : string? {
+        return io_strings.join(values, ", ");
+    }
+}

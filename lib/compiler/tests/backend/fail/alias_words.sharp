@@ -1,0 +1,20 @@
+// expect: W1040 W1040 W1040
+mod alias_words;
+
+import ( std.io )
+
+/**
+ * Words in front of `alias` have no effect (the C++ parser drops them):
+ * W1040 says what the alias really is. An alias in a module is public, one
+ * in a class private, whatever is written.
+ */
+
+private alias string as words;                          // W1040: public all the same
+class holder {
+    public alias string as open_text;                   // W1040: private all the same
+    protected alias _int64 as count;                    // W1040
+}
+
+def main(args: string[]) {
+    w : words = "x";                                    // fine: a module's alias is public
+}

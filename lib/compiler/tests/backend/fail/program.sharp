@@ -1,0 +1,34 @@
+// expect: E0510 W1036 W1015 W1033 E0510 E0930
+mod app;
+
+// Whole-program checks (stage 10): the entry point, functions without a body,
+// a local hiding a field. One mistake per marked line.
+
+class animal {
+    def speak();
+    def name() : string { return "animal"; }
+}
+class dog base animal {
+    override def speak() { base->speak(); println("woof"); }        // E0510: `speak` has no body in `animal`
+    def name() : string { return "dog " + base->name(); }           // fine: `name` has a body there
+}
+class counter {
+    count : _int64 = 0;
+    def bump() {
+        count := 1;                                                 // W1036: hides the field `count`
+        println(count);
+    }
+}
+class tool {
+    def main() { println("an ordinary function"); }                 // fine: `main` in a class
+    static def promise();                                           // a static function without a body ...
+}
+
+def main(n: int) { println("not run"); }                           // W1015: not a form a program starts at
+def main() {
+    a := new animal();                                              // W1033: `speak` has no body
+    d := new dog();
+    d.speak();
+    tool.promise();                                                 // E0510: ... has nothing to run when called
+}
+def main(args: string[]) : int { return 0; }                       // E0930: a second entry point

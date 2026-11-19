@@ -1,0 +1,61 @@
+mod main;
+
+import ( testing )
+
+/**
+ * A minus sign in front of a value negates THAT VALUE, wherever it stands.
+ *
+ *      a * -b + c          (a * (-b)) + c
+ *      x == -1 || y        (x == (-1)) || y
+ *
+ * After a binary operator the minus used to take everything to its right as
+ * its operand: `a * -b + c` was `a * -(b + c)` and `x == -1 || y` was
+ * `x == -(1 || y)`. Only a minus at the very start of an expression worked.
+ * (That is why the library says `0 - 1` in many places.)
+ *
+ * Fixed in lib/grammar/frontend/parser/Parser.cpp, in every precedence level.
+ */
+
+def minus_one() : decimal { return -1; }
+
+def main(args: string[]) {
+    a : decimal = 2;
+    b : decimal = 3;
+    c : decimal = 4;
+
+    // ---- followed by a looser operator
+    expect("a * -b + c", a * -b + c, -2);
+    expect("a - -b - c", a - -b - c, 1);
+    expect("a / -b * c (decimals)", 12 / -b * c, -16);
+
+    // ---- followed by a tighter operator: it still belongs to the minus's operand
+    expect("a + -b * c", a + -b * c, -10);
+    expect("a + -b ** 2", a + -b ** 2, 11);
+
+    // ---- comparisons and logic
+    x : decimal = 5;
+    y : decimal = 0;
+    expect_true("x == -1 || y == 0", x == -1 || y == 0);
+    expect_false("x == -1 && y == 0", x == -1 && y == 0);
+    expect_true("x > -1 && y > -1", x > -1 && y > -1);
+    expect_true("-1 < x", -1 < x);
+    expect("a < -b ? 1 : 2", a < -b ? 1 : 2, 2);
+
+    // ---- every level once: | ^ & << >>
+    i : _int64 = 6;
+    j : _int64 = 1;
+    expect("i | -j & 3", i | -j & 3, 7);
+    expect("i ^ -j", i ^ -j, -7);
+    expect("i << -j + 3", i << -j + 3, 24);
+
+    // ---- in arguments, returns and with a call or a literal
+    expect("a literal after an operator", 10 + -3 + 1, 8);
+    expect("a call after an operator", 10 * -minus_one() + 1, 11);
+    expect("returned", minus_one(), -1);
+
+    // ---- at the start of an expression (always worked)
+    expect("-a + b", -a + b, 1);
+    expect("-a * b", -a * b, -6);
+
+    finish("operators_unary_minus");
+}

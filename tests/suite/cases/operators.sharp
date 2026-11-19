@@ -1,0 +1,357 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Operator overloads: a class says what + - * / == != < > += [] and the
+ * others mean for its objects with `def operator+(...)`. The result can be a
+ * new object, a native number, or nothing at all.
+ */
+
+class vector {
+    x : decimal = 0;
+    y : decimal = 0;
+
+    vector(px: decimal, py: decimal) {
+        x = px;
+        y = py;
+    }
+
+    // ---- arithmetic that gives a new vector
+    def operator+(other: vector): vector {
+        return new vector(x + other.x, y + other.y);
+    }
+
+    def operator-(other: vector): vector {
+        return new vector(x - other.x, y - other.y);
+    }
+
+    /* the same operator twice, told apart by the type on the right */
+    def operator*(factor: decimal): vector {
+        return new vector(x * factor, y * factor);
+    }
+
+    /* vector * vector is the dot product: a native number */
+    def operator*(other: vector): decimal {
+        return x * other.x + y * other.y;
+    }
+
+    def operator/(divisor: decimal): vector {
+        return new vector(x / divisor, y / divisor);
+    }
+
+    def operator%(divisor: decimal): vector {
+        return new vector(x % divisor, y % divisor);
+    }
+
+    // ---- comparisons that give a native number (1 or 0)
+    def operator==(other: vector): decimal {
+        return x == other.x && y == other.y;
+    }
+
+    def operator!=(other: vector): decimal {
+        return x != other.x || y != other.y;
+    }
+
+    /* ordered by x + y */
+    def operator<(other: vector): decimal {
+        return x + y < other.x + other.y;
+    }
+
+    def operator>(other: vector): decimal {
+        return x + y > other.x + other.y;
+    }
+
+    def operator<=(other: vector): decimal {
+        return x + y <= other.x + other.y;
+    }
+
+    def operator>=(other: vector): decimal {
+        return x + y >= other.x + other.y;
+    }
+
+    // ---- compound assignment changes the object on the left
+    def operator+=(other: vector) {
+        x += other.x;
+        y += other.y;
+    }
+
+    def operator-=(other: vector) {
+        x -= other.x;
+        y -= other.y;
+    }
+
+    def operator*=(factor: decimal) {
+        x *= factor;
+        y *= factor;
+    }
+
+    def operator/=(divisor: decimal) {
+        x /= divisor;
+        y /= divisor;
+    }
+
+    // ---- index: [0] is x, anything else is y
+    def operator[](index: decimal): decimal {
+        if(index == 0) {
+            return x;
+        }
+        return y;
+    }
+}
+
+/* operators whose right side is a native number, and that give native numbers back */
+class money {
+    cents : decimal = 0;
+
+    money(c: decimal) {
+        cents = c;
+    }
+
+    def operator+(more: decimal): decimal {
+        return cents + more;
+    }
+
+    def operator-(less: decimal): decimal {
+        return cents - less;
+    }
+
+    def operator+(other: money): money {
+        return new money(cents + other.cents);
+    }
+
+    def operator==(amount: decimal): decimal {
+        return cents == amount;
+    }
+
+    def operator==(other: money): decimal {
+        return cents == other.cents;
+    }
+
+    def operator<(amount: decimal): decimal {
+        return cents < amount;
+    }
+
+    def operator>(amount: decimal): decimal {
+        return cents > amount;
+    }
+}
+
+/* [] with other kinds of index and result */
+class table {
+    cells : decimal[];
+    reads : decimal = 0;
+
+    table(size: decimal) {
+        cells = new decimal[size];
+        for(i : decimal = 0; i < size; i++) {
+            cells[i] = i * 10;
+        }
+    }
+
+    /* counts how often it is used, to show that [] really runs this method */
+    def operator[](index: decimal): decimal {
+        reads++;
+        return cells[index];
+    }
+
+    def operator[](key: string): decimal {
+        return key.size().value;
+    }
+}
+
+class shelf {
+    books : vector[];
+
+    shelf() {
+        books = new vector[3];
+        books[0] = new vector(1, 2);
+        books[1] = new vector(3, 4);
+        books[2] = new vector(5, 6);
+    }
+
+    /* [] that gives an object */
+    def operator[](index: decimal): vector {
+        return books[index];
+    }
+}
+
+/* a class that builds a string with + */
+class sentence {
+    text : string = "";
+    words : decimal = 0;
+
+    def operator+(word: string): sentence {
+        result := new sentence();
+        if(words == 0) {
+            result.text = word;
+        } else {
+            result.text = text + " " + word;
+        }
+        result.words = words + 1;
+        return result;
+    }
+
+    def operator+=(word: string) {
+        text = text + word;
+        words++;
+    }
+}
+
+def add_three(a: vector, b: vector, c: vector): vector {
+    return a + b + c;
+}
+
+def main(args: string[]) {
+    a := new vector(1, 2);
+    b := new vector(10, 20);
+
+    // ---- + and -
+    sum := a + b;
+    expect("a + b: x", sum.x, 11);
+    expect("a + b: y", sum.y, 22);
+    expect("a + b leaves a alone", a.x, 1);
+    expect("a + b leaves b alone", b.x, 10);
+    difference := b - a;
+    expect("b - a: x", difference.x, 9);
+    expect("b - a: y", difference.y, 18);
+    backwards := a - b;
+    expect("a - b: x", backwards.x, 0 - 9);
+    expect("a - b: y", backwards.y, 0 - 18);
+    expect("the result used without a variable", (a + b).y, 22);
+
+    // ---- * and / and %
+    scaled := a * 5;
+    expect("vector * number: x", scaled.x, 5);
+    expect("vector * number: y", scaled.y, 10);
+    expect("vector * vector gives a number", a * b, 50);
+    factor : decimal = 3;
+    expect("vector * a var variable", (a * factor).y, 6);
+    halved := b / 4;
+    expect("vector / number: x", halved.x, 2.5);
+    expect("vector / number: y", halved.y, 5);
+    remainder := new vector(17, 9) % 5;
+    expect("vector % number: x", remainder.x, 2);
+    expect("vector % number: y", remainder.y, 4);
+
+    // ---- chains and precedence
+    three := a + b + a;
+    expect("a + b + a: x", three.x, 12);
+    expect("a + b + a: y", three.y, 24);
+    mixed := a + b * 2;
+    expect("a + b * 2 multiplies first: x", mixed.x, 21);
+    expect("a + b * 2 multiplies first: y", mixed.y, 42);
+    grouped := (a + b) * 2;
+    expect("(a + b) * 2: x", grouped.x, 22);
+    expect("(a + b) * 2: y", grouped.y, 44);
+    long_chain := a + a + a + a + a - b;
+    expect("five + and one -: x", long_chain.x, 0 - 5);
+    expect("five + and one -: y", long_chain.y, 0 - 10);
+    expect("operators inside a function", add_three(a, b, sum).x, 22);
+    expect("a number result used in arithmetic", (a * b) + 1, 51);
+    expect("two overloaded results multiplied", (a * a) * (b * b), 2500);
+
+    // ---- == and !=
+    same_values := new vector(1, 2);
+    expect("== with equal fields", a == same_values, 1);
+    expect("== with different fields", a == b, 0);
+    expect("!= with equal fields", a != same_values, 0);
+    expect("!= with different fields", a != b, 1);
+    expect("== with itself", a == a, 1);
+    expect("== on a computed vector", (a + a) == new vector(2, 4), 1);
+    if(a == same_values) {
+        pass("== in an if");
+    } else {
+        fail("== in an if", "the else branch ran");
+    }
+    if(a != same_values) {
+        fail("!= in an if", "the if branch ran");
+    } else {
+        pass("!= in an if");
+    }
+
+    // ---- < > <= >=
+    expect("a < b", a < b, 1);
+    expect("b < a", b < a, 0);
+    expect("b > a", b > a, 1);
+    expect("a > b", a > b, 0);
+    expect("a <= an equal vector", a <= same_values, 1);
+    expect("a >= an equal vector", a >= same_values, 1);
+    expect("b <= a", b <= a, 0);
+    expect("a >= b", a >= b, 0);
+    expect("a < an equal vector", a < same_values, 0);
+
+    // ---- += -= *= /=
+    c := new vector(100, 200);
+    also_c := c;
+    c += a;
+    expect("c += a: x", c.x, 101);
+    expect("c += a: y", c.y, 202);
+    expect("+= changed the object itself, not a copy", also_c.x, 101);
+    expect("...and c is still that object", also_c.y, 202);
+    c -= b;
+    expect("c -= b: x", c.x, 91);
+    expect("c -= b: y", c.y, 182);
+    c *= 2;
+    expect("c *= 2: x", c.x, 182);
+    expect("c *= 2: y", c.y, 364);
+    c /= 4;
+    expect("c /= 4: x", c.x, 45.5);
+    expect("c /= 4: y", c.y, 91);
+    expect("+= left the right side alone", a.x, 1);
+    for(i : decimal = 0; i < 10; i++) {
+        c += a;
+    }
+    expect("+= ten times in a loop: x", c.x, 55.5);
+    expect("+= ten times in a loop: y", c.y, 111);
+
+    // ---- []
+    expect("vector[0]", a[0], 1);
+    expect("vector[1]", a[1], 2);
+    index : decimal = 1;
+    expect("vector[variable]", b[index], 20);
+    expect("[] on a computed vector", (a + b)[0], 11);
+    expect("[] inside arithmetic", b[0] * b[1] + a[0], 201);
+    // (a number literal would be ambiguous between the two [] overloads of
+    //  table, see known_bugs/functions.sharp, so the index is a decimal variable)
+    t := new table(5);
+    zero : decimal = 0;
+    three_ : decimal = 3;
+    four : decimal = 4;
+    expect("table[0]", t[zero], 0);
+    expect("table[3]", t[three_], 30);
+    expect("table[4]", t[four], 40);
+    expect("every [] ran the method", t.reads, 3);
+    expect("[] with a string index", t["four"], 4);
+    expect("...did not run the number version", t.reads, 3);
+    s := new shelf();
+    expect("[] giving an object: a field of it", s[1].x, 3);
+    expect("[] giving an object: an operator on it", (s[0] + s[2]).y, 8);
+    expect("[] giving an object, then [] on that", s[2][1], 6);
+
+    // ---- a right side that is a native number
+    m := new money(250);
+    fifty : decimal = 50;
+    amount : decimal = 250;
+    limit : decimal = 300;
+    expect("money + number gives a number", m + fifty, 300);
+    expect("money - number gives a number", m - fifty, 200);
+    expect("money == number", m == amount, 1);
+    expect("money == another number", m == limit, 0);
+    expect("money < number", m < limit, 1);
+    expect("money > number", m > limit, 0);
+    both := m + new money(750);
+    expect("money + money gives money", both.cents, 1000);
+    expect("money == money with the same amount", both == new money(1000), 1);
+    expect("money == money with another amount", both == m, 0);
+
+    // ---- a string on the right
+    words := new sentence() + "operators" + "are" + "methods";
+    expect_str("+ with strings, chained", words.text, "operators are methods");
+    expect("...each + ran once", words.words, 3);
+    words += "!";
+    expect_str("+= with a string", words.text, "operators are methods!");
+    expect("...changed the object", words.words, 4);
+
+    finish("operators");
+}

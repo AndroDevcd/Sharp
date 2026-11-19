@@ -1,0 +1,172 @@
+mod main;
+
+import (
+    std.io.fiber
+)
+
+// output:
+// 11
+// 111
+// 100
+// 200
+// 111
+// 1
+// 31
+// 300
+// 11
+// 21
+// 21
+// 11
+
+/*
+ * A jump out of a `lock` block really gives the lock back (doc/codegen.md
+ * 6.11). A fiber may enter a lock it already holds, so taking the same lock
+ * again in the same fiber proves nothing: here ANOTHER fiber asks for it
+ * (`is_free`), and it gets it only when the jump unlocked.
+ *
+ *   - `return` out of one lock, out of three nested ones (one of them entered
+ *     twice), out of `lock(self)`, out of a `foreach`;
+ *   - `break` and `continue` out of a lock in a loop;
+ *   - `return` and `break` through locks AND finally blocks: every lock is
+ *     free afterwards. Inside the INNER finally (written inside both locks)
+ *     both are still held;
+ *   - a `return` from a catch handler: the lock the exception left was given
+ *     back by the VM, the one around the try by the return.
+ *
+ * (What the finally block of a try sees of a lock written INSIDE that try is
+ * own/jump_rules.sharp: there the C++-built program differs.)
+ */
+
+class box { value : _int64 = 0; }
+
+class oops base exception {
+    oops() -> base("oops") { }
+}
+
+/** 1 when another fiber can take `guard` within a quarter of a second */
+def is_free(guard: object) : _int64 {
+    answer := new box();
+    slice({ a: object[] -> (int)
+        lock(a[0]) { (a[1] as box).value = 1; }
+        return 0;
+    }, new object[] { guard, answer });
+
+    for(i : _int64 = 0; i < 50 && answer.value == 0; i++) {
+        delay(5);
+    }
+    return answer.value;
+}
+
+def by_return(guard: object) : _int64 {
+    lock(guard) {
+        return 1;
+    }
+    return 0;
+}
+
+def by_return_nested(guard: object, second: object) : _int64 {
+    lock(guard) {
+        lock(second) {
+            lock(guard) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+def by_return_finally(guard: object, second: object) : _int64 {
+    lock(guard) {
+        try {
+            lock(second) {
+                try {
+                    return 1;
+                } finally {
+                    show(100 + is_free(second) * 10 + is_free(guard));
+                }
+            }
+        } finally {
+            show(200 + is_free(guard));
+        }
+    }
+    return 0;
+}
+
+def by_break(guard: object) {
+    for(i : _int64 = 0; i < 3; i++) {
+        lock(guard) {
+            if(i == 1) { break; }
+        }
+    }
+}
+
+def by_continue(guard: object) : _int64 {
+    seen : _int64 = 0;
+    for(i : _int64 = 0; i < 3; i++) {
+        seen += is_free(guard);
+        lock(guard) {
+            if(i < 5) { continue; }
+        }
+    }
+    return seen;
+}
+
+def by_break_finally(guard: object, second: object) {
+    while(true) {
+        lock(guard) {
+            try {
+                lock(second) { break; }
+            } finally {
+                show(300 + is_free(guard));
+            }
+        }
+    }
+}
+
+def by_catch_return(guard: object) : _int64 {
+    lock(guard) {
+        try {
+            lock(guard) { throw new oops(); }
+        } catch(e: oops) {
+            return 2;
+        }
+    }
+    return 0;
+}
+
+def foreach_return(guard: object, items: _int64[]) : _int64 {
+    foreach(n in items) {
+        lock(guard) {
+            if(n == 2) { return n; }
+        }
+    }
+    return 0;
+}
+
+class counter {
+    n : _int64 = 0;
+    def bump() : _int64 {
+        lock(self) {
+            n++;
+            if(n > 0) { return n; }
+        }
+        return 0;
+    }
+}
+
+def main() {
+    a := new box();
+    b := new box();
+    show(by_return(a) * 10 + is_free(a));
+    show(by_return_nested(a, b) * 100 + is_free(a) * 10 + is_free(b));
+    show(by_return_finally(a, b) * 100 + is_free(a) * 10 + is_free(b));
+    by_break(a);
+    show(is_free(a));
+    show(by_continue(a) * 10 + is_free(a));
+    by_break_finally(a, b);
+    show(is_free(a) * 10 + is_free(b));
+    show(by_catch_return(a) * 10 + is_free(a));
+    show(foreach_return(a, new _int64[] { 1, 2, 3 }) * 10 + is_free(a));
+    c := new counter();
+    show(c.bump() * 10 + is_free(c));
+}

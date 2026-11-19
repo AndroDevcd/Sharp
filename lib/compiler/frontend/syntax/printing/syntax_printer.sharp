@@ -1,0 +1,64 @@
+mod frontend.syntax.printing;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree
+)
+
+/**
+ * `sharpc -parsetree file`: print the syntax tree of a file, one node per
+ * line, children indented under their parent. For seeing what the parser made
+ * of a piece of code.
+ *
+ *      total = price * 2;
+ *
+ *      expression_statement
+ *        assign  =
+ *          identifier  total
+ *          binary  *
+ *            identifier  price
+ *            literal  2
+ *
+ * After the kind of a node comes the text of its token, for the kinds whose
+ * token says something: names, literals, operators, modifiers.
+ */
+def print_syntax_tree(p: parse_state) {
+    text := new string_builder("");
+    print_node(p, 0, 0, text);
+    print(text.build());
+}
+
+def print_node(p: parse_state, node: _int64, depth: _int64, text: string_builder) {
+    for(i : _int64 = 0; i < depth; i++) {
+        text.append("  ");
+    }
+
+    kind : _int64 = p.tree.kinds!![node];
+    text.append(node_kind_name(kind));
+    if(shows_its_token(kind)) {
+        token : _int64 = p.tree.tokens!![node];
+        if(token < p.count) {
+            text.append("  ");
+            text.append(token_text(p.source, p.table, token));
+        }
+    }
+    text.append("\n");
+
+    child : _int64 = p.tree.first_child!![node];
+    while(child >= 0) {
+        print_node(p, child, depth + 1, text);
+        child = p.tree.next_sibling!![child];
+    }
+}
+
+/** the kinds whose token is worth printing (for the others it is only a position) */
+def shows_its_token(kind: _int64) : _int64 {
+    return kind == N_NAME || kind == N_MODIFIER || kind == N_CLASS || kind == N_INTERFACE || kind == N_ENUM
+        || kind == N_ENUM_VALUE || kind == N_GENERIC_PARAMETER || kind == N_FUNCTION || kind == N_CONSTRUCTOR
+        || kind == N_PARAMETER || kind == N_OPERATOR_NAME || kind == N_VARIABLE || kind == N_ALIAS
+        || kind == N_TYPE_PART || kind == N_NATIVE_TYPE || kind == N_LITERAL || kind == N_IDENTIFIER
+        || kind == N_BINARY || kind == N_UNARY || kind == N_POSTFIX || kind == N_ASSIGN || kind == N_MEMBER
+        || kind == N_COMPONENT_TYPE || kind == N_ASM_INSTRUCTION || kind == N_ASM_LABEL || kind == N_ASM_REGISTER
+        || kind == N_ASM_LABEL_REF || kind == N_ASM_MEMBER;
+}

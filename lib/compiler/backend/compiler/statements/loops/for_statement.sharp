@@ -1,0 +1,87 @@
+mod backend.compiler.statements.loops;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.expressions,
+    backend.compiler.statements
+)
+
+/**
+ * `for(start; condition; step) body`
+ *
+ *      for(i : _int64 = 0; i < n; i++) { ... }     declares i for the whole loop
+ *      for(i = 0; i < n; i++) { ... }              an existing variable: the start is an expression
+ *      for(a := 0, b := 10; a < b; a++) { ... }    several variables
+ *      for(;;) { ... }   for() { ... }   for { }   every part missing: repeats for ever
+ *
+ * The loop is a scope: the variables of its start part are visible in the
+ * condition, the step and the body, and gone after the loop. The step is
+ * analysed after the body, as it runs after it, but sees none of the body's
+ * variables (the body is a block of its own).
+ *
+ *      E0600   a variable of the start part has the name of a local still in scope
+ *      E0411   the condition is not a number or a `bool` object
+ *      W1018   a start expression or a step that changes nothing (`for(...; ...; i + 1)`),
+ *              as for an expression statement (statements/expression_statement.sharp)
+ *
+ *      C++ comparison: compiler/functions/statements/for_statement.cpp; its
+ *      `for_style_2` (no parentheses) is the same loop here with no parts.
+ */
+def analyse_for(context: analysis_context, node: _int64) : bound_statement {
+    tree : syntax_tree = context.tree;
+    loop := new bound_for(context.unit, node);
+    context.open_scope();
+
+    start_node : _int64 = tree.child_of_kind(node, N_FOR_INIT);
+    condition_node : _int64 = tree.child_of_kind(node, N_FOR_CONDITION);
+    step_node : _int64 = tree.child_of_kind(node, N_FOR_STEP);
+
+    if(start_node >= 0) { analyse_for_start(context, start_node, loop); }
+    if(condition_node >= 0 && tree.first_child!![condition_node] >= 0) {
+        loop.condition = analyse_condition(context, tree.first_child!![condition_node], 1);
+    }
+    loop.is_endless = loop.condition == null || is_constant_true(loop.condition);
+
+    context.enter_frame(FRAME_LOOP, loop);
+    loop.body = analyse_part(context, body_of_for(context, node));
+    context.leave_frame();
+
+    if(step_node >= 0 && tree.first_child!![step_node] >= 0) {
+        loop.step = analyse_expression(context, tree.first_child!![step_node], null);
+        if(has_effect(loop.step!!) == 0) { warn_no_effect(context, loop.step!!, tree.first_child!![step_node], "step"); }
+    }
+    context.close_scope();
+    return loop;
+}
+
+/** the start part: variable declarations, or one expression (`for(i = 0; ...)`) */
+def analyse_for_start(context: analysis_context, start_node: _int64, loop: bound_for) {
+    tree : syntax_tree = context.tree;
+    child : _int64 = tree.first_child!![start_node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_VARIABLE) {
+            declare_locals(context, child, loop.initializers, null, 0);
+        } else {
+            start := analyse_expression(context, child, null);
+            if(has_effect(start) == 0) { warn_no_effect(context, start, child, "start part"); }
+            loop.initializers.add(new bound_expression_statement(context.unit, child, start));
+        }
+        child = tree.next_sibling!![child];
+    }
+}
+
+/** the body: the child after the three parts (-1 when the parser found none) */
+def body_of_for(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind != N_FOR_INIT && kind != N_FOR_CONDITION && kind != N_FOR_STEP) { return child; }
+        child = tree.next_sibling!![child];
+    }
+    return 0 - 1;
+}

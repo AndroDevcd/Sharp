@@ -1,0 +1,97 @@
+mod std.guikit.core.runtime;
+
+import (
+    std.guikit.*,
+    std.io
+)
+
+/**
+ * main_queue - things to run on the MAIN thread, handed over from other
+ * threads. What on_main { } puts its block into.
+ *
+ *      launch_on(dispatchers.io(), { ->
+ *          found := load_from_disk();          // slow: on a background thread
+ *          on_main {
+ *              tasks.replace_all(found);       // the screen's data: on the main thread
+ *          };
+ *      });
+ *
+ * WHY THERE IS A MAIN THREAD AT ALL. The screen is built, laid out and
+ * painted by one thread - the one that called gui.run. If another thread
+ * changed a state in the middle of that, the screen could be built from data
+ * that is half old and half new, or a list could change under the loop that
+ * is walking it. So the rule (the same in Android, iOS, Swing, Qt): slow work
+ * goes to a background thread; everything the screen reads is changed only on
+ * the main thread. on_main is the door back.
+ *
+ * THE RULE IS CHECKED: changing a state from a background thread while a
+ * window is open stops the program with a message that says to use on_main
+ * (state.sharp) - it does not corrupt the screen at random some time later.
+ *
+ * The window's loop runs what is waiting once every turn, in the order it was
+ * handed over, and is woken at once when something arrives.
+ *
+ * WITHOUT A WINDOW (a console program, a test of a view model) nothing takes
+ * the blocks out by itself: call main_queue.run_waiting() where you want them
+ * run - a test does that right after the work it started has finished.
+ * (Android: Handler(Looper.getMainLooper()).post / Dispatchers.Main.
+ * Swing: SwingUtilities.invokeLater.)
+ */
+stable class main_queue {
+    private static guard : object = new _object_();                     // protects `waiting` (it is touched from several threads)
+    private static waiting : list<queued_action> = new list<queued_action>();
+
+    /** hand `action` over to the main thread; returns at once (any thread may call this) */
+    static def post(action: ()()) {
+        lock(guard) {
+            waiting.add(new queued_action(action));
+        }
+        if(ui_host.current != null) {
+            surface_wake();                     // the loop may be asleep waiting for the mouse: wake it
+        }
+    }
+
+    /**
+     * Run everything that is waiting, on the thread that calls this. The
+     * window's loop calls it every turn; a program without a window calls it
+     * itself. Gives how many were run.
+     */
+    static def run_waiting() : _int64 {
+        // take the whole batch out under the lock, run it outside: an action may hand over more
+        batch : list<queued_action> = new list<queued_action>();
+        lock(guard) {
+            count : _int64 = waiting.size().value;
+            for(i : _int64 = 0; i < count; i++) {
+                batch.add(waiting.at(i));
+            }
+            waiting.clear();
+        }
+        ran : _int64 = batch.size().value;
+        for(i : _int64 = 0; i < ran; i++) {
+            batch.at(i).run();
+        }
+        return ran;
+    }
+
+    /** how many blocks are waiting to be run */
+    static def waiting_count() : _int64 {
+        count : _int64 = 0;
+        lock(guard) {
+            count = waiting.size().value;
+        }
+        return count;
+    }
+}
+
+/** a block waiting for the main thread, wrapped so it can be kept in a list */
+local stable class queued_action {
+    private action : ()();
+
+    queued_action(what: ()()) {
+        action = what;
+    }
+
+    def run() {
+        action();
+    }
+}

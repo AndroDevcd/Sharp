@@ -1,0 +1,204 @@
+mod std.math;
+
+/**
+ * @class rect
+ *
+ * An axis-aligned rectangle: a corner (x, y), a width and a height, all
+ * native numbers. (x, y) is the corner with the smallest coordinates; the
+ * rectangle covers x .. x + width and y .. y + height. Which of top and
+ * bottom is "up" depends on the coordinate system of the caller, so the
+ * edges are named by their coordinates: left / right for x, low_y / high_y
+ * for y.
+ *
+ *     r := new rect(0, 0, 10, 5);
+ *     r.area()                         // 50
+ *     r.contains(3, 4)           // true
+ *     r.intersects(new rect(8, 3, 5, 5)).value    // true
+ *
+ * Points are passed as two numbers or as a vector2. Edges count as inside:
+ * contains() is true on the border, and two rectangles that merely touch
+ * do intersect. Rectangles are values: methods return new rectangles.
+ */
+class rect {
+    /** the smallest x of the rectangle (its left edge) */
+    x : decimal = 0;
+
+    /** the smallest y of the rectangle */
+    y : decimal = 0;
+
+    /** the extent along x; never negative */
+    width : decimal = 0;
+
+    /** the extent along y; never negative */
+    height : decimal = 0;
+
+    /**
+     * The rectangle with corner (x, y) and the given size.
+     * Throws illegal_argument_exception when width or height is negative.
+     */
+    rect(x: decimal, y: decimal, width: decimal, height: decimal) {
+        if(width < 0 || height < 0)
+            throw new illegal_argument_exception("rect: width and height cannot be negative");
+        self->x = x;
+        self->y = y;
+        self->width = width;
+        self->height = height;
+    }
+
+    /** a copy of another rectangle */
+    rect(other: rect) {
+        x = other.x;
+        y = other.y;
+        width = other.width;
+        height = other.height;
+    }
+
+    /**
+     * The rectangle spanned by two opposite corners, given in any order:
+     * from_corners(5, 7, 1, 2) is the rectangle at (1, 2) of size 4 x 5.
+     */
+    static def from_corners(x1: decimal, y1: decimal, x2: decimal, y2: decimal): rect {
+        return new rect(min(x1, x2), min(y1, y2), absolute(x2 - x1), absolute(y2 - y1));
+    }
+
+    /**
+     * The rectangle of the given size whose centre is (center_x, center_y).
+     * Throws illegal_argument_exception when width or height is negative.
+     */
+    static def from_center(center_x: decimal, center_y: decimal, width: decimal, height: decimal): rect {
+        return new rect(center_x - width / 2, center_y - height / 2, width, height);
+    }
+
+    /** the x of the left edge (the same as the field x) */
+    def left(): decimal { return x; }
+
+    /** the x of the right edge: x + width */
+    def right(): decimal { return x + width; }
+
+    /** the smallest y (the same as the field y) */
+    def low_y(): decimal { return y; }
+
+    /** the largest y: y + height */
+    def high_y(): decimal { return y + height; }
+
+    /** the centre point */
+    def center(): vector2 {
+        return new vector2(x + width / 2, y + height / 2);
+    }
+
+    /** width * height */
+    def area(): decimal {
+        return width * height;
+    }
+
+    /** the length of the border: 2 * (width + height) */
+    def perimeter(): decimal {
+        return 2 * (width + height);
+    }
+
+    /** the length of the diagonal: sqrt(width^2 + height^2) */
+    def diagonal(): decimal {
+        return hypot(width, height);
+    }
+
+    /** true when width or height is 0 (the rectangle covers no area) */
+    def is_empty(): bool {
+        return width == 0 || height == 0;
+    }
+
+    /** true when width equals height */
+    def is_square(): bool {
+        return width == height;
+    }
+
+    /** true when the point (px, py) lies inside the rectangle or on its border */
+    def contains(px: decimal, py: decimal): bool {
+        return px >= x && px <= x + width && py >= y && py <= y + height;
+    }
+
+    /** true when the point lies inside the rectangle or on its border */
+    def contains(point: vector2): bool {
+        return contains(point.x, point.y);
+    }
+
+    /** true when `other` lies completely inside this rectangle (shared edges allowed) */
+    def contains(other: rect): bool {
+        return other.x >= x && other.x + other.width <= x + width
+            && other.y >= y && other.y + other.height <= y + height;
+    }
+
+    /**
+     * True when the two rectangles share at least one point (touching edges
+     * or corners count). They do NOT intersect exactly when one lies
+     * entirely to one side of the other.
+     */
+    def intersects(other: rect): bool {
+        return x <= other.x + other.width && other.x <= x + width
+            && y <= other.y + other.height && other.y <= y + height;
+    }
+
+    /**
+     * The area both rectangles cover, as a rectangle (of width or height 0
+     * when they only touch).
+     * Throws arithmetic_exception when they do not intersect at all.
+     */
+    def intersection(other: rect): rect {
+        if(!intersects(other))
+            throw new arithmetic_exception("rect: the rectangles do not intersect");
+
+        left_edge : decimal = max(x, other.x);
+        low_edge : decimal = max(y, other.y);
+        right_edge : decimal = min(x + width, other.x + other.width);
+        high_edge : decimal = min(y + height, other.y + other.height);
+        return new rect(left_edge, low_edge, right_edge - left_edge, high_edge - low_edge);
+    }
+
+    /** the smallest rectangle that contains both rectangles (their bounding box) */
+    def union_with(other: rect): rect {
+        left_edge : decimal = min(x, other.x);
+        low_edge : decimal = min(y, other.y);
+        right_edge : decimal = max(x + width, other.x + other.width);
+        high_edge : decimal = max(y + height, other.y + other.height);
+        return new rect(left_edge, low_edge, right_edge - left_edge, high_edge - low_edge);
+    }
+
+    /** the same rectangle moved by (dx, dy) */
+    def translated(dx: decimal, dy: decimal): rect {
+        return new rect(x + dx, y + dy, width, height);
+    }
+
+    /**
+     * The rectangle grown by `amount` on every side (so width and height grow
+     * by 2 * amount); a negative amount shrinks it.
+     * Throws illegal_argument_exception when shrinking would make a size negative.
+     */
+    def expanded(amount: decimal): rect {
+        return new rect(x - amount, y - amount, width + 2 * amount, height + 2 * amount);
+    }
+
+    /** the point of the rectangle closest to (px, py): the point itself when it is inside */
+    def closest_point(px: decimal, py: decimal): vector2 {
+        return new vector2(clamp(px, x, x + width), clamp(py, y, y + height));
+    }
+
+    /** true when position and size are exactly equal */
+    def operator==(other: rect): bool {
+        return x == other.x && y == other.y && width == other.width && height == other.height;
+    }
+
+    /** true when position or size differ */
+    def operator!=(other: rect): bool {
+        return x != other.x || y != other.y || width != other.width || height != other.height;
+    }
+
+    /** "rect(x, y, width x height)", e.g. "rect(0, 0, 10 x 5)" */
+    override def to_string(): string? {
+        return "rect(" + number_to_string(x) + ", " + number_to_string(y) + ", "
+            + number_to_string(width) + " x " + number_to_string(height) + ")";
+    }
+
+    /** a hash code built from position and size (equal rectangles have equal hashes) */
+    override def hash(): int {
+        return (((x * 31 + y) * 31 + width) * 31 + height) % 2147483647;
+    }
+}

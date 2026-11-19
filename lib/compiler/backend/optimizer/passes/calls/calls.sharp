@@ -1,0 +1,39 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * THE PASSES ABOUT CALLS: a call's cost, and the objects calls make for nothing
+ *
+ * A call is the most expensive thing ordinary Sharp code does, and many
+ * calls wrap almost nothing: a getter, a setter, the constructor of a number
+ * object, the empty constructor of `_object_` that every `new` runs. Inlining
+ * copies such small bodies into their callers; that often brings together the
+ * making of a number object (`new int(n)`) and the reading of its number, and
+ * box elimination then takes the object away altogether.
+ *
+ * The files of this package (module `backend.optimizer.passes.calls`):
+ *
+ *      calls.sharp                 this front door
+ *      inline_calls.sharp          a call of a small function becomes a copy of its body
+ *      box_elimination.sharp       an object no reference to leaves the function becomes plain slots
+ *      devirtualization.sharp      a call the object's class decides becomes a call of the one function that
+ *                                  can run (one body in the whole program, or the object's class is known)
+ *      pure_functions.sharp        what a call can and cannot do: for every function of the program, whether it
+ *                                  changes anything, reads anything, can raise, always comes back
+ *      closure_calls.sharp         a function value made here and called here is called by name (and then
+ *                                  inlined, and its object and record removed)
+ *      escape_analysis.sharp       which arguments of each function do not escape it
+ *      string_concatenation.sharp  `a + b + c`: each `+` after the first appends to the temporary string in
+ *                                  place (a twin of `string.operator+`) instead of copying it again
+ *      native_returns.sharp        a function that returns a freshly made number object gets a twin that
+ *                                  returns the number, for the callers that only take the number out again
+ *
+ * Inlining works across functions and is run by the optimizer's driver after
+ * every function has had its local passes; box elimination is one of the
+ * local passes (it finds nothing before inlining has worked, and a little in
+ * code that makes a box and reads it itself).
+ */

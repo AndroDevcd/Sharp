@@ -1,0 +1,169 @@
+mod app;
+
+import (
+    std.testing,
+    std.guikit.*,
+    std.io.coroutines
+)
+
+/**
+ * TESTS, as a program.  Run it; it prints one line per test and a summary,
+ * and its exit code is 0 only when everything passed.
+ *
+ * The first group tests a class written right here. The others test LOGIC
+ * from the GUI library - a form, a watched list, a view model with
+ * background work - with no window anywhere: that is what keeping logic out
+ * of the screens buys.
+ */
+
+// ============================================================================ something to test
+
+class basket {
+    private items : list<string> = new list<string>();
+
+    def add(item: string) { items.add(item); }
+    def count() : _int64 { return items.size().value; }
+    def at(index: _int64) : string { return items.at(index); }
+    def is_empty() : _int64 {
+        if(count() == 0) { return 1; }
+        return 0;
+    }
+
+    /** take the last item out; an empty basket has nothing to take */
+    def take() : string {
+        if(count() == 0) {
+            throw new illegal_state_exception("the basket is empty");
+        }
+        last : string = items.at(count() - 1);
+        items.remove_at(count() - 1);
+        return last;
+    }
+}
+
+/** a view model with slow work, like the one in examples/gui/tasks */
+class counter_model base view_model {
+    total := gui.state(0);
+
+    def add_slowly() : job {
+        return launch(dispatchers.io()) {
+            delay(30);
+            on_main { total.value = total.value + 5; };
+        };
+    }
+}
+
+// ============================================================================ the tests
+
+def main() {
+    tests("a basket") {
+        test("a new basket is empty") {
+            b := basket();
+            expect(b.count()).should_be(0);
+            expect_true(b.is_empty());
+        };
+
+        test("adding an item puts it in the basket") {
+            b := basket();
+            b.add("milk");
+            expect(b.count()).should_be(1);
+            expect(b.at(0)).should_be("milk");
+        };
+
+        test("take gives back the last item and removes it") {
+            b := basket();
+            b.add("milk");
+            b.add("bread");
+            expect(b.take()).should_be("bread");
+            expect(b.count()).named("items left after one take").should_be(1);
+        };
+
+        test("taking from an empty basket is refused") {
+            b := basket();
+            expect_throws<illegal_state_exception>() { b.take(); };
+        };
+    };
+
+    tests("a form") {
+        test("a required field that is empty has a problem after check") {
+            title := gui.state("");
+            rules := form().require(title, "Give it a title");
+
+            expect(rules.problem_of(title)).named("before any check").should_be_empty();
+            expect(rules.check()).should_be(0);
+            expect(rules.problem_of(title)).should_be("Give it a title");
+        };
+
+        test("the problem goes away once the field is filled in and checked again") {
+            title := gui.state("");
+            rules := form().require(title, "Give it a title");
+            rules.check();
+
+            title.value = "Buy milk";
+            expect(rules.check()).should_be(1);
+            expect(rules.problem_of(title)).should_be_empty();
+        };
+
+        test("at_most counts letters") {
+            title := gui.state("abcdef");
+            rules := form().at_most(title, 5, "Too long");
+            expect(rules.check()).should_be(0);
+            expect(rules.problem_of(title)).should_contain("long");
+        };
+    };
+
+    tests("a watched list") {
+        test("add, move and remove keep the items in order") {
+            names := state_list<string>();
+            names.add("a");
+            names.add("b");
+            names.add("c");
+            names.move(0, 2);
+
+            expect(names.size()).should_be(3);
+            expect(names.at(0)).should_be("b");
+            expect(names.at(2)).should_be("a");
+
+            expect(names.remove("b")).should_be(1);
+            expect(names.size()).should_be(2);
+        };
+
+        test("on_change is told about every change") {
+            names := state_list<string>();
+            changes := gui.state(0);
+            names.on_change { changes.value = changes.value + 1; };
+
+            names.add("a");
+            names.add("b");
+            names.clear();
+            expect(changes.value).should_be(3);
+        };
+    };
+
+    tests("a view model, with no window") {
+        test("slow work reaches the state once the main queue is run") {
+            model := counter_model();
+            model.add_slowly().join();
+
+            expect(model.total.value).named("before the main queue is run").should_be(0);
+            main_queue.run_waiting();
+            expect(model.total.value).should_be(5);
+        };
+
+        test("an answer that arrives after the model was dropped is ignored") {
+            model := counter_model();
+            work := model.add_slowly();
+            model.drop();
+            work.join();
+            main_queue.run_waiting();
+            expect(model.total.value).should_be(0);
+        };
+
+        test("a dropped model refuses new work") {
+            model := counter_model();
+            model.drop();
+            expect_throws<illegal_state_exception>() { model.add_slowly(); };
+        };
+    };
+
+    finish_tests();
+}

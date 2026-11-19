@@ -1,0 +1,127 @@
+mod backend.ide.output;
+
+import (
+    std.io
+)
+
+/**
+ * JSON TEXT: HOW A STRING IS WRITTEN BETWEEN QUOTES
+ *
+ * A JSON string may hold any character except the quote, the backslash and
+ * the control characters below 0x20; those are written with a backslash:
+ *
+ *      "say \"hi\"\n"      a quote and a line end inside a string
+ *
+ * and a control character that has no short form is written \u00XX.
+ *
+ * Everything else is written as it is, as UTF-8. A Sharp string is a list of
+ * BYTES (see doc/ide.md 4.1), so a character such as `é` is two of them and is
+ * copied byte by byte. There is one catch: the bytes of a source file are not
+ * promised to be valid UTF-8, and a JSON reader (the plugin's Gson) refuses
+ * text that is not. So the bytes of every multi-byte character are checked,
+ * and a sequence that is not valid UTF-8 is written as � (the
+ * "replacement character", which is what the editor shows for it too).
+ *
+ *      C++ comparison: what a JSON library's `dump()` does for a std::string.
+ */
+
+/** the digit of 0..15, as an `_int64` character code: 0-9 then a-f (lower case, as the file format says) */
+def hex_digit(value: _int64) : _int64 {
+    if(value < 10) { return '0' + value; }
+    return 'a' + (value - 10);
+}
+
+/** a number as exactly `digits` lower-case hex digits (the high digits are 0 when it is small) */
+def hex_text(value: _int64, digits: _int64) : string {
+    text := new string_builder("");
+    for(shift : _int64 = (digits - 1) * 4; shift >= 0; shift = shift - 4) {
+        text.append_char(hex_digit((value >> shift) & 15));
+    }
+    return text.build();
+}
+
+/** a byte of a string as 0..255 (the language reads a byte above 127 as a negative number) */
+def byte_value(data: _int8[], index: _int64) : _int64 {
+    value : _int64 = data[index];
+    if(value < 0) { value = value + 256; }
+    return value;
+}
+
+/**
+ * How many bytes the UTF-8 character starting at `index` has, or 0 when what
+ * stands there is not a valid character: a continuation byte on its own, a
+ * lead byte whose followers are missing, an "overlong" form (a short character
+ * written with too many bytes), a surrogate half, a number above U+10FFFF.
+ */
+def utf8_length(data: _int8[], index: _int64, size: _int64) : _int64 {
+    lead : _int64 = byte_value(data, index);
+    wanted : _int64 = 0;
+    if(lead >= 194 && lead <= 223) { wanted = 2; }          // C2..DF
+    else if(lead >= 224 && lead <= 239) { wanted = 3; }     // E0..EF
+    else if(lead >= 240 && lead <= 244) { wanted = 4; }     // F0..F4
+    else { return 0; }
+
+    if(index + wanted > size) { return 0; }
+    for(k : _int64 = 1; k < wanted; k++) {
+        follower : _int64 = byte_value(data, index + k);
+        if(follower < 128 || follower > 191) { return 0; }
+    }
+
+    second : _int64 = byte_value(data, index + 1);
+    if(lead == 224 && second < 160) { return 0; }       // overlong: would fit in two bytes
+    if(lead == 237 && second > 159) { return 0; }       // U+D800..DFFF: a surrogate half is not a character
+    if(lead == 240 && second < 144) { return 0; }       // overlong: would fit in three bytes
+    if(lead == 244 && second > 143) { return 0; }       // above U+10FFFF
+    return wanted;
+}
+
+/** 1 when the string needs no escaping and holds only ASCII: the common case, copied as one piece */
+def is_plain_text(data: _int8[]?) : _int64 {
+    size : _int64 = sizeof(data);
+    for(i : _int64 = 0; i < size; i++) {
+        value : _int64 = data!![i];
+        if(value < 32 || value == 34 || value == 92) { return 0; }      // control, quote, backslash; negative: above 127
+    }
+    return 1;
+}
+
+/** `text` written to `out` with its quotes, escaped as described above */
+def append_json_string(out: json_writer, text: string) {
+    out.put('"');
+    append_escaped(out, text);
+    out.put('"');
+}
+
+/** the characters of `text` escaped as described above, without quotes (for text that is written in pieces) */
+def append_escaped(out: json_writer, text: string) {
+    data : _int8[]? = text.data;
+    if(is_plain_text(data) == 1) {
+        out.put_string(text);
+        return;
+    }
+
+
+    size : _int64 = sizeof(data);
+    i : _int64 = 0;
+    while(i < size) {
+        value : _int64 = byte_value(data!!, i);
+        if(value == 34) { out.put_string("\\\""); }
+        else if(value == 92) { out.put_string("\\\\"); }
+        else if(value == 10) { out.put_string("\\n"); }
+        else if(value == 13) { out.put_string("\\r"); }
+        else if(value == 9) { out.put_string("\\t"); }
+        else if(value < 32) { out.put_string("\\u00" + hex_text(value, 2)); }
+        else if(value < 128) { out.put(value); }
+        else {
+            length : _int64 = utf8_length(data!!, i, size);
+            if(length == 0) {
+                out.put_string("\\ufffd");
+            } else {
+                for(k : _int64 = 0; k < length; k++) { out.put(byte_value(data!!, i + k)); }
+                i = i + length;
+                continue;
+            }
+        }
+        i++;
+    }
+}

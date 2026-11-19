@@ -1,0 +1,852 @@
+mod std.io;
+
+import ( std.math, platform )
+
+/**
+ * Small string helpers shared by the io, data and system libraries:
+ * slicing, searching, trimming, splitting, joining, and turning numbers into
+ * text and back.
+ *
+ * Everything is a static function, e.g. `io_strings.trim(line)`. No function
+ * changes the string it is given; each returns a new string.
+ *
+ * Positions count from 0. A range is always "start up to but not including
+ * end". Characters are passed as their codes ('a', 10, ...).
+ *
+ * A string argument must not be null unless a function says otherwise.
+ */
+class io_strings {
+
+    /* ------------------------------------------------------------------ */
+    /* slicing and searching                                               */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * True when `s` is null (no string at all). `s == null` cannot be used
+     * for this: it calls the == operator of string, which fails for a null
+     * string and is true for an empty one.
+     */
+    static def is_null(s: string?) : decimal {
+        o : object = s;
+        return o == null;
+    }
+
+    /** the number of characters in `s` as a native number (0 for null) */
+    static def length(s: string) : decimal {
+        if((s as object) == null) {
+            return 0;
+        }
+        return sizeof(s.data);
+    }
+
+    /**
+     * The characters of `s` from `start` up to but not including `end`.
+     * Unlike string.substring() this never throws: the range is clipped to
+     * the string, and an empty range gives "".
+     */
+    static def slice(s: string, start: decimal, end: decimal) : string {
+        n : decimal = sizeof(s.data);
+        if(start < 0) {
+            start = 0;
+        }
+        if(end > n) {
+            end = n;
+        }
+        if(start >= end) {
+            return "";
+        }
+        return new string(s.data!!, start, end);
+    }
+
+    /** the characters of `s` from `start` to the end ("" when start is past the end) */
+    static def slice_from(s: string, start: decimal) : string {
+        return slice(s, start, sizeof(s.data));
+    }
+
+    /**
+     * The position of the first character `ch` at or after position `from`,
+     * or -1 when there is none.
+     */
+    static def index_of(s: string, ch: decimal, from: decimal) : decimal {
+        n : decimal = sizeof(s.data);
+        if(from < 0) {
+            from = 0;
+        }
+        for(i : decimal = from; i < n; i++) {
+            if(s.data[i] == ch) {
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /** the position of the first character `ch`, or -1 when there is none */
+    static def index_of(s: string, ch: decimal) : decimal {
+        return index_of(s, ch, 0);
+    }
+
+    /** the position of the last character `ch`, or -1 when there is none */
+    static def last_index_of(s: string, ch: decimal) : decimal {
+        for(i : decimal = sizeof(s.data) - 1; i >= 0; i--) {
+            if(s.data[i] == ch) {
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /**
+     * The position where `needle` first occurs in `s` at or after `from`,
+     * or -1 when it does not occur. An empty needle is found at `from`
+     * (as long as from is not past the end).
+     */
+    static def index_of_text(s: string, needle: string, from: decimal) : decimal {
+        n : decimal = sizeof(s.data);
+        m : decimal = sizeof(needle.data);
+        if(from < 0) {
+            from = 0;
+        }
+        for(i : decimal = from; i + m <= n; i++) {
+            j : decimal = 0;
+            while(j < m && s.data[i + j] == needle.data[j]) {
+                j++;
+            }
+            if(j == m) {
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /** true when `needle` occurs somewhere in `s` (an empty needle always does) */
+    static def contains(s: string, needle: string) : bool {
+        return index_of_text(s, needle, 0) >= 0;
+    }
+
+    /** true when `s` begins with `prefix` (every string begins with "") */
+    static def starts_with(s: string, prefix: string) : bool {
+        m : decimal = sizeof(prefix.data);
+        if(m > sizeof(s.data)) {
+            return false;
+        }
+        for(i : decimal = 0; i < m; i++) {
+            if(s.data[i] != prefix.data[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * True when `s` ends with `suffix` (every string ends with "", and a
+     * string ends with itself - string.ends_with() gets that case wrong).
+     */
+    static def ends_with(s: string, suffix: string) : bool {
+        n : decimal = sizeof(s.data);
+        m : decimal = sizeof(suffix.data);
+        if(m > n) {
+            return false;
+        }
+        for(i : decimal = 0; i < m; i++) {
+            if(s.data[n - m + i] != suffix.data[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** true when the two strings have the same characters (null equals only null; "" equals "") */
+    static def equals(a: string, b: string) : bool {
+        if((a as object) == null || (b as object) == null) {
+            return (a as object) == (b as object);
+        }
+        n : decimal = sizeof(a.data);
+        if(n != sizeof(b.data)) {
+            return false;
+        }
+        for(i : decimal = 0; i < n; i++) {
+            if(a.data[i] != b.data[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** true when the two strings are the same apart from the case of the letters A-Z */
+    static def equals_ignore_case(a: string, b: string) : bool {
+        n : decimal = sizeof(a.data);
+        if(n != sizeof(b.data)) {
+            return false;
+        }
+        for(i : decimal = 0; i < n; i++) {
+            if(lower_char(a.data[i]) != lower_char(b.data[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Compare two strings character by character (by character code).
+     * Returns -1 when a sorts before b, 1 when it sorts after, 0 when equal.
+     * A string that is the beginning of the other one sorts first.
+     */
+    static def compare(a: string, b: string) : decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        for(i : decimal = 0; i < n && i < m; i++) {
+            x : decimal = a.data[i] & 0xff;
+            y : decimal = b.data[i] & 0xff;
+            if(x < y) {
+                return 0 - 1;
+            }
+            if(x > y) {
+                return 1;
+            }
+        }
+        if(n < m) {
+            return 0 - 1;
+        }
+        if(n > m) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* characters                                                          */
+    /* ------------------------------------------------------------------ */
+
+    /** true for space, tab, new line, carriage return, vertical tab and form feed */
+    static def is_space(ch: decimal) : decimal {
+        return ch == ' ' || (ch >= 9 && ch <= 13);
+    }
+
+    /** true for '0' .. '9' */
+    static def is_digit(ch: decimal) : decimal {
+        return ch >= '0' && ch <= '9';
+    }
+
+    /** true for a-z and A-Z */
+    static def is_letter(ch: decimal) : decimal {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+    }
+
+    /** the lower case of A-Z; every other character is returned unchanged */
+    static def lower_char(ch: decimal) : decimal {
+        if(ch >= 'A' && ch <= 'Z') {
+            return ch + 32;
+        }
+        return ch;
+    }
+
+    /** the upper case of a-z; every other character is returned unchanged */
+    static def upper_char(ch: decimal) : decimal {
+        if(ch >= 'a' && ch <= 'z') {
+            return ch - 32;
+        }
+        return ch;
+    }
+
+    /**
+     * The value 0..15 of a hexadecimal digit ('0'-'9', 'a'-'f', 'A'-'F'),
+     * or -1 when `ch` is not one.
+     */
+    static def hex_value(ch: decimal) : decimal {
+        if(ch >= '0' && ch <= '9') {
+            return ch - '0';
+        }
+        if(ch >= 'a' && ch <= 'f') {
+            return ch - 'a' + 10;
+        }
+        if(ch >= 'A' && ch <= 'F') {
+            return ch - 'A' + 10;
+        }
+        return 0 - 1;
+    }
+
+    /** a string made of the single character `ch` */
+    static def from_char(ch: decimal) : string {
+        one := new _int8[1];
+        if(ch > 127) {
+            ch = (ch & 0xff) - 256; // keep the element in -128..127 (see char_buffer.append_char)
+        }
+        one[0] = ch;
+        return new string(one);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* changing                                                            */
+    /* ------------------------------------------------------------------ */
+
+    /** `s` without the white space (see is_space) at its beginning and end */
+    static def trim(s: string) : string {
+        start : decimal = 0;
+        end : decimal = sizeof(s.data);
+        while(start < end && is_space(s.data[start])) {
+            start++;
+        }
+        while(end > start && is_space(s.data[end - 1])) {
+            end--;
+        }
+        return slice(s, start, end);
+    }
+
+    /** `s` with the letters A-Z turned into a-z */
+    static def to_lower(s: string) : string {
+        n : decimal = sizeof(s.data);
+        if(n == 0) {
+            return "";
+        }
+        chars := new _int8[n];
+        for(i : decimal = 0; i < n; i++) {
+            chars[i] = lower_char(s.data[i]);
+        }
+        return new string(chars);
+    }
+
+    /** `s` with the letters a-z turned into A-Z */
+    static def to_upper(s: string) : string {
+        n : decimal = sizeof(s.data);
+        if(n == 0) {
+            return "";
+        }
+        chars := new _int8[n];
+        for(i : decimal = 0; i < n; i++) {
+            chars[i] = upper_char(s.data[i]);
+        }
+        return new string(chars);
+    }
+
+    /** `s` with every character `from` replaced by the character `to` */
+    static def replace_char(s: string, from: decimal, to: decimal) : string {
+        n : decimal = sizeof(s.data);
+        if(n == 0) {
+            return "";
+        }
+        chars := new _int8[n];
+        for(i : decimal = 0; i < n; i++) {
+            if(s.data[i] == from) {
+                chars[i] = to;
+            } else {
+                chars[i] = s.data[i];
+            }
+        }
+        return new string(chars);
+    }
+
+    /**
+     * `s` with every occurrence of `what` replaced by `with`, searching left
+     * to right without looking at replaced text again.
+     * Throws illegal_argument_exception when `what` is empty.
+     */
+    static def replace_text(s: string, what: string, with: string) : string {
+        m : decimal = sizeof(what.data);
+        if(m == 0) {
+            throw new illegal_argument_exception("replace_text: the text to replace cannot be empty");
+        }
+        buf := new char_buffer(sizeof(s.data) + 16);
+        pos : decimal = 0;
+        n : decimal = sizeof(s.data);
+        while(pos < n) {
+            at : decimal = index_of_text(s, what, pos);
+            if(at < 0) {
+                break;
+            }
+            buf.append_range(s.data!!, pos, at);
+            buf.append(with);
+            pos = at + m;
+        }
+        if(pos < n) {
+            buf.append_range(s.data!!, pos, n);
+        }
+        return buf.to_string()!!;
+    }
+
+    /** `s` repeated `times` times ("" when times <= 0) */
+    static def repeat(s: string, times: decimal) : string {
+        buf := new char_buffer(sizeof(s.data) * times + 16);
+        for(i : decimal = 0; i < times; i++) {
+            buf.append(s);
+        }
+        return buf.to_string()!!;
+    }
+
+    /**
+     * `s` with the character `fill` added in front until it is `width`
+     * characters long. A string that is already that long is returned as is.
+     */
+    static def pad_left(s: string, width: decimal, fill: decimal) : string {
+        n : decimal = sizeof(s.data);
+        if(n >= width) {
+            return s;
+        }
+        buf := new char_buffer(width);
+        buf.append_repeated(fill, width - n);
+        buf.append(s);
+        return buf.to_string()!!;
+    }
+
+    /**
+     * `s` with the character `fill` added behind until it is `width`
+     * characters long. A string that is already that long is returned as is.
+     */
+    static def pad_right(s: string, width: decimal, fill: decimal) : string {
+        n : decimal = sizeof(s.data);
+        if(n >= width) {
+            return s;
+        }
+        buf := new char_buffer(width);
+        buf.append(s);
+        buf.append_repeated(fill, width - n);
+        return buf.to_string()!!;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* splitting and joining                                               */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Cut `s` at every character `separator`. Empty pieces are kept, so
+     * "a,,b" gives "a", "", "b" and "" gives one empty piece - the number of
+     * pieces is always the number of separators + 1.
+     */
+    static def split(s: string, separator: decimal) : list<string> {
+        parts := new list<string>();
+        n : decimal = sizeof(s.data);
+        start : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            if(s.data[i] == separator) {
+                parts.add(slice(s, start, i));
+                start = i + 1;
+            }
+        }
+        parts.add(slice(s, start, n));
+        return parts;
+    }
+
+    /**
+     * Cut a text into its lines. A line ends with "\n", "\r\n" or a single
+     * "\r"; the line ends are not part of the result. A line end at the very
+     * end of the text does not start another (empty) line, so "a\nb\n" and
+     * "a\nb" both give "a", "b". An empty text gives no lines.
+     */
+    static def split_lines(s: string) : list<string> {
+        lines := new list<string>();
+        n : decimal = sizeof(s.data);
+        start : decimal = 0;
+        i : decimal = 0;
+        while(i < n) {
+            ch : decimal = s.data[i];
+            if(ch == '\n') {
+                lines.add(slice(s, start, i));
+                start = i + 1;
+            } else if(ch == '\r') {
+                lines.add(slice(s, start, i));
+                if(i + 1 < n && s.data[i + 1] == '\n') {
+                    i++;
+                }
+                start = i + 1;
+            }
+            i++;
+        }
+        if(start < n) {
+            lines.add(slice(s, start, n));
+        }
+        return lines;
+    }
+
+    /** the strings of `parts` in order with `separator` between them ("" for an empty list) */
+    static def join(parts: list<string>, separator: string) : string {
+        buf := new char_buffer();
+        count : decimal = parts.size().value;
+        for(i : decimal = 0; i < count; i++) {
+            if(i > 0) {
+                buf.append(separator);
+            }
+            buf.append(parts.at(i));
+        }
+        return buf.to_string()!!;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* numbers to text                                                     */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A whole number in decimal: "0", "42", "-7". A fraction is cut off
+     * towards zero (2.9 gives "2", -2.9 gives "-2"). Exact for every whole
+     * number up to 2^53. NaN gives "NaN", an infinite value "Infinity" or
+     * "-Infinity".
+     */
+    static def int_to_string(value: decimal) : string {
+        if(value != value) {
+            return "NaN";
+        }
+        if(value - value != 0) {
+            // only an infinite value is left: infinity - infinity is NaN, which is != 0
+            if(value > 0) {
+                return "Infinity";
+            }
+            return "-Infinity";
+        }
+        negative : decimal = value < 0;
+        if(negative) {
+            value = 0 - value;
+        }
+        value = floor(value).value;
+        if(value >= 1e18) {
+            // too big for digit-by-digit remainders: let the runtime print it
+            text := snprintf('f', negative ? 0 - value : value, 1);
+            return slice(text, 0, sizeof(text.data) - 2);
+        }
+
+        digits := new _int8[20];
+        pos : decimal = 20;
+        if(value == 0) {
+            digits[--pos] = '0';
+        }
+        while(value > 0) {
+            digit : decimal = value % 10;
+            digits[--pos] = '0' + digit;
+            value = (value - digit) / 10;
+        }
+        if(negative) {
+            digits[--pos] = '-';
+        }
+        return new string(digits, pos, 20);
+    }
+
+    /**
+     * A whole number in hexadecimal with lower case digits and no prefix:
+     * 255 gives "ff". `min_digits` pads with zeros on the left (pass 0 for
+     * no padding). Only for numbers from 0 up to 2^53.
+     * Throws illegal_argument_exception for a negative number.
+     */
+    static def int_to_hex(value: decimal, min_digits: decimal) : string {
+        if(value < 0) {
+            throw new illegal_argument_exception("int_to_hex: negative number");
+        }
+        value = floor(value).value;
+        digits := new _int8[32];
+        pos : decimal = 32;
+        while(value > 0 || (32 - pos) < min_digits || pos == 32) {
+            digit : decimal = value % 16;
+            if(digit < 10) {
+                digits[--pos] = '0' + digit;
+            } else {
+                digits[--pos] = 'a' + (digit - 10);
+            }
+            value = (value - digit) / 16;
+            if(pos == 0) {
+                break;
+            }
+        }
+        return new string(digits, pos, 32);
+    }
+
+    /**
+     * A number as short text that reads back as exactly the same number:
+     *   - whole numbers below 10^18 have no fraction: "3", "-120"
+     *   - other numbers get as few digits behind the point as are needed:
+     *     "0.1", "2.5", "3.141592653589793"
+     *   - very large and very small numbers use an exponent: "1.5e300", "2e-9"
+     *   - NaN gives "NaN", infinite values "Infinity" / "-Infinity"
+     */
+    static def number_to_string(value: decimal) : string {
+        if(value != value) {
+            return "NaN";
+        }
+        if(value - value != 0) {
+            // only an infinite value is left: infinity - infinity is NaN, which is != 0
+            if(value > 0) {
+                return "Infinity";
+            }
+            return "-Infinity";
+        }
+        if(value == 0) {
+            return "0";
+        }
+        magnitude : decimal = value;
+        if(magnitude < 0) {
+            magnitude = 0 - magnitude;
+        }
+        if(magnitude < 1e18 && floor(magnitude).value == magnitude) {
+            return int_to_string(value);
+        }
+        if(magnitude < 1e15 && magnitude >= 0.00001) {
+            return shortest_fixed(value);
+        }
+
+        // exponent form: mantissa (1 <= |m| < 10) and a power of ten
+        exponent : decimal = floor(log10(magnitude)).value;
+        mantissa : decimal = value / pow(10, exponent).value;
+        // log10 can be off by one right at a power of ten
+        abs_mantissa : decimal = mantissa < 0 ? 0 - mantissa : mantissa;
+        if(abs_mantissa >= 10) {
+            exponent++;
+            mantissa = value / pow(10, exponent).value;
+        } else if(abs_mantissa < 1) {
+            exponent--;
+            mantissa = value / pow(10, exponent).value;
+        }
+
+        // try mantissas with more and more digits until the text reads back as `value`
+        best : string = "";
+        for(precision : decimal = 1; precision <= 17; precision++) {
+            text := trim_fraction(snprintf('f', mantissa, precision));
+            best = text + "e" + int_to_string(exponent);
+            if(strtod(best).value == value) {
+                return best;
+            }
+        }
+        return best;
+    }
+
+    /** `value` with the fewest digits behind the point that read back as the same number */
+    private static def shortest_fixed(value: decimal) : string {
+        text : string = "";
+        for(precision : decimal = 1; precision <= 17; precision++) {
+            text = snprintf('f', value, precision);
+            if(strtod(text).value == value) {
+                break;
+            }
+        }
+        return trim_fraction(text);
+    }
+
+    /** remove zeros at the end of a fraction, and the point too when nothing is left behind it: "2.500" -> "2.5", "3.0" -> "3" */
+    private static def trim_fraction(text: string) : string {
+        if(index_of(text, '.', 0) < 0) {
+            return text;
+        }
+        end : decimal = sizeof(text.data);
+        while(end > 0 && text.data[end - 1] == '0') {
+            end--;
+        }
+        if(end > 0 && text.data[end - 1] == '.') {
+            end--;
+        }
+        return slice(text, 0, end);
+    }
+
+    /**
+     * A number with exactly `decimals` digits behind the point, rounded:
+     * fixed_to_string(3.14159, 2) gives "3.14", fixed_to_string(2, 1) gives
+     * "2.0". With decimals <= 0 the number is rounded to a whole number.
+     * `decimals` above 17 is treated as 17.
+     */
+    static def fixed_to_string(value: decimal, decimals: decimal) : string {
+        if(decimals > 17) {
+            decimals = 17;
+        }
+        if(decimals <= 0) {
+            return int_to_string(round(value).value);
+        }
+        return snprintf('f', value, decimals);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* text to numbers                                                     */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * True when `s` is a whole number in decimal: an optional '+' or '-'
+     * followed by at least one digit and nothing else (no spaces).
+     */
+    static def is_int(s: string) : bool {
+        n : decimal = sizeof(s.data);
+        i : decimal = 0;
+        if(n > 0 && (s.data[0] == '-' || s.data[0] == '+')) {
+            i = 1;
+        }
+        if(i >= n) {
+            return false;
+        }
+        for(; i < n; i++) {
+            if(!is_digit(s.data[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The value of a whole number written in decimal (see is_int for the
+     * accepted form). Throws number_format_exception for anything else,
+     * including "" and text with spaces around the number.
+     */
+    static def parse_int(s: string) : decimal {
+        if(!is_int(s)) {
+            throw new number_format_exception("not a whole number: \"" + s + "\"");
+        }
+        n : decimal = sizeof(s.data);
+        i : decimal = 0;
+        negative : decimal = 0;
+        if(s.data[0] == '-') {
+            negative = 1;
+            i = 1;
+        } else if(s.data[0] == '+') {
+            i = 1;
+        }
+        value : decimal = 0;
+        for(; i < n; i++) {
+            value = value * 10 + (s.data[i] - '0');
+        }
+        if(negative) {
+            return 0 - value;
+        }
+        return value;
+    }
+
+    /**
+     * True when `s` is a decimal number: an optional sign, digits with an
+     * optional '.', and an optional exponent ("e" or "E", optional sign,
+     * digits). There must be at least one digit before the exponent.
+     * Examples: "12", "-0.5", ".5", "5.", "+1e10", "2.5E-3". Not accepted:
+     * "", "abc", "1e", "--1", " 1", "0x10", "NaN".
+     */
+    static def is_number(s: string) : bool {
+        n : decimal = sizeof(s.data);
+        i : decimal = 0;
+        if(n > 0 && (s.data[0] == '-' || s.data[0] == '+')) {
+            i = 1;
+        }
+        digits : decimal = 0;
+        while(i < n && is_digit(s.data[i])) {
+            i++;
+            digits++;
+        }
+        if(i < n && s.data[i] == '.') {
+            i++;
+            while(i < n && is_digit(s.data[i])) {
+                i++;
+                digits++;
+            }
+        }
+        if(digits == 0) {
+            return false;
+        }
+        if(i < n && (s.data[i] == 'e' || s.data[i] == 'E')) {
+            i++;
+            if(i < n && (s.data[i] == '-' || s.data[i] == '+')) {
+                i++;
+            }
+            exponent_digits : decimal = 0;
+            while(i < n && is_digit(s.data[i])) {
+                i++;
+                exponent_digits++;
+            }
+            if(exponent_digits == 0) {
+                return false;
+            }
+        }
+        return i == n;
+    }
+
+    /**
+     * The value of a decimal number (see is_number for the accepted form).
+     * Throws number_format_exception for anything else.
+     */
+    static def parse_number(s: string) : decimal {
+        if(!is_number(s)) {
+            throw new number_format_exception("not a number: \"" + s + "\"");
+        }
+        return strtod(s).value;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* sorting                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Sort the strings of `items` in place by character code (see
+     * compare(): upper case letters come before lower case ones, a shorter
+     * string before a longer one that starts with it). Equal strings keep
+     * their order. Uses a merge sort, so large lists are fine.
+     */
+    static def sort(items: list<string>) {
+        count : decimal = items.size().value;
+        if(count < 2) {
+            return;
+        }
+
+        from := new string[count];
+        to := new string[count];
+        for(i : decimal = 0; i < count; i++) {
+            from[i] = items.at(i);
+        }
+
+        // bottom-up merge sort: merge runs of 1, 2, 4, ... elements
+        for(width : decimal = 1; width < count; width = width * 2) {
+            for(left : decimal = 0; left < count; left += width * 2) {
+                middle : decimal = left + width;
+                if(middle > count) {
+                    middle = count;
+                }
+                right : decimal = left + width * 2;
+                if(right > count) {
+                    right = count;
+                }
+
+                a : decimal = left;
+                b : decimal = middle;
+                for(out : decimal = left; out < right; out++) {
+                    if(a < middle && (b >= right || compare(from[a], from[b]) <= 0)) {
+                        to[out] = from[a++];
+                    } else {
+                        to[out] = from[b++];
+                    }
+                }
+            }
+            swap := from;
+            from = to;
+            to = swap;
+        }
+
+        for(i : decimal = 0; i < count; i++) {
+            items.put(i, from[i]);
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* the shell                                                           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * `text` written so that the command line of the operating system
+     * (see sys()) takes it as one argument, whatever spaces or special
+     * characters it contains.
+     *
+     * On unix the text is put in single quotes (a single quote inside
+     * becomes '\''). On windows it is put in double quotes; a double quote
+     * cannot be part of a windows file name and is dropped.
+     */
+    static def shell_quote(text: string) : string {
+        n : decimal = sizeof(text.data);
+        buf := new char_buffer(n + 8);
+        if(build.is_windows()) {
+            buf.append_char('"');
+            for(i : decimal = 0; i < n; i++) {
+                if(text.data[i] != '"') {
+                    buf.append_char(text.data[i]);
+                }
+            }
+            buf.append_char('"');
+        } else {
+            buf.append_char(39); // 39 is the single quote
+            for(i : decimal = 0; i < n; i++) {
+                if(text.data[i] == 39) {
+                    buf.append_char(39);
+                    buf.append_char(92); // back slash
+                    buf.append_char(39);
+                    buf.append_char(39);
+                } else {
+                    buf.append_char(text.data[i]);
+                }
+            }
+            buf.append_char(39);
+        }
+        return buf.to_string()!!;
+    }
+}

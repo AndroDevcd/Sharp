@@ -1,0 +1,269 @@
+mod std.io;
+
+/**
+ * Reads from a string in memory: character by character, line by line, or
+ * in pieces of a given size.
+ *
+ *     input := new string_text_reader("alpha\nbeta\n");
+ *     first := input.read_line();       // "alpha"
+ *     c := input.read_char();           // 'b'
+ *     rest := input.read_all();         // "eta\n"
+ *
+ * Besides the text_reader functions it knows where it is (position(),
+ * line(), column()) and can go back (seek(), unread()).
+ *
+ * The string is not copied or changed. Not thread safe.
+ */
+class string_text_reader : text_reader, loopable<string> {
+    /** the characters that are read (null for an empty text) */
+    private chars : _int8[]?;
+    /** how many characters there are */
+    private count : decimal = 0;
+    /** the index of the character read_char() returns next */
+    private pos : decimal = 0;
+    private closed : decimal = 0;
+
+    /** a reader for `text`; a null or empty string is a text without characters */
+    string_text_reader(text: string) {
+        if(!io_strings.is_null(text)) {
+            chars = text.data;
+            count = sizeof(text.data);
+        }
+    }
+
+    private def check_open() {
+        if(closed) {
+            throw new io_exception("the reader is closed");
+        }
+    }
+
+    /** the next character (0..255), or -1 at the end. Throws io_exception when closed. */
+    override def read_char() : decimal {
+        check_open();
+        if(pos >= count) {
+            return 0 - 1;
+        }
+        return chars[pos++] & 0xff;
+    }
+
+    /** the next character without taking it, or -1 at the end. Throws io_exception when closed. */
+    override def peek_char() : decimal {
+        check_open();
+        if(pos >= count) {
+            return 0 - 1;
+        }
+        return chars[pos] & 0xff;
+    }
+
+    /**
+     * The character `offset` places ahead without taking anything:
+     * peek_char_at(0) is peek_char(), peek_char_at(1) the one behind it.
+     * -1 when that is past the end (or offset is negative).
+     * Throws io_exception when closed.
+     */
+    def peek_char_at(offset: decimal) : decimal {
+        check_open();
+        if(offset < 0 || pos + offset >= count) {
+            return 0 - 1;
+        }
+        return chars[pos + offset] & 0xff;
+    }
+
+    /**
+     * The text up to the next line end ("\n", "\r\n" or "\r") without the
+     * line end; the line end is taken too. null at the end of the text.
+     * Throws io_exception when closed.
+     */
+    override def read_line() : string? {
+        check_open();
+        if(pos >= count) {
+            return null;
+        }
+
+        start : decimal = pos;
+        while(pos < count && chars[pos] != '\n' && chars[pos] != '\r') {
+            pos++;
+        }
+        line : string = "";
+        if(pos > start) {
+            line = new string(chars!!, start, pos);
+        }
+
+        // take the line end: "\n", "\r" or "\r\n"
+        if(pos < count) {
+            if(chars[pos] == '\r' && pos + 1 < count && chars[pos + 1] == '\n') {
+                pos += 2;
+            } else {
+                pos++;
+            }
+        }
+        return line;
+    }
+
+    /** everything that has not been read yet ("" at the end). Throws io_exception when closed. */
+    override def read_all() : string {
+        check_open();
+        if(pos >= count) {
+            return "";
+        }
+        rest := new string(chars!!, pos, count);
+        pos = count;
+        return rest;
+    }
+
+    /**
+     * The next `length` characters as a string - fewer when the text ends
+     * before that, "" at the end. Throws illegal_argument_exception for a
+     * negative length and io_exception when closed.
+     */
+    def read(length: decimal) : string {
+        check_open();
+        if(length < 0) {
+            throw new illegal_argument_exception("read: negative length");
+        }
+        end : decimal = pos + length;
+        if(end > count) {
+            end = count;
+        }
+        if(end <= pos) {
+            return "";
+        }
+        piece := new string(chars!!, pos, end);
+        pos = end;
+        return piece;
+    }
+
+    /**
+     * Step over up to `length` characters. Returns how many were stepped
+     * over (fewer at the end of the text). A negative length skips nothing.
+     * Throws io_exception when closed.
+     */
+    def skip(length: decimal) : decimal {
+        check_open();
+        if(length < 0) {
+            return 0;
+        }
+        skipped : decimal = length;
+        if(pos + skipped > count) {
+            skipped = count - pos;
+        }
+        pos += skipped;
+        return skipped;
+    }
+
+    /**
+     * Step back one character, so that it is read again. Returns false (and
+     * does nothing) at the very beginning of the text.
+     * Throws io_exception when closed.
+     */
+    def unread() : bool {
+        check_open();
+        if(pos == 0) {
+            return false;
+        }
+        pos--;
+        return true;
+    }
+
+    /** true when there is at least one more character. Throws io_exception when closed. */
+    override def has_more() : bool {
+        check_open();
+        return pos < count;
+    }
+
+    /** how many characters have not been read yet */
+    def remaining() : decimal {
+        return count - pos;
+    }
+
+    /** the number of characters in the whole text */
+    def length() : decimal {
+        return count;
+    }
+
+    /** the index of the next character to be read: 0 at the beginning, length() at the end */
+    def position() : decimal {
+        return pos;
+    }
+
+    /**
+     * Continue reading at index `position` (0 = start over, length() = the
+     * end). Throws illegal_argument_exception when the position is outside
+     * 0 .. length().
+     */
+    def seek(position: decimal) {
+        if(position < 0 || position > count) {
+            throw new illegal_argument_exception("seek: position " + io_strings.int_to_string(position)
+                + " is outside 0.." + io_strings.int_to_string(count));
+        }
+        pos = position;
+    }
+
+    /**
+     * The number of the line the next character is on, counting from 1.
+     * Counted from the beginning of the text on each call (it costs time
+     * proportional to the position), so that seek() and unread() never make
+     * it wrong.
+     */
+    def line() : decimal {
+        number : decimal = 1;
+        for(i : decimal = 0; i < pos; i++) {
+            if(chars[i] == '\n') {
+                number++;
+            } else if(chars[i] == '\r' && !(i + 1 < count && chars[i + 1] == '\n')) {
+                number++;
+            }
+        }
+        return number;
+    }
+
+    /** the place of the next character within its line, counting from 1 */
+    def column() : decimal {
+        start : decimal = pos;
+        while(start > 0 && chars[start - 1] != '\n' && chars[start - 1] != '\r') {
+            start--;
+        }
+        return pos - start + 1;
+    }
+
+    /**
+     * All lines that have not been read yet, which reads the text to its
+     * end. An empty list at the end. Throws io_exception when closed.
+     */
+    def read_lines() : list<string> {
+        lines := new list<string>();
+        line := read_line();
+        while(!io_strings.is_null(line)) {
+            lines.add(line!!);
+            line = read_line();
+        }
+        return lines;
+    }
+
+    /**
+     * Makes `foreach(line in reader)` work: the remaining lines as an
+     * array (null when there are none). Reads the text to its end.
+     */
+    override def get_elements() : string[]? {
+        lines := read_lines();
+        count_lines : decimal = lines.size().value;
+        if(count_lines == 0) {
+            return null;
+        }
+        result := new string[count_lines];
+        for(i : decimal = 0; i < count_lines; i++) {
+            result[i] = lines.at(i);
+        }
+        return result;
+    }
+
+    /** finish with the reader; reading afterwards throws io_exception. Closing twice is fine. */
+    override def close() {
+        closed = 1;
+    }
+
+    /** true once close() was called */
+    def is_closed() : bool {
+        return closed != 0;
+    }
+}

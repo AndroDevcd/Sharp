@@ -1,0 +1,179 @@
+mod backend.finalizer.verify;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * THE KIND OF EVERY SLOT AN IR INSTRUCTION TOUCHES (doc/codegen.md 5.2, 5.7)
+ *
+ * A slot holds a whole number, a decimal or a reference, and never changes
+ * (ir.sharp). Every IR instruction expects its slots to be of certain kinds:
+ *
+ *      decimal_binary pow %3, %1, %2       all three hold decimals
+ *      int_compare lt %4, %1, %2           whole numbers in, a whole number (1 or 0) out
+ *      get_field %5, %0.name               %0 a reference; %5 what the field holds
+ *
+ * The VM does not check any of it: a decimal written into a whole-number slot
+ * is simply read back as the bits of that decimal (`7 ** 2` printed
+ * 4632092954238910464 once - the bits of 49.0 - because its result slot was
+ * of the wrong kind). So the mistake is looked for here, in the IR, before the
+ * code is written: the textbook "type check of the intermediate code". It is
+ * the static form of the runtime's kind checker (lib/runtime/memory/type_check.h).
+ *
+ * The slots a `try` names for its caught exceptions (a catch clause's
+ * variable, a finally's hidden slot) must hold references: the VM stores the
+ * exception object there.
+ *
+ * One pass over the instructions. Nothing is allocated while everything is
+ * right (the check runs on every function of every compile): the sentence
+ * that says what is wrong is only made for the one instruction that is.
+ * `asm` blocks are not checked (their operands are written by hand).
+ *
+ * Returns null when every instruction is right, else what is wrong with the
+ * first one that is not (reported as E0970: a bug of the compiler).
+ */
+def check_slot_kinds(code: ir_function) : string? {
+    for(i : _int64 = 0; i < code.instructions.size(); i++) {
+        made := code.instructions.at(i);
+        if(kinds_fit(code, made) == 0) {
+            return "IR instruction " + i + " reads or writes a slot of the wrong kind: `" + instruction_text(made)
+                   + "` (-ir shows the kind of every slot)";
+        }
+    }
+    // the VM stores a caught exception (an object) into the slot a catch clause or a finally names
+    for(i : _int64 = 0; i < code.tries.size(); i++) {
+        region := code.tries.at(i);
+        for(j : _int64 = 0; j < region.catch_slots.count; j++) {
+            slot : _int64 = region.catch_slots.at(j);
+            if(slot >= 0 && !holds(code, slot, SLOT_REF)) { return "try " + i + ": catch clause " + j + " stores its exception into a slot that is not a reference"; }
+        }
+        if(region.has_finally == 1 && !holds(code, region.finally_slot, SLOT_REF)) {
+            return "try " + i + ": the finally block's exception slot is not a reference";
+        }
+    }
+    return null;
+}
+
+/** 1 when every slot of the instruction is of the kind the instruction works on */
+def kinds_fit(code: ir_function, made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_INT_CONSTANT) { return holds(code, made.target, SLOT_INT); }
+    if(kind == IR_DECIMAL_CONSTANT) { return holds(code, made.target, SLOT_DEC); }
+    if(kind == IR_NULL || kind == IR_TEXT || kind == IR_NEW_OBJECT) { return holds(code, made.target, SLOT_REF); }
+    if(kind == IR_COPY) {
+        return known(code, made.target) && known(code, made.first)
+               && code.slot_kinds.at(made.target) == code.slot_kinds.at(made.first);
+    }
+    if(kind == IR_CONVERT) {
+        from : _int64 = SLOT_INT;
+        to : _int64 = SLOT_INT;
+        if(made.number == CONVERT_INT_TO_DECIMAL) { to = SLOT_DEC; }
+        if(made.number == CONVERT_DECIMAL_TO_INT || made.number == CONVERT_TRUTH) { from = SLOT_DEC; }
+        return holds(code, made.first, from) && holds(code, made.target, to);
+    }
+    if(kind == IR_INT_BINARY || kind == IR_INT_COMPARE) { return operation_fits(code, made, SLOT_INT, SLOT_INT); }
+    if(kind == IR_INT_IMMEDIATE) { return holds(code, made.first, SLOT_INT) && holds(code, made.target, SLOT_INT); }
+    if(kind == IR_DECIMAL_BINARY) { return operation_fits(code, made, SLOT_DEC, SLOT_DEC); }
+    if(kind == IR_DECIMAL_COMPARE) { return operation_fits(code, made, SLOT_DEC, SLOT_INT); }
+    if(kind == IR_NEGATE) {
+        if(made.detail == 1) { return holds(code, made.first, SLOT_DEC) && holds(code, made.target, SLOT_DEC); }
+        return holds(code, made.first, SLOT_INT) && holds(code, made.target, SLOT_INT);
+    }
+    if(kind == IR_NOT) {
+        if(made.detail == 1) { return holds(code, made.first, SLOT_DEC) && holds(code, made.target, SLOT_INT); }
+        return holds(code, made.first, SLOT_INT) && holds(code, made.target, SLOT_INT);
+    }
+    if(kind == IR_SAME_OBJECT) { return operation_fits(code, made, SLOT_REF, SLOT_INT); }
+    if(kind == IR_IS_NULL || kind == IR_LENGTH || kind == IR_IS) {
+        return holds(code, made.first, SLOT_REF) && holds(code, made.target, SLOT_INT);
+    }
+    if(kind == IR_CAST || kind == IR_THROW || kind == IR_LOCK || kind == IR_UNLOCK) { return holds(code, made.first, SLOT_REF); }
+    if(kind == IR_GET_FIELD) {
+        return holds(code, made.first, SLOT_REF) && holds(code, made.target, kind_a_field_holds(made.declaration));
+    }
+    if(kind == IR_GET_STATIC) { return holds(code, made.target, kind_a_field_holds(made.declaration)); }
+    if(kind == IR_SET_FIELD) {
+        return holds(code, made.first, SLOT_REF) && holds(code, made.second, kind_a_field_holds(made.declaration));
+    }
+    if(kind == IR_SET_STATIC) { return holds(code, made.second, kind_a_field_holds(made.declaration)); }
+    if(kind == IR_NEW_ARRAY) { return holds(code, made.first, SLOT_INT) && holds(code, made.target, SLOT_REF); }
+    if(kind == IR_GET_ELEMENT) {
+        return holds(code, made.first, SLOT_REF) && holds(code, made.second, SLOT_INT)
+               && holds(code, made.target, kind_of_element(made.number));
+    }
+    if(kind == IR_SET_ELEMENT) {
+        return holds(code, made.first, SLOT_REF) && holds(code, made.second, SLOT_INT)
+               && holds(code, made.detail, kind_of_element(made.number));
+    }
+    if(kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS) { return holds(code, made.first, SLOT_INT); }
+    if(kind == IR_CALL) { return call_fits(code, made); }
+    if(kind == IR_CALL_VALUE) { return holds(code, made.first, SLOT_REF); }
+    if(kind == IR_RETURN_VALUE) { return known(code, made.first); }
+    return 1;
+}
+
+/**
+ * A call: the result slot is of the kind the function returns, and each
+ * argument slot of the kind its parameter takes (`self`, when the function
+ * has an object, is the argument before the parameters).
+ */
+def call_fits(code: ir_function, made: ir_instruction) : _int64 {
+    if(made.declaration == null || made.arguments == null) { return 0; }
+    function := made.declaration as sharp_function;
+    if(made.target >= 0) {
+        if(function.result_type == null || function.result_type!!.is_nil()) { return 0; }
+        if(!holds(code, made.target, kind_of_type(function.result_type!!))) { return 0; }
+    }
+    arguments : number_list = made.arguments!!;
+    parameters : _int64 = function.parameters.size().value as _int64;
+    before : _int64 = arguments.count - parameters;         // 1 when `self` is handed over first, else 0
+    if(before < 0 || before > 1) { return 1; }              // (a function the generator made itself: nothing to compare with)
+    if(before == 1 && !holds(code, arguments.at(0), SLOT_REF)) { return 0; }
+    for(i : _int64 = 0; i < parameters; i++) {
+        type := function.parameters.at(i).value_type;
+        if(type != null && !holds(code, arguments.at(before + i), kind_of_type(type!!))) { return 0; }
+    }
+    return 1;
+}
+
+/** the kind of slot a value of this type lives in (the same rule as generation's `slot_kind_of`) */
+def kind_of_type(type: resolved_type) : _int64 {
+    if(type.is_array == 0 && type.kind == RT_INTEGER) { return SLOT_INT; }
+    if(type.is_array == 0 && type.kind == RT_DECIMAL) { return SLOT_DEC; }
+    return SLOT_REF;
+}
+
+/** what a field holds; an enum value (and anything that is not a field) holds a reference */
+def kind_a_field_holds(declared: sharp_declaration?) : _int64 {
+    if(declared == null || declared!!.kind != D_FIELD) { return SLOT_REF; }
+    type := (declared as sharp_field).value_type;
+    if(type == null) { return SLOT_REF; }
+    return kind_of_type(type!!);
+}
+
+/** what an element of an array holds, from its ELEMENT_... code: a reference, a decimal, a whole number */
+def kind_of_element(element: _int64) : _int64 {
+    if(element == ELEMENT_REFERENCE) { return SLOT_REF; }
+    if(element == VM_TYPE_DECIMAL) { return SLOT_DEC; }
+    return SLOT_INT;
+}
+
+/** is `slot` a slot of this function's frame? */
+def known(code: ir_function, slot: _int64) : _int64 {
+    return slot >= 0 && slot < code.slot_kinds.count;
+}
+
+/** is `slot` a slot of the frame, of kind `wanted`? */
+def holds(code: ir_function, slot: _int64, wanted: _int64) : _int64 {
+    return slot >= 0 && slot < code.slot_kinds.count && code.slot_kinds.at(slot) == wanted;
+}
+
+/** `d = a op b`: both operands of kind `operands`, the target of kind `result` */
+def operation_fits(code: ir_function, made: ir_instruction, operands: _int64, result: _int64) : _int64 {
+    return holds(code, made.first, operands) && holds(code, made.second, operands) && holds(code, made.target, result);
+}

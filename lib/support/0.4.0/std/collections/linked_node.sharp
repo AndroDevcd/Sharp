@@ -1,0 +1,25 @@
+mod std.collections;
+
+/**
+ * @class linked_node
+ *
+ * One link of a `linked_list`: it holds an element and knows the node in
+ * front of it and the node behind it.
+ *
+ * This class is an implementation detail of linked_list (and of
+ * linked_list_iterator). Code that uses a linked_list never needs to touch
+ * its nodes.
+ */
+class linked_node<T> {
+    /** the element stored in this node */
+    value : T;
+    /** the node towards the tail of the list, null for the last node */
+    next : linked_node<T>?;
+    /** the node towards the head of the list, null for the first node */
+    prev : linked_node<T>?;
+
+    /** Create a node that is not linked to anything yet. */
+    linked_node(value: T) {
+        self->value = value;
+    }
+}

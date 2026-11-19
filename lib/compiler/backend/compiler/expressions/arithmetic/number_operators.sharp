@@ -1,0 +1,173 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * OPERATORS ON NUMBERS:  a + b   a < b   a & b   a ** b ...
+ *
+ * When the LEFT operand is a plain number, the right one must be a plain
+ * number too - or a number OBJECT (`5 + an_int`), whose number is used
+ * (doc/backend.md 7.5.6). The VM does the work; what the compiler decides is
+ * HOW (whole numbers or decimals) and the TYPE of the result, which is not
+ * decoration: it picks the overload the result is passed to (`"" + x` has a
+ * function for every kind of number).
+ *
+ *      operator             worked out as                      result type
+ *      -------------------  ---------------------------------  -----------------------------------
+ *      /                    decimals, always (7 / 2 is 3.5)    decimal
+ *      + - * **             decimals when either is one        decimal when either is one; else
+ *                           (** always: it is a power)         _int64 when either is a 64-bit whole
+ *                                                              number (_uint64 when both are
+ *                                                              unsigned); else _int32
+ *      % & | ^ << >>        whole numbers                      _int64 / _uint64 as above, else _int32
+ *      == != < > <= >=      decimals when either is one        bool
+ *
+ *      A `bool` is not a number here: two bools take == != & | ^ (the answer is a bool), and
+ *      nothing else. `flag == 1` and `flag + 1` are E0511.
+ *
+ * The "_int64 when an operand is 64 bits" rule is the one deliberate
+ * difference from the C++ compiler, which calls every whole-number result an
+ * _int32 - so `"" + (big + one)` printed a cut-down number (doc/backend.md D13).
+ *
+ *      E0511   the right side is not a number: `5 + "abc"` (help: put the text first)
+ *
+ *      C++ comparison: `compile_binary_numeric_expression`,
+ *      `compile_binary_integer_expression` and `arithmetic_result_type` in
+ *      binary/binary_expression.cpp.
+ */
+def number_operation(context: analysis_context, node: _int64, operation: _int64, left: bound_expression,
+                     right: bound_expression) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    number := as_plain_number(context, right, 0);
+    if(number == null) {
+        report_right_not_a_number(context, node, left, right);
+        return new bound_error(context.unit, node, error_type);
+    }
+    right_number : bound_expression = number!!;
+    if(right_number.type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+    if((left.type.is_boolean() || right_number.type.is_boolean()) && !bools_may_do(operation, left.type, right_number.type)) {
+        report_bool_operands(context, node, left, right_number);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    if(operation == P_SLASH && is_whole_zero(right_number)) {
+        // W1044 is the one message: the division is left as it is written and not worked out
+        // here, so that "infinity does not fit `_int64`" (W1037) is not said about it as well
+        warn_division_by_zero(context, right_number);
+        return new bound_binary(context.unit, node, operation, left, right_number, OPERANDS_DECIMAL,
+                                context.session.types.decimal_type);
+    }
+    if(is_number_literal(left) && is_number_literal(right_number)) {
+        folded := fold_literals(context, node, operation, left, right_number);
+        if(folded == null) { return new bound_error(context.unit, node, error_type); }
+        return folded!!;
+    }
+    if(operation == P_PERCENT && right_number.constant != null && right_number.constant!!.kind != CONST_TEXT
+       && whole_of(right_number.constant!!) == 0) {
+        report_remainder_by_zero(context, right_number);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    operands : _int64 = operands_of(operation, left.type, right_number.type);
+    made := new bound_binary(context.unit, node, operation, left, right_number, operands,
+                             number_result_type(context.session.types, operation, left.type, right_number.type));
+    made.constant = folded_constant(operation, left, right_number, operands);
+    return made;
+}
+
+/** may this operator be used on these operands, one of which is a `bool`? Two bools: == != & | ^ */
+def bools_may_do(operation: _int64, left: resolved_type, right: resolved_type) : _int64 {
+    if(!left.is_boolean() || !right.is_boolean()) { return 0; }
+    return operation == P_EQEQ || operation == P_NOTEQ || operation == P_AND || operation == P_OR || operation == P_XOR;
+}
+
+/** E0511: `flag == 1`, `flag + 1`, `a < b` on bools */
+def report_bool_operands(context: analysis_context, node: _int64, left: bound_expression, right: bound_expression) {
+    text := name_at(context, node);
+    help := "";
+    flag : bound_expression = left;
+    other : bound_expression = right;
+    if(left.type.is_boolean() == 0) { flag = right; other = left; }
+    if((text == "==" || text == "!=") && other.constant != null && other.constant!!.kind != CONST_TEXT) {
+        // `flag == 1` and `flag != 0` ask "is it true?"; `flag == 0` and `flag != 1` ask "is it false?"
+        is_zero : _int64 = whole_of(other.constant!!) == 0;
+        asks_true : _int64 = is_zero == 0;
+        if(text == "!=") { asks_true = is_zero; }
+        wanted := source_text_of(context, flag.node);
+        if(asks_true == 0) { wanted = "!" + wanted; }
+        help = "a `bool` is a condition by itself: write `" + wanted + "`";
+    }
+    report_operands_do_not_fit(context, node, left, right, "a `bool` is true or false, not a number: two bools take `==`, `!=`, `&`, `|` and `^`", help);
+}
+
+/** how the VM works it out: OPERANDS_DECIMAL or OPERANDS_INTEGER */
+def operands_of(operation: _int64, left: resolved_type, right: resolved_type) : _int64 {
+    if(operation == P_SLASH || operation == P_EXPONENT) { return OPERANDS_DECIMAL; }
+    if(is_whole_operation(operation)) { return OPERANDS_INTEGER; }
+    if(left.kind == RT_DECIMAL || right.kind == RT_DECIMAL) { return OPERANDS_DECIMAL; }
+    return OPERANDS_INTEGER;
+}
+
+/** the type of `left op right` for two plain numbers (the table above) */
+def number_result_type(types: type_table, operation: _int64, left: resolved_type, right: resolved_type) : resolved_type {
+    if(is_comparison(operation) || operation == P_ANDAND || operation == P_OROR || left.is_boolean()) { return types.bool_type; }
+    if(operation == P_SLASH) { return types.decimal_type; }
+    is_arithmetic : _int64 = operation == P_PLUS || operation == P_MINUS || operation == P_STAR || operation == P_EXPONENT;
+    if(is_arithmetic == 1 && (left.kind == RT_DECIMAL || right.kind == RT_DECIMAL)) { return types.decimal_type; }
+    return whole_result_type(types, left, right);
+}
+
+/** _int64 / _uint64 when an operand is a 64-bit whole number, else _int32 */
+def whole_result_type(types: type_table, left: resolved_type, right: resolved_type) : resolved_type {
+    left_wide : _int64 = left.kind == RT_INTEGER && left.bits == 64;
+    right_wide : _int64 = right.kind == RT_INTEGER && right.bits == 64;
+    if(left_wide == 0 && right_wide == 0) { return types.int32; }
+    both_unsigned : _int64 = left.kind == RT_INTEGER && left.is_signed == 0 && right.kind == RT_INTEGER && right.is_signed == 0;
+    if(both_unsigned == 1) { return types.uint64; }
+    return types.int64;
+}
+
+/** E0511: `5 + "abc"`, `n * a_point` - a number on the left and no number on the right */
+def report_right_not_a_number(context: analysis_context, node: _int64, left: bound_expression, right: bound_expression) {
+    text := name_at(context, node);
+    d := problem_at(context, "E0511", "`" + text + "` cannot be used with a number and " + described_value(right), node);
+    d.with_label("the left side is a number, so the right side must be one too");
+    add_call_it(context, d, right);         // `2 * total` with a function `total`: the `( )` is missing
+    // the two "write it the other way round" helps are for `a + b` only: `n += "x"` cannot be turned around
+    is_binary : _int64 = context.tree.kinds!![node] == N_BINARY;
+    if(right.literal == LIT_TEXT || right.type == context.session.string_type()) {
+        if(is_binary == 1 && token_kind_at(context, node) == P_PLUS) {
+            d.with_note("a number does not become text by itself; text on the LEFT of `+` does take a number");
+            d.with_help("put the text first: `\"\" + " + source_text_of(context, left.node) + " + " + source_text_of(context, right.node) + "`");
+        } else {
+            d.with_note("text is not a number, and `" + text + "` works on numbers only");
+            d.with_help("to read a number out of text use the library: `int.parse(...)`, `double.parse(...)`");
+        }
+    } else if(right.type.kind == RT_NULL) {
+        d.with_note("`null` means \"no object\"; it is not a number and cannot be calculated with");
+    } else if(right.type.kind == RT_CLASS && right.type.is_nullable == 1 && context.session.known.is_box(right.type.class_of!!)) {
+        d.with_note("`" + right.type.to_text() + "` may be null, and null has no number");
+        d.with_help("say it is not null: `" + source_text_of(context, right.node) + "!!`");
+    } else if(right.type.kind == RT_CLASS) {
+        d.with_note("only the number classes (`int`, `double` ...) give their number here; `" + right.type.to_text() + "` is not one");
+        if(is_binary == 1) {
+            d.with_help("turn it around when `" + right.type.to_text() + "` has the operator: `" + source_text_of(context, right.node)
+                        + " " + text + " " + source_text_of(context, left.node) + "`");
+        }
+    } else if(right.type.is_array == 1) {
+        d.with_note("an array is not a number; one of its items is `" + source_text_of(context, right.node) + "[i]`, its length `sizeof("
+                    + source_text_of(context, right.node) + ")`");
+    }
+    report(context, d);
+}

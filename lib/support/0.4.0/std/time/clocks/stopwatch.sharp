@@ -1,0 +1,196 @@
+mod std.time;
+
+/**
+ * Measures elapsed time: start it, stop it, read how long it ran.
+ *
+ * A stopwatch can be stopped and started again; the time adds up, like the
+ * stopwatch on a phone. `lap()` records the time since the previous lap (or
+ * since the start) without stopping.
+ *
+ * The time comes from a `clock`. With no argument that is the system clock;
+ * a test passes a `manual_clock` and gets exact, repeatable numbers.
+ *
+ * How it stays exact: the stopwatch keeps the INSTANT it was started at and
+ * computes `duration.between(started_at, clock.now())`. Both are stored as
+ * seconds + nanoseconds, so the subtraction is exact. (The old
+ * time.measure converted two absolute nanosecond readings to the wanted
+ * unit first and subtracted afterwards, which loses up to one whole unit.)
+ *
+ * NOTE: the system clock is not monotonic (see `system_clock`). When it is
+ * set back while a stopwatch runs the raw difference would be negative; the
+ * stopwatch reports zero for that stretch instead of a negative time.
+ *
+ *     watch := stopwatch.started();
+ *     do_work();
+ *     println("took " + watch.elapsed().to_string());     // e.g. "took 1.25s"
+ */
+class stopwatch {
+    private source : clock;
+    /** when the current run began; only meaningful while `running` is 1 */
+    private started_at : instant;
+    /** the total of all finished runs */
+    private accumulated : duration;
+    private running : decimal = 0;
+
+    /** the elapsed() value at the moment of the last lap (or zero) */
+    private last_lap_mark : duration;
+    private lap_times : duration[];
+    private lap_total : decimal = 0;
+
+    /** a stopped stopwatch on the system clock, showing zero */
+    stopwatch() {
+        setup(system_clock.instance);
+    }
+
+    /** a stopped stopwatch that reads `time_source`, showing zero */
+    stopwatch(time_source: clock) {
+        setup(time_source);
+    }
+
+    private def setup(time_source: clock) {
+        source = time_source;
+        started_at = instant.epoch;
+        accumulated = duration.zero;
+        last_lap_mark = duration.zero;
+        lap_times = new duration[8];
+        lap_total = 0;
+        running = 0;
+    }
+
+    /** a new stopwatch on the system clock that is already running */
+    static def started(): stopwatch {
+        watch := new stopwatch();
+        watch.start();
+        return watch;
+    }
+
+    /** a new stopwatch on `time_source` that is already running */
+    static def started(time_source: clock): stopwatch {
+        watch := new stopwatch(time_source);
+        watch.start();
+        return watch;
+    }
+
+    /**
+     * Starts (or continues) measuring. The time already measured is kept.
+     * @throws illegal_state_exception when the stopwatch is already running
+     */
+    def start(): stopwatch {
+        if(running) {
+            throw new illegal_state_exception("the stopwatch is already running");
+        }
+        started_at = source.now();
+        running = 1;
+        return self;
+    }
+
+    /**
+     * Stops measuring and returns the total elapsed time. The stopwatch
+     * keeps that time and can be started again to add to it.
+     * @throws illegal_state_exception when the stopwatch is not running
+     */
+    def stop(): duration {
+        if(!running) {
+            throw new illegal_state_exception("the stopwatch is not running");
+        }
+        accumulated = accumulated.plus(current_run());
+        running = 0;
+        return accumulated;
+    }
+
+    /** stops the stopwatch (when running), sets it back to zero and forgets all laps */
+    def reset(): stopwatch {
+        setup(source);
+        return self;
+    }
+
+    /** `reset()` followed by `start()`: measuring begins again from zero */
+    def restart(): stopwatch {
+        setup(source);
+        return start();
+    }
+
+    /** 1 while the stopwatch is measuring */
+    def is_running(): decimal {
+        return running;
+    }
+
+    /**
+     * The total time measured so far: all finished runs plus, when running,
+     * the current one. Can be read at any time, running or stopped.
+     */
+    def elapsed(): duration {
+        if(running) {
+            return accumulated.plus(current_run());
+        }
+        return accumulated;
+    }
+
+    /** `elapsed()` in whole milliseconds */
+    def elapsed_millis(): decimal {
+        return elapsed().to_millis();
+    }
+
+    /** the length of the run in progress; zero when the clock went backwards */
+    private def current_run(): duration {
+        run : duration = duration.between(started_at, source.now());
+        if(run.is_negative()) {
+            return duration.zero;
+        }
+        return run;
+    }
+
+    /**
+     * Records a lap: returns the time measured since the previous `lap()`
+     * (or since the stopwatch started from zero) and remembers it. The
+     * stopwatch keeps running. Only time during which the stopwatch was
+     * running counts.
+     */
+    def lap(): duration {
+        total : duration = elapsed();
+        this_lap : duration = total.minus(last_lap_mark);
+        last_lap_mark = total;
+
+        if(lap_total >= sizeof(lap_times)) {
+            bigger : duration[] = new duration[sizeof(lap_times) * 2];
+            for(i : decimal = 0; i < lap_total; i++) {
+                bigger[i] = lap_times[i];
+            }
+            lap_times = bigger;
+        }
+        lap_times[lap_total] = this_lap;
+        lap_total++;
+        return this_lap;
+    }
+
+    /** how many laps have been recorded since the last reset */
+    def lap_count(): decimal {
+        return lap_total;
+    }
+
+    /**
+     * The time of lap number `index` (0 is the first lap).
+     * @throws out_of_bounds_exception when there is no such lap
+     */
+    def lap_at(index: decimal): duration {
+        if(index < 0 || index >= lap_total) {
+            throw new out_of_bounds_exception("lap " + time_math.whole_text(index) + " does not exist, there are "
+                + time_math.whole_text(lap_total) + " laps");
+        }
+        return lap_times[index];
+    }
+
+    /** all recorded lap times in order, as a new array (empty when there are none) */
+    def laps(): duration[] {
+        result : duration[] = new duration[lap_total];
+        for(i : decimal = 0; i < lap_total; i++) {
+            result[i] = lap_times[i];
+        }
+        return result;
+    }
+
+    /** the elapsed time in readable form, e.g. "1.25s" (see duration.to_string) */
+    override def to_string(): string? {
+        return elapsed().to_string();
+    }
+}

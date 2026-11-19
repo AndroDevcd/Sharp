@@ -1,0 +1,23 @@
+mod std.collections;
+
+/**
+ * @interface iterable
+ *
+ * Implemented by everything that can hand out an `iterator` over its
+ * elements. All collections of std.collections implement it, which makes it
+ * possible to write a function once and use it with any of them:
+ *
+ *     def total(numbers: iterable<int>) : decimal {
+ *         sum : decimal = 0;
+ *         it := numbers.iterator();
+ *         while(it.has_next()) sum += it.next().value;
+ *         return sum;
+ *     }
+ */
+interface iterable<T> {
+    /**
+     * Create a new iterator that starts in front of the first element.
+     * Each call returns an independent iterator.
+     */
+    def iterator() : iterator<T>;
+}

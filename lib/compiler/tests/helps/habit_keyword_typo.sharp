@@ -1,0 +1,11 @@
+// expect: E0400
+// help: while(n < 3) { ... }
+// replace: whlie(n < 3) { }
+// dots: n++;
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    n : _int64 = 0;
+    whlie(n < 3) { }
+}

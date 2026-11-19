@@ -1,0 +1,365 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.ir
+)
+
+/**
+ * LAYOUT: NUMBERS AND NAMES FOR EVERYTHING THE EXECUTABLE HOLDS
+ *
+ * The first step of code generation (doc/codegen.md 2.2). Before any code is
+ * made, every class, function and field that goes into the file gets the
+ * number the VM will know it by:
+ *
+ *      class string            address 14         (its place in the VM's class table)
+ *      def string.append(...)  address 230        (its place in the method table: `call 230`)
+ *      string.data             slot 0             (its place in every string object: `movn 0`)
+ *
+ * because code refers to all of them by number, and the code of one function
+ * names functions and classes laid out anywhere in the program.
+ *
+ *      1. what is kept              kept.sharp            the walk from the roots
+ *      2. the order                 program_order.sharp   modules by dependency, classes as written
+ *      3. classes                   class_layout.sharp    addresses, field slots, interfaces,
+ *                                                         what init<C> / static_init<C> run
+ *      4. what code generation adds synthesized.sharp     module globals classes, @static_init_flag,
+ *                                                         init<C>, static_init<C>
+ *      5. functions                 function_layout.sharp addresses, kinds, flags, names
+ *      6. types                     function_types.sharp  the function-type table, VM type numbers
+ *      7. tables                    tables.sharp          strings, decimal constants, file names; a
+ *                                                         decimal as text the VM's strtod reads back exactly
+ *
+ * The files of this package (module `backend.finalizer.layout`): this front
+ * door (`program_layout`, `lay_out_program` and its steps for the classes),
+ * the seven above, and program_functions.sharp (the steps of lay_out_program
+ * for the functions: which class each belongs to, the init<C>, static_init<C>
+ * and component functions added, the addresses).
+ *
+ * ADDRESSES (codegen.md 6.15, 11.5, 11.6). Classes are numbered in the
+ * initialisation order (program_order.sharp: modules by a depth-first search over
+ * their imports, started at platform.kernel, each after what it imports) with one change: every module's
+ * `__srt_global` class comes first. No object is ever of such a class, so the
+ * VM's `is` - which cannot tell a class address from a number-array type, and
+ * so answers wrongly for the classes at 0 - 9 - can never be asked about one.
+ * Functions are numbered class by class in that order, each class's in the
+ * order they are written, its init<C> and static_init<C> last. Function 0 is
+ * `platform.tls_init` when the program has it: a function value with address
+ * 0 is refused by the VM, and nothing takes the value of tls_init.
+ *
+ *      C++ comparison: the `optimize` half of finalizer.cpp - mark what is used,
+ *      then assign addresses (`create_class_addresses`, `create_function_addresses`).
+ */
+class program_layout {
+    analysed : analysed_program;
+    classes : list<class_layout>;                   // by address
+    functions : list<function_layout>;              // by address
+    initialization_order : list<class_layout>;      // the order static parts run in (6.15)
+    module_globals : name_table<class_layout>;      // module name -> its __srt_global class
+    function_types : function_type_table;
+    strings : text_table;                           // the string section (3.6)
+    constants : text_table;                         // the decimal constant section: the texts strtod reads
+    files : text_table;                             // the meta section: source files (3.9)
+    file_units : list<source_unit>;                 // the same files as the units that hold their text (-dbg writes it)
+    fiber_slots : numbered;                         // how many fiber-local slots `localized` fields take
+    entry : function_layout?;                       // where the VM starts (the manifest's entry)
+    kept_functions : _int64 = 0;
+    application_id : _int64 = 0;
+    direct_calls : number_list;                     // per function address: may a virtual call of it go straight to its
+                                                    // body? 1 / 0, -1 not asked yet (generation/calls/dispatch.sharp)
+
+    program_layout(analysed: analysed_program) {
+        self->analysed = analysed;
+        classes = new list<class_layout>();
+        functions = new list<function_layout>();
+        initialization_order = new list<class_layout>();
+        module_globals = new name_table<class_layout>();
+        function_types = new function_type_table();
+        strings = new text_table();
+        constants = new text_table();
+        files = new text_table();
+        file_units = new list<source_unit>();
+        fiber_slots = new numbered(0);
+        direct_calls = new number_list();
+    }
+
+    /** the layout of a kept class */
+    def class_of(declared: sharp_class) : class_layout {
+        return classes.at(declared.address);
+    }
+
+    /** the layout of a kept function */
+    def function_of(declared: sharp_function) : function_layout {
+        return functions.at(declared.address);
+    }
+
+    /** the class whose static object holds a static field or global (its module's globals for a global) */
+    def storage_class_of(field: sharp_field) : class_layout {
+        if(field.owner == null) { return module_globals.at(field.module.name)!!; }
+        return classes.at(field.owner!!.address);
+    }
+}
+
+/**
+ * Lay out the whole program. `eager` keeps everything analysis has
+ * (-eager), `file_order` is the source files as the command line gave them
+ * (the order everything is numbered in). The steps, each a function below
+ * or in program_functions.sharp:
+ *
+ *      1. the classes: which, in what order, their addresses      number_the_classes
+ *      2. what is inside each class: links, field slots,          lay_out_class_contents
+ *         what its init<C> / static_init<C> run, interfaces
+ *      3. fiber-local slots of `localized` locals                 give_fiber_slots_to_localized_locals
+ *      4. the functions of each class, its init<C> and            functions_per_class
+ *         static_init<C>, the functions of component definitions
+ *      5. function addresses                                      number_the_functions
+ *      6. what the file says about each: delegate, source file,   note_what_the_file_names
+ *         the types it names
+ */
+def lay_out_program(analysed: analysed_program, eager: _int64, file_order: list<string>) : program_layout {
+    layout := new program_layout(analysed);
+    walk := walk_kept(analysed, eager);
+    order := new program_order(file_order);
+    // the component definitions some kept code receives a value from (codegen.md 6.16)
+    definitions := kept_definitions(analysed.prog);
+
+    number_the_classes(layout, walk, order, definitions);
+    lay_out_class_contents(layout);
+    give_fiber_slots_to_localized_locals(layout, walk);
+    per_class := functions_per_class(layout, walk, order, definitions);
+    number_the_functions(layout, per_class);
+    note_what_the_file_names(layout);
+
+    // where the VM starts: platform.srt_init
+    start : sharp_function? = analysed.startup_function;
+    if(start != null && start!!.kept == 1) { layout.entry = layout.function_of(start!!); }
+    layout.kept_functions = layout.functions.size().value as _int64;
+    for(i : _int64 = 0; i < layout.functions.size(); i++) { layout.direct_calls.add(0 - 1); }
+    return layout;
+}
+
+/**
+ * Step 1: every class of the executable gets its address. The order is the
+ * initialisation order (module by module in dependency order, a module's
+ * `__srt_global` class before its classes, the classes of closure records
+ * last), with every `__srt_global` class moved to the front (the header of
+ * this file says why).
+ */
+def number_the_classes(layout: program_layout, walk: kept_walk, order: program_order, definitions: list<type_definition>) {
+    modules := modules_in_dependency_order(layout.analysed.prog, order);
+
+    // the kept classes, sorted into their modules
+    per_module := new name_table<list<class_layout>>();
+    for(i : _int64 = 0; i < modules.size(); i++) { per_module.put(modules.at(i).name, new list<class_layout>()); }
+    for(i : _int64 = 0; i < walk.classes.size(); i++) {
+        declared := walk.classes.at(i);
+        made := new class_layout(declared, declared.module);
+        name_class(made);
+        made.position = order.position_of(declared.written);
+        found := per_module.at(declared.module.name);
+        if(found != null) { found!!.add(made); }
+    }
+
+    needs_globals := modules_with_something_kept(walk, definitions);
+    globals_first := new list<class_layout>();
+    others := new list<class_layout>();
+    for(i : _int64 = 0; i < modules.size(); i++) {
+        module := modules.at(i);
+        if(needs_globals.at(module.name) != null) {
+            globals_class := make_module_globals_class(module);
+            if(globals_class != null) {
+                made := new class_layout(globals_class!!, module);
+                made.is_module_globals = 1;
+                name_class(made);
+                layout.module_globals.put(module.name, made);
+                layout.initialization_order.add(made);
+                globals_first.add(made);
+            }
+        }
+        classes_of := per_module.at(module.name)!!;
+        sort_classes(classes_of);
+        for(j : _int64 = 0; j < classes_of.size(); j++) {
+            layout.initialization_order.add(classes_of.at(j));
+            others.add(classes_of.at(j));
+        }
+    }
+
+    // the classes of the closure records (codegen.md 6.12), after every class the program declares
+    closures := new name_table<numbered>();
+    for(i : _int64 = 0; i < walk.functions.size(); i++) {
+        function := walk.functions.at(i);
+        if(function.closure != null) {
+            add_closure_class(layout, others, function.closure!!, "closure_" + function.full_name(), function.module, closures);
+        }
+    }
+    for(i : _int64 = 0; i < walk.fields.size(); i++) {
+        field := walk.fields.at(i);
+        if(field.closure != null) {
+            add_closure_class(layout, others, field.closure!!, "closure_" + field.full_name(), field.module, closures);
+        }
+    }
+
+    for(i : _int64 = 0; i < globals_first.size(); i++) { number_class(layout, globals_first.at(i)); }
+    for(i : _int64 = 0; i < others.size(); i++) { number_class(layout, others.at(i)); }
+}
+
+/**
+ * The modules that need a `__srt_global` class (by name): those with a kept
+ * class, global, function or component definition. Also a module with only
+ * classes gets one: in the file a top-level class is "nested" in it.
+ */
+def modules_with_something_kept(walk: kept_walk, definitions: list<type_definition>) : name_table<numbered> {
+    needs_globals := new name_table<numbered>();
+    for(i : _int64 = 0; i < definitions.size(); i++) { needs_globals.put(definitions.at(i).owner.module.name, new numbered(1)); }
+    for(i : _int64 = 0; i < walk.classes.size(); i++) { needs_globals.put(walk.classes.at(i).module.name, new numbered(1)); }
+    for(i : _int64 = 0; i < walk.fields.size(); i++) { needs_globals.put(walk.fields.at(i).module.name, new numbered(1)); }
+    for(i : _int64 = 0; i < walk.functions.size(); i++) { needs_globals.put(walk.functions.at(i).module.name, new numbered(1)); }
+    return needs_globals;
+}
+
+/**
+ * Step 2: the inside of every class, once all of them have their address:
+ * the class around it and its base (link_class), the slots of its fields,
+ * what its init<C> and static_init<C> run, its `@static_init_flag` when it
+ * has a static part, and its interfaces (class_layout.sharp).
+ */
+def lay_out_class_contents(layout: program_layout) {
+    prog := layout.analysed.prog;
+    for(i : _int64 = 0; i < layout.classes.size(); i++) { link_class(layout, layout.classes.at(i)); }
+    for(i : _int64 = 0; i < layout.classes.size(); i++) {
+        made := layout.classes.at(i);
+        lay_out_fields(made, layout.fiber_slots, prog);
+        collect_entries(made);
+        if(made.has_static_part()) {
+            made.static_flag = make_static_flag(made, prog);
+            made.static_flag!!.address = made.static_fields.size().value as _int64;
+            made.static_fields.add(made.static_flag!!);
+        }
+        collect_interfaces(made, layout.classes);
+    }
+}
+
+/**
+ * Step 3: every `localized` local variable of a kept function gets the next
+ * fiber-local slot, after the slots of the `localized` fields (codegen.md
+ * 6.17): one value per fiber, so its home is the fiber, not the frame.
+ */
+def give_fiber_slots_to_localized_locals(layout: program_layout, walk: kept_walk) {
+    for(i : _int64 = 0; i < walk.functions.size(); i++) {
+        function := walk.functions.at(i);
+        if(function.locals == null) { continue; }
+        for(j : _int64 = 0; j < function.locals!!.size(); j++) {
+            variable := function.locals!!.at(j);
+            if(variable.is_localized == 1) {
+                make_fiber_local_field(variable, function.module, layout.fiber_slots.value);
+                layout.fiber_slots.value++;
+            }
+        }
+    }
+}
+
+/**
+ * Step 6: what the file's record of each function and field names beyond
+ * itself - the family root an override answers for (its delegate address),
+ * the source file, and every type written in a signature or a field (the
+ * function-type table and the VM's type numbers: function_types.sharp).
+ */
+def note_what_the_file_names(layout: program_layout) {
+    for(i : _int64 = 0; i < layout.functions.size(); i++) {
+        made := layout.functions.at(i);
+        root := made.of.family_root;
+        if(root != null && root!! != made.of && made.kind != FUNCTION_DELEGATE && root!!.kept == 1) {
+            made.delegate_address = root!!.address;
+        }
+        made.file_index = layout.files.number_of(made.of.unit.file);
+        if(layout.files.count() > layout.file_units.size()) { layout.file_units.add(made.of.unit); }
+        for(j : _int64 = 0; j < made.of.parameters.size(); j++) {
+            layout.function_types.note(made.of.parameters.at(j).value_type);
+        }
+        layout.function_types.note(made.of.result_type);
+    }
+    for(i : _int64 = 0; i < layout.classes.size(); i++) {
+        made := layout.classes.at(i);
+        for(j : _int64 = 0; j < made.instance_fields.size(); j++) {
+            layout.function_types.note(made.instance_fields.at(j).value_type);
+        }
+        for(j : _int64 = 0; j < made.static_fields.size(); j++) {
+            declared := made.static_fields.at(j);
+            if(declared.kind == D_FIELD) { layout.function_types.note((declared as sharp_field).value_type); }
+        }
+    }
+}
+
+/**
+ * The class of one closure record (synthesized.sharp), laid out as the last
+ * classes of the program: no static part, no base, never named by the program.
+ * `taken` holds the names given so far: a second record of the same name
+ * (two overloads of one function) gets `@2`, `@3` ... after it.
+ */
+def add_closure_class(layout: program_layout, others: list<class_layout>, record: closure_record, wanted: string,
+                      module: sharp_module, taken: name_table<numbered>) {
+    name : string = wanted;
+    seen := taken.at(wanted);
+    if(seen != null) {
+        seen!!.value++;
+        name = wanted + "@" + seen!!.value;
+    } else {
+        taken.put(wanted, new numbered(1));
+    }
+    declared := make_closure_class(record, name, module, layout.analysed.prog);
+    made := new class_layout(declared, module);
+    made.name = name;
+    made.full_name = module.name + "#" + name;
+    made.is_closure_record = 1;
+    layout.initialization_order.add(made);
+    others.add(made);
+}
+
+/**
+ * The component definitions the executable needs (codegen.md 6.16): those
+ * some KEPT code receives a value from (`type_definition.requested_by`), in
+ * the order the components are written. One whose value is missing (a
+ * definition analysis refused) is never kept: the program has an error then.
+ */
+def kept_definitions(prog: sharp_program) : list<type_definition> {
+    found := new list<type_definition>();
+    for(i : _int64 = 0; i < prog.components.size(); i++) {
+        definitions := prog.components.at(i).definitions;
+        for(j : _int64 = 0; j < definitions.size(); j++) {
+            definition := definitions.at(j);
+            if(definition.value == null || definition.provides == null) { continue; }
+            for(k : _int64 = 0; k < definition.requested_by.size(); k++) {
+                if(definition.requested_by.at(k).kept == 1) {
+                    found.add(definition);
+                    break;
+                }
+            }
+        }
+    }
+    return found;
+}
+
+/** give a class the next address; its guid is its address (unique, as `is` needs: codegen.md 11.3) */
+def number_class(layout: program_layout, made: class_layout) {
+    made.address = layout.classes.size().value as _int64;
+    made.of.address = made.address;
+    layout.classes.add(made);
+}
+
+/** the class it is nested in (for a top-level class, its module's globals class), and its base */
+def link_class(layout: program_layout, made: class_layout) {
+    if(made.is_module_globals == 1) { return; }
+    declared := made.of;
+    if(declared.owner != null && declared.owner!!.kept == 1 && declared.owner!!.address >= 0) {
+        made.owner_layout = layout.classes.at(declared.owner!!.address);
+    } else {
+        made.owner_layout = layout.module_globals.at(declared.module.name);
+    }
+    if(declared.base_class != null && declared.base_class!!.kept == 1 && declared.base_class!!.address >= 0) {
+        made.base_layout = layout.classes.at(declared.base_class!!.address);
+    }
+}

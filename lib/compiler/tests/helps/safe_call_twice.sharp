@@ -1,0 +1,16 @@
+// expect: W1027
+// help: found := x.find("ZZ");
+// before: missing :=
+// help: found != null ? found!!.price : -1
+// replace: x.find("ZZ")?.price ?: -1
+mod tests.helps;
+import (std, std.io);
+
+class item { price : _int64 = 1; }
+class shelf { def find(s: string) : item? { return null; } }
+
+def main() {
+    x := new shelf();
+    missing := x.find("ZZ")?.price ?: -1;
+    println("" + missing);
+}

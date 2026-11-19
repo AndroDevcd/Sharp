@@ -1,0 +1,331 @@
+mod std.time;
+
+/**
+ * A date together with a time of day, without a time zone:
+ * e.g. 2024-02-29T13:45:30 ("local date-time" in java.time and kotlin).
+ *
+ * It is what a calendar and a wall clock show somewhere, but it does not say
+ * WHERE, so on its own it is not a point on the time line. Combine it with a
+ * `zone_offset` (`at_offset`, `to_instant`) to get one.
+ *
+ * Unlike `time_of_day`, arithmetic here carries over midnight into the date:
+ * 2024-02-28T23:30 plus 1 hour is 2024-02-29T00:30.
+ *
+ * Precision: the date and the time are kept as a `date` and a `time_of_day`,
+ * so everything is exact to the nanosecond; nothing is ever stored as one
+ * big nanosecond count (which a `decimal` could not hold - see `instant`).
+ *
+ * Values are immutable.
+ *
+ *     dt := date_time.of(2024, 2, 28, 23, 30, 0);
+ *     dt.plus_hours(1).to_string()                 // "2024-02-29T00:30:00"
+ *     dt.to_epoch_second(zone_offset.utc)          // 1709163000
+ *     date_time.parse("1999-12-31T23:59:59").plus_seconds(1).year()   // 2000
+ */
+class date_time {
+    private date_part : date;
+    private time_part : time_of_day;
+
+    private date_time(day: date, at: time_of_day) {
+        date_part = day;
+        time_part = at;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /** the given date at the given time of day */
+    static def of(day: date, at: time_of_day): date_time {
+        return new date_time(day, at);
+    }
+
+    /**
+     * year-month-day hour:minute:second.nano
+     * @throws date_time_exception when a field is out of range or the day
+     *         does not exist in the month (see date.of and time_of_day.of)
+     */
+    static def of(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal, second: decimal, nano: decimal): date_time {
+        return new date_time(date.of(year, month_number, day), time_of_day.of(hour, minute, second, nano));
+    }
+
+    /** year-month-day hour:minute:second (ranges as above) */
+    static def of(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal, second: decimal): date_time {
+        return of(year, month_number, day, hour, minute, second, 0);
+    }
+
+    /** year-month-day hour:minute:00 (ranges as above) */
+    static def of(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal): date_time {
+        return of(year, month_number, day, hour, minute, 0, 0);
+    }
+
+    /**
+     * The local date and time at `offset` when it is `epoch_second` seconds
+     * (plus `nano` nanoseconds, 0 .. 999,999,999) after 1970-01-01T00:00:00Z.
+     *
+     * Method: add the offset to get "local seconds", then split with FLOOR
+     * division into days (86,400 s each) and the second of the day, so that
+     * moments before 1970 land on the right day.
+     *
+     * @throws date_time_exception when `nano` is out of range or the date
+     *         leaves the supported years
+     */
+    static def of_epoch_second(epoch_second: decimal, nano: decimal, offset: zone_offset): date_time {
+        time_math.check_whole("epoch second", epoch_second);
+        time_math.check_range("nanosecond", nano, 0, 999999999);
+        local_secs : decimal = epoch_second + offset.total_seconds();
+        days : decimal = time_math.floor_div(local_secs, 86400);
+        second_of_day : decimal = time_math.floor_mod(local_secs, 86400);
+        return new date_time(date.of_epoch_day(days), time_of_day.of_second_of_day(second_of_day).with_nano(nano));
+    }
+
+    /** the local date and time at `offset` at the moment `moment` */
+    static def of_instant(moment: instant, offset: zone_offset): date_time {
+        return of_epoch_second(moment.epoch_second(), moment.nano(), offset);
+    }
+
+    /** the current date and time in UTC, read from the system clock */
+    static def now(): date_time {
+        return of_instant(system_clock.instance.now(), zone_offset.utc);
+    }
+
+    /** the date and time at `offset` from UTC according to `source` (a clock a test can control) */
+    static def now(source: clock, offset: zone_offset): date_time {
+        return of_instant(source.now(), offset);
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    /** the date part */
+    def to_date(): date { return date_part; }
+    /** the time-of-day part */
+    def to_time(): time_of_day { return time_part; }
+
+    def year(): decimal { return date_part.year(); }
+    /** the month as a number 1 .. 12 */
+    def month_value(): decimal { return date_part.month_value(); }
+    /** the month as a `month` object */
+    def month_of_year(): month { return date_part.month_of_year(); }
+    /** the day of the month 1 .. 31 */
+    def day(): decimal { return date_part.day(); }
+    def day_of_week(): day_of_week { return date_part.day_of_week(); }
+    def day_of_year(): decimal { return date_part.day_of_year(); }
+    def hour(): decimal { return time_part.hour(); }
+    def minute(): decimal { return time_part.minute(); }
+    def second(): decimal { return time_part.second(); }
+    /** the fraction of the second in nanoseconds: 0 .. 999,999,999 */
+    def nano(): decimal { return time_part.nano(); }
+
+    // ------------------------------------------------------------------
+    //  converting to the time line
+    // ------------------------------------------------------------------
+
+    /**
+     * Seconds from 1970-01-01T00:00:00Z to this date and time when it is
+     * read at `offset`: epoch_day * 86400 + second_of_day - offset seconds.
+     * Negative before 1970. The fraction of the second is not included
+     * (it is `nano()`).
+     */
+    def to_epoch_second(offset: zone_offset): decimal {
+        return date_part.to_epoch_day() * 86400 + time_part.to_second_of_day() - offset.total_seconds();
+    }
+
+    /** the point on the time line this date and time is at `offset` */
+    def to_instant(offset: zone_offset): instant {
+        return instant.of_epoch_second(to_epoch_second(offset), time_part.nano());
+    }
+
+    /** this date and time labelled with `offset` (the fields stay the same) */
+    def at_offset(offset: zone_offset): offset_date_time {
+        return offset_date_time.of(self, offset);
+    }
+
+    // ------------------------------------------------------------------
+    //  arithmetic (each returns a new date_time)
+    // ------------------------------------------------------------------
+
+    /** calendar days later; the time of day is kept */
+    def plus_days(days: decimal): date_time { return new date_time(date_part.plus_days(days), time_part); }
+    def plus_weeks(weeks: decimal): date_time { return new date_time(date_part.plus_weeks(weeks), time_part); }
+    /** months later with end-of-month clamping (see date.plus_months); the time of day is kept */
+    def plus_months(months: decimal): date_time { return new date_time(date_part.plus_months(months), time_part); }
+    /** years later, 29 February clamped to 28 when needed; the time of day is kept */
+    def plus_years(years: decimal): date_time { return new date_time(date_part.plus_years(years), time_part); }
+
+    /** `hours` hours later (earlier when negative), carrying into the date */
+    def plus_hours(hours: decimal): date_time {
+        time_math.check_whole("hours", hours);
+        return plus_seconds_and_nanos(hours * 3600, 0);
+    }
+
+    /** `minutes` minutes later (earlier when negative), carrying into the date */
+    def plus_minutes(minutes: decimal): date_time {
+        time_math.check_whole("minutes", minutes);
+        return plus_seconds_and_nanos(minutes * 60, 0);
+    }
+
+    /** `seconds` seconds later (earlier when negative), carrying into the date */
+    def plus_seconds(seconds: decimal): date_time {
+        time_math.check_whole("seconds", seconds);
+        return plus_seconds_and_nanos(seconds, 0);
+    }
+
+    /** `nanos` nanoseconds later (earlier when negative), carrying into seconds and the date */
+    def plus_nanos(nanos: decimal): date_time {
+        time_math.check_whole("nanoseconds", nanos);
+        return plus_seconds_and_nanos(0, nanos);
+    }
+
+    def minus_days(days: decimal): date_time { return plus_days(0 - days); }
+    def minus_weeks(weeks: decimal): date_time { return plus_weeks(0 - weeks); }
+    def minus_months(months: decimal): date_time { return plus_months(0 - months); }
+    def minus_years(years: decimal): date_time { return plus_years(0 - years); }
+    def minus_hours(hours: decimal): date_time { return plus_hours(0 - hours); }
+    def minus_minutes(minutes: decimal): date_time { return plus_minutes(0 - minutes); }
+    def minus_seconds(seconds: decimal): date_time { return plus_seconds(0 - seconds); }
+    def minus_nanos(nanos: decimal): date_time { return plus_nanos(0 - nanos); }
+
+    /** this date and time plus an exact amount of time, carrying into the date */
+    def plus(amount: duration): date_time {
+        return plus_seconds_and_nanos(amount.seconds(), amount.nanos());
+    }
+
+    /** this date and time minus an exact amount of time */
+    def minus(amount: duration): date_time {
+        negative : duration = amount.negated();
+        return plus_seconds_and_nanos(negative.seconds(), negative.nanos());
+    }
+
+    /** this date and time plus a calendar amount (years and months, then days); the time of day is kept */
+    def plus(amount: period): date_time {
+        return new date_time(date_part.plus(amount), time_part);
+    }
+
+    /** this date and time minus a calendar amount; the time of day is kept */
+    def minus(amount: period): date_time {
+        return new date_time(date_part.minus(amount), time_part);
+    }
+
+    /**
+     * The one place where time-of-day arithmetic overflows into the date.
+     * Seconds and nanoseconds are handled separately so no intermediate
+     * value leaves the exact range of a `decimal`:
+     *     nanos        = nano of second + `nanos`,  carry = floor(nanos / 1e9)
+     *     seconds      = second of day + `seconds` + carry
+     *     days to add  = floor(seconds / 86400), new second of day = the remainder
+     */
+    private def plus_seconds_and_nanos(seconds: decimal, nanos: decimal): date_time {
+        nano_total : decimal = time_part.nano() + nanos;
+        carry : decimal = time_math.floor_div(nano_total, 1000000000);
+        new_nano : decimal = time_math.floor_mod(nano_total, 1000000000);
+        second_total : decimal = time_part.to_second_of_day() + seconds + carry;
+        days : decimal = time_math.floor_div(second_total, 86400);
+        new_second : decimal = time_math.floor_mod(second_total, 86400);
+        return new date_time(date_part.plus_days(days), time_of_day.of_second_of_day(new_second).with_nano(new_nano));
+    }
+
+    /**
+     * The exact time from this date-time to `other` (both read at the same
+     * offset): positive when `other` is later.
+     */
+    def until(other: date_time): duration {
+        return duration.of_seconds(other.to_epoch_second(zone_offset.utc) - to_epoch_second(zone_offset.utc),
+            other.nano() - nano());
+    }
+
+    // ------------------------------------------------------------------
+    //  changing a part (each returns a new date_time)
+    // ------------------------------------------------------------------
+
+    /** the same time of day on another date */
+    def with_date(day: date): date_time { return new date_time(day, time_part); }
+    /** the same date at another time of day */
+    def with_time(at: time_of_day): date_time { return new date_time(date_part, at); }
+    /** this date-time with the fraction of the second removed */
+    def truncated_to_seconds(): date_time { return new date_time(date_part, time_part.truncated_to_seconds()); }
+    /** this date-time with seconds and fraction set to 0 */
+    def truncated_to_minutes(): date_time { return new date_time(date_part, time_part.truncated_to_minutes()); }
+    /** this date-time with minutes, seconds and fraction set to 0 */
+    def truncated_to_hours(): date_time { return new date_time(date_part, time_part.truncated_to_hours()); }
+    /** this date at 00:00:00 */
+    def truncated_to_days(): date_time { return new date_time(date_part, time_of_day.midnight); }
+
+    // ------------------------------------------------------------------
+    //  comparing
+    // ------------------------------------------------------------------
+
+    /** -1 when this date-time is before `other`, 0 when equal, 1 when after */
+    def compare_to(other: date_time): decimal {
+        by_date : decimal = date_part.compare_to(other.date_part);
+        if(by_date != 0) {
+            return by_date;
+        }
+        return time_part.compare_to(other.time_part);
+    }
+
+    def is_before(other: date_time): decimal { return compare_to(other) < 0; }
+    def is_after(other: date_time): decimal { return compare_to(other) > 0; }
+
+    def operator==(other: date_time): decimal { return compare_to(other) == 0; }
+    def operator!=(other: date_time): decimal { return compare_to(other) != 0; }
+    def operator<(other: date_time): decimal { return compare_to(other) < 0; }
+    def operator<=(other: date_time): decimal { return compare_to(other) <= 0; }
+    def operator>(other: date_time): decimal { return compare_to(other) > 0; }
+    def operator>=(other: date_time): decimal { return compare_to(other) >= 0; }
+
+    /** date_time + duration, as `plus` */
+    def operator+(amount: duration): date_time { return plus(amount); }
+    /** date_time - duration, as `minus` */
+    def operator-(amount: duration): date_time { return minus(amount); }
+
+    /** a hash that is the same for equal values */
+    override def hash(): int {
+        return (date_part.hash().value * 31 + time_part.hash().value) % 2147483647;
+    }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * ISO-8601: the date, a 'T', the time: "2024-02-29T13:45:30",
+     * "2024-02-29T13:45:30.500" (fraction as 3, 6 or 9 digits when present).
+     */
+    override def to_string(): string? {
+        w := new time_text_writer();
+        write_to(w);
+        return w.text();
+    }
+
+    /** appends the ISO form to `w` (shared with offset_date_time and instant) */
+    def write_to(w: time_text_writer) {
+        date_part.write_to(w);
+        w.put('T');
+        time_part.write_to(w);
+    }
+
+    /**
+     * Reads `YYYY-MM-DDTHH:MM[:SS[.fraction]]`. The separator may be 'T',
+     * 't' or a single space: "2024-02-29T13:45:30", "2024-02-29 13:45".
+     *
+     * @throws date_time_exception when the text has another shape or a field is out of range
+     */
+    static def parse(text: string): date_time {
+        r := new time_text_reader(text, "date-time");
+        result : date_time = read_from(r);
+        r.expect_end();
+        return result;
+    }
+
+    /** reads a date-time at the cursor of `r` and leaves the cursor after it */
+    static def read_from(r: time_text_reader): date_time {
+        day : date = date.read_from(r);
+        if(!r.accept_ignore_case('T') && !r.accept(' ')) {
+            throw r.failure("expected 'T' between date and time");
+        }
+        at : time_of_day = time_of_day.read_from(r);
+        return new date_time(day, at);
+    }
+}

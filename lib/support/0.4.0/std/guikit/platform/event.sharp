@@ -1,0 +1,134 @@
+mod std.guikit.platform;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * THE KINDS OF EVENT a window reports (event.kind). These are the SAME numbers
+ * as the EVT_* enum in gui/platform/native/sharpgui.cpp and must stay in step.
+ */
+const EVENT_NONE       : _int64 = 0;    // nothing is waiting
+const EVENT_QUIT       : _int64 = 1;    // the window was closed (the X, or the OS)
+const EVENT_KEY_DOWN   : _int64 = 2;    // a key went down          -> key, modifiers, repeat
+const EVENT_KEY_UP     : _int64 = 3;    // a key came back up       -> key, modifiers
+const EVENT_MOUSE_DOWN : _int64 = 4;    // a mouse button went down -> x, y, button
+const EVENT_MOUSE_UP   : _int64 = 5;    // a mouse button came up   -> x, y, button
+const EVENT_MOUSE_MOVE : _int64 = 6;    // the mouse moved          -> x, y
+const EVENT_WHEEL      : _int64 = 7;    // the wheel turned         -> x, y, wheel_x, wheel_y
+const EVENT_RESIZE     : _int64 = 8;    // the window changed size  -> width, height
+const EVENT_TEXT       : _int64 = 9;    // text was typed           -> text
+
+/** event.button */
+const MOUSE_LEFT   : _int64 = 1;
+const MOUSE_MIDDLE : _int64 = 2;
+const MOUSE_RIGHT  : _int64 = 3;
+
+/** event.modifiers is these added together: shift + ctrl is 3. Test one with has_shift() ... */
+const MOD_SHIFT : _int64 = 1;
+const MOD_CTRL  : _int64 = 2;
+const MOD_ALT   : _int64 = 4;
+
+/**
+ * event.key. A letter, digit or sign key is simply its character: 'a' is 97,
+ * '1' is 49, space is 32 (always the lowercase letter - shift is in modifiers).
+ * The keys without a character have the names below.
+ */
+const KEY_BACKSPACE : _int64 = 8;
+const KEY_TAB       : _int64 = 9;
+const KEY_ENTER     : _int64 = 13;
+const KEY_ESCAPE    : _int64 = 27;
+const KEY_SPACE     : _int64 = 32;
+const KEY_DELETE    : _int64 = 127;
+const KEY_RIGHT     : _int64 = 1073741903;
+const KEY_LEFT      : _int64 = 1073741904;
+const KEY_DOWN      : _int64 = 1073741905;
+const KEY_UP        : _int64 = 1073741906;
+const KEY_HOME      : _int64 = 1073741898;
+const KEY_END       : _int64 = 1073741901;
+const KEY_PAGE_UP   : _int64 = 1073741899;
+const KEY_PAGE_DOWN : _int64 = 1073741902;
+const KEY_F1        : _int64 = 1073741882;      // F2 is KEY_F1 + 1 ... F12 is KEY_F1 + 11
+
+/**
+ * event - one thing that happened to a window: a key, the mouse, the close
+ * button, a resize, typed text.
+ *
+ * `kind` says which (the EVENT_ list above), and only the fields that kind
+ * fills in mean anything - the rest are 0. Like an SDL_Event or an Android
+ * MotionEvent/KeyEvent rolled into one small record.
+ *
+ *      e := w.next_event();
+ *      while(e.kind != EVENT_NONE) {
+ *          if(e.kind == EVENT_QUIT) { w.close(); }
+ *          if(e.kind == EVENT_KEY_DOWN && e.key == KEY_ESCAPE) { w.close(); }
+ *          if(e.kind == EVENT_MOUSE_DOWN) { println("click at " + e.x + ", " + e.y); }
+ *          e = w.next_event();
+ *      }
+ *
+ * A window keeps ONE event object and refills it on every next_event(), so
+ * reading events makes no garbage. Copy out the numbers you want to keep.
+ *
+ * TYPING: for text a person types, use EVENT_TEXT (it already has shift, caps
+ * lock and the keyboard layout applied). Use EVENT_KEY_DOWN for keys as
+ * buttons: arrows, escape, shortcuts.
+ */
+stable class event {
+    kind : _int64 = 0;
+
+    x : _int64 = 0;             // mouse position, in pixels from the window's top-left corner
+    y : _int64 = 0;
+    button : _int64 = 0;        // MOUSE_LEFT, MOUSE_MIDDLE, MOUSE_RIGHT
+
+    key : _int64 = 0;           // which key (a character, or a KEY_ name)
+    modifiers : _int64 = 0;     // MOD_SHIFT + MOD_CTRL + MOD_ALT that were held
+    repeat : _int64 = 0;        // 1 when the key is being held and the keyboard repeats it
+
+    wheel_x : _int64 = 0;       // wheel steps sideways
+    wheel_y : _int64 = 0;       // wheel steps: more than 0 is away from you (scroll up)
+
+    width : _int64 = 0;         // the window's new size after a resize
+    height : _int64 = 0;
+
+    text : string = "";         // what was typed (EVENT_TEXT)
+
+    def has_shift() : bool { return (modifiers % 2) == 1; }
+    def has_ctrl() : bool { hold : _int64 = modifiers / 2; return (hold % 2) == 1; }
+    def has_alt() : bool { return modifiers >= 4; }
+
+    /**
+     * Fill this event with the next one waiting on the native side (called by
+     * window.next_event). What a, b, c, d carry depends on the kind - the
+     * table is in gui/platform/native/sharpgui.cpp next to the EVT_ list.
+     */
+    def refill() {
+        kind = surface_poll();
+        x = 0; y = 0; button = 0;
+        key = 0; modifiers = 0; repeat = 0;
+        wheel_x = 0; wheel_y = 0;
+        width = 0; height = 0;
+
+        if(kind == EVENT_KEY_DOWN || kind == EVENT_KEY_UP) {
+            key = surface_event_a();
+            modifiers = surface_event_b();
+            repeat = surface_event_c();
+        } else if(kind == EVENT_MOUSE_DOWN || kind == EVENT_MOUSE_UP) {
+            x = surface_event_a();
+            y = surface_event_b();
+            button = surface_event_c();
+        } else if(kind == EVENT_MOUSE_MOVE) {
+            x = surface_event_a();
+            y = surface_event_b();
+        } else if(kind == EVENT_WHEEL) {
+            x = surface_event_a();
+            y = surface_event_b();
+            wheel_x = surface_event_c();
+            wheel_y = surface_event_d();
+        } else if(kind == EVENT_RESIZE) {
+            width = surface_event_a();
+            height = surface_event_b();
+        } else if(kind == EVENT_TEXT) {
+            text = surface_event_text();
+        }
+    }
+}

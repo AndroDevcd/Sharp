@@ -1,0 +1,112 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.types.declarations
+)
+
+/**
+ * TYPED-TREE NODES FOR ARRAYS AND STRING TEMPLATES
+ *
+ *      numbers[i]                  bound_index             an item of a real array
+ *      new _int64[10]              bound_new_array         with a size
+ *      new string[] { "a", "b" }   bound_new_array         with items
+ *      { 1, 2, 3 }                 bound_array_literal
+ *      "total: ${a} for $name"     bound_string_template
+ *
+ * `o[i]` on an OBJECT is not here: it is a call of the class's `operator[]`,
+ * built by the calls stage.
+ */
+
+/** an item of an array; it can be assigned to */
+class bound_index base bound_expression {
+    array : bound_expression;
+    index : bound_expression;       // a whole number
+
+    bound_index(unit: source_unit, node: _int64, array: bound_expression, index: bound_expression, type: resolved_type)
+            -> base(BX_INDEX, unit, node, type) {
+        self->array = array;
+        self->index = index;
+        storage = STORE_ELEMENT;
+    }
+}
+
+/** `new t[size]` or `new t[] { items }`: exactly one of `size` and `items` is set */
+class bound_new_array base bound_expression {
+    element : resolved_type;
+    size : bound_expression?;
+    items : list<bound_expression>?;        // each already converted to the element type
+
+    bound_new_array(unit: source_unit, node: _int64, element: resolved_type, type: resolved_type)
+            -> base(BX_NEW_ARRAY, unit, node, type) {
+        self->element = element;
+    }
+}
+
+/** `{ a, b, c }`: an array written out; the first item (or the type wanted) decides the element type */
+class bound_array_literal base bound_expression {
+    element : resolved_type;
+    items : list<bound_expression>;         // each already converted to the element type
+
+    bound_array_literal(unit: source_unit, node: _int64, element: resolved_type, items: list<bound_expression>,
+                        type: resolved_type) -> base(BX_ARRAY_LITERAL, unit, node, type) {
+        self->element = element;
+        self->items = items;
+    }
+}
+
+/**
+ * A string with values inside: one `string`.
+ *
+ *      "total: ${a + b} for $name"
+ *
+ *      start:    "total: " as a `string` object (a CONV_CONSTRUCT of the text)
+ *      appends:  string.operator+(_int64)   with (a + b)
+ *                string.operator+(_int8[])  with " for "
+ *                string.operator+(string)   with name
+ *
+ * The generator evaluates `start`, then each append in order ON THE RESULT OF
+ * THE ONE BEFORE (that is why each append's `on` is null), and the last
+ * result is the value. Empty text pieces are left out. `pieces` keeps every
+ * part as written, for the -analysis option.
+ */
+class bound_string_template base bound_expression {
+    pieces : list<bound_expression>;
+    start : bound_expression?;              // null only after a mistake
+    appends : list<bound_call>;
+
+    bound_string_template(unit: source_unit, node: _int64, pieces: list<bound_expression>, type: resolved_type)
+            -> base(BX_STRING_TEMPLATE, unit, node, type) {
+        self->pieces = pieces;
+        appends = new list<bound_call>();
+    }
+}
+
+/**
+ * `{ "a" : 1, "b" : 2 }` and `{ as <string, int> : }`: a new
+ * `dictionary<k, v>` made from an array of `pair<k, v>` objects.
+ *
+ * The generator makes a `pair_class[]` with one item per key, each item
+ * `new pair_class(key, value)` through `pair_constructor`, and hands the array
+ * to `dictionary_constructor` of `dictionary_class`. Keys and values are
+ * already converted to the pair's parameters.
+ */
+class bound_dictionary base bound_expression {
+    pair_class : sharp_class;
+    dictionary_class : sharp_class;
+    pair_constructor : sharp_function?;      // null when there are no pairs
+    dictionary_constructor : sharp_function;
+    keys : list<bound_expression>;
+    values : list<bound_expression>;
+
+    bound_dictionary(unit: source_unit, node: _int64, pair_class: sharp_class, dictionary_class: sharp_class,
+                     dictionary_constructor: sharp_function, type: resolved_type) -> base(BX_DICTIONARY, unit, node, type) {
+        self->pair_class = pair_class;
+        self->dictionary_class = dictionary_class;
+        self->dictionary_constructor = dictionary_constructor;
+        keys = new list<bound_expression>();
+        values = new list<bound_expression>();
+    }
+}

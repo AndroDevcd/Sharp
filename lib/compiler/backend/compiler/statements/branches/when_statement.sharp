@@ -1,0 +1,155 @@
+mod backend.compiler.statements.branches;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions,
+    backend.compiler.statements
+)
+
+/**
+ * `when`: the first clause that fits runs, and no other
+ *
+ *      when(month) {
+ *          2 -> days = 28;                 a clause: values, `->`, a body
+ *          4, 6, 9, 11 -> days = 30;       several values: any one of them fits
+ *          else -> days = 31;              when no clause fits
+ *      }
+ *
+ * WITH A SUBJECT the subject is evaluated ONCE, into a hidden local, and each
+ * value of a clause becomes the test "subject == value" - bound exactly as
+ * the operator `==` would be with the subject on the left: numbers compare as
+ * numbers, an object of a class with an `operator==` that takes the value
+ * calls it, other objects are compared as "the same object?"
+ * (when_tests.sharp). A value that cannot be compared with the subject at
+ * all is E0616.
+ *
+ * WITHOUT A SUBJECT each value is a condition (E0411 when it is not).
+ *
+ * THE `else` CLAUSE takes whatever no clause took, so it is the LAST clause
+ * and there is one at most. A clause written after it could never run, and
+ * a second `else` neither: E0619. (The C++ parser reads the `else` only at
+ * the end - "expected `}`" for anything after it; the parser here reads the
+ * clauses in any order, so the rule is checked here, with a message that
+ * says what to move.)
+ *
+ * There is no fall-through between clauses (as there is in a C `switch`), so
+ * a clause needs no `break` - and a `break` in one leaves the LOOP around the
+ * `when`, as everywhere else.
+ *
+ * The subject may be any value: a number, text, an object, an enum value.
+ * A `bool` object is taken as its number (as the C++ compiler does), and a
+ * text literal becomes a `string`, as on the left of `==`.
+ *
+ *      E0406   the subject has no value (`when(log("x"))`) - values.sharp
+ *      E0411   a value of a `when` without a subject is not a condition
+ *      E0616   a value cannot be compared with the subject (when_tests.sharp)
+ *      E0619   a clause after the `else`, or a second `else`
+ *      W1020   the same value twice: the later clause never runs for it (when_tests.sharp)
+ *
+ *      C++ comparison: compiler/functions/statements/when_statement.cpp
+ *      (`cond_var`, `compile_binary_expression` with `==`).
+ */
+def analyse_when(context: analysis_context, node: _int64) : bound_statement {
+    tree : syntax_tree = context.tree;
+    statement := new bound_when(context.unit, node);
+    seen := new list<bound_expression>();
+
+    subject_node : _int64 = tree.child_of_kind(node, N_WHEN_SUBJECT);
+    if(subject_node >= 0 && tree.first_child!![subject_node] >= 0) {
+        subject := subject_of(context, tree.first_child!![subject_node]);
+        statement.subject = subject;
+        statement.subject_variable = context.hidden_local("when subject", subject.type, subject.node);
+    }
+
+    else_node : _int64 = 0 - 1;         // the `else` clause, once it has been met
+    misplaced : _int64 = 0;             // E0619 is reported once per `when`
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if((kind == N_WHEN_CLAUSE || kind == N_WHEN_ELSE) && else_node >= 0 && misplaced == 0) {
+            report_after_else(context, else_node, child);
+            misplaced = 1;
+        }
+        if(kind == N_WHEN_CLAUSE) {
+            statement.clauses.add(analyse_when_clause(context, statement, child, seen));
+        } else if(kind == N_WHEN_ELSE) {
+            part := analyse_part(context, tree.first_child!![child]);
+            if(else_node < 0) {
+                statement.else_part = part;
+                else_node = child;
+            }
+        }
+        child = tree.next_sibling!![child];
+    }
+    return statement;
+}
+
+/**
+ * E0619: something follows the `else` clause - another clause, which could
+ * never run, or a second `else`.
+ */
+def report_after_else(context: analysis_context, else_node: _int64, after: _int64) {
+    if(context.tree.kinds!![after] == N_WHEN_ELSE) {
+        d := problem_at(context, "E0619", "this `when` has two `else` clauses", after);
+        d.with_label("a second `else`");
+        d.with_related_place(place_of_node(context.unit, else_node, "the first `else` already takes everything no clause took"));
+        d.with_note("`else` is the clause that runs when no other fits, so a `when` has one at most");
+        d.with_help("remove one of the two, or put both bodies in one `else -> { ... }`");
+        report(context, d);
+        return;
+    }
+    d := problem_at(context, "E0619", "`else` must be the last clause of a `when`", else_node);
+    d.with_label("takes everything that is left ...");
+    d.with_related_place(place_of_node(context.unit, first_token_node(context, after), "... so this clause, written after it, can never run"));
+    d.with_note("the clauses of a `when` are tried in the order written, and `else` fits whatever reaches it");
+    d.with_help("move the `else -> ...` clause to the end of the `when`");
+    report(context, d);
+}
+
+/** the node to mark for a clause `a, b -> body`: its first value (the clause node itself when it has none) */
+def first_token_node(context: analysis_context, clause: _int64) : _int64 {
+    first : _int64 = context.tree.first_child!![clause];
+    if(first >= 0 && first != context.tree.last_child!![clause]) { return first; }
+    return clause;
+}
+
+/** the subject of `when(subject)`: a value; a `boolean` object gives its value, a text literal becomes a `string` */
+def subject_of(context: analysis_context, node: _int64) : bound_expression {
+    subject := analyse_value(context, node, null);
+    if(subject.literal == LIT_TEXT) { return convert(context, subject, context.session.string_type(), "the subject of `when`"); }
+    if(subject.type.kind == RT_CLASS && subject.type.class_of == context.session.known.bool_class) {
+        number := as_plain_number(context, subject, 1);
+        if(number != null) { return number!!; }
+    }
+    return subject;
+}
+
+/** `a, b -> body`: the values before the arrow (every child but the last), then the body */
+def analyse_when_clause(context: analysis_context, statement: bound_when, node: _int64, seen: list<bound_expression>) : bound_when_clause {
+    tree : syntax_tree = context.tree;
+    body_node : _int64 = tree.last_child!![node];
+    tests := new list<bound_expression>();
+
+    value_node : _int64 = tree.first_child!![node];
+    while(value_node >= 0 && value_node != body_node) {
+        if(statement.subject_variable != null) {
+            value := analyse_value(context, value_node, statement.subject_variable!!.type);
+            report_if_seen_before(context, value, seen);
+            tests.add(compare_with_subject(context, statement.subject_variable!!, value));
+        } else {
+            tests.add(analyse_condition(context, value_node, 1));
+        }
+        value_node = tree.next_sibling!![value_node];
+    }
+
+    clause := new bound_when_clause(context.unit, node, analyse_part(context, body_node));
+    for(i : _int64 = 0; i < tests.size(); i++) { clause.tests.add(tests.at(i)); }
+    return clause;
+}

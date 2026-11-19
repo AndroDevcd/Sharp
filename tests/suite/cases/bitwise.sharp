@@ -1,0 +1,176 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Bit operations on whole numbers: & (and), | (or), ^ (exclusive or),
+ * << (shift left), >> (shift right), and the compound forms &= |= ^=.
+ * (There is no <<= or >>=, and no ~ operator.)
+ *
+ * For reference, in binary:  12 = 1100   10 = 1010   6 = 0110   3 = 0011
+ */
+
+def bit_and(a: decimal, b: decimal): decimal { return a & b; }
+def bit_or(a: decimal, b: decimal): decimal { return a | b; }
+def bit_xor(a: decimal, b: decimal): decimal { return a ^ b; }
+def shift_left(a: decimal, n: decimal): decimal { return a << n; }
+def shift_right(a: decimal, n: decimal): decimal { return a >> n; }
+
+/** 1 when bit number `bit` (0 is the lowest) is set in `value` */
+def has_bit(value: decimal, bit: decimal): decimal {
+    return (value >> bit) & 1;
+}
+
+def main(args: string[]) {
+    // ---- and
+    expect("12 & 10", 12 & 10, 8);
+    expect("6 & 3", 6 & 3, 2);
+    expect("255 & 15", 255 & 15, 15);
+    expect("8 & 7 (no bits in common)", 8 & 7, 0);
+    expect("5 & 0", 5 & 0, 0);
+    expect("5 & 5", 5 & 5, 5);
+    expect("0xff00 & 0x0ff0", 0xff00 & 0x0ff0, 0x0f00);
+
+    // ---- or
+    expect("12 | 10", 12 | 10, 14);
+    expect("6 | 3", 6 | 3, 7);
+    expect("8 | 7", 8 | 7, 15);
+    expect("5 | 0", 5 | 0, 5);
+    expect("5 | 5", 5 | 5, 5);
+    expect("0xf0 | 0x0f", 0xf0 | 0x0f, 255);
+
+    // ---- exclusive or
+    expect("12 ^ 10", 12 ^ 10, 6);
+    expect("6 ^ 3", 6 ^ 3, 5);
+    expect("5 ^ 0", 5 ^ 0, 5);
+    expect("5 ^ 5", 5 ^ 5, 0);
+    expect("255 ^ 15", 255 ^ 15, 240);
+
+    // ---- shift left
+    expect("1 << 0", 1 << 0, 1);
+    expect("1 << 1", 1 << 1, 2);
+    expect("1 << 4", 1 << 4, 16);
+    expect("1 << 10", 1 << 10, 1024);
+    expect("3 << 2", 3 << 2, 12);
+    expect("5 << 3", 5 << 3, 40);
+    expect("1 << 31", 1 << 31, 2147483648);
+    expect("1 << 32 (past 32 bits)", 1 << 32, 4294967296);
+    expect("1 << 40", 1 << 40, 1099511627776);
+
+    // ---- shift right
+    expect("256 >> 4", 256 >> 4, 16);
+    expect("1024 >> 10", 1024 >> 10, 1);
+    expect("5 >> 1 drops the low bit", 5 >> 1, 2);
+    expect("7 >> 0", 7 >> 0, 7);
+    expect("1 >> 1", 1 >> 1, 0);
+    expect("255 >> 4", 255 >> 4, 15);
+    expect("-8 >> 1 keeps the sign", -8 >> 1, 0 - 4);
+
+    // ---- variables
+    a : decimal = 12;
+    b : decimal = 10;
+    expect("a & b", a & b, 8);
+    expect("a | b", a | b, 14);
+    expect("a ^ b", a ^ b, 6);
+    expect("a << 2", a << 2, 48);
+    expect("a >> 2", a >> 2, 3);
+    two : decimal = 2;
+    expect("a << two", a << two, 48);
+    expect("a >> two", a >> two, 3);
+    expect("b << b", b << b, 10240);
+
+    // ---- negative numbers
+    minus_one : decimal = 0 - 1;
+    expect("-1 & 255 (all bits set)", minus_one & 255, 255);
+    expect("-1 | 5", minus_one | 5, 0 - 1);
+    expect("-1 ^ 0", minus_one ^ 0, 0 - 1);
+    expect("-1 ^ 5 flips every bit of 5", minus_one ^ 5, 0 - 6);
+    expect("-16 >> 2", (0 - 16) >> 2, 0 - 4);
+
+    // ---- a fraction loses its fractional part first
+    f : decimal = 6.7;
+    expect("6.7 & 3", f & 3, 2);
+    expect("6.7 | 1", f | 1, 7);
+    expect("6.7 << 1", f << 1, 12);
+
+    // ---- compound assignment
+    c : decimal = 12;
+    c &= 10;
+    expect("&=", c, 8);
+    c |= 3;
+    expect("|=", c, 11);
+    c ^= 1;
+    expect("^=", c, 10);
+    c ^= c;
+    expect("^= with itself", c, 0);
+    c |= 0xf0;
+    c |= 0x0f;
+    expect("|= twice", c, 255);
+    c &= 0x3c;
+    expect("&= with a mask", c, 60);
+    mask : decimal = 0x18;
+    c &= mask;
+    expect("&= with a variable", c, 24);
+    c |= mask << 1;
+    expect("|= with an expression", c, 56);
+
+    // ---- combinations (parentheses make the order clear)
+    expect("(a & b) | 1", (a & b) | 1, 9);
+    expect("(a | b) ^ (a & b)", (a | b) ^ (a & b), 6);
+    expect("(1 << 3) | (1 << 0)", (1 << 3) | (1 << 0), 9);
+    expect("(a >> 1) & 3", (a >> 1) & 3, 2);
+    expect("(a << 4) | b", (a << 4) | b, 202);
+    expect("((a ^ b) << 1) & 0xff", ((a ^ b) << 1) & 0xff, 12);
+
+    // ---- + and - happen before a shift
+    expect("1 + 2 << 3", 1 + 2 << 3, 24);
+    expect("1 << 2 + 1", 1 << 2 + 1, 8);
+    expect("64 >> 4 - 2", 64 >> 4 - 2, 16);
+
+    // ---- bit tricks
+    flags : decimal = 0;
+    flags |= 1 << 2;
+    flags |= 1 << 5;
+    expect("two bits set", flags, 36);
+    expect("bit 2 is set", has_bit(flags, 2), 1);
+    expect("bit 3 is not set", has_bit(flags, 3), 0);
+    expect("bit 5 is set", has_bit(flags, 5), 1);
+    flags ^= 1 << 2;
+    expect("bit 2 toggled off", flags, 32);
+    flags &= 0xff ^ (1 << 5);
+    expect("bit 5 cleared", flags, 0);
+    expect("9 is odd (9 & 1)", 9 & 1, 1);
+    expect("10 is even (10 & 1)", 10 & 1, 0);
+    expect("16 is a power of two", 16 & (16 - 1), 0);
+    expect("18 is not a power of two", 18 & (18 - 1), 16);
+    expect("low byte of 0x1234", 0x1234 & 0xff, 0x34);
+    expect("high byte of 0x1234", (0x1234 >> 8) & 0xff, 0x12);
+
+    // ---- swapping two numbers with ^
+    p : decimal = 21;
+    q : decimal = 99;
+    p ^= q;
+    q ^= p;
+    p ^= q;
+    expect("p after the swap", p, 99);
+    expect("q after the swap", q, 21);
+
+    // ---- counting the set bits of 0xb7 (1011 0111) in a loop
+    value : decimal = 0xb7;
+    count : decimal = 0;
+    while(value != 0) {
+        count += value & 1;
+        value = value >> 1;
+    }
+    expect("0xb7 has 6 bits set", count, 6);
+
+    // ---- through functions
+    expect("bit_and(12, 10)", bit_and(12, 10), 8);
+    expect("bit_or(12, 10)", bit_or(12, 10), 14);
+    expect("bit_xor(12, 10)", bit_xor(12, 10), 6);
+    expect("shift_left(1, 8)", shift_left(1, 8), 256);
+    expect("shift_right(256, 8)", shift_right(256, 8), 1);
+    expect("shift_right(shift_left(77, 5), 5)", shift_right(shift_left(77, 5), 5), 77);
+
+    finish("bitwise");
+}

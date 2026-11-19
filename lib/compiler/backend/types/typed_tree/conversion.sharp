@@ -1,0 +1,95 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.declarations
+)
+
+/**
+ * A CONVERSION: how a value of one type becomes a value of another
+ *
+ *      total : decimal = count;        count is an _int64: CONV_NUMERIC
+ *      a : animal = new dog();         CONV_UPCAST
+ *      name : string = "text";         CONV_CONSTRUCT (new string("text"))
+ *      d : dog = an_animal;            CONV_DOWNCAST, tested when the program runs
+ *
+ * The rules that decide which conversion applies are in
+ * backend/compiler/conversions. This object is the ANSWER: it is stored in
+ * the typed tree (bound_conversion, bound_cast), so a code generator sees
+ * exactly what has to be done to the value and never compares two types
+ * itself.
+ *
+ * `kind == CONV_NONE` means "does not convert", and `problem` says why, so
+ * the message can say more than "types do not match".
+ *
+ *      C++ comparison: `is_implicit_type_match` / `is_explicit_type_match`
+ *      in types/sharp_type.cpp answer with a bit set (match_normal,
+ *      match_constructor, indirect_match ...) and the code generator works
+ *      out again what to emit.
+ */
+const CONV_NONE         : _int64 = 0;   // does not convert
+const CONV_IDENTITY     : _int64 = 1;   // the same type: nothing to do
+const CONV_NUMERIC      : _int64 = 2;   // number to number: widen, cut down, whole <-> decimal
+const CONV_NULL         : _int64 = 3;   // `null` to a type that may hold null
+const CONV_TO_NULLABLE  : _int64 = 4;   // t to t?
+const CONV_UPCAST       : _int64 = 5;   // to a base class or an interface the class has
+const CONV_TO_OBJECT    : _int64 = 6;   // to the built-in `object`
+const CONV_DOWNCAST     : _int64 = 7;   // to a class below: tested at run time
+const CONV_UNBOX        : _int64 = 8;   // an `int` object to its number
+const CONV_CONSTRUCT    : _int64 = 9;   // through a one-parameter constructor or init(x) of the target class
+const CONV_ERROR        : _int64 = 10;  // one side was already reported as wrong: anything goes
+const CONV_RESULT_IGNORED : _int64 = 11; // a function value passed as an ARGUMENT whose parameters fit and whose result
+                                        // differs (W1029): nothing changes at run time; the C++ compiler compares
+                                        // only the parameters of an argument of a function type
+
+// ---- why a value does not convert (for CONV_NONE)
+const WHY_UNRELATED        : _int64 = 1;    // the two types have nothing to do with each other
+const WHY_NULLABLE         : _int64 = 2;    // only the `?` is in the way
+const WHY_NULL             : _int64 = 3;    // `null` given to something that cannot hold null
+const WHY_ARRAY            : _int64 = 4;    // an array against something that is not one
+const WHY_NO_VALUE         : _int64 = 5;    // the expression has no value at all
+const WHY_NUMBER_TO_OBJECT : _int64 = 6;    // a plain number where an object is wanted
+const WHY_OBJECT_TO_NUMBER : _int64 = 7;    // an object where a plain number is wanted
+const WHY_NEEDS_CAST       : _int64 = 8;    // possible, but only when written with `as`
+const WHY_FUNCTION_SHAPE   : _int64 = 9;    // two function types that differ
+const WHY_NOT_CASTABLE     : _int64 = 10;   // `as` to or from something that cannot be cast at all
+const WHY_NUMBER_TO_BOOL   : _int64 = 11;   // a number where a `bool` is wanted: write the test (`n != 0`)
+
+class conversion {
+    kind : _int64;                  // CONV_...
+    from : resolved_type;
+    to : resolved_type;
+    rank : _int64 = 0;              // how good it is, for choosing between overloads: lower is better
+    checked : _int64 = 0;           // 1: the VM has to test at run time (a downcast)
+    function : sharp_function?;     // CONV_CONSTRUCT: the constructor or init(x); null while several fit (the calls stage picks)
+    field : sharp_field?;           // CONV_UNBOX: the `value` field of the number class
+    inner : conversion?;            // CONV_CONSTRUCT: what is done to the value before it is handed to the constructor
+    problem : _int64 = 0;           // WHY_..., for CONV_NONE
+    only_nullable_in_the_way : _int64 = 0;   // CONV_NONE: everything fits but the value may be null
+
+    conversion(kind: _int64, from: resolved_type, to: resolved_type) {
+        self->kind = kind;
+        self->from = from;
+        self->to = to;
+    }
+
+    /** is there a way from `from` to `to` at all? */
+    def converts() : _int64 { return kind != CONV_NONE; }
+}
+
+/** "numeric", "upcast" ... for the -analysis option */
+def conversion_kind_name(kind: _int64) : string {
+    if(kind == CONV_IDENTITY) { return "identity"; }
+    if(kind == CONV_NUMERIC) { return "number"; }
+    if(kind == CONV_NULL) { return "null"; }
+    if(kind == CONV_TO_NULLABLE) { return "to nullable"; }
+    if(kind == CONV_UPCAST) { return "upcast"; }
+    if(kind == CONV_TO_OBJECT) { return "to object"; }
+    if(kind == CONV_DOWNCAST) { return "downcast"; }
+    if(kind == CONV_UNBOX) { return "unbox"; }
+    if(kind == CONV_CONSTRUCT) { return "construct"; }
+    if(kind == CONV_ERROR) { return "after an error"; }
+    if(kind == CONV_RESULT_IGNORED) { return "function, result not compared"; }
+    return "none";
+}

@@ -1,0 +1,182 @@
+mod std.io;
+
+import ( std.math )
+
+/**
+ * Writes values in a compact binary form into a byte_buffer; binary_reader
+ * reads them back in the same order.
+ *
+ *     out := new binary_writer();
+ *     out.write_string("player one");
+ *     out.write_int(12500);
+ *     out.write_bool(true);
+ *     out.write_double(0.75);
+ *     out.save(new file("save.dat"));
+ *
+ *     input := binary_reader.load(new file("save.dat"));
+ *     name := input.read_string();          // "player one"
+ *     score := input.read_int();            // 12500
+ *     ...
+ *
+ * Where a byte_buffer deals in bytes of a given width, this class deals in
+ * values: booleans, whole numbers that take only as many bytes as they need
+ * (write_varint), strings with their length, lists of strings. The format of
+ * each value is given at its function, so that other programs can read the
+ * data.
+ *
+ * Numbers of more than one byte are stored in the byte order of the buffer
+ * (big endian unless the buffer was switched). Not thread safe.
+ */
+class binary_writer {
+    private buf : byte_buffer;
+
+    /** a writer with a new, empty, big endian buffer */
+    binary_writer() {
+        buf = new byte_buffer();
+    }
+
+    /** a writer that appends to `buffer` (in the byte order the buffer has) */
+    binary_writer(buffer: byte_buffer) {
+        buf = buffer;
+    }
+
+    /** the buffer the values go into */
+    def get_buffer() : byte_buffer {
+        return buf;
+    }
+
+    /** the number of bytes written so far (including what the buffer held before) */
+    def size() : decimal {
+        return buf.size();
+    }
+
+    /** one byte: 1 for true, 0 for false. Returns this writer. */
+    def write_bool(value: bool) : binary_writer {
+        if(value) {
+            buf.put_int8(1);
+        } else {
+            buf.put_int8(0);
+        }
+        return self;
+    }
+
+    /** one byte: the low 8 bits of `value` (-128 .. 255). Returns this writer. */
+    def write_byte(value: decimal) : binary_writer {
+        buf.put_int8(value);
+        return self;
+    }
+
+    /** two bytes: a 16-bit number (-32768 .. 65535). Returns this writer. */
+    def write_short(value: decimal) : binary_writer {
+        buf.put_int16(value);
+        return self;
+    }
+
+    /** four bytes: a 32-bit number (-2147483648 .. 4294967295). Returns this writer. */
+    def write_int(value: decimal) : binary_writer {
+        buf.put_int32(value);
+        return self;
+    }
+
+    /** eight bytes: a 64-bit whole number, exact from -2^53 to 2^53. Returns this writer. */
+    def write_long(value: decimal) : binary_writer {
+        buf.put_int64(value);
+        return self;
+    }
+
+    /** eight bytes: a number with fraction in IEEE 754 double format, stored exactly. Returns this writer. */
+    def write_double(value: decimal) : binary_writer {
+        buf.put_float64(value);
+        return self;
+    }
+
+    /**
+     * A whole number from 0 to 2^53 in as few bytes as it needs: 7 bits per
+     * byte, lowest bits first, and the top bit of a byte set when more
+     * bytes follow (the "LEB128" / protocol buffers format). Numbers below
+     * 128 take one byte, below 16384 two, and so on. This is the same for
+     * both byte orders. Returns this writer.
+     *
+     * Throws illegal_argument_exception for a negative number (see
+     * write_signed_varint) or a number that is not whole.
+     */
+    def write_varint(value: decimal) : binary_writer {
+        if(value < 0 || floor(value).value != value || value > 9007199254740992) {
+            throw new illegal_argument_exception("write_varint: not a whole number from 0 to 2^53: "
+                + io_strings.number_to_string(value));
+        }
+        while(value >= 128) {
+            low : decimal = value % 128;
+            buf.put_int8(low + 128);
+            value = (value - low) / 128;
+        }
+        buf.put_int8(value);
+        return self;
+    }
+
+    /**
+     * A whole number from -2^52 to 2^52 in as few bytes as it needs: the
+     * number is first mapped to a non negative one so that small negative
+     * numbers stay small (0, -1, 1, -2, 2 ... become 0, 1, 2, 3, 4 ... -
+     * "zigzag"), then written like write_varint. Returns this writer.
+     *
+     * Throws illegal_argument_exception when the number is not whole or out
+     * of range.
+     */
+    def write_signed_varint(value: decimal) : binary_writer {
+        if(floor(value).value != value || value > 4503599627370496 || value < 0 - 4503599627370496) {
+            throw new illegal_argument_exception("write_signed_varint: not a whole number from -2^52 to 2^52: "
+                + io_strings.number_to_string(value));
+        }
+        if(value >= 0) {
+            return write_varint(value * 2);
+        }
+        return write_varint((0 - value) * 2 - 1);
+    }
+
+    /**
+     * A string: its length as a varint, then its characters as bytes.
+     * Returns this writer.
+     */
+    def write_string(text: string) : binary_writer {
+        write_varint(sizeof(text.data));
+        buf.put_bytes(text.data);
+        return self;
+    }
+
+    /**
+     * Raw bytes with their count in front: the count as a varint, then the
+     * bytes. null is written as a count of 0. Returns this writer.
+     */
+    def write_bytes(bytes: _int8[]?) : binary_writer {
+        write_varint(sizeof(bytes));
+        buf.put_bytes(bytes);
+        return self;
+    }
+
+    /**
+     * A list of strings: the number of strings as a varint, then each
+     * string as write_string() writes it. Returns this writer.
+     */
+    def write_string_list(items: list<string>) : binary_writer {
+        count : decimal = items.size().value;
+        write_varint(count);
+        for(i : decimal = 0; i < count; i++) {
+            write_string(items.at(i));
+        }
+        return self;
+    }
+
+    /** everything written, as a new array of bytes (null when nothing was written) */
+    def to_array() : _int8[]? {
+        return buf.to_array();
+    }
+
+    /**
+     * Replace the content of the file `target` with everything written.
+     * Throws io_exception when the file cannot be written.
+     */
+    def save(target: file) {
+        buf.write_to(target);
+    }
+}

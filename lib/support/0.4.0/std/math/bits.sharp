@@ -1,0 +1,286 @@
+mod std.math;
+
+/**
+ * @class bits
+ *
+ * Bit tricks on whole numbers. Only static functions; never instantiated.
+ *
+ *     bits.count_ones(255)            // 8
+ *     bits.highest_one_bit(100)       // 64
+ *     bits.is_power_of_two(64)  // true
+ *     bits.next_power_of_two(100)     // 128
+ *     bits.rotate_left(1, 31)         // 2147483648
+ *
+ * RANGE. A native number holds whole values exactly up to 2^53, so the
+ * counting and searching functions accept any whole number in 0 .. 2^53.
+ * The functions with a fixed word size (rotate_left, rotate_right, reverse,
+ * invert, leading_zeros) treat their argument as an UNSIGNED 32-bit word,
+ * 0 .. 4294967295, and return such a word.
+ *
+ * Every function throws illegal_argument_exception for a negative number,
+ * a fraction, or a value above its range.
+ *
+ * The functions use division and multiplication by powers of two instead of
+ * the shift operators, which keeps them exact over the whole range.
+ */
+class bits {
+    private static const WORD : decimal = 4294967296;             // 2^32
+    private static const LIMIT : decimal = 9007199254740992;      // 2^53
+
+    private static def require_whole(n: decimal, function_name: string) {
+        if(n < 0 || n > LIMIT || floor_of(n) != n)
+            throw new illegal_argument_exception("bits." + function_name + ": expected a whole number in 0 .. 2^53");
+    }
+
+    private static def require_word(n: decimal, function_name: string) {
+        if(n < 0 || n >= WORD || floor_of(n) != n)
+            throw new illegal_argument_exception("bits." + function_name + ": expected a whole number in 0 .. 4294967295");
+    }
+
+    private static def require_position(position: decimal, function_name: string) {
+        if(position < 0 || position > 52 || floor_of(position) != position)
+            throw new illegal_argument_exception("bits." + function_name + ": the bit position must be in 0 .. 52");
+    }
+
+    /** 2 raised to a whole power 0 .. 1023, exact (repeated doubling) */
+    private static def two_to(exponent: decimal): decimal {
+        result : decimal = 1;
+        for(i : decimal = 0; i < exponent; i++) {
+            result = result * 2;
+        }
+        return result;
+    }
+
+    /** how many bits of n are 1 (the "population count"): count_ones(13) == 3 because 13 is 1101 */
+    static def count_ones(n: decimal): decimal {
+        require_whole(n, "count_ones");
+        remaining : decimal = n;
+        count : decimal = 0;
+        while(remaining > 0) {
+            half : decimal = floor_of(remaining / 2);
+            count += remaining - half * 2;
+            remaining = half;
+        }
+        return count;
+    }
+
+    /**
+     * How many bits are needed to write n: the position of the highest 1 bit
+     * plus one. bit_length(0) == 0, bit_length(1) == 1, bit_length(255) == 8,
+     * bit_length(256) == 9.
+     */
+    static def bit_length(n: decimal): decimal {
+        require_whole(n, "bit_length");
+        remaining : decimal = n;
+        length : decimal = 0;
+        while(remaining > 0) {
+            remaining = floor_of(remaining / 2);
+            length++;
+        }
+        return length;
+    }
+
+    /**
+     * The value of the highest 1 bit: the largest power of two <= n.
+     * highest_one_bit(100) == 64; highest_one_bit(0) == 0.
+     */
+    static def highest_one_bit(n: decimal): decimal {
+        require_whole(n, "highest_one_bit");
+        if(n == 0) return 0;
+        return two_to(bit_length(n) - 1);
+    }
+
+    /**
+     * The value of the lowest 1 bit: the largest power of two that divides n.
+     * lowest_one_bit(12) == 4 (12 is 1100); lowest_one_bit(0) == 0.
+     */
+    static def lowest_one_bit(n: decimal): decimal {
+        require_whole(n, "lowest_one_bit");
+        if(n == 0) return 0;
+
+        remaining : decimal = n;
+        bit : decimal = 1;
+        while(true) {
+            half : decimal = floor_of(remaining / 2);
+            if(remaining - half * 2 == 1) {
+                return bit;
+            }
+            remaining = half;
+            bit = bit * 2;
+        }
+        return bit;
+    }
+
+    /**
+     * How many 0 bits are below the lowest 1 bit: trailing_zeros(8) == 3,
+     * trailing_zeros(1) == 0. For 0 the answer is 32 (all bits of the word
+     * are zero), the convention of Java and Kotlin.
+     */
+    static def trailing_zeros(n: decimal): decimal {
+        require_whole(n, "trailing_zeros");
+        if(n == 0) return 32;
+
+        remaining : decimal = n;
+        count : decimal = 0;
+        while(true) {
+            half : decimal = floor_of(remaining / 2);
+            if(remaining - half * 2 == 1) {
+                return count;
+            }
+            remaining = half;
+            count++;
+        }
+        return count;
+    }
+
+    /**
+     * How many 0 bits are above the highest 1 bit of the 32-bit word n:
+     * leading_zeros(1) == 31, leading_zeros(0) == 32,
+     * leading_zeros(4294967295) == 0.
+     */
+    static def leading_zeros(n: decimal): decimal {
+        require_word(n, "leading_zeros");
+        return 32 - bit_length(n);
+    }
+
+    /** true when n is 1, 2, 4, 8 ... (exactly one bit is set); false for 0 */
+    static def is_power_of_two(n: decimal): bool {
+        if(n < 1 || n > LIMIT || floor_of(n) != n) return false;
+        return highest_one_bit(n) == n;
+    }
+
+    /**
+     * The smallest power of two that is >= n: next_power_of_two(100) == 128,
+     * next_power_of_two(64) == 64, next_power_of_two(0) == 1.
+     */
+    static def next_power_of_two(n: decimal): decimal {
+        require_whole(n, "next_power_of_two");
+        result : decimal = 1;
+        while(result < n) {
+            result = result * 2;
+        }
+        return result;
+    }
+
+    /** true when the bit at `position` (0 = lowest) of n is 1: test_bit(5, 2) is true because 5 is 101 */
+    static def test_bit(n: decimal, position: decimal): bool {
+        require_whole(n, "test_bit");
+        require_position(position, "test_bit");
+        shifted : decimal = floor_of(n / two_to(position));
+        return shifted - floor_of(shifted / 2) * 2 == 1;
+    }
+
+    /** n with the bit at `position` set to 1: set_bit(4, 0) == 5 */
+    static def set_bit(n: decimal, position: decimal): decimal {
+        if(test_bit(n, position)) return n;
+        return n + two_to(position);
+    }
+
+    /** n with the bit at `position` set to 0: clear_bit(5, 0) == 4 */
+    static def clear_bit(n: decimal, position: decimal): decimal {
+        if(!test_bit(n, position)) return n;
+        return n - two_to(position);
+    }
+
+    /** n with the bit at `position` flipped: toggle_bit(5, 1) == 7, toggle_bit(7, 1) == 5 */
+    static def toggle_bit(n: decimal, position: decimal): decimal {
+        if(test_bit(n, position)) return n - two_to(position);
+        return n + two_to(position);
+    }
+
+    /**
+     * The 32-bit word n rotated left by `distance` bits: bits pushed out at
+     * the top come back in at the bottom. rotate_left(1, 31) == 2147483648,
+     * rotate_left(2147483648, 1) == 1. Any distance is allowed (it is taken
+     * modulo 32; a negative distance rotates right).
+     *
+     * Algorithm: split n at bit (32 - distance) into a high and a low part
+     * and swap them: low * 2^distance + high.
+     */
+    static def rotate_left(n: decimal, distance: decimal): decimal {
+        require_word(n, "rotate_left");
+        if(floor_of(distance) != distance)
+            throw new illegal_argument_exception("bits.rotate_left: the distance must be a whole number");
+
+        shift : decimal = distance - floor_of(distance / 32) * 32;      // 0 .. 31
+        if(shift == 0) return n;
+
+        split : decimal = two_to(32 - shift);
+        high : decimal = floor_of(n / split);
+        low : decimal = n - high * split;
+        return low * two_to(shift) + high;
+    }
+
+    /**
+     * The 32-bit word n rotated right by `distance` bits:
+     * rotate_right(1, 1) == 2147483648. The same as rotating left by
+     * 32 - distance.
+     */
+    static def rotate_right(n: decimal, distance: decimal): decimal {
+        require_word(n, "rotate_right");
+        if(floor_of(distance) != distance)
+            throw new illegal_argument_exception("bits.rotate_right: the distance must be a whole number");
+        return rotate_left(n, 0 - distance);
+    }
+
+    /**
+     * The 32-bit word n with its bits in the opposite order (bit 0 becomes
+     * bit 31 ...): reverse(1) == 2147483648, reverse(4294967295) == 4294967295.
+     */
+    static def reverse(n: decimal): decimal {
+        require_word(n, "reverse");
+        remaining : decimal = n;
+        result : decimal = 0;
+        for(i : decimal = 0; i < 32; i++) {
+            half : decimal = floor_of(remaining / 2);
+            result = result * 2 + (remaining - half * 2);
+            remaining = half;
+        }
+        return result;
+    }
+
+    /** every bit of the 32-bit word n flipped (bitwise NOT): invert(0) == 4294967295 */
+    static def invert(n: decimal): decimal {
+        require_word(n, "invert");
+        return 4294967295 - n;
+    }
+
+    /**
+     * n written in binary, without leading zeros: to_binary_string(10) is
+     * "1010", to_binary_string(0) is "0".
+     */
+    static def to_binary_string(n: decimal): string {
+        require_whole(n, "to_binary_string");
+        length : decimal = bit_length(n);
+        if(length == 0) return "0";
+
+        text := new _int8[length];
+        remaining : decimal = n;
+        for(i : decimal = length - 1; i >= 0; i--) {
+            half : decimal = floor_of(remaining / 2);
+            text[i] = '0' + (remaining - half * 2);
+            remaining = half;
+        }
+        return new string(text);
+    }
+
+    /**
+     * Read a binary number: parse_binary("1010") == 10.
+     * Throws number_format_exception when the text is empty, has a character
+     * other than 0 and 1, or has more than 53 digits.
+     */
+    static def parse_binary(text: string): decimal {
+        length : decimal = text.size().value;
+        if(length == 0 || length > 53)
+            throw new number_format_exception("bits.parse_binary: expected 1 to 53 binary digits");
+
+        result : decimal = 0;
+        for(i : decimal = 0; i < length; i++) {
+            digit : decimal = text.at(i).value - '0';
+            if(digit != 0 && digit != 1)
+                throw new number_format_exception("bits.parse_binary: not a binary number: " + text);
+            result = result * 2 + digit;
+        }
+        return result;
+    }
+}

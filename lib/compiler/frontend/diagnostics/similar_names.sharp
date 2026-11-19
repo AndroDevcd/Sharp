@@ -1,0 +1,199 @@
+mod frontend.diagnostics;
+
+import (
+    std.io
+)
+
+/**
+ * "DID YOU MEAN ...?"
+ *
+ * When a name is not found, the compiler looks for the names it DOES know
+ * that are close to it, and offers the closest ones:
+ *
+ *      there is no type named `strng`          did you mean `string`?
+ *      there is no function named `prinltn`    did you mean `println`?
+ *
+ * HOW CLOSE TWO NAMES ARE
+ * The number of single typing mistakes that turn one into the other:
+ *
+ *      a character too many        strinng -> string       1
+ *      a character missing         strng   -> string       1
+ *      a wrong character           strimg  -> string       1
+ *      two neighbours swapped      stirng  -> string       1
+ *
+ * Textbook name: the Damerau-Levenshtein distance (plain Levenshtein counts a
+ * swap as two mistakes; swaps are the most common typing error, so they count
+ * as one here). It is computed with the classic table: cell [i][j] is the
+ * distance between the first i characters of one name and the first j of the
+ * other, each cell worked out from its three neighbours.
+ *
+ * Upper and lower case are treated as the same letter, so `String` is at
+ * distance 0 from `string` - and is the first thing offered.
+ *
+ * HOW CLOSE IS CLOSE ENOUGH
+ * At most one mistake per three characters (and at least one allowed):
+ * `x` is not "close" to every one-letter name in the program, and a long name
+ * may have a couple of typos. And a short name (up to four letters) must
+ * start with the same letter: `math` is not a slip for `path`
+ * (starts_unrelated).
+ */
+
+/** upper case to lower case, everything else unchanged */
+def lower(c: _int64) : _int64 {
+    if(c >= 'A' && c <= 'Z') { return c + 32; }
+    return c;
+}
+
+/**
+ * The number of typing mistakes between two names (see the top of this file).
+ * @param limit  stop caring beyond this: any result above it means "too far"
+ */
+def name_distance(first: string, second: string, limit: _int64) : _int64 {
+    a : _int8[]? = first.data;
+    b : _int8[]? = second.data;
+    n : _int64 = sizeof(a);
+    m : _int64 = sizeof(b);
+
+    if(n == 0) { return m; }
+    if(m == 0) { return n; }
+    if(n - m > limit || m - n > limit) { return limit + 1; }    // the lengths alone are too far apart
+
+    // three rows of the table are enough: the one being filled and the two above it
+    two_up := new _int64[m + 1];
+    one_up := new _int64[m + 1];
+    row := new _int64[m + 1];
+    for(j : _int64 = 0; j <= m; j++) { one_up[j] = j; }
+
+    for(i : _int64 = 1; i <= n; i++) {
+        row[0] = i;
+        ca : _int64 = lower(a!![i - 1]);
+
+        for(j : _int64 = 1; j <= m; j++) {
+            cb : _int64 = lower(b!![j - 1]);
+            cost : _int64 = 1;
+            if(ca == cb) { cost = 0; }
+
+            best : _int64 = one_up[j] + 1;                              // a character too many
+            if(row[j - 1] + 1 < best) { best = row[j - 1] + 1; }        // a character missing
+            if(one_up[j - 1] + cost < best) { best = one_up[j - 1] + cost; }    // a wrong character (or the same one)
+
+            if(i > 1 && j > 1 && ca == lower(b!![j - 2]) && lower(a!![i - 2]) == cb) {
+                if(two_up[j - 2] + 1 < best) { best = two_up[j - 2] + 1; }      // two neighbours swapped
+            }
+            row[j] = best;
+        }
+
+        // the rows move up by one
+        spare : _int64[] = two_up;
+        two_up = one_up;
+        one_up = row;
+        row = spare;
+    }
+    return one_up[m];
+}
+
+/** how many mistakes still count as "probably meant this" for a name of this length */
+def allowed_mistakes(length: _int64) : _int64 {
+    allowed : _int64 = length / 3;
+    if(allowed < 1) { allowed = 1; }
+    return allowed;
+}
+
+/**
+ * A short name with another FIRST letter is a different word, not a typo:
+ * `math` and `path`, `cat` and `bat`, `sum` and `num` are one mistake apart,
+ * but nobody types the first letter of a four-letter word wrong and the
+ * rest right - offering `path` for `math` only misleads. So for names of up
+ * to four letters the first letter must match (case aside), unless the
+ * first two are swapped (`hte` for `the`). Longer names keep the plain rule.
+ */
+def starts_unrelated(wanted: string, candidate: string) : _int64 {
+    a : _int8[]? = wanted.data;
+    b : _int8[]? = candidate.data;
+    if(sizeof(a) > 4 || sizeof(a) == 0 || sizeof(b) == 0) { return 0; }
+    if(lower(a!![0]) == lower(b!![0])) { return 0; }
+    if(sizeof(a) > 1 && sizeof(b) > 1 && lower(a!![0]) == lower(b!![1]) && lower(a!![1]) == lower(b!![0])) { return 0; }
+    return 1;
+}
+
+/**
+ * Are the two words made of the same letters in another order (`brake` and
+ * `break`, `retrun` and `return`)? Letters that changed places further apart
+ * than neighbours are more than one mistake for name_distance, but for a
+ * KEYWORD they are the commonest slip there is; the keyword helps ask this
+ * as well. (The same word is not "another order".)
+ */
+def same_letters(a: string, b: string) : _int64 {
+    if(sizeof(a.data) != sizeof(b.data) || a == b) { return 0; }
+    counts := new _int64[256];
+    for(i : _int64 = 0; i < sizeof(a.data); i++) {
+        counts[(a.data[i] as _int64) & 255]++;
+        counts[(b.data[i] as _int64) & 255]--;
+    }
+    for(i : _int64 = 0; i < 256; i++) {
+        if(counts[i] != 0) { return 0; }
+    }
+    return 1;
+}
+
+/**
+ * The names in `known` that `wanted` was most likely meant to be: the closest
+ * first, at most `how_many`. Empty when nothing is close.
+ */
+def closest_names(wanted: string, known: list<string>, how_many: _int64) : list<string> {
+    limit : _int64 = allowed_mistakes(sizeof(wanted.data));
+    found := new list<string>();
+    distances := new list<int>();
+
+    for(k : _int64 = 0; k < known.size(); k++) {
+        candidate := known.at(k);
+        if(candidate == wanted) { continue; }
+
+        distance : _int64 = name_distance(wanted, candidate, limit);
+        if(distance > limit) { continue; }
+        if(distance > 0 && starts_unrelated(wanted, candidate)) { continue; }
+
+        // keep `found` sorted, closest first: put the candidate in front of
+        // the first one that is further away (already known names stay ahead
+        // of new ones at the same distance)
+        place : _int64 = 0;
+        duplicate : _int64 = 0;
+        while(place < found.size() && distances.at(place).value <= distance) {
+            if(found.at(place) == candidate) { duplicate = 1; }
+            place++;
+        }
+        if(duplicate == 1) { continue; }
+
+        found.insert(place, candidate);
+        distances.insert(place, new int(distance));
+        if(found.size() > how_many) {
+            found.remove_at(found.size() - 1);
+            distances.remove_at(distances.size() - 1);
+        }
+    }
+    return found;
+}
+
+/**
+ * A help line from the closest names:
+ *
+ *      did you mean `string`?
+ *      did you mean `string` or `strings`?
+ *      did you mean `string`, `strings` or `spring`?
+ *
+ * "" when there is nothing to suggest.
+ */
+def did_you_mean(names: list<string>) : string {
+    if(names.size() == 0) { return ""; }
+
+    text := new string_builder("did you mean ");
+    for(i : _int64 = 0; i < names.size(); i++) {
+        if(i > 0) {
+            if(i == names.size() - 1) { text.append(" or "); }
+            else { text.append(", "); }
+        }
+        text.append("`" + names.at(i) + "`");
+    }
+    text.append("?");
+    return text.build();
+}

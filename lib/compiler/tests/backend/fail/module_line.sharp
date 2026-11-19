@@ -1,0 +1,9 @@
+// expect: E0390
+import ( std.io )
+
+mod late_module;
+
+class something { }
+
+def main() {
+}

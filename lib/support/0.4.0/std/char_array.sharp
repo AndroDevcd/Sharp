@@ -1,0 +1,293 @@
+mod std;
+
+import (
+    std.io
+)
+
+/**
+ * @class char_array
+ *
+ * Description:
+ * A thin wrapper around a raw array of characters (`_int8[]`). The compiler
+ * and the console functions use it to accept "anything that is a row of
+ * characters" - a string literal, a number array, a `char[]`, a `string` -
+ * through its constructors, so those must stay as they are.
+ *
+ * On top of that it is a small MUTABLE character buffer of fixed length:
+ * unlike `string`, whose text methods return new strings, the methods here
+ * (put, fill, reverse, sort, to_upper ...) change the characters in place.
+ * To change the length use a string_builder instead.
+ *
+ *     chars := new char_array("hello");
+ *     chars.put(0, 'j');
+ *     chars.reverse();
+ *     chars.to_string()        "ollej"
+ *
+ * Sharing: char_array(_int8[]), char_array(char_array) and
+ * char_array(string) do NOT copy - the new object works on the same
+ * characters as its source, so changing one changes the other. Call
+ * duplicate() for an independent copy. The other constructors convert and
+ * therefore always copy.
+ *
+ * `data` is null for an empty array; every method accepts that.
+ * Positions and yes/no answers are native numbers; -1 means "not found".
+ */
+class char_array : loopable<_int8> {
+    data: _int8[]? = null;
+        private set value -> {
+            data = value;
+        }
+
+    /** Wraps `data` without copying it (null gives an empty array). */
+    char_array(data: _int8[]?) {
+        self->data = data;
+    }
+
+    /** A char_array holding the numbers of `data` as characters (copied). */
+    char_array(data: decimal[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i];
+        }
+    }
+
+    /** A char_array holding the numbers of `data` as characters (copied). */
+    char_array(data: _int16[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i];
+        }
+    }
+
+    /** A char_array holding the characters of the `char` objects in `data` (copied). */
+    char_array(data: char[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i].value;
+        }
+    }
+
+    /** A char_array holding the characters of the `uchar` objects in `data` (copied). */
+    char_array(data: uchar[]?) {
+        self->data = new _int8[sizeof(data)];
+        for(i := 0; i < sizeof(data); i++) {
+            self->data[i] = data[i].value;
+        }
+    }
+
+    /** Shares the characters of another char_array (not copied). */
+    char_array(array: char_array?) {
+        self->data = array?.data;
+    }
+
+    /** Shares the characters of the string `str` (not copied: changing them changes the string). */
+    char_array(str: string?) {
+        self->data = str?.get_elements();
+    }
+
+    override def get_elements() := data;
+
+    /** The characters as a new string. */
+    override def to_string() := new string(data);
+
+    /** The exception for a position outside of the array. */
+    private def bounds_error(what: string, index: decimal): bounds_except {
+        return new bounds_except("$what: index ${new int(index)} is outside of a char_array of ${new int(sizeof(data))} characters");
+    }
+
+    /** The number of characters. */
+    def length(): decimal {
+        return sizeof(data);
+    }
+
+    /** 1 if there are no characters. */
+    def is_empty(): decimal {
+        return sizeof(data) == 0;
+    }
+
+    /**
+     * The character at `index` (0 = first) as a native number.
+     * Throws out_of_bounds_exception if index is negative or >= length().
+     */
+    def at(index: int): decimal {
+        i : decimal = index.value;
+        if(i < 0 || i >= sizeof(data)) throw bounds_error("at", i);
+        return data[i];
+    }
+
+    /**
+     * Overwrites the character at `index` with `c`. Returns this array.
+     * Throws out_of_bounds_exception if index is negative or >= length().
+     */
+    def put(index: int, c: char): char_array {
+        i : decimal = index.value;
+        if(i < 0 || i >= sizeof(data)) throw bounds_error("put", i);
+        data[i] = c.value;
+        return self;
+    }
+
+    /** Sets every character to `c`. Returns this array. */
+    def fill(c: char): char_array {
+        n : decimal = sizeof(data);
+        v : decimal = c.value;
+        for(i : decimal = 0; i < n; i++) {
+            data[i] = v;
+        }
+        return self;
+    }
+
+    /**
+     * Exchanges the characters at positions `a` and `b`. Returns this array.
+     * Throws out_of_bounds_exception if either position is outside of the array.
+     */
+    def swap(a: int, b: int): char_array {
+        n : decimal = sizeof(data);
+        if(a.value < 0 || a.value >= n) throw bounds_error("swap", a.value);
+        if(b.value < 0 || b.value >= n) throw bounds_error("swap", b.value);
+        tmp : decimal = data[a.value];
+        data[a.value] = data[b.value];
+        data[b.value] = tmp;
+        return self;
+    }
+
+    /** Position of the first character equal to `c`, or -1. */
+    def index_of(c: char): decimal {
+        n : decimal = sizeof(data);
+        v : decimal = c.value;
+        for(i : decimal = 0; i < n; i++) {
+            if(data[i] == v) return i;
+        }
+        return -1;
+    }
+
+    /** Position of the last character equal to `c`, or -1. */
+    def last_index_of(c: char): decimal {
+        v : decimal = c.value;
+        for(i : decimal = sizeof(data) - 1; i >= 0; i--) {
+            if(data[i] == v) return i;
+        }
+        return -1;
+    }
+
+    /** 1 if at least one character equals `c`. */
+    def contains(c: char): decimal {
+        return index_of(c) >= 0;
+    }
+
+    /** How many characters equal `c`. */
+    def count(c: char): decimal {
+        n : decimal = sizeof(data);
+        v : decimal = c.value;
+        total : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            if(data[i] == v) total++;
+        }
+        return total;
+    }
+
+    /** Puts the characters in opposite order, in place. Returns this array. */
+    def reverse(): char_array {
+        i : decimal = 0;
+        j : decimal = sizeof(data) - 1;
+        while(i < j) {
+            tmp : decimal = data[i];
+            data[i] = data[j];
+            data[j] = tmp;
+            i++;
+            j--;
+        }
+        return self;
+    }
+
+    /**
+     * Sorts the characters by their code, smallest first, in place ("hello"
+     * becomes "ehllo"; capitals come before small letters). Returns this array.
+     * (Shell sort: no recursion and no extra memory.)
+     */
+    def sort(): char_array {
+        n : decimal = sizeof(data);
+        gap : decimal = 1;
+        while(gap < n / 3) {
+            gap = gap * 3 + 1;                  // 1, 4, 13, 40, ...
+        }
+        while(gap >= 1) {
+            for(i : decimal = gap; i < n; i++) {
+                moving : decimal = data[i];
+                j : decimal = i;
+                while(j >= gap && data[j - gap] > moving) {
+                    data[j] = data[j - gap];
+                    j -= gap;
+                }
+                data[j] = moving;
+            }
+            gap = (gap - 1) / 3;
+        }
+        return self;
+    }
+
+    /** Makes every small ASCII letter a capital, in place. Returns this array. */
+    def to_upper(): char_array {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            if(c >= 'a' && c <= 'z') data[i] = c - 32;
+        }
+        return self;
+    }
+
+    /** Makes every capital ASCII letter small, in place. Returns this array. */
+    def to_lower(): char_array {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            if(c >= 'A' && c <= 'Z') data[i] = c + 32;
+        }
+        return self;
+    }
+
+    /** An independent copy: changing it does not change this array. */
+    def duplicate(): char_array {
+        return slice(0, sizeof(data));
+    }
+
+    /**
+     * A new, independent char_array with the characters from `start` up to
+     * (not including) `end`. start == end gives an empty array.
+     * Throws out_of_bounds_exception if the range is not inside the array
+     * (start < 0, end > length() or end < start).
+     */
+    def slice(start: int, end: int): char_array {
+        n : decimal = sizeof(data);
+        from : decimal = start.value;
+        to : decimal = end.value;
+        if(from < 0 || to > n || to < from)
+            throw new bounds_except("slice: range $start..$end is not inside a char_array of ${new int(n)} characters");
+
+        part : _int8[]? = null;
+        if(to > from) {
+            part = new _int8[to - from];
+            memcopy(data!!, part!!, 0, from, to);
+        }
+        return new char_array(part);
+    }
+
+    /** 1 if `other` has the same characters in the same order (two empty arrays are equal). */
+    def content_equals(other: char_array): decimal {
+        n : decimal = sizeof(data);
+        if(n != sizeof(other.data)) return 0;
+        for(i : decimal = 0; i < n; i++) {
+            if(data[i] != other.data[i]) return 0;
+        }
+        return 1;
+    }
+
+    /** The characters as an array of `char` objects (length 0 for an empty array). */
+    def to_chars(): char[] {
+        n : decimal = sizeof(data);
+        result := new char[n];
+        for(i : decimal = 0; i < n; i++) {
+            result[i] = new char(data[i]);
+        }
+        return result;
+    }
+}

@@ -1,0 +1,504 @@
+mod std.io.fiber;
+
+import (
+    std.io,
+    platform.kernel
+)
+
+/**
+ * waiter - one fiber waiting for one event. The parking primitive every blocking
+ * operation in the coroutine and concurrency library is built on (job.join,
+ * channel.send/receive, mutex, semaphore, future, latch, ...).
+ *
+ * USAGE (this is the whole pattern, `self` is the resource that is waited for):
+ *
+ *     // the fiber that has to wait
+ *     w := new waiter(lk);                 // lk = the lock that guards the resource
+ *     lock(lk) {
+ *         if(resource_is_ready) { ...take it...; return; }
+ *         waiters.add(w);                  // a wait_queue, guarded by lk as well
+ *     }
+ *     w.park();                            // sleeps, costs no cpu
+ *     // w.state says why it woke up: RESUMED, CANCELLED, TIMED_OUT, CLOSED
+ *
+ *     // the fiber that makes the resource ready
+ *     woken : waiter? = null;
+ *     lock(lk) {
+ *         w := waiters.pop();
+ *         if(w != null && w.resume(waiter.RESUMED) != 0) { woken = w; }
+ *     }
+ *     if(woken != null) woken.unpark();    // outside the lock
+ *
+ * C++ equivalent: one std::condition_variable wait with its predicate, or a
+ * Linux futex wait/wake pair. Kotlin equivalent: a CancellableContinuation.
+ * Java equivalent: LockSupport.park / unpark plus the "permit" that makes an
+ * unpark before the park not get lost.
+ *
+ * WHY THIS IS NOT JUST fiber.suspend() / fiber.unsuspend()
+ * The runtime gives us two calls and neither remembers anything:
+ *     suspend(self)    the fiber sleeps until somebody unsuspends it
+ *     unsuspend(f)     wakes f if it is suspended, does NOTHING if it is running
+ * So "check the condition, then suspend" loses the wake-up when the other
+ * fiber unsuspends between the check and the suspend: the fiber then sleeps
+ * forever. A waiter closes that hole with three rules:
+ *
+ *   1. CLAIM. `state` goes from WAITING to something else exactly once, under
+ *      `guard`, and `wake` is set to 1 in the same step. Whoever makes that
+ *      change has "claimed" the waiter. (resume / abandon / the timeout in
+ *      park_for)
+ *
+ *   2. CHECK AND SLEEP IN ONE STEP. The waiting fiber reads `wake` and makes
+ *      the suspend call in a sequence of instructions that contains no jump,
+ *      no call and no allocation (see suspend_unless_woken). The interpreter
+ *      and the JIT only switch fibers at jumps, calls, returns, `int` and
+ *      object creation, so no other fiber can run on this thread between the
+ *      read and the suspend: when `wake` was 0 the fiber really is suspended
+ *      next, when it was 1 the suspend call is turned into a no-op (it is
+ *      given fiber id -1).
+ *
+ *   3. HANDSHAKE. Another THREAD can still see the fiber as "running" for the
+ *      few instructions between the read and the suspend, and unsuspend
+ *      reports that (result 1). unpark() therefore repeats the call until it
+ *      either hit a suspended fiber or the waiter says it noticed `wake` by
+ *      itself (`done`). And the waiting fiber does not leave park() before the
+ *      other side has finished (`unparked`), so a late unsuspend can never hit
+ *      some later, unrelated sleep of the same fiber (it would cut a delay()
+ *      short).
+ *
+ * The retry in rule 3 yields the OS thread between attempts. It only runs
+ * while the other thread is inside those few instructions, so in practice it
+ * goes around zero or one time. This is the one place in the library that
+ * waits by retrying; a runtime call "suspend unless a wake-up is pending"
+ * would remove it (see the final report of the library redesign).
+ *
+ * LOCKING DISCIPLINE
+ *   guarded by `guard` (the lock of the resource this waiter waits for):
+ *       state, item, tag, next, prev, queue
+ *   written under `guard`, read without it by the owner fiber:
+ *       wake (only ever goes 0 -> 1), self_claimed (only written by the owner)
+ *   not locked, each written by one side only, each only goes 0 -> 1:
+ *       done      written by the owner fiber
+ *       unparked  written by the fiber that called unpark()
+ *   never changes after the constructor:
+ *       fib, guard
+ *
+ * A waiter is used for ONE wait and then dropped. Never reuse one.
+ *
+ * Can suspend: park() and park_for(). Nothing else blocks.
+ * Cancellation: a waiter knows nothing about jobs. The coroutine library wakes
+ * a waiter of a cancelled job with resume(waiter.CANCELLED) (see
+ * std.io.coroutines await_waiter()).
+ */
+class waiter {
+
+    /** not claimed yet: the owner fiber is (or is about to be) asleep */
+    static const WAITING : decimal = 0;
+    /** the event happened: the resource was handed over, the job finished, ... */
+    static const RESUMED : decimal = 1;
+    /** the job of the waiting coroutine was cancelled */
+    static const CANCELLED : decimal = 2;
+    /** park_for() ran out of time */
+    static const TIMED_OUT : decimal = 3;
+    /** the resource was closed or shut down while the fiber waited */
+    static const CLOSED : decimal = 4;
+
+    /** the fiber that waits (the one that created this waiter) */
+    fib : fiber?;
+    /** the lock that protects `state` and the queue links, see LOCKING DISCIPLINE */
+    guard : object?;
+
+    /** WAITING, RESUMED, CANCELLED, TIMED_OUT or CLOSED */
+    state : decimal = 0;
+    /** 1 as soon as `state` is not WAITING any more. This is the field the sleep sequence reads. */
+    wake : decimal = 0;
+    /** 1 when the owner fiber claimed the waiter itself (abandon / timeout): nobody will call unpark() */
+    self_claimed : decimal = 0;
+    /** owner -> waker: "I have seen `wake`, stop trying to unsuspend me" */
+    done : decimal = 0;
+    /** waker -> owner: "unpark() is finished, I will not touch your fiber again" */
+    unparked : decimal = 0;
+
+    /** a value passed between the two sides (channel element, result, ...) */
+    item : object?;
+    /** a number the resource may use for its own purpose (permits wanted, reader or writer, ...) */
+    tag : decimal = 0;
+
+    /**
+     * 1 when the owner is the first fiber of a thread other than the main
+     * thread. The runtime does not tell such a fiber its id (it stays 0, the id
+     * of the MAIN fiber: thread_controller.cpp setup_thread writes it with
+     * assign_numeric_class_field, which expects a number object and silently
+     * does nothing for the native `id` field), so it cannot be suspended and
+     * unsuspended by id. Such a waiter sleeps in short timed naps instead and
+     * looks at `wake` in between: correct, but it wakes up to 8 ms late and
+     * costs a timer every few milliseconds while it waits. Work that blocks
+     * should therefore run in a fiber (slice, launch, thread_pool), not directly
+     * in the function a thread was created with. With the runtime fixed the id
+     * is no longer 0 and this mode switches itself off.
+     */
+    polling : decimal = 0;
+
+    /** links of the wait_queue this waiter is in (null when it is in none) */
+    next : waiter?;
+    prev : waiter?;
+    queue : wait_queue?;
+
+    /**
+     * A waiter for the fiber that is running right now.
+     *
+     * @param guard the lock that protects the resource (and with it this waiter's
+     *              state). resume() and abandon() must be called while holding it.
+     */
+    waiter(guard: object) {
+        self->guard = guard;
+        owner := fiber.current();
+        self->fib = owner;
+
+        // fiber.start() stores the id AFTER the runtime call that created the
+        // fiber returns, and on another thread the new fiber can be running
+        // before that. Parking needs the id, so wait for it here. The creator
+        // is a few instructions away; yielding the FIBER (not the thread) lets
+        // it finish even when it shares this thread.
+        while(owner.id == -1) {
+            yield_fiber();
+        }
+
+        // id 0 is the main fiber. Anywhere but on the main thread (native
+        // handle 0) it is the unset id of a thread's first fiber, see `polling`.
+        if(owner.id == 0) {
+            if(thread.current().get_native_handle() != 0) {
+                polling = 1;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------
+    // claiming (hold `guard`)
+    // ------------------------------------------------------------------------------
+
+    /**
+     * Claim the waiter for another fiber: the event it waits for has happened.
+     * MUST be called while holding `guard`. Does not block.
+     *
+     * @param new_state RESUMED, CANCELLED or CLOSED
+     * @return 1 when this call claimed the waiter: the caller MUST then call
+     *         unpark() (once, soon, preferably after releasing the lock).
+     *         0 when the waiter was claimed before (it timed out, was cancelled
+     *         or resumed by somebody else): the caller must look for another
+     *         waiter and must NOT call unpark().
+     */
+    def resume(new_state: decimal) : decimal {
+        if(state != 0) {
+            return 0;
+        }
+
+        state = new_state;
+        wake = 1;
+        return 1;
+    }
+
+    /**
+     * resume() that also hands a value to the waiting fiber (it reads `item`
+     * after park() returns). Same rules as resume().
+     */
+    def resume_with(new_state: decimal, value: object?) : decimal {
+        if(state != 0) {
+            return 0;
+        }
+
+        item = value;
+        state = new_state;
+        wake = 1;
+        return 1;
+    }
+
+    /**
+     * Claim the waiter for its OWN fiber: "I do not want to wait any more"
+     * (the job was already cancelled, a timeout passed). MUST be called by the
+     * owner fiber while holding `guard`. Does not block.
+     *
+     * @return 1 when the waiter is now withdrawn (park() will return at once,
+     *         nobody will unpark it). 0 when another fiber claimed it first:
+     *         the owner must still call park() to finish the handshake and
+     *         then act on `state`.
+     */
+    def abandon(new_state: decimal) : decimal {
+        if(state != 0) {
+            return 0;
+        }
+
+        state = new_state;
+        wake = 1;
+        self_claimed = 1;
+        return 1;
+    }
+
+    /** true while nobody has claimed the waiter. Hold `guard` for an answer that stays true. */
+    def is_waiting() : bool {
+        return state == 0;
+    }
+
+    // ------------------------------------------------------------------------------
+    // waking (the fiber that claimed with resume)
+    // ------------------------------------------------------------------------------
+
+    /**
+     * Wake the owner fiber. Call it exactly once after resume() / resume_with()
+     * returned 1, from the fiber that made that call. Do NOT hold `guard`
+     * longer than needed around it (it is legal to hold it, the owner needs no
+     * lock to wake up, but other fibers wait for the lock meanwhile).
+     *
+     * Does not block. May retry for a moment while the owner fiber is between
+     * "decided to sleep" and "asleep" on another thread (see rule 3 above).
+     */
+    def unpark() {
+        owner := fib!!;
+
+        if(polling != 0) {
+            // the owner looks at `wake` by itself, its fiber must not be touched
+            unparked = 1;
+            return;
+        }
+
+        for( ;; ) {
+            id : decimal = owner.id;
+
+            // 0 = the fiber was suspended (it is on a ready queue now), or it does not exist any more
+            if(unsuspend_raw(id) == 0) {
+                break;
+            }
+
+            // the owner saw `wake` before it went to sleep
+            if(done != 0) {
+                break;
+            }
+
+            // 1 = running, 2 = suspended: it is on its way to the sleep call, try again.
+            // anything else: the fiber is dead or was never started, nobody is left to wake.
+            st : decimal = state_raw(id);
+            if(st != 1 && st != 2) {
+                break;
+            }
+
+            yield_os_thread();
+        }
+
+        unparked = 1;
+    }
+
+    // ------------------------------------------------------------------------------
+    // sleeping (the owner fiber)
+    // ------------------------------------------------------------------------------
+
+    /**
+     * Sleep until the waiter is claimed. Call it exactly once, from the owner
+     * fiber, WITHOUT holding `guard` (or any other lock: a fiber that sleeps
+     * while it holds a lock blocks everybody who wants that lock).
+     *
+     * Returns at once when the waiter was claimed already. On return `state`
+     * is never WAITING.
+     *
+     * SUSPENDS the calling fiber. The thread is free to run other fibers.
+     * Not a cancellation point by itself (see the class comment).
+     */
+    def park() {
+        owner := fib!!;
+
+        if(polling != 0) {
+            nap : decimal = 1;
+            while(wake == 0) {
+                sleep_raw(nap);
+                if(nap < 8) {
+                    nap = nap * 2;
+                }
+            }
+        } else {
+            while(wake == 0) {
+                suspend_unless_woken(self, owner.id);
+            }
+        }
+
+        finish_wait();
+    }
+
+    /**
+     * park() that gives up after `ms` milliseconds: the waiter then claims
+     * itself with state TIMED_OUT. Same rules as park().
+     *
+     * After a time out the waiter may still be linked in a wait_queue: the
+     * caller removes it (wait_queue.remove, under `guard`). A waker that pops
+     * it before that simply gets 0 from resume() and moves on.
+     *
+     * Takes `guard` for a moment when the time runs out, so do not hold it.
+     *
+     * @param ms how long to wait at most. 0 or less: do not sleep at all, time
+     *           out at once unless the waiter was claimed already.
+     */
+    def park_for(ms: decimal) {
+        owner := fib!!;
+        deadline : decimal = now_millis() + ms;
+        nap : decimal = 1;
+
+        while(wake == 0) {
+            remaining : decimal = deadline - now_millis();
+
+            if(remaining <= 0) {
+                lock(guard) {
+                    if(state == 0) {
+                        state = 3;          // TIMED_OUT
+                        wake = 1;
+                        self_claimed = 1;
+                    }
+                }
+                // `wake` is 1 now whoever claimed the waiter: the loop ends
+            } else {
+                // the runtime sleeps whole milliseconds, a fraction would turn into a busy yield loop
+                if(remaining < 1) {
+                    remaining = 1;
+                }
+
+                if(polling != 0) {
+                    if(remaining > nap) {
+                        remaining = nap;
+                    }
+                    if(nap < 8) {
+                        nap = nap * 2;
+                    }
+                }
+                delay_unless_woken(self, remaining);
+            }
+        }
+
+        finish_wait();
+    }
+
+    /**
+     * The owner side of the handshake (rule 3): tell the waker we are awake and
+     * wait until it has stopped touching this fiber. When the owner claimed the
+     * waiter itself there is no waker and nothing to wait for.
+     */
+    private def finish_wait() {
+        done = 1;
+
+        if(self_claimed == 0 && polling == 0) {
+            // the waker is at most a few instructions away from setting `unparked`
+            while(unparked == 0) {
+                yield_os_thread();
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------------------
+    // the runtime calls
+    // ------------------------------------------------------------------------------
+
+    /**
+     * Rule 2: "if(w.wake == 0) suspend this fiber" WITHOUT a branch.
+     *
+     * The id handed to the suspend call is computed from `wake`:
+     *     wake == 0  ->  id               the fiber goes to sleep
+     *     wake == 1  ->  -1               no such fiber, the call does nothing
+     * Between the read of w.wake and the `int` instruction there is only
+     * arithmetic, so the thread cannot switch to another fiber in between.
+     * DO NOT add an if, a call or an object creation to this function.
+     *
+     * C++ equivalent of what happens inside the runtime:
+     *     if(!w->wake) suspend_task(id);   // as one indivisible step
+     */
+    private static def suspend_unless_woken(w: waiter, id: decimal) {
+        target : _int64 = id - ((id + 1) * w.wake);
+
+        asm {
+            ipushl [target]
+            int 0x46
+        }
+    }
+
+    /**
+     * The same trick for a sleep with a time limit:
+     *     wake == 0  ->  delay(ms)        asleep until unsuspended or the time is up
+     *     wake == 1  ->  delay(0)         only gives other fibers a turn
+     * DO NOT add an if, a call or an object creation to this function.
+     */
+    private static def delay_unless_woken(w: waiter, ms: decimal) {
+        mills : _int64 = ms - (ms * w.wake);
+
+        asm {
+            loadl ebx, [mills]
+            int 0x44
+        }
+    }
+
+    /**
+     * unsuspend_task(id) without creating a number object for the result.
+     * @return 0 the fiber was suspended and may run again (or there is no such fiber),
+     *         1 the fiber is not suspended
+     */
+    private static def unsuspend_raw(id: _int64) : decimal {
+        result : _int64 = 0;
+
+        asm {
+            ipushl [id]
+            int 0x47
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    /** the runtime state of fiber `id`: 0 created, 1 running, 2 suspended, 3 killed, -1 no such fiber */
+    private static def state_raw(id: _int64) : decimal {
+        result : _int64 = 0;
+
+        asm {
+            ipushl [id]
+            int 0x4b
+            smovr2 [result], ebx
+        }
+
+        return result;
+    }
+
+    /** let the operating system run another thread for a moment (std::this_thread::yield) */
+    static def yield_os_thread() {
+        asm {
+            int 0x1c
+        }
+    }
+
+    /** give the other fibers of this thread a turn; no cancellation check (the raw delay(0)) */
+    static def yield_fiber() {
+        mills : _int64 = 0;
+
+        asm {
+            loadl ebx, [mills]
+            int 0x44
+        }
+    }
+
+    /**
+     * Sleep `ms` milliseconds with the plain runtime timer: no waiter, no
+     * cancellation, cannot be woken early. For the insides of the library only;
+     * user code calls delay().
+     */
+    static def sleep_raw(ms: decimal) {
+        mills : _int64 = ms;
+
+        asm {
+            loadl ebx, [mills]
+            int 0x44
+        }
+    }
+
+    /** wall clock in milliseconds, as a native number */
+    static def now_millis() : decimal {
+        now : _int64 = 0;
+
+        asm {
+            int 0xb
+            smovr2 [now], bmr
+        }
+
+        return now / 1000000;
+    }
+}

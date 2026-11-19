@@ -1,0 +1,28 @@
+mod backend.compiler.context;
+
+/**
+ * WHERE THE ANALYSIS IS: the session, the context of one body, the scopes of its variables
+ *
+ * The body stages ("the compiler" in the C++ compiler's folders) analyse
+ * every function body and field value. Each analysis function is handed an
+ * `analysis_context` that answers "where am I?": which class, which function,
+ * static or not, which variables are in scope. Nothing is kept in globals.
+ *
+ * The files of this package (module `backend.compiler.context`):
+ *
+ *      context.sharp           this front door
+ *      analysis_session.sharp  what one run over the whole program shares: where problems go,
+ *                              the counters behind -analysis-stats, a few objects made once
+ *      analysis_context.sharp  where one body is: class, function, static or not, the innermost scope
+ *      local_scope.sharp       the scope chain: the variables of one block, and the block around it
+ *      closures.sharp          a lambda uses a variable or `self` of a function around it: the
+ *                              variable is captured, the closure records are linked (stage 9)
+ *      jump_frames.sharp       the loops, locks and try statements around the code: where `break`,
+ *                              `continue` and `return` go and what they pass on the way
+ *      body_types.sharp        a type written INSIDE a body (`new list<T>()`, `x as shape`) -> resolved type
+ *      reporting.sharp         making and reporting a diagnostic at a tree node; the same problem is
+ *                              reported once however many generic instances share the code
+ *      tree_reading.sharp      small readers of the syntax tree: the name at a node, its n-th child
+ *
+ * This file is the package's front door: it only says what is where.
+ */

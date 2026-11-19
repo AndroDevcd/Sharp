@@ -1,0 +1,201 @@
+mod backend.compiler.program;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.compiler.context
+)
+
+/**
+ * WHAT THE RUNTIME NEEDS TO FIND IN EVERY PROGRAM
+ *
+ *      mod app;
+ *      def main() { }          compiled WITHOUT the standard library:
+ *                              E0962: the VM could not throw an exception, start a thread ...
+ *
+ * The VM does not only run the program's code: it makes objects of some
+ * classes ITSELF. When a null object is used it throws a
+ * `std#nullptr_exception`; a failed cast is a `std#class_cast_exception`;
+ * threads, fibers, strings and the reflection classes are made by native
+ * code. The VM finds these classes by name in the program it loads, so an
+ * executable must contain them - whether or not the program's own code ever
+ * names them.
+ *
+ * Two things follow, and this file does both:
+ *
+ *   - a program that has a `main` (an executable is being built) and lacks
+ *     one of them is refused: E0962, ONE message that lists everything
+ *     missing. A build without `main` (a library) is not checked;
+ *   - the classes that are there are recorded in
+ *     `analysed_program.required_classes`. The reachability walk starts at
+ *     them as well as at `main` (usage/reachability.sharp): they are reached
+ *     although nothing in the program may name them, so the code generator
+ *     emits them.
+ *
+ *      E0962   the program has a `main`, and a module or class the runtime needs is missing
+ *
+ * The list is the C++ compiler's, name for name. `std#number<_int32, std#int>`
+ * there is the instance `int` inherits from; here the generic class `number`
+ * is asked for, and the instance is reached through `int`.
+ *
+ * NOT DONE HERE: the C++ compiler also refuses a required module or class
+ * that an `obfuscate` block renamed ("this class may be obfuscated"). What
+ * obfuscation does to a name is decided when the executable is written, so
+ * that half of the check belongs to code generation (doc/backend.md 10.6).
+ *
+ *      C++ comparison: `validate_required_dependencies`, `require_module`
+ *      and `require_class` in finalizer/optimization/dependency_runner.cpp -
+ *      a fatal error per missing name, printed without a place.
+ */
+def check_required_declarations(session: analysis_session, analysed: analysed_program) {
+    missing := new list<string>();
+
+    require_module(session, "std", missing);
+    require_module(session, "std.io", missing);
+    require_module(session, "std.io.fiber", missing);
+    require_module(session, "platform.kernel", missing);
+
+    // what the VM throws
+    require_class(session, analysed, "std", "throwable", missing);
+    require_class(session, analysed, "std", "exception", missing);
+    require_class(session, analysed, "std", "error", missing);
+    require_class(session, analysed, "std", "illegal_argument_exception", missing);
+    require_class(session, analysed, "std", "illegal_state_exception", missing);
+    require_class(session, analysed, "std", "out_of_bounds_exception", missing);
+    require_class(session, analysed, "std", "invalid_operation_exception", missing);
+    require_class(session, analysed, "std", "nullptr_exception", missing);
+    require_class(session, analysed, "std", "runtime_exception", missing);
+    require_class(session, analysed, "std", "stack_overflow_exception", missing);
+    require_class(session, analysed, "std", "thread_stack_exception", missing);
+    require_class(session, analysed, "std", "class_cast_exception", missing);
+    require_class(session, analysed, "std", "out_of_memory_exception", missing);
+    require_class(session, analysed, "std", "incompatible_class_exception", missing);
+    require_class(session, analysed, "std", "unsatisfied_link_error", missing);
+    require_class(session, analysed, "std", "object_import_error", missing);
+
+    // what the VM makes and reads: values, threads and fibers
+    require_class(session, analysed, "std", "_enum_", missing);
+    require_class(session, analysed, "std", "string", missing);
+    require_class(session, analysed, "std", "char_array", missing);
+    require_class(session, analysed, "std", "int", missing);
+    require_class(session, analysed, "std", "number", missing);
+    require_class(session, analysed, "platform.kernel", "stack_state", missing);
+    require_class(session, analysed, "std.io", "thread", missing);
+    require_class(session, analysed, "std.io.fiber", "fiber", missing);
+
+    // reflection: what the VM fills in to describe the program to itself
+    require_class(session, analysed, "std.reflect", "_class_", missing);
+    require_class(session, analysed, "std.reflect", "_field_", missing);
+    require_class(session, analysed, "std.reflect", "_function_", missing);
+    require_class(session, analysed, "std.reflect", "data_type", missing);
+    require_class(session, analysed, "std.reflect", "_function_param_", missing);
+    require_class(session, analysed, "std.reflect", "description", missing);
+
+    if(missing.size() > 0 && analysed.main_function != null) {
+        report_missing(session, analysed.main_function!!, missing);
+    }
+}
+
+/**
+ * The standard library left out altogether - `sharpc main.sharp` without
+ * `-L`, a project without "extern_lib". Every name of the library is then
+ * missing too: `println` (E0400), `string` (E0301), each wherever it is
+ * used, all before E0962 at the end. One mistake, one message: when a
+ * program that has a global `main` has no module `std`, this is said FIRST
+ * and ALONE, right after the declarations are collected, and the driver
+ * stops (main.sharp). Returns 1 when it reported.
+ *
+ * A build without `main` is a library being checked; it is left alone, as
+ * `check_required_declarations` leaves it.
+ *
+ * @param in_project    1 when the compile is a project's: the help names
+ *                      settings.json's "extern_lib" first
+ */
+def report_library_missing_first(prog: sharp_program, found: list<diagnostic>, in_project: _int64) : _int64 {
+    if(prog.find_module("std") != null) { return 0; }
+    main_function : sharp_function? = null;
+    for(m : _int64 = 0; m < prog.module_list.size() && main_function == null; m++) {
+        functions := prog.module_list.at(m).functions;
+        for(i : _int64 = 0; i < functions.size(); i++) {
+            if(functions.at(i).owner == null && functions.at(i).name == "main") {
+                main_function = functions.at(i);
+                break;
+            }
+        }
+    }
+    if(main_function == null) { return 0; }
+
+    d := error_at_names("E0962", "this program cannot run: the standard library is not part of the compile",
+                        main_function!!.unit, main_function!!.node);
+    d.with_label("a program that starts here needs it");
+    d.with_note("there is no module `std`: the VM makes objects of library classes itself - strings, exceptions, threads - and every program calls into it (`println`, `string`); nothing else is checked until it is there");
+    if(in_project == 1) {
+        d.with_help("name the library folder in settings.json - `\"extern_lib\": [ \"/usr/include/sharp/0.4.0\" ]` - or on the command line: `-L <the folder of the library>`");
+    } else {
+        d.with_help("compile the program together with the standard library: `-L <the folder of the library>` (installed in /usr/include/sharp/0.4.0)");
+    }
+    found.add(d);
+    return 1;
+}
+
+/** a module the runtime needs: noted as missing (once) when the program has none of that name */
+def require_module(session: analysis_session, name: string, missing: list<string>) {
+    if(session.prog.find_module(name) != null) { return; }
+    text := "the module `" + name + "`";
+    for(i : _int64 = 0; i < missing.size(); i++) {
+        if(missing.at(i) == text) { return; }
+    }
+    missing.add(text);
+}
+
+/**
+ * A class the runtime needs: recorded on the analysed program when it is
+ * there (a generic class as its blueprint: its instances are reached through
+ * what uses them), noted as missing when it is not. When its whole module
+ * is missing, the module is named instead: one line, not one per class.
+ */
+def require_class(session: analysis_session, analysed: analysed_program, module_name: string, name: string, missing: list<string>) {
+    module := session.prog.find_module(module_name);
+    if(module == null) {
+        require_module(session, module_name, missing);
+        return;
+    }
+    found : sharp_declaration? = module!!.declared.find_type(name);
+    if(found == null || !(found!!.kind == D_CLASS || found!!.kind == D_ENUM || found!!.kind == D_INTERFACE)) {
+        missing.add("`" + module_name + "#" + name + "`");
+        return;
+    }
+    declared : sharp_declaration = found!!;
+    needed := declared as sharp_class;
+    if(!needed.is_open()) { analysed.required_classes.add(needed); }
+}
+
+/** E0962, once, at `main`: everything the runtime needs and the program does not have */
+def report_missing(session: analysis_session, main_function: sharp_function, missing: list<string>) {
+    context := declaration_context(session, main_function);
+    if(context == null) { return; }
+
+    first : string = missing.at(0);
+    message := "this program cannot run: the runtime needs " + first + ", which is not part of it";
+    if(missing.size() > 1) {
+        message = "this program cannot run: the runtime needs " + first + " and " + (missing.size().value - 1)
+                  + " more, which are not part of it";
+    }
+    d := error_at_names("E0962", message, main_function.unit, main_function.node);
+    d.with_label("a program that starts here needs them");
+    if(missing.size() > 1) {
+        listed := new string_builder("missing: ");
+        for(i : _int64 = 0; i < missing.size(); i++) {
+            if(i > 0) { listed.append(", "); }
+            listed.append(missing.at(i));
+        }
+        d.with_note(listed.build());
+    }
+    d.with_note("the VM makes objects of these classes itself - the exceptions it throws, strings, threads, fibers, "
+                + "the reflection classes - and looks them up by name in the program");
+    d.with_help("compile the program together with the standard library: `-L <the folder of the library>`, "
+                + "or name its files on the command line");
+    report(context!!, d);
+}

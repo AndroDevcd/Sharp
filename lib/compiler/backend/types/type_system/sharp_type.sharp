@@ -1,0 +1,189 @@
+mod backend.types.type_system;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * A TYPE AS IT IS USED SOMEWHERE
+ *
+ *      count : decimal             a built-in type
+ *      names : list<string>?       a class, with type arguments, and it may be null
+ *      grid  : int[]               an array
+ *      done  : (int)(bool)         a function that takes an int and returns a bool
+ *
+ * A sharp_class is the class `list`. A sharp_type is one PLACE where a type
+ * is written: "list of string, nullable". There is one sharp_type for every
+ * field's type, every parameter's type, every base class named after `base`.
+ *
+ * TWO STEPS
+ *   1. The preprocessor makes the object from the syntax tree and fills in
+ *      everything that can be read off the text: is it an array, may it be
+ *      null, which built-in type is it, what are the type arguments. For a
+ *      NAMED type it does not know yet what the name means: form = TYPE_NAMED,
+ *      declaration = null.
+ *   2. The postprocessor looks the name up and sets `declaration` to the
+ *      class, interface, enum, alias or type parameter it means.
+ *
+ *      C++ comparison: the old compiler's sharp_type, which also starts out
+ *      "unresolved" and is resolved in a later pass.
+ */
+
+// ---- what a type is written as
+const TYPE_NAMED    : _int64 = 1;   // a name: string, list<int>, outer.inner, std.io#file
+const TYPE_NATIVE   : _int64 = 2;   // decimal, object, _int8 ... _uint64
+const TYPE_FUNCTION : _int64 = 3;   // (int, int)(decimal)
+const TYPE_NIL      : _int64 = 4;   // "returns nothing":  : nil   and   ()()
+
+class sharp_type {
+    form : _int64;                      // TYPE_...
+    unit : source_unit;                 // where it is written
+    node : _int64;                      // its N_TYPE (or N_TYPE_NAME) node, for messages; -1 for one the compiler made
+
+    // ---- a named type
+    declaration : sharp_declaration?;   // what the name means; null until the postprocessor resolved it
+    arguments := new list<sharp_type>();    // list<string, int>: the types between the angle brackets
+
+    // ---- a built-in type
+    native_kind : _int64 = 0;           // the keyword's token kind: K_DECIMAL, K_OBJECT, K_INT8 ...
+
+    // ---- a function type
+    parameters := new list<sharp_type>();
+    result : sharp_type?;               // null: the function returns nothing
+
+    // ---- what can be added to any of them
+    is_array : _int64 = 0;              // t[]
+    is_nullable : _int64 = 0;           // t?        the value may be null
+    has_nullable_items : _int64 = 0;    // t[]??     the items of the array may be null
+
+    // ---- what it resolves to (resolve_written_type.sharp)
+    // `resolved` is the answer when nothing is known about type parameters.
+    // When that answer has no type parameter in it (`is_closed`), it is the
+    // answer everywhere, in every generic instance.
+    resolved : resolved_type?;
+    is_closed : _int64 = 0;
+    // ... and for a type that is not closed, the answer under the environment asked last
+    // (resolve_written_type: the members of one instance are analysed in a row)
+    last_environment : type_environment?;
+    last_resolved : resolved_type?;
+    instance_problem_reported : _int64 = 0;     // a mistake that only shows in a generic instance is reported once
+
+    sharp_type(form: _int64, unit: source_unit, node: _int64) {
+        self->form = form;
+        self->unit = unit;
+        self->node = node;
+    }
+
+    /** has the name been looked up (or is there no name to look up)? */
+    def is_resolved() : _int64 {
+        return form != TYPE_NAMED || declaration != null;
+    }
+
+    /** the class, interface or enum this type names; null for anything else */
+    def class_or_null() : sharp_class? {
+        // (an alias counts as the type it stands for)
+        named := look_through(self, null).type.declaration;
+        if(named == null) { return null; }
+        kind : _int64 = named!!.kind;
+        if(kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM) {
+            return named as sharp_class;
+        }
+        return null;
+    }
+
+    /** the type as a programmer would write it: list<string>[]? */
+    def to_text() : string {
+        text := new string_builder("");
+
+        if(form == TYPE_NIL) {
+            text.append("nil");
+        } else if(form == TYPE_NATIVE) {
+            text.append(native_name(native_kind));
+        } else if(form == TYPE_FUNCTION) {
+            text.append("(");
+            for(i : _int64 = 0; i < parameters.size(); i++) {
+                if(i > 0) { text.append(", "); }
+                text.append(parameters.at(i).to_text());
+            }
+            text.append(")(");
+            if(result != null) { text.append(result!!.to_text()); }
+            text.append(")");
+        } else {
+            if(declaration != null && declaration!!.kind == D_TYPE_PARAMETER) {
+                text.append(declaration!!.name);        // T, not box.T
+            } else if(declaration != null) {
+                text.append(declaration!!.qualified_name());
+            } else if(node >= 0) {
+                text.append(written_name(unit, node));
+            } else {
+                text.append("?");
+            }
+            if(arguments.size() > 0) {
+                text.append("<");
+                for(i : _int64 = 0; i < arguments.size(); i++) {
+                    if(i > 0) { text.append(", "); }
+                    text.append(arguments.at(i).to_text());
+                }
+                text.append(">");
+            }
+        }
+
+        if(is_array == 1) { text.append("[]"); }
+        if(is_nullable == 1) { text.append("?"); }
+        if(has_nullable_items == 1) { text.append("?"); }
+        return text.build();
+    }
+}
+
+/** the keyword of a built-in type */
+def native_name(kind: _int64) : string {
+    if(kind == K_DECIMAL) { return "decimal"; }
+    if(kind == K_OBJECT) { return "object"; }
+    if(kind == K_BOOL) { return "bool"; }
+    if(kind == K_INT8) { return "_int8"; }
+    if(kind == K_INT16) { return "_int16"; }
+    if(kind == K_INT32) { return "_int32"; }
+    if(kind == K_INT64) { return "_int64"; }
+    if(kind == K_UINT8) { return "_uint8"; }
+    if(kind == K_UINT16) { return "_uint16"; }
+    if(kind == K_UINT32) { return "_uint32"; }
+    if(kind == K_UINT64) { return "_uint64"; }
+    return "?";
+}
+
+/**
+ * The name of a type as it stands in the source, without type arguments:
+ * `outer.inner`, `std.io#file`. `node` is an N_TYPE or an N_TYPE_NAME.
+ */
+def written_name(unit: source_unit, node: _int64) : string {
+    tree : syntax_tree = unit.parsed!!.tree;
+    name_node : _int64 = node;
+    if(tree.kinds!![node] == N_TYPE) {
+        name_node = tree.child_of_kind(node, N_TYPE_NAME);
+        if(name_node < 0) { return "?"; }
+    }
+
+    text := new string_builder("");
+    part : _int64 = tree.first_child!![name_node];
+    while(part >= 0) {
+        kind : _int64 = tree.kinds!![part];
+        if(kind == N_MODULE_PATH) {
+            name : _int64 = tree.first_child!![part];
+            while(name >= 0) {
+                if(text.size() > 0) { text.append("."); }
+                text.append(node_text(unit, name));
+                name = tree.next_sibling!![name];
+            }
+            text.append("#");
+        } else if(kind == N_TYPE_PART) {
+            if(text.size() > 0 && !text.build().ends_with("#")) { text.append("."); }
+            text.append(node_text(unit, part));
+        }
+        part = tree.next_sibling!![part];
+    }
+    return text.build();
+}

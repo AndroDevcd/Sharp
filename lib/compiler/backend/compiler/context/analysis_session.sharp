@@ -1,0 +1,120 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * ONE RUN OF THE BODY STAGES OVER THE WHOLE PROGRAM
+ *
+ * Everything the analysis of one body shares with the analysis of every
+ * other body lives here, so that an analysis function needs one handle
+ * (`context.session`) instead of globals:
+ *
+ *      problems    where diagnostics go, and which were reported already
+ *      counters    what -analysis-stats prints
+ *      a few objects that are needed constantly and so are made once: the
+ *      conversions "nothing to do" and "after an error"
+ *
+ *      C++ comparison: the old compiler keeps these as globals
+ *      (`current_context`, `curr_error`, the `compiler_*` counters).
+ */
+class analysis_session {
+    prog : sharp_program;
+    types : type_table;                     // the built-in types, each once
+    known : well_known_classes;             // the library classes the language itself needs
+    problems : list<diagnostic>;
+
+    // "one mistake, one message": the code and place of everything reported.
+    // The body of a function of a generic class is analysed once per
+    // instance (list<string>, list<int> ...); a mistake in it is the same
+    // mistake every time.
+    reported : hash_map<string, diagnostic>;
+    // E0400 once per name and function: "file:function:name" -> the message, which the
+    // later uses of the same unknown name add a place to (backend/compiler/names/not_found.sharp)
+    unknown_names : hash_map<string, diagnostic>;
+
+    counters : analysis_counters;
+
+    // every function, constructor, init block, getter and setter whose body was
+    // analysed, in order: what the flow analysis (backend/compiler/flow) walks
+    analysed_functions : list<sharp_function>;
+
+    // The component definitions being analysed right now, outermost first: a
+    // definition whose value asks (`get()`) for another one has that one analysed
+    // on the spot. Meeting a definition of this list again is a circle
+    // (backend/compiler/components/definitions.sharp, E0908).
+    definitions_in_progress : list<type_definition>;
+    // `get` requests that found nothing while a definition they might have meant was
+    // still being analysed: settled when every definition is known (E0903 or E0908)
+    unsettled_requests : list<component_request>;
+    // definitions analysed too early and put back (`type_definition.put_back`): made
+    // ready to be analysed again when the outermost definition in progress is done
+    put_back_definitions : list<type_definition>;
+
+    // made once because nearly every conversion asked for is one of these two
+    // 1: report the warnings that are off by default because the library has places that
+    // give them (-wextra; backend/compiler/program/usage/unused_declarations.sharp)
+    extra_warnings : _int64 = 0;
+
+    nothing_to_do : conversion;             // the same type on both sides
+    after_an_error : conversion;            // one side is the error type: accepted silently
+
+    analysis_session(prog: sharp_program, problems: list<diagnostic>) {
+        self->prog = prog;
+        self->types = prog.types;
+        self->known = prog.well_known!!;
+        self->problems = problems;
+        reported = new hash_map<string, diagnostic>();
+        unknown_names = new hash_map<string, diagnostic>();
+        counters = new analysis_counters();
+        analysed_functions = new list<sharp_function>();
+        definitions_in_progress = new list<type_definition>();
+        unsettled_requests = new list<component_request>();
+        put_back_definitions = new list<type_definition>();
+        nothing_to_do = new conversion(CONV_IDENTITY, prog.types.error_type, prog.types.error_type);
+        after_an_error = new conversion(CONV_ERROR, prog.types.error_type, prog.types.error_type);
+    }
+
+    /** the type of a `string` object; the error type when the library has no std#string (reported by stage 5) */
+    def string_type() : resolved_type {
+        if(known.string_class == null) { return types.error_type; }
+        return type_of_class(known.string_class!!);
+    }
+}
+
+/**
+ * What the -analysis-stats option prints. Counted while analysing; cheap
+ * (one addition each).
+ */
+class analysis_counters {
+    bodies : _int64 = 0;                    // function, constructor, init, getter and setter bodies analysed
+    field_values : _int64 = 0;              // field and global values analysed
+    classes : _int64 = 0;                   // classes whose members were analysed (generic instances included)
+    instances : _int64 = 0;                 // ... of which generic instances
+    expressions : _int64 = 0;               // typed-tree expression nodes built from a syntax node
+    statements : _int64 = 0;                // typed-tree statements built
+    statements_by_kind : _int64[];          // ... by kind (BS_...)
+    conversions : _int64 = 0;               // conversions asked for
+    names : _int64 = 0;                     // plain names looked up
+    members : _int64 = 0;                   // `a.b` looked up
+    locals : _int64 = 0;                    // local variables declared
+    constructions_undecided : _int64 = 0;   // conversions through a constructor where several fit (the calls stage picks)
+    lambdas : _int64 = 0;                   // lambdas analysed (each also counts as a body)
+    function_values : _int64 = 0;           // functions named as values
+    definitions : _int64 = 0;               // component definitions analysed
+    requests : _int64 = 0;                  // `get` / `inject` requests resolved to a definition
+    unused_locals : _int64 = 0;             // local variables never used (W1034; counted whether -wextra is given or not)
+    unused_private_members : _int64 = 0;    // private fields and functions nothing uses (W1035)
+    hidden_fields : _int64 = 0;             // local variables named like a field of their class (W1036)
+    fields_without_value : _int64 = 0;      // fields of a class type nothing gives a value (W1032)
+
+    analysis_counters() {
+        statements_by_kind = new _int64[256];
+    }
+}

@@ -1,0 +1,171 @@
+mod std;
+
+import (
+    platform,
+    platform.kernel
+)
+
+/**
+* Created by bknun on 9/3/2022
+* 
+* @class time
+*
+* Description:
+* This file provides tim information in the form of
+* os time or UTC time
+*/
+class time {
+    static const INFINITE := 1;
+
+    static def nano_time() : long {
+        return vm.time_in_nanoseconds();
+    }
+
+    static def get_os_time(tr: time_request)
+       := vm.get_os_time(tr.ordinal);
+
+    static def nano_to_micro(nano: long) : long {
+        return nano/1000;
+    }
+
+    static def nano_to_mills(nano: long) : long {
+        return nano_to_micro(nano)/1000;
+    }
+
+    public static def nano_to_secs(nano: long) : long {
+        return nano_to_mills(nano)/1000;
+    }
+
+    static def mills_time() : long {
+        return nano_to_mills(nano_time());
+    }
+
+    static def micro_time() : long {
+        return nano_to_micro(nano_time());
+    }
+
+    static def sleep(time: long) {
+        sleep(time_unit.milliseconds, time);
+    }
+
+    static def sleep(tm_unit: time_unit, time: long) {
+        if(time < 0)
+            throw new error("cannot sleep for negative time: $time");
+
+        // The time is worked out in a plain number of its own, NOT in `time`. A `long` is an
+        // object, and `time *= 1000` changes that object in place: the caller's value - a
+        // constant like the 2 of `thread.sleep(2)` included. Every now and then (with the JIT)
+        // a call found the 2 already multiplied and slept two seconds instead of two
+        // milliseconds.
+        amount : _int64 = time.value;           // microseconds, once converted
+        if(tm_unit == time_unit.seconds) {
+            amount = amount * 1000000;
+        } else if(tm_unit == time_unit.milliseconds) {
+            amount = amount * 1000;
+        } else if(tm_unit == time_unit.nanoseconds) {
+            amount = amount / 1000;
+        }
+
+        sleep_tm : _int64 = amount; // todo: add support for nanosecond sleeping
+        asm {
+            loadl ebx, [sleep_tm]
+            sleep ebx
+        }
+    }
+
+    static def measureMills(block: ()()): long {
+        return measure(time_unit.milliseconds, block);
+    }
+
+    /**
+     * Runs `block` and returns how long it took, in whole `tm_unit`s
+     * (rounded down).
+     *
+     * The two clock readings are SUBTRACTED FIRST and the difference is
+     * converted afterwards. (Converting each absolute reading to the unit
+     * and then subtracting, as this function used to do, is wrong by up to
+     * one whole unit: 0.9 ms could be reported as 1 ms or as 0 ms depending
+     * on where the millisecond boundary happened to fall.)
+     *
+     * Precision: the readings are nanoseconds since 1970 (about 1.7e18) held
+     * in a floating point number, where neighbouring values are 256 ns
+     * apart, so a nanosecond result is only good to about 0.25 microseconds.
+     * The clock is the system clock and can jump when the OS corrects the
+     * time; a result can then be too large or negative. For exact, testable
+     * timing see std.time (stopwatch, duration, instant).
+     */
+    static def measure(tm_unit: time_unit, block: ()()) : long {
+        start : decimal = vm.time_in_nanoseconds().value;
+        block();
+        elapsed : decimal = vm.time_in_nanoseconds().value - start;
+        return nano_to_unit(elapsed, tm_unit);
+    }
+
+    /** as measure(tm_unit, block) for a block that takes arguments */
+    static def measure(tm_unit: time_unit, args: object[], block: (object[])()) : long {
+        start : decimal = vm.time_in_nanoseconds().value;
+        block(args);
+        elapsed : decimal = vm.time_in_nanoseconds().value - start;
+        return nano_to_unit(elapsed, tm_unit);
+    }
+
+    /**
+     * Converts a number of nanoseconds (a difference, not an absolute time)
+     * to whole `tm_unit`s, dropping the fraction: 1,999,999 ns is 1 ms.
+     */
+    static def nano_to_unit(nanos: decimal, tm_unit: time_unit) : long {
+        divisor : decimal = 1;
+        if(tm_unit == time_unit.seconds) {
+            divisor = 1000000000;
+        } else if(tm_unit == time_unit.milliseconds) {
+            divisor = 1000000;
+        } else if(tm_unit == time_unit.microseconds) {
+            divisor = 1000;
+        }
+        // `%` works on whole numbers, so taking the remainder off first makes the division exact
+        return (nanos - (nanos % divisor)) / divisor;
+    }
+
+
+    static def wait(tm_unit: time_unit, time: long) {
+        if(time != INFINITE) {
+            if(time < 0)
+                throw new error("cannot sleep for negative time: $time");
+
+            // (the conversion is not used yet - the instruction below is switched off - and it must
+            //  never be done in `time` itself: see sleep() above)
+            amount : _int64 = time.value;
+            if(tm_unit == time_unit.seconds) {
+                amount = amount * 1000;
+            } else if(tm_unit == time_unit.microseconds) {
+                amount = amount / 1000;
+            } else if(tm_unit == time_unit.nanoseconds) {
+                amount = amount / 1000000;
+            }
+        }
+
+//        asm {
+//            loadl adx, {time}
+//            int 0x14
+//        }
+    }
+}
+
+enum time_request {
+   tm_seconds = 0,
+   tm_minutes = 1,
+   tm_hour = 2,
+   tm_mday = 3,
+   tm_mon = 4,
+   tm_year = 5,
+   tm_wday = 6,
+   tm_yday = 7,
+   tm_isdst = 8
+}
+
+enum time_unit {
+    seconds = 0,
+    milliseconds = 1,
+    microseconds = 2,
+    nanoseconds = 3
+}

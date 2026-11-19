@@ -1,0 +1,239 @@
+mod std.math;
+
+/**
+ * @class complex
+ *
+ * A complex number re + im * i, where i * i == -1.
+ *
+ * Complex numbers are VALUES: operators and methods return new objects.
+ *
+ *     a := new complex(3, 4);
+ *     b := new complex(1, -2);
+ *     c := a * b;                     // 11 - 2i
+ *     r : decimal = a.magnitude();        // 5
+ *     root := new complex(-4, 0).sqrt();   // 2i
+ *
+ * Operators: + - * / with a complex number or a plain number on the right,
+ * unary -, == !=.
+ */
+class complex {
+    /** the real part */
+    re : decimal = 0;
+
+    /** the imaginary part (the factor of i) */
+    im : decimal = 0;
+
+    /** 0 + 0i */
+    complex() {
+    }
+
+    /** re + im * i */
+    complex(re: decimal, im: decimal) {
+        self->re = re;
+        self->im = im;
+    }
+
+    /** a copy of another complex number */
+    complex(other: complex) {
+        re = other.re;
+        im = other.im;
+    }
+
+    /** 0 + 0i */
+    static def zero(): complex { return new complex(0, 0); }
+
+    /** 1 + 0i */
+    static def one(): complex { return new complex(1, 0); }
+
+    /** the imaginary unit i = 0 + 1i */
+    static def i(): complex { return new complex(0, 1); }
+
+    /** the real number `value` as a complex number: value + 0i */
+    static def of_real(value: decimal): complex { return new complex(value, 0); }
+
+    /**
+     * The complex number at distance `magnitude` from the origin in
+     * direction `phase` (radians): magnitude * (cos(phase) + i sin(phase)).
+     */
+    static def from_polar(magnitude: decimal, phase: decimal): complex {
+        return new complex(magnitude * cos_of(phase), magnitude * sin_of(phase));
+    }
+
+    /** (a + bi) + (c + di) = (a + c) + (b + d)i */
+    def operator+(other: complex): complex {
+        return new complex(re + other.re, im + other.im);
+    }
+
+    /** add a real number: only the real part changes */
+    def operator+(value: decimal): complex {
+        return new complex(re + value, im);
+    }
+
+    /** (a + bi) - (c + di) = (a - c) + (b - d)i */
+    def operator-(other: complex): complex {
+        return new complex(re - other.re, im - other.im);
+    }
+
+    /** subtract a real number: only the real part changes */
+    def operator-(value: decimal): complex {
+        return new complex(re - value, im);
+    }
+
+    /** the negation -re - im * i */
+    def operator-(): complex {
+        return new complex(0 - re, 0 - im);
+    }
+
+    /** (a + bi)(c + di) = (ac - bd) + (ad + bc)i */
+    def operator*(other: complex): complex {
+        return new complex(re * other.re - im * other.im, re * other.im + im * other.re);
+    }
+
+    /** multiply both parts by a real number */
+    def operator*(factor: decimal): complex {
+        return new complex(re * factor, im * factor);
+    }
+
+    /**
+     * Division: multiply numerator and denominator by the conjugate of the
+     * denominator, which makes the denominator the real number c^2 + d^2:
+     *
+     *     (a + bi) / (c + di) = ((ac + bd) + (bc - ad)i) / (c^2 + d^2)
+     *
+     * Throws division_by_zero_exception when `other` is 0 + 0i.
+     */
+    def operator/(other: complex): complex {
+        size : decimal = other.re * other.re + other.im * other.im;
+        if(size == 0)
+            throw new division_by_zero_exception("complex: division by zero");
+
+        return new complex(
+            (re * other.re + im * other.im) / size,
+            (im * other.re - re * other.im) / size);
+    }
+
+    /**
+     * Divide both parts by a real number.
+     * Throws division_by_zero_exception when divisor is 0.
+     */
+    def operator/(divisor: decimal): complex {
+        if(divisor == 0)
+            throw new division_by_zero_exception("complex: division by zero");
+        return new complex(re / divisor, im / divisor);
+    }
+
+    /** true when both parts are exactly equal */
+    def operator==(other: complex): bool {
+        return re == other.re && im == other.im;
+    }
+
+    /** true when the real or the imaginary parts differ */
+    def operator!=(other: complex): bool {
+        return re != other.re || im != other.im;
+    }
+
+    /** true when both parts differ by at most `tolerance` */
+    def approx_equals(other: complex, tolerance: decimal): bool {
+        return absolute(re - other.re) <= tolerance && absolute(im - other.im) <= tolerance;
+    }
+
+    /** the distance from the origin, sqrt(re^2 + im^2) (also called modulus or absolute value) */
+    def magnitude(): decimal {
+        return hypot(re, im);
+    }
+
+    /** re^2 + im^2: the magnitude squared, without the square root */
+    def magnitude_squared(): decimal {
+        return re * re + im * im;
+    }
+
+    /** the direction as an angle in -pi .. pi (also called argument): atan2(im, re) */
+    def phase(): decimal {
+        return atan2(im, re);
+    }
+
+    /** the mirror image across the real axis: re - im * i */
+    def conjugate(): complex {
+        return new complex(re, 0 - im);
+    }
+
+    /**
+     * 1 / this.
+     * Throws division_by_zero_exception when this is 0 + 0i.
+     */
+    def reciprocal(): complex {
+        size : decimal = re * re + im * im;
+        if(size == 0)
+            throw new division_by_zero_exception("complex: zero has no reciprocal");
+        return new complex(re / size, (0 - im) / size);
+    }
+
+    /** true when the imaginary part is exactly 0 */
+    def is_real(): bool {
+        return im == 0;
+    }
+
+    /** true when both parts are exactly 0 */
+    def is_zero(): bool {
+        return re == 0 && im == 0;
+    }
+
+    /** e raised to this number: e^re * (cos(im) + i sin(im)) (Euler's formula) */
+    def exp(): complex {
+        size : decimal = exp_of(re);
+        return new complex(size * cos_of(im), size * sin_of(im));
+    }
+
+    /**
+     * The principal natural logarithm: ln(magnitude) + phase * i.
+     * Throws arithmetic_exception for 0 + 0i (the logarithm of 0 does not exist).
+     */
+    def log(): complex {
+        if(re == 0 && im == 0)
+            throw new arithmetic_exception("complex: the logarithm of zero does not exist");
+        return new complex(ln(magnitude()), phase());
+    }
+
+    /**
+     * This number raised to a real power, in polar form (De Moivre):
+     * magnitude^exponent at angle phase * exponent. 0^0 is 1, 0^x is 0.
+     */
+    def pow(exponent: decimal): complex {
+        if(re == 0 && im == 0) {
+            if(exponent == 0) return new complex(1, 0);
+            return new complex(0, 0);
+        }
+        return from_polar(power(magnitude(), exponent), phase() * exponent);
+    }
+
+    /**
+     * The principal square root (the one with a non-negative real part):
+     * sqrt(-4) is 2i, sqrt(3 + 4i) is 2 + i.
+     *
+     * Formula, with m the magnitude:
+     *     real part      = sqrt((m + re) / 2)
+     *     imaginary part = sign(im) * sqrt((m - re) / 2)
+     */
+    def sqrt(): complex {
+        size : decimal = magnitude();
+        real : decimal = square_root((size + re) / 2);
+        imaginary : decimal = square_root((size - re) / 2);
+        if(im < 0) imaginary = 0 - imaginary;
+        return new complex(real, imaginary);
+    }
+
+    /**
+     * "re + imi" or "re - imi": "3 + 4i", "1 - 2i", "0 + 1i", "5 + 0i".
+     */
+    override def to_string(): string? {
+        if(im < 0) {
+            return number_to_string(re) + " - " + number_to_string(0 - im) + "i";
+        }
+        return number_to_string(re) + " + " + number_to_string(im) + "i";
+    }
+
+    /** a hash code built from both parts (equal numbers have equal hashes) */
+    override def hash(): int {
+        return (re * 31 + im) % 2147483647;
+    }
+}

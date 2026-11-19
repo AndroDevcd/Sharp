@@ -1,0 +1,110 @@
+mod main;
+
+// output:
+// ones: 0 1 1000000 0
+// linear: 0 1 100 10000000000
+// squares: 5003 11004 1825020 5007 330844486000
+// several: 99997 99997 1105000 49508373
+// wrapping: 2656327265854216192 1762993785220569600 869672304631700992 -23637175910389920 -916934656403703040 -1810220136846238208
+// last value: -1000 12010
+// by two: 20 20
+// fed: 1500035
+// scaled: 75
+
+/*
+ * THE OPTIMIZER: LOOP CLOSED FORM (doc/codegen.md 7.2, doc/optimizations.md 3a step 8)
+ *
+ * Like cases/optimizer.sharp: built plain and with -O, both must print the block above (what the
+ * C++-built program prints). A counting loop that only adds up a polynomial of its counter
+ * becomes the formula; every line here is a way the formula could differ from the loop:
+ *
+ *   - sums of 1, of i, of i * i, of a mix, with a counter that does not start at 0;
+ *   - several accumulators in one loop, an accumulator that starts at something;
+ *   - a loop that never runs (n = 0, n below the start): nothing may change, the counter included;
+ *   - sums far past 64 bits: the loop wraps round, the formula must wrap to the same number
+ *     (every remainder of the count by 2 and by 3: the two divisions in the formula);
+ *   - the counter read after the loop;
+ *   - loops that are NOT such a loop and must stay: a value read after the loop that is not a sum,
+ *     a step of 2, an accumulator fed by another, a sum of something the loop does not own.
+ */
+
+def ones(n: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) { total += 1; }
+    return total;
+}
+
+def linear(n: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) { total += i * 2 + 1; }
+    return total;
+}
+
+def squares(from: _int64, n: _int64) : _int64 {
+    total : _int64 = 5;
+    i : _int64 = 3;
+    if(from == 7) { i = 7; }
+    while(i < n) {
+        total += i * i - 4 * i + 9;
+        i++;
+    }
+    return total * 1000 + i;
+}
+
+def several(n: _int64) : _int64 {
+    count : _int64 = 0;
+    sum : _int64 = 100;
+    weighted : _int64 = 0 - 3;
+    for(i : _int64 = 2; i < n; i++) {
+        count++;
+        sum += i;
+        weighted += (i + 1) * (i - 1);
+        sum += 3;
+    }
+    return count * 1000000 + sum * 1000 + weighted;
+}
+
+def wrapping(n: _int64) : _int64 {
+    total : _int64 = 1;
+    for(i : _int64 = 0; i < n; i++) { total += i * i * 1000003 + i * 7777777 + 123456789; }
+    return total;
+}
+
+def last_value(n: _int64) : _int64 {
+    last : _int64 = 0 - 1;
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) { last = i * 3; total += i; }
+    return last * 1000 + total;             // `last` is read after the loop: the loop stays
+}
+
+def by_two(n: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i += 2) { total += i; }
+    return total;
+}
+
+def fed(n: _int64) : _int64 {
+    a : _int64 = 0;
+    b : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) { a += i; b += a; }
+    return a * 100000 + b;
+}
+
+def scaled(n: _int64, k: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) { total += i * k; }
+    return total;
+}
+
+def main(args: string[]) {
+    println("ones: " + ones(0) + " " + ones(1) + " " + ones(1000000) + " " + ones(0 - 5));
+    println("linear: " + linear(0) + " " + linear(1) + " " + linear(10) + " " + linear(100000));
+    println("squares: " + squares(0, 3) + " " + squares(0, 4) + " " + squares(7, 20) + " " + squares(7, 2) + " " + squares(0, 1000));
+    println("several: " + several(0) + " " + several(2) + " " + several(3) + " " + several(50));
+    println("wrapping: " + wrapping(6000000) + " " + wrapping(6000001) + " " + wrapping(6000002)
+            + " " + wrapping(6000003) + " " + wrapping(6000004) + " " + wrapping(6000005));
+    println("last value: " + last_value(0) + " " + last_value(5));
+    println("by two: " + by_two(9) + " " + by_two(10));
+    println("fed: " + fed(6));
+    println("scaled: " + scaled(6, 5));
+}

@@ -1,0 +1,21 @@
+mod frontend.syntax.parser;
+
+/**
+ * THE PARSER: tokens -> syntax tree (recursive descent)
+ *
+ * The files of this package (module `frontend.syntax.parser`):
+ *
+ *      parse_declarations.sharp  classes, functions, fields, imports ... everything that gives something a name
+ *      parse_statements.sharp    blocks and statements
+ *      parse_expressions.sharp   expressions, by operator precedence
+ *      parse_types.sharp         types as written: list<string>[]?
+ *      literals.sharp            checks number, character and string literals
+ *
+ * and one package below it:
+ *
+ *      habits/                   habits of other languages (`and`, `(t) x`, `function f()`, `-> super(..)` ...) and
+ *                                keywords with a slip (`retrun x;`): reported once with the Sharp spelling, then
+ *                                parsed as if it had been written (module `frontend.syntax.parser.habits`)
+ *
+ * This file is the package's front door: it only says what is where.
+ */

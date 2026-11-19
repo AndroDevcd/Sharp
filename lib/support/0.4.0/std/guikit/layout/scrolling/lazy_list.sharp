@@ -1,0 +1,408 @@
+mod std.guikit.layout.scrolling;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * One run of items in a lazy list: how many there are, and the function that
+ * builds the widgets of item number i (counting from 0 within this run).
+ */
+local stable class lazy_section {
+    count : _int64;
+    build_one : (_int64)();
+
+    lazy_section(how_many: _int64, each: (_int64)()) {
+        count = how_many;
+        build_one = each;
+    }
+}
+
+/**
+ * lazy_list - a scrolling list that only builds the rows you can see. Made
+ * with lazy_column(...).
+ *
+ *      lazy_column(modifier().fill()) {
+ *          item { text("Contacts").size(22).bold(); }          // one fixed row
+ *          items(people.size().value) { i: _int64 ->           // one row per person,
+ *              contact_row(people.at(i));                      // built only when it scrolls into view
+ *          }
+ *          item { text("end of list").dim(); }
+ *      }.gap(4)
+ *
+ * A plain scroll { } builds, measures and keeps EVERY child, visible or not:
+ * fine for dozens of rows, hopeless for fifty thousand. A lazy list is told
+ * HOW MANY rows there are and HOW to build row i, and it builds just the
+ * handful that fit the window - so a list of a million rows opens instantly
+ * and scrolls smoothly.
+ *
+ *   .gap(n)      room between the rows
+ *
+ * ONLY item { } AND items(n) { i -> } GO INSIDE lazy_column { }. A widget
+ * written straight into the block would be built eagerly, which is exactly
+ * what this list exists to avoid - so that is an error, and so is item or
+ * items anywhere else (scope.inside).
+ *
+ * (Android: RecyclerView with an adapter. Compose: LazyColumn with item /
+ * items. The idea is the same in all of them: "virtualisation".)
+ *
+ * HOW IT WORKS
+ *
+ *   The scroll position is not a number of pixels (nobody knows how tall a
+ *   million rows are without building them). It is "which row is at the top,
+ *   and how many pixels of that row have scrolled out": `first` and
+ *   `first_cut`. (Compose's LazyListState keeps the same pair:
+ *   firstVisibleItemIndex and firstVisibleItemScrollOffset.)
+ *
+ *   Every layout, `fill` works from that pair:
+ *     1. if the top row has scrolled DOWN past the top edge (first_cut below
+ *        0), build the rows before it until the gap is covered;
+ *     2. if the top row has scrolled entirely out, let it go and move on to
+ *        the next;
+ *     3. from the top row, build and measure row after row until the window
+ *        is full;
+ *     4. if the rows ran out before the window was full, the list was
+ *        scrolled past its end: pull it back and go again.
+ *
+ *   The rows that exist right now are the list's children (`rows`, with
+ *   `rows_first` the number of the first of them) - so painting, clicking and
+ *   focus work on them like on any other widgets. Rows that leave the window
+ *   are dropped; rows that come in are built by the section's function.
+ *
+ *   WHO REBUILDS: a row is built during layout, not during anyone's build().
+ *   So the list remembers the composable that was building when the list
+ *   itself was made (`owner`) and puts it back as "the one building" while a
+ *   row's function runs. A state read inside a row therefore signs up that
+ *   composable; when the state changes, it rebuilds, makes a new lazy list,
+ *   and the visible rows are built afresh from the new data.
+ *
+ *   ACROSS A REBUILD the new list adopts the scroll position, and each row it
+ *   builds takes over the memory of the old list's row with the same number
+ *   (the reconciler) - so a counter or a text field inside a visible row keeps
+ *   what it had. A row that scrolls out of view is gone, and with it what only
+ *   that row remembered; keep what matters in your own state.
+ *
+ *   The scroll bar is an estimate: rows are assumed to be as tall, on
+ *   average, as the ones built so far.
+ */
+stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scroller, stateful, overlay_painter {
+    private sections : list<lazy_section> = new list<lazy_section>();
+    private total : _int64 = 0;                 // how many rows there are in all
+    private space : decimal = 0;
+
+    private first : _int64 = 0;                 // the number of the row at the top of the window
+    private first_cut : decimal = 0;            // how many pixels of that row have scrolled out above the top
+
+    private rows : list<view> = new list<view>();   // the rows that exist now, in order
+    private rows_first : _int64 = 0;                // the number of rows.at(0)
+
+    // the rows of the list this one replaced, to hand their memory on (cleared after the first layout)
+    private old_rows : list<view>?;
+    private old_first : _int64 = 0;
+
+    private owner : composable?;                // who was building when this list was made
+    private typical : decimal = 40;             // the average height of a row, for the scroll bar
+    private shown_tall : decimal = 0;           // the height of the window, from the last layout
+    private at_end : _int64 = 0;                // 1: the last row is in view and the list cannot scroll further
+
+    private static const WHEEL_STEP : decimal = 48;
+    private static const BAR_THICK : decimal = 6;
+
+    lazy_list() {
+        attach(self);
+        owner = ui_host.building;
+    }
+
+    /** run the block that says what is in the list: item { } and items(n) { } */
+    def content(block: ()()) : lazy_list {
+        scope.fill(me, block);
+        if(me.kid_count() > 0) {
+            throw new illegal_state_exception("inside `lazy_column { ... }` rows are written with `item { ... }` or `items(count) { i -> ... }`; a widget written straight into the block would be built eagerly");
+        }
+        return self;
+    }
+
+    /** room between the rows, in pixels */
+    /** how the rows behave while scrolling: SCROLL_PLAIN (the default) or SCROLL_STAGGER (stagger.sharp) */
+    def scroll_feel(how: _int64) : lazy_list {
+        feel = null;
+        if(how == SCROLL_STAGGER) { feel = new stagger(); }
+        return self;
+    }
+
+    private feel : stagger?;                // rows that trail behind while scrolling (null: one rigid sheet)
+
+    def gap(pixels: decimal) : lazy_list {
+        space = pixels;
+        return self;
+    }
+
+    /** one more run of rows (called by item and items) */
+    def add_section(how_many: _int64, each: (_int64)()) {
+        if(how_many > 0) {
+            sections.add(new lazy_section(how_many, each));
+            total = total + how_many;
+        }
+    }
+
+    override def clips() : _int64 { return 1; }
+
+    override def kind() : string { return "lazy_column"; }
+
+    // ------------------------------------------------------------ building one row
+
+    /** build row number `index`: the widgets its section's function makes, in a column of their own */
+    private def build_row(index: _int64) : view {
+        // find the section the row is in, and its number within that section
+        within : _int64 = index;
+        at : _int64 = 0;
+        while(at < sections.size().value - 1 && within >= sections.at(at).count) {
+            within = within - sections.at(at).count;
+            at = at + 1;
+        }
+        section : lazy_section = sections.at(at);
+
+        // The row's own container is made with NO container open, so it lands
+        // nowhere by itself; then the section's function fills it - with the
+        // list's owner as "the one building", so states read in the row sign
+        // that composable up.
+        open_before : view? = scope.open;
+        builder_before : composable? = ui_host.building;
+        scope.open = null;
+        box := new column();
+        box.node().fill_w = 1;
+        ui_host.building = owner;
+        scope.open = box.node();
+        section.build_one(within);
+        scope.open = open_before;
+        ui_host.building = builder_before;
+
+        made : view = box.node();
+        me.add_kid(made);
+
+        // settle it in: builds composables in the row, and takes over the
+        // memory of the old list's row with this number, if it had one
+        before : view? = null;
+        if(old_rows != null) {
+            slot : _int64 = index - old_first;
+            if(slot >= 0 && slot < old_rows!!.size().value) {
+                before = old_rows!!.at(slot);
+            }
+        }
+        reconciler.settle(made, before);
+        return made;
+    }
+
+    private def drop_row(line: view) {
+        me.remove_kid(line);
+    }
+
+    /** the height a row takes in the list: its own, plus the gap after it */
+    private def step_of(line: view) : decimal {
+        return line.want_h + space;
+    }
+
+    // ------------------------------------------------------------ layout
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        // a lazy list needs a limit to know what "visible" means; without one it shows a window's worth
+        tall : decimal = max_h;
+        if(num.is_bounded(max_h) == 0) { tall = 600; }
+        shown_tall = tall;
+
+        if(total == 0) {
+            while(rows.size().value > 0) {
+                drop_row(rows.at(0));
+                rows.remove_at(0);
+            }
+            me.content_w = max_w;
+            me.content_h = 0;
+            return;
+        }
+
+        fill(max_w, tall);
+        old_rows = null;                        // the old list's rows have handed on what they knew
+
+        me.content_w = max_w;
+        me.content_h = tall;
+    }
+
+    /** make `rows` exactly the rows that are in view for the current scroll position (see "HOW IT WORKS") */
+    private def fill(wide: decimal, tall: decimal) {
+        if(first > total - 1) { first = total - 1; }
+        if(first < 0) { first = 0; }
+
+        // the rows kept from last time are only useful if they still begin at `first`
+        if(rows.size().value > 0 && rows_first != first) {
+            sync_rows_to_first(wide);
+        }
+        if(rows.size().value == 0) {
+            rows.add(build_row(first));
+            rows_first = first;
+        }
+        rows.at(0).measure(wide, wide, 0, UNBOUNDED);
+
+        again : _int64 = 1;
+        rounds : _int64 = 0;
+        while(again == 1 && rounds < 3) {
+            again = 0;
+            rounds = rounds + 1;
+
+            // 1. scrolled down past the top of the first row: bring in the rows before it
+            while(first_cut < 0 && first > 0) {
+                first = first - 1;
+                rows_first = first;
+                rows.insert(0, build_row(first));
+                rows.at(0).measure(wide, wide, 0, UNBOUNDED);
+                first_cut = first_cut + step_of(rows.at(0));
+            }
+            if(first_cut < 0) { first_cut = 0; }           // at the very top: no further
+
+            // 2. the first row has scrolled out entirely: let it go
+            while(rows.size().value > 1 && first_cut >= step_of(rows.at(0))) {
+                first_cut = first_cut - step_of(rows.at(0));
+                drop_row(rows.at(0));
+                rows.remove_at(0);
+                first = first + 1;
+                rows_first = first;
+            }
+
+            // 3. row after row until the window is full
+            bottom : decimal = 0 - first_cut;
+            used : _int64 = 0;
+            sum : decimal = 0;
+            while(bottom < tall && first + used < total) {
+                if(used >= rows.size().value) {
+                    rows.add(build_row(first + used));
+                }
+                line : view = rows.at(used);
+                line.measure(wide, wide, 0, UNBOUNDED);
+                bottom = bottom + step_of(line);
+                sum = sum + line.want_h;
+                used = used + 1;
+            }
+            // rows kept from last time that are now below the window
+            while(rows.size().value > used) {
+                last : _int64 = rows.size().value - 1;
+                drop_row(rows.at(last));
+                rows.remove_at(last);
+            }
+            if(used > 0) { typical = sum / used; }
+
+            // 4. the rows ran out before the window was full: scrolled past the end - pull back
+            at_end = 0;
+            if(first + used >= total) {
+                at_end = 1;
+                short_by : decimal = tall - (bottom - space);
+                if(short_by > 0 && (first > 0 || first_cut > 0)) {
+                    first_cut = first_cut - short_by;
+                    again = 1;
+                } else if(short_by < 0) {
+                    at_end = 0;                             // the last row is in view but not yet fully
+                }
+            }
+        }
+    }
+
+    /**
+     * The scroll position moved to a different first row than the kept rows
+     * start at. Keep the rows both have in common; the others are dropped here
+     * and built by fill() as it needs them.
+     */
+    private def sync_rows_to_first(wide: decimal) {
+        // rows before the new first row: gone
+        while(rows.size().value > 0 && rows_first < first) {
+            drop_row(rows.at(0));
+            rows.remove_at(0);
+            rows_first = rows_first + 1;
+        }
+        // the kept rows start AFTER the new first row: nothing of them lines up cheaply - start over
+        if(rows.size().value > 0 && rows_first != first) {
+            while(rows.size().value > 0) {
+                drop_row(rows.at(0));
+                rows.remove_at(0);
+            }
+        }
+    }
+
+    override def arrange() {
+        top : decimal = me.inner_y() - first_cut;
+        count : _int64 = rows.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            line : view = rows.at(i);
+            line.arrange(me.inner_x(), num.nearest(top), line.want_w, line.want_h);
+            top = top + step_of(line);
+        }
+    }
+
+    // ------------------------------------------------------------ scrolling
+
+    override def wheel(dx: decimal, dy: decimal) : _int64 {
+        if(total == 0) {
+            return 0;
+        }
+        // nothing further that way: let a scroller around this list have the turn
+        if(dy > 0 && first == 0 && first_cut <= 0) { return 0; }
+        if(dy < 0 && at_end == 1) { return 0; }
+
+        first_cut = first_cut - dy * WHEEL_STEP;
+        if(feel != null) { feel!!.push(dy * WHEEL_STEP); }
+        if(ui_host.current != null) {
+            ui_host.current!!.relayout();       // other rows come into view: they are built in the next layout
+        }
+        return 1;
+    }
+
+    /** the rows were dragged (a finger on a touch screen, or the mouse): move with it */
+    override def drag_by(dx: decimal, dy: decimal) {
+        if(total == 0) {
+            return;
+        }
+        first_cut = first_cut - dy;
+        if(feel != null) { feel!!.push(dy); }
+        if(ui_host.current != null) {
+            ui_host.current!!.relayout();
+        }
+    }
+
+    override def paint(p: painter) {
+        if(feel != null) {
+            feel!!.sway(me, me.y, me.h);
+        }
+    }
+
+
+    override def paint_over(p: painter) {
+        if(total == 0 || ui_host.current == null) {
+            return;
+        }
+        // an estimate: all rows as tall as the typical one
+        each : decimal = typical + space;
+        whole_tall : decimal = total * each;
+        if(whole_tall <= shown_tall) {
+            return;
+        }
+        scrolled : decimal = first * each + first_cut;
+        bar : decimal = num.larger(24, me.h * shown_tall / whole_tall);
+        place : decimal = (me.h - bar) * num.between(scrolled / (whole_tall - shown_tall), 0, 1);
+
+        look : theme = ui_host.current!!.look;
+        tint : color = look.text_dim.with_alpha(110);
+        if(me.hovered == 1) { tint = look.text_dim.with_alpha(200); }
+        p.rect(me.x + me.w - BAR_THICK - 3, me.y + place + 2, BAR_THICK, bar - 4, BAR_THICK / 2, tint);
+    }
+
+    // ------------------------------------------------------------ across rebuilds
+
+    override def adopt(old: behavior) {
+        if(old is lazy_list) {
+            before := old as lazy_list;
+            first = before.first;
+            first_cut = before.first_cut;
+            typical = before.typical;
+            old_rows = before.rows;
+            if(feel != null && before.feel != null) { feel = before.feel; }
+            old_first = before.rows_first;
+        }
+    }
+}

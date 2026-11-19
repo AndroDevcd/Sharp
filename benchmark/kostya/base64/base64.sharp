@@ -1,0 +1,64 @@
+mod main;
+
+import ( std.data, std.math, std.text )
+
+/**
+ * Base64 - the "base64" test of github.com/kostya/benchmarks.
+ *
+ *      sharp base64 [string size] [tries]         (default 131072 and 8192)
+ *
+ * Encodes a string of `a`s and decodes the result again, `tries` times each,
+ * into newly allocated buffers, with the standard library's base64 class.
+ *
+ * Measured: the two loops. Not measured: the self test and building the
+ * strings. The last line is `time: <seconds>`.
+ */
+
+def verify() {
+    if(base64.encode("hello") != "aGVsbG8=" || base64.encode("world") != "d29ybGQ=") {
+        println("self test failed: encode");
+        exit(1);
+    }
+    if(base64.decode("aGVsbG8=") != "hello" || base64.decode("d29ybGQ=") != "world") {
+        println("self test failed: decode");
+        exit(1);
+    }
+}
+
+def main(args: string[]) {
+    str_size : decimal = 131072;
+    tries : decimal = 8192;
+    if(sizeof(args) > 0) { str_size = args[0].to_int(); }
+    if(sizeof(args) > 1) { tries = args[1].to_int(); }
+
+    verify();
+
+    str1 := new _int8[str_size];
+    for(i : decimal = 0; i < str_size; i++) {
+        str1[i] = 'a';
+    }
+    str2 := base64.encode_bytes(str1);
+    str3 := base64.decode_bytes(str2)!!;
+
+    start : decimal = nano_time().value;
+
+    s_encoded : decimal = 0;
+    for(i : decimal = 0; i < tries; i++) {
+        s_encoded += base64.encode_bytes(str1).size().value;
+    }
+    encode_seconds : decimal = (nano_time().value - start) / 1000000000;
+
+    middle : decimal = nano_time().value;
+    s_decoded : decimal = 0;
+    for(i : decimal = 0; i < tries; i++) {
+        s_decoded += sizeof(base64.decode_bytes(str2)!!);
+    }
+    decode_seconds : decimal = (nano_time().value - middle) / 1000000000;
+    seconds : decimal = (nano_time().value - start) / 1000000000;
+
+    println("encode aaaa... to " + str2.substring(0, 3) + "...: " + number_to_fixed(s_encoded, 0)
+            + ", " + number_to_fixed(encode_seconds, 3));
+    println("decode " + str2.substring(0, 3) + "... to aaaa...: " + number_to_fixed(s_decoded, 0)
+            + ", " + number_to_fixed(decode_seconds, 3));
+    println("time: " + number_to_fixed(seconds, 3));
+}

@@ -1,0 +1,105 @@
+mod backend.compiler.driver;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.members,
+    backend.compiler.context,
+    backend.compiler.components
+)
+
+/**
+ * STAGE 6 AND ON, THE BODY STAGES: every function body and field value is analysed
+ *
+ * Until here the compiler knows every DECLARATION: the classes, their
+ * fields and functions, the type of each. This stage goes INSIDE: it walks
+ * the body of every function, constructor, init block, getter and setter and
+ * the value of every field, and builds the typed tree for it
+ * (backend/types/typed_tree) - every name tied to what it means, every
+ * expression given its type.
+ *
+ * `analyse_bodies` is the driver. It visits
+ *
+ *   - every module: its global variables and global functions;
+ *   - every definition of every component (backend/compiler/components);
+ *   - every class that is real (not a generic class as written - `list<T>`
+ *     has no body that can be analysed, because nothing is known about `T`):
+ *     fields, functions, constructors, init blocks, accessors, enum values,
+ *     and the classes declared inside it;
+ *   - every INSTANCE of a generic class (`list<string>`). Analysing a body
+ *     can name new instances (`new list<pair<K, V>>()` inside
+ *     dictionary<string, int>), so the instances are a WORK LIST: the driver
+ *     keeps going until a round adds none;
+ *   - every instance of a generic function, the same way.
+ *
+ * Generic classes and functions the program makes NO instance of are checked
+ * afterwards, by `analyse_unused_blueprints` (unused_blueprints.sharp).
+ *
+ * Each body is analysed exactly once. A body may be needed EARLY - the type
+ * of `total := price * 2;` is the type of its value - which lazy_types.sharp
+ * handles by analysing that one declaration on the spot.
+ *
+ * The files of this package (module `backend.compiler.driver`):
+ *
+ *      driver.sharp            analyse_bodies: the driver and its work list (this front door)
+ *      class_bodies.sharp      everything in one class; everything in one module
+ *      function_body.sharp     one function, constructor, init block, getter or setter
+ *      field_value.sharp       the value of one field or global; its type when none is written
+ *      lazy_types.sharp        type_of_field / result_of_function: a type that is needed before
+ *                              the driver has come to that declaration; circles (E0408)
+ *      unused_blueprints.sharp generic classes and functions nothing instantiates: analysed
+ *                              once as a stand-in with unknown type arguments, then forgotten
+ *
+ * The stages built after this one (calls and operators, statements and flow,
+ * lambdas, components) all run inside this same driver.
+ *
+ *      C++ comparison: `compile_classes` / `compile_class` in
+ *      compiler/compiler.cpp and the per-declaration compilers next to it.
+ */
+def analyse_bodies(prog: sharp_program, problems: list<diagnostic>) : analysis_session {
+    session := new analysis_session(prog, problems);
+
+    // what the program writes: globals, and every class that is not a blueprint
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        analyse_module(session, prog.module_list.at(i));
+    }
+
+    // the definitions of the components (`single { new database() }`): the ones no body
+    // asked for yet. Before the work list, because they can name generic classes too
+    analyse_definitions(session);
+
+    // the work list: instances of generic classes and functions, including
+    // the ones that appear while these very bodies are analysed
+    analyse_work_list(session, 0, 0);
+    return session;
+}
+
+/**
+ * Analyse the instances of generic classes from index `next_instance` on and
+ * the instances of generic functions from `next_function` on, and every
+ * instance these bodies name in turn, until a round adds none.
+ */
+def analyse_work_list(session: analysis_session, next_instance: _int64, next_function: _int64) {
+    prog : sharp_program = session.prog;
+    progressed : _int64 = 1;
+    while(progressed == 1) {
+        progressed = 0;
+        complete_generic_instances(prog);       // members, override families, per-instance checks of the new ones
+        while(next_instance < prog.generic_instances.size()) {
+            analyse_class(session, prog.generic_instances.at(next_instance));
+            next_instance++;
+            progressed = 1;
+        }
+        while(next_function < prog.pending_functions.size()) {
+            analyse_function_body(session, prog.pending_functions.at(next_function));
+            next_function++;
+            progressed = 1;
+        }
+    }
+}

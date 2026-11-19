@@ -1,0 +1,77 @@
+mod backend.postprocessor.names;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * AN EXTENSION FUNCTION'S OWN NAMES FOR THE TYPE PARAMETERS OF ITS CLASS
+ *
+ * An extension function may give the type parameters of its class names of
+ * its own:
+ *
+ *      class box<T> { item : T?; }
+ *      def box<T>.first() : T? { return item; }        the class's own name
+ *      def box<X>.other() : X? { return item; }        the same function for every box: `X` is box's `T`
+ *
+ * This is the last rule tried: only a name that means nothing else. And only
+ * when EVERY type argument written after the class is such a name or the
+ * class's own parameter at that place - `def box<string>.f()` is a function
+ * of the one class box<string>, and `string` there is the class `string`.
+ * The answer is the type parameter object of the class, so everything after
+ * this stage sees the function exactly as if `T` had been written.
+ *
+ * (The C++ compiler cannot compile an extension function at all, so it has
+ * no rule to compare with.)
+ */
+def renamed_type_parameter(prog: sharp_program, file: sharp_file, node: _int64, name: string) : sharp_declaration? {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    // the extension function the name is written in: an N_FUNCTION at the top of the file with a type before its name
+    function : _int64 = tree.parents!![node];
+    while(function >= 0 && tree.kinds!![function] != N_FUNCTION) { function = tree.parents!![function]; }
+    if(function < 0 || tree.parents!![function] < 0 || tree.kinds!![tree.parents!![function]] != N_FILE) { return null; }
+    extended : _int64 = tree.child_of_kind(function, N_TYPE_NAME);
+    if(extended < 0) { return null; }
+    target := resolve_type_name(prog, file, extended, null, 0, null);
+    if(target == null || !is_class_kind(target!!.kind)) { return null; }
+    parameters := (target as sharp_class).type_parameters;
+
+    // the type arguments written after the class name: the children of its last part
+    class_part : _int64 = tree.last_child!![extended];
+    if(class_part < 0 || tree.kinds!![class_part] != N_TYPE_PART) { return null; }
+    found : sharp_declaration? = null;
+    position : _int64 = 0;
+    argument : _int64 = tree.first_child!![class_part];
+    while(argument >= 0) {
+        if(position >= parameters.size()) { return null; }
+        written := plain_type_name(unit, argument);
+        if(sizeof(written.data) == 0) { return null; }                 // list<X>, X[], X?: not a name of its own
+        inside_class := find_member_type(prog, target!!, written);
+        if(inside_class != null) {
+            if(inside_class!! != parameters.at(position)) { return null; }      // a type of the class, or another parameter
+        } else if(find_in_modules(file, written) != null) {
+            return null;                                                // a real type: one instance is meant
+        }
+        if(written == name) { found = parameters.at(position); }
+        position++;
+        argument = tree.next_sibling!![argument];
+    }
+    if(position != parameters.size()) { return null; }
+    return found;
+}
+
+/** the name a type node consists of when it is ONE plain name (`X`; not `X?`, `X[]`, `m#X`, `list<X>`), else "" */
+def plain_type_name(unit: source_unit, type_node: _int64) : string {
+    tree : syntax_tree = unit.parsed!!.tree;
+    if(tree.kinds!![type_node] != N_TYPE) { return ""; }
+    name_node : _int64 = tree.first_child!![type_node];
+    if(name_node < 0 || tree.kinds!![name_node] != N_TYPE_NAME || tree.next_sibling!![name_node] >= 0) { return ""; }
+    part : _int64 = tree.first_child!![name_node];
+    if(part < 0 || tree.kinds!![part] != N_TYPE_PART || tree.next_sibling!![part] >= 0 || tree.first_child!![part] >= 0) { return ""; }
+    return node_text(unit, part);
+}

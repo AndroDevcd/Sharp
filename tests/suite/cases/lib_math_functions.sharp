@@ -1,0 +1,354 @@
+mod main;
+
+import ( std.testing, std.math )
+
+/**
+ * std.math - the free functions on native numbers:
+ * constants.sharp, native_math.sharp, comparison.sharp, rounding.sharp,
+ * powers.sharp, trigonometry.sharp, interpolation.sharp, number_text.sharp,
+ * and the functions that were already in math.sharp.
+ */
+
+def check_constants() {
+    test("PI_VALUE") { expect(PI_VALUE).should_be_near(3.14159265358979, 0.00000000000001); };
+    test("PI_VALUE == PI") { expect(PI_VALUE).should_be(PI.value); };
+    test("E_VALUE == E") { expect(E_VALUE).should_be(E.value); };
+    test("TAU") { expect(TAU).should_be_near(6.28318530717958, 0.00000000000001); };
+    test("HALF_PI") { expect(HALF_PI * 2).should_be_near(PI_VALUE, 0.000000000000001); };
+    test("QUARTER_PI") { expect(QUARTER_PI * 4).should_be_near(PI_VALUE, 0.000000000000001); };
+    test("SQRT2 squared") { expect(SQRT2 * SQRT2).should_be_near(2, 0.000000000000001); };
+    test("SQRT1_2 squared") { expect(SQRT1_2 * SQRT1_2).should_be_near(0.5, 0.000000000000001); };
+    test("SQRT3 squared") { expect(SQRT3 * SQRT3).should_be_near(3, 0.000000000000001); };
+    test("LN2") { expect(LN2).should_be_near(0.693147180559945, 0.000000000000001); };
+    test("LN10") { expect(LN10).should_be_near(2.30258509299404, 0.00000000000001); };
+    test("LOG2E * LN2") { expect(LOG2E * LN2).should_be_near(1, 0.000000000000001); };
+    test("LOG10E * LN10") { expect(LOG10E * LN10).should_be_near(1, 0.000000000000001); };
+    test("GOLDEN_RATIO") { expect(GOLDEN_RATIO * GOLDEN_RATIO).should_be_near(GOLDEN_RATIO + 1, 0.000000000000001); };
+    test("RADIANS_PER_DEGREE") { expect(RADIANS_PER_DEGREE * 180).should_be_near(PI_VALUE, 0.000000000000001); };
+    test("DEGREES_PER_RADIAN") { expect(DEGREES_PER_RADIAN * PI_VALUE).should_be_near(180, 0.0000000000001); };
+    test("1 + EPSILON is above 1") { expect_true(1 + EPSILON > 1); };
+    half_gap : decimal = EPSILON / 2;
+    test("1 + EPSILON / 2 is 1") { expect(1 + half_gap).should_be(1); };
+    test("MAX_SAFE_INTEGER") { expect(MAX_SAFE_INTEGER).should_be(9007199254740991); };
+    test("MIN_SAFE_INTEGER") { expect(MIN_SAFE_INTEGER + MAX_SAFE_INTEGER).should_be(0); };
+    test("MIN_SAFE_INTEGER is far below zero") { expect_true(MIN_SAFE_INTEGER < 0 - 9000000000000000); };
+}
+
+/* a fractional literal on the LEFT of a variable (it used to lose its fraction) */
+def half_minus(v: decimal): decimal { return 0.5 - v; }
+def half_times(v: decimal): decimal { return 0.5 * v; }
+def one_and_half_plus(v: decimal): decimal { return 1.5 + v; }
+
+def check_native() {
+    test("0.5 - v") { expect(half_minus(0.25)).should_be(0.25); };
+    test("0.5 * v") { expect(half_times(3)).should_be(1.5); };
+    test("1.5 + v") { expect(one_and_half_plus(2.25)).should_be(3.75); };
+
+    test("sin_of(pi / 2)") { expect(sin_of(HALF_PI)).should_be_near(1, 0.000000000001); };
+    test("cos_of(pi)") { expect(cos_of(PI_VALUE)).should_be_near(0 - 1, 0.000000000001); };
+    test("tan_of(pi / 4)") { expect(tan_of(QUARTER_PI)).should_be_near(1, 0.000000000001); };
+    test("exp_of(1)") { expect(exp_of(1)).should_be_near(2.718281828459045, 0.000000000001); };
+    test("ln(e)") { expect(ln(E_VALUE)).should_be_near(1, 0.000000000001); };
+    test("ln(1)") { expect(ln(1)).should_be(0); };
+    test("power(2, 10)") { expect(power(2, 10)).should_be(1024); };
+    test("power(2, 0.5)") { expect(power(2, 0.5)).should_be_near(1.4142135623730951, 0.000000000001); };
+    test("square_root(144)") { expect(square_root(144)).should_be(12); };
+    test("floor_of(2.7)") { expect(floor_of(2.7)).should_be(2); };
+    test("floor_of(-2.5)") { expect(floor_of(0 - 2.5)).should_be(0 - 3); };
+    test("ceil_of(2.1)") { expect(ceil_of(2.1)).should_be(3); };
+    test("ceil_of(-2.5)") { expect(ceil_of(0 - 2.5)).should_be(0 - 2); };
+    test("absolute(-3)") { expect(absolute(0 - 3)).should_be(3); };
+    test("absolute(3)") { expect(absolute(3)).should_be(3); };
+    test("math_call fmod") { expect(math_call(7.5, 2, 0x13)).should_be(1.5); };
+
+    // the functions that were already in math.sharp (double objects)
+    test("sin(0)") { expect(sin(0).value).should_be_near(0, 0.000000000001); };
+    test("sqrt(81)") { expect(sqrt(81).value).should_be(9); };
+    test("pow(3, 4)") { expect(pow(3, 4).value).should_be(81); };
+    test("floor(4.9)") { expect(floor(4.9).value).should_be(4); };
+    test("ceil(4.1)") { expect(ceil(4.1).value).should_be(5); };
+    test("fmod(7.5, 2)") { expect(fmod(7.5, 2).value).should_be(1.5); };
+    test("round(2.5)") { expect(round(2.5).value).should_be(3); };
+    test("round(2.4)") { expect(round(2.4).value).should_be(2); };
+    test("round(-2.7)") { expect(round(0 - 2.7).value).should_be(0 - 3); };
+    test("is_nan(NaN)") { expect_true(is_nan(NaN)); };
+    test("is_nan(1)") { expect_false(is_nan(1)); };
+    test("is_infinite(1 / 0)") { expect_true(is_infinite(POSITIVE_INFINITY)); };
+    test("is_infinite(5)") { expect_false(is_infinite(5)); };
+}
+
+def check_comparison() {
+    test("sign(-4.2)") { expect(sign(0 - 4.2)).should_be(0 - 1); };
+    test("sign(0)") { expect(sign(0)).should_be(0); };
+    test("sign(17)") { expect(sign(17)).should_be(1); };
+    test("min(3, 7)") { expect(min(3, 7)).should_be(3); };
+    test("min(7, 3)") { expect(min(7, 3)).should_be(3); };
+    test("min(-1, -2)") { expect(min(0 - 1, 0 - 2)).should_be(0 - 2); };
+    test("max(3, 7)") { expect(max(3, 7)).should_be(7); };
+    test("max(-1, -2)") { expect(max(0 - 1, 0 - 2)).should_be(0 - 1); };
+    test("min of three") { expect(min(5, 2, 9)).should_be(2); };
+    test("max of three") { expect(max(5, 2, 9)).should_be(9); };
+    test("min with NaN is NaN") { expect_true(is_nan(min(1, NaN.value))); };
+
+    values := new decimal[5];
+    values[0] = 4; values[1] = 0 - 7; values[2] = 12; values[3] = 0; values[4] = 3.5;
+    test("min_of") { expect(min_of(values)).should_be(0 - 7); };
+    test("max_of") { expect(max_of(values)).should_be(12); };
+    try {
+        min_of(new decimal[0]);
+        test("min_of(empty)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("min_of(empty) throws") { };
+    }
+    try {
+        max_of(new decimal[0]);
+        test("max_of(empty)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("max_of(empty) throws") { };
+    }
+
+    test("clamp above") { expect(clamp(15, 0, 10)).should_be(10); };
+    test("clamp below") { expect(clamp(0 - 3, 0, 10)).should_be(0); };
+    test("clamp inside") { expect(clamp(4, 0, 10)).should_be(4); };
+    try {
+        clamp(1, 10, 0);
+        test("clamp(low > high)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("clamp(low > high) throws") { };
+    }
+
+    test("is_finite(1.5)") { expect_true(is_finite(1.5)); };
+    test("is_finite(infinity)") { expect_false(is_finite(POSITIVE_INFINITY.value)); };
+    test("is_finite(NaN)") { expect_false(is_finite(NaN.value)); };
+    test("is_whole(-7)") { expect_true(is_whole(0 - 7)); };
+    test("is_whole(7.25)") { expect_false(is_whole(7.25)); };
+    test("is_whole(infinity)") { expect_false(is_whole(POSITIVE_INFINITY.value)); };
+    test("approx_equals(0.1 + 0.2, 0.3)") { expect_true(approx_equals(0.1 + 0.2, 0.3, 0.000000001)); };
+    test("approx_equals(1, 1.1)") { expect_false(approx_equals(1, 1.1, 0.01)); };
+    test("copy_sign(3, -0.5)") { expect(copy_sign(3, 0 - 0.5)).should_be(0 - 3); };
+    test("copy_sign(-3, 2)") { expect(copy_sign(0 - 3, 2)).should_be(3); };
+    test("compare(1, 2)") { expect(compare(1, 2)).should_be(0 - 1); };
+    test("compare(2, 1)") { expect(compare(2, 1)).should_be(1); };
+    test("compare(2, 2)") { expect(compare(2, 2)).should_be(0); };
+}
+
+def check_rounding() {
+    test("trunc(2.9)") { expect(trunc(2.9)).should_be(2); };
+    test("trunc(-2.9)") { expect(trunc(0 - 2.9)).should_be(0 - 2); };
+    test("fract(2.75)") { expect(fract(2.75)).should_be(0.75); };
+    test("fract(-2.75)") { expect(fract(0 - 2.75)).should_be(0 - 0.75); };
+    test("round_half_away(2.5)") { expect(round_half_away(2.5)).should_be(3); };
+    test("round_half_away(-2.5)") { expect(round_half_away(0 - 2.5)).should_be(0 - 3); };
+    test("round_half_away(2.4)") { expect(round_half_away(2.4)).should_be(2); };
+    test("round_half_away(-2.4)") { expect(round_half_away(0 - 2.4)).should_be(0 - 2); };
+    test("round_half_even(2.5)") { expect(round_half_even(2.5)).should_be(2); };
+    test("round_half_even(3.5)") { expect(round_half_even(3.5)).should_be(4); };
+    test("round_half_even(-2.5)") { expect(round_half_even(0 - 2.5)).should_be(0 - 2); };
+    test("round_half_even(-3.5)") { expect(round_half_even(0 - 3.5)).should_be(0 - 4); };
+    test("round_half_even(2.6)") { expect(round_half_even(2.6)).should_be(3); };
+    test("round_half_even(2.4)") { expect(round_half_even(2.4)).should_be(2); };
+    test("round_to(3.14159, 2)") { expect(round_to(3.14159, 2)).should_be_near(3.14, 0.000000000001); };
+    test("round_to(-3.14159, 3)") { expect(round_to(0 - 3.14159, 3)).should_be_near(0 - 3.142, 0.000000000001); };
+    test("round_to(2.5, 0)") { expect(round_to(2.5, 0)).should_be(3); };
+    test("round_to(1234, -2)") { expect(round_to(1234, 0 - 2)).should_be(1200); };
+    test("round_to(1250, -2)") { expect(round_to(1250, 0 - 2)).should_be(1300); };
+    test("floor_to(3.149, 2)") { expect(floor_to(3.149, 2)).should_be_near(3.14, 0.000000000001); };
+    test("ceil_to(3.141, 2)") { expect(ceil_to(3.141, 2)).should_be_near(3.15, 0.000000000001); };
+    test("round_to_multiple(17, 5)") { expect(round_to_multiple(17, 5)).should_be(15); };
+    test("round_to_multiple(18, 5)") { expect(round_to_multiple(18, 5)).should_be(20); };
+    test("round_to_multiple(0.3, 0.25)") { expect(round_to_multiple(0.3, 0.25)).should_be(0.25); };
+
+    test("int_div(7, 2)") { expect(int_div(7, 2)).should_be(3); };
+    test("int_div(-7, 2)") { expect(int_div(0 - 7, 2)).should_be(0 - 3); };
+    test("int_rem(7, 3)") { expect(int_rem(7, 3)).should_be(1); };
+    test("int_rem(-7, 3)") { expect(int_rem(0 - 7, 3)).should_be(0 - 1); };
+    test("floor_div(7, 2)") { expect(floor_div(7, 2)).should_be(3); };
+    test("floor_div(-7, 2)") { expect(floor_div(0 - 7, 2)).should_be(0 - 4); };
+    test("floor_div(7, -2)") { expect(floor_div(7, 0 - 2)).should_be(0 - 4); };
+    test("floor_div(-7, -2)") { expect(floor_div(0 - 7, 0 - 2)).should_be(3); };
+    test("floor_mod(7, 3)") { expect(floor_mod(7, 3)).should_be(1); };
+    test("floor_mod(-7, 3)") { expect(floor_mod(0 - 7, 3)).should_be(2); };
+    test("floor_mod(7, -3)") { expect(floor_mod(7, 0 - 3)).should_be(0 - 2); };
+    test("floor_mod(-7, -3)") { expect(floor_mod(0 - 7, 0 - 3)).should_be(0 - 1); };
+    test("floor_mod(6, 3)") { expect(floor_mod(6, 3)).should_be(0); };
+    test("ceil_div(7, 2)") { expect(ceil_div(7, 2)).should_be(4); };
+    test("ceil_div(-7, 2)") { expect(ceil_div(0 - 7, 2)).should_be(0 - 3); };
+    test("ceil_div(8, 2)") { expect(ceil_div(8, 2)).should_be(4); };
+
+    caught : decimal = 0;
+    try { int_div(1, 0); } catch(e: division_by_zero_exception) { caught++; }
+    try { int_rem(1, 0); } catch(e: division_by_zero_exception) { caught++; }
+    try { floor_div(1, 0); } catch(e: division_by_zero_exception) { caught++; }
+    try { floor_mod(1, 0); } catch(e: division_by_zero_exception) { caught++; }
+    try { ceil_div(1, 0); } catch(e: division_by_zero_exception) { caught++; }
+    try { round_to_multiple(1, 0); } catch(e: division_by_zero_exception) { caught++; }
+    test("the six divisions by zero throw") { expect(caught).should_be(6); };
+}
+
+def check_powers() {
+    test("square(-7)") { expect(square(0 - 7)).should_be(49); };
+    test("cube(-3)") { expect(cube(0 - 3)).should_be(0 - 27); };
+    test("cbrt(27)") { expect(cbrt(27)).should_be(3); };
+    test("cbrt(-8)") { expect(cbrt(0 - 8)).should_be(0 - 2); };
+    test("cbrt(0)") { expect(cbrt(0)).should_be(0); };
+    test("cbrt(2)") { expect(cbrt(2)).should_be_near(1.2599210498948732, 0.000000000001); };
+    test("cbrt(1000000)") { expect(cbrt(1000000)).should_be(100); };
+    test("nth_root(32, 5)") { expect(nth_root(32, 5)).should_be_near(2, 0.000000000001); };
+    test("nth_root(-27, 3)") { expect(nth_root(0 - 27, 3)).should_be_near(0 - 3, 0.000000000001); };
+    test("nth_root(81, 4)") { expect(nth_root(81, 4)).should_be_near(3, 0.000000000001); };
+    try {
+        nth_root(5, 0);
+        test("nth_root(5, 0)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("nth_root(5, 0) throws") { };
+    }
+    test("hypot(3, 4)") { expect(hypot(3, 4)).should_be(5); };
+    test("hypot(-5, 12)") { expect(hypot(0 - 5, 12)).should_be(13); };
+    test("hypot(0, 0)") { expect(hypot(0, 0)).should_be(0); };
+    test("hypot(1, 1)") { expect(hypot(1, 1)).should_be_near(1.4142135623730951, 0.000000000001); };
+    test("hypot(2, 3, 6)") { expect(hypot(2, 3, 6)).should_be_near(7, 0.000000000001); };
+    test("log2(8)") { expect(log2(8)).should_be(3); };
+    test("log2(1)") { expect(log2(1)).should_be(0); };
+    test("log2(1024)") { expect(log2(1024)).should_be(10); };
+    test("log2(0.25)") { expect(log2(0.25)).should_be(0 - 2); };
+    test("log2(10)") { expect(log2(10)).should_be_near(3.321928094887362, 0.000000000001); };
+    test("log_base(81, 3)") { expect(log_base(81, 3)).should_be_near(4, 0.000000000001); };
+    test("log_base(0.001, 10)") { expect(log_base(0.001, 10)).should_be_near(0 - 3, 0.000000000001); };
+    try {
+        log_base(8, 1);
+        test("log_base(8, 1)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("log_base(8, 1) throws") { };
+    }
+    test("exp2(10)") { expect(exp2(10)).should_be(1024); };
+    test("int_pow(3, 20)") { expect(int_pow(3, 20)).should_be(3486784401); };
+    test("int_pow(2, 52)") { expect(int_pow(2, 52)).should_be(4503599627370496); };
+    test("int_pow(-2, 3)") { expect(int_pow(0 - 2, 3)).should_be(0 - 8); };
+    test("int_pow(7, 0)") { expect(int_pow(7, 0)).should_be(1); };
+    test("int_pow(0, 0)") { expect(int_pow(0, 0)).should_be(1); };
+    test("int_pow(1.5, 2)") { expect(int_pow(1.5, 2)).should_be(2.25); };
+    try {
+        int_pow(2, 0 - 1);
+        test("int_pow(2, -1)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("int_pow(2, -1) throws") { };
+    }
+    test("isqrt(17)") { expect(isqrt(17)).should_be(4); };
+    test("isqrt(16)") { expect(isqrt(16)).should_be(4); };
+    test("isqrt(15)") { expect(isqrt(15)).should_be(3); };
+    test("isqrt(0)") { expect(isqrt(0)).should_be(0); };
+    test("isqrt(10^12 - 1)") { expect(isqrt(999999999999)).should_be(999999); };
+    try {
+        isqrt(0 - 1);
+        test("isqrt(-1)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("isqrt(-1) throws") { };
+    }
+    test("is_perfect_square(144)") { expect_true(is_perfect_square(144)); };
+    test("is_perfect_square(145)") { expect_false(is_perfect_square(145)); };
+    test("is_perfect_square(-4)") { expect_false(is_perfect_square(0 - 4)); };
+    test("is_perfect_square(0)") { expect_true(is_perfect_square(0)); };
+}
+
+def check_trigonometry() {
+    test("to_radians(180)") { expect(to_radians(180)).should_be_near(3.141592653589793, 0.000000000001); };
+    test("to_degrees(pi / 2)") { expect(to_degrees(HALF_PI)).should_be_near(90, 0.000000000001); };
+    test("asin_of(1)") { expect(asin_of(1)).should_be_near(HALF_PI, 0.000000000001); };
+    test("acos_of(1)") { expect(acos_of(1)).should_be_near(0, 0.000000000001); };
+    test("acos_of(-1)") { expect(acos_of(0 - 1)).should_be_near(PI_VALUE, 0.000000000001); };
+    test("atan_of(1)") { expect(atan_of(1)).should_be_near(QUARTER_PI, 0.000000000001); };
+    test("atan2(1, 1)") { expect(atan2(1, 1)).should_be_near(QUARTER_PI, 0.000000000001); };
+    test("atan2(1, -1)") { expect(atan2(1, 0 - 1)).should_be_near(2.356194490192345, 0.000000000001); };
+    test("atan2(-1, 0)") { expect(atan2(0 - 1, 0)).should_be_near(0 - HALF_PI, 0.000000000001); };
+    test("atan2(0, -1)") { expect(atan2(0, 0 - 1)).should_be_near(PI_VALUE, 0.000000000001); };
+    test("sinh_of(1)") { expect(sinh_of(1)).should_be_near(1.1752011936438014, 0.000000000001); };
+    test("cosh_of(1)") { expect(cosh_of(1)).should_be_near(1.5430806348152437, 0.000000000001); };
+    test("tanh_of(1)") { expect(tanh_of(1)).should_be_near(0.7615941559557649, 0.000000000001); };
+    test("sec(0)") { expect(sec(0)).should_be_near(1, 0.000000000001); };
+    test("sec(pi / 3)") { expect(sec(PI_VALUE / 3)).should_be_near(2, 0.000000000001); };
+    test("csc(pi / 6)") { expect(csc(PI_VALUE / 6)).should_be_near(2, 0.000000000001); };
+    test("cot(pi / 4)") { expect(cot(QUARTER_PI)).should_be_near(1, 0.000000000001); };
+    test("asinh(sinh(1))") { expect(asinh(1.1752011936438014)).should_be_near(1, 0.000000000001); };
+    test("asinh(-sinh(1))") { expect(asinh(0 - 1.1752011936438014)).should_be_near(0 - 1, 0.000000000001); };
+    test("asinh(0)") { expect(asinh(0)).should_be(0); };
+    test("acosh(cosh(1))") { expect(acosh(1.5430806348152437)).should_be_near(1, 0.000000000001); };
+    test("acosh(1)") { expect(acosh(1)).should_be(0); };
+    test("acosh(0.5) is NaN") { expect_true(is_nan(acosh(0.5))); };
+    test("atanh(tanh(1))") { expect(atanh(0.7615941559557649)).should_be_near(1, 0.000000000001); };
+    test("atanh(0)") { expect(atanh(0)).should_be(0); };
+    test("normalize_radians(-pi / 2)") { expect(normalize_radians(0 - HALF_PI)).should_be_near(4.71238898038469, 0.000000000001); };
+    test("normalize_radians(5 pi)") { expect(normalize_radians(5 * PI_VALUE)).should_be_near(PI_VALUE, 0.000000000001); };
+    test("normalize_degrees(-90)") { expect(normalize_degrees(0 - 90)).should_be(270); };
+    test("normalize_degrees(725)") { expect(normalize_degrees(725)).should_be(5); };
+    test("normalize_degrees(360)") { expect(normalize_degrees(360)).should_be(0); };
+    test("angle_difference_degrees(350, 10)") { expect(angle_difference_degrees(350, 10)).should_be(20); };
+    test("angle_difference_degrees(10, 350)") { expect(angle_difference_degrees(10, 350)).should_be(0 - 20); };
+    test("angle_difference_degrees(0, 180)") { expect(angle_difference_degrees(0, 180)).should_be(180); };
+}
+
+def check_interpolation() {
+    test("lerp at 0") { expect(lerp(10, 20, 0)).should_be(10); };
+    test("lerp at 1") { expect(lerp(10, 20, 1)).should_be(20); };
+    test("lerp at 0.25") { expect(lerp(10, 20, 0.25)).should_be(12.5); };
+    test("lerp beyond") { expect(lerp(10, 20, 1.5)).should_be(25); };
+    test("lerp downward") { expect(lerp(20, 10, 0.5)).should_be(15); };
+    test("inverse_lerp") { expect(inverse_lerp(10, 20, 12.5)).should_be(0.25); };
+    test("map_range") { expect(map_range(5, 0, 10, 100, 200)).should_be(150); };
+    test("map_range reversed") { expect(map_range(2, 0, 10, 10, 0)).should_be(8); };
+    test("map_range celsius to fahrenheit") { expect(map_range(37, 0, 100, 32, 212)).should_be(98.6); };
+    test("smoothstep below") { expect(smoothstep(0, 10, 0 - 5)).should_be(0); };
+    test("smoothstep above") { expect(smoothstep(0, 10, 50)).should_be(1); };
+    test("smoothstep middle") { expect(smoothstep(0, 10, 5)).should_be(0.5); };
+    test("smoothstep quarter") { expect(smoothstep(0, 1, 0.25)).should_be(0.15625); };
+    test("wrap(370, 0, 360)") { expect(wrap(370, 0, 360)).should_be(10); };
+    test("wrap(-1, 0, 5)") { expect(wrap(0 - 1, 0, 5)).should_be(4); };
+    test("wrap(7, 2, 5)") { expect(wrap(7, 2, 5)).should_be(4); };
+    test("wrap(5, 0, 5)") { expect(wrap(5, 0, 5)).should_be(0); };
+
+    caught : decimal = 0;
+    try { inverse_lerp(3, 3, 1); } catch(e: arithmetic_exception) { caught++; }
+    try { map_range(1, 2, 2, 0, 1); } catch(e: arithmetic_exception) { caught++; }
+    try { smoothstep(1, 1, 1); } catch(e: arithmetic_exception) { caught++; }
+    try { wrap(1, 5, 5); } catch(e: illegal_argument_exception) { caught++; }
+    test("empty ranges throw") { expect(caught).should_be(4); };
+}
+
+def check_text() {
+    test("whole") { expect(number_to_string(3)).should_be("3"); };
+    test("negative whole") { expect(number_to_string(0 - 42)).should_be("-42"); };
+    test("zero") { expect(number_to_string(0)).should_be("0"); };
+    test("2.5") { expect(number_to_string(2.5)).should_be("2.5"); };
+    test("-0.5") { expect(number_to_string(0 - 0.5)).should_be("-0.5"); };
+    test("0.1") { expect(number_to_string(0.1)).should_be("0.1"); };
+    test("3.14159") { expect(number_to_string(3.14159)).should_be("3.14159"); };
+    test("0.001") { expect(number_to_string(0.001)).should_be("0.001"); };
+    test("large whole") { expect(number_to_string(9007199254740991)).should_be("9007199254740991"); };
+    test("NaN") { expect(number_to_string(NaN.value)).should_be("NaN"); };
+    test("Infinity") { expect(number_to_string(POSITIVE_INFINITY.value)).should_be("Infinity"); };
+    test("-Infinity") { expect(number_to_string(NEGATIVE_INFINITY.value)).should_be("-Infinity"); };
+    test("fixed 2") { expect(number_to_fixed(3.14159, 2)).should_be("3.14"); };
+    test("fixed pads") { expect(number_to_fixed(2, 3)).should_be("2.000"); };
+    test("fixed 0") { expect(number_to_fixed(2.5, 0)).should_be("3"); };
+    test("fixed negative") { expect(number_to_fixed(0 - 1.005, 1)).should_be("-1.0"); };
+    try {
+        number_to_fixed(1, 0 - 1);
+        test("number_to_fixed(1, -1)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("number_to_fixed(1, -1) throws") { };
+    }
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_math_functions") {
+        check_constants();
+        check_native();
+        check_comparison();
+        check_rounding();
+        check_powers();
+        check_trigonometry();
+        check_interpolation();
+        check_text();
+    };
+    finish_tests("lib_math_functions");
+}

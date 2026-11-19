@@ -1,0 +1,111 @@
+mod backend.finalizer.generation.closures;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * WHERE A LOCAL VARIABLE LIVES, AND HOW IT IS READ AND STORED (doc/codegen.md 5.3, 6.12, 6.17)
+ *
+ *      n := 1;                 the frame: its own slot          the value IS the slot (no instruction)
+ *      total := 0;  { -> total++ }
+ *                              captured: a field of a closure   get_field %t, %record.total
+ *                              record (`local_variable.storage`)
+ *      localized count := 0;   one value per fiber: a fiber-    get_static %t, count   (load_abs / tls_movl)
+ *                              local slot (`storage`, flagged localized)
+ *
+ * Everything that reads or stores a local - an expression, a declaration, a
+ * `foreach` item, a `catch` variable, `=` and `++` - comes here, so the three
+ * homes are decided in one place.
+ */
+
+/** does the variable live in its frame slot (not in a record, not in a fiber)? */
+def lives_in_frame(variable: local_variable) : _int64 {
+    return variable.is_captured == 0 && variable.is_localized == 0;
+}
+
+/**
+ * The slot holding the object a captured or `localized` variable is a field
+ * of: the closure record (found by `depth`, 6.12), or -1 for a fiber local,
+ * which is in no object.
+ */
+def holder_of_local(g: generator, variable: local_variable, depth: _int64, at: bound_expression) : _int64 {
+    if(variable.storage == null) { g.stop("a variable whose home was never laid out", at.unit, at.node); }
+    if(variable.is_localized == 1) { return 0 - 1; }
+    if(depth > 0) { return record_at_depth(g, depth, at).slot; }
+    owner : sharp_function? = variable.function;
+    if(owner == null || owner!!.closure == null) { g.stop("a captured variable of no function", at.unit, at.node); }
+    slot : _int64 = own_record_slot(g, owner!!.closure!!);
+    if(slot < 0) { g.stop("a captured variable whose closure record this frame does not hold", at.unit, at.node); }
+    return slot;
+}
+
+/**
+ * The value of a local, as `value_of` gives it (5.3): its own slot when it
+ * lives in the frame - the slot stands for the value - else a new slot with
+ * the value read from its record or its fiber.
+ */
+def local_value(g: generator, named: bound_local) : _int64 {
+    variable := named.variable;
+    if(lives_in_frame(variable) == 1) {
+        if(named.depth > 0) { g.stop("a variable of the function around a lambda that is not captured", named.unit, named.node); }
+        return g.slot_of(variable, named.unit, named.node);
+    }
+    target : _int64 = g.temp_for(variable.type);
+    read_stored_local(g, target, variable, named.depth, named);
+    return target;
+}
+
+/** read a captured or `localized` local into `target` */
+def read_stored_local(g: generator, target: _int64, variable: local_variable, depth: _int64, at: bound_expression) {
+    holder : _int64 = holder_of_local(g, variable, depth, at);
+    if(holder < 0) {
+        g.b.get_static(target, g.made.owner.address, variable.storage!!);
+        return;
+    }
+    g.b.get_field(target, holder, variable.storage!!);
+    g.b.release(holder);
+}
+
+/**
+ * Store a value into a local of the function being generated (a declaration,
+ * a `foreach` item, a `catch` variable), cut to its type when that is a
+ * narrower integer. A use from a lambda goes through `=` (places.sharp).
+ */
+def store_local(g: generator, variable: local_variable, value: _int64, at_unit: source_unit, at_node: _int64) {
+    narrow : _int64 = narrowing_of(variable.type);
+    if(lives_in_frame(variable) == 1) {
+        g.b.copy(g.slot_of(variable, at_unit, at_node), value, narrow);
+        return;
+    }
+    if(variable.storage == null) { g.stop("a variable whose home was never laid out", at_unit, at_node); }
+    if(variable.is_localized == 1) {
+        g.b.set_static(g.made.owner.address, variable.storage!!, value, narrow);
+        return;
+    }
+    owner : sharp_function? = variable.function;
+    slot : _int64 = 0 - 1;
+    if(owner != null && owner!!.closure != null) { slot = own_record_slot(g, owner!!.closure!!); }
+    if(slot < 0) { g.stop("a captured variable whose closure record this frame does not hold", at_unit, at_node); }
+    g.b.set_field(slot, variable.storage!!, value, narrow);
+}
+
+/**
+ * `self` (or `base`) used inside a lambda, `depth` lambdas in: the object
+ * was kept in the record of the function around them (`@self`, 6.12).
+ */
+def self_from_record(g: generator, depth: _int64, at: bound_expression) : _int64 {
+    place := record_at_depth(g, depth, at);
+    if(place.record.self_field == null) { g.stop("`self` inside a lambda whose closure record holds no object", at.unit, at.node); }
+    target : _int64 = g.b.temp(SLOT_REF);
+    g.b.get_field(target, place.slot, place.record.self_field!!);
+    g.b.release(place.slot);
+    return target;
+}

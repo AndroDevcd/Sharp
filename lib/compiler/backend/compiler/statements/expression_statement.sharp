@@ -1,0 +1,120 @@
+mod backend.compiler.statements;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * AN EXPRESSION AS A STATEMENT
+ *
+ *      print(total);           a call                          } carried out
+ *      count += 2;  i++;       an assignment, ++ and --        } for what
+ *      new worker(job);        making an object                } they do
+ *
+ * Any expression may stand alone - the C++ compiler accepts every one and
+ * throws the value away. But an expression that only COMPUTES something and
+ * changes nothing does nothing at all as a statement, which is nearly always
+ * a slip:
+ *
+ *      total + 1;              (meant `total += 1;`)
+ *      count == 0;             (meant `count = 0;`)
+ *      refresh;                (meant `refresh();`)
+ *
+ * Those are accepted and get W1018. What counts as "doing something": a call
+ * (also an operator or a getter that is a function of a class, which may do
+ * anything), `new`, an assignment, `++` / `--`; and any expression with one
+ * of those inside a part that runs (`a?.close()`, `ok ? start() : stop()`).
+ *
+ *      W1018   an expression statement that has no effect
+ *
+ *      C++ comparison: compiler/functions/statements/statement_compiler.cpp,
+ *      `case ast_expression` (no check).
+ */
+def analyse_expression_statement(context: analysis_context, node: _int64) : bound_statement {
+    expression_node : _int64 = context.tree.first_child!![node];
+    if(expression_node < 0) { return new bound_empty(context.unit, node); }
+
+    found := analyse_expression(context, expression_node, null);
+    // `string;` - a type by itself is not a value (E0404)
+    if(found.kind == BX_TYPE_NAME) { found = as_value(context, found); }
+    if(has_effect(found) == 0) { warn_no_effect(context, found, expression_node, "statement"); }
+    if(found.kind == BX_FUNCTIONS) { return named_function_statement(context, node, found as bound_functions); }
+    return new bound_expression_statement(context.unit, node, found);
+}
+
+/**
+ * `refresh;` / `worker.refresh;` - a function named and not called (W1018 was
+ * given). A function name alone has no type (which of its overloads would be
+ * the value?), so it is not kept in the typed tree: what is left to run is
+ * the object it was named on, if any - that is still evaluated, as the C++
+ * compiler does - and otherwise nothing.
+ */
+def named_function_statement(context: analysis_context, node: _int64, named: bound_functions) : bound_statement {
+    if(named.on == null) { return new bound_empty(context.unit, node); }
+    return new bound_expression_statement(context.unit, node, named.on!!);
+}
+
+/** does evaluating the expression change anything (or may it: a call may do anything)? */
+def has_effect(expression: bound_expression) : _int64 {
+    kind : _int64 = expression.kind;
+    if(kind == BX_CALL || kind == BX_VALUE_CALL || kind == BX_NEW || kind == BX_ASSIGN || kind == BX_INCREMENT) { return 1; }
+    if(kind == BX_ERROR) { return 1; }          // reported already: one message is enough
+    if(kind == BX_GET_COMPONENT) { return 1; }  // `get<t>();`: a factory definition makes an object, a single one may
+    if(kind == BX_CONVERSION) { return has_effect((expression as bound_conversion).operand); }
+    if(kind == BX_NOT_NULL) { return has_effect((expression as bound_not_null).operand); }
+    if(kind == BX_SAFE_NAVIGATION) {
+        navigation := expression as bound_safe_navigation;
+        return navigation.rest != null && has_effect(navigation.rest!!);
+    }
+    if(kind == BX_TERNARY) {
+        ternary := expression as bound_ternary;
+        return has_effect(ternary.when_true) || has_effect(ternary.when_false);
+    }
+    if(kind == BX_ELVIS) {
+        elvis := expression as bound_elvis;
+        return has_effect(elvis.value) || has_effect(elvis.fallback);
+    }
+    if(kind == BX_LOGICAL) {
+        logical := expression as bound_logical;
+        return has_effect(logical.left) || has_effect(logical.right);
+    }
+    return 0;
+}
+
+/**
+ * W1018, with the statement the programmer most likely meant.
+ *
+ * @param what  what the expression is, for the message: "statement", or "step" / "start part" of a `for`
+ */
+def warn_no_effect(context: analysis_context, expression: bound_expression, node: _int64, what: string) {
+    d := problem_over(context, "W1018", "this " + what + " does nothing", node);
+    d.with_label("its value is computed and thrown away");
+    d.with_note("an expression that stands alone is carried out for what it CHANGES: a call, an assignment, `++`, `new`");
+    written := source_text_of(context, node);
+
+    if(expression.kind == BX_FUNCTIONS || expression.kind == BX_FUNCTION_REFERENCE) {
+        d.with_note("`" + written + "` names a function; naming it does not call it");
+        d.with_help("to call the function write `" + written + "();`");
+    } else if(expression.kind == BX_BINARY) {
+        operation : _int64 = (expression as bound_binary).operation;
+        if(operation == P_EQEQ) {
+            d.with_help("to give it a value write `=`: `" + source_text_of(context, (expression as bound_binary).left.node) + " = "
+                        + source_text_of(context, (expression as bound_binary).right.node) + ";`");
+        } else if(operation == P_PLUS || operation == P_MINUS || operation == P_STAR || operation == P_SLASH) {
+            d.with_help("to change the variable write the operator with `=`: `" + source_text_of(context, (expression as bound_binary).left.node)
+                        + " " + name_at(context, expression.node) + "= " + source_text_of(context, (expression as bound_binary).right.node) + ";`");
+        }
+    } else if(expression.kind == BX_LOCAL || expression.kind == BX_FIELD || expression.kind == BX_LITERAL || expression.kind == BX_SELF) {
+        d.with_help("remove it");
+    } else {
+        d.with_help("remove it, or keep the value: `result := " + written + ";`");
+    }
+    report(context, d);
+}

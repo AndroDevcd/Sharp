@@ -1,0 +1,193 @@
+mod std.collections;
+
+/**
+ * @class immutable_list
+ *
+ * A list that cannot be changed after it was created: it has functions to
+ * read, search and loop, and none to add, replace or remove. Hand one out
+ * when other code should be able to look at your elements but must not be
+ * able to modify your collection.
+ *
+ *     class team {
+ *         private members := new list<string>();
+ *         def roster() : immutable_list<string> {
+ *             return new immutable_list<string>(members);
+ *         }
+ *     }
+ *
+ * The elements are COPIED when the immutable_list is created (O(n)), so
+ * later changes to the original collection do not show through, and the
+ * arrays it hands out (to_array, foreach) are copies too. Note that only
+ * the list is frozen: if the elements themselves are mutable objects, they
+ * can still be changed through their own functions.
+ *
+ * "Changing" functions return a NEW immutable_list and leave this one as it
+ * is: plus, sub_list, reversed.
+ *
+ * Limitation: the element type has to be an object type; native types such
+ * as `decimal` cannot be used as T.
+ */
+class immutable_list<T> : loopable<T>, iterable<T> {
+    /** the elements; this array is never handed out and never written after construction */
+    private items : T[];
+
+    /** Create an empty immutable list. */
+    immutable_list() {
+        items = new T[0];
+    }
+
+    /** Create an immutable copy of the elements of an array. O(n). */
+    immutable_list(source: T[]) {
+        n : decimal = sizeof(source);
+        items = new T[n];
+        for(i : decimal = 0; i < n; i++)
+            items[i] = source[i];
+    }
+
+    /**
+     * Create an immutable copy of any collection (list, linked_list, deque,
+     * hash_set, ...), in its iteration order. O(n).
+     */
+    immutable_list(source: loopable<T>) {
+        elements := source.get_elements();
+        if(elements == null) {
+            items = new T[0];
+        } else {
+            n : decimal = sizeof(elements);
+            items = new T[n];
+            for(i : decimal = 0; i < n; i++)
+                items[i] = elements[i];
+        }
+    }
+
+    /** Number of elements. O(1). */
+    def size() : decimal {
+        return sizeof(items);
+    }
+
+    /** 1 when the list has no elements, otherwise 0. O(1). */
+    def is_empty() : decimal {
+        return sizeof(items) == 0;
+    }
+
+    /**
+     * The element at a position (0 = first). O(1).
+     *
+     * @throws out_of_bounds_exception when index < 0 or index >= size()
+     */
+    def at(index: int) : T {
+        if(index.value < 0 || index.value >= sizeof(items)) {
+            n : int = sizeof(items);
+            throw new out_of_bounds_exception("immutable_list: index $index is out of bounds (size $n)");
+        }
+        return items[index.value];
+    }
+
+    /**
+     * The first element.
+     *
+     * @throws no_such_element_exception when the list is empty
+     */
+    def first() : T {
+        if(sizeof(items) == 0)
+            throw new no_such_element_exception("immutable_list: first called on an empty list");
+        return items[0];
+    }
+
+    /**
+     * The last element.
+     *
+     * @throws no_such_element_exception when the list is empty
+     */
+    def last() : T {
+        if(sizeof(items) == 0)
+            throw new no_such_element_exception("immutable_list: last called on an empty list");
+        return items[sizeof(items) - 1];
+    }
+
+    /** Position of the first element that equals `element` (compared with `==`), or -1. O(n). */
+    def index_of(element: T) : decimal {
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            if(items[i] == element) return i;
+        }
+        return -1;
+    }
+
+    /** Position of the last element that equals `element`, or -1. O(n). */
+    def last_index_of(element: T) : decimal {
+        for(i : decimal = sizeof(items) - 1; i >= 0; i--) {
+            if(items[i] == element) return i;
+        }
+        return -1;
+    }
+
+    /** 1 when an element equals `element`, otherwise 0. O(n). */
+    def contains(element: T) : decimal {
+        return index_of(element) >= 0;
+    }
+
+    /** A NEW immutable list with `element` added at the end; this list is not changed. O(n). */
+    def plus(element: T) : immutable_list<T> {
+        n : decimal = sizeof(items);
+        extended := new T[n + 1];
+        for(i : decimal = 0; i < n; i++)
+            extended[i] = items[i];
+        extended[n] = element;
+        return new immutable_list<T>(extended);
+    }
+
+    /**
+     * A NEW immutable list with the elements at positions from .. to - 1.
+     *
+     * @throws out_of_bounds_exception when from < 0, to > size() or from > to
+     */
+    def sub_list(from: int, to: int) : immutable_list<T> {
+        if(from.value < 0 || to.value > sizeof(items) || from.value > to.value)
+            throw new out_of_bounds_exception("immutable_list: range $from..$to is out of bounds");
+
+        part := new T[to.value - from.value];
+        for(i : decimal = from.value; i < to.value; i++)
+            part[i - from.value] = items[i];
+        return new immutable_list<T>(part);
+    }
+
+    /** A NEW immutable list with the elements in reverse order. O(n). */
+    def reversed() : immutable_list<T> {
+        n : decimal = sizeof(items);
+        turned := new T[n];
+        for(i : decimal = 0; i < n; i++)
+            turned[i] = items[n - 1 - i];
+        return new immutable_list<T>(turned);
+    }
+
+    /** A new array with the elements (a copy: writing to it does not affect this list). O(n). */
+    def to_array() : T[] {
+        n : decimal = sizeof(items);
+        result := new T[n];
+        for(i : decimal = 0; i < n; i++)
+            result[i] = items[i];
+        return result;
+    }
+
+    /** A new, ordinary (changeable) `list` with the elements. O(n). */
+    def to_list() : list<T> {
+        result := new list<T>();
+        for(i : decimal = 0; i < sizeof(items); i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /**
+     * A copy of the elements as an array, or null when the list is empty.
+     * This is what `foreach` uses. O(n).
+     */
+    override def get_elements() : T[]? {
+        if(sizeof(items) == 0) return null;
+        return to_array();
+    }
+
+    /** An iterator from the first element to the last. */
+    override def iterator() : iterator<T> {
+        return new array_iterator<T>(items);
+    }
+}

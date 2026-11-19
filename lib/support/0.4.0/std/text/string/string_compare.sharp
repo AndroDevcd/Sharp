@@ -1,0 +1,122 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - comparing and classifying (part of the `string` class, see string_core.sharp)
+ *
+ * compare_to (ordering, for sorting), equals_ignore_case, and the questions
+ * "is this string made only of digits / letters / ...".
+ *
+ * Ordering is by character code, character by character ("dictionary order"
+ * for ASCII): "Zebra" comes before "apple" because 'Z' (90) < 'a' (97). Use
+ * compare_to_ignore_case to sort the way a person would.
+ */
+mutate string {
+
+    /**
+     * Compares this string with `other` for ordering.
+     * Returns -1 if this string comes first, 1 if `other` comes first and 0 if
+     * they are equal. If one string is the start of the other, the shorter one
+     * comes first ("ab" before "abc"); "" comes before everything else.
+     */
+    def compare_to(other: string): decimal {
+        n : decimal = sizeof(data);
+        m : decimal = sizeof(other.data);
+        shared : decimal = n < m ? n : m;
+        for(i : decimal = 0; i < shared; i++) {
+            a : decimal = data[i];
+            b : decimal = other.data[i];
+            if(a < b) return -1;
+            if(a > b) return 1;
+        }
+        if(n < m) return -1;
+        if(n > m) return 1;
+        return 0;
+    }
+
+    /** compare_to(other) that treats ASCII capital and small letters as equal ("apple" before "Zebra"). */
+    def compare_to_ignore_case(other: string): decimal {
+        n : decimal = sizeof(data);
+        m : decimal = sizeof(other.data);
+        shared : decimal = n < m ? n : m;
+        for(i : decimal = 0; i < shared; i++) {
+            a : decimal = string_support.lower_of(data[i]);
+            b : decimal = string_support.lower_of(other.data[i]);
+            if(a < b) return -1;
+            if(a > b) return 1;
+        }
+        if(n < m) return -1;
+        if(n > m) return 1;
+        return 0;
+    }
+
+    /**
+     * 1 if both strings have the same characters when capital and small ASCII
+     * letters are treated as equal ("Hello".equals_ignore_case("hELLO") is 1).
+     */
+    def equals_ignore_case(other: string): decimal {
+        if(sizeof(data) != sizeof(other.data)) return 0;
+        return string_support.region_equals_ignore_case(data, 0, other.data);
+    }
+
+    /**
+     * 1 if the string is not empty and every character is a digit 0-9.
+     * (A sign or a decimal point makes it 0: see is_number() for those.)
+     */
+    def is_digits(): decimal {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            if(c < '0' || c > '9') return 0;
+        }
+        return n > 0;
+    }
+
+    /** 1 if the string is not empty and every character is an ASCII letter. */
+    def is_letters(): decimal {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) return 0;
+        }
+        return n > 0;
+    }
+
+    /** 1 if the string is not empty and every character is an ASCII letter or a digit. */
+    def is_letters_or_digits(): decimal {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) return 0;
+        }
+        return n > 0;
+    }
+
+    /**
+     * 1 if every character is plain ASCII (code 0 to 127). "" gives 1.
+     * (Characters are stored as signed bytes, so the others show up as negative numbers.)
+     */
+    def is_ascii(): decimal {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            if(data[i] < 0) return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * 1 if the string reads the same forwards and backwards ("level").
+     * "" and one-character strings give 1. Case matters: "Abba" gives 0.
+     */
+    def is_palindrome(): decimal {
+        i : decimal = 0;
+        j : decimal = sizeof(data) - 1;
+        while(i < j) {
+            if(data[i] != data[j]) return 0;
+            i++;
+            j--;
+        }
+        return 1;
+    }
+}

@@ -1,0 +1,86 @@
+mod backend.ide.types;
+
+import (
+    std.io
+)
+
+/**
+ * A TABLE FROM A NUMBER TO A NUMBER
+ *
+ * The same type is written thousands of times in the standard library
+ * (`string`, `decimal`, `_int64?`). To find its entry in the type table the
+ * writer would have to build the type's text and look THAT up: an object or
+ * two per question, which on this VM costs more than everything else that is
+ * written about a member. A type that has no type arguments is identified by
+ * two numbers instead - which declaration it names (the number of its file and
+ * its node) and how it is marked (`[]`, `?`) - and this table answers from the
+ * one number made of them, with no object made at all.
+ *
+ * It is a hash table with open addressing, as the textbook has it: an array of
+ * slots, a number's home slot is its remainder, and a taken slot sends the
+ * look-up on to the next one; the array doubles when it is half full, so the
+ * look-ups stay short.
+ *
+ *      C++ comparison: std::unordered_map<int64_t, int>, without the node allocations.
+ */
+class int_table {
+    keys : _int64[];            // the key in each slot; a slot is empty while `used` says so
+    values : _int32[];
+    used : _int8[];
+    count : _int64 = 0;
+
+    int_table() {
+        make_slots(1024);
+    }
+
+    private def make_slots(size: _int64) {
+        keys = new _int64[size];
+        values = new _int32[size];
+        used = new _int8[size];
+    }
+
+    /** the number kept under `key`, or -2 when there is none (-1 is a number a caller may keep) */
+    def find(key: _int64) : _int64 {
+        size : _int64 = sizeof(keys);
+        slot : _int64 = home_of(key, size);
+        while(used[slot] == 1) {
+            if(keys[slot] == key) { return values[slot]; }
+            slot = (slot + 1) % size;
+        }
+        return 0 - 2;
+    }
+
+    /** keep `value` under `key` (the key is not already there) */
+    def add(key: _int64, value: _int64) {
+        if((count + 1) * 2 > sizeof(keys)) { grow(); }
+        place(key, value);
+        count++;
+    }
+
+    private def place(key: _int64, value: _int64) {
+        size : _int64 = sizeof(keys);
+        slot : _int64 = home_of(key, size);
+        while(used[slot] == 1) { slot = (slot + 1) % size; }
+        used[slot] = 1;
+        keys[slot] = key;
+        values[slot] = value;
+    }
+
+    /** twice as many slots; everything is placed again */
+    private def grow() {
+        old_keys : _int64[] = keys;
+        old_values : _int32[] = values;
+        old_used : _int8[] = used;
+        make_slots(sizeof(old_keys) * 2);
+        for(i : _int64 = 0; i < sizeof(old_keys); i++) {
+            if(old_used[i] == 1) { place(old_keys[i], old_values[i]); }
+        }
+    }
+
+    /** the slot a key starts looking in: its remainder, with the sign taken off */
+    private def home_of(key: _int64, size: _int64) : _int64 {
+        home : _int64 = key % size;
+        if(home < 0) { home = home + size; }
+        return home;
+    }
+}

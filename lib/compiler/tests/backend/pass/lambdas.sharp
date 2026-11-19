@@ -1,0 +1,117 @@
+mod app;
+
+/*
+ * Lambdas and function values: every form the C++ compiler accepts too (it
+ * compiles this file). The bootstrap's own wider forms are in
+ * lambdas_wider.sharp.
+ */
+
+class counter {
+    n : _int64 = 0;
+    def add(k: _int64) { n += k; }
+
+    // `self` captured: the lambda reaches the object of `adder`
+    def adder() : (_int64)() {
+        return { k: _int64 -> n += k; };
+    }
+
+    // a lambda inside a lambda reaching the object two levels out
+    def deep_adder() : (_int64)() {
+        return { k: _int64 -> run({ -> add(k); }); };
+    }
+
+    static def make() : counter { return new counter(); }
+}
+
+// ---- functions that take function values
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def run(work: ()()) { work(); }
+def pair(f: (decimal, decimal)(decimal)) : decimal { return f(1, 2); }
+def each(items: decimal[], f: (decimal)()) { foreach(v in items) { f(v); } }
+def text_length(f: (string)(decimal)) : decimal { return f("abcd"); }
+
+// ---- functions named as values
+def twice(x: decimal) : decimal { return x * 2; }
+def twice(x: string) : string { return x + x; }
+def plus_one(x: decimal) : decimal { return x + 1; }
+def size_of(s: string) : decimal { return s.size().value; }
+
+// ---- closures: the captured object outlives the call
+def make_counter() : ()(decimal) {
+    count := new int(0);
+    next : ()(decimal) = { -> (decimal) count += 1; return count.value; };
+    return next;
+}
+
+def make_adder(amount: decimal) : (decimal)(decimal) {
+    kept := new int(amount);
+    return { x: decimal -> (decimal) return x + kept.value; };
+}
+
+// a parameter captured, and a lambda inside a lambda reaching two functions out
+def nested_total(start: int) : decimal {
+    total := new int(0);
+    run({ -> run({ -> total += start.value; }); });
+    return total.value;
+}
+
+class machine {
+    step : (decimal)(decimal);
+    machine(f: (decimal)(decimal)) { step = f; }
+    def go(x: decimal) : decimal { return step(x); }
+}
+
+def main() {
+    // lambdas with every type written, in variables, called
+    double_it : (decimal)(decimal) = { x: decimal -> (decimal) return x * 2; };
+    a := new int(0);
+    a2 := double_it(21);
+    add : (decimal, decimal)(decimal) = { x: decimal, y: decimal -> (decimal) return x + y; };
+    b := add(add(1, 2), 3);
+    inferred := { x: decimal -> (decimal) return x + 100; };       // the variable's type is the lambda's
+    c := inferred(1);
+    nothing_back : ()() = { -> a += 1; };
+    nothing_back();
+
+    // types taken from the parameter (untyped parameters, no result written)
+    d := apply({ x -> return x + 1; }, 5);
+    e := pair({ p, q -> return p * q; });
+    f := apply({ x: decimal -> (decimal) return x * x; }, 9);
+
+    // trailing lambdas
+    run { a += 1; }
+    g := apply({ x -> return x - 1; }, 5) + text_length { s -> return s.size().value; };
+    each(new decimal[] { 1, 2, 3 }, { v -> a += v; });
+
+    // function names as values
+    h : (decimal)(decimal) = twice;              // the overload of that type
+    k := plus_one;                               // one overload: its own type
+    m := apply(plus_one, 2) + apply(twice, 3) + text_length(size_of);
+    same := h == h;
+    different := h != k;
+    present := k != null;
+    made := counter.make;                        // a static function
+
+    // closures
+    next := make_counter();
+    next();
+    count := next();
+    add_ten := make_adder(10);
+    n := add_ten(5) + nested_total(new int(3));
+
+    // `self` captured
+    tally := new counter();
+    adding := tally.adder();
+    adding(4);
+    tally.deep_adder()(1);
+
+    // a lambda stored in a field, passed to a constructor
+    m2 := new machine({ x: decimal -> (decimal) return x * 3; });
+    o := m2.go(2);
+
+    // lambdas in an array
+    steps := new (decimal)(decimal)[2];
+    steps[0] = { x: decimal -> (decimal) return x + 1; };
+    steps[1] = plus_one;
+    p := steps[0](1) + steps[1](2);
+}

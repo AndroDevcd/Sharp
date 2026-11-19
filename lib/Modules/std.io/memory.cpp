@@ -2,136 +2,170 @@
 // Created by BNunnally on 5/27/2020.
 //
 #include "memory.h"
-#include "../../runtime/Thread.h"
-#include "../../runtime/VirtualMachine.h"
+#include "../../core/opcode/opcode_macros.h"
+#include "../../runtime/multitasking/thread/sharp_thread.h"
+#include "../../runtime/types/sharp_class.h"
+#include "../../runtime/virtual_machine.h"
+#include "../../runtime/error/vm_exception.h"
+#include "../../runtime/memory/garbage_collector.h"
 
 void copy() {
-    Int end = (thread_self->this_fiber->sp--)->var;
-    Int start = (thread_self->this_fiber->sp--)->var;
-    Object *arry = &thread_self->this_fiber->sp->object;
-    SharpObject *oldArray = arry->object;
+    auto task = thread_self->task;
+    Int end = pop_stack_number.i;
+    Int start = pop_stack_number.i;
+    auto from = pop_stack_object.o;
     Int copyLen = end - start, index=0;
 
-    if(oldArray != NULL) {
-        if(copyLen < 0 || end > oldArray->size || end < 0 || start < 0 || start >= oldArray->size) {
+    if(from != NULL) {
+        if(copyLen < 0 || end > from->size || end < 0 || start < 0 || start >= from->size) {
             stringstream ss;
             ss << "invalid call to copy() start: " << start << ", end: " << end
-               << ", size: " << oldArray->size;
-            throw Exception(vm.InvalidOperationExcept, ss.str());
+               << ", size: " << from->size;
+            throw vm_exception(vm.invalid_operation_except, ss.str());
         }
 
-        if(TYPE(oldArray->info) == _stype_var) { // var[]
-            *arry = gc.newObject(copyLen, oldArray->ntype);
+        if(from->type <= type_var) { // var[]
+            auto newArray = create_object(copyLen, (data_type)from->type);
 
-            INC_REF(oldArray)
+            // same element type on both sides: copy the bytes of the range.
+            // (An empty range has no array at all: create_object gives null for
+            // a size of 0, and null is what the caller gets.)
+            (void)index;
+            if(newArray != nullptr) {
+                memcpy(newArray->data, (char*)from->data + (size_t)start * element_size(from->type),
+                       (size_t)copyLen * element_size(from->type));
+            }
+
+            copy_object(&push_stack_object, newArray);
+        } else { // object? maybe...
+            sharp_object *newArray;
+            if(IS_CLASS(from)) {
+                newArray = create_object(&vm.classes[CLASS(from->info)], copyLen);
+            } else
+                newArray = create_object(copyLen);
+
             for (Int i = start; i < end; i++) {
-                arry->object->HEAD[index++] = oldArray->HEAD[i];
+                copy_object(newArray->node + (index++), from->node[i].o);
             }
-            DEC_REF(oldArray)
-        } else if(TYPE(oldArray->info) == _stype_struct) { // object? maybe...
-            if(oldArray->node != NULL) {
-                if(IS_CLASS(oldArray->info)) {
-                    *arry = gc.newObjectArray(copyLen, &vm.classes[CLASS(oldArray->info)]);
-                } else
-                    *arry = gc.newObjectArray(copyLen);
 
-                INC_REF(oldArray)
-                for (Int i = start; i < end; i++) {
-                    arry->object->node[index++] = oldArray->node[i];
-                }
-                DEC_REF(oldArray)
-            }
-        } else
-            throw Exception(vm.NullptrExcept, "");
-
+            copy_object(&push_stack_object, newArray);
+        }
     } else
-        throw Exception(vm.NullptrExcept, "");
+        throw vm_exception(vm.nullptr_except, "");
 }
 
 void memcopy() {
-    Int srcEnd = (thread_self->this_fiber->sp--)->var;
-    Int srcStart = (thread_self->this_fiber->sp--)->var;
-    Int destStart = (thread_self->this_fiber->sp--)->var;
+    auto task = thread_self->task;
+    Int srcEnd = pop_stack_number.i;
+    Int srcStart = pop_stack_number.i;
+    Int destStart = pop_stack_number.i;
     Int copyLen = srcEnd - srcStart;
-    SharpObject *coppiedArray = (thread_self->this_fiber->sp--)->object.object;
-    SharpObject *arry = (thread_self->this_fiber->sp--)->object.object;
+    auto from = pop_stack_object.o;
+    auto to = pop_stack_object.o;
 
-    if(coppiedArray != NULL && arry != NULL) {
-        if(srcEnd > coppiedArray->size || srcEnd < 0 || srcStart < 0 || srcStart >= coppiedArray->size
+    /*
+     * Copying nothing does nothing, whatever the arrays are. An empty array is
+     * null on this VM (`new _int8[0]` gives null), so `string.append` of an
+     * empty array copies 0 items into a null `data`; that raised
+     * nullptr_exception - and an empty command-line argument stopped every
+     * program in platform.srt_init. Only an empty copy is let through: a
+     * copy of 1 item or more into or out of null still raises below.
+     *
+     * C++ comparison: memcpy(dest, src, 0) is valid for any pointers.
+     */
+    if(copyLen == 0 && srcStart >= 0 && destStart >= 0)
+        return;
+
+    if(from != NULL && to != NULL) {
+        if(srcEnd > from->size || srcEnd < 0 || srcStart < 0 || srcStart >= from->size
             || copyLen < 0) {
             stringstream ss;
             ss << "invalid call to memcopy(); start: " << srcStart << ", end: " << srcEnd
-               << ", size: " << coppiedArray->size;
-            throw Exception(vm.InvalidOperationExcept, ss.str());
+               << ", size: " << from->size;
+            throw vm_exception(vm.invalid_operation_except, ss.str());
         }
 
-        if(destStart >= arry->size || destStart < 0) {
+        if(destStart >= to->size || destStart < 0) {
             stringstream ss;
             ss << "invalid call to memcopy(); dest start: " << destStart
-               << ", dest size: " << arry->size;
-            throw Exception(vm.InvalidOperationExcept, ss.str());
+               << ", dest size: " << to->size;
+            throw vm_exception(vm.invalid_operation_except, ss.str());
         }
 
-        if( (destStart + copyLen) > arry->size) {
+        if( (destStart + copyLen) > to->size) {
             stringstream ss;
             ss << "invalid call to memcopy() array is not large enough to receive all data; copy size: "
-                << (copyLen) << ", starting at: " << destStart << ", dest len: " << arry->size;
-            throw Exception(vm.InvalidOperationExcept, ss.str());
+                << (copyLen) << ", starting at: " << destStart << ", dest len: " << to->size;
+            throw vm_exception(vm.invalid_operation_except, ss.str());
         }
 
-        if(TYPE(coppiedArray->info) == _stype_var) { // var[]
+        // the usual case - both arrays hold the same kind of element -
+        // is one block copy. Only a copy within ONE array to a HIGHER position
+        // keeps the loop below: it reads elements it has already overwritten,
+        // and that result is left exactly as it was.
+        bool forwardOverlap = from == to && destStart > srcStart && destStart < srcEnd;
+        if(from->type <= type_var && to->type == from->type && !forwardOverlap) {
+            size_t width = (size_t)element_size(from->type);
+            memmove((char*)to->data + (size_t)destStart * width, (char*)from->data + (size_t)srcStart * width, (size_t)copyLen * width);
+        } else if(from->type > type_var && to->type > type_var && !forwardOverlap) {
+            memmove(to->node + destStart, from->node + srcStart, (size_t)copyLen * sizeof(object));
+            write_barrier_range(to, destStart, copyLen);    // references were stored into `to` (memory/sharp_object.h)
+        } else if(from->type <= type_var) { // var[]
+            // element by element through the accessors: the two arrays may hold
+            // different number types (an _int8[] copied into an _int32[])
             for (Int i = srcStart; i < srcEnd; i++) {
-                arry->HEAD[destStart++] = coppiedArray->HEAD[i];
+                if(holds_decimals(to) || holds_decimals(from)) set_number_at(to, destStart++, number_at(from, i));
+                else set_integer_at(to, destStart++, integer_at(from, i));
             }
-        } else if(TYPE(coppiedArray->info) == _stype_struct) { // object? maybe...
-            if(coppiedArray->node != NULL) {
-                for (Int i = srcStart; i < srcEnd; i++) {
-                    arry->node[destStart++] = coppiedArray->node[i];
-                }
+        } else {
+            for (Int i = srcStart; i < srcEnd; i++) {
+                copy_object(to->node + (destStart++), from->node[i].o);
             }
-        } else
-            throw Exception(vm.NullptrExcept, "");
+        }
 
     } else
-        throw Exception(vm.NullptrExcept, "");
+        throw vm_exception(vm.nullptr_except, "");
 }
 
 void invert() {
-    Int len = (thread_self->this_fiber->sp--)->var;
-    Int start = (thread_self->this_fiber->sp--)->var;
-    Object *arry = &thread_self->this_fiber->sp->object;
-    SharpObject *oldArray = arry->object;
+    auto task = thread_self->task;
+    Int len = pop_stack_number.i;
+    Int start = pop_stack_number.i;
+    auto from = pop_stack_object.o;
 
-    if(oldArray != NULL) {
-        if((start+len) > oldArray->size || len < 0 || start < 0 || start >= oldArray->size) {
+    if(from != NULL) {
+        if((start+len) > from->size || len < 0 || start < 0 || start >= from->size) {
             stringstream ss;
             ss << "invalid call to invert() start: " << start << ", len: " << len
-               << ", size: " << oldArray->size;
-            throw Exception(vm.InvalidOperationExcept, ss.str());
+               << ", size: " << from->size;
+            throw vm_exception(vm.invalid_operation_except, ss.str());
         }
 
-        if(oldArray->size <= 1) return;
+        if(from->size <= 1) return;
 
-        if(TYPE(oldArray->info) == _stype_var) { // var[]
-            *arry = gc.newObject(len, oldArray->ntype);
+        if(from->type <= type_var) { // var[]
+            auto newArray = create_object(len, from->type);
+
+            Int iter = 0;
+            const int width = element_size(from->type);
+            for (Int i = (start + len) - 1; i >= start; i--) {
+                memcpy((char*)newArray->data + (size_t)(iter++) * width, (char*)from->data + (size_t)i * width, width);
+            }
+
+            copy_object(&push_stack_object, newArray);
+        } else {
+            sharp_object *newArray;
+            if(IS_CLASS(from)) {
+                newArray = create_object(&vm.classes[CLASS(from->info)], len);
+            } else
+                newArray = create_object(len);
+
             Int iter = 0;
             for (Int i = (start + len) - 1; i >= start; i--) {
-                arry->object->HEAD[iter++] = oldArray->HEAD[i];
+                copy_object(newArray->node + (iter++), from->node[i].o);
             }
-        } else if(TYPE(oldArray->info) == _stype_struct) { // object? maybe...
-            if(oldArray->node != NULL) {
-                if(IS_CLASS(oldArray->info)) {
-                    *arry = gc.newObjectArray(len, &vm.classes[CLASS(oldArray->info)]);
-                } else
-                    *arry = gc.newObjectArray(len);
-
-                for (Int i = (start + len) - 1; i >= start; i--) {
-                    arry->object->node[i] = oldArray->node[i];
-                }
-            }
-        } else
-            throw Exception(vm.NullptrExcept, "");
+        }
 
     } else
-        throw Exception(vm.NullptrExcept, "");
+        throw vm_exception(vm.nullptr_except, "");
 }

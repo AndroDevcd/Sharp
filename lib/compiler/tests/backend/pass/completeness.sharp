@@ -1,0 +1,53 @@
+mod completeness_forms;
+
+import ( std, std.io )
+
+/**
+ * Correct forms that the completeness stage touched: none of them may give
+ * an error, and every expression must have a type (the self-check E0991).
+ */
+
+class animal { }
+class dog base animal { }
+class worker { }
+
+component {
+    single { new worker() }
+}
+
+def twice<T>(x: T) : T { return x; }
+def half(x: decimal) : decimal { return x / 2; }
+
+def main() {
+    // a local alias inside type arguments (it used to resolve to the error type silently)
+    alias string as text;
+    names : list<text> = new list<text>();
+    names.add("a");
+    first : text = names.at(0);
+
+    // arrays that can be the same array
+    a := new _int64[3];
+    b := a;
+    same : _int64 = a == b;
+    animals : animal[] = new animal[1];
+    dogs := new dog[1];
+    related : _int64 = animals == dogs;
+    o : object = a;
+    as_object : _int64 = o == a;
+
+    // lambdas kept in a list: list<(decimal)(decimal)>.to_array() casts to `T[]` inside the library
+    functions := new list<(decimal)(decimal)>();
+    functions.add(half);
+    all := functions.to_array();
+
+    // a generic function called with type arguments, and `<` as a comparison
+    four : _int64 = twice<_int64>(4);
+    less : _int64 = four < 5;
+    in_call : _int64 = twice<_int64>(four < 5 ? 1 : 0);
+
+    // a whole number that needs more than 64 bits is a decimal, kept as one
+    wide : decimal = 99999999999999999999999;
+
+    w := get<worker>();
+    println("" + same + related + as_object + less + in_call + sizeof(all) + first + wide);
+}

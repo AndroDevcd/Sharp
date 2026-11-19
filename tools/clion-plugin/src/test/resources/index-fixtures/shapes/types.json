@@ -1,0 +1,395 @@
+{"format":1,"run":"18e7e2f6e59ac892","types":[
+{"text":"string","class":"std#string"}
+,{"text":"string[]","class":"std#string","array":true,"element":0}
+,{"text":"int","class":"std#int"}
+,{"text":"list<string>","class":"std#list","args":[0]}
+,{"text":"printable","class":"shapes#printable"}
+,{"text":"shape","class":"shapes#shape"}
+,{"text":"T","param":true}
+,{"text":"_int64"}
+,{"text":"box<_int64>","class":"shapes#box","args":[7]}
+,{"text":"decimal"}
+,{"text":"color","class":"shapes#color"}
+,{"text":"_int32"}
+,{"text":"(decimal)(decimal)","function":true}
+,{"text":"circle","class":"shapes#circle"}
+,{"text":"box<string>","class":"shapes#box","args":[0]}
+,{"text":"bool","class":"std#bool"}
+,{"text":"_int64[]?","array":true,"element":7,"nullable":true}
+,{"text":"object?","nullable":true}
+,{"text":"_int8"}
+,{"text":"(string[])(int)","function":true}
+,{"text":"(string[])()","function":true}
+,{"text":"()()","function":true}
+,{"text":"()(int)","function":true}
+,{"text":"object"}
+,{"text":"object[]","array":true,"element":23}
+,{"text":"_int8[]","array":true,"element":18}
+,{"text":"stack_state?","class":"platform.kernel#stack_state","nullable":true}
+,{"text":"stack_state","class":"platform.kernel#stack_state"}
+,{"text":"string?","class":"std#string","nullable":true}
+,{"text":"fiber","class":"std.io.fiber#fiber"}
+,{"text":"thread?","class":"std.io#thread","nullable":true}
+,{"text":"object[]?","array":true,"element":23,"nullable":true}
+,{"text":"(object[]?)(decimal)","function":true}
+,{"text":"thread","class":"std.io#thread"}
+,{"text":"thread_result","class":"std.io#thread_result"}
+,{"text":"long","class":"std#long"}
+,{"text":"double","class":"std#double"}
+,{"text":"iterator<T>","class":"std.collections#iterator","args":[6]}
+,{"text":"T[]?","array":true,"element":6,"nullable":true,"param":true}
+,{"text":"decimal[]","array":true,"element":9}
+,{"text":"bit_set","class":"std.collections#bit_set"}
+,{"text":"list<int>","class":"std#list","args":[2]}
+,{"text":"loopable<T>","class":"std#loopable","args":[6]}
+,{"text":"iterable<T>","class":"std.collections#iterable","args":[6]}
+,{"text":"T?","nullable":true,"param":true}
+,{"text":"T[]","array":true,"element":6,"param":true}
+,{"text":"list<T>","class":"std#list","args":[6]}
+,{"text":"out_of_bounds_exception","class":"std#out_of_bounds_exception"}
+,{"text":"no_such_element_exception","class":"std#no_such_element_exception"}
+,{"text":"(T, T)(decimal)","function":true}
+,{"text":"(T)(decimal)","function":true}
+,{"text":"_object_","class":"std#_object_"}
+,{"text":"linked_hash_map<T, T>","class":"std.collections#linked_hash_map","args":[6,6]}
+,{"text":"hash_set<T>","class":"std.collections#hash_set","args":[6]}
+,{"text":"K","param":true}
+,{"text":"V","param":true}
+,{"text":"linked_hash_node<K, V>","class":"std.collections#linked_hash_node","args":[54,55]}
+,{"text":"linked_hash_node<K, V>?","class":"std.collections#linked_hash_node","args":[54,55],"nullable":true}
+,{"text":"linked_node<T>?","class":"std.collections#linked_node","args":[6],"nullable":true}
+,{"text":"immutable_list<T>","class":"std.collections#immutable_list","args":[6]}
+,{"text":"map_entry<K, V>","class":"std.collections#map_entry","args":[54,55]}
+,{"text":"loopable<map_entry<K, V>>","class":"std#loopable","args":[60]}
+,{"text":"iterable<map_entry<K, V>>","class":"std.collections#iterable","args":[60]}
+,{"text":"linked_hash_node<K, V>[]?","class":"std.collections#linked_hash_node","args":[54,55],"array":true,"element":56,"nullable":true}
+,{"text":"linked_hash_map<K, V>","class":"std.collections#linked_hash_map","args":[54,55]}
+,{"text":"V?","nullable":true,"param":true}
+,{"text":"list<K>","class":"std#list","args":[54]}
+,{"text":"K[]","array":true,"element":54,"param":true}
+,{"text":"list<V>","class":"std#list","args":[55]}
+,{"text":"list<map_entry<K, V>>","class":"std#list","args":[60]}
+,{"text":"map_entry<K, V>[]?","class":"std.collections#map_entry","args":[54,55],"array":true,"element":60,"nullable":true}
+,{"text":"iterator<map_entry<K, V>>","class":"std.collections#iterator","args":[60]}
+,{"text":"iterator<K>","class":"std.collections#iterator","args":[54]}
+,{"text":"linked_node<T>","class":"std.collections#linked_node","args":[6]}
+,{"text":"deque<T>","class":"std.collections#deque","args":[6]}
+,{"text":"(T)(bool)","function":true}
+,{"text":"pair<list<T>, list<T>>","class":"std#pair","args":[46,46]}
+,{"text":"loopable<list<T>>","class":"std#loopable","args":[46]}
+,{"text":"list<list<T>>","class":"std#list","args":[46]}
+,{"text":"(T, T)(T)","function":true}
+,{"text":"(T)()","function":true}
+,{"text":"tree_node<K, V>?","class":"std.collections#tree_node","args":[54,55],"nullable":true}
+,{"text":"(T)(R)","function":true}
+,{"text":"R","param":true}
+,{"text":"list<R>","class":"std#list","args":[83]}
+,{"text":"(int, T)(R)","function":true}
+,{"text":"(T)(list<R>)","function":true}
+,{"text":"(R, T)(R)","function":true}
+,{"text":"linked_hash_map<R, list<T>>","class":"std.collections#linked_hash_map","args":[83,46]}
+,{"text":"linked_hash_map<R, T>","class":"std.collections#linked_hash_map","args":[83,6]}
+,{"text":"linked_hash_map<T, R>","class":"std.collections#linked_hash_map","args":[6,83]}
+,{"text":"loopable<R>","class":"std#loopable","args":[83]}
+,{"text":"pair<T, R>","class":"std#pair","args":[6,83]}
+,{"text":"list<pair<T, R>>","class":"std#list","args":[92]}
+,{"text":"tree_node<K, V>","class":"std.collections#tree_node","args":[54,55]}
+,{"text":"tree_map<T, T>","class":"std.collections#tree_map","args":[6,6]}
+,{"text":"list<double>","class":"std#list","args":[36]}
+,{"text":"(K, K)(decimal)","function":true}
+,{"text":"map_entry<K, V>?","class":"std.collections#map_entry","args":[54,55],"nullable":true}
+,{"text":"K?","nullable":true,"param":true}
+,{"text":"tree_map<K, V>","class":"std.collections#tree_map","args":[54,55]}
+,{"text":"exception","class":"std#exception"}
+,{"text":"_int8[]?","array":true,"element":18,"nullable":true}
+,{"text":"decimal[]?","array":true,"element":9,"nullable":true}
+,{"text":"json_value","class":"std.data#json_value"}
+,{"text":"file","class":"std.io#file"}
+,{"text":"json_parser","class":"std.data#json_parser"}
+,{"text":"char_buffer","class":"std.io#char_buffer"}
+,{"text":"xml_writer","class":"std.data#xml_writer"}
+,{"text":"json_writer","class":"std.data#json_writer"}
+,{"text":"list<json_value>?","class":"std#list","args":[104],"nullable":true}
+,{"text":"list<string>?","class":"std#list","args":[0],"nullable":true}
+,{"text":"_int32[]?","array":true,"element":11,"nullable":true}
+,{"text":"json_value?","class":"std.data#json_value","nullable":true}
+,{"text":"csv_row","class":"std.data#csv_row"}
+,{"text":"ini_section","class":"std.data#ini_section"}
+,{"text":"list<ini_section>","class":"std#list","args":[115]}
+,{"text":"ini_file","class":"std.data#ini_file"}
+,{"text":"ini_section?","class":"std.data#ini_section","nullable":true}
+,{"text":"list<csv_row>","class":"std#list","args":[114]}
+,{"text":"csv_reader","class":"std.data#csv_reader"}
+,{"text":"csv_writer","class":"std.data#csv_writer"}
+,{"text":"()(T)","function":true}
+,{"text":"k","param":true}
+,{"text":"v","param":true}
+,{"text":"pair<k, v>","class":"std#pair","args":[123,124]}
+,{"text":"loopable<pair<k, v>>","class":"std#loopable","args":[125]}
+,{"text":"pair<k, v>[]?","class":"std#pair","args":[123,124],"array":true,"element":125,"nullable":true}
+,{"text":"pair<k, v>[]","class":"std#pair","args":[123,124],"array":true,"element":125}
+,{"text":"_enum_","class":"std#_enum_"}
+,{"text":"arithmetic_exception","class":"std#arithmetic_exception"}
+,{"text":"illegal_argument_exception","class":"std#illegal_argument_exception"}
+,{"text":"throwable","class":"std#throwable"}
+,{"text":"illegal_state_exception","class":"std#illegal_state_exception"}
+,{"text":"error","class":"std#error"}
+,{"text":"v?","nullable":true,"param":true}
+,{"text":"hash_map.entry<k, v?>","class":"std#hash_map.entry","args":[123,135]}
+,{"text":"hash_map.entry<k, v?>[]","class":"std#hash_map.entry","args":[123,135],"array":true,"element":136}
+,{"text":"list<k>","class":"std#list","args":[123]}
+,{"text":"list<v>","class":"std#list","args":[124]}
+,{"text":"list<pair<k, v>>","class":"std#list","args":[125]}
+,{"text":"hash_table.entry<k, v>","class":"std#hash_table.entry","args":[123,124]}
+,{"text":"hash_table.entry<k, v>[]","class":"std#hash_table.entry","args":[123,124],"array":true,"element":141}
+,{"text":"t","param":true}
+,{"text":"t[]?","array":true,"element":143,"nullable":true,"param":true}
+,{"text":"(T, T)(bool)","function":true}
+,{"text":"printable","class":"std#printable"}
+,{"text":"unique","class":"std#unique"}
+,{"text":"char","class":"std#char"}
+,{"text":"E?","nullable":true,"param":true}
+,{"text":"time_request","class":"std#time_request"}
+,{"text":"time_unit","class":"std#time_unit"}
+,{"text":"(object[])()","function":true}
+,{"text":"A","param":true}
+,{"text":"B","param":true}
+,{"text":"C","param":true}
+,{"text":"D","param":true}
+,{"text":"E","param":true}
+,{"text":"loopable<_int8>","class":"std#loopable","args":[18]}
+,{"text":"bounds_except","class":"std#out_of_bounds_exception"}
+,{"text":"char_array","class":"std#char_array"}
+,{"text":"char[]","class":"std#char","array":true,"element":148}
+,{"text":"_int16"}
+,{"text":"_int16[]?","array":true,"element":162,"nullable":true}
+,{"text":"char[]?","class":"std#char","array":true,"element":148,"nullable":true}
+,{"text":"uchar","class":"std#uchar"}
+,{"text":"uchar[]?","class":"std#uchar","array":true,"element":165,"nullable":true}
+,{"text":"char_array?","class":"std#char_array","nullable":true}
+,{"text":"printable?","class":"std#printable","nullable":true}
+,{"text":"_uint8"}
+,{"text":"_uint16"}
+,{"text":"_uint32"}
+,{"text":"_uint64"}
+,{"text":"int?","class":"std#int","nullable":true}
+,{"text":"long?","class":"std#long","nullable":true}
+,{"text":"double?","class":"std#double","nullable":true}
+,{"text":"bool?","class":"std#bool","nullable":true}
+,{"text":"string_builder","class":"std#string_builder"}
+,{"text":"NT","param":true}
+,{"text":"base_number<NT>","class":"std#base_number","args":[178]}
+,{"text":"ulong","class":"std#ulong"}
+,{"text":"uint","class":"std#uint"}
+,{"text":"ushort","class":"std#ushort"}
+,{"text":"short","class":"std#short"}
+,{"text":"byte","class":"std#byte"}
+,{"text":"NT?","nullable":true,"param":true}
+,{"text":"number<_uint64, ulong>","class":"std#number","args":[172,180]}
+,{"text":"number<_int64, long>","class":"std#number","args":[7,35]}
+,{"text":"number<_uint32, uint>","class":"std#number","args":[171,181]}
+,{"text":"number<_int32, int>","class":"std#number","args":[11,2]}
+,{"text":"number<_uint16, ushort>","class":"std#number","args":[170,182]}
+,{"text":"number<_int16, short>","class":"std#number","args":[162,183]}
+,{"text":"number<_uint8, uchar>","class":"std#number","args":[169,165]}
+,{"text":"number<_int8, char>","class":"std#number","args":[18,148]}
+,{"text":"number<_int8, bool>","class":"std#number","args":[18,15]}
+,{"text":"number<decimal, double>","class":"std#number","args":[9,36]}
+,{"text":"_nil","class":"std#_nil"}
+,{"text":"atomic<int>","class":"std.io#atomic","args":[2]}
+,{"text":"runtime_except","class":"std#runtime_exception"}
+,{"text":"invalid_operation_exception","class":"std#invalid_operation_exception"}
+,{"text":"nullptr_exception","class":"std#nullptr_exception"}
+,{"text":"runtime_exception","class":"std#runtime_exception"}
+,{"text":"thread_stack_exception","class":"std#thread_stack_exception"}
+,{"text":"class_cast_exception","class":"std#class_cast_exception"}
+,{"text":"out_of_memory_exception","class":"std#out_of_memory_exception"}
+,{"text":"incompatible_class_exception","class":"std#incompatible_class_exception"}
+,{"text":"(t)()","function":true}
+,{"text":"(t, object[])()","function":true}
+,{"text":"byte_buffer","class":"std.io#byte_buffer"}
+,{"text":"binary_reader","class":"std.io#binary_reader"}
+,{"text":"binary_writer","class":"std.io#binary_writer"}
+,{"text":"file_system","class":"std.io#file_system"}
+,{"text":"file?","class":"std.io#file","nullable":true}
+,{"text":"list<file>","class":"std#list","args":[105]}
+,{"text":"(file)(bool)","function":true}
+,{"text":"directory_walker","class":"std.io#directory_walker"}
+,{"text":"(file)()","function":true}
+,{"text":"string[]?","class":"std#string","array":true,"element":0,"nullable":true}
+,{"text":"string_text_reader","class":"std.io#string_text_reader"}
+,{"text":"loopable<string>","class":"std#loopable","args":[0]}
+,{"text":"fiber?","class":"std.io.fiber#fiber","nullable":true}
+,{"text":"text_reader","class":"std.io#text_reader"}
+,{"text":"loopable<thread>","class":"std#loopable","args":[33]}
+,{"text":"thread_group","class":"std.io#thread_group"}
+,{"text":"list<thread>","class":"std#list","args":[33]}
+,{"text":"thread_priority","class":"std.io#thread_priority"}
+,{"text":"thread[]","class":"std.io#thread","array":true,"element":33}
+,{"text":"(thread)(bool)","function":true}
+,{"text":"thread_result[]","class":"std.io#thread_result","array":true,"element":34}
+,{"text":"(object[]?)(int)","function":true}
+,{"text":"uncaught_exception_handler?","class":"std.io#uncaught_exception_handler","nullable":true}
+,{"text":"uncaught_exception_handler","class":"std.io#uncaught_exception_handler"}
+,{"text":"(object[])(int)","function":true}
+,{"text":"text_writer","class":"std.io#text_writer"}
+,{"text":"base_number<t>","class":"std#base_number","args":[143]}
+,{"text":"atomic<t>","class":"std.io#atomic","args":[143]}
+,{"text":"_uint8[]?","array":true,"element":169,"nullable":true}
+,{"text":"_uint16[]?","array":true,"element":170,"nullable":true}
+,{"text":"_uint32[]?","array":true,"element":171,"nullable":true}
+,{"text":"_uint64[]?","array":true,"element":172,"nullable":true}
+,{"text":"_int16[]","array":true,"element":162}
+,{"text":"_int32[]","array":true,"element":11}
+,{"text":"_int64[]","array":true,"element":7}
+,{"text":"_uint8[]","array":true,"element":169}
+,{"text":"_uint16[]","array":true,"element":170}
+,{"text":"_uint32[]","array":true,"element":171}
+,{"text":"_uint64[]","array":true,"element":172}
+,{"text":"()(t)","function":true}
+,{"text":"deferred<t>","class":"std.io.coroutines#deferred","args":[143]}
+,{"text":"(object)(t)","function":true}
+,{"text":"coroutine_dispatcher","class":"std.io.coroutines#coroutine_dispatcher"}
+,{"text":"coroutine_scope","class":"std.io.coroutines#coroutine_scope"}
+,{"text":"job","class":"std.io.coroutines#job"}
+,{"text":"coroutine_exception_handler?","class":"std.io.coroutines#coroutine_exception_handler","nullable":true}
+,{"text":"t?","nullable":true,"param":true}
+,{"text":"deferred<t>[]","class":"std.io.coroutines#deferred","args":[143],"array":true,"element":248}
+,{"text":"list<t>","class":"std#list","args":[143]}
+,{"text":"list<deferred<t>>","class":"std#list","args":[248]}
+,{"text":"job?","class":"std.io.coroutines#job","nullable":true}
+,{"text":"(object)()","function":true}
+,{"text":"coroutine_body","class":"std.io.coroutines#coroutine_body"}
+,{"text":"pool_dispatcher?","class":"std.io.coroutines#pool_dispatcher","nullable":true}
+,{"text":"unconfined_dispatcher?","class":"std.io.coroutines#unconfined_dispatcher","nullable":true}
+,{"text":"thread_dispatcher?","class":"std.io.coroutines#thread_dispatcher","nullable":true}
+,{"text":"pool_dispatcher","class":"std.io.coroutines#pool_dispatcher"}
+,{"text":"thread_dispatcher","class":"std.io.coroutines#thread_dispatcher"}
+,{"text":"cancellation_exception","class":"std.io.coroutines#cancellation_exception"}
+,{"text":"timeout_cancellation_exception?","class":"std.io.coroutines#timeout_cancellation_exception","nullable":true}
+,{"text":"timeout_cancellation_exception","class":"std.io.coroutines#timeout_cancellation_exception"}
+,{"text":"coroutine_dispatcher?","class":"std.io.coroutines#coroutine_dispatcher","nullable":true}
+,{"text":"coroutine_body?","class":"std.io.coroutines#coroutine_body","nullable":true}
+,{"text":"throwable?","class":"std#throwable","nullable":true}
+,{"text":"waiter?","class":"std.io.fiber#waiter","nullable":true}
+,{"text":"wait_queue?","class":"std.io.fiber#wait_queue","nullable":true}
+,{"text":"job.completion_node?","class":"std.io.coroutines#job.completion_node","nullable":true}
+,{"text":"job[]?","class":"std.io.coroutines#job","array":true,"element":252,"nullable":true}
+,{"text":"job[]","class":"std.io.coroutines#job","array":true,"element":252}
+,{"text":"(job)()","function":true}
+,{"text":"job.step?","class":"std.io.coroutines#job.step","nullable":true}
+,{"text":"waiter","class":"std.io.fiber#waiter"}
+,{"text":"job.completion_node","class":"std.io.coroutines#job.completion_node"}
+,{"text":"list<job>","class":"std#list","args":[252]}
+,{"text":"()(object)","function":true}
+,{"text":"channel<t>?","class":"std.io.coroutines.channels#channel","args":[143],"nullable":true}
+,{"text":"(send_channel<t>)()","function":true}
+,{"text":"(send_channel<t>, object)()","function":true}
+,{"text":"receive_channel<t>","class":"std.io.coroutines.channels#receive_channel","args":[143]}
+,{"text":"send_channel<t>","class":"std.io.coroutines.channels#send_channel","args":[143]}
+,{"text":"deque<t>","class":"std.collections#deque","args":[143]}
+,{"text":"wait_queue","class":"std.io.fiber#wait_queue"}
+,{"text":"fiber_state","class":"std.io.fiber#fiber_state"}
+,{"text":"vector2","class":"std.math#vector2"}
+,{"text":"circle","class":"std.math#circle"}
+,{"text":"rect","class":"std.math#rect"}
+,{"text":"vector3","class":"std.math#vector3"}
+,{"text":"matrix","class":"std.math#matrix"}
+,{"text":"complex","class":"std.math#complex"}
+,{"text":"fraction","class":"std.math#fraction"}
+,{"text":"big_integer","class":"std.math#big_integer"}
+,{"text":"big_integer[]","class":"std.math#big_integer","array":true,"element":298}
+,{"text":"_class_?","class":"std.reflect#_class_","nullable":true}
+,{"text":"_class_","class":"std.reflect#_class_"}
+,{"text":"_class_[]?","class":"std.reflect#_class_","array":true,"element":301,"nullable":true}
+,{"text":"_field_","class":"std.reflect#_field_"}
+,{"text":"_field_[]?","class":"std.reflect#_field_","array":true,"element":303,"nullable":true}
+,{"text":"_function_","class":"std.reflect#_function_"}
+,{"text":"_function_[]?","class":"std.reflect#_function_","array":true,"element":305,"nullable":true}
+,{"text":"_field_?","class":"std.reflect#_field_","nullable":true}
+,{"text":"_object_?","class":"std#_object_","nullable":true}
+,{"text":"reflect_value?","class":"std.reflect#reflect_value","nullable":true}
+,{"text":"_function_?","class":"std.reflect#_function_","nullable":true}
+,{"text":"data_type","class":"std.reflect#data_type"}
+,{"text":"_function_param_","class":"std.reflect#_function_param_"}
+,{"text":"_function_param_[]?","class":"std.reflect#_function_param_","array":true,"element":312,"nullable":true}
+,{"text":"description?","class":"std.reflect#description","nullable":true}
+,{"text":"process","class":"std.system#process"}
+,{"text":"list<text_writer>","class":"std#list","args":[233]}
+,{"text":"()(decimal)","function":true}
+,{"text":"logger","class":"std.system#logger"}
+,{"text":"args_option","class":"std.system#args_option"}
+,{"text":"list<args_option>","class":"std#list","args":[319]}
+,{"text":"args_parser","class":"std.system#args_parser"}
+,{"text":"args_option?","class":"std.system#args_option","nullable":true}
+,{"text":"text_buffer","class":"std.text#text_buffer"}
+,{"text":"number_format_exception","class":"std#number_format_exception"}
+,{"text":"scanner","class":"std.text#scanner"}
+,{"text":"string_joiner","class":"std.text#string_joiner"}
+,{"text":"string_tokenizer","class":"std.text#string_tokenizer"}
+,{"text":"string_reader","class":"std.text#string_reader"}
+,{"text":"(char)(bool)","function":true}
+,{"text":"template","class":"std.text#template"}
+,{"text":"parse_exception","class":"std#parse_exception"}
+,{"text":"regex_match?","class":"std.text#regex_match","nullable":true}
+,{"text":"regex_match","class":"std.text#regex_match"}
+,{"text":"regex_match[]","class":"std.text#regex_match","array":true,"element":333}
+,{"text":"text_table","class":"std.text#text_table"}
+,{"text":"instant","class":"std.time#instant"}
+,{"text":"clock","class":"std.time#clock"}
+,{"text":"duration","class":"std.time#duration"}
+,{"text":"deadline","class":"std.time#deadline"}
+,{"text":"manual_clock","class":"std.time#manual_clock"}
+,{"text":"interval_timer","class":"std.time#interval_timer"}
+,{"text":"day_of_week","class":"std.time#day_of_week"}
+,{"text":"date","class":"std.time#date"}
+,{"text":"date[]","class":"std.time#date","array":true,"element":343}
+,{"text":"duration[]","class":"std.time#duration","array":true,"element":338}
+,{"text":"stopwatch","class":"std.time#stopwatch"}
+,{"text":"system_clock","class":"std.time#system_clock"}
+,{"text":"day_of_week[]","class":"std.time#day_of_week","array":true,"element":342}
+,{"text":"month","class":"std.time#month"}
+,{"text":"zone_offset","class":"std.time#zone_offset"}
+,{"text":"period","class":"std.time#period"}
+,{"text":"time_of_day","class":"std.time#time_of_day"}
+,{"text":"date_time","class":"std.time#date_time"}
+,{"text":"time_text_writer","class":"std.time#time_text_writer"}
+,{"text":"time_text_reader","class":"std.time#time_text_reader"}
+,{"text":"date_time_exception","class":"std.time#date_time_exception"}
+,{"text":"offset_date_time","class":"std.time#offset_date_time"}
+,{"text":"month[]","class":"std.time#month","array":true,"element":349}
+,{"text":"date_time_formatter","class":"std.time#date_time_formatter"}
+,{"text":"date_time_fields","class":"std.time#date_time_fields"}
+,{"text":"bit_flags","class":"std.util#bit_flags"}
+,{"text":"comparator<string>","class":"std.util#comparator","args":[0]}
+,{"text":"comparator<int>","class":"std.util#comparator","args":[2]}
+,{"text":"comparator<long>","class":"std.util#comparator","args":[35]}
+,{"text":"comparator<double>","class":"std.util#comparator","args":[36]}
+,{"text":"comparator<char>","class":"std.util#comparator","args":[148]}
+,{"text":"comparator<bool>","class":"std.util#comparator","args":[15]}
+,{"text":"L?","nullable":true,"param":true}
+,{"text":"R?","nullable":true,"param":true}
+,{"text":"L","param":true}
+,{"text":"either<L, R>","class":"std.util#either","args":[370,83]}
+,{"text":"either<R, L>","class":"std.util#either","args":[83,370]}
+,{"text":"(R)(R)","function":true}
+,{"text":"(L)(L)","function":true}
+,{"text":"(L)()","function":true}
+,{"text":"(R)()","function":true}
+,{"text":"optional<R>","class":"std.util#optional","args":[83]}
+,{"text":"lazy<T>","class":"std.util#lazy","args":[6]}
+,{"text":"ref<T>","class":"std.util#ref","args":[6]}
+,{"text":"(T)(T)","function":true}
+,{"text":"(T)(string)","function":true}
+,{"text":"comparator<T>?","class":"std.util#comparator","args":[6],"nullable":true}
+,{"text":"comparator<T>","class":"std.util#comparator","args":[6]}
+,{"text":"optional<T>","class":"std.util#optional","args":[6]}
+,{"text":"loopable<decimal>","class":"std#loopable","args":[9]}
+,{"text":"range","class":"std.util#range"}
+,{"text":"(decimal)()","function":true}
+,{"text":"uuid","class":"std.util#uuid"}
+,{"text":"seeded_random","class":"std#seeded_random"}
+,{"text":"uuid?","class":"std.util#uuid","nullable":true}
+,{"text":"version","class":"std.util#version"}
+,{"text":"version?","class":"std.util#version","nullable":true}
+]}

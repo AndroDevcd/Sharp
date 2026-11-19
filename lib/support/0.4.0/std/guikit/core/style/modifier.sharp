@@ -1,0 +1,656 @@
+mod std.guikit.core.style;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * modifier - how a widget's BOX is changed: its size, the room around it, its
+ * background, whether it can be clicked. You chain what you want onto one and
+ * PASS IT IN where the widget is made:
+ *
+ *      text("Hello", modifier().padding(8))
+ *      column(modifier().fill().padding(16)) { ... }
+ *      button("Save", modifier().fill_width()) { save(); }
+ *      text_field(name, modifier().grow(1))
+ *
+ * This is the ONLY way to change a widget's box. Every widget function takes
+ * an optional modifier, and no widget has box settings of its own - so there
+ * is one vocabulary, in one place, that works the same on everything:
+ *
+ *      room inside      .padding(all)   .padding(sides, top_bottom)   .padding(l, t, r, b)
+ *      room outside     .margin(all)    .margin(sides, top_bottom)    .margin(l, t, r, b)
+ *      size             .width(n)  .height(n)  .size(w, h)
+ *                       .min_width(n)  .min_height(n)  .max_width(n)  .max_height(n)
+ *                       .fill()  .fill_width()  .fill_height()
+ *                       .grow(share) / .weight(share)     a share of the leftover room
+ *                       .width_part(0.5)  .height_part(0.5)   a fraction of the parent
+ *                       .aspect(16.0 / 9)                     a fixed shape
+ *      its own place    .align(how)  in a row or column     .place(across, down)  in a stack
+ *      looks            .background(colour)  .corner(radius)  .border(thickness, colour)  .shadow(depth)
+ *      looks            .opacity(0.5)
+ *      behaviour        .click { ... }  .show(yes)  .visible(yes)  .enable(yes)  .key(name)
+ *      gestures         .long_press { }  .double_click { }  .right_click { }
+ *                       .drag { dx, dy -> }  .drag_start { }  .drag_end { }  .tooltip(words)
+ *
+ * (What a widget IS stays with the widget: a text's .size() and .color(), a
+ * column's .gap(), a button's .outline(). The modifier is about the box every
+ * widget has in common.)
+ *
+ * NAME A LOOK ONCE AND REUSE IT - a modifier is an ordinary value:
+ *
+ *      card := modifier().padding(16).background(t.surface).corner(10);
+ *      column(card) { ... }
+ *      column(card.then(modifier().grow(1))) { ... }      // the card look, plus one more setting
+ *
+ * This is Compose's Modifier, and the reason is the same as there: if every
+ * widget had its own padding / size / background parameters, each widget
+ * would have to repeat them and they would drift apart. One object that
+ * carries them all means a new widget gets every one of them for free.
+ * (CSS: a class.)
+ *
+ * HOW IT WORKS: a modifier is a notepad. Each call writes one setting down and
+ * hands the same modifier back, so calls chain. Nothing happens until the
+ * widget function it is passed to calls apply_to, which copies the settings
+ * that were WRITTEN onto the widget's view (view.sharp) - the ones never
+ * mentioned leave the view as it was. "Written" is tracked by each field's
+ * untouched value (-1 for sizes, null for colours ...), the same untouched
+ * values the view itself starts with.
+ */
+stable class modifier {
+    // room around the content (has_padding: was padding mentioned at all?)
+    private has_padding : _int64 = 0;
+    private pad_left : decimal = 0;
+    private pad_top : decimal = 0;
+    private pad_right : decimal = 0;
+    private pad_bottom : decimal = 0;
+
+    // size: -1 means "not mentioned"
+    private fixed_w : decimal = 0 - 1;
+    private fixed_h : decimal = 0 - 1;
+    private min_w : decimal = 0 - 1;
+    private min_h : decimal = 0 - 1;
+    private max_w : decimal = 0 - 1;
+    private max_h : decimal = 0 - 1;
+    private fill_w : _int64 = 0;
+    private fill_h : _int64 = 0;
+    private grow_by : decimal = 0;
+
+    // room outside the box
+    private has_margin : _int64 = 0;
+    private mar_left : decimal = 0;
+    private mar_top : decimal = 0;
+    private mar_right : decimal = 0;
+    private mar_bottom : decimal = 0;
+
+    // shape and share of the parent: 0 means "not mentioned"
+    private part_w : decimal = 0;
+    private part_h : decimal = 0;
+    private shape : decimal = 0;
+
+    // its own place in the container: -1 means "not mentioned"
+    private self_align : _int64 = 0 - 1;
+    private size_anim : _int64 = 0;         // 1: a change of height is glided through
+    private has_turn : _int64 = 0;
+    private turn_by : decimal = 0;
+    private zoom_by : decimal = 0 - 1;      // -1: not set
+    private blur_by : decimal = 0 - 1;
+    private form : shape?;                  // the shape of the background and border
+    private cut_to : shape?;                // the shape the content is cut to
+    private self_across : _int64 = 0 - 1;
+    private self_down : _int64 = 0 - 1;
+
+    // looks
+    private back : color?;
+    private radius : decimal = 0 - 1;
+    private border_w : decimal = 0 - 1;
+    private border_c : color?;
+    private depth : decimal = 0 - 1;
+    private solidity : decimal = 0 - 1;
+
+    // behaviour: -1 means "not mentioned"
+    private action : ()()?;
+    private held_action : ()()?;
+    private twice_action : ()()?;
+    private right_action : ()()?;
+    private drag_begin : ()()?;
+    private drag_move : (decimal, decimal)()?;
+    private drag_finish : ()()?;
+    private hint : string = "";
+    private shown : _int64 = 0 - 1;
+    private unseen : _int64 = 0 - 1;
+    private enabled : _int64 = 0 - 1;
+    private name : string = "";
+
+    // ------------------------------------------------------------ room around the content
+
+    /** the same padding on all four sides */
+    def padding(all: decimal) : modifier {
+        return padding(all, all, all, all);
+    }
+
+    /** padding left+right, and top+bottom */
+    def padding(sides: decimal, top_bottom: decimal) : modifier {
+        return padding(sides, top_bottom, sides, top_bottom);
+    }
+
+    /** padding per side, clockwise from the left: left, top, right, bottom */
+    def padding(left: decimal, top: decimal, right: decimal, bottom: decimal) : modifier {
+        has_padding = 1;
+        pad_left = left;
+        pad_top = top;
+        pad_right = right;
+        pad_bottom = bottom;
+        return self;
+    }
+
+    /**
+     * Room OUTSIDE the box, between it and its neighbours - the same on all
+     * four sides. (Padding is room INSIDE the box: the background covers the
+     * padding but not the margin, and a click in the margin misses the box.)
+     * (Android: layout_margin. CSS: margin.)
+     */
+    def margin(all: decimal) : modifier {
+        return margin(all, all, all, all);
+    }
+
+    /** margin left+right, and top+bottom */
+    def margin(sides: decimal, top_bottom: decimal) : modifier {
+        return margin(sides, top_bottom, sides, top_bottom);
+    }
+
+    /** margin per side, clockwise from the left: left, top, right, bottom */
+    def margin(left: decimal, top: decimal, right: decimal, bottom: decimal) : modifier {
+        has_margin = 1;
+        mar_left = left;
+        mar_top = top;
+        mar_right = right;
+        mar_bottom = bottom;
+        return self;
+    }
+
+    // ------------------------------------------------------------ size
+
+    /** exactly this wide */
+    def width(pixels: decimal) : modifier {
+        fixed_w = pixels;
+        return self;
+    }
+
+    /** exactly this tall */
+    def height(pixels: decimal) : modifier {
+        fixed_h = pixels;
+        return self;
+    }
+
+    /** exactly this big */
+    def size(w: decimal, h: decimal) : modifier {
+        fixed_w = w;
+        fixed_h = h;
+        return self;
+    }
+
+    /** never narrower than this */
+    def min_width(pixels: decimal) : modifier {
+        min_w = pixels;
+        return self;
+    }
+
+    /** never shorter than this */
+    def min_height(pixels: decimal) : modifier {
+        min_h = pixels;
+        return self;
+    }
+
+    /** never wider than this (text wraps to it) */
+    def max_width(pixels: decimal) : modifier {
+        max_w = pixels;
+        return self;
+    }
+
+    /** never taller than this */
+    def max_height(pixels: decimal) : modifier {
+        max_h = pixels;
+        return self;
+    }
+
+    /** take all the room the parent offers, both ways */
+    def fill() : modifier {
+        fill_w = 1;
+        fill_h = 1;
+        return self;
+    }
+
+    /** take all the width the parent offers */
+    def fill_width() : modifier {
+        fill_w = 1;
+        return self;
+    }
+
+    /** take all the height the parent offers */
+    def fill_height() : modifier {
+        fill_h = 1;
+        return self;
+    }
+
+    /**
+     * Inside a row or column: take a share of the room that is LEFT OVER after
+     * the other children have what they need. Two children with grow(1) split
+     * it evenly; grow(2) next to grow(1) gets twice as much.
+     * (CSS: flex-grow. Compose: Modifier.weight.)
+     */
+    def grow(share: decimal) : modifier {
+        grow_by = share;
+        return self;
+    }
+
+    /** the same as grow(share), under the name Android and Compose use */
+    def weight(share: decimal) : modifier {
+        grow_by = share;
+        return self;
+    }
+
+    /**
+     * This fraction of the parent's width: width_part(0.5) is half, however
+     * wide the parent turns out to be. Always a fraction of the WHOLE parent,
+     * so two children with 0.5 are the same width.
+     * (Android: ConstraintLayout's layout_constraintWidth_percent.)
+     */
+    def width_part(fraction: decimal) : modifier {
+        part_w = fraction;
+        return self;
+    }
+
+    /** this fraction of the parent's height */
+    def height_part(fraction: decimal) : modifier {
+        part_h = fraction;
+        return self;
+    }
+
+    /**
+     * Keep this shape whatever the size: width divided by height. A video
+     * thumbnail is aspect(16.0 / 9), a square is aspect(1). The box becomes as
+     * wide as it is allowed and exactly as tall as the shape then needs (or
+     * the other way round when that would be too tall).
+     * (Compose: Modifier.aspectRatio.)
+     */
+    def aspect(width_by_height: decimal) : modifier {
+        shape = width_by_height;
+        return self;
+    }
+
+    // ------------------------------------------------------------ its own place
+
+    /**
+     * Where THIS child sits across its row or column, whatever the container
+     * says for the others: ALIGN_START, ALIGN_CENTER, ALIGN_END, ALIGN_STRETCH.
+     * (Android: layout_gravity. Compose: Modifier.align.)
+     */
+    def align(how: _int64) : modifier {
+        self_align = how;
+        return self;
+    }
+
+    /**
+     * Where THIS child sits in a stack: across (ALIGN_START left, _CENTER,
+     * _END right) and down (top, center, bottom).
+     * modifier().place(ALIGN_END, ALIGN_END) is the bottom-right corner.
+     */
+    def place(across: _int64, down: _int64) : modifier {
+        self_across = across;
+        self_down = down;
+        return self;
+    }
+
+    // ------------------------------------------------------------ looks
+
+    /** a background colour behind the widget (padding included) */
+    def background(c: color) : modifier {
+        back = c;
+        return self;
+    }
+
+    /** a background colour in a shape: shape.pill(), shape.circle(), shape.star(), your own (shape.sharp) */
+    def background(c: color, outline: shape) : modifier {
+        back = c;
+        form = outline;
+        return self;
+    }
+
+    /** the shape of the background and border, when the colour is set elsewhere (a card's own surface) */
+    def shape(outline: shape) : modifier {
+        form = outline;
+        return self;
+    }
+
+    /**
+     * Cut the widget and everything in it to a shape: a round picture is
+     * image(path, modifier().size(64, 64).clip(shape.circle())).
+     * (Compose: Modifier.clip.)
+     */
+    def clip(outline: shape) : modifier {
+        cut_to = outline;
+        return self;
+    }
+
+    /**
+     * Turn the widget - with everything in it - this many degrees clockwise
+     * around its middle. Only how it is PAINTED changes: it keeps the room
+     * layout gave it, and the mouse still finds it where it would be unturned.
+     * (Compose: Modifier.rotate / graphicsLayer.)
+     */
+    def rotate(degrees: decimal) : modifier {
+        has_turn = 1;
+        turn_by = degrees;
+        return self;
+    }
+
+    /** paint the widget this many times its size, around its middle: 1.2 a fifth bigger, 0.5 half (Compose: Modifier.scale) */
+    def scale(factor: decimal) : modifier {
+        zoom_by = factor;
+        return self;
+    }
+
+    /** blur the widget and everything in it by about this many pixels; 0 is sharp (Compose: Modifier.blur) */
+    def blur(pixels: decimal) : modifier {
+        blur_by = pixels;
+        if(blur_by < 0) { blur_by = 0; }
+        return self;
+    }
+
+    /** round the corners of the background and border */
+    def corner(pixels: decimal) : modifier {
+        radius = pixels;
+        return self;
+    }
+
+    /** a border line inside the widget's edge */
+    def border(thickness: decimal, c: color) : modifier {
+        border_w = thickness;
+        border_c = c;
+        return self;
+    }
+
+    /**
+     * A soft shadow under the box, this many pixels deep, so it looks lifted
+     * off the page: a card is about 6, a dialog about 14. Give the box a
+     * background too - a shadow under nothing looks odd.
+     * (Android: elevation. CSS: box-shadow.)
+     */
+    def shadow(pixels: decimal) : modifier {
+        depth = pixels;
+        return self;
+    }
+
+    /**
+     * How solid the widget and everything in it is painted: 1 fully (the
+     * default), 0.5 half see-through, 0 not at all (it still takes its room).
+     * (Compose: Modifier.alpha. CSS: opacity.)
+     */
+    def opacity(amount: decimal) : modifier {
+        solidity = amount;
+        if(solidity < 0) { solidity = 0; }
+        if(solidity > 1) { solidity = 1; }
+        return self;
+    }
+
+    // ------------------------------------------------------------ behaviour
+
+    /**
+     * Run this when the widget is clicked. Works on anything: a text, a
+     * picture, a whole row. It also makes the widget reachable with Tab and
+     * clickable with Enter.
+     *
+     *      row(modifier().click { open(item); }) { ... }
+     *
+     * (Compose: Modifier.clickable. Android: setOnClickListener.)
+     */
+    def click(what: ()()) : modifier {
+        action = what;
+        return self;
+    }
+
+    /**
+     * Run this when the widget is pressed and HELD for about half a second
+     * without moving. A long press does not also count as a click.
+     * (Android: setOnLongClickListener. Compose: combinedClickable(onLongClick).)
+     */
+    def long_press(what: ()()) : modifier {
+        held_action = what;
+        return self;
+    }
+
+    /** run this when the widget is clicked twice in quick succession (the first click still counts as a click) */
+    def double_click(what: ()()) : modifier {
+        twice_action = what;
+        return self;
+    }
+
+    /** run this when the widget is clicked with the RIGHT mouse button: the usual way to open a context menu */
+    def right_click(what: ()()) : modifier {
+        right_action = what;
+        return self;
+    }
+
+    /**
+     * Run this while the widget is DRAGGED: pressed, and the mouse moved while
+     * held. It is told how far the mouse moved since the last time, across and
+     * down, in pixels - add those to a position to make something follow the
+     * mouse:
+     *
+     *      box(modifier().drag { dx: decimal, dy: decimal -> x.value += dx; y.value += dy; })
+     *
+     * A drag does not also count as a click. .drag_start { } and .drag_end { }
+     * tell you when one begins and ends. (Compose: Modifier.draggable /
+     * detectDragGestures. Android: onTouchEvent with ACTION_MOVE.)
+     */
+    def drag(what: (decimal, decimal)()) : modifier {
+        drag_move = what;
+        return self;
+    }
+
+    /** run this when a drag of the widget begins */
+    def drag_start(what: ()()) : modifier {
+        drag_begin = what;
+        return self;
+    }
+
+    /** run this when a drag of the widget ends (the button came back up) */
+    def drag_end(what: ()()) : modifier {
+        drag_finish = what;
+        return self;
+    }
+
+    /** words shown in a small box when the mouse rests on the widget for a moment */
+    def tooltip(words: string) : modifier {
+        hint = words;
+        return self;
+    }
+
+    /** show it or not: show(0) takes NO ROOM and paints nothing. show(logged_in.value) (Android: GONE) */
+    def show(yes: _int64) : modifier {
+        shown = 0;
+        if(yes != 0) { shown = 1; }
+        return self;
+    }
+
+    /**
+     * visible(0) paints nothing and cannot be clicked, but KEEPS ITS ROOM, so
+     * the things around it do not move. Use it when a part of the screen should
+     * blink in and out without the layout jumping. (Android: INVISIBLE)
+     */
+    def visible(yes: _int64) : modifier {
+        unseen = 1;
+        if(yes != 0) { unseen = 0; }
+        return self;
+    }
+
+    /** can it be clicked and focused? enable(0) greys it out. enable(agreed.value) */
+    def enable(yes: _int64) : modifier {
+        enabled = 0;
+        if(yes != 0) { enabled = 1; }
+        return self;
+    }
+
+    /**
+     * Name this widget among its siblings. Give rows of a list that can be
+     * reordered a key (an id), so each row keeps its own scroll position,
+     * typed text and so on when the list is rebuilt.
+     */
+    /**
+     * When the box's height changes (its content grew, something inside was
+     * shown or hidden), glide to the new height instead of jumping - and
+     * whatever is below it moves along. (Compose: animateContentSize.)
+     */
+    def animate_size() : modifier {
+        size_anim = 1;
+        return self;
+    }
+
+    def key(id: string) : modifier {
+        name = id;
+        return self;
+    }
+
+    // ------------------------------------------------------------ combining and applying
+
+    /**
+     * A NEW modifier with everything this one says, and then everything
+     * `more` says - where both mention the same thing, `more` wins. Neither
+     * of the two is changed, so a named look stays reusable:
+     *
+     *      card.then(modifier().grow(1))
+     */
+    def then(more: modifier) : modifier {
+        both := new modifier();
+        write_onto(both);
+        more.write_onto(both);
+        return both;
+    }
+
+    /** write every setting this modifier mentions onto another modifier */
+    private def write_onto(other: modifier) {
+        if(has_padding == 1) {
+            other.has_padding = 1;
+            other.pad_left = pad_left;
+            other.pad_top = pad_top;
+            other.pad_right = pad_right;
+            other.pad_bottom = pad_bottom;
+        }
+        if(fixed_w >= 0) { other.fixed_w = fixed_w; }
+        if(fixed_h >= 0) { other.fixed_h = fixed_h; }
+        if(min_w >= 0) { other.min_w = min_w; }
+        if(min_h >= 0) { other.min_h = min_h; }
+        if(max_w >= 0) { other.max_w = max_w; }
+        if(max_h >= 0) { other.max_h = max_h; }
+        if(fill_w == 1) { other.fill_w = 1; }
+        if(fill_h == 1) { other.fill_h = 1; }
+        if(grow_by > 0) { other.grow_by = grow_by; }
+        if(back != null) { other.back = back; }
+        if(radius >= 0) { other.radius = radius; }
+        if(border_w >= 0) {
+            other.border_w = border_w;
+            other.border_c = border_c;
+        }
+        if(has_margin == 1) {
+            other.has_margin = 1;
+            other.mar_left = mar_left;
+            other.mar_top = mar_top;
+            other.mar_right = mar_right;
+            other.mar_bottom = mar_bottom;
+        }
+        if(part_w > 0) { other.part_w = part_w; }
+        if(part_h > 0) { other.part_h = part_h; }
+        if(shape > 0) { other.shape = shape; }
+        if(self_align >= 0) { other.self_align = self_align; }
+        if(self_across >= 0) {
+            other.self_across = self_across;
+            other.self_down = self_down;
+        }
+        if(size_anim == 1) { other.size_anim = 1; }
+        if(has_turn == 1) { other.has_turn = 1; other.turn_by = turn_by; }
+        if(zoom_by >= 0) { other.zoom_by = zoom_by; }
+        if(blur_by >= 0) { other.blur_by = blur_by; }
+        if(form != null) { other.form = form; }
+        if(cut_to != null) { other.cut_to = cut_to; }
+        if(depth >= 0) { other.depth = depth; }
+        if(solidity >= 0) { other.solidity = solidity; }
+        if(action != null) { other.action = action; }
+        if(held_action != null) { other.held_action = held_action; }
+        if(twice_action != null) { other.twice_action = twice_action; }
+        if(right_action != null) { other.right_action = right_action; }
+        if(drag_begin != null) { other.drag_begin = drag_begin; }
+        if(drag_move != null) { other.drag_move = drag_move; }
+        if(drag_finish != null) { other.drag_finish = drag_finish; }
+        if(hint != "") { other.hint = hint; }
+        if(shown >= 0) { other.shown = shown; }
+        if(unseen >= 0) { other.unseen = unseen; }
+        if(enabled >= 0) { other.enabled = enabled; }
+        if(name != "") { other.name = name; }
+    }
+
+    /**
+     * Copy every setting this modifier mentions onto a widget's view. The
+     * widget functions call this; you do not.
+     */
+    def apply_to(target: view) {
+        if(has_padding == 1) {
+            target.pad_left = pad_left;
+            target.pad_top = pad_top;
+            target.pad_right = pad_right;
+            target.pad_bottom = pad_bottom;
+        }
+        if(fixed_w >= 0) { target.fixed_w = fixed_w; }
+        if(fixed_h >= 0) { target.fixed_h = fixed_h; }
+        if(min_w >= 0) { target.min_w = min_w; }
+        if(min_h >= 0) { target.min_h = min_h; }
+        if(max_w >= 0) { target.max_w = max_w; }
+        if(max_h >= 0) { target.max_h = max_h; }
+        if(fill_w == 1) { target.fill_w = 1; }
+        if(fill_h == 1) { target.fill_h = 1; }
+        if(grow_by > 0) { target.weight = grow_by; }
+        if(back != null) { target.back = back; }
+        if(radius >= 0) { target.corner = radius; }
+        if(border_w >= 0) {
+            target.border_w = border_w;
+            target.border_c = border_c;
+        }
+        if(has_margin == 1) {
+            target.mar_left = mar_left;
+            target.mar_top = mar_top;
+            target.mar_right = mar_right;
+            target.mar_bottom = mar_bottom;
+        }
+        if(part_w > 0) { target.part_w = part_w; }
+        if(part_h > 0) { target.part_h = part_h; }
+        if(shape > 0) { target.aspect = shape; }
+        if(self_align >= 0) { target.self_align = self_align; }
+        if(self_across >= 0) {
+            target.self_across = self_across;
+            target.self_down = self_down;
+        }
+        if(size_anim == 1) { target.size_glides = 1; }
+        if(has_turn == 1) { target.turn = turn_by; }
+        if(zoom_by >= 0) { target.zoom = zoom_by; }
+        if(blur_by >= 0) { target.blur = blur_by; }
+        if(form != null) { target.outline = form; }
+        if(cut_to != null) { target.cut = cut_to; }
+        if(depth >= 0) { target.shadow = depth; }
+        if(solidity >= 0) { target.opacity = solidity; }
+        if(action != null) {
+            target.on_click = action;
+            target.feedback = 1;                // it reacts to the mouse: let it show that
+        }
+        if(held_action != null) { target.on_long_press = held_action; }
+        if(twice_action != null) { target.on_double_click = twice_action; }
+        if(right_action != null) { target.on_right_click = right_action; }
+        if(drag_begin != null) { target.on_drag_start = drag_begin; }
+        if(drag_move != null) { target.on_drag = drag_move; }
+        if(drag_finish != null) { target.on_drag_end = drag_finish; }
+        if(hint != "") { target.tip = hint; }
+        if(shown >= 0) { target.shown = shown; }
+        if(unseen >= 0) { target.hidden = unseen; }
+        if(enabled >= 0) { target.enabled = enabled; }
+        if(name != "") { target.key = name; }
+    }
+}

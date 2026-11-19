@@ -1,0 +1,124 @@
+mod cache;
+
+import (
+    std.io
+)
+
+/**
+ * WHAT THE BUILD CACHE REMEMBERS ABOUT THE FILES OF A PROJECT
+ *
+ * On disk, inside the project:
+ *
+ *      build/cache/files/cache_info.data       the index: a cache_info (this file)
+ *      build/cache/files/file_<id>_a.data      stage A of file <id>: its syntax tree
+ *      build/cache/files/file_<id>_b.data      stage B of file <id>: reserved for its compiled code
+ *
+ * The index has one file_data per source file: where the file is, what it
+ * looked like when it was cached (size and time of the last change) and under
+ * which number its cached stages are stored.
+ *
+ * A cached stage is used only when
+ *   - the index was written by the same version of the cache (format_version)
+ *   - the source file has the same size and the same last-change time as when
+ *     it was cached
+ * otherwise the file is compiled again and its entry replaced.
+ *
+ *      C++ comparison: what make / ninja keep to decide what to rebuild, plus
+ *      the object files themselves.
+ */
+
+/**
+ * Changes whenever what is stored changes shape: the tokens, the syntax tree,
+ * this index. An index written with another version is thrown away whole.
+ */
+const cache_format_version : decimal = 4;
+
+/** one source file in the index */
+class file_data {
+    name : string;              // the path the file was compiled under
+    size : decimal;             // its size in bytes when it was cached
+    last_update : decimal;      // its last-change time when it was cached
+    id : decimal;               // the number in the names of its cache files
+    parser_cache : string;      // stage A, relative to the cache directory (cache_directory())
+    compiler_cache : string;    // stage B, relative to the cache directory
+
+    file_data(name: string, size: decimal, modified_time: decimal, id: decimal) {
+        self->name = name;
+        self->size = size;
+        self->last_update = modified_time;
+        self->id = id;
+        self->parser_cache = "/files/file_" + (id as _int64) + "_a.data";
+        self->compiler_cache = "/files/file_" + (id as _int64) + "_b.data";
+    }
+}
+
+/**
+ * The index: what is written to cache_info.data.
+ * Only data here - finding a file's entry quickly is the business of
+ * file_lookup below, which is rebuilt from `files` and never written to disk.
+ */
+class cache_info {
+    format_version : decimal = cache_format_version;
+    next_id : decimal = 0;                          // the number the next new file gets
+    files := new list<file_data>();
+}
+
+/**
+ * The index plus a way to find the entry of a file without walking the list:
+ * a table from path to entry. (Walking the list for each of n files is n * n
+ * string comparisons.)
+ *
+ *      C++ comparison: a std::vector<file_data> that is saved, and a
+ *      std::unordered_map<std::string, file_data*> built from it after loading.
+ */
+class file_lookup {
+    info : cache_info;
+    by_path := new hash_map<string, file_data>();
+
+    file_lookup(info: cache_info) {
+        self->info = info;
+        for(i : decimal = 0; i < info.files.size(); i++) {
+            entry := info.files.at(i);
+            by_path.put(entry.name, entry);
+        }
+    }
+
+    /** the entry of a source file, or null */
+    def find(path: string) : file_data? {
+        return by_path.at(path);
+    }
+
+    /**
+     * The entry of a source file with the size and date given: the existing
+     * one brought up to date, or a new one with a new number.
+     */
+    def remember(path: string, size: decimal, changed: decimal) : file_data {
+        entry := by_path.at(path);
+        if(entry != null) {
+            entry!!.size = size;
+            entry!!.last_update = changed;
+            return entry!!;
+        }
+
+        added := new file_data(path, size, changed, info.next_id);
+        info.next_id++;
+        info.files.add(added);
+        by_path.put(path, added);
+        return added;
+    }
+
+    /** forget a source file (its cache files are the caller's business) */
+    def forget(path: string) {
+        if(by_path.at(path) == null) {
+            return;
+        }
+
+        by_path.remove(path);
+        for(i : decimal = 0; i < info.files.size(); i++) {
+            if(info.files.at(i).name == path) {
+                info.files.remove_at(i);
+                return;
+            }
+        }
+    }
+}

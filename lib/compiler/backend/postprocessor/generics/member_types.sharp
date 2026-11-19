@@ -1,0 +1,182 @@
+mod backend.postprocessor.generics;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * THE RESOLVED TYPE OF EVERY MEMBER
+ *
+ *      class circle base shape {
+ *          radius : decimal;                           sharp_field.value_type      decimal
+ *          def scale(by: int) : circle { ... }         sharp_parameter.value_type  class std#int
+ *      }                                               sharp_function.result_type  class circle
+ *
+ * Stage 3 tied every written type name to its declaration. Here each written
+ * type of a declaration is turned into a resolved_type (resolved_type.sharp):
+ * aliases looked through, type parameters replaced, generic instances made.
+ * After this a later stage compares `field.value_type` with the type of a
+ * value and never looks at a written type again.
+ *
+ * What a member's type is resolved UNDER is the environment of its class
+ * (type_environment.sharp): none for an ordinary class, "T is string" for
+ * the members of box<string>.
+ *
+ * NOT EVERY MEMBER HAS A TYPE YET
+ *      total := price * 2;         a field without a written type
+ *      def twice() := total * 2;   a function whose result is its expression's type
+ * The type is the type of the value, which only the body stages can work
+ * out. `value_type` / `result_type` stay null and `type_state` stays
+ * TYPE_UNKNOWN until then.
+ *
+ * IN A BLUEPRINT (a generic class as written, or a generic function) the
+ * types that mention a type parameter come out "open" (RT_TYPE_PARAMETER).
+ * They are resolved all the same, because that is what checks them: a
+ * blueprint that is never used still has its `list<T, T>` reported.
+ *
+ *      C++ comparison: validate_field_type / validate_function_type in
+ *      postprocessor/field_processor.cpp and function_processor.cpp, minus
+ *      the parts that belong to expressions.
+ */
+def resolve_member_types(prog: sharp_program, declared: sharp_class, problems: list<diagnostic>) {
+    environment := declared.environment;
+    may_be_open : _int64 = declared.is_open();
+
+    // (the constraints of a written generic class: `T base shape` - is `shape` a usable type?)
+    if(declared.blueprint == null) {
+        for(i : _int64 = 0; i < declared.type_parameters.size(); i++) {
+            constraint := declared.type_parameters.at(i).constraint;
+            if(constraint != null) { resolve_written_type(prog, constraint!!, environment, problems); }
+        }
+    }
+
+    for(i : _int64 = 0; i < declared.enum_values.size(); i++) {
+        // a value of an enum is an object of that enum
+        if(may_be_open == 0) { declared.enum_values.at(i).value_type = type_of_class(declared); }
+    }
+
+    for(i : _int64 = 0; i < declared.aliases.size(); i++) {
+        // resolved for its checks; what an alias means is asked again where it is used
+        named := declared.aliases.at(i);
+        if(named.target != null) { resolve_written_type(prog, named.target!!, environment, problems); }
+    }
+
+    for(i : _int64 = 0; i < declared.fields.size(); i++) {
+        resolve_field_type(prog, declared.fields.at(i), environment, may_be_open, problems);
+    }
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) {
+        resolve_function_types(prog, declared.constructors.at(i), environment, may_be_open, problems);
+    }
+    for(i : _int64 = 0; i < declared.init_blocks.size(); i++) {
+        resolve_function_types(prog, declared.init_blocks.at(i), environment, may_be_open, problems);
+    }
+    for(i : _int64 = 0; i < declared.functions.size(); i++) {
+        resolve_function_types(prog, declared.functions.at(i), environment, may_be_open, problems);
+    }
+}
+
+/** the same for what a module declares outside any class: global variables, functions, aliases */
+def resolve_global_types(prog: sharp_program, module: sharp_module, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < module.aliases.size(); i++) {
+        named := module.aliases.at(i);
+        if(named.target != null) { resolve_written_type(prog, named.target!!, null, problems); }
+    }
+    for(i : _int64 = 0; i < module.fields.size(); i++) {
+        resolve_field_type(prog, module.fields.at(i), null, 0, problems);
+    }
+    for(i : _int64 = 0; i < module.functions.size(); i++) {
+        function := module.functions.at(i);
+        // an extension function is resolved with the class it became a member of
+        if(function.extension_of == null) { resolve_function_types(prog, function, null, 0, problems); }
+    }
+}
+
+/**
+ * One written type of a member, resolved.
+ *
+ * @param may_be_open  1: the member belongs to a blueprint, where a type may
+ *                     depend on a type parameter. 0: it belongs to a real
+ *                     class, where every type parameter is known. If a type
+ *                     still comes out open there, the COMPILER failed to
+ *                     follow it. No program is known that causes this; should
+ *                     one turn up, it must not pass silently with a type
+ *                     that fits everything, so it is reported (E0396), it
+ *                     becomes the error type and it is counted.
+ */
+def member_type(prog: sharp_program, written: sharp_type, environment: type_environment?, may_be_open: _int64,
+                problems: list<diagnostic>) : resolved_type {
+    resolved := resolve_written_type(prog, written, environment, problems);
+    if(may_be_open == 0 && resolved.is_open()) {
+        prog.unresolved_in_real_class++;
+        if(written.instance_problem_reported == 0 && written.node >= 0) {
+            written.instance_problem_reported = 1;
+            d := error_at_node("E0396", "internal: the compiler could not work out what `" + written.to_text() + "` is here",
+                               written.unit, written.node)
+                .with_label("still depends on a type parameter, in a place where every type parameter is known")
+                .with_note("this is a gap in the compiler, not a mistake in the program; the type is treated as unknown");
+            add_instance_note(d, environment);
+            d.with_help("please report it with this declaration; naming the type in full (`outer<int>` rather than a short name) may work around it");
+            problems.add(d);
+        }
+        return prog.types.error_type;
+    }
+    return resolved;
+}
+
+/** the type of one field or global variable, and with it the types of its getter and setter */
+def resolve_field_type(prog: sharp_program, field: sharp_field, environment: type_environment?, may_be_open: _int64,
+                       problems: list<diagnostic>) {
+    if(field.type != null) {
+        field.value_type = member_type(prog, field.type!!, environment, may_be_open, problems);
+        field.type_state = TYPE_KNOWN;
+    }
+
+    // the getter returns what the field holds; the setter takes it
+    if(field.getter != null) {
+        getter : sharp_function = field.getter!!;
+        getter.result_type = field.value_type;
+        getter.type_state = field.type_state;
+    }
+    if(field.setter != null) {
+        setter : sharp_function = field.setter!!;
+        setter.result_type = prog.types.nil_type;
+        setter.type_state = TYPE_KNOWN;
+        if(setter.parameters.size() > 0) { setter.parameters.at(0).value_type = field.value_type; }
+    }
+}
+
+/** the types of the parameters and of the result of one function, constructor or init block */
+def resolve_function_types(prog: sharp_program, function: sharp_function, environment: type_environment?,
+                           class_is_open: _int64, problems: list<diagnostic>) {
+    // a generic function is a blueprint whatever class it is in: its own T is not known
+    may_be_open : _int64 = class_is_open == 1 || function.is_generic();
+
+    for(i : _int64 = 0; i < function.type_parameters.size(); i++) {
+        constraint := function.type_parameters.at(i).constraint;
+        if(constraint != null && function.origin == null) { resolve_written_type(prog, constraint!!, environment, problems); }
+    }
+
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        parameter := function.parameters.at(i);
+        if(parameter.type != null) {
+            parameter.value_type = member_type(prog, parameter.type!!, environment, may_be_open, problems);
+        }
+    }
+
+    if(function.return_type != null) {
+        function.result_type = member_type(prog, function.return_type!!, environment, may_be_open, problems);
+        function.type_state = TYPE_KNOWN;
+    } else if(function.expression >= 0 && function.returns_nil == 0 && function.kind == D_FUNCTION) {
+        // def f() := value;  - the type of the value, worked out by the body stages
+        function.result_type = null;
+        function.type_state = TYPE_UNKNOWN;
+    } else {
+        function.result_type = prog.types.nil_type;
+        function.type_state = TYPE_KNOWN;
+    }
+}

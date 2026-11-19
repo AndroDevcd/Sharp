@@ -1,0 +1,7 @@
+mod wide;
+
+// café 😀 comment
+def main() {
+	text := "naïve 😀";
+	total := missing_name + 1;
+}

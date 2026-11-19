@@ -1,0 +1,22 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * MISPLACED  -  what happens when a widget is written inside the wrong parent.
+ *
+ * tab(...) only means something inside tabs { }. Here it is written inside a
+ * column, so the program stops the first time the screen is built, with an
+ * error that names what was written and where it belongs. (This example is
+ * SUPPOSED to fail; it is here to show the message.)
+ */
+def main() {
+    gui.run("Misplaced", 300, 200, { ->
+        return column {
+            text("this line is fine");
+            tab("this one is not");
+        };
+    });
+}

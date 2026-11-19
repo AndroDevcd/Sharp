@@ -1,0 +1,16 @@
+mod backend.types.program;
+
+/**
+ * THE PROGRAM AS A WHOLE
+ *
+ * The files of this package (module `backend.types.program`):
+ *
+ *      sharp_module.sharp  sharp_module, sharp_file (with its imports), sharp_program
+ *      well_known.sharp    the library classes the language itself needs (string, int, _object_ ...), found once
+ *      node_helpers.sharp  small helpers: a diagnostic at a tree node, a dotted name
+ *      obfuscation_rule.sharp  one name of an `obfuscate` block, tied to the module or declaration it names
+ *      analysed_program.sharp  the analysed program: the one object handed to code generation (main,
+ *                              every function and class, what is reached from main)
+ *
+ * This file is the package's front door: it only says what is where.
+ */

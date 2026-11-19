@@ -1,0 +1,13 @@
+// expect: E0102 E0102 E0102 E0102 E0102
+//
+// A value was expected and is not there.
+mod tests.fail;
+
+def main(args: string[]) {
+    total := 0;
+    total = ;
+    total = 1 + ;
+    println(total, );
+    p := new list<int>(;
+    total = _int8;
+}

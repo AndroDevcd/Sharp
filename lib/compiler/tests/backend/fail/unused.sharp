@@ -1,0 +1,30 @@
+// expect: W1032 W1032 W1035 W1035 W1034 W1032
+// options: -wextra
+mod app;
+
+// The warnings that are off unless -wextra is given (they fire in the
+// standard library): fields nothing gives a value, unused locals and unused
+// private members.
+
+class node { n : int; }
+class holder {
+    item : node;                    // W1032: the first constructor reads it before assigning it
+    other : node;                   // W1032: the second constructor never assigns it
+    ok : node;                      // fine: every constructor assigns it first
+    maybe : node?;                  // fine: nullable
+    excuse later : node;            // fine: `excuse`
+    named : string;                 // fine: a string starts as ""
+    holder(x: _int64) { println(item.n); item = new node(); ok = new node(); other = new node(); }
+    holder() { ok = new node(); }
+    private def helper() { }                // W1035: nothing calls it
+    private def used_helper() { }           // fine: `run` calls it
+    private secret : _int64 = 1;            // W1035: nothing reads it
+    def run() {
+        unused := 4;                        // W1034
+        _quiet := 5;                        // fine: `_` says "on purpose"
+        used_helper();
+        foreach(i in new _int64[3]) { }     // fine: a foreach variable may only count
+    }
+}
+global_item : node;                         // W1032: a global gets a value only where it is declared
+def main() { h := new holder(1); h.run(); }

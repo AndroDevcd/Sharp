@@ -1,283 +1,291 @@
+<div align="center">
 
-  
-<a name="logo"/>    
-<div align="center">    
-<a href="https://github.com/" target="_blank">    
-<img src="https://github.com/AndroDevcd/Sharp/blob/master/doc/logo.png?raw=true" alt="Sharp Logo" width="210" height="142"></img>    
-</a>    
-</div>    
-    
-# The Sharp Programming Language 
+<img src="https://github.com/AndroDevcd/Sharp/blob/master/doc/logo.png?raw=true" alt="Sharp Logo" width="210" height="142">
 
-Sharp is an open source a modern object-oriented programming language that aims to bridge the gap between modern expressive programming paradigms and strictly typed rigid languages like Java and C#. My goal is to provide the usefulness of an object oriented programming language, while holding the simplicity of an expressive programming language without having to sacrifice performance.     
-    
-Sharp is elegantly simple.    
-```javascript    
-mod app;    
-    
-def main() {    
-    print("hello, world!");    
-}    
-```    
-    
-The syntax in Sharp is simple, easy to read, and beautiful allowing you to focus more on what the code
-is doing rather that the syntax 
-  
-```javascript  
-mod app;  
- 
-def compute() {
-    // TODO...
-}
+# The Sharp Programming Language
 
-def main() {  
-    
-   for < 10:
-    compute();
-}  
-```  
+**Dependency injection, mocks, tests and GUI apps, all built in.**
 
-The language library comes standard with a comprehensive lightweight multi-threading library `task`
-that makes handling work in the background simple to put together but looks good as well.
-  
-```javascript  
-mod app; 
+[Install](#install) · [Getting Started](GETTING_STARTED.md) · [Examples](examples) · [Documentation](#documentation) · [Building from Source](#building-from-source)
 
-// import the threadding library
-import std.io; 
-import std.io.task; 
-  
-def heavy_computation() {
-    // simulate heavy work being done
-    sleep(3000);
-}
+</div>
 
-def lots_of_math() : int {
-    // simulate heavy work being done
-    sleep(1000);
-    return 6;
-}
+---
 
-def main() {  
-    // here we create a background task to do some work
-   launch = { -> 
-        heavy_computation();
-   }
+Sharp ships with the tools most projects have to piece together from third-party libraries.
+Programs compile with `sharpc` and run on the Sharp VM, on Windows and Linux.
 
-   // launch a task that you can get the answer at a later time
-   answer := deferred_task<int>.for_result(
-       with_timeout(1500),
-       { obs : object ->
-           ((observable<int>)obs).post(lots_of_math());
-       }
-   );
-    
-   sleep(700);
-   println("you're answer is ${answer.response}"); // block main thread until answer is posted
-}  
-```  
+This repository contains the compiler, the VM, the standard library, and the documentation.
 
-Sharp supports several convient features that improve the overall experience with programming in the language.
+## Why Sharp?
+
+- **Dependency injection built-in:** Write `inject`, bind it in a `component`, and you're done. No framework, no container.
+- **Mocks without the boilerplate:** `mock<mailer>()` is all it takes. The compiler writes the class.
+- **Testing out of the box:** `std.testing` comes with the language, so there's nothing to install or configure.
+- **GUI apps in about 30 lines:** `std.guikit` is ready when you are. Change the state and the screen follows.
+- **Concurrency that scales:** Coroutines and channels run thousands of tasks on just a few threads.
+- **Modern by default:** Null safety, generics, closures and type inference from line one.
+
+## Install
+
+Download the latest `sharp-<version>.zip` from the [`releases`](releases) folder and unpack the whole archive, then run the installer for your system:
+
+| System | Command |
+|---|---|
+| **Windows** | Double-click `windows\win-install.cmd` |
+| **Linux (64-bit x86)** | `bash linux/unix-install.sh` |
+
+On a Raspberry Pi or any other Linux system, build the VM on the machine itself:
+
+```
+git clone https://github.com/AndroDevcd/Sharp.git
+cd Sharp
+bash build-scripts/linux/install_from_source.sh
+```
+
+The installer doesn't need administrator rights. Once it finishes, open a new terminal so that `sharp` and `sharpc` are on your `PATH`.
+
+## Hello, world
+
+Save this as `hello.sharp`:
 
 ```javascript
 mod app;
-  
-class list<T> {
-    // inferred type system using `:=`
-    size := 0;
-    data : T[];
+
+def main() {
+    name := "world";
+    println("hello, $name!");
+}
+```
+
+Compile it, then run it:
+
+```
+sharpc hello.sharp -o hello
+sharp hello
+```
+
+```
+hello, world!
+```
+
+## A Tour of Sharp
+
+### Dependency injection built-in
+
+Classes ask for what they need. One `component` decides how it's made.
+
+```javascript
+mod app;
+
+interface greeter {
+    def greet(name: string) : string;
 }
 
-/*
-* Extension functions
-*/
-def list.last() : T {
-    return data[size-1];
+class english : greeter {
+    override def greet(name: string) : string { return "Hello, $name!"; }
 }
 
-/*
-* Function pointers
-*/
-fn main_ptr := main;
+class welcome_desk {
+    inject words : greeter;                 // asked for, never built here
 
-/*
-* inline function declarations
-*/
-count := 1;
-def inc_count() := count++;
+    def welcome(name: string) { println(words.greet(name)); }
+}
 
-/*
-* Type aliasing
-*/
-alias var as Dollar
+component app {
+    single { english() as greeter }         // the one place that says how it is made
+}
 
-money : Dollar = 1.52;
+def main() {
+    welcome_desk().welcome("ada");
+}
+```
 
-/*
-* Anonymous arrays
-*/
-num_list := { 1, 2, 3 };
+### Mocks written for you
 
-/*
-* Typed Dictionaries
-*/
-response_messages := { as <int, string>
-    200 : "200 error",
-    500 : "500 Error",
-    405 : "405 Error"    
-};
+Ask for a mock of any interface, then verify exactly how your code used it.
 
-/*
-* Anonymous Dictionaries
-*/
-days := {
-    0 : "Monday",
-    1 : "Tuesday",
-    2 : "Wednesday",
-    3 : "Thursday",
-    4 : "Friday",
-    5 : "Saturday",
-    6 : "Sunday"
-};
+```javascript
+mod app;
 
+import ( std.testing )
 
-/*
-* Anonymous functions
-*/
-fn total_size := { data : object[] -> (var)
-    total := 0;
-    for i < data: {
-        total += sizeof(data[i]);
+interface mailer {
+    def send(to: string, message: string);
+}
+
+def welcome(mail: mailer, name: string) {
+    mail.send(name, "Welcome, $name!");
+}
+
+def main() {
+    tests("signing up") {
+        test("a new member gets exactly one welcome") {
+            mail := mock<mailer>();             // the compiler writes this class
+
+            welcome(mail, "ada");
+
+            verify { mail.send("ada", any_text()); }.once();
+        };
+    };
+    finish_tests();
+}
+```
+
+```
+signing up
+  ok    a new member gets exactly one welcome
+
+all 1 tests passed
+```
+
+### Swap any dependency from a test
+
+Replace anything a class injects, without touching the class.
+
+```javascript
+mod app;
+
+import ( std.testing, std.di )
+
+interface clock {
+    def now() : string;
+}
+
+class system_clock : clock {
+    override def now() : string { return "the real time"; }
+}
+
+class report {
+    inject time : clock;
+    def title() : string { return "Sales at ${time.now()}"; }
+}
+
+component app {
+    factory { replaceable<clock>() { return system_clock(); } }
+}
+
+def main() {
+    tests("a report") {
+        test("the title shows the time") {
+            fake := mock<clock>();
+            given { fake.now(); }.returns("09:30");
+            provide<clock>() { return fake; };      // every `inject clock` now gets the mock
+
+            expect(report().title()).should_be("Sales at 09:30");
+        };
+    };
+    finish_tests();
+}
+```
+
+### A GUI app in 30 lines
+
+Describe the screen once. Change the state and it updates itself.
+
+```javascript
+mod app;
+
+import (
+    std.guikit.*
+)
+
+class counter base composable {
+    count := state(0);
+
+    override def build() : element {
+        return column(
+            modifier()
+                .fill()
+        ) {
+            text(
+                "count: " + count.value
+            ).size(32);
+            row {
+                button("-") { count.value -= 1; }.outline();
+                button("Reset") { count.value = 0; }.plain();
+                button("+") { count.value += 1; };
+            }.gap(8);
+        }.center().gap(16);
     }
-    
-    return total;
-};
-
-/*
-* Class mutations
-*
-* Class list now has the field initialSize
-* and constructor, class mutation acts just like
-* an advanced version of extention functions
-*/
-mutate class list {
-    initialSize : var = 100;
-    
-    List(data : T[]) {
-        // ...
-    }   
 }
-// and more !!
 
-def main() {  
-    
-   for < 10:
-    compute();
-}  
+def main() {
+    gui.run("Counter", 360, 240, counter());
+}
 ```
 
-Sharp has a multi-language inspired syntax taking the beauty of languages such as JavaScript, python, Java, Go, and C#. While expressing it in a more concise way. sharp supports anonymous functions that make it easy to abstract away blocks of code without the need to declare a bunch of on-time use functions in your code.  
-  
-```javascript
-mod app;  
-  
-def main() {  
-   var num, x;  
-   for(var i = 0; i < 100; i++) {  
-      num = num*Math.sqrt(num)/2;
-      x++;  
-   }  
-  
-   fn someComputation = { num : var -> (nil)  
-      // we are in a completly seperate code space  
-      // this code space knows nothing of the x variable  
-      // unless explicitly passed in  
-  
-      print("num = " + num);  
-   };  
+See also the [to-do list](examples/gui/todo/src/main.sharp), the [task manager](examples/gui/tasks/src/main.sharp) and the [other GUI examples](examples/gui).
 
-   someComputation(num);
-}  
-```  
+### Concurrency without the ceremony
 
-The above code is a simple illustration of how Sharp's low friction syntax allows you to evolve your code overtime as your requirements change
-from local code, to anonymous function, to a globally accessed static function and more.
-Although being an object oriented language, sharp unlike other languages don't force you to explicitly follow that model of programming.
-It's understood that the old languages of today such as java, c# and more require alot of boilerplate code to be written thus taking away developer time
-. Below is just one simple way sharp can remove the menotinous task usually encountered in you day-to-day development flow.
+Run work at the same time, give up on anything slow, and stream values between coroutines.
 
 ```javascript
-mod app;  
+mod app;
 
-// here we create a data class o hold inforation about a vehicle
-class Vehicle {
-    licensePlate := ""; // we dont need to specify types if we dont want to the compiler figures it out for us
-    wheels := 4; // default value of 4 wheels
+import ( std.io.coroutines, std.io.coroutines.channels )
+
+def fetch_price(item: string) : int {
+    delay(200);                             // a slow network call
+    return item.size().value * 10;
 }
 
-// here we abstract the vehicle class into a truck  
-class Truck base Vehicle {
-    make := "", model = "";
-    color : Color;
-    modelYear := 1997;
+def main() {
+    run_blocking {
+        // run side by side: 200 ms, not 400
+        apples := async<int>.start { fetch_price("apples") };
+        pears := async<int>.start { fetch_price("pears") };
+        println("total: ${apples.await().value + pears.await().value}");
+
+        // too slow? it gets cancelled
+        kiwis := with_timeout_or_null(100) { -> (object) return fetch_price("kiwis"); };
+        println(kiwis == null ? "kiwis: timed out" : "kiwis: found");
+
+        // stream values through a channel
+        numbers := produce<int>.start { out: send_channel<int> ->
+            out.send(1);
+            out.send(2);
+        };
+        numbers.for_each { n: int -> println("received $n"); };
+    };
 }
-
-def main() {  
-   car := new Truck {
-            make = "Ford",
-            model = "F-150",
-            color = Color.SPACE_GREY,
-            modelYear = 2024,
-            licensePlate = "ZSY 7CH9"
-            // wheels = 4 // wheels is already set to default value of 4 so we dont need this statement
-        }; // Object Truck is created inline and assigned the values instead of calling a constructor
-    
-    // alternativley you can create classes like this as well
-    veh := new Vehicle {"ZSY 7CH9"}; // creates a vehicle with 4 wheels and a license plate number
-}  
 ```
 
-## Getting Started
-
-Thdocumentation below explains how to get you started with using sharp.
-
-#### Downloading
-
-To download Sharp go to ``releases`` and download the latest release of Sharp. Unpack the folder revealing the contents inside. Sharp is currently supporting 64 & 32 bit linux and windows operating systems, below covers how to install sharp on both systems:
-
-#### Installing on Windows
-
-Navigate to the folder ``{YOUR_DIR}\release-pkg\bin\x64\win``.  Create the folder ``C:/Program Files/Sharp/bin``.  Place the Sharp binaries in the bin folder. Add following folder to your PATH:
-
 ```
-PATH = {OTHER_PATH_DIRS}; C:/Program Files/Sharp/bin/;
+total: 110
+kiwis: timed out
+received 1
+received 2
 ```
 
-Windows Powershell is the preferred method to use sharp but you may use windows CMD as well.
-Next cd into the directory of your sharp build to the folder lib and run the commands below using powershell
+## Documentation
+
+| Resource | What you'll find |
+|---|---|
+| [Getting Started](GETTING_STARTED.md) | Your first program, classes, generics, null safety, tests and a window |
+| [Examples](examples) | Sample programs, [GUI apps](examples/gui), and [tests and mocks](examples/testing) |
+| [Language by example](tests/suite/cases) | Small, commented programs that each cover one feature |
+| [Building Sharp](build-scripts/README.md) | How to build, test and release Sharp |
+| [CLion / IntelliJ plugin](tools/clion-plugin) | Editor support for Sharp |
+
+## Building from Source
+
+Sharp builds on Linux or WSL. Install the prerequisites, then run the build and test scripts:
 
 ```
-mkdir "C:/Program Files/Sharp/include/"
-cd {SHARP_INSTALL_PATH}/lib/support/0.2.9/
-cp -r * "C:/Program Files/Sharp/include/"
-Sharpc test.sharp -o test -s -R
-Sharp test
+sudo apt install g++ rsync python3 libsdl2-dev
+bash build-scripts/build.sh
+bash build-scripts/test.sh
 ```
 
-After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
+The compiler is written in Sharp and is built by its own last good build. See [Building Sharp](build-scripts/README.md) for the full guide, including how to make a release.
 
-#### Installing on linux
+## Repository Layout
 
-Navigate to the folder ``{YOUR_DIR}\release-pkg\``.  Installing sharp on linux is very simple simply run the command below:
-
-```
-chmod +x linux-install.bash
-./linux-install.bash
-```
-
-After running the commands above if you receive the final output as ``Hello, World!``` Then Sharp has been installed properly and your good to go!
-
-#### Programming Ideas
-After you install Sharp if you are having trouble coming up with programming ideas then you can head over to the 'examples/' directory to see a list
-of sample programs using various parts of the Sharp programming language.
-
+| Component | Language | Location |
+|---|---|---|
+| Virtual machine | C++ | [`lib/runtime`](lib/runtime), [`lib/core`](lib/core), [`main.cpp`](main.cpp) |
+| Compiler | Sharp | [`lib/compiler`](lib/compiler) |
+| Standard library | Sharp | [`lib/support/0.4.0`](lib/support/0.4.0) |
+| GUI native layer | C++ | [`lib/support/0.4.0/std/guikit/platform/native`](lib/support/0.4.0/std/guikit/platform/native) |

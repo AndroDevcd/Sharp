@@ -8,6 +8,13 @@
 template <class K, class T>
 struct KeyPair
 {
+    KeyPair()
+            :
+            key(),
+            value()
+    {
+    }
+
     KeyPair(K k, T v)
             :
             key(k),
@@ -15,18 +22,29 @@ struct KeyPair
     {
     }
 
-    KeyPair()
+    KeyPair(const KeyPair<K, T> &pair)
+            :
+            key(pair.key),
+            value(pair.value)
     {
-    }
-    void set(K k, T val)
-    {
-        key = k;
-        value = val;
     }
 
-    void operator=(KeyPair<K, T> kp) {
+    KeyPair<K, T>& operator=(const KeyPair<K, T> &kp) {
         key = kp.key;
         value = kp.value;
+
+        return *this;
+    }
+
+    KeyPair<K, T>& with(K k, T t) {
+        key = k;
+        value = t;
+        return *this;
+    }
+
+    void set(K k, T t) {
+        key = k;
+        value = t;
     }
 
     K key;

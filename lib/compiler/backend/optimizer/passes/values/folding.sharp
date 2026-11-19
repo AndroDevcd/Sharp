@@ -1,0 +1,173 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * CONSTANT FOLDING: an operation on known numbers, computed while compiling
+ *
+ *      int_constant %3, 6
+ *      int_constant %4, 7
+ *      int_binary mul %5, %3, %4       ->      int_constant %5, 42
+ *
+ * The rule that makes this safe: the result must be EXACTLY what the VM
+ * computes at run time, on every input. The compiler runs on the same VM, so
+ * an `_int64` `+` here is the VM's `add` there - the same 64-bit wrap-around,
+ * the same signed comparisons, the same IEEE decimals. What is folded is only
+ * what is the same everywhere; everything else is left to run:
+ *
+ *      `%` by 0 raises an exception at run time (and MIN % -1 is undefined in C++)  -> not folded
+ *      a shift by less than 0 or more than 63 is undefined in C++                     -> not folded
+ *      `**` is the C library's pow, which may round differently                       -> not folded
+ *      a decimal result that is NaN, infinite or -0.0: the constant table writes
+ *      a decimal as text, and these have no text the VM reads back exactly            -> not folded
+ *
+ * Narrowing (`mov8` ... `movu32`, codegen.md 4.3) is done with masks, so it does
+ * not depend on how the compiler itself was compiled.
+ *
+ * A result is given back in a `folded` object the caller keeps and reuses:
+ * nothing is allocated per instruction.
+ *
+ *      C++ comparison: analysis/known_values.cpp of the C++ optimizer
+ *      (`evaluate`), which folds the VM's register operations.
+ */
+class folded {
+    known : _int64 = 0;         // 1: the value is known
+    is_decimal : _int64 = 0;    // 1: it is `real`, else `whole`
+    whole : _int64 = 0;
+    real : decimal = 0;
+
+    /** the value is a whole number */
+    def set_whole(value: _int64) {
+        known = 1;
+        is_decimal = 0;
+        whole = value;
+    }
+
+    /** the value is a decimal - when it is one the constant table can hold exactly */
+    def set_real(value: decimal) {
+        if(!can_be_a_constant(value)) { known = 0; return; }
+        known = 1;
+        is_decimal = 1;
+        real = value;
+    }
+
+    /** nothing is known */
+    def unknown() {
+        known = 0;
+    }
+}
+
+/** can a decimal be a constant of the file: not NaN, not infinite, not -0.0 */
+def can_be_a_constant(value: decimal) : _int64 {
+    if(value != value) { return 0; }                    // NaN
+    if(value - value != value - value) { return 0; }    // infinite: inf - inf is NaN
+    if(value - value != 0) { return 0; }
+    if(value == 0 && is_negative_zero(value)) { return 0; }
+    return 1;
+}
+
+/** an integer cut to a narrower type and extended back to 64 bits, as mov8 ... movu32 do (NARROW_...) */
+def narrowed(value: _int64, narrow: _int64) : _int64 {
+    if(narrow == NARROW_I8) {
+        cut : _int64 = value & 0xff;
+        if(cut >= 128) { return cut - 256; }
+        return cut;
+    }
+    if(narrow == NARROW_I16) {
+        cut : _int64 = value & 0xffff;
+        if(cut >= 32768) { return cut - 65536; }
+        return cut;
+    }
+    if(narrow == NARROW_I32) {
+        cut : _int64 = value & 0xffffffff;
+        if(cut >= 2147483648) { return cut - 4294967296; }
+        return cut;
+    }
+    if(narrow == NARROW_U8) { return value & 0xff; }
+    if(narrow == NARROW_U16) { return value & 0xffff; }
+    if(narrow == NARROW_U32) { return value & 0xffffffff; }
+    return value;
+}
+
+/** a op b on integers (ARITH_...); `out` says whether it could be folded */
+def fold_whole_operation(operation: _int64, a: _int64, b: _int64, out: folded) {
+    if(operation == ARITH_ADD) { out.set_whole(a + b); return; }
+    if(operation == ARITH_SUB) { out.set_whole(a - b); return; }
+    if(operation == ARITH_MUL) { out.set_whole(a * b); return; }
+    if(operation == ARITH_AND) { out.set_whole(a & b); return; }
+    if(operation == ARITH_OR) { out.set_whole(a | b); return; }
+    if(operation == ARITH_XOR) { out.set_whole(a ^ b); return; }
+    if(operation == ARITH_REM) {
+        if(b == 0 || b == 0 - 1) { out.unknown(); return; }
+        out.set_whole(a % b);
+        return;
+    }
+    if(operation == ARITH_SHL || operation == ARITH_SHR) {
+        if(b < 0 || b > 63) { out.unknown(); return; }
+        if(operation == ARITH_SHL) { out.set_whole(a << b); } else { out.set_whole(a >> b); }
+        return;
+    }
+    out.unknown();
+}
+
+/** a op b on decimals (ARITH_...) */
+def fold_decimal_operation(operation: _int64, a: decimal, b: decimal, out: folded) {
+    if(operation == ARITH_ADD) { out.set_real(a + b); return; }
+    if(operation == ARITH_SUB) { out.set_real(a - b); return; }
+    if(operation == ARITH_MUL) { out.set_real(a * b); return; }
+    if(operation == ARITH_DIV) { out.set_real(a / b); return; }
+    out.unknown();
+}
+
+/** a op b compared as integers (CMP_...): 1 or 0 */
+def whole_comparison(operation: _int64, a: _int64, b: _int64) : _int64 {
+    if(operation == CMP_LT) { return a < b; }
+    if(operation == CMP_GT) { return a > b; }
+    if(operation == CMP_LE) { return a <= b; }
+    if(operation == CMP_GE) { return a >= b; }
+    if(operation == CMP_EQ) { return a == b; }
+    return a != b;
+}
+
+/** a op b compared as decimals (CMP_...): 1 or 0 (NaN compares false, except `!=`) */
+def decimal_comparison(operation: _int64, a: decimal, b: decimal) : _int64 {
+    if(operation == CMP_LT) { return a < b; }
+    if(operation == CMP_GT) { return a > b; }
+    if(operation == CMP_LE) { return a <= b; }
+    if(operation == CMP_GE) { return a >= b; }
+    if(operation == CMP_EQ) { return a == b; }
+    return a != b;
+}
+
+/**
+ * A conversion (CONVERT_...) of a known value, then the narrowing after it.
+ * `whole` / `real` is the operand: a whole number, except for decimal -> int
+ * and the truth of a decimal.
+ */
+def fold_conversion(how: _int64, narrow: _int64, whole: _int64, real: decimal, out: folded) {
+    if(how == CONVERT_INT_TO_DECIMAL) {
+        made : decimal = whole;
+        out.set_real(made);
+        return;
+    }
+    if(how == CONVERT_DECIMAL_TO_INT) {
+        // d2i: the fraction is dropped, NaN is 0, beyond the range the nearest end (`decimal_to_integer`);
+        // only a value well inside the range is folded, where all of that agrees with a plain cut
+        if(real != real || real > 9000000000000000000.0 || real < 0 - 9000000000000000000.0) { out.unknown(); return; }
+        cut : _int64 = real as _int64;
+        out.set_whole(narrowed(cut, narrow));
+        return;
+    }
+    if(how == CONVERT_NARROW) { out.set_whole(narrowed(whole, narrow)); return; }
+    if(how == CONVERT_TRUTH) {
+        truth : _int64 = 1;
+        if(real == 0) { truth = 0; }        // 0.0 and -0.0 are false; NaN is true (dnot gives 0, not gives 1)
+        out.set_whole(narrowed(truth, narrow));
+        return;
+    }
+    out.unknown();
+}

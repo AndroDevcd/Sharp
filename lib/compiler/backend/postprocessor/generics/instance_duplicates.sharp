@@ -1,0 +1,160 @@
+mod backend.postprocessor.generics;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.inheritance,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * DECLARED TWICE - BUT ONLY IN ONE INSTANCE OF A GENERIC CLASS
+ * (the C++ compiler: the same "function is already defined" check, which it
+ * runs on every generic clone)
+ *
+ *      class either<A, B> {
+ *          either(first: A) { }
+ *          either(second: B) { }
+ *          def put(value: A) { }
+ *          def put(value: B) { }
+ *      }
+ *
+ *      x : either<int, string>;    fine: put(int) and put(string) are two functions
+ *      y : either<int, int>;       put(int) twice, and two constructors taking an int
+ *
+ * Stage 4 (duplicates.sharp) compares the functions of a class AS WRITTEN,
+ * where `A` and `B` are different types. Whether two of them fall together
+ * can only be seen when an instance is made and each parameter has its real
+ * type. This step asks the question of duplicates.sharp again for every
+ * instance, with resolved types.
+ *
+ * A pair of functions is reported once, however many instances show it, at
+ * the second function - with a note naming the instance, because the class
+ * as written is not wrong: the use is.
+ *
+ *      E0331   two functions with one name and the same parameter types
+ *      E0332   two constructors with the same parameter types
+ *      E0333   two `init(x)` conversion blocks with the same parameter types
+ *              (`class g<T> { init(x: T) { }  init(y: _int64) { } }` as g<_int64>)
+ *
+ * Called for every class made from another (members.sharp); a class as
+ * written was checked by stage 4 and is left alone.
+ */
+def check_instance_duplicates(prog: sharp_program, instance: sharp_class) {
+    if(instance.blueprint == null || instance.is_open()) { return; }
+
+    // The names of the class lead to everything declared under each name
+    // (scope, sharp_declaration.sharp), so only functions that share a name
+    // are ever compared: the cost is the number of overloads, not the square
+    // of the number of functions.
+    names : scope = instance.members!!;
+    for(i : _int64 = 0; i < names.ordered.size(); i++) {
+        declared := names.ordered.at(i);
+
+        // everything with this name is looked at together, when the first of them comes by
+        same_name : list<sharp_declaration> = names.find(declared.name)!!;
+        if(same_name.size() < 2 || same_name.at(0) != declared) { continue; }
+
+        for(second : _int64 = 1; second < same_name.size(); second++) {
+            for(first : _int64 = 0; first < second; first++) {
+                if(report_if_same_in_instance(prog, instance, same_name.at(first), same_name.at(second))) {
+                    break;      // one message for the second is enough
+                }
+            }
+        }
+    }
+    check_instance_init_blocks(prog, instance);
+}
+
+/**
+ * The `init(x)` conversion blocks of the instance. They are never called by
+ * name, so they are not among the names of the class (`members`) and the
+ * loop above does not meet them; a class has a handful at most.
+ */
+def check_instance_init_blocks(prog: sharp_program, instance: sharp_class) {
+    blocks := instance.init_blocks;
+    for(second : _int64 = 1; second < blocks.size(); second++) {
+        later := blocks.at(second);
+        if(later.parameters.size() == 0 || later.declared_twice == 1) { continue; }     // `init { }`; or E0333 as written
+        for(first : _int64 = 0; first < second; first++) {
+            earlier := blocks.at(first);
+            if(earlier.parameters.size() == 0 || earlier.declared_twice == 1) { continue; }
+            if(!certainly_same_parameters(earlier, later)) { continue; }
+            later.declared_twice = 1;       // not a second choice for `v : g<_int64> = 5;` (no E0503 on top)
+            report_duplicate_in_instance(prog, instance, earlier, later);
+            break;
+        }
+    }
+}
+
+/** report `second` when, in this instance, it cannot be told apart from `first`; 1 when it was reported */
+def report_if_same_in_instance(prog: sharp_program, instance: sharp_class, first: sharp_declaration,
+                               second: sharp_declaration) : _int64 {
+    both_functions : _int64 = first.kind == D_FUNCTION && second.kind == D_FUNCTION;
+    both_constructors : _int64 = first.kind == D_CONSTRUCTOR && second.kind == D_CONSTRUCTOR;
+    if(both_functions == 0 && both_constructors == 0) { return 0; }
+
+    earlier : sharp_function = first as sharp_function;
+    later : sharp_function = second as sharp_function;
+
+    // (a generic function is a blueprint of its own: its parameters are not real types yet)
+    if(earlier.is_generic() || later.is_generic()) { return 0; }
+    if(!certainly_same_parameters(earlier, later)) { return 0; }
+
+    report_duplicate_in_instance(prog, instance, earlier, later);
+    return 1;
+}
+
+/**
+ * Do two functions of a real class take exactly the same parameter types?
+ * Unlike same_resolved_parameters (override_families.sharp) a type that
+ * could not be resolved counts as DIFFERENT here: two functions are only
+ * "declared twice" when that is certain.
+ */
+def certainly_same_parameters(a: sharp_function, b: sharp_function) : _int64 {
+    if(a.parameters.size() != b.parameters.size()) { return 0; }
+    for(i : _int64 = 0; i < a.parameters.size(); i++) {
+        left := a.parameters.at(i).value_type;
+        right := b.parameters.at(i).value_type;
+        if(left == null || right == null) { return 0; }
+        if(left!!.is_error() || right!!.is_error() || left!!.is_open() || right!!.is_open()) { return 0; }
+        if(!same_resolved_type(left!!, right!!)) { return 0; }
+    }
+    return 1;
+}
+
+/** E0331 / E0332 / E0333 for one pair, at the second function, with the instance and the place that uses it */
+def report_duplicate_in_instance(prog: sharp_program, instance: sharp_class, earlier: sharp_function, later: sharp_function) {
+    // (one message for the function as written, however many instances show it)
+    written_function : sharp_function = later;
+    while(written_function.origin != null) { written_function = written_function.origin!!; }
+    if(written_function.exact_problem_reported == 1) { return; }
+    written_function.exact_problem_reported = 1;
+
+    where := "`" + instance.qualified_name() + "`";
+    code : string = "E0331";
+    message : string = "in " + where + " the function `" + resolved_signature(later) + "` is declared twice";
+    label : string = "with these type arguments, the same name and parameter types as an earlier function";
+    if(later.kind == D_CONSTRUCTOR) {
+        code = "E0332";
+        message = "in " + where + " two constructors take the same parameters: `" + resolved_signature(later) + "`";
+        label = "with these type arguments, the same parameter types as an earlier constructor";
+    }
+    if(later.kind == D_INIT) {
+        code = "E0333";
+        message = "in " + where + " two `init(x)` blocks take the same value: `" + resolved_signature(later) + "`";
+        label = "with these type arguments, the same parameter types as an earlier init block";
+    }
+
+    d := error_at_node(code, message, later.unit, later.node)
+        .with_label(label)
+        .with_related_place(place_of_node(earlier.unit, earlier.node, "the first one is here: `" + resolved_signature(earlier) + "`"));
+    add_first_use(d, instance);
+    prog.problems.add(d
+        .with_note("`" + instance.written.name + "` is fine as written: the two differ as long as its type parameters stand for different types. In "
+                   + where + " they stand for the same type, and a call could not tell the two apart")
+        .with_help("give one of them another name, or do not use `" + instance.written.name + "` with these type arguments"));
+}

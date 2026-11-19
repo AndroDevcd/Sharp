@@ -1,0 +1,9 @@
+mod main;
+
+/*
+ * The `main` of the library check of tests/codegen.sh: the whole library, with
+ * every function and class analysis has (-eager), goes through layout, the
+ * verifier and the file writer, and the VM must load the file.
+ */
+def main() {
+}

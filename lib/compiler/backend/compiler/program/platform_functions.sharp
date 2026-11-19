@@ -1,0 +1,73 @@
+mod backend.compiler.program;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * THE PLATFORM'S START-UP FUNCTIONS
+ *
+ *      mod platform.kernel;
+ *      class platform {
+ *          static def tls_init() {}                every thread-local (localized) value of the program
+ *          private static def static_init() {}     every static field value, enum value, `static init` block
+ *          private static def srt_init(args: object[]) : int { ... static_init(); tls_init(); ... main ... }
+ *      }
+ *
+ * The VM starts a program at `srt_init`. The two functions it calls first
+ * are written EMPTY in the library: their bodies are made by the code
+ * generator from the initialisation lists analysis has recorded
+ * (`sharp_class.static_initializers`, `sharp_module.global_initializers`,
+ * the `fiber_initializers`). Code written in them would be thrown away, so
+ * it is refused:
+ *
+ *      E0961   `static_init` or `tls_init` of `platform.kernel#platform` has code in it
+ *
+ * The pass also records `srt_init` and the platform class on the analysed
+ * program: the reachability walk starts there as well as at `main`.
+ *
+ *      C++ comparison: compiler/functions/function_compiler.cpp ("platform
+ *      level function `...` does not allow statements or expressions inside");
+ *      `genesis_method` / `static_init_method` in the finalizer.
+ */
+def check_platform_functions(session: analysis_session, analysed: analysed_program) {
+    kernel := session.prog.find_module("platform.kernel");
+    if(kernel == null) { return; }
+    found := kernel!!.declared.find_type("platform");
+    if(found == null || found!!.kind != D_CLASS) { return; }
+    declared : sharp_declaration = found!!;
+    platform := declared as sharp_class;
+    analysed.platform_class = platform;
+
+    for(i : _int64 = 0; i < platform.functions.size(); i++) {
+        function := platform.functions.at(i);
+        if(function.name == "srt_init") { analysed.startup_function = function; }
+        if(function.name == "static_init" || function.name == "tls_init") { check_stays_empty(session, function); }
+    }
+}
+
+/** E0961 when a function the code generator fills in has a statement or an expression body */
+def check_stays_empty(session: analysis_session, function: sharp_function) {
+    has_code : _int64 = function.expression >= 0;
+    if(function.bound_body != null && function.bound_body!!.kind == BS_BLOCK) {
+        body : bound_statement = function.bound_body!!;
+        if((body as bound_block).statements.size() > 0) { has_code = 1; }
+    }
+    if(has_code == 0) { return; }
+    context := declaration_context(session, function);
+    if(context == null) { return; }
+
+    what := "the static field values, enum values and `static init` blocks of the whole program";
+    if(function.name == "tls_init") { what = "the `localized` (one per fiber) values of the whole program"; }
+    d := error_at_names("E0961", "`platform." + function.name + "` must stay empty: the compiler writes its body", function.unit, function.node);
+    d.with_label("has code written in it");
+    d.with_note("its body is made when the program is built, from " + what + "; anything written here would be lost");
+    d.with_help("write `" + function.name + "() {}`, and put start-up code in `main` or in a `static init { }` block of a class");
+    report(context!!, d);
+}

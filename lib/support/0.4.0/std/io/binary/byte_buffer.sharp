@@ -1,0 +1,674 @@
+mod std.io;
+
+import ( std.math )
+
+/**
+ * A growable array of bytes with a read position: binary data is put in at
+ * the end and taken out from the front.
+ *
+ *     buf := new byte_buffer();
+ *     buf.put_int32(1234);
+ *     buf.put_string_prefixed("hello");
+ *     buf.put_float64(2.5);
+ *
+ *     n := buf.get_int32();                 // 1234
+ *     s := buf.get_string_prefixed();       // "hello"
+ *     d := buf.get_float64();               // 2.5
+ *
+ * Writing always appends at the end (size() grows). Reading starts at
+ * position(), which begins at 0 and moves forward with every get; it can be
+ * moved with set_position() / rewind() to read data again.
+ *
+ * Byte order. Numbers of more than one byte are stored most significant
+ * byte first ("big endian", the order used by network protocols and by
+ * Java) unless little_endian() was called ("little endian", the order of
+ * x86 and ARM processors and of most file formats made on them). The order
+ * can be changed at any time; it applies to the puts and gets that follow.
+ *
+ * Numbers. Every value is a native number (decimal), which holds whole numbers
+ * exactly up to 2^53. That covers everything of 8, 16 and 32 bits; 64-bit
+ * values are exact only between -2^53 and 2^53. Values that do not fit the
+ * width wrap around like a cast does (put_int8(300) stores 44).
+ *
+ * Reading more than what is left throws out_of_bounds_exception and takes
+ * nothing. Not thread safe.
+ */
+class byte_buffer {
+    /** the bytes; only the first `count` elements are in use */
+    private data : _int8[];
+    /** how many bytes have been put */
+    private count : decimal = 0;
+    /** the index of the byte the next get takes */
+    private pos : decimal = 0;
+    /** 1 = most significant byte first, 0 = least significant byte first */
+    private big : decimal = 1;
+
+    /** an empty buffer (big endian) */
+    byte_buffer() {
+        data = new _int8[64];
+    }
+
+    /** an empty buffer with room for `capacity` bytes before it has to grow (at least 16) */
+    byte_buffer(capacity: decimal) {
+        if(capacity < 16) {
+            capacity = 16;
+        }
+        data = new _int8[capacity];
+    }
+
+    /** a buffer holding a copy of `bytes` (null gives an empty buffer), ready to be read from the start */
+    static def wrap(bytes: _int8[]?) : byte_buffer {
+        buf := new byte_buffer(sizeof(bytes));
+        if(bytes != null) {
+            buf.put_bytes(bytes!!);
+        }
+        return buf;
+    }
+
+    /** a buffer holding the characters of `text` as bytes, ready to be read from the start */
+    static def from_string(text: string) : byte_buffer {
+        return wrap(text.data);
+    }
+
+    /**
+     * A buffer holding the content of the file `source`, ready to be read
+     * from the start.
+     * Throws io_exception when the file does not exist or is a directory.
+     */
+    static def from_file(source: file) : byte_buffer {
+        return wrap(source.read_bytes());
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* state                                                               */
+    /* ------------------------------------------------------------------ */
+
+    /** store and read numbers most significant byte first from now on (the default); returns this buffer */
+    def big_endian() : byte_buffer {
+        big = 1;
+        return self;
+    }
+
+    /** store and read numbers least significant byte first from now on; returns this buffer */
+    def little_endian() : byte_buffer {
+        big = 0;
+        return self;
+    }
+
+    /** true when numbers are stored most significant byte first */
+    def is_big_endian() : bool {
+        return big != 0;
+    }
+
+    /** the number of bytes in the buffer */
+    def size() : decimal {
+        return count;
+    }
+
+    /** true when the buffer holds no bytes */
+    def is_empty() : bool {
+        return count == 0;
+    }
+
+    /** the index of the byte the next get takes */
+    def position() : decimal {
+        return pos;
+    }
+
+    /** how many bytes are left to read: size() - position() */
+    def remaining() : decimal {
+        return count - pos;
+    }
+
+    /** true when there is at least one byte left to read */
+    def has_remaining() : bool {
+        return pos < count;
+    }
+
+    /**
+     * Continue reading at index `position`.
+     * Throws illegal_argument_exception when it is outside 0 .. size().
+     */
+    def set_position(position: decimal) {
+        if(position < 0 || position > count) {
+            throw new illegal_argument_exception("set_position: " + io_strings.int_to_string(position)
+                + " is outside 0.." + io_strings.int_to_string(count));
+        }
+        pos = position;
+    }
+
+    /** read from the beginning again; the content stays */
+    def rewind() {
+        pos = 0;
+    }
+
+    /** step over `length` bytes. Throws out_of_bounds_exception when fewer are left (or length is negative). */
+    def skip(length: decimal) {
+        need(length);
+        pos += length;
+    }
+
+    /** remove all bytes and start over; the byte order stays */
+    def clear() {
+        count = 0;
+        pos = 0;
+    }
+
+    /** make sure `extra` more bytes fit */
+    private def reserve(extra: decimal) {
+        needed : decimal = count + extra;
+        if(needed > sizeof(data)) {
+            bigger : decimal = sizeof(data) * 2;
+            if(bigger < needed) {
+                bigger = needed;
+            }
+            grown := new _int8[bigger];
+            if(count > 0) {
+                memcopy(data, grown, 0, 0, count);
+            }
+            data = grown;
+        }
+    }
+
+    /** make sure `length` bytes are left to read */
+    private def need(length: decimal) {
+        if(length < 0 || pos + length > count) {
+            throw new out_of_bounds_exception("byte_buffer: " + io_strings.int_to_string(length)
+                + " bytes wanted at position " + io_strings.int_to_string(pos)
+                + " but only " + io_strings.int_to_string(count - pos) + " left");
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* single bytes                                                        */
+    /* ------------------------------------------------------------------ */
+
+    /** append one byte: the low 8 bits of `value` (so -1 and 255 store the same byte). Returns this buffer. */
+    def put_int8(value: decimal) : byte_buffer {
+        if(count >= sizeof(data)) {
+            reserve(1);
+        }
+        data[count++] = to_signed(value);
+        return self;
+    }
+
+    /**
+     * The low 8 bits of `value` as the signed number -128 .. 127 that an
+     * element of the byte array holds. Done by hand because storing 128
+     * into an _int8 element does not wrap to -128 (129 and up do wrap).
+     */
+    private static def to_signed(value: decimal) : decimal {
+        low : decimal = value & 0xff;
+        if(low >= 128) {
+            return low - 256;
+        }
+        return low;
+    }
+
+    /** take one byte as a signed number: -128 .. 127 */
+    def get_int8() : decimal {
+        need(1);
+        return to_signed(data[pos++]);
+    }
+
+    /** take one byte as an unsigned number: 0 .. 255 */
+    def get_uint8() : decimal {
+        need(1);
+        return data[pos++] & 0xff;
+    }
+
+    /** look at the next byte (0 .. 255) without taking it. Throws out_of_bounds_exception at the end. */
+    def peek_uint8() : decimal {
+        need(1);
+        return data[pos] & 0xff;
+    }
+
+    /**
+     * The byte at `index` as 0 .. 255, wherever the read position is.
+     * Throws out_of_bounds_exception when index is not in 0 .. size() - 1.
+     */
+    def byte_at(index: decimal) : decimal {
+        if(index < 0 || index >= count) {
+            throw new out_of_bounds_exception("byte_buffer index " + io_strings.int_to_string(index)
+                + " with size " + io_strings.int_to_string(count));
+        }
+        return data[index] & 0xff;
+    }
+
+    /**
+     * Replace the byte at `index` with the low 8 bits of `value` (e.g. to
+     * fill in a length once it is known).
+     * Throws out_of_bounds_exception when index is not in 0 .. size() - 1.
+     */
+    def set_byte(index: decimal, value: decimal) {
+        if(index < 0 || index >= count) {
+            throw new out_of_bounds_exception("byte_buffer index " + io_strings.int_to_string(index)
+                + " with size " + io_strings.int_to_string(count));
+        }
+        data[index] = to_signed(value);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* 16, 32 and 64 bit numbers                                           */
+    /* ------------------------------------------------------------------ */
+
+    /** append a 16-bit number (2 bytes) in the current byte order; works for -32768 .. 65535. Returns this buffer. */
+    def put_int16(value: decimal) : byte_buffer {
+        v : _uint16 = value;
+        low : decimal = v & 0xff;
+        high : decimal = (v >> 8) & 0xff;
+        if(big) {
+            put_int8(high);
+            put_int8(low);
+        } else {
+            put_int8(low);
+            put_int8(high);
+        }
+        return self;
+    }
+
+    /** take 2 bytes as an unsigned 16-bit number: 0 .. 65535 */
+    def get_uint16() : decimal {
+        need(2);
+        first : decimal = data[pos] & 0xff;
+        second : decimal = data[pos + 1] & 0xff;
+        pos += 2;
+        if(big) {
+            return first * 256 + second;
+        }
+        return second * 256 + first;
+    }
+
+    /** take 2 bytes as a signed 16-bit number: -32768 .. 32767 */
+    def get_int16() : decimal {
+        value : decimal = get_uint16();
+        if(value >= 32768) {
+            return value - 65536;
+        }
+        return value;
+    }
+
+    /** append a 32-bit number (4 bytes) in the current byte order; works for -2147483648 .. 4294967295. Returns this buffer. */
+    def put_int32(value: decimal) : byte_buffer {
+        v : _uint32 = value;
+        b0 : decimal = v & 0xff;
+        b1 : decimal = (v >> 8) & 0xff;
+        b2 : decimal = (v >> 16) & 0xff;
+        b3 : decimal = (v >> 24) & 0xff;
+        if(big) {
+            put_int8(b3);
+            put_int8(b2);
+            put_int8(b1);
+            put_int8(b0);
+        } else {
+            put_int8(b0);
+            put_int8(b1);
+            put_int8(b2);
+            put_int8(b3);
+        }
+        return self;
+    }
+
+    /** take 4 bytes as an unsigned 32-bit number: 0 .. 4294967295 */
+    def get_uint32() : decimal {
+        need(4);
+        b0 : decimal = data[pos] & 0xff;
+        b1 : decimal = data[pos + 1] & 0xff;
+        b2 : decimal = data[pos + 2] & 0xff;
+        b3 : decimal = data[pos + 3] & 0xff;
+        pos += 4;
+        if(big) {
+            return ((b0 * 256 + b1) * 256 + b2) * 256 + b3;
+        }
+        return ((b3 * 256 + b2) * 256 + b1) * 256 + b0;
+    }
+
+    /** take 4 bytes as a signed 32-bit number: -2147483648 .. 2147483647 */
+    def get_int32() : decimal {
+        value : decimal = get_uint32();
+        if(value >= 2147483648) {
+            return value - 4294967296;
+        }
+        return value;
+    }
+
+    /**
+     * Append a 64-bit number (8 bytes) in the current byte order. Exact for
+     * whole numbers from -2^53 to 2^53 (the range a native number holds
+     * exactly); a fraction is cut off. Returns this buffer.
+     */
+    def put_int64(value: decimal) : byte_buffer {
+        // split into two 32-bit halves: value = high * 2^32 + low, with 0 <= low < 2^32
+        whole : decimal = value;
+        if(whole >= 0) {
+            whole = floor(whole).value;
+        } else {
+            whole = ceil(whole).value;
+        }
+        high : decimal = floor(whole / 4294967296).value;
+        low : decimal = whole - high * 4294967296;
+        if(high < 0) {
+            high += 4294967296; // two's complement of the upper half
+        }
+
+        if(big) {
+            put_int32(high);
+            put_int32(low);
+        } else {
+            put_int32(low);
+            put_int32(high);
+        }
+        return self;
+    }
+
+    /**
+     * Take 8 bytes as a signed 64-bit number. Exact when the stored value
+     * is between -2^53 and 2^53; larger values come back rounded to the
+     * nearest number a native number can hold.
+     */
+    def get_int64() : decimal {
+        need(8);
+        high : decimal = 0;
+        low : decimal = 0;
+        if(big) {
+            high = get_uint32();
+            low = get_uint32();
+        } else {
+            low = get_uint32();
+            high = get_uint32();
+        }
+        if(high >= 2147483648) {
+            high -= 4294967296;
+        }
+        return high * 4294967296 + low;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* floating point                                                      */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Append a number with fraction as 8 bytes in the IEEE 754 "double"
+     * format (what C, Java and nearly every file format use) in the current
+     * byte order. Every native number is stored exactly, including
+     * infinities and NaN. Returns this buffer.
+     */
+    def put_float64(value: decimal) : byte_buffer {
+        /*
+        * The 64 bits are: 1 sign bit, 11 exponent bits, 52 mantissa bits.
+        * `high` gets the upper 32 of them (sign, exponent, top 20 mantissa
+        * bits) and `low` the lower 32 mantissa bits.
+        */
+        sign : decimal = 0;
+        exponent_bits : decimal = 0;
+        mantissa_high : decimal = 0;
+        mantissa_low : decimal = 0;
+
+        if(value != value) {
+            // NaN: all exponent bits set, mantissa not zero
+            exponent_bits = 2047;
+            mantissa_high = 524288;
+        } else {
+            if(value < 0 || (value == 0 && 1 / value < 0)) {
+                sign = 1;
+                value = 0 - value;
+            }
+
+            if(value == 0) {
+                // all bits zero (apart from the sign)
+            } else if(value - value != 0) {
+                // infinite: all exponent bits set, mantissa zero
+                exponent_bits = 2047;
+            } else {
+                // value = fraction * 2^exponent with 1 <= fraction < 2
+                exponent : decimal = floor(log(value).value / log(2).value).value;
+                if(exponent < 0 - 1022) {
+                    exponent = 0 - 1022;
+                }
+                if(exponent > 1023) {
+                    exponent = 1023;
+                }
+                fraction : decimal = scale(value, 0 - exponent);
+                // the logarithm can be off by one at the edges
+                while(fraction >= 2 && exponent < 1023) {
+                    exponent++;
+                    fraction = scale(value, 0 - exponent);
+                }
+                while(fraction < 1 && exponent > 0 - 1022) {
+                    exponent--;
+                    fraction = scale(value, 0 - exponent);
+                }
+
+                if(fraction >= 1) {
+                    exponent_bits = exponent + 1023;
+                    fraction -= 1; // the leading 1 is not stored
+                } else {
+                    exponent_bits = 0; // a very small ("subnormal") number: no leading 1
+                }
+
+                // the 52 mantissa bits: the top 20, then the remaining 32
+                scaled : decimal = fraction * 1048576;              // * 2^20
+                mantissa_high = floor(scaled).value;
+                mantissa_low = floor((scaled - mantissa_high) * 4294967296).value; // * 2^32
+            }
+        }
+
+        high : decimal = sign * 2147483648 + exponent_bits * 1048576 + mantissa_high;
+        if(big) {
+            put_int32(high);
+            put_int32(mantissa_low);
+        } else {
+            put_int32(mantissa_low);
+            put_int32(high);
+        }
+        return self;
+    }
+
+    /** value * 2^power, done in two steps so that the power of two itself never overflows or underflows */
+    private static def scale(value: decimal, power: decimal) : decimal {
+        if(power > 1000) {
+            return value * pow(2, 1000).value * pow(2, power - 1000).value;
+        }
+        if(power < 0 - 1000) {
+            return value * pow(2, 0 - 1000).value * pow(2, power + 1000).value;
+        }
+        return value * pow(2, power).value;
+    }
+
+    /** take 8 bytes as an IEEE 754 "double" in the current byte order (see put_float64) */
+    def get_float64() : decimal {
+        need(8);
+        high : decimal = 0;
+        low : decimal = 0;
+        if(big) {
+            high = get_uint32();
+            low = get_uint32();
+        } else {
+            low = get_uint32();
+            high = get_uint32();
+        }
+
+        sign : decimal = 1;
+        if(high >= 2147483648) {
+            sign = 0 - 1;
+            high -= 2147483648;
+        }
+        exponent_bits : decimal = floor(high / 1048576).value;
+        mantissa_high : decimal = high - exponent_bits * 1048576;
+        // the mantissa as a fraction between 0 and 1
+        fraction : decimal = (mantissa_high + low / 4294967296) / 1048576;
+
+        if(exponent_bits == 2047) {
+            if(mantissa_high == 0 && low == 0) {
+                return sign * (1.0 / 0.0);
+            }
+            return 0.0 / 0.0;
+        }
+        if(exponent_bits == 0) {
+            if(mantissa_high == 0 && low == 0) {
+                return sign * 0.0;
+            }
+            return sign * scale(fraction, 0 - 1022);
+        }
+        return sign * scale(1 + fraction, exponent_bits - 1023);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* bytes and strings                                                   */
+    /* ------------------------------------------------------------------ */
+
+    /** append all elements of `bytes` (null appends nothing). Returns this buffer. */
+    def put_bytes(bytes: _int8[]?) : byte_buffer {
+        n : decimal = sizeof(bytes);
+        if(n > 0) {
+            reserve(n);
+            memcopy(bytes!!, data, count, 0, n);
+            count += n;
+        }
+        return self;
+    }
+
+    /** append everything `other` holds, from its first byte (its read position does not matter and does not move). Returns this buffer. */
+    def put_buffer(other: byte_buffer) : byte_buffer {
+        n : decimal = other.count;
+        if(n > 0) {
+            reserve(n);
+            memcopy(other.data, data, count, 0, n);
+            count += n;
+        }
+        return self;
+    }
+
+    /**
+     * Take `length` bytes as a new array. A length of 0 gives null (an
+     * array cannot be empty).
+     * Throws out_of_bounds_exception when fewer bytes are left.
+     */
+    def get_bytes(length: decimal) : _int8[]? {
+        need(length);
+        if(length == 0) {
+            return null;
+        }
+        bytes := new _int8[length];
+        memcopy(data, bytes, 0, pos, pos + length);
+        pos += length;
+        return bytes;
+    }
+
+    /** append the characters of `text` as bytes, with nothing in front or behind. Returns this buffer. */
+    def put_string(text: string) : byte_buffer {
+        return put_bytes(text.data);
+    }
+
+    /**
+     * Take `length` bytes as a string.
+     * Throws out_of_bounds_exception when fewer bytes are left.
+     */
+    def get_string(length: decimal) : string {
+        need(length);
+        if(length == 0) {
+            return "";
+        }
+        text := new string(data, pos, pos + length);
+        pos += length;
+        return text;
+    }
+
+    /**
+     * Append a string so that it can be read back without knowing its
+     * length: a 32-bit length (in the current byte order) followed by the
+     * characters. Returns this buffer.
+     */
+    def put_string_prefixed(text: string) : byte_buffer {
+        put_int32(sizeof(text.data));
+        return put_bytes(text.data);
+    }
+
+    /**
+     * Take a string stored with put_string_prefixed().
+     * Throws out_of_bounds_exception when the buffer ends before the string
+     * does (then nothing is taken).
+     */
+    def get_string_prefixed() : string {
+        start : decimal = pos;
+        length : decimal = get_uint32();
+        if(pos + length > count) {
+            pos = start;
+            need(4 + length);
+        }
+        return get_string(length);
+    }
+
+    /**
+     * Append a string followed by a zero byte (the C convention). The
+     * string should not contain a zero byte itself. Returns this buffer.
+     */
+    def put_string_zero(text: string) : byte_buffer {
+        put_bytes(text.data);
+        return put_int8(0);
+    }
+
+    /**
+     * Take the bytes up to the next zero byte as a string; the zero byte is
+     * taken too.
+     * Throws out_of_bounds_exception when there is no zero byte (then
+     * nothing is taken).
+     */
+    def get_string_zero() : string {
+        end : decimal = pos;
+        while(end < count && data[end] != 0) {
+            end++;
+        }
+        if(end >= count) {
+            throw new out_of_bounds_exception("byte_buffer: no zero byte after position "
+                + io_strings.int_to_string(pos));
+        }
+        text : string = "";
+        if(end > pos) {
+            text = new string(data, pos, end);
+        }
+        pos = end + 1;
+        return text;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* getting the content out                                             */
+    /* ------------------------------------------------------------------ */
+
+    /** all bytes of the buffer as a new array (null when it is empty), whatever the read position is */
+    def to_array() : _int8[]? {
+        if(count == 0) {
+            return null;
+        }
+        bytes := new _int8[count];
+        memcopy(data, bytes, 0, 0, count);
+        return bytes;
+    }
+
+    /** all bytes of the buffer as a string, one character per byte */
+    override def to_string() : string? {
+        return new string(data, 0, count);
+    }
+
+    /**
+     * Replace the content of the file `target` with all bytes of the
+     * buffer.
+     * Throws io_exception when the file cannot be written.
+     */
+    def write_to(target: file) {
+        target.write_bytes(to_array());
+    }
+
+    /** true when `other` holds the same bytes (read positions and byte orders are not compared) */
+    def same_bytes(other: byte_buffer) : bool {
+        if(count != other.count) {
+            return false;
+        }
+        for(i : decimal = 0; i < count; i++) {
+            if((data[i] & 0xff) != (other.data[i] & 0xff)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}

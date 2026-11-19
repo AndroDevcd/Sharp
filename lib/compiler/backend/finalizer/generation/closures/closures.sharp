@@ -1,0 +1,133 @@
+mod backend.finalizer.generation.closures;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * CLOSURE RECORDS IN THE CODE (doc/codegen.md 6.12)
+ *
+ * A lambda may outlive the call that made it, so the variables it captures
+ * cannot live in that call's frame. Analysis has moved each of them into the
+ * function's CLOSURE RECORD (backend/types/declarations/closure_record.sharp);
+ * layout made the record a class with one field per variable
+ * (`local_variable.storage`) plus `@parent` and `@self`. Here the code is
+ * written that makes one record per call and reaches every variable in it
+ * (the textbook's "closure conversion"):
+ *
+ *      def make_counter() : ()(int) {          prologue:  %r = new closure_make_counter
+ *          total := 0;                                    %r.total = 0           (the declaration)
+ *          return { -> total++; ... };                    %f = new function_value
+ *      }                                                  %f.address = <the lambda>
+ *                                                         %f.captured = %r
+ *
+ *      the lambda (static, one more parameter, %p):       %t = %p.total; ...; %p.total = %t
+ *
+ * A use `depth` functions away from its variable (`bound_local.depth`,
+ * `bound_self.depth`) is reached like this:
+ *
+ *      depth 0     the record this frame made itself (its function's, or an init block's)
+ *      depth 1     the record parameter: the record of the function the lambda is written in
+ *      depth d     the record parameter, then `@parent` d - 1 times
+ *
+ * Every call makes its own record, so recursion and fibers each have their
+ * own variables; a function that captures nothing makes none, and a lambda
+ * that captures nothing is handed none (`calld` pushes the record only when
+ * the value carries one: 4.6).
+ *
+ * The files of this package (module `backend.finalizer.generation.closures`):
+ *
+ *      closures.sharp      this front door: making a record (a function's prologue, an `init { }`
+ *                          block, a field's value) and the record a new lambda value carries
+ *      records.sharp       finding a record: by depth, or the very record a lambda needs
+ *      variables.sharp     reading and storing a local wherever it lives: its frame slot, its
+ *                          record, its fiber (`localized`); `self` inside a lambda
+ *
+ *      C++ comparison: generate_initial_closure_setup (finalizer/generation/
+ *      function_generator.cpp) and reach_closure_of (dependency/
+ *      closure_capture.cpp). There a captured variable is kept in the frame AND
+ *      in the record, and every write is copied; here the record is its only
+ *      home (codegen.md 10, G11), so a number can be captured too.
+ */
+
+/**
+ * The start of a function whose variables lambdas capture: this call's
+ * record, made before anything else runs (a constructor's `-> base(x)` may
+ * already read a captured parameter `x`).
+ */
+def open_own_record(g: generator, function: sharp_function) {
+    if(function.closure == null) { return; }
+    fill_new_record(g, function.closure!!, function);
+}
+
+/**
+ * An `init { }` / `static init { }` block generated in place inside init<C>
+ * or static_init<C> (codegen.md 6.14): its record is made where the block
+ * starts. Its slot was given with the block's locals (`add_own_record`).
+ */
+def open_block_record(g: generator, block: sharp_function) {
+    if(block.closure == null) { return; }
+    fill_new_record(g, block.closure!!, block);
+}
+
+/**
+ * The value of an instance field holds a lambda that uses `self`: the record
+ * belongs to the field (`closure_record.field`) and holds only the object.
+ * init<C> makes it right before it evaluates that value.
+ */
+def open_field_record(g: generator, field: sharp_field) {
+    if(field.closure == null) { return; }
+    fill_new_record(g, field.closure!!, null);
+}
+
+/**
+ * Make a record in the slot the frame keeps for it, and fill in what is
+ * known now: `@parent` (the record this lambda was handed), `@self` (the
+ * object in slot 0) and every captured PARAMETER of `function` (it arrived in
+ * its frame slot; from now on the record is its home). Captured locals get
+ * their values where they are declared.
+ */
+def fill_new_record(g: generator, record: closure_record, function: sharp_function?) {
+    slot : _int64 = own_record_slot(g, record);
+    if(slot < 0 || record.record_class == null) {
+        at := g.made.of;
+        g.stop("a closure record this frame has no slot for", at.unit, at.node);
+    }
+    g.b.new_object(slot, record.record_class!!);
+    if(record.parent_field != null) {
+        if(g.record_parameter < 0) { g.stop("a closure record whose parent was never handed in", g.made.of.unit, g.made.of.node); }
+        g.b.set_field(slot, record.parent_field!!, g.record_parameter, NARROW_NONE);
+    }
+    if(record.self_field != null) {
+        if(g.self_slot < 0) { g.stop("a closure record of `self` in a function without an object", g.made.of.unit, g.made.of.node); }
+        g.b.set_field(slot, record.self_field!!, g.self_slot, NARROW_NONE);
+    }
+    if(function == null) { return; }
+    for(i : _int64 = 0; i < record.variables.size(); i++) {
+        variable := record.variables.at(i);
+        if(variable.is_parameter == 1 && variable.function == function && variable.storage != null) {
+            g.b.set_field(slot, variable.storage!!, variable.slot, NARROW_NONE);
+        }
+    }
+}
+
+/**
+ * What the new function value of a lambda carries (`bound_lambda.record`):
+ * the slot holding that record, or -1 when the lambda captures nothing. The
+ * two facts must agree - `calld` pushes a record only when the value carries
+ * one, and a lambda that takes none must never get one (4.6).
+ */
+def record_for_lambda(g: generator, e: bound_lambda) : _int64 {
+    if(e.record == null) {
+        if(e.function.takes_record == 1) { g.stop("a lambda that takes a record its value does not carry", e.unit, e.node); }
+        return 0 - 1;
+    }
+    if(e.function.takes_record == 0) { g.stop("a lambda value carrying a record its lambda does not take", e.unit, e.node); }
+    return record_holding(g, e.record!!, e);
+}

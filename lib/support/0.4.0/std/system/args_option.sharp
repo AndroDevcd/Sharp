@@ -1,0 +1,55 @@
+mod std.system;
+
+/**
+ * One thing an args_parser knows about: a flag (--verbose), an option with
+ * a value (--output FILE) or a positional argument (<source>), with its
+ * description and - after parsing - what the command line gave for it.
+ *
+ * Programs declare these through args_parser.add_flag / add_option /
+ * add_positional and read the results through the parser; this class only
+ * holds the data.
+ */
+class args_option {
+    /* the three kinds */
+    static const kind_flag       : decimal = 0;
+    static const kind_value      : decimal = 1;
+    static const kind_positional : decimal = 2;
+
+    /** which of the three kinds this is */
+    kind : decimal = 0;
+    /** the long name, without the dashes ("output"); for a positional the name shown in the help */
+    name : string = "";
+    /** the one-letter name as a character code ('o'), or 0 when there is none */
+    letter : decimal = 0;
+    /** what the value is called in the help ("FILE"); only for options with a value */
+    value_name : string = "";
+    /** the text for the help */
+    description : string = "";
+    /** 1 when leaving it out is an error */
+    required : decimal = 0;
+    /** 1 when there is a default value */
+    has_default : decimal = 0;
+    /** the value used when the command line does not give one */
+    default_value : string = "";
+
+    /** how many times it appeared on the command line */
+    seen : decimal = 0;
+    /** the value from the command line (the last one when it appeared several times) */
+    value : string = "";
+    /** all values from the command line in order, for options that may be repeated */
+    values := new list<string>();
+
+    args_option(kind: decimal, name: string, letter: decimal, description: string) {
+        self->kind = kind;
+        self->name = name;
+        self->letter = letter;
+        self->description = description;
+    }
+
+    /** forget what a previous parse found */
+    def reset() {
+        seen = 0;
+        value = "";
+        values = new list<string>();
+    }
+}

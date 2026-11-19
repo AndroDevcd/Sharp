@@ -1,0 +1,109 @@
+mod std.io.coroutines;
+
+/**
+ * deferred<t> - a job that produces a value: the result of async.
+ *
+ * USAGE
+ *     a := async<int>.start({ -> (int) return slow_sum(); });
+ *     b := async<int>.start({ -> (int) return slow_product(); });
+ *     total := a.await() + b.await();          // both ran at the same time
+ *
+ *     all := deferred<int>.await_all(new deferred<int>[] { a, b });   // a list<int>
+ *
+ * A deferred IS a job: join(), cancel(), is_active() and the rest work as for
+ * any coroutine. Its exception is not reported as uncaught; await() throws it.
+ *
+ * `t` must be an object type (int, string, your classes ...): deferred<decimal>
+ * and other native numbers are not supported, write deferred<int>.
+ *
+ * Kotlin equivalent: kotlinx.coroutines.Deferred<T>.
+ * C++ equivalent: std::future<T> whose get() suspends a fiber instead of
+ * blocking a thread. Java equivalent: CompletableFuture<T>.
+ *
+ * LOCKING DISCIPLINE: see job. `result` is written by the fiber of the
+ * coroutine before the job reaches its final state and read by others only
+ * after they have seen the final state (join returned), so it needs no lock
+ * of its own.
+ */
+class deferred<t> base job {
+
+    protected fn0 : ()(t);
+    protected fn1 : (object)(t);
+    protected result : t?;
+
+    /** A deferred for a coroutine that runs `block` and keeps what it returns. Not started (see async). */
+    deferred(block: ()(t)) {
+        fn0 = block;
+        quiet = 1;
+    }
+
+    /** A deferred for a coroutine that runs `block(state)`. */
+    deferred(state: object?, block: (object)(t)) {
+        fn1 = block;
+        arg = state;
+        quiet = 1;
+    }
+
+    /** runs the block and stores its result (replaces job.run_body) */
+    override def run_body() {
+        if(fn0 != null) {
+            result = fn0();
+        } else if(fn1 != null) {
+            result = fn1(arg);
+        }
+    }
+
+    /**
+     * Wait for the result.
+     *
+     * SUSPENDS until the coroutine and its children are finished; returns at
+     * once when they are. A cancellation point for the CALLER.
+     * @throws the exception the coroutine failed with
+     * @throws cancellation_exception when this deferred was cancelled, or when
+     *         the caller is cancelled while it waits
+     * Kotlin: Deferred.await()
+     */
+    def await() : t {
+        join();
+
+        if(state == 5) {        // job.CANCELLED
+            throw failure!!;
+        }
+        return result!!;
+    }
+
+    /**
+     * The result if the coroutine finished normally, null otherwise (still
+     * running, failed, cancelled). Never suspends, never throws.
+     * Kotlin: getCompleted(), without the exceptions
+     */
+    def get_completed() : t? {
+        if(state == 4) {        // job.COMPLETED
+            return result;
+        }
+        return null;
+    }
+
+    /**
+     * Wait for all of them and return their results in the same order.
+     * SUSPENDS; a cancellation point. Throws the exception of the first one
+     * (in array order) that failed.
+     * Kotlin: awaitAll(a, b, c)
+     */
+    static def await_all(items: deferred<t>[]) : list<t> {
+        results := new list<t>();
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            results.add(items[i].await());
+        }
+        return results;
+    }
+
+    /** await_all() for a list. Kotlin: list.awaitAll() */
+    static def await_all(items: list<deferred<t> >) : list<t> {
+        results := new list<t>();
+        for(i : decimal = 0; i < items.size().value; i++) {
+            results.add(items.at(i).await());
+        }
+        return results;
+    }
+}

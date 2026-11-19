@@ -1,0 +1,11 @@
+// expect: E0400
+// help: return n * 2;
+// replace: retrun(n * 2);
+mod tests.helps;
+import (std, std.io);
+
+def twice(n: _int64) : _int64 {
+    retrun(n * 2);
+}
+
+def main() { println(twice(2)); }

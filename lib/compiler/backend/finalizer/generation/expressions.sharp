@@ -1,0 +1,175 @@
+mod backend.finalizer.generation;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation.values,
+    backend.finalizer.generation.operators,
+    backend.finalizer.generation.assignment,
+    backend.finalizer.generation.calls,
+    backend.finalizer.generation.collections,
+    backend.finalizer.generation.null_safety,
+    backend.finalizer.generation.closures,
+    backend.finalizer.generation.setup
+)
+
+/**
+ * EXPRESSIONS: the value of every expression ends up in a slot
+ *
+ * `value_of(g, e)` writes the IR that computes `e` and returns the slot that
+ * holds its value (doc/codegen.md 6.1 - 6.8). It looks at the kind of the
+ * node and hands it to the package that knows that family - the textbook
+ * recursive walk ("syntax-directed translation"): those packages call back
+ * into `value_of` for the parts of their node.
+ *
+ *      5                   int_constant %t, 5               (a new slot)
+ *      count               the variable's own slot          (no instruction)
+ *      shape.sides         get_field %t, %shape.sides
+ *      price * 2           %r = 2; %l = price; int_binary mul %t, %l, %r
+ *
+ * A slot that held a part of an expression is given back to the builder once
+ * the expression has used it (`release`): the next value of its kind may
+ * reuse it.
+ *
+ * THE ORDER OF EVALUATION is a rule of the language (codegen.md 6.0, measured
+ * on the C++-built program): the RIGHT operand of a number operator runs
+ * first, and the VALUE of an assignment runs before the parts of its target.
+ * Calls, `new` and everything else go left to right.
+ *
+ * A LOCAL'S SLOT STANDING FOR ITS VALUE (codegen.md 5.3). The value of a
+ * local is its own slot - no instruction, no copy. That is only right while
+ * nothing changes the local before the value is used:
+ *
+ *      r = (x = 5) + x;        the right `x` is evaluated FIRST and must stay the
+ *                              OLD x while the left side stores 5 into it
+ *
+ * so whoever evaluates one part, then another part, and only then uses the
+ * first, asks `held_over`: when the later part stores into that local, the
+ * value is copied into a slot of its own first.
+ */
+
+/**
+ * The slot that holds the value of `e`, after the IR that computes it. A
+ * known value (`constant`) is written as it is when nothing in the
+ * expression has an effect; every other node goes to its family's package.
+ */
+def value_of(g: generator, e: bound_expression) : _int64 {
+    if(e.constant != null && kind_is_foldable(e) && has_no_effect(e)) { return constant_value_of(g, e); }
+
+    kind : _int64 = e.kind;
+    // ---- leaves (package values)
+    if(kind == BX_LITERAL) { return constant_value_of(g, e); }
+    if(kind == BX_NULL) {
+        target : _int64 = g.b.temp(SLOT_REF);
+        g.b.null_constant(target);
+        return target;
+    }
+    if(kind == BX_LOCAL) { return local_value(g, e as bound_local); }
+    if(kind == BX_SELF) { return self_value(g, (e as bound_self).depth, e); }
+    if(kind == BX_BASE) { return self_value(g, (e as bound_base).depth, e); }
+    if(kind == BX_FIELD) { return field_value(g, e as bound_field); }
+    if(kind == BX_ENUM_VALUE) { return enum_value_value(g, e as bound_enum_value); }
+    if(kind == BX_CONVERSION) {
+        conversion_node := e as bound_conversion;
+        return converted(g, value_of(g, conversion_node.operand), conversion_node.how, e);
+    }
+    if(kind == BX_CAST) {
+        cast_node := e as bound_cast;
+        return converted(g, value_of(g, cast_node.operand), cast_node.how, e);
+    }
+    if(kind == BX_IS) { return is_value(g, e as bound_is); }
+    if(kind == BX_SIZEOF) { return sizeof_value(g, e as bound_sizeof); }
+    // ---- null safety
+    if(kind == BX_NOT_NULL) { return not_null_value(g, e as bound_not_null); }
+    if(kind == BX_SAFE_NAVIGATION) { return safe_navigation_value(g, e as bound_safe_navigation, 1); }
+    if(kind == BX_RECEIVER) { return receiver_value(g, e as bound_receiver); }
+    if(kind == BX_ELVIS) { return elvis_value(g, e as bound_elvis); }
+    // ---- calls
+    if(kind == BX_CALL) { return call_value(g, e as bound_call, 1); }
+    if(kind == BX_NEW) { return new_value(g, e as bound_new); }
+    if(kind == BX_VALUE_CALL) { return value_call_value(g, e as bound_value_call, 1); }
+    if(kind == BX_FUNCTION_REFERENCE) { return function_reference_value(g, e as bound_function_reference); }
+    if(kind == BX_LAMBDA) { return lambda_value(g, e as bound_lambda); }
+    // ---- operators
+    if(kind == BX_BINARY) { return binary_value(g, e as bound_binary); }
+    if(kind == BX_LOGICAL) { return logical_value(g, e as bound_logical); }
+    if(kind == BX_TERNARY) { return ternary_value(g, e as bound_ternary); }
+    if(kind == BX_UNARY) { return unary_value(g, e as bound_unary); }
+    if(kind == BX_ASSIGN) { return assign_value(g, e as bound_assign); }
+    if(kind == BX_INCREMENT) { return increment_value(g, e as bound_increment); }
+    // ---- collections
+    if(kind == BX_INDEX) { return element_value(g, e as bound_index); }
+    if(kind == BX_NEW_ARRAY) { return new_array_value(g, e as bound_new_array); }
+    if(kind == BX_ARRAY_LITERAL) {
+        literal := e as bound_array_literal;
+        return array_of_items(g, literal.element, literal.items, e);
+    }
+    if(kind == BX_STRING_TEMPLATE) { return template_value(g, e as bound_string_template); }
+    if(kind == BX_DICTIONARY) { return dictionary_value(g, e as bound_dictionary); }
+    // ---- components (package setup)
+    if(kind == BX_GET_COMPONENT) { return get_component_value(g, e as bound_get_component); }
+    // a type name, a function name, an error, a pending argument: analysis has reported them
+    g.stop(expression_kind_text(kind), e.unit, e.node);
+    return 0 - 1;
+}
+
+/**
+ * A value that is evaluated now and used only after `later` has run. A
+ * local's own slot is copied when `later` stores into that local (`x = ...`,
+ * `x += ...`, `x++`); every other value is in a slot nothing else writes.
+ */
+def held_over(g: generator, slot: _int64, later: bound_expression?) : _int64 {
+    if(later == null || !g.b.is_fixed_slot(slot) || !stores_into_slot(later!!, slot)) { return slot; }
+    copy : _int64 = g.b.temp(g.b.kind_of(slot));
+    g.b.copy(copy, slot, NARROW_NONE);
+    return copy;
+}
+
+/** the same, for a value used after every expression of `later` from position `from` on (the arguments of a call) */
+def held_over_all(g: generator, slot: _int64, later: list<bound_expression>?, from: _int64) : _int64 {
+    if(later == null || !g.b.is_fixed_slot(slot)) { return slot; }
+    for(i : _int64 = from; i < later!!.size(); i++) {
+        if(stores_into_slot(later!!.at(i), slot)) { return held_over(g, slot, later!!.at(i)); }
+    }
+    return slot;
+}
+
+/** does any part of an expression store into the local that lives in `slot`? */
+def stores_into_slot(e: bound_expression, slot: _int64) : _int64 {
+    // the usual operands store nothing: no need to walk them
+    if(e.kind == BX_LOCAL || e.kind == BX_LITERAL || e.kind == BX_SELF || e.kind == BX_NULL) { return 0; }
+    parts := all_expressions_in(e);
+    for(i : _int64 = 0; i < parts.size(); i++) {
+        part := parts.at(i);
+        target : bound_expression? = null;
+        if(part.kind == BX_ASSIGN) { target = (part as bound_assign).target; }
+        if(part.kind == BX_INCREMENT) { target = (part as bound_increment).target; }
+        if(target != null && target!!.kind == BX_LOCAL && (target as bound_local).variable.slot == slot) { return 1; }
+    }
+    return 0;
+}
+
+/** can an expression's known value be written instead of computing it? A number, or a text as an _int8[] */
+def kind_is_foldable(e: bound_expression) : _int64 {
+    constant := e.constant!!;
+    if(constant.kind == CONST_TEXT) { return e.type.is_array == 1 && e.type.kind == RT_INTEGER; }
+    return e.type.is_number();
+}
+
+/** may the parts of an expression be skipped - none of them calls, makes an object or stores? */
+def has_no_effect(e: bound_expression) : _int64 {
+    if(e.kind == BX_LITERAL) { return 1; }
+    parts := all_expressions_in(e);
+    for(i : _int64 = 0; i < parts.size(); i++) {
+        kind : _int64 = parts.at(i).kind;
+        if(kind == BX_CALL || kind == BX_NEW || kind == BX_ASSIGN || kind == BX_INCREMENT || kind == BX_VALUE_CALL
+           || kind == BX_NEW_ARRAY || kind == BX_ARRAY_LITERAL || kind == BX_DICTIONARY || kind == BX_GET_COMPONENT) {
+            return 0;
+        }
+    }
+    return 1;
+}

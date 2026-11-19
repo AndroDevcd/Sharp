@@ -1,0 +1,77 @@
+mod app;
+
+/*
+ * Statements the bootstrap accepts and the C++ compiler refuses (each is a
+ * deliberate difference, doc/backend.md section 5):
+ *
+ *  - D12: functions whose every path returns, or that never end, which the
+ *    old compiler's flags miss ("not all code paths return a value");
+ *  - an array can be locked when it is held in a variable;
+ *  - `for(i = 0; ...)`: the start part may be an expression (the bootstrap
+ *    parser reads it; the C++ parser does not);
+ *  - D65: a loop inside a finally block may be left with its own `break`.
+ *
+ * And one the C++ compiler accepts too: a function value can be locked - it
+ * is an object when the program runs (D74). (The other wrong uses of a
+ * function name the stage-8 note listed here - as a condition, thrown,
+ * walked by `foreach`, given to an `_int64` - are now reported: they are in
+ * fail/statements.sharp.)
+ */
+
+def nothing() { }
+def lock_a_function_value() { lock(nothing) { } }
+
+def forever() : _int64 { while(true) { } }
+
+def nested_block() : _int64 { { return 1; } }
+
+def do_forever() : _int64 { do { } while(true); }
+
+def for_ever() : _int64 { for(;;) { } }
+
+def for_without_parentheses() : _int64 { for { } }
+
+def returns_inside_endless_loop(n: _int64) : _int64 {
+    while(true) {
+        if(n > 10) { return n; }
+        n++;
+    }
+}
+
+def endless_with_unreachable_break() : _int64 {
+    while(true) {
+        return 1;
+        break;              // never reached, so it does not end the loop (W1002 is given for it)
+    }
+}
+
+def returns_in_every_clause(n: _int64) : _int64 {
+    when(n) {
+        1 -> { return 10; }
+        else -> {
+            try { return 20; } finally { }
+        }
+    }
+}
+
+def lock_an_array(items: _int64[]) {
+    lock(items) { }
+}
+
+def loop_inside_finally() : _int64 {
+    count : _int64 = 0;
+    try { count++; }
+    finally {
+        for(;;) { break; }                      // leaves the loop, not the finally block
+        while(count < 3) { count++; continue; }
+    }
+    return count;
+}
+
+def expression_start(n: _int64) : _int64 {
+    i : _int64 = 5;
+    for(i = 0; i < n; i++) { }
+    return i;
+}
+
+def main() { }

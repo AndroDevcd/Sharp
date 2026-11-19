@@ -1,0 +1,65 @@
+// expect: E0511 E0511 E0512 E0513 E0514 E0427 W1010 E0511 E0511 E0414 E0501 E0423 E0419 E0711 E0711 E0712 E0713 W1021 E0711 E0711 E0711 E0711 E0712 E0711
+mod operator_mistakes;
+
+import ( std.io )
+
+/**
+ * OPERATORS AND ASSIGNMENT: one mistake per line, in the order the compiler
+ * prints them.
+ */
+
+class money {
+    cents : _int64;
+    def operator+(other: money) : money { return self; }
+    def operator[](i: _int64) : _int64 { return cents; }
+}
+class plain { }
+
+/** a class that takes a number only through operator= - no constructor from one */
+class meter {
+    def operator=(n: _int64) : meter { return self; }
+}
+class device {
+    level : meter = new meter();
+        get { return level; }
+        set value -> { level = value; }
+}
+
+def operators(a: _int64, cash: money, any: object, items: _int64[], f: (_int64)(nil)) {
+    b := a + "abc";                             // E0511: put the text first
+    c := cash - cash;                           // E0511: money has no operator-
+    d := any + 1;                               // E0512: object must be cast first
+    e := items + items;                         // E0513: arrays only compare
+    g := -"text";                               // E0514
+    h : _int64 = a % 0;                         // E0427
+    i : _int8 = !0;                             // W1010: always true
+    j : _int64 = null == cash;                  // E0511: write `cash == null`
+    k : _int64 = a && "yes";                    // E0511: "yes" is not a truth value
+    thing := new plain();
+    m : _int64 = thing[0];                      // E0414: plain has no operator[]
+    n : _int64 = cash["x"];                     // E0501: operator[] takes an _int64
+    o := "value: ${f}";                         // E0423: a function value is no text
+    p := { "a" : 1, "b" : "two" };              // E0419: the values are _int32
+}
+
+def assignments(a: _int64, cash: money, any: object, gadget: device) {
+    add(1, 2) = 3;                              // E0711: a call is no place
+    5++;                                        // E0711
+    any += 1;                                   // E0712: no += on object
+    gadget.level = 5;                           // E0713: only meter.operator= takes 5, and level has a setter
+    limit : _int64 = 1;
+    const fixed : _int64 = 2;
+    fixed = 3;                                  // W1021: fixed is const
+    add = null;                                 // E0711: the name of a function is not a variable
+    (a + limit) = 2;                            // E0711: a sum is a value
+    cash[0] = 5;                                // E0711: money has no put(index, value), and operator[] gives a number
+    cash[0] += 5;                               // E0711: ... which is a value, not a place
+    cash += 1;                                  // E0712: money has operator+ for money only
+}
+
+def through_null(maybe: money?) {
+    maybe?.cents = 3;                           // E0711: `?.` may give null, which is no place (and no W1027 on top)
+    (maybe ?: new money()).cents = 4;           // fine: the field of whichever object it is
+}
+
+def add(a: _int64, b: _int64) : _int64 { return a + b; }

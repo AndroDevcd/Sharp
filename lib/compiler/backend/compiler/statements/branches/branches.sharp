@@ -1,0 +1,33 @@
+mod backend.compiler.statements.branches;
+
+/**
+ * BRANCHES: statements that take one of several ways
+ *
+ *      if(n > 0) { ... } else if(n < 0) { ... } else { ... }
+ *
+ *      when(month) {                       when(subject): each value is compared with the subject
+ *          2 -> days = 28;
+ *          4, 6, 9, 11 -> days = 30;
+ *          else -> days = 31;
+ *      }
+ *
+ *      when {                              when without a subject: each value is a condition
+ *          n < 10 -> small();
+ *          else -> large();
+ *      }
+ *
+ * A CONDITION (doc/backend.md 7.12.1) is a plain number - 0 is false - or a
+ * `bool` object, whose `value` is taken. Of the number classes only `bool`
+ * is a condition by itself: `if(an_int)` is E0411, as in the C++ compiler.
+ * The rule is `analyse_condition` (backend/compiler/expressions/values.sharp).
+ *
+ * The files of this package (module `backend.compiler.statements.branches`):
+ *
+ *      branches.sharp          this front door
+ *      if_statement.sharp      if / else if / else
+ *      when_statement.sharp    when: the subject, the clauses, the else
+ *      when_tests.sharp        one value of a clause as a test: "subject == value" bound like the
+ *                              operator `==` (E0616); the same value twice (W1020)
+ *
+ * This file is the package's front door: it only says what is where.
+ */

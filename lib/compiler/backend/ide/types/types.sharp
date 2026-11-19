@@ -1,0 +1,133 @@
+mod backend.ide.types;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.ide.files,
+    backend.ide.output
+)
+
+/**
+ * THE TABLE OF TYPES
+ *
+ * Every type any editor file mentions is written ONCE, in `types.json`, and
+ * the other files say `"type": 7` meaning the eighth entry. A type then costs
+ * a number wherever it is used, and the plugin finds the class behind a
+ * receiver's type with one look-up.
+ *
+ *      { "text": "list<string>?", "class": "std#list", "args": [0], "nullable": true }
+ *
+ * An entry is identified by ALL of its content: two types with the same text
+ * but another class or other arguments are two entries.
+ *
+ * The compiler has two kinds of type object (backend/types/type_system), and
+ * the table takes both:
+ *
+ *      a WRITTEN type (`sharp_type`)      used in declarations: a member of a generic class
+ *                                         keeps its `T` (`item : T?`)
+ *      an ANALYSED type (`resolved_type`) used in bodies: a generic class is an INSTANCE
+ *                                         there (`list<string>` is a class of its own)
+ *
+ * The files of this package (module `backend.ide.types`):
+ *
+ *      types.sharp                 this front door: the table, `write_types`
+ *      int_table.sharp             a table from a number to a number: how a type met before is found again
+ *      written_type_entries.sharp  a written type -> an id
+ *      resolved_type_entries.sharp an analysed type -> an id
+ */
+
+/** a number kept in a hash map (the language's maps hold objects) */
+class id_box {
+    id : _int64;
+
+    id_box(id: _int64) {
+        self->id = id;
+    }
+}
+
+/** the entries made so far, and the two ways of finding one again */
+class ide_types {
+    files : ide_files;                              // to name the file a declaration is in by its number
+    entries := new list<string>();                  // each entry as JSON text; the position is the id
+    texts := new list<string>();                    // the `text` of each entry: what a signature says for the type
+    simple := new int_table();                      // a type with no arguments: (file, node, marks) -> its id, with no object made
+    generic := new int_table();                     // a type with one or two arguments: (file, node, marks, argument ids) -> its id
+    by_json := new name_table<id_box>();      // an entry's text -> its id (what "the same entry" means)
+    by_key := new name_table<id_box>();       // a type's own canonical text -> its id: skips building the entry again
+    last_type : resolved_type?;               // the analysed type asked for last, and its id: the same type is asked for many times in a row
+    last_id : _int64 = 0 - 1;
+    scratch := new json_writer();             // the entry being built (reused: an entry is built thousands of times)
+
+    /** the id of an entry given as JSON text; a new id when it is new */
+    ide_types(files: ide_files) {
+        self->files = files;
+    }
+
+    /** the text of the entry `id`: `list<string>?`; "?" for no entry */
+    def text_of(id: _int64) : string {
+        if(id < 0 || id >= texts.size()) { return "?"; }
+        return texts.at(id);
+    }
+
+    def intern(json: string, text: string) : _int64 {
+        known := by_json.at(json);
+        if(known != null) { return known!!.id; }
+        id : _int64 = entries.size().value as _int64;
+        entries.add(json);
+        texts.add(text);
+        by_json.put(json, new id_box(id));
+        return id;
+    }
+}
+
+/**
+ * One entry as JSON text.
+ *
+ * @param args_text  the ids of the type arguments, comma separated; "" for none
+ * @param element    the id of the item type of an array, else -1
+ */
+def entry_text(types: ide_types, text: string, class_id: string, args_text: string, is_array: _int64, element: _int64,
+               is_nullable: _int64, is_parameter: _int64, is_function: _int64) : string {
+    w : json_writer = types.scratch;
+    w.reset();
+    w.begin_object();
+    w.key(KEY_TEXT);  w.text(text);
+    if(sizeof(class_id.data) > 0) { w.key(KEY_CLASS); w.text(class_id); }
+    if(sizeof(args_text.data) > 0) { w.key(KEY_ARGS); w.raw("[" + args_text + "]"); }
+    if(is_array == 1) { w.key(KEY_ARRAY); w.flag(1); w.key(KEY_ELEMENT); w.number(element); }
+    if(is_nullable == 1) { w.key(KEY_NULLABLE); w.flag(1); }
+    if(is_parameter == 1) { w.key(KEY_PARAM); w.flag(1); }
+    if(is_function == 1) { w.key(KEY_FUNCTION); w.flag(1); }
+    w.end_object();
+    return w.build();
+}
+
+/** the ids joined with commas, for `args_text`: "3,7" */
+def join_ids(text: string, id: _int64) : string {
+    if(sizeof(text.data) == 0) { return "" + id; }
+    return text + "," + id;
+}
+
+/** the whole of `types.json` */
+def types_file_text(run: string, types: ide_types) : string {
+    w := new json_writer();
+    w.begin_object();
+    w.key(KEY_FORMAT); w.number(1);
+    w.key(KEY_RUN); w.text(run);
+    w.key(KEY_TYPES);
+    w.begin_array();
+    for(i : _int64 = 0; i < types.entries.size(); i++) {
+        w.line();
+        w.raw(types.entries.at(i));
+    }
+    w.line();
+    w.end_array();
+    w.end_object();
+    return w.build();
+}
+
+/** `types.json` is written */
+def write_types(folder: string, run: string, types: ide_types) {
+    write_file_atomically(folder, "types.json", types_file_text(run, types));
+}

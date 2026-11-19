@@ -1,0 +1,93 @@
+mod main;
+
+import (
+    std.testing,
+    std.io.fiber,
+    std.io.coroutines
+)
+
+/**
+ * A coroutine that waits for a lock, while a function it is waiting in gets
+ * compiled by the JIT, must go on correctly when it is continued.
+ *
+ * THE BUG THIS GUARDS (runtime, fixed 2026-11-14, continues_in_machine_code
+ * in lib/runtime/virtual_machine.cpp): a fiber that is continued after a
+ * context switch gets the machine frames of its compiled functions back,
+ * walking up its call stack. The walk entered every function that was
+ * compiled AT THAT MOMENT - also one that the interpreter had been running
+ * when it made its call and that was compiled since. Its callee, still
+ * interpreted, then ran in a nested interpreter loop; when it returned, that
+ * loop carried on with the rest of the caller, and of every function below
+ * it, to the end of the fiber, and the outer loop went on past the last
+ * instruction of fiber_main. Seen as "(SIGSEGV) found", a hang, or
+ * "Unhandled exception on thread coroutine-worker" in about one run in 150
+ * of the bootstrap compiler with several compilers at once (it parses files
+ * on coroutines that meet at a lock); with the address sanitizer it is a
+ * heap-buffer-overflow in main_vm_loop every time the walk takes that path.
+ *
+ * The shape below makes that path certain:
+ *
+ *   fiber_main -> ... -> the lambda -> middle(0) -> wait_here()
+ *
+ *   - the five coroutines call middle(0) while it is still interpreted, and
+ *     wait in wait_here() for the lock main holds
+ *   - main then calls middle(1) twenty times: middle is compiled (the JIT
+ *     compiles a function at its tenth call); wait_here, called five times,
+ *     is not
+ *   - main lets go of the lock; every coroutine is continued and must finish
+ *     middle in the interpreter, where it was
+ *
+ * EXPECTED: prints "RESULT PASS". With -nojit the path does not exist and the
+ * test passes trivially. Before the fix a runtime built with the address
+ * sanitizer stopped here every run; a normal build read a few bytes past the
+ * end of fiber_main's code and usually got away with it, which is why the
+ * bug was so rare outside the bootstrap compiler.
+ */
+
+guard := new string("guard");
+waited := new int(0);
+quick := new int(0);
+
+/** blocks while main holds `guard` */
+def wait_here() {
+    lock(guard) {
+        waited.value = waited.value + 1;
+    }
+}
+
+/** the function that is compiled while the coroutines wait inside it */
+def middle(n: decimal) : decimal {
+    if(n == 0) {
+        wait_here();
+        return 1;
+    }
+    quick.value = quick.value + 1;
+    return 2;
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_coroutines_resume_after_compile") {
+        jobs := new list<job>();
+        lock(guard) {
+            for(i : decimal = 0; i < 5; i++) {
+                jobs.add(launch_on(dispatchers.default_pool(), { -> middle(0); }));
+            }
+
+            // let every coroutine reach the lock and wait for it
+            delay(200);
+
+            for(i : decimal = 0; i < 20; i++) {
+                middle(1);
+            }
+        }
+
+        foreach(j in jobs) {
+            j.join();
+        }
+
+        test("every coroutine got the lock") { expect(waited.value).should_be(5); };
+        test("main called middle twenty times") { expect(quick.value).should_be(20); };
+    };
+    finish_tests("lib_coroutines_resume_after_compile");
+}

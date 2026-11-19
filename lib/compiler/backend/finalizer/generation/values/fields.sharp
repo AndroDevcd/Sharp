@@ -1,0 +1,75 @@
+mod backend.finalizer.generation.values;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * FIELDS, ENUM VALUES, `self` AND `base` (doc/codegen.md 6.1, 6.2)
+ *
+ * Where a field lives decides how it is read:
+ *
+ *      shape.sides         an instance field: a slot of the object      get_field %t, %shape.sides
+ *      counter.made        a static field: the class's static object    get_static %t, counter.made
+ *      total               a global: a static field of the module's __srt_global class
+ *      worker_id           `localized`: a slot of the fiber's own stack  (the selection step sees the flag)
+ *      colour.red          an enum value: a static slot of its enum, holding the value's object
+ *
+ * `self` is slot 0 of a function that has an object; `base` is the same
+ * object seen as its base class (only the calls of `base->f()` and
+ * `base.field` read it).
+ */
+
+/**
+ * A field's stored value (6.2): of the object `on`, or for a static field and
+ * a global from the static object of the class that holds it. A `localized`
+ * field is read from the fiber's own slot (the selection step sees the flag).
+ */
+def field_value(g: generator, e: bound_field) : _int64 {
+    field := e.field;
+    target : _int64 = g.temp_for(e.type);
+    if(e.on == null || field.has(FLAG_STATIC) || field.is_global() || field.has(FLAG_LOCALIZED)) {
+        if(e.on != null && e.on!!.kind != BX_TYPE_NAME) { g.b.release(value_of(g, e.on!!)); }
+        g.b.get_static(target, g.layout.storage_class_of(field).address, field);
+        return target;
+    }
+    holder : _int64 = value_of(g, e.on!!);
+    g.b.get_field(target, holder, field);
+    g.b.release(holder);
+    return target;
+}
+
+/**
+ * `colour.red` (6.2): the value's object, kept in the value's static slot of
+ * its enum - made by the enum's static part (static_init<E>, which the
+ * start-up runs before any other static part: codegen.md 6.15).
+ */
+def enum_value_value(g: generator, e: bound_enum_value) : _int64 {
+    value := e.value;
+    if(value.owner == null || value.owner!!.address < 0 || value.address < 0) {
+        g.stop("the enum value `" + value.name + "`, which is not in the executable", e.unit, e.node);
+    }
+    target : _int64 = g.b.temp(SLOT_REF);
+    g.b.get_static(target, value.owner!!.address, value);
+    return target;
+}
+
+/**
+ * `self` and `base` (6.1): slot 0 of a function that has an object. `base`
+ * is the same object; only the calls it is the object of differ (CALL_BASE
+ * runs the base class's own body), and a field read through it is the
+ * object's field. Inside a lambda (`depth` > 0) the object is in a closure
+ * record: its `@self` (generation/closures, codegen.md 6.12).
+ */
+def self_value(g: generator, depth: _int64, at: bound_expression) : _int64 {
+    if(depth > 0) { return self_from_record(g, depth, at); }
+    if(g.self_slot < 0) { g.stop("`self` in a function without an object", at.unit, at.node); }
+    return g.self_slot;
+}

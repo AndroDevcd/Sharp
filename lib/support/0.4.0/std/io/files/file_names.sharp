@@ -1,0 +1,159 @@
+mod std.io;
+
+/**
+ * More members of the class `file` (see file.sharp), added with `mutate`:
+ * everything that only looks at the path - the name, the parent, the
+ * extension, paths below and beside this one, the absolute form. Nothing
+ * here needs the file to exist.
+ *
+ *     f := new file("/home/joe/report.final.csv");
+ *     f.name()                       "report.final.csv"
+ *     f.parent_path()                "/home/joe"
+ *     f.extension()                  "csv"
+ *     f.name_without_extension()     "report.final"
+ *     f.sibling("notes.txt")         /home/joe/notes.txt
+ *     f.parent()!!.child("sub/x")    /home/joe/sub/x
+ *
+ * name(), parent() and absolute_path() are the dependable versions of the
+ * older get_name(), get_parent_file() and get_absolute_path(): they handle
+ * paths directly below the root ("/etc") and paths that do not exist yet.
+ */
+mutate file {
+
+    /** the character between the parts of a path on this system: '/' or '\' (as a character code) */
+    static def separator_char() : decimal {
+        return file_natives.separator();
+    }
+
+    /** the index of the last separator in the path, or -1 */
+    private def last_separator() : decimal {
+        sep : decimal = file_natives.separator();
+        for(i : decimal = sizeof(path.data) - 1; i >= 0; i--) {
+            if(path.data[i] == sep) {
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /**
+     * The last part of the path: the name of the file or directory without
+     * the directories in front of it. "/home/joe/a.txt" gives "a.txt",
+     * "a.txt" gives "a.txt". For a root ("/") the path itself is returned.
+     */
+    def name() : string {
+        at : decimal = last_separator();
+        n : decimal = sizeof(path.data);
+        if(at < 0 || at + 1 >= n) {
+            return path;
+        }
+        return io_strings.slice(path, at + 1, n);
+    }
+
+    /**
+     * The path of the directory this file or directory lies in, or null
+     * when the path has no parent: a bare name ("a.txt") or a root ("/").
+     * "/home/joe/a.txt" gives "/home/joe", "/a.txt" gives "/".
+     */
+    def parent_path() : string? {
+        return file_natives.parent_of(path);
+    }
+
+    /** the directory this file or directory lies in as a file object, or null when the path has no parent (see parent_path) */
+    def parent() : file? {
+        text := parent_path();
+        if(io_strings.is_null(text)) {
+            return null;
+        }
+        return new file(text!!);
+    }
+
+    /**
+     * The extension of the name: the text behind its last period, without
+     * the period. "report.final.csv" gives "csv". A name without a period,
+     * a name that ends with a period, and a name whose only period is its
+     * first character (".profile") have no extension: "" is returned.
+     */
+    def extension() : string {
+        own := name();
+        dot : decimal = io_strings.last_index_of(own, '.');
+        if(dot <= 0) {
+            return "";
+        }
+        return io_strings.slice_from(own, dot + 1);
+    }
+
+    /**
+     * The name without its extension and without the period in front of
+     * it: "report.final.csv" gives "report.final", ".profile" gives
+     * ".profile", "notes" gives "notes".
+     */
+    def name_without_extension() : string {
+        own := name();
+        dot : decimal = io_strings.last_index_of(own, '.');
+        if(dot <= 0) {
+            return own;
+        }
+        return io_strings.slice(own, 0, dot);
+    }
+
+    /** true when the name ends with "." + wanted, compared without regard to case: has_extension("TXT") is true for "a.txt" */
+    def has_extension(wanted: string) : bool {
+        return io_strings.equals_ignore_case(extension(), wanted);
+    }
+
+    /**
+     * True when the path starts at a root of the file system ("/..." on
+     * unix; a drive letter or a leading separator on windows) and so does
+     * not depend on the current directory.
+     */
+    def is_absolute() : bool {
+        return file_natives.is_rooted(path) != 0;
+    }
+
+    /**
+     * The absolute form of the path. For a file that exists the operating
+     * system works it out (on unix symbolic links are followed and "." and
+     * ".." removed); for one that does not exist the path is put behind the
+     * current directory. Never throws.
+     */
+    def absolute_path() : string {
+        return file_natives.absolute(path);
+    }
+
+    /**
+     * The file or directory `child_name` inside this directory: this path,
+     * a separator, and `child_name` (which may itself contain separators,
+     * e.g. "sub/a.txt"). Nothing is checked or created.
+     *
+     * Throws nullptr_exception when child_name is empty.
+     */
+    def child(child_name: string) : file {
+        if(sizeof(child_name.data) == 0) {
+            throw new null_except("child: the name cannot be empty");
+        }
+        return new file(file_natives.join(path, child_name));
+    }
+
+    /**
+     * The file `other_name` in the same directory as this one. For a path
+     * without a parent ("a.txt") that is just `other_name`.
+     *
+     * Throws nullptr_exception when other_name is empty.
+     */
+    def sibling(other_name: string) : file {
+        if(sizeof(other_name.data) == 0) {
+            throw new null_except("sibling: the name cannot be empty");
+        }
+        dir := parent_path();
+        if(io_strings.is_null(dir)) {
+            return new file(other_name);
+        }
+        return new file(file_natives.join(dir!!, other_name));
+    }
+
+    /** true when both objects hold the same (normalized) path; two different paths to the same file are not equal */
+    def same_path(other: file) : bool {
+        return io_strings.equals(path, other.path);
+    }
+}

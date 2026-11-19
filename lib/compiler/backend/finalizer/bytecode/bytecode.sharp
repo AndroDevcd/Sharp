@@ -1,0 +1,196 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * IR -> VM INSTRUCTIONS: the bytecode step (doc/codegen.md 2.2, 5.4)
+ *
+ * The IR of a function is turned into its words in TWO LINEAR PASSES over
+ * the same instructions:
+ *
+ *      pass 1  every instruction is selected (selection.sharp) as if every jump
+ *              went to 0; the pc where each label falls is noted
+ *      pass 2  selected again, now with the label pcs known: the jumps are right
+ *
+ * Every instruction's sequence has the same length in both passes (a jump is
+ * one word whatever its target), so the pcs of pass 1 are the pcs of pass 2.
+ * No search, no list of jumps to patch: linear in the size of the function.
+ * The line table comes out of the same pass, and so do the TRY RECORDS: a
+ * `try`'s ranges are labels (ir_try), so once the labels have their pcs the
+ * record is read off them (`try_record_of`; codegen.md 3.8).
+ *
+ * Then the FRAME NUMBERS of the function record (codegen.md 4.4), with S = 1
+ * for a function without `self` and P its number of parameters:
+ *
+ *      stack size          the number of slots of the IR (self, parameters, locals,
+ *                          the generator's), at least 1 for a function that returns
+ *                          a value (its result is put into slot 0)
+ *      fp offset           P - S
+ *      sp offset           P - S + (returns nothing ? 1 : 0)
+ *      frame stack offset  max(0, stack size - (1 - S) - P)
+ *
+ * The files of this package (module `backend.finalizer.bytecode`):
+ *
+ *      bytecode.sharp      this front door: lower_function, frame numbers
+ *      opcodes.sharp       the VM's opcodes and registers; opcode names
+ *      encoding.sharp      words: classes E, D, C, B; the emitter
+ *      selection.sharp     each IR instruction -> its VM sequence: the dispatcher and the short ones
+ *      selection_numbers.sharp     constants, copies, conversions, arithmetic, comparisons
+ *      selection_objects.sharp     fields and array elements
+ *      selection_calls.sharp       calls, function-value calls, asm instructions
+ *      asm_table.sharp     the instructions of asm blocks and how each is encoded
+ *
+ *      C++ comparison: the step processors of finalizer/generation/code/scheme
+ *      and code_context.cpp (`flush_context`: set_fp_offset, set_sp_offset ...).
+ */
+def lower_function(made: function_layout, constants: text_table) : function_code {
+    code := new function_code();
+    if(made.ir != null) {
+        ir : ir_function = made.ir!!;
+        context := new selection_context(ir, constants);
+
+        first := new code_emitter(new number_list());
+        labels := new number_list();
+        for(i : _int64 = 0; i < ir.label_count; i++) { labels.add(0); }
+        select_every_instruction(first, ir, context, labels);
+
+        second := new code_emitter(labels);
+        select_every_instruction(second, ir, context, null);
+        // every function ends with `ret` (its low byte is not the code section's end marker 1D: codegen.md 11.2)
+        if(second.words.count == 0 || (second.words.at(second.words.count - 1) & 0xff) != OP_RET
+           || ends_in_second_word(second.words) || label_at(labels, second.words.count)) {
+            second.class_d(OP_RET, 0);
+        }
+        code.words = second.words;
+        code.line_pcs = second.line_pcs;
+        code.line_numbers = second.line_numbers;
+        code.value_calls_returning = second.value_calls_returning;
+        for(i : _int64 = 0; i < ir.tries.size(); i++) { code.tries.add(try_record_of(ir.tries.at(i), labels)); }
+        if(sizeof(second.too_large.data) > 0) { made.encoding_problem = second.too_large; }
+        if(sizeof(second.not_selected.data) > 0) { made.selection_problem = second.not_selected; }
+    }
+    set_frame_numbers(made, code);
+    return code;
+}
+
+/**
+ * One run over the instructions (both passes of the header). In the first,
+ * `labels` is given and gets the pc of every label; in the second it is null.
+ *
+ * A HAND-OFF (only after the optimizer: `ir_instruction.handed_on`). An
+ * instruction's sequence ends by storing its value (`smovr_2 ebx, 5`) and the
+ * next one's often begins by loading it back into the same register
+ * (`loadl ebx, 5`). When the optimizer has found that nothing else ever reads
+ * that slot, both words go and the value simply stays in the register:
+ *
+ *      int_compare lt %5, %1, %2      loadl ebx, 1;  loadl ecx, 2;  lt ebx, ecx;  smovr_2 cmt, 5
+ *      jump_unless %5, L2             loadl cmt, 5;  jne L2
+ *                          becomes    loadl ebx, 1;  loadl ecx, 2;  lt ebx, ecx;  jne L2
+ *
+ * It is done only when the words really are that pair - the last word of this
+ * instruction a `smovr_2 r, n` of the value, and the first word the next one
+ * would make (found by selecting it on its own) exactly `loadl r, n` - and
+ * only across `line` marks, never across a label (a jump could arrive there
+ * with something else in the register). Registers are the fiber's own and
+ * nothing runs between the two instructions, so the value is still there. The
+ * two passes decide the same, since none of these words depends on a label.
+ */
+def select_every_instruction(out: code_emitter, ir: ir_function, context: selection_context, labels: number_list?) {
+    count : _int64 = ir.instructions.size().value as _int64;
+    for(i : _int64 = 0; i < count; i++) {
+        instruction := ir.instructions.at(i);
+        if(instruction.kind == IR_LABEL && labels != null) { labels!!.replace(instruction.number, out.pc()); }
+        started : _int64 = out.pc();
+        select_instruction(out, instruction, context);
+        if(out.skip_at >= 0 && out.skip_at < out.pc()) {
+            // a handed-on value whose load was not where it was expected: never write such code
+            out.cannot_select("the value handed on to the instruction after `" + instruction_text(ir.instructions.at(i - 1)) + "`");
+            out.skip_word = 0 - 1;
+            out.skip_at = 0 - 1;
+        }
+        if(instruction.handed_on == 1 && out.pc() > started) { hand_on(out, ir, context, i); }
+    }
+}
+
+/** the hand-off of the value instruction `index` made, when the words allow it (select_every_instruction) */
+def hand_on(out: code_emitter, ir: ir_function, context: selection_context, index: _int64) {
+    instruction := ir.instructions.at(index);
+    stored : _int64 = out.words.at(out.pc() - 1);
+    if((stored & 0xff) != OP_SMOVR_2) { return; }
+    register : _int64 = (stored >> 10) & 0xf;
+    if(stored != class_c_word(OP_SMOVR_2, register, instruction.target)) { return; }
+    next : _int64 = index + 1;
+    while(next < ir.instructions.size() && ir.instructions.at(next).kind == IR_LINE) { next++; }
+    if(next >= ir.instructions.size() || ir.instructions.at(next).kind == IR_LABEL) { return; }
+    trial := context.trial_emitter(out.label_pcs);
+    select_instruction(trial, ir.instructions.at(next), context);
+    load : _int64 = class_c_word(OP_LOADL, register, instruction.target);
+    if(trial.words.count == 0 || trial.words.at(0) != load) { return; }
+    out.drop_last();
+    out.skip_word = load;
+    out.skip_at = out.pc();
+}
+
+/**
+ * The try record of a `try` statement, from the pcs of its labels. A range's
+ * END label is placed one past the range, so the range's last word - which
+ * the VM's record names, both ends being inside - is the word before it.
+ */
+def try_record_of(made: ir_try, labels: number_list) : try_record {
+    record := new try_record();
+    record.try_start = labels.at(made.start);
+    record.block_start = record.try_start;
+    record.block_end = labels.at(made.block_end) - 1;
+    record.try_end = labels.at(made.end) - 1;
+    for(i : _int64 = 0; i < made.handlers.count; i++) {
+        record.handler_pcs.add(labels.at(made.handlers.at(i)));
+        record.catch_slots.add(made.catch_slots.at(i));
+        record.catch_classes.add(made.catch_classes.at(i));
+    }
+    if(made.has_finally == 1) {
+        record.has_finally = 1;
+        record.finally_start = labels.at(made.finally_start);
+        record.finally_end = labels.at(made.finally_end) - 1;
+        record.finally_slot = made.finally_slot;
+    }
+    return record;
+}
+
+/** is a label placed at this pc (one past the last word: a jump to the end of the function)? */
+def label_at(labels: number_list, pc: _int64) : _int64 {
+    for(i : _int64 = 0; i < labels.count; i++) {
+        if(labels.at(i) == pc) { return 1; }
+    }
+    return 0;
+}
+
+/** does the last word belong to a two-word instruction (so its low byte is not an opcode)? */
+def ends_in_second_word(words: number_list) : _int64 {
+    pc : _int64 = 0;
+    last_start : _int64 = 0;
+    while(pc < words.count) {
+        last_start = pc;
+        if(is_two_words(words.at(pc) & 0xff)) { pc += 2; } else { pc += 1; }
+    }
+    return last_start != words.count - 1;
+}
+
+/** the frame numbers of the function record (the formulas at the top of this file) */
+def set_frame_numbers(made: function_layout, code: function_code) {
+    static_part : _int64 = made.is_static;
+    parameters : _int64 = made.parameter_count();
+    slots : _int64 = (1 - static_part) + parameters;
+    if(made.ir != null && made.ir!!.slot_count() > slots) { slots = made.ir!!.slot_count(); }
+    if(made.returns_value() && slots < 1) { slots = 1; }
+    code.stack_size = slots;
+    code.fp_offset = parameters - static_part;
+    code.sp_offset = parameters - static_part;
+    if(!made.returns_value()) { code.sp_offset++; }
+    code.frame_stack_offset = slots - (1 - static_part) - parameters;
+    if(code.frame_stack_offset < 0) { code.frame_stack_offset = 0; }
+}

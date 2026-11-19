@@ -13,7 +13,7 @@ def main() {
 
    // convert double to string
    str_num = "100.500";
-   double_num : var = double.parse(str_num);
+   double_num : decimal = double.parse(str_num);
    println("double_num = $double_num");
 
    // convert a double to a string

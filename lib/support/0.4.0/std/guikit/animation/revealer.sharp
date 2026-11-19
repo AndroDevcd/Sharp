@@ -1,0 +1,143 @@
+mod std.guikit.animation;
+
+import (
+    std.guikit.*
+)
+
+/** how animated_show brings its content in and takes it away */
+const SHOW_EXPAND : _int64 = 0;     // it grows open from nothing (pushing what is below it down) and fades in
+const SHOW_FADE   : _int64 = 1;     // it keeps its room and only fades
+const SHOW_SLIDE  : _int64 = 2;     // it grows open, and the content rises into it from below
+
+/**
+ * revealer - content that appears and disappears with a movement instead of
+ * popping. Made with animated_show(...).
+ *
+ *      expanded := state(0);
+ *
+ *      button("Details") { expanded.value = 1 - expanded.value; };
+ *      animated_show(expanded.value) {
+ *          text("The long explanation ...");
+ *      };
+ *
+ * While `visible` is not 0 the content is there; when it turns 0 the content
+ * shrinks away (and what was below it moves up as it does), and comes back
+ * the same way.
+ *
+ * The plain way - `if(expanded.value == 1) { text(...); }` - still works and
+ * is right for most things; it just pops.
+ * (Compose: AnimatedVisibility with expandVertically + fadeIn.)
+ *
+ * HOW IT WORKS: `progress` runs between 0 (gone) and 1 (fully there) towards
+ * what is wanted. The widget is as tall as its content times the progress,
+ * cuts the content off at its own edge, and paints it as solid as the
+ * progress. While the progress is on its way, the tree is laid out again
+ * every frame. The widget is `stateful`: a rebuild in the middle carries the
+ * progress on. The very first time it is simply open or closed - nothing
+ * animates when a screen first appears.
+ *
+ * The content is built even while it is hidden (it must still be there to
+ * shrink away). Keep heavy things out of it, or behind an `if` of their own.
+ */
+stable class revealer base widget : behavior, clipper, stateful {
+    private wanted : _int64 = 0;            // 1: should be showing
+    private style : _int64 = SHOW_EXPAND;
+    private progress : decimal = 0;         // 0 gone .. 1 fully there
+
+    revealer(visible: _int64, how: _int64) {
+        attach(self);
+        if(visible != 0) { wanted = 1; }
+        style = how;
+        progress = wanted;                  // until an older self says otherwise (adopt): no movement the first time
+        me.fill_w = 1;
+        hide_or_show();
+    }
+
+    def content(block: ()()) : revealer {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** gone for layout only when fully closed: a closed revealer takes no room, not even a gap */
+    private def hide_or_show() {
+        me.shown = 1;
+        if(wanted == 0 && progress <= 0) { me.shown = 0; }
+    }
+
+    override def clips() : _int64 { return 1; }
+
+    override def kind() : string { return "revealer"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        advance();
+        widest : decimal = 0;
+        tall : decimal = 0;
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {           // (one child is usual; several are stacked like a column's)
+            kid : view = me.kids.at(i);
+            kid.measure(min_w, max_w, 0, UNBOUNDED);
+            widest = num.larger(widest, kid.want_w);
+            tall = tall + kid.want_h;
+        }
+        me.content_w = widest;
+        me.content_h = tall;
+        if(style != SHOW_FADE) {
+            me.content_h = tall * glide.ease(progress);
+        }
+    }
+
+    override def arrange() {
+        eased : decimal = glide.ease(progress);
+        top : decimal = me.inner_y();
+        if(style == SHOW_SLIDE) {
+            top = top + (1 - eased) * 24;               // the content rises the last stretch into place
+        }
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            kid.arrange(me.inner_x(), num.nearest(top), kid.want_w, kid.want_h);
+            kid.veil = eased;
+            top = top + kid.want_h;
+        }
+    }
+
+    /**
+     * Move the progress on towards what is wanted, by the time that passed
+     * since it was last moved. This happens while the widget is MEASURED, not
+     * painted: a closed revealer has no height, and a box with no height is
+     * never painted - it would stay closed for ever. While the progress is on
+     * its way, another layout is asked for.
+     */
+    private def advance() {
+        if(progress == wanted || ui_host.current == null) {
+            return;
+        }
+        host := ui_host.current!!;
+        if(moved_at < 0) { moved_at = host.now; }           // the first frame of the movement: no time has passed yet
+        amount : decimal = num.smaller(host.now - moved_at, 0.05) / glide.TIME;
+        moved_at = host.now;                                // measured twice in one frame: the second time adds nothing
+        if(wanted == 1) { progress = num.smaller(1, progress + amount); }
+        else { progress = num.larger(0, progress - amount); }
+
+        if(progress == wanted) { moved_at = 0 - 1; }
+        hide_or_show();
+        host.relayout();
+    }
+
+    private moved_at : decimal = 0 - 1;     // the host's clock when the progress was last moved (-1: not moving)
+
+    override def paint(p: painter) {
+    }
+
+    override def adopt(old: behavior) {
+        if(old is revealer) {
+            before := old as revealer;
+            progress = before.progress;
+            moved_at = before.moved_at;
+            hide_or_show();
+            if(progress != wanted && ui_host.current != null) {
+                ui_host.current!!.relayout();       // it has somewhere to go: the layouts that move it begin
+            }
+        }
+    }
+}

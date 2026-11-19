@@ -1,0 +1,258 @@
+mod backend.compiler.expressions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.lambdas
+)
+
+/**
+ * ASKING FOR A VALUE
+ *
+ * `analyse_expression` analyses whatever stands at a node. Most callers want
+ * more than that:
+ *
+ *      analyse_value       it must be a VALUE: not a type name, not `base`, not "nothing"
+ *      analyse_converted   ... of this TYPE (applies the implicit conversion or reports why not)
+ *      analyse_condition   ... usable as a truth value: a number, or a bool / int object
+ *      analyse_whole_number  ... usable as an index or a size
+ *
+ * These four are where "one mistake, one message" is kept: an operand that
+ * was already reported has the error type, and each of them lets the error
+ * type through without a word.
+ *
+ *      C++ comparison: the checks at the end of `compile_expression` and
+ *      `convert_expression_type_to_value` in expression.cpp.
+ */
+
+/** the expression at `node`, which must be a value */
+def analyse_value(context: analysis_context, node: _int64, wanted: resolved_type?) : bound_expression {
+    return as_value_for(context, analyse_expression(context, node, wanted), wanted);
+}
+
+/**
+ * The same, for the second of two parts that must agree, after the first
+ * turned out to have no value (`{ f(), f() }`, `c ? f() : f()` with `f`
+ * returning nothing): a second "has no value" would be the same mistake
+ * told twice, so it is not reported - the part simply has the error type.
+ */
+def analyse_value_after(context: analysis_context, node: _int64, wanted: resolved_type?, first_had_no_value: _int64) : bound_expression {
+    found := analyse_expression(context, node, wanted);
+    if(first_had_no_value == 1 && found.type.kind == RT_NIL) { return new bound_error(found.unit, found.node, context.session.types.error_type); }
+    return as_value_for(context, found, wanted);
+}
+
+/** does the expression at `node`, analysed, give nothing back (a call of a function without a result)? */
+def gives_nothing(found: bound_expression) : _int64 {
+    return found.type.kind == RT_NIL;
+}
+
+/**
+ * Make sure an analysed expression is a value.
+ *
+ *      x := string;        E0404   a type is not a value
+ *      x := print;         a function used as a value (lambdas/function_references.sharp)
+ *      x := base;          fine: `base` alone is the object, seen as its base class
+ *      x := nothing();     E0406   the call gives nothing back
+ */
+def as_value(context: analysis_context, found: bound_expression) : bound_expression {
+    return as_value_for(context, found, null);
+}
+
+/**
+ * The same, knowing the type wanted where the value goes: a function name
+ * picks the overload of that function type (`f : (decimal)(decimal) = twice;`).
+ */
+def as_value_for(context: analysis_context, found: bound_expression, wanted: resolved_type?) : bound_expression {
+    kind : _int64 = found.kind;
+    if(kind == BX_TYPE_NAME) {
+        if(found.type.kind == RT_ERROR) { return found; }
+        d := problem_over(context, "E0404", "`" + found.type.to_text() + "` is a type, not a value", found.node);
+        d.with_label("a type stands where a value is needed");
+        d.with_help("to make an object write `new " + found.type.to_text() + "(...)`; to reach a static member write `"
+                    + found.type.to_text() + ".<member>`");
+        report(context, d);
+        return new bound_error(found.unit, found.node, context.session.types.error_type);
+    }
+    if(kind == BX_FUNCTIONS) {
+        // `callback := print;` - a function used as a value
+        return function_value_of(context, found as bound_functions, wanted);
+    }
+    if(found.type.kind == RT_NIL) {
+        if(is_call_of_function_missing_its_result_type(found)) { return new bound_error(found.unit, found.node, context.session.types.error_type); }
+        d := problem_over(context, "E0406", "this expression has no value", found.node);
+        d.with_label("gives nothing back");
+        d.with_note("a function declared without a result type (or with `: nil`) returns nothing");
+        report(context, d);
+        return new bound_error(found.unit, found.node, context.session.types.error_type);
+    }
+    return found;
+}
+
+/**
+ * The expression at `node` as a value of type `wanted`.
+ *
+ * @param purpose  what the value is for, for the message: "the value of `total`"
+ */
+def analyse_converted(context: analysis_context, node: _int64, wanted: resolved_type, purpose: string) : bound_expression {
+    return convert(context, analyse_value(context, node, wanted), wanted, purpose);
+}
+
+/**
+ * The expression at `node` as a truth value: a plain number (0 is false), or
+ * a number object whose number is taken. Anything else - another object, an
+ * array, text, null - is E0411.
+ *
+ * @param only_bool  1: the condition of a STATEMENT (if, while, do, for,
+ *        when): of the number classes only a `boolean` object is accepted
+ *        there (`if(an_int)` is an error in the C++ compiler too).
+ *        0: the condition of `? :`, which takes any number object.
+ *
+ * A `boolean?` (a boolean object that may be null) is accepted as the condition
+ * of a statement, as in the C++ compiler, which asks only for the class
+ * `std#boolean`: the object is read as if `flag!!` were written - null throws
+ * when the program runs - and W1028 says so.
+ */
+def analyse_condition(context: analysis_context, node: _int64, only_bool: _int64) : bound_expression {
+    value := analyse_value(context, node, null);
+    if(context.tree.kinds!![node] == N_ASSIGN && token_kind_at(context, node) == P_ASSIGN) { warn_assignment_as_condition(context, node); }
+    if(only_bool == 1 && is_nullable_bool(context, value.type)) {
+        warn_condition_may_be_null(context, value, node);
+        value = new bound_not_null(value.unit, value.node, value, value.type.as_non_null());
+    }
+    number := as_plain_number(context, value, only_bool);
+    if(number != null) { return number!!; }
+
+    report_not_a_condition(context, value, node);
+    failed := new bound_error(value.unit, value.node, context.session.types.error_type);
+    failed.inner = value;
+    return failed;
+}
+
+/**
+ * W1045: `if(x = 5)` - an assignment written as the whole condition.
+ *
+ * It is legal (an assignment has the value it stores), and both compilers
+ * accept it; but it is far more often a comparison with one `=` missing:
+ * `if(x = 5)` is always true and stores 5, `while(x = 0)` never runs. When
+ * the store is meant, putting it in parentheses of its own - `if((x = next()))`
+ * - says so and silences the warning, as in C and C++ compilers.
+ */
+def warn_assignment_as_condition(context: analysis_context, node: _int64) {
+    tree : syntax_tree = context.tree;
+    target : _int64 = tree.first_child!![node];
+    value : _int64 = 0 - 1;
+    if(target >= 0) { value = tree.next_sibling!![target]; }
+    d := problem_at(context, "W1045", "`=` stores a value; this condition is an assignment, not a comparison", node);
+    d.with_label("did you mean `==`?");
+    d.with_note("an assignment has the value it stores, so the condition tests the value being stored (a constant gives the same answer every time)");
+    if(target >= 0 && value >= 0) {
+        d.with_help("to compare write `" + source_text_of(context, target) + " == " + source_text_of(context, value)
+                    + "`; to store and test the stored value write it in its own parentheses: `(" + source_text_of(context, node) + ")`");
+    }
+    report(context, d);
+}
+
+/** is the type `boolean?`: one boolean object, or null? */
+def is_nullable_bool(context: analysis_context, type: resolved_type) : _int64 {
+    if(type.kind != RT_CLASS || type.is_array == 1 || type.is_nullable == 0) { return 0; }
+    return type.class_of == context.session.known.bool_class;
+}
+
+/** W1028: `if(flag)` with `flag : boolean?` - the object is read without asking whether there is one */
+def warn_condition_may_be_null(context: analysis_context, value: bound_expression, node: _int64) {
+    written := as_operand_text(context, node);
+    d := problem_over(context, "W1028", "this condition is a `boolean?`: when it is null the program throws here", node);
+    d.with_label("may be null");
+    d.with_note("a `boolean` object is a condition through the value it holds; a `boolean?` may hold no object at all, and reading it then raises the null-pointer exception");
+    d.with_help("to say it is never null here write `" + written + "!!`; to take null as false write `" + written + " != null && " + written + "!!`");
+    report(context, d);
+}
+
+/** E0411, with the test the programmer most likely meant */
+def report_not_a_condition(context: analysis_context, value: bound_expression, node: _int64) {
+    type : resolved_type = value.type;
+    written := source_text_of(context, node);
+    what := described_type(type);
+    if(value.literal == LIT_TEXT) { what = "text in quotes"; }
+    d := problem_over(context, "E0411", "a condition must be a `bool`, but this is " + what, node);
+    d.with_label("cannot be tested for true or false");
+    d.with_note("a condition is a `bool`, a `boolean` object, or a number (0 means false)");
+
+    if(type.kind == RT_FUNCTION && type.is_array == 0 && value.kind == BX_FUNCTION_REFERENCE) {
+        // `if(is_ready)` - the `()` is missing
+        d.with_note("`" + written + "` names the function; only calling it gives its answer");
+        d.with_help("call it: `" + written + "()`");
+    } else if(type.kind == RT_NULL) {
+        d.with_note("`null` is never anything: a condition of `null` alone has no answer to give");
+        d.with_help("test a value against null instead: `x != null`, or write `false`");
+    } else if(value.literal == LIT_TEXT) {
+        // `if("yes")`: text in quotes is the same every time the program runs
+        d.with_note("text in quotes is fixed: as a condition it would have the same answer every time");
+        d.with_help("to test a text variable write `s == " + written + "`; to ask \"is it empty?\" write `s.size() > 0`");
+    } else if(type.is_array == 1) {
+        if(type.is_nullable == 1) { d.with_help("to ask \"is there an array?\" write `" + written + " != null`"); }
+        else { d.with_help("to ask \"has it items?\" write `sizeof(" + written + ") > 0`"); }
+    } else if(is_box_value(context.session, type)) {
+        d.with_note("of the number classes only a `boolean` object is a condition by itself");
+        d.with_help("compare its number: `" + as_operand_text(context, node) + ".value != 0`");
+    } else if(type.can_be_null()) {
+        d.with_help("to ask \"is there an object?\" write `" + written + " != null`");
+    } else if(type == context.session.string_type()) {
+        d.with_help("to ask \"is it empty?\" write `" + as_operand_text(context, node) + ".size() > 0`; to compare it write `" + written + " == \"...\"`");
+    } else if(type.kind == RT_CLASS) {
+        d.with_note("`" + written + "` is a `" + type.to_text() + "`, which is never null: there is nothing about the object itself to test");
+        d.with_help("test one of its fields or call a function that answers with a number: `" + written + ".<member>`");
+    }
+    report(context, d);
+}
+
+/**
+ * The expression at `node` as a whole number: an array index, the size of a
+ * new array. A decimal is cut down; an `int` object gives its number.
+ * Anything else is E0415, and null is returned.
+ *
+ * @param what  what the number is for, to begin the message: "an array index"
+ */
+def analyse_whole_number(context: analysis_context, node: _int64, what: string) : bound_expression? {
+    value := analyse_value(context, node, null);
+    number := as_plain_number(context, value, 0);
+    if(number == null) {
+        report_not_a_whole_number(context, value, node, what);
+        return null;
+    }
+    if(number!!.type.kind == RT_DECIMAL) { return convert(context, number!!, context.session.types.int64, "a whole number"); }
+    return number;
+}
+
+/** E0415: an index or an array size that is no number, with what to write for the common slips */
+def report_not_a_whole_number(context: analysis_context, value: bound_expression, node: _int64, what: string) {
+    type : resolved_type = value.type;
+    written := source_text_of(context, node);
+    d := problem_over(context, "E0415", what + " must be a number, but this is " + described_type(type), node);
+    d.with_label("not a number");
+    is_index : _int64 = 0;
+    if(what == "an array index") { is_index = 1; }
+    if(is_index == 1) { d.with_note("the items of an array are numbered 0, 1, 2 ...; a decimal is cut down to a whole number"); }
+    else { d.with_note("the size says how many items the array has; a decimal is cut down to a whole number"); }
+
+    if(value.literal == LIT_TEXT || type == context.session.string_type()) {
+        if(is_index == 1) { d.with_help("an array is not looked up by text; a `hash_map<string, ...>` or a dictionary `{ \"key\" : value }` is"); }
+    } else if(type.kind == RT_CLASS && type.is_array == 0 && type.class_of!!.is_enum()) {
+        d.with_help("the number of an enum value is `" + as_operand_text(context, node) + ".ordinal`");
+    } else if(type.kind == RT_CLASS && type.is_array == 0 && type.is_nullable == 1
+              && context.session.known.is_box(type.class_of!!)) {
+        d.with_help("`" + written + "` may be null; when it is not, its number is `" + as_operand_text(context, node) + "!!.value`");
+    } else if(type.is_array == 1) {
+        d.with_help("the number of items of an array is `sizeof(" + written + ")`");
+    }
+    report(context, d);
+}

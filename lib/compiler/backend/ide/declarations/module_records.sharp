@@ -1,0 +1,65 @@
+mod backend.ide.declarations;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.ide.output,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * ONE MODULE AND WHAT IT HOLDS
+ *
+ *      { "name": "shapes", "files": [4, 5],
+ *        "classes": [...], "globals": [...], "functions": [...], "aliases": [...] }
+ *
+ * A module is every file that says `mod shapes;`: `files` are their numbers.
+ * Library modules are listed like any other.
+ *
+ * An EXTENSION FUNCTION (`def string.shout()`) is not listed here although it
+ * stays in `sharp_module.functions`: the compiler made it a member of its
+ * class, and that is where it is written (class_records.sharp, with
+ * `"extension": true`).
+ */
+def write_module(w: json_writer, job: declaration_job, module: sharp_module) {
+    w.begin_object();
+    w.key(KEY_NAME);  w.text(module.name);
+
+    w.key(KEY_FILES);
+    w.begin_array();
+    for(i : _int64 = 0; i < module.units.size(); i++) { w.number(job.files.index_of(module.units.at(i))); }
+    w.end_array();
+
+    w.key(KEY_CLASSES);
+    w.begin_array();
+    for(i : _int64 = 0; i < module.classes.size(); i++) {
+        w.line();
+        write_class(w, job, module.classes.at(i));
+    }
+    w.end_array();
+
+    w.key(KEY_GLOBALS);
+    w.begin_array();
+    for(i : _int64 = 0; i < module.fields.size(); i++) {
+        w.line();
+        write_field(w, job, 0 - 1, module.fields.at(i));
+    }
+    w.end_array();
+
+    w.key(KEY_FUNCTIONS);
+    w.begin_array();
+    for(i : _int64 = 0; i < module.functions.size(); i++) {
+        function := module.functions.at(i);
+        if(function.extension_of != null || function.owner != null) { continue; }
+        w.line();
+        write_function(w, job, 0 - 1, function);
+    }
+    w.end_array();
+
+    w.key(KEY_ALIASES);
+    w.begin_array();
+    for(i : _int64 = 0; i < module.aliases.size(); i++) { write_alias(w, job, 0 - 1, module.aliases.at(i)); }
+    w.end_array();
+    w.end_object();
+}

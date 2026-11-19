@@ -1,0 +1,191 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - trimming and padding (part of the `string` class, see string_core.sharp)
+ *
+ * trim / trim_start / trim_end remove whitespace (space, tab, \n, \r, vertical
+ * tab, form feed); the `_chars` forms remove any of a given set of characters.
+ * pad_start / pad_end / center make a string at least a given width.
+ * None of these change the string they are called on.
+ */
+mutate string {
+
+    /** INTERNAL (shared helper, not part of the API). Position of the first character that is not whitespace (length if there is none). */
+    private def first_non_space(): decimal {
+        n : decimal = sizeof(data);
+        i : decimal = 0;
+        while(i < n && string_support.is_space(data[i])) {
+            i++;
+        }
+        return i;
+    }
+
+    /** INTERNAL (shared helper, not part of the API). Position just after the last character that is not whitespace, never below `low`. */
+    private def end_non_space(low: decimal): decimal {
+        i : decimal = sizeof(data);
+        while(i > low && string_support.is_space(data[i - 1])) {
+            i--;
+        }
+        return i;
+    }
+
+    /**
+     * The string without whitespace at the start and at the end
+     * ("  a b \n".trim() is "a b"). Whitespace in the middle stays.
+     * A string of only whitespace gives "".
+     */
+    def trim(): string {
+        from : decimal = first_non_space();
+        return string_support.slice(data, from, end_non_space(from));
+    }
+
+    /** The string without whitespace at the start ("  a ".trim_start() is "a "). */
+    def trim_start(): string {
+        return string_support.slice(data, first_non_space(), sizeof(data));
+    }
+
+    /** The string without whitespace at the end ("  a ".trim_end() is "  a"). */
+    def trim_end(): string {
+        return string_support.slice(data, 0, end_non_space(0));
+    }
+
+    /**
+     * The string without any of the characters in `chars` at the start and at
+     * the end: "--a-b--".trim_chars("-") is "a-b"; "xyAyx".trim_chars("xy") is "A".
+     * An empty set removes nothing.
+     */
+    def trim_chars(chars: string): string {
+        n : decimal = sizeof(data);
+        from : decimal = 0;
+        while(from < n && string_support.in_set(data[from], chars.data)) {
+            from++;
+        }
+        to : decimal = n;
+        while(to > from && string_support.in_set(data[to - 1], chars.data)) {
+            to--;
+        }
+        return string_support.slice(data, from, to);
+    }
+
+    /** Like trim_chars(chars), but only at the start. */
+    def trim_start_chars(chars: string): string {
+        n : decimal = sizeof(data);
+        from : decimal = 0;
+        while(from < n && string_support.in_set(data[from], chars.data)) {
+            from++;
+        }
+        return string_support.slice(data, from, n);
+    }
+
+    /** Like trim_chars(chars), but only at the end. */
+    def trim_end_chars(chars: string): string {
+        to : decimal = sizeof(data);
+        while(to > 0 && string_support.in_set(data[to - 1], chars.data)) {
+            to--;
+        }
+        return string_support.slice(data, 0, to);
+    }
+
+    /**
+     * The string with every run of whitespace replaced by ONE space and no
+     * whitespace at the ends: "  a \t\n b  ".collapse_whitespace() is "a b".
+     */
+    def collapse_whitespace(): string {
+        n : decimal = sizeof(data);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        used : decimal = 0;
+        pending_space : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            if(string_support.is_space(c)) {
+                // remember the gap; it is only written when a word follows
+                if(used > 0) pending_space = 1;
+            } else {
+                if(pending_space) {
+                    out[used++] = ' ';
+                    pending_space = 0;
+                }
+                out[used++] = c;
+            }
+        }
+        return string_support.of_buffer(out, used);
+    }
+
+    /** INTERNAL (shared helper, not part of the API). `left` copies of pad, the string, `right` copies of pad. */
+    private def padded(left: decimal, right: decimal, pad: decimal): string {
+        n : decimal = sizeof(data);
+        total : decimal = left + n + right;
+        if(total == 0) return new string();
+
+        out := new _int8[total];
+        for(i : decimal = 0; i < left; i++) {
+            out[i] = pad;
+        }
+        if(n > 0) memcopy(data!!, out, left, 0, n);
+        for(i : decimal = left + n; i < total; i++) {
+            out[i] = pad;
+        }
+        return string_support.of_buffer(out, total);
+    }
+
+    /**
+     * The string made at least `width` characters long by putting spaces in
+     * front of it ("42".pad_start(5) is "   42"). A string that is already
+     * that long is returned unchanged (it is never shortened).
+     * Throws illegal_argument_exception if width is negative.
+     */
+    def pad_start(width: int): string {
+        return pad_start(width, ' ');
+    }
+
+    /** pad_start with the character to pad with: "42".pad_start(5, '0') is "00042". */
+    def pad_start(width: int, pad: char): string {
+        w : decimal = width.value;
+        if(w < 0) throw new ill_arg_except("pad_start: width cannot be negative: $width");
+        missing : decimal = w - sizeof(data);
+        if(missing < 0) missing = 0;
+        return padded(missing, 0, pad.value);
+    }
+
+    /**
+     * The string made at least `width` characters long by putting spaces
+     * after it ("ab".pad_end(4) is "ab  "). Never shortens.
+     * Throws illegal_argument_exception if width is negative.
+     */
+    def pad_end(width: int): string {
+        return pad_end(width, ' ');
+    }
+
+    /** pad_end with the character to pad with: "ab".pad_end(4, '.') is "ab..". */
+    def pad_end(width: int, pad: char): string {
+        w : decimal = width.value;
+        if(w < 0) throw new ill_arg_except("pad_end: width cannot be negative: $width");
+        missing : decimal = w - sizeof(data);
+        if(missing < 0) missing = 0;
+        return padded(0, missing, pad.value);
+    }
+
+    /**
+     * The string centred in `width` characters, padded with spaces on both
+     * sides. When the padding cannot be split evenly the extra character goes
+     * on the right: "ab".center(5) is " ab  ". Never shortens.
+     * Throws illegal_argument_exception if width is negative.
+     */
+    def center(width: int): string {
+        return center(width, ' ');
+    }
+
+    /** center with the character to pad with: "ab".center(6, '*') is "**ab**". */
+    def center(width: int, pad: char): string {
+        w : decimal = width.value;
+        if(w < 0) throw new ill_arg_except("center: width cannot be negative: $width");
+        missing : decimal = w - sizeof(data);
+        if(missing < 0) missing = 0;
+        left : decimal = (missing - (missing % 2)) / 2;
+        return padded(left, missing - left, pad.value);
+    }
+}

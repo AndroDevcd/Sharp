@@ -1,0 +1,112 @@
+mod backend.compiler.statements.jumps;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * `break;` AND `continue;`
+ *
+ *      while(more()) {
+ *          if(skip()) continue;        on to the next round (a `for` runs its step first)
+ *          if(done()) break;           out of the loop
+ *      }
+ *
+ * Both act on the INNERMOST loop around them (`while`, `do`, `for`,
+ * `foreach`) of the same function. Outside every loop they mean nothing:
+ * E0602 / E0603 (the C++ compiler crashes on them - checked). A `when` is
+ * not a loop: its clauses end by themselves, so a `break` in a clause leaves
+ * the loop around the `when`, not the `when`. A lambda is a function of its
+ * own, so a loop around it is out of reach.
+ *
+ *      E0602   `break` outside a loop
+ *      E0603   `continue` outside a loop
+ *      E0604   leaving a finally block (jumps.sharp)
+ *
+ *      C++ comparison: compiler/functions/statements/break_statement.cpp,
+ *      continue_statement.cpp.
+ */
+def analyse_break(context: analysis_context, node: _int64) : bound_statement {
+    path := passed_on_the_way(context, 1);
+    loop : bound_loop? = null;
+    if(path.target != null) {
+        target : bound_statement = path.target!!;
+        loop = target as bound_loop;
+    }
+    made := new bound_break(context.unit, node, loop);
+    for(i : _int64 = 0; i < path.leaves.size(); i++) { made.leaves.add(path.leaves.at(i)); }
+
+    if(loop == null) {
+        report_outside_loop(context, node, "E0602", "break");
+        made.broken = 1;
+    } else if(path.finally_crossed != null) {
+        report_leaving_finally(context, node, "break", path.finally_crossed!!);
+        made.broken = 1;
+    }
+    return made;
+}
+
+/** `continue;` - the same search as `break` */
+def analyse_continue(context: analysis_context, node: _int64) : bound_statement {
+    path := passed_on_the_way(context, 1);
+    loop : bound_loop? = null;
+    if(path.target != null) {
+        target : bound_statement = path.target!!;
+        loop = target as bound_loop;
+    }
+    made := new bound_continue(context.unit, node, loop);
+    for(i : _int64 = 0; i < path.leaves.size(); i++) { made.leaves.add(path.leaves.at(i)); }
+
+    if(loop == null) {
+        report_outside_loop(context, node, "E0603", "continue");
+        made.broken = 1;
+    } else if(path.finally_crossed != null) {
+        report_leaving_finally(context, node, "continue", path.finally_crossed!!);
+        made.broken = 1;
+    }
+    return made;
+}
+
+/** E0602 / E0603, with what the programmer may have had in mind */
+def report_outside_loop(context: analysis_context, node: _int64, code: string, word: string) {
+    d := problem_at(context, code, "`" + word + "` is not inside a loop", node);
+    d.with_label("there is no loop around it to " + loop_verb(word));
+    d.with_note("`" + word + "` acts on the innermost `while`, `do`, `for` or `foreach` around it, in the same function");
+
+    around : _int64 = enclosing_kind(context, node);
+    if(around == N_WHEN_CLAUSE || around == N_WHEN_ELSE) {
+        d.with_note("a `when` is not a loop, and its clauses do not fall through into each other (as the cases of a C `switch` do)");
+        d.with_help("remove the `" + word + "`: a clause of a `when` ends by itself");
+    } else if(around == N_LAMBDA) {
+        d.with_note("a lambda is a function of its own: a loop around it cannot be reached from inside it");
+        d.with_help("`return` from the lambda instead");
+    } else if(word == "break") {
+        d.with_help("to leave the function write `return;`");
+    } else {
+        d.with_help("remove it, or put the code in a loop");
+    }
+    report(context, d);
+}
+
+/** "leave" or "repeat" */
+def loop_verb(word: string) : string {
+    if(word == "break") { return "leave"; }
+    return "repeat";
+}
+
+/** the nearest `when` clause or lambda around a node in the syntax tree (N_WHEN_CLAUSE, N_WHEN_ELSE, N_LAMBDA), or 0 */
+def enclosing_kind(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    current : _int64 = tree.parents!![node];
+    while(current >= 0) {
+        kind : _int64 = tree.kinds!![current];
+        if(kind == N_WHEN_CLAUSE || kind == N_WHEN_ELSE || kind == N_LAMBDA) { return kind; }
+        if(kind == N_FUNCTION || kind == N_CONSTRUCTOR || kind == N_INIT || kind == N_GETTER || kind == N_SETTER) { return 0; }
+        current = tree.parents!![current];
+    }
+    return 0;
+}

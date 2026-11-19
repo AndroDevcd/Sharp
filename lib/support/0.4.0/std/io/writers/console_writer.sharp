@@ -1,0 +1,53 @@
+mod std.io;
+
+/**
+ * A text_writer that prints to the console (standard output), so that code
+ * written for a text_writer can print as well as write files.
+ *
+ *     out : text_writer = new console_writer();
+ *     out.write_line("hello");
+ *
+ * Every call prints right away. close() only marks the writer as finished;
+ * the console itself stays usable (print(), println(), other
+ * console_writers).
+ */
+class console_writer : text_writer {
+    private closed : decimal = 0;
+
+    private def check_open() {
+        if(closed) {
+            throw new io_exception("the writer is closed");
+        }
+    }
+
+    /** print all characters of `text`. Throws io_exception when closed. */
+    override def write(text: string) {
+        check_open();
+        if(sizeof(text.data) > 0) {
+            print(text);
+        }
+    }
+
+    /** print one character given as its code. Throws io_exception when closed. */
+    override def write_char(ch: decimal) {
+        check_open();
+        print(io_strings.from_char(ch));
+    }
+
+    /** print `text` and a line end. Throws io_exception when closed. */
+    override def write_line(text: string) {
+        check_open();
+        println(text);
+    }
+
+    /** make sure everything printed so far is visible. Throws io_exception when closed. */
+    override def flush() {
+        check_open();
+        std.io.console#flush();
+    }
+
+    /** finish with this writer; the console stays open. Closing twice is fine. */
+    override def close() {
+        closed = 1;
+    }
+}

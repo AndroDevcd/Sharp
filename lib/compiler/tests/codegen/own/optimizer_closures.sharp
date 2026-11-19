@@ -1,0 +1,158 @@
+mod main;
+
+// output:
+// simple: 129
+// changing: 21515
+// in a loop: 232
+// either: 8 700
+// kept: 51105
+// nested: 227
+// loud 6
+// unread: 134737140
+
+/*
+ * THE OPTIMIZER: CLOSURES AND OBJECTS NOBODY READS (doc/codegen.md 7.2, doc/optimizations.md 3a step 6)
+ *
+ * Like cases/optimizer.sharp: built plain and with -O, both must print the block above.
+ *
+ *   closure elimination   a lambda made and called in one function (called by name, inlined, its
+ *                         object and its record gone); one that changes a captured variable - the
+ *                         function around it must see the change; one made in a loop, a new record's
+ *                         worth of values each round; a variable that can hold either of two lambdas
+ *                         (must stay a function value); a lambda handed to another function, handed
+ *                         on, stored in a field and called later; a lambda that calls a lambda
+ *   dead objects          an object only filled and never read goes - but not when its constructor
+ *                         prints, counts, keeps `self` somewhere, or may raise
+ */
+
+def apply(f: (_int64)(_int64), x: _int64) : _int64 { return f(x) + 1; }
+def twice(f: (_int64)(_int64), x: _int64) : _int64 { return apply(f, apply(f, x)); }
+
+class keeper {
+    held : (_int64)(_int64)?;
+    def keep(f: (_int64)(_int64)) { held = f; }
+    def use(x: _int64) : _int64 { f := held!!; return f(x); }
+}
+
+def simple(k: _int64) : _int64 {
+    add := { n: _int64 -> (_int64) return n + k; };
+    plain := { n: _int64 -> (_int64) return n * 2; };
+    total : _int64 = add(5) + plain(6);
+    total += apply(add, 7);
+    total += apply({ n: _int64 -> (_int64) return n - k; }, 100);
+    return total;
+}
+
+def changing() : _int64 {
+    count : _int64 = 0;
+    bump := { by: _int64 -> (_int64) count += by; return count; };
+    first : _int64 = bump(2);
+    count += 10;
+    second : _int64 = bump(3);
+    return first * 10000 + second * 100 + count;
+}
+
+def in_a_loop(n: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) {
+        scale : _int64 = i * 2;
+        f := { x: _int64 -> (_int64) return x * scale + i; };
+        total += f(10) + twice(f, 1);
+    }
+    return total;
+}
+
+def either(flag: _int64) : _int64 {
+    f := { x: _int64 -> (_int64) return x + 1; };
+    if(flag == 1) { f = { x: _int64 -> (_int64) return x * 100; }; }
+    return f(7);
+}
+
+def kept(k: keeper, base_value: _int64) : _int64 {
+    f := { x: _int64 -> (_int64) return x + base_value; };
+    before : _int64 = f(1);
+    k.keep(f);
+    return before * 1000 + k.use(2) + f(3);
+}
+
+def nested(a: _int64) : _int64 {
+    outer := { x: _int64 -> (_int64)
+        inner := { y: _int64 -> (_int64) return y + a + x; };
+        return inner(x * 2);
+    };
+    return outer(4) + outer(5);
+}
+
+// ---- objects nobody reads
+class quiet {
+    a : _int64 = 0;
+    b : _int64 = 0;
+    quiet(x: _int64) { a = x; b = x * 2; }
+    def put(x: _int64) { a = x; }
+}
+
+class wide {
+    a : _int64 = 0; b : _int64 = 0; c : _int64 = 0; d : _int64 = 0;
+    e : _int64 = 0; f : _int64 = 0; g : _int64 = 0; h : _int64 = 0;
+    wide(x: _int64) {                           // too long to be copied into its caller
+        a = x; b = a + 1; c = b * 2; d = c - a; e = d + b; f = e * c; g = f - d; h = g + e;
+        a = h + 1; b = a + g; c = b + f; d = c + e;
+    }
+    def sum() : _int64 { return a + b + c + d + e + f + g + h; }
+}
+
+class loud {
+    a : _int64 = 0;
+    loud(x: _int64) { a = x; println("loud " + x); }
+}
+
+class registry { static last : remembered?; static made : _int64 = 0; }
+class remembered {
+    a : _int64 = 0;
+    remembered(x: _int64) { a = x; registry.last = self; }
+}
+class counted {
+    a : _int64 = 0;
+    counted(x: _int64) { a = x; registry.made = registry.made + 1; }
+}
+class picky {
+    a : _int64 = 0;
+    picky(x: _int64, by: _int64) { a = x % by; }
+}
+
+def raising(zero: _int64) : _int64 {
+    try {
+        new picky(10, zero);
+        return 2;
+    } catch(e: exception) {
+        return 3;
+    }
+    return 1;
+}
+
+def unread(zero: _int64) : _int64 {
+    q := new quiet(4);
+    q.put(9);
+    q.b = 12;
+    new quiet(5);
+    new loud(6);
+    new remembered(7);
+    new counted(8);
+    new picky(10, 3);
+    new wide(2);                                // filled by a real call, never read: gone
+    w := new wide(3);
+    w.h = 1;
+    seen := new wide(4);
+    used := new quiet(20);
+    return raising(zero) * 10000 + registry.last!!.a * 1000 + registry.made * 100 + used.b + seen.sum() * 100000;
+}
+
+def main(args: string[]) {
+    println("simple: " + simple(3));
+    println("changing: " + changing());
+    println("in a loop: " + in_a_loop(4));
+    println("either: " + either(0) + " " + either(1));
+    println("kept: " + kept(new keeper(), 50));
+    println("nested: " + nested(100));
+    println("unread: " + unread(0));
+}

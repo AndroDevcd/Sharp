@@ -1,0 +1,35 @@
+mod std.io;
+
+import ( platform.kernel )
+
+private global_lock := new _object_();
+def critical_section(block : ()()) {
+    try {
+        global_lock.lock_object();
+        block();
+    } finally {
+        global_lock.unlock_object();
+    }
+}
+
+def critical_section(block : ()(), lobj : object) {
+    try {
+        vm.lock_object(lobj);
+        block();
+    } finally {
+        vm.unlock_object(lobj);
+    }
+}
+
+//def<t, r> critical_section(block : (t)(r), lock_obj : object, data: t) : r {
+    // err : exception;
+    // lock lock_obj -> {
+    //   try {
+    //       return block(data);
+    //   } catch(e: exception) {
+    //       err = e;
+    //   }
+    // }
+    //
+    // if(err != null) throw err;
+//}

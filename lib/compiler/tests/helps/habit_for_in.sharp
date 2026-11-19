@@ -1,0 +1,11 @@
+// expect: E0100
+// help: foreach(x in items)
+// replace: for(x in items)
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    items := new list<int>();
+    items.add(1);
+    for(x in items) { println(x.value); }
+}

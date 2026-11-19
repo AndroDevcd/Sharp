@@ -1,0 +1,270 @@
+mod frontend.syntax.assembly;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.parser,
+    frontend.syntax.tree
+)
+
+/**
+ * PARSING `asm { }` BLOCKS
+ *
+ * An asm block is a list of virtual machine instructions written by hand. The
+ * library uses them where the language has no other way: starting a thread,
+ * calling into the runtime.
+ *
+ *      asm {
+ *          loadl ebx, [stack_size]         instruction, operands separated by commas
+ *          pushl [args]
+ *          int 0xc
+ *          .retry:                         a label
+ *          smovr2 [result], cmt
+ *      }
+ *
+ * Grammar:
+ *
+ *      asm_statement   = "asm" "{" { asm_instruction | asm_label } "}" ;
+ *      asm_label       = "." identifier ":" ;
+ *      asm_instruction = mnemonic [ asm_operand { "," asm_operand } ] ;
+ *      asm_operand     = asm_register | literal | asm_literal ;
+ *      asm_register    = [ "%" ] ( "adx" | "cx" | "cmt" | "ebx" | "ecx" | "ecf" | "edf" | "ehf" | "bmr" | "egx" ) ;
+ *      asm_literal     = [ "-" ] literal | "@" identifier | "[" identifier "]" | "$" utype [ "[" identifier "]" ] ;
+ *
+ * WHICH operands an instruction takes is not in the grammar; it is in the
+ * table of asm_instructions.sharp (`movi` takes a register and an operand,
+ * `nop` takes nothing ...). The parser reads the mnemonic, looks it up and
+ * then expects exactly those operands - so a missing or extra operand is
+ * reported here, with the instruction's real form, instead of producing
+ * wrong code later.
+ *
+ * Line breaks mean nothing, as everywhere in the language: an instruction
+ * ends where its operands end.
+ *
+ * Node: N_ASM with one child per line of the block:
+ *      N_ASM_LABEL         token: the name
+ *      N_ASM_INSTRUCTION   token: the mnemonic. Children, one per operand:
+ *          N_ASM_REGISTER      token: the register name
+ *          N_LITERAL           a number, character, string, true or false
+ *          N_ASM_NEGATIVE      -literal            child: N_LITERAL
+ *          N_ASM_LABEL_REF     @name               token: the name
+ *          N_ASM_MEMBER        [name]              token: the name
+ *          N_ASM_TYPE          $type  $type[name]  children: N_TYPE, then N_ASM_MEMBER when there is one
+ */
+
+/** asm_statement (the current token is `asm`) */
+def parse_asm(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_ASM);
+    p.advance();
+
+    opener : _int64 = p.position;
+    if(p.expect(P_LBRACE, "`{` and the instructions") == 0) { return; }
+
+    while(!p.at(P_RBRACE) && !p.at_end()) {
+        before : _int64 = p.position;
+
+        if(p.at(P_DOT)) {
+            parse_asm_label(p, statement);
+        } else {
+            parse_asm_instruction(p, statement);
+        }
+
+        // After a mistake: on to the next LINE. Line breaks mean nothing to
+        // the grammar, but people write one instruction per line, and that is
+        // the best guess for where the next one starts.
+        if(p.recovering == 1) {
+            if(p.position == before) { p.advance(); }
+            while(!p.at(P_RBRACE) && !p.at_end() && p.same_line(p.position - 1, p.position)) {
+                p.advance();
+            }
+            p.recovering = 0;
+            p.line_lost = 0;
+        }
+    }
+    p.expect_closing(P_RBRACE, "`}` at the end of the asm block", opener);
+}
+
+/** is the current token the name of an instruction? */
+def starts_asm_instruction(p: parse_state) : _int64 {
+    kind : _int64 = p.kind();
+    if(kind != T_IDENTIFIER && kind < T_KEYWORD) { return 0; }
+    return asm_operands(p.current_text()) != null;
+}
+
+/** asm_label:  .name:   - a place in the block that `@name` refers to */
+def parse_asm_label(p: parse_state, parent: _int64) {
+    p.advance();                                    // the dot
+    p.child(parent, N_ASM_LABEL);
+    if(p.expect(T_IDENTIFIER, "the name of the label") == 0) { return; }
+    p.expect(P_COLON, "`:` after the name of a label");
+}
+
+/** asm_instruction: a mnemonic and the operands the table says it takes */
+def parse_asm_instruction(p: parse_state, parent: _int64) {
+    kind : _int64 = p.kind();
+    if(kind != T_IDENTIFIER && kind < T_KEYWORD) {
+        p.error("expected an instruction, found " + p.describe_current())
+         .with_label("not the name of an instruction")
+         .with_help("an asm block holds instructions (`movi ebx, 5`) and labels (`.name:`)");
+        return;
+    }
+
+    name := p.current_text();
+    operands := asm_operands(name);
+    if(operands == null) {
+        d := p.error("there is no instruction named `" + name + "`")
+              .with_label("not an instruction of the virtual machine");
+        suggestion := did_you_mean(closest_names(name, asm_instruction_names(), 3));
+        if(sizeof(suggestion.data) > 0) {
+            d.with_help(suggestion);
+        }
+        d.with_note("the instructions are listed in frontend/syntax/assembly/asm_instructions.sharp");
+        return;
+    }
+
+    instruction : _int64 = p.child(parent, N_ASM_INSTRUCTION);
+    p.advance();
+
+    wanted : _int8[]? = operands!!.data;
+    count : _int64 = sizeof(wanted);
+    for(i : _int64 = 0; i < count; i++) {
+        if(i > 0 && p.accept(P_COMMA) == 0) {
+            p.missing(P_COMMA, "`,` between the operands")
+             .with_note("`" + name + "` takes " + describe_operands(operands!!));
+            return;
+        }
+
+        letter : _int64 = wanted!![i];
+        ok : _int64 = 0;
+        if(letter == 'R') { ok = parse_asm_register(p, instruction); }
+        else if(letter == 'L') { ok = parse_asm_plain_literal(p, instruction); }
+        else { ok = parse_asm_operand(p, instruction); }
+
+        if(ok == 0) {
+            p.report("E0120", "`" + name + "` takes " + describe_operands(operands!!) + "; operand "
+                              + (i + 1) + " is not " + describe_operand(letter))
+             .with_label("expected " + describe_operand(letter));
+            return;
+        }
+    }
+
+    // pushl 12, 13: one operand more than the instruction has
+    if(p.at(P_COMMA)) {
+        p.report("E0121", "`" + name + "` takes " + describe_operands(operands!!) + ", and there is one more here")
+         .with_label("an operand too many starts here")
+         .with_help("remove it; if two instructions were meant, each needs its own name");
+    }
+}
+
+/** "a register and an operand", "nothing" ... for messages */
+def describe_operands(operands: string) : string {
+    count : _int64 = sizeof(operands.data);
+    if(count == 0) { return "no operands"; }
+
+    text := new string_builder("");
+    for(i : _int64 = 0; i < count; i++) {
+        if(i > 0) {
+            if(i == count - 1) { text.append(" and "); }
+            else { text.append(", "); }
+        }
+        text.append(describe_operand(operands.data!![i]));
+    }
+    return text.build();
+}
+
+def describe_operand(letter: _int64) : string {
+    if(letter == 'R') { return "a register"; }
+    if(letter == 'L') { return "a literal"; }
+    return "a value (a literal, @label, [name] or $$type)";      // $$: one dollar sign in the text
+}
+
+/** the ten registers of the virtual machine; upper or lower case */
+def is_register_name(name: string) : _int64 {
+    lowered := name.to_lower();
+    return lowered == "adx" || lowered == "cx" || lowered == "cmt" || lowered == "ebx" || lowered == "ecx"
+        || lowered == "ecf" || lowered == "edf" || lowered == "ehf" || lowered == "bmr" || lowered == "egx";
+}
+
+/** asm_register:  ebx   %ebx      @return 1 when there was one */
+def parse_asm_register(p: parse_state, parent: _int64) : _int64 {
+    if(p.at(P_PERCENT) && p.peek(1) == T_IDENTIFIER) {
+        p.advance();
+    }
+    if(!p.at(T_IDENTIFIER) || !is_register_name(p.current_text())) {
+        return 0;
+    }
+    p.child(parent, N_ASM_REGISTER);
+    p.advance();
+    return 1;
+}
+
+def is_literal_kind(kind: _int64) : _int64 {
+    return kind == T_INTEGER || kind == T_HEX || kind == T_DECIMAL || kind == T_CHAR || kind == T_STRING
+        || kind == K_TRUE || kind == K_FALSE;
+}
+
+/** a literal and nothing else:  12   0xff   'c'   "text"   true */
+def parse_asm_plain_literal(p: parse_state, parent: _int64) : _int64 {
+    if(!is_literal_kind(p.kind())) { return 0; }
+    check_literal(p);
+    p.child(parent, N_LITERAL);
+    p.advance();
+    return 1;
+}
+
+/**
+ * asm_literal: everything an instruction can take that is not a register
+ *
+ *      12   -1   'c'           a literal, also negative
+ *      @retry                  the label .retry:
+ *      [count]                 a local variable or a member, by name
+ *      $thread                 a class
+ *      $thread[name]           a member of a class
+ */
+def parse_asm_operand(p: parse_state, parent: _int64) : _int64 {
+    if(p.at(P_MINUS) && is_literal_kind(p.peek(1))) {
+        negative : _int64 = p.child(parent, N_ASM_NEGATIVE);
+        p.advance();
+        check_literal(p);
+        p.child(negative, N_LITERAL);
+        p.advance();
+        return 1;
+    }
+
+    if(is_literal_kind(p.kind())) {
+        return parse_asm_plain_literal(p, parent);
+    }
+
+    if(p.at(P_AT)) {
+        p.advance();
+        p.child(parent, N_ASM_LABEL_REF);
+        p.expect(T_IDENTIFIER, "the name of a label after `@`");
+        return 1;
+    }
+
+    if(p.at(P_LBRACKET)) {
+        parse_asm_member(p, parent);
+        return 1;
+    }
+
+    if(p.at(P_DOLLAR)) {
+        type_operand : _int64 = p.child(parent, N_ASM_TYPE);
+        p.advance();
+        parse_naked_type(p, type_operand);
+        if(p.at(P_LBRACKET)) {
+            parse_asm_member(p, type_operand);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/** [name]   (the current token is the `[`) */
+def parse_asm_member(p: parse_state, parent: _int64) {
+    opener : _int64 = p.position;
+    p.advance();
+    p.child(parent, N_ASM_MEMBER);
+    if(p.expect(T_IDENTIFIER, "the name of a variable or member") == 0) { return; }
+    p.expect_closing(P_RBRACKET, "`]`", opener);
+}

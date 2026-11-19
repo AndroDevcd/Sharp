@@ -1,0 +1,135 @@
+mod app;
+
+import (
+    std.guikit.*,
+    platform,
+    std.math
+)
+
+/**
+ * SHAPES  -  everything the painter can draw, on one screen.
+ *
+ * Boxes (square and round), borders, lines, circles, rings, see-through
+ * colours, text in several sizes, a picture, clipping - plus the mouse and the
+ * keyboard: a dot follows the mouse, clicking drops a marker, Escape closes.
+ *
+ * This is the "immediate" layer: every frame we clear the window and paint the
+ * whole picture again from what we know (where the mouse is, how much time has
+ * passed). Games work exactly like this. The declarative layer (buttons,
+ * columns, state) will sit on top and do this painting for you.
+ */
+def main(args: string[]) {
+    w := gui.window("Sharp GUI - shapes", 900, 600);
+    p := w.painter();
+
+    // Colours, fonts and pictures are made ONCE, before the loop.
+    background := gui.rgb(18, 20, 30);
+    card       := gui.rgb(34, 38, 54);
+    edge       := gui.rgb(70, 78, 110);
+    white      := gui.rgb(240, 242, 250);
+    dim        := gui.rgb(150, 156, 180);
+    blue       := gui.rgb(80, 140, 255);
+    green      := gui.rgb(60, 200, 130);
+    orange     := gui.rgb(255, 160, 60);
+    pink       := gui.rgb(255, 90, 140);
+    glass      := gui.rgba(255, 255, 255, 40);      // see-through white
+
+    title := gui.font(30);
+    body  := gui.font(16);
+    small := gui.font(12);
+    logo  := gui.load_image(program_folder() + "/assets/logo.png");
+
+    mouse_x : decimal = 450;
+    mouse_y : decimal = 300;
+    click_x : decimal = -100;       // where the last click was (off screen until there is one)
+    click_y : decimal = -100;
+    typed : string = "";
+    last_key : _int64 = 0;
+
+    while(w.is_open()) {
+        // ---- 1. take in everything that happened
+        e := w.next_event();
+        while(e.kind != EVENT_NONE) {
+            if(e.kind == EVENT_QUIT) { w.close(); }
+            if(e.kind == EVENT_KEY_DOWN) {
+                last_key = e.key;
+                if(e.key == KEY_ESCAPE) { w.close(); }
+            }
+            if(e.kind == EVENT_MOUSE_MOVE) { mouse_x = e.x; mouse_y = e.y; }
+            if(e.kind == EVENT_MOUSE_DOWN) { click_x = e.x; click_y = e.y; }
+            if(e.kind == EVENT_TEXT)       { typed = typed + e.text; }
+            e = w.next_event();
+        }
+        if(!w.is_open()) { break; }
+
+        // ---- 2. paint the frame
+        now := w.time();
+        w.clear(background);
+
+        // heading
+        p.text("Sharp GUI", 30, 22, title, white);
+        p.text("shapes, text, pictures, input - painted every frame", 32, 62, body, dim);
+
+        // a card with round corners and a border
+        p.rect(30, 100, 400, 220, 16, card);
+        p.outline(30, 100, 400, 220, 16, 2, edge);
+        p.text("boxes", 50, 114, small, dim);
+        p.rect(50, 140, 80, 60, blue);                       // square corners
+        p.rect(150, 140, 80, 60, 10, green);                 // round corners
+        p.rect(250, 140, 80, 60, 30, orange);                // so round it is a pill
+        p.outline(350, 140, 60, 60, 0, 3, pink);             // border only
+        p.outline(50, 224, 160, 70, 14, 1, white);           // thin round border
+        p.rect(230, 224, 180, 70, 14, glass);                // see-through
+        p.text("see-through", 262, 250, body, white);
+
+        // circles and rings
+        p.rect(460, 100, 410, 220, 16, card);
+        p.outline(460, 100, 410, 220, 16, 2, edge);
+        p.text("circles and lines", 480, 114, small, dim);
+        p.circle(530, 190, 40, blue);
+        p.circle(590, 190, 40, gui.rgba(255, 90, 140, 170)); // overlapping, see-through
+        p.ring(690, 190, 40, 6, green);
+        p.ring(690, 190, 26, 2, white);
+
+        // lines: a fan that turns slowly
+        spokes : _int64 = 12;
+        for(i : _int64 = 0; i < spokes; i++) {
+            angle := now * 0.6 + i * 6.2831853 / spokes;
+            p.line(800, 190, 800 + cos(angle) * 44, 190 + sin(angle) * 44, 1 + i % 4, orange);
+        }
+        p.line(480, 270, 850, 270, 1, edge);
+        p.line(480, 285, 850, 300, 4, blue);
+
+        // text
+        p.rect(30, 340, 400, 230, 16, card);
+        p.outline(30, 340, 400, 230, 16, 2, edge);
+        p.text("text", 50, 354, small, dim);
+        p.text("The quick brown fox", 50, 378, title, white);
+        p.text("jumps over the lazy dog - 0123456789", 50, 420, body, white);
+        p.text("small print, 12 pixels: AV To Wa fi", 50, 446, small, dim);
+        label := "right-aligned";
+        p.text(label, 410 - body.width_of(label), 474, body, green);
+        p.text("typed: " + typed, 50, 510, body, orange);
+        p.text("last key: " + last_key, 50, 536, small, dim);
+
+        // a picture, and clipping
+        p.rect(460, 340, 410, 230, 16, card);
+        p.outline(460, 340, 410, 230, 16, 2, edge);
+        p.text("pictures and clipping", 480, 354, small, dim);
+        p.image(logo, 480, 380);                                         // its own size
+        p.image(logo, 600, 380, 48, 48);                                 // shrunk
+        p.image(logo, 670, 380, 160, 160, 110);                          // stretched and faded
+        p.clip(480, 500, 150, 50);                                       // only this strip is painted ...
+        p.circle(555 + sin(now * 2) * 70, 525, 30, pink);                // ... so the ball is cut at its edges
+        p.unclip();
+        p.outline(480, 500, 150, 50, 0, 1, edge);
+
+        // the mouse: a marker where it was clicked, a dot that follows it
+        p.ring(click_x, click_y, 14, 3, orange);
+        p.circle(mouse_x, mouse_y, 8, gui.rgba(255, 255, 255, 200));
+
+        w.show();
+    }
+
+    println("window closed. bye.");
+}

@@ -1,0 +1,33 @@
+mod main;
+
+/*
+ * THE PRINTING OF THE CODE GENERATION TESTS
+ *
+ * Every test in cases/ is compiled with this file. It prints with `asm`
+ * blocks, which code generation lowers first, so a test of one construct
+ * does not depend on the library's printing working too. (cases/hello.sharp
+ * is the one test that prints through the library: println.)
+ *
+ *      show(42)            42 and a line end
+ *      show_decimal(2.5)   the decimal as the VM prints it, and a line end
+ */
+
+/** a whole number, then a line end */
+def show(n: _int64) {
+    asm {
+        loadl ebx, [n]
+        put ebx
+        movi ebx, 10
+        putc ebx
+    }
+}
+
+/** a decimal, then a line end */
+def show_decimal(d: decimal) {
+    asm {
+        loadl ebx, [d]
+        dput ebx
+        movi ebx, 10
+        putc ebx
+    }
+}

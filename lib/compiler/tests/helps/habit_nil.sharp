@@ -1,0 +1,10 @@
+// expect: E0100
+// help: null
+// replace: nil
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    x : string? = nil;
+    if(x == null) { println("none"); }
+}

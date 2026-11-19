@@ -1,0 +1,275 @@
+mod backend.postprocessor.generics;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * THE MESSAGES FOR A TYPE THAT IS WRITTEN WRONGLY
+ *
+ * resolve_written_type.sharp finds these mistakes while it turns a written
+ * type into a resolved one; what the reader is told about each is written
+ * here, one function per message:
+ *
+ *      E0350   report_argument_count               list<int, int>
+ *      E0353   report_arguments_on_non_generic     string<int>
+ *      E0354   report_generic_without_arguments    names : list;
+ *      E0355   report_nullable_number              count : _int64?
+ *      E0356   report_nullable_items               string??     _int64[]??
+ *      E0357   report_array_of_arrays              row[]  where row is int[]
+ *      E0368   report_class_of_unknown_instance    list.node  outside list<T>
+ *
+ * A mistake found in a generic INSTANCE - `T?` where T turned out to be
+ * `_int64` - stands in the generic class, which is fine as written. Such a
+ * message gets two additions (add_instance_note): a note naming the instance,
+ * and the place in the source that uses that instance, because that is
+ * usually what has to change.
+ */
+
+/**
+ * For a mistake found in a generic instance: the note that says which
+ * instance, and the place in the source that uses that instance.
+ */
+def add_instance_note(d: diagnostic, environment: type_environment?) {
+    if(environment == null) { return; }
+    add_instance_note_only(d, environment);
+    add_first_use(d, environment!!.described_instance());
+}
+
+/** the note alone, for a message that already stands at the use */
+def add_instance_note_only(d: diagnostic, environment: type_environment?) {
+    if(environment == null) { return; }
+    inside := shortened(environment!!.described(), 72);
+    if(sizeof(inside.data) > 0) {
+        d.with_note("found while checking `" + inside + "`: the type is fine as written, but not with these type arguments");
+    }
+}
+
+/** `text`, or its first `longest` characters and "..." when it is longer (a type nested 30 deep is not worth reading) */
+def shortened(text: string, longest: _int64) : string {
+    chars : _int8[]? = text.data;
+    if(sizeof(chars) <= longest) { return text; }
+
+    start := new string_builder("");
+    for(i : _int64 = 0; i < longest; i++) {
+        start.append(chars!![i]);
+    }
+    start.append("...");
+    return start.build();
+}
+
+/** <T, U> as text, for the messages */
+def parameter_names(declared: sharp_class) : string {
+    text := new string_builder("");
+    for(i : _int64 = 0; i < declared.type_parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        text.append(declared.type_parameters.at(i).name);
+    }
+    return text.build();
+}
+
+/** E0350: list<int, int> */
+def report_argument_count(written: sharp_type, declared: sharp_class, problems: list<diagnostic>) {
+    wanted : _int64 = declared.type_parameters.size().value as _int64;
+    given : _int64 = written.arguments.size().value as _int64;
+
+    what : string = "" + wanted + " type arguments";
+    declared_with : string = "" + wanted + " type parameters";
+    if(wanted == 1) { what = "1 type argument"; declared_with = "1 type parameter"; }
+    were : string = "" + given + " were given";
+    if(given == 1) { were = "1 was given"; }
+
+    d := error_at_node("E0350", "`" + declared.name + "` takes " + what + ", but " + were, written.unit, written.node)
+        .with_label("`" + declared.name + "<" + parameter_names(declared) + ">` is declared with " + declared_with)
+        .with_related_place(place_of_node(declared.unit, declared.node, "`" + declared.name + "` is declared here"));
+
+    example := new string_builder(declared.name + "<");
+    for(i : _int64 = 0; i < wanted; i++) {
+        if(i > 0) { example.append(", "); }
+        if(i < given) { example.append(written.arguments.at(i).to_text()); }
+        else { example.append("type_for_" + declared.type_parameters.at(i).name); }
+    }
+    example.append(">");
+    d.with_help("give one type for each of " + parameter_names(declared) + ":  " + example.build());
+    problems.add(d);
+}
+
+/** E0353: string<int>, T<int>, an_alias<int> */
+def report_arguments_on_non_generic(written: sharp_type, declared: sharp_declaration, problems: list<diagnostic>) {
+    d := error_at_node("E0353", "`" + declared.name + "` is not generic; it takes no type arguments", written.unit, written.node)
+        .with_label("type arguments given to " + a_or_an(declaration_kind_name(declared.kind)) + " that has no type parameters");
+
+    if(declared.kind == D_ALIAS) {
+        d.with_note("an alias is another name for one complete type; the type arguments belong in the alias itself");
+    } else if(declared.kind == D_TYPE_PARAMETER) {
+        d.with_note("`" + declared.name + "` is a type parameter: it stands for one whole type");
+    } else {
+        d.with_related_place(place_of_node(declared.unit, declared.node, "`" + declared.name + "` is declared here, without `<...>`"));
+    }
+    d.with_help("write `" + declared.name + "` without the `<...>`");
+    problems.add(d);
+}
+
+/** "a class" / "an alias": the word with its article */
+def a_or_an(word: string) : string {
+    if(word.starts_with("a") || word.starts_with("e") || word.starts_with("i") || word.starts_with("o") || word.starts_with("u")) {
+        return "an " + word;
+    }
+    return "a " + word;
+}
+
+/**
+ * E0368: `list.node` or `list<string>.node` written outside `list<T>`.
+ * (The C++ compiler: "could not resolve symbol `node`" - a class inside a
+ * generic class is only reachable from inside it.)
+ */
+def report_class_of_unknown_instance(written: sharp_type, declared: sharp_class, problems: list<diagnostic>) {
+    outer := generic_class_around(declared);
+    names := parameter_names(outer);
+
+    d := error_at_node("E0368", "`" + declared.name + "` is declared inside the generic class `" + outer.name + "<" + names
+                       + ">` and cannot be named from outside it", written.unit, written.node)
+        .with_label("which `" + declared.name + "`? there is one for every `" + outer.name + "<...>`")
+        .with_related_place(place_of_node(declared.unit, declared.node, "`" + declared.name + "` is declared here, inside `" + outer.name + "`"))
+        .with_note("each use of `" + outer.name + "` with its own type arguments is a class of its own, with its own `" + declared.name
+                   + "`. Inside `" + outer.name + "` the name means the one that belongs to the instance at hand; out here nothing says which is meant")
+        .with_help("declare `" + declared.name + "` outside `" + outer.name + "` - as  " + declaration_kind_name(declared.kind) + " "
+                   + declared.name + "<" + names + ">  if it uses " + names + " - and write `" + declared.name + "<...>` here")
+        .with_help("or let `" + outer.name + "` hand it out: inside `" + outer.name + "` the name `" + declared.name + "` can be used, for instance as the result of a function");
+    problems.add(d);
+}
+
+/** E0354: names : list; */
+def report_generic_without_arguments(written: sharp_type, declared: sharp_class, problems: list<diagnostic>) {
+    names := parameter_names(declared);
+    d := error_at_node("E0354", "`" + declared.name + "` is a generic " + declaration_kind_name(declared.kind)
+                       + "; it needs its type arguments here", written.unit, written.node)
+        .with_label("which `" + declared.name + "`? it is declared as `" + declared.name + "<" + names + ">`")
+        .with_related_place(place_of_node(declared.unit, declared.node, "`" + declared.name + "` is declared here"))
+        .with_note("`" + declared.name + "<" + names + ">` is a blueprint; each choice of " + names
+                   + " is a class of its own, and a value must be of one of them");
+
+    example : string = "string";
+    if(declared.type_parameters.size() == 2) { example = "string, int"; }
+    else if(declared.type_parameters.size() > 2) { example = "..."; }
+    d.with_help("say what " + names + " stands for, for example:  " + declared.name + "<" + example + ">");
+    problems.add(d);
+}
+
+/** E0355: count : _int64? */
+def report_nullable_number(written: sharp_type, plain: resolved_type, environment: type_environment?,
+                           problems: list<diagnostic>) {
+    name := plain.with_marks(0, 0, 0).to_text();
+    d := error_at_node("E0355", "a `" + name + "` cannot be null, so `" + name + "?` is not a type", written.unit, written.node)
+        .with_label("`?` on a plain number")
+        .with_note("a plain number is stored as the number itself; there is no room in it for \"no value\". Only objects and arrays can be null");
+    add_instance_note(d, environment);
+
+    box := box_name_of(plain);
+    if(environment != null && plain.kind != RT_TYPE_PARAMETER && written.form == TYPE_NAMED) {
+        // `T?` inside generic code, made with a number: the code is fine as written - what
+        // to change is the type argument at the use (and the library is not the reader's
+        // to edit). The number class holds the same number and can be null.
+        if(sizeof(box.data) > 0) {
+            boxed := with_numbers_boxed(environment!!);
+            if(sizeof(boxed.data) > 0) {
+                d.with_help("give the number class instead of the plain number where it is used: `" + boxed + "` (a `" + box + "` holds a `" + name + "`, and can be null)");
+            } else {
+                d.with_help("give the number class instead of the plain number where it is used: `" + box + "` for `" + name + "`");
+            }
+        }
+        owner : type_environment? = environment;
+        while(owner != null && owner!!.parameters.size() == 0) { owner = owner!!.outer; }
+        if(owner != null && !owner!!.parameters.at(0).module.is_library()) {
+            d.with_help("or let the generic code refuse number types:  <T base _object_>");
+        }
+    } else {
+        if(sizeof(box.data) > 0) {
+            d.with_help("use the class `" + box + "` when \"no number\" must be possible:  " + box + "?");
+        }
+        d.with_help("or remove the `?` and pick a number that means \"none\" (0, -1 ...)");
+    }
+    problems.add(d);
+}
+
+/**
+ * The generic class or function being checked, written with each plain
+ * number among its type arguments replaced by its number class:
+ * `list<double>` for `list<decimal>`, `pick<double>` for `pick<decimal>`.
+ * "" when that cannot be said.
+ */
+def with_numbers_boxed(environment: type_environment) : string {
+    current : type_environment? = environment;
+    while(current != null && current!!.parameters.size() == 0) { current = current!!.outer; }
+    if(current == null) { return ""; }
+    name := "";
+    if(current!!.instance != null) { name = current!!.instance!!.written.name; }
+    else { name = generic_function_causing(current); }
+    if(sizeof(name.data) == 0) { return ""; }
+    text := new string_builder(name + "<");
+    for(i : _int64 = 0; i < current!!.arguments.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        argument := current!!.arguments.at(i);
+        box := box_name_of(argument);
+        if(argument.is_array == 0 && sizeof(box.data) > 0) { text.append(box); }
+        else { text.append(argument.to_text()); }
+    }
+    text.append(">");
+    return text.build();
+}
+
+/** the library class that holds a number of this type ("int" for _int32); "" when there is none */
+def box_name_of(type: resolved_type) : string {
+    if(type.kind == RT_DECIMAL) { return "double"; }
+    if(type.kind != RT_INTEGER) { return ""; }
+    if(type.is_signed == 1) {
+        if(type.bits == 8) { return "char"; }
+        if(type.bits == 16) { return "short"; }
+        if(type.bits == 32) { return "int"; }
+        return "long";
+    }
+    if(type.bits == 8) { return "uchar"; }
+    if(type.bits == 16) { return "ushort"; }
+    if(type.bits == 32) { return "uint"; }
+    return "ulong";
+}
+
+/** E0356: `??` where there are no items that could be null */
+def report_nullable_items(written: sharp_type, plain: resolved_type, is_array: _int64, environment: type_environment?,
+                          problems: list<diagnostic>) {
+    name := plain.with_marks(0, 0, 0).to_text();
+    if(is_array == 0) {
+        d := error_at_node("E0356", "`" + name + "??` is not a type: the second `?` is for the items of an array",
+                           written.unit, written.node)
+            .with_label("`" + name + "` is not an array")
+            .with_note("`t[]?` is an array that may be null; `t[]??` is one whose ITEMS may be null as well")
+            .with_help("write `" + name + "?` for a value that may be null, or `" + name + "[]??` for an array of them");
+        add_instance_note(d, environment);
+        problems.add(d);
+        return;
+    }
+
+    d := error_at_node("E0356", "the items of a `" + name + "[]` are plain numbers and cannot be null",
+                       written.unit, written.node)
+        .with_label("`??` on an array of numbers")
+        .with_note("the second `?` says the ITEMS may be null; a number is never null")
+        .with_help("write `" + name + "[]?` if the array itself may be null");
+    add_instance_note(d, environment);
+    problems.add(d);
+}
+
+/** E0357: an array whose items are arrays */
+def report_array_of_arrays(written: sharp_type, plain: resolved_type, environment: type_environment?,
+                           problems: list<diagnostic>) {
+    d := error_at_node("E0357", "an array of arrays is not supported", written.unit, written.node)
+        .with_label("this is already an array (`" + plain.to_text() + "`); `[]` makes an array of them")
+        .with_note("Sharp arrays have one dimension")
+        .with_help("put the inner arrays in objects:  list<" + plain.to_text() + ">  - or use one array and work out the index (row * width + column)");
+    add_instance_note(d, environment);
+    problems.add(d);
+}

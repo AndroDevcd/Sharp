@@ -1,0 +1,149 @@
+mod backend.types.declarations;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * COMPONENTS: recipes for objects that the rest of the program asks for
+ *
+ *      component app {
+ *          single { new database("main") }             one object, made on first use
+ *          factory("worker") { new worker(get()) }     a new object every time, with a name
+ *      }
+ *
+ *      inject db : database;                           a field filled from a component
+ *      w := get<worker>("worker", app);                an object asked for where it is needed
+ *
+ * This is "dependency injection": a class does not build the things it
+ * needs, it asks for them by TYPE (or by name), and one place in the program
+ * - the components - says how each is made. Three objects describe it:
+ *
+ *      sharp_component     one `component name { }` block. A block without a name
+ *                          belongs to the MAIN component; there may be several such blocks.
+ *      type_definition     one `single { }` / `factory { }` inside it: the expression that
+ *                          makes the object, and - once analysed - the type it provides
+ *      component_request   what one `get` or `inject` asks for: a type, a name, a component
+ *
+ * The analysis is in backend/compiler/components (doc/backend.md 7.20).
+ */
+
+/**
+ * ONE DEFINITION OF A COMPONENT:  single { new database() }   factory("worker") { new worker() }
+ *
+ * Recorded by stage 5 as an object. What the expression's TYPE is - what
+ * the definition provides - is known once the expression has been analysed
+ * (backend/compiler/components/definitions.sharp), which happens the first
+ * time something asks for it.
+ */
+class type_definition {
+    owner : sharp_component;        // the component it is written in
+    name : string?;                 // the name given in single("name"); null when none
+    is_factory : _int64;            // 1: a new object for every `get`; 0: one object, made on first use
+    unit : source_unit;
+    node : _int64;                  // the N_COMPONENT_TYPE node
+    value_node : _int64;            // the expression that makes the object
+
+    // ---- set when the definition is analysed (backend/compiler/components) ----
+    state : _int64 = 0;             // TYPE_UNKNOWN not analysed, TYPE_IN_PROGRESS being analysed, TYPE_KNOWN done
+    value : bound_expression?;      // the typed expression that makes the object
+    provides : resolved_type?;      // the type of the value: what a `get` / `inject` of that type receives
+    needs := new list<type_definition>();   // the definitions its own `get()`s were resolved to
+    // 1: its type is not known only because one of its own requests had to wait for a
+    // definition in progress (`factory { get<holder>() }` asks for itself) - nothing was
+    // reported yet, so it must not keep that request quiet (components/requests.sharp)
+    unknown_by_waiting : _int64 = 0;
+    // 1: it was analysed only because a search made while ANOTHER definition was
+    // being analysed looked at it, and one of its requests then had to wait; the
+    // result was put back (state TYPE_UNKNOWN again) and it is analysed afresh when
+    // that outer analysis is over. Until then it counts as "in progress"
+    // (components/definitions.sharp, "analysed too early")
+    put_back : _int64 = 0;
+    // the lambdas written in its expression (`single { new timer({ -> tick(); }) }`), as the
+    // analysis of the definition made them. A definition can be analysed a second time
+    // (put back, above); the lambdas of the dropped analysis are then taken out of the
+    // program with it (components/definitions.sharp, `forget_lambdas_of`)
+    lambdas := new list<sharp_function>();
+    // the declarations whose code receives its value: a `get` or `inject` in them, or in the value of a
+    // definition they receive (program/usage/usage.sharp). Code generation makes the definition's
+    // function only when one of them is kept (backend/finalizer/layout, doc/codegen.md 6.16).
+    requested_by := new list<sharp_declaration>();
+
+    // ---- set by code generation (backend/finalizer/layout/synthesized.sharp, doc/codegen.md 6.16) ----
+    function : sharp_function?;     // `@sub_component_init_<n>()`: gives the definition's object
+    storage : sharp_field?;         // a `single`: the static field that keeps the one object ...
+    made_flag : sharp_field?;       // ... and the flag that says it has been made
+
+    type_definition(owner: sharp_component, name: string?, is_factory: _int64, unit: source_unit,
+                    node: _int64, value_node: _int64) {
+        self->owner = owner;
+        self->name = name;
+        self->is_factory = is_factory;
+        self->unit = unit;
+        self->node = node;
+        self->value_node = value_node;
+    }
+
+    /** `single`, `factory("worker")`: how the definition is written, for messages */
+    def written_as() : string {
+        word := "single";
+        if(is_factory == 1) { word = "factory"; }
+        if(name != null) { return word + "(\"" + name!! + "\")"; }
+        return word;
+    }
+}
+
+/** component app { single { ... } factory("x") { ... } }  - for the dependency injection system */
+class sharp_component base sharp_declaration {
+    // each `single { }` / `factory("name") { }` written in it, in order (postprocessor/members/components.sharp)
+    definitions := new list<type_definition>();
+
+    sharp_component(name: string, unit: source_unit, node: _int64, module: sharp_module)
+            -> base(D_COMPONENT, name, unit, node, null, module) {
+    }
+
+    /** a block written without a name: part of the main component */
+    def is_main() : _int64 { return sizeof(name.data) == 0; }
+
+    /** "`app`", or "the main component": how a message names it */
+    def described() : string {
+        if(is_main()) { return "the main component"; }
+        return "`" + name + "`";
+    }
+}
+
+/**
+ * WHAT ONE `get` OR `inject` ASKS FOR
+ *
+ *      get<worker>("fast", app)        type worker, name "fast", component app
+ *      inject(app) db : database;      type database, component app
+ *      new worker(get())               (inside a definition) the type of the parameter it is given to
+ *
+ * Any of the three may be missing. `inside` is the component the request is
+ * written in, when it is written in a definition: that component is searched
+ * first.
+ */
+class component_request {
+    type : resolved_type?;          // the type wanted; null: whatever the named definition provides
+    name : string?;                 // the definition's name; null: found by its type
+    component_name : string?;       // the component to look in; null: every component
+    inside : sharp_component?;      // the component the request is written in; null outside components
+    unit : source_unit;
+    node : _int64;                  // the N_GET_COMPONENT, or the N_INJECT of a field or local
+    // set when it could not be settled at once (compiler/components/requests.sharp):
+    waiting_on : list<type_definition>?;    // the definitions that were being analysed then, outermost first
+    missing_code : string = "E0903";         // what "nothing answers" is called for it: E0903 (`get`), E0906 (`inject`)
+    asked_in : type_definition?;            // the definition whose value makes the request; null in ordinary code
+    // 1: written inside a LAMBDA of that definition's value. It is carried out when the lambda
+    // is called, not while the definition's object is made, so it is no edge of the circle test
+    in_lambda : _int64 = 0;
+
+    component_request(unit: source_unit, node: _int64) {
+        self->unit = unit;
+        self->node = node;
+    }
+}

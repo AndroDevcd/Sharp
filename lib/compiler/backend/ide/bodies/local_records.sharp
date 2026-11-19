@@ -1,0 +1,260 @@
+mod backend.ide.bodies;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.ide.files,
+    backend.ide.output,
+    backend.ide.positions,
+    backend.ide.types,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * THE FUNCTIONS AND THE LOCAL VARIABLES OF A FILE
+ *
+ * Completion inside a function needs two things the index of declarations cannot give:
+ * which function and class the caret is in (`functions[].body` is the text of the function),
+ * and which local variables and parameters can be seen at the caret, with their types
+ * (`locals[].visible` is the text each can be used in).
+ *
+ *      functions[]   name, class, static, lambda, in, node, body [from, to], instance
+ *      locals[]      name, type, kind, const, function, decl [from, to], visible [from, to]
+ *
+ * All the numbers are offsets (doc/ide.md 4.1). The ends of ranges are found from the tokens
+ * (positions/block_ends.sharp); where the syntax tree is not enough, "good enough" is the rule.
+ */
+
+/** the kind words of a variable (constants: made once, not at every variable) */
+const LOCAL_IS_PARAMETER : string = "parameter";
+const LOCAL_IS_LAMBDA_PARAMETER : string = "lambda_parameter";
+const LOCAL_IS_LOCAL : string = "local";
+const LOCAL_IS_FOREACH : string = "foreach";
+const LOCAL_IS_CATCH : string = "catch";
+
+/** a piece of a file as offsets: `from` included, `to` not */
+class text_range {
+    from : _int64 = 0;
+    to : _int64 = 0;
+}
+
+/**
+ * `[from, to]` of the text of a function: its `{ ... }`; for a constructor with a base call from the
+ * `->` of `-> base(...)` to the `}`; for `def f() := e;` from the `=` / `:=` to the `;`.
+ * It is the text in which the function's parameters can be used.
+ */
+def body_range_of(entry: function_entry, file: ide_file) : text_range {
+    function := entry.function;
+    tree := file.unit.parsed!!.tree;
+    table := file.unit.parsed!!.table;
+    blocks := file.blocks();
+
+    open_token : _int64 = 0 - 1;
+    if(function.is_lambda == 1) {
+        open_token = tree.tokens!![function.node];              // an N_LAMBDA is at its `{`
+    } else if(function.body >= 0) {
+        open_token = tree.tokens!![function.body];              // an N_BLOCK is at its `{`
+    } else if(function.expression < 0) {
+        block : _int64 = tree.child_of_kind(function.node, N_BLOCK);
+        if(block >= 0) { open_token = tree.tokens!![block]; }
+    }
+
+    result := new text_range();
+    if(open_token >= 0) {
+        end : _int64 = blocks.end_of_block(open_token);
+        if(end >= 0) {
+            // circle(radius: decimal) -> base("circle", radius) { ... }
+            // The call of the base constructor stands before the `{` and uses the parameters, so it is
+            // part of the function's text: the range starts at its `->`.
+            if(function.is_lambda == 0) {
+                base_call : _int64 = tree.child_of_kind(function.node, N_BASE_CALL);
+                if(base_call >= 0 && tree.tokens!![base_call] < open_token) { open_token = tree.tokens!![base_call]; }
+            }
+            result.from = file.offset_of(table.starts!![open_token]);
+            result.to = file.offset_of(end);
+            return result;
+        }
+    }
+
+    if(function.expression >= 0) {
+        // def f() := value;   the node of the value hangs under an N_EXPRESSION_BODY, which is at the `=` / `:=`
+        sign : _int64 = tree.tokens!![function.expression];
+        parent : _int64 = tree.parents!![function.expression];
+        if(parent >= 0 && tree.kinds!![parent] == N_EXPRESSION_BODY) { sign = tree.tokens!![parent]; }
+        end : _int64 = blocks.end_of_semicolon_from(sign);
+        if(end < 0) { end = table.ends!![sign]; }
+        result.from = file.offset_of(table.starts!![sign]);
+        result.to = file.offset_of(end);
+        return result;
+    }
+
+    where : _int64 = file.offset_of(table.starts!![tree.tokens!![function.node]]);
+    result.from = where;
+    result.to = where;
+    return result;
+}
+
+/** 1 when there is no `self` in the function: global code, a `static` member; for a lambda, the same of the function around it */
+def is_static_function(function: sharp_function) : _int64 {
+    current : sharp_function = function;
+    for(depth : _int64 = 0; depth < 32 && current.is_lambda == 1 && current.enclosing != null; depth++) {
+        current = current.enclosing!!;
+    }
+    if(current.is_lambda == 1) {
+        // written in the value of a field: static when that field is
+        if(current.enclosing_field != null) {
+            field := current.enclosing_field!!;
+            return field.owner == null || field.has(FLAG_STATIC) == 1;
+        }
+        return 1;
+    }
+    return current.owner == null || current.has(FLAG_STATIC) == 1;
+}
+
+/** `get`, `set`, `init`, or the function's own name */
+def function_word(function: sharp_function) : string {
+    if(function.kind == D_GETTER) { return "get"; }
+    if(function.kind == D_SETTER) { return "set"; }
+    if(function.kind == D_INIT) { return "init"; }
+    return function.name;
+}
+
+/**
+ * The text of an instance when the function was worked out for one: `box<string>` for a
+ * function of a generic class, `first_of<_int64>` for a generic function. (Not `signature()`:
+ * the instance of a generic function keeps the parameter types as they were written, so its
+ * signature reads `first_of(T[])` and does not say which instance it is.)
+ */
+def instance_text(function: sharp_function) : string {
+    if(function.type_arguments != null) {
+        arguments : list<resolved_type> = function.type_arguments!!;
+        text := new string_builder(function.name + "<");
+        for(i : _int64 = 0; i < arguments.size(); i++) {
+            if(i > 0) { text.append(", "); }
+            text.append(arguments.at(i).to_text());
+        }
+        text.append(">");
+        return text.build();
+    }
+    if(function.owner != null && function.owner!!.is_instance() == 1) { return function.owner!!.name; }
+    return "";
+}
+
+/** `functions[]` of a bodies file */
+def write_functions(w: json_writer, bodies: file_bodies, entry_ranges: list<text_range>) {
+    w.begin_array();
+    for(i : _int64 = 0; i < bodies.functions.size(); i++) {
+        entry := bodies.functions.at(i);
+        function := entry.function;
+        range := entry_ranges.at(i);
+        w.line();
+        w.begin_object();
+        w.key(KEY_NAME);  w.text(function_word(function));
+        if(function.owner != null) { w.key(KEY_CLASS);  w.text(function.owner!!.written.full_name()); }
+        w.key(KEY_STATIC);  w.flag(is_static_function(function));
+        w.key(KEY_LAMBDA);  w.flag(function.is_lambda);
+        if(function.is_lambda == 1 && entry.enclosing_number >= 0) { w.key(KEY_IN);  w.number(entry.enclosing_number); }
+        w.key(KEY_NODE);  w.number(function.node);
+        w.key(KEY_BODY);  w.pair(range.from, range.to);
+        instance : string = instance_text(function);
+        if(sizeof(instance.data) > 0) { w.key(KEY_INSTANCE);  w.text(instance); }
+        w.end_object();
+    }
+    w.line();
+    w.end_array();
+}
+
+/**
+ * The text a variable can be used in (an offset range, end excluded):
+ *
+ *      a parameter                 the whole function (a lambda's: the whole lambda)
+ *      a local                     from its name to the end of the block it is declared in
+ *      a `for` variable            to the end of the `for`
+ *      a foreach or catch variable to the end of that statement
+ *
+ * A lambda sees the variables of the function around it without any rule: their ranges
+ * contain the lambda's text.
+ */
+private def visible_range_of(variable: local_variable, kind: string, entry: function_entry, file: ide_file,
+                             function_range: text_range) : text_range {
+    tree := file.unit.parsed!!.tree;
+    table := file.unit.parsed!!.table;
+    blocks := file.blocks();
+    result := new text_range();
+
+    name_token : _int64 = tree.tokens!![variable.node];
+    result.from = file.offset_of(table.starts!![name_token]);
+    result.to = function_range.to;
+    if(kind == LOCAL_IS_PARAMETER || kind == LOCAL_IS_LAMBDA_PARAMETER) {
+        result.from = function_range.from;
+        return result;
+    }
+
+    enclosing : _int64 = tree.parents!![variable.node];
+    while(enclosing >= 0) {
+        enclosing_kind : _int64 = tree.kinds!![enclosing];
+        end : _int64 = 0 - 1;
+        if(enclosing_kind == N_BLOCK) {
+            end = blocks.end_of_block(tree.tokens!![enclosing]);
+        } else if(enclosing_kind == N_FOR || enclosing_kind == N_FOREACH || enclosing_kind == N_CATCH) {
+            end = blocks.end_of_statement_from(tree.tokens!![enclosing]);
+        }
+        if(enclosing_kind == N_BLOCK || enclosing_kind == N_FOR || enclosing_kind == N_FOREACH || enclosing_kind == N_CATCH) {
+            if(end >= 0) { result.to = file.offset_of(end); }
+            return result;
+        }
+        enclosing = tree.parents!![enclosing];
+    }
+    return result;
+}
+
+/** the kind word of a variable: parameter, local, foreach, catch, lambda_parameter */
+private def kind_of_variable(variable: local_variable, function: sharp_function, file: ide_file) : string {
+    if(variable.is_parameter == 1) {
+        if(function.is_lambda == 1) { return LOCAL_IS_LAMBDA_PARAMETER; }
+        return LOCAL_IS_PARAMETER;
+    }
+    tree := file.unit.parsed!!.tree;
+    parent : _int64 = tree.parents!![variable.node];
+    if(parent >= 0) {
+        parent_kind : _int64 = tree.kinds!![parent];
+        if(parent_kind == N_FOREACH) { return LOCAL_IS_FOREACH; }
+        if(parent_kind == N_CATCH) { return LOCAL_IS_CATCH; }
+    }
+    return LOCAL_IS_LOCAL;
+}
+
+/** `locals[]` of a bodies file: parameters and variables, in the order the functions are listed */
+def write_locals(w: json_writer, bodies: file_bodies, types: ide_types, entry_ranges: list<text_range>) {
+    file := bodies.file;
+    tree := file.unit.parsed!!.tree;
+    table := file.unit.parsed!!.table;
+    w.begin_array();
+    for(i : _int64 = 0; i < bodies.functions.size(); i++) {
+        entry := bodies.functions.at(i);
+        if(entry.local_numbers == null || entry.function.locals == null) { continue; }
+        variables : list<local_variable> = entry.function.locals!!;
+        for(j : _int64 = 0; j < variables.size(); j++) {
+            if(entry.local_numbers!![j] < 0) { continue; }
+            variable := variables.at(j);
+            kind : string = kind_of_variable(variable, entry.function, file);
+            seen := visible_range_of(variable, kind, entry, file, entry_ranges.at(i));
+            name_token : _int64 = tree.tokens!![variable.node];
+
+            w.line();
+            w.begin_object();
+            w.key(KEY_NAME);  w.text(variable.name);
+            w.key(KEY_TYPE);  w.number(resolved_type_id(types, variable.type));
+            w.key(KEY_KIND);  w.text(kind);
+            w.key(KEY_CONST);  w.flag(variable.is_const);
+            w.key(KEY_FUNCTION);  w.number(entry.number);
+            w.key(KEY_DECL);  w.pair(file.offset_of(table.starts!![name_token]), file.offset_of(table.ends!![name_token]));
+            w.key(KEY_VISIBLE);  w.pair(seen.from, seen.to);
+            w.end_object();
+        }
+    }
+    w.line();
+    w.end_array();
+}

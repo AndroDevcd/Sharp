@@ -1,0 +1,68 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.typed_tree
+)
+
+/**
+ * BRANCHES: one of several ways is taken
+ *
+ *      if(a) x(); else if(b) y(); else z();        bound_if, whose else_part is another bound_if
+ *
+ *      when(month) {                               bound_when
+ *          2 -> days = 28;                             subject_variable: a hidden local holding `month`
+ *          4, 6, 9, 11 -> days = 30;                   clauses: bound_when_clause, each with its tests
+ *          else -> days = 31;                          else_part
+ *      }
+ *
+ * A condition is already a plain number here (a `bool` object was turned into
+ * its `value`): 0 is false, anything else true.
+ */
+
+/** `if(condition) then_part else else_part` */
+class bound_if base bound_statement {
+    condition : bound_expression;           // a plain number
+    then_part : bound_statement;
+    else_part : bound_statement?;           // null: no `else`
+
+    bound_if(unit: source_unit, node: _int64, condition: bound_expression, then_part: bound_statement)
+            -> base(BS_IF, unit, node) {
+        self->condition = condition;
+        self->then_part = then_part;
+    }
+}
+
+/**
+ * `when(subject) { values -> body ... else -> body }`, or `when { conditions -> body ... }`.
+ *
+ * With a subject, it is evaluated ONCE into `subject_variable` (a hidden
+ * local), and each test of a clause is a finished condition comparing that
+ * variable with one value - "subject == value", bound exactly like the
+ * operator `==` would be (an `operator==` of the subject's class included).
+ * Without a subject each test is the written condition. The clauses are
+ * tried in order; the first whose tests has one that holds runs, and no other.
+ */
+class bound_when base bound_statement {
+    subject : bound_expression?;                    // null: `when { ... }` without a subject
+    subject_variable : local_variable?;             // the hidden local that holds the subject
+    clauses : list<bound_when_clause>;
+    else_part : bound_statement?;                   // null: no `else ->`
+
+    bound_when(unit: source_unit, node: _int64) -> base(BS_WHEN, unit, node) {
+        clauses = new list<bound_when_clause>();
+    }
+}
+
+/** `a, b -> body`: the body runs when one of the tests holds (they are tried left to right) */
+class bound_when_clause base bound_node {
+    tests : list<bound_expression>;                 // each a plain number: a finished condition
+    body : bound_statement;
+
+    bound_when_clause(unit: source_unit, node: _int64, body: bound_statement) -> base(BS_WHEN_CLAUSE, unit, node) {
+        tests = new list<bound_expression>();
+        self->body = body;
+    }
+}

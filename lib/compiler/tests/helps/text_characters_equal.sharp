@@ -1,0 +1,11 @@
+// expect: E0511
+// help: w == p.first
+// replace: p.first == w
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    d := { "the" : 1 };
+    w : string = "the";
+    foreach(p in d) { if(p.first == w) { println("found"); } }
+}

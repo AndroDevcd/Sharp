@@ -1,0 +1,15 @@
+mod frontend.syntax.tree;
+
+/**
+ * THE SYNTAX TREE: what the parser builds and everything else reads
+ *
+ * The files of this package (module `frontend.syntax.tree`):
+ *
+ *      syntax_tree.sharp   the tree of one file, as flat arrays (kinds, tokens, parents, children)
+ *      syntax_kinds.sharp  the kinds of node, N_...
+ *      parse_state.sharp   what the parser carries while it works on one file; the finished file's tokens and tree
+ *      source_unit.sharp   one source file on its way through the compiler; parse_file_unit
+ *      token_spans.sharp   the first and last token of a subtree, and the source text between two tokens
+ *
+ * This file is the package's front door: it only says what is where.
+ */

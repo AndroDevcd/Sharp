@@ -1,0 +1,29 @@
+mod backend.compiler.names;
+
+/**
+ * NAME RESOLUTION: what a name in a body means
+ *
+ *      total = count * price;      three names. Each is a local variable, a parameter, a field of
+ *                                  the class or of a class above it, a global of the module or of
+ *                                  an imported module, a class, an enum value ... or a mistake.
+ *
+ * This package ANSWERS the question and builds no tree: it returns a
+ * `lookup_result` and the expression code (backend/compiler/expressions)
+ * decides what to make of it. It is the bootstrap's version of the C++
+ * compiler's dependency/dependency.cpp, in pieces.
+ *
+ * The files of this package (module `backend.compiler.names`):
+ *
+ *      names.sharp             this front door
+ *      lookup_result.sharp     what a name was found to be
+ *      name_lookup.sharp       a plain name: locals, the class and its bases, the modules the file sees
+ *      class_members.sharp     the member of a class called so-and-so, through the base chain
+ *      access_rules.sharp      private / protected / local; instance members from static code
+ *      not_found.sharp         "there is no ..." for a plain name: did-you-mean, and "it exists, but ..."
+ *      other_language_habits.sharp  ... when the unknown name is another language's way of writing
+ *                              something: `total = 0;`, `f(width = 2)`, `for(i; ...)`, `brake;`
+ *      no_member.sharp         "... has no member named ..." for `point.z` and `std.io#prnt`
+ *      visible_names.sharp     every name visible from a place, for did-you-mean
+ *
+ * This file is the package's front door: it only says what is where.
+ */

@@ -1,0 +1,47 @@
+mod backend.types.typed_tree;
+
+/**
+ * THE TYPED TREE (also called the "bound" tree)
+ *
+ * The syntax tree says what the programmer WROTE. The typed tree says what it
+ * MEANS: one object per expression and statement of a function body, each
+ * carrying what analysis worked out about it - its type, which variable a name
+ * is, which conversion is applied to a value, later which function a call
+ * runs. "Binding" is the textbook word for tying a name to its meaning, hence
+ * the `bound_` in front of every class.
+ *
+ *      total := price as _int64;
+ *
+ *      bound_local_declaration  total : _int64
+ *        bound_cast             decimal -> _int64
+ *          bound_field          price : decimal      (of `self`)
+ *            bound_self
+ *
+ * The trees are pure data and belong to the declaration they were built for
+ * (`sharp_function.bound_body`, `sharp_field.bound_initializer`); that is why
+ * they live under backend/types. The code that BUILDS them is
+ * backend/compiler. A code generator will walk them without looking at the
+ * syntax tree again.
+ *
+ * The files of this package (module `backend.types.typed_tree`):
+ *
+ *      typed_tree.sharp        this front door
+ *      bound_node.sharp        what all nodes share; the kinds of expression (BX_...);
+ *                              the error node and the "a later stage builds this" node
+ *      bound_values.sharp      literals, null, locals, fields, enum values, self, base, type names
+ *      bound_operators.sharp   conversion, cast, is, !!, ?., ?:, ? :, sizeof
+ *      bound_arithmetic.sharp  the operators the VM does itself (on numbers, == on references),
+ *                              && ||, -a !a, ++ --, assignment into storage
+ *      bound_collections.sharp array element, new array, array literal, string template, dictionary
+ *      bound_calls.sharp       a call of a declared function (also an operator, an index, a getter
+ *                              or setter in disguise), a call of a function value, `new`,
+ *                              `get<t>()` (the component definition it was resolved to)
+ *      bound_function_values.sharp   a function VALUE: a function named as a value, a lambda
+ *      tree_parts.sharp        the expressions directly below an expression (for passes that visit them all)
+ *      statements/             the statements (a package of its own: backend.types.typed_tree.statements)
+ *      conversion.sharp        HOW a value of one type becomes another
+ *
+ *      C++ comparison: the old compiler has no such tree. Its `expression`
+ *      objects hold a type AND the generated code, so analysis and code
+ *      generation are one step there (lib/grammar/backend/operation).
+ */

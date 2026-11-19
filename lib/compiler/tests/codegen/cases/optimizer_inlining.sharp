@@ -1,0 +1,240 @@
+mod main;
+
+// output:
+// 0
+// 2.5
+// 5
+// 0
+// 0
+// 2.5
+// 5
+// 0
+// 10
+// 107
+// 7
+// 114
+// 44
+// -128
+// -24
+// 10
+// 20
+// -1
+// -713
+// 5
+// 42
+// 1
+// 1
+// 2.5
+// 0.25
+// 10
+// 15
+// 50
+// 5
+// 1.5
+// -56
+// 0
+// 1
+// 77
+// 0
+// 2
+// 77
+// 0
+// 3
+// 77
+// 0
+// 3
+// 6
+// 0
+// 1
+// -5
+// -6
+// -7
+// 9
+
+/*
+ * THE OPTIMIZER, INLINING (doc/codegen.md 7.2, 13.6): what a body copied into its caller must keep
+ *
+ * Like cases/optimizer.sharp, nothing here has a result of its own: codegen.sh builds the file
+ * plain and with -O, and both must print the block the C++-built program prints. Written by
+ * the verifier of the optimizer stage; each part is a way an inliner goes wrong:
+ *
+ *   - a local of the body that is set on one path only: the bodies copied into one caller
+ *     SHARE their extra slots, and a body copied into a loop runs again and again in the same
+ *     slots - the local must start at 0 (0.0) every time, never hold what the last body left;
+ *   - a body that changes its parameter: the caller's argument must not change;
+ *   - the narrowing of a returned value (`: _int8`), several returns, a body without a value,
+ *     a body that calls another one, two that call each other;
+ *   - getters and setters on an object that stays and on one that is passed on;
+ *   - objects that are only read through their fields (box elimination): the fields start at
+ *     0 / null in every round of a loop; an object that is compared or stored stays an object;
+ *   - an exception raised inside a copied body (a field of null, an element out of range) is
+ *     caught by the caller's `try` as before.
+ */
+
+class point {
+    x : _int64 = 0;
+    y : _int64 = 0;
+    small : _int8 = 0;
+    d : decimal = 0;
+    next : point?;
+
+    point(x: _int64, y: _int64) {
+        self->x = x;
+        self->y = y;
+    }
+
+    def get_x() : _int64 { return x; }
+    def set_x(v: _int64) { x = v; }
+    def sum() : _int64 { return x + y; }
+    def bump() : _int64 { x = x + 1; return x; }
+}
+
+class plain {
+    a : _int64;
+    b : decimal;
+    c : plain?;
+    s : _int8;
+}
+
+/** a local that is only set on one path: must be 0 on the other, every time */
+def maybe_set(a: _int64) : _int64 {
+    x : _int64;
+    if(a > 0) { x = 5; }
+    return x;
+}
+
+def maybe_set_decimal(a: _int64) : decimal {
+    x : decimal;
+    if(a > 0) { x = 2.5; }
+    return x;
+}
+
+def changes_its_parameter(a: _int64) : _int64 {
+    a = a + 100;
+    return a;
+}
+
+def narrow_return(a: _int64) : _int8 {
+    return a as _int8;
+}
+
+def pick(a: _int64, b: _int64, c: _int64) : _int64 {
+    if(a > 0) { return b; }
+    if(a < 0) { return c; }
+    return 0 - 1;
+}
+
+def no_value(p: point, v: _int64) {
+    if(v == 3) { return; }
+    p.x = p.x + v;
+}
+
+def twice(a: _int64) : _int64 { return add_one(add_one(a)); }
+def add_one(a: _int64) : _int64 { return a + 1; }
+
+def even(n: _int64) : _int64 { if(n == 0) { return 1; } return odd(n - 1); }
+def odd(n: _int64) : _int64 { if(n == 0) { return 0; } return even(n - 1); }
+
+def half(d: decimal) : decimal { return d / 2; }
+
+def first_of(a: _int64[]) : _int64 { return a[0]; }
+
+def field_of(p: point?) : _int64 { return p!!.x; }
+def field_plain(p: point) : _int64 { return p.x; }
+
+def main() {
+    // ---- inlined bodies with a local not set on every path, in a loop
+    for(i : _int64 = 0; i < 4; i++) {
+        show(maybe_set(i % 2));
+        show_decimal(maybe_set_decimal((i + 1) % 2));
+    }
+    show(maybe_set(1) + maybe_set(0) + maybe_set(1));
+
+    // ---- the argument is not changed in the caller
+    n : _int64 = 7;
+    show(changes_its_parameter(n));
+    show(n);
+    show(changes_its_parameter(n) + n);
+
+    // ---- narrowing
+    show(narrow_return(300));
+    show(narrow_return(128));
+    big : _int64 = 1000;
+    show(narrow_return(big) + narrow_return(big + 24));
+
+    // ---- several returns
+    show(pick(1, 10, 20));
+    show(pick(0 - 1, 10, 20));
+    show(pick(0, 10, 20));
+    total : _int64 = 0;
+    for(i : _int64 = 0 - 2; i < 3; i++) { total = total * 3 + pick(i, i + 5, i - 5); }
+    show(total);
+
+    // ---- no value
+    p := new point(1, 2);
+    no_value(p, 3);
+    no_value(p, 4);
+    show(p.x);
+    show(twice(40));
+    show(even(10));
+    show(odd(7));
+    show_decimal(half(5));
+    show_decimal(half(half(1)));
+
+    // ---- getters, setters, on objects that stay and objects that leave
+    q := new point(3, 4);
+    q.set_x(q.get_x() * 2);
+    show(q.sum());
+    show(q.bump() + q.bump());
+    keep : point = q;
+    keep.set_x(50);
+    show(q.get_x());
+
+    // ---- objects that could become slots
+    r := new plain();
+    r.a = 5;
+    r.b = 1.5;
+    r.s = 200 as _int8;
+    show(r.a);
+    show_decimal(r.b);
+    show(r.s);
+    for(i : _int64 = 0; i < 3; i++) {
+        t := new plain();
+        show(t.a);          // 0 every round
+        t.a = t.a + i + 1;
+        show(t.a);
+        if(t.c == null) { show(77); }
+    }
+    for(i : _int64 = 0; i < 3; i++) {
+        u := new point(i, i * 2);
+        show(u.sum());
+        u.next = u;
+    }
+    // an object that is compared stays an object
+    v := new plain();
+    w := new plain();
+    if(v == w) { show(1); } else { show(0); }
+    if(v == v) { show(1); } else { show(0); }
+
+    // ---- exceptions inside inlined bodies
+    nothing : point? = null;
+    try {
+        show(field_of(nothing));
+    } catch(e: exception) {
+        show(0 - 5);
+    }
+    try {
+        show(field_plain(nothing!!));
+    } catch(e: exception) {
+        show(0 - 6);
+    }
+    empty := new _int64[0];
+    try {
+        show(first_of(empty));
+    } catch(e: exception) {
+        show(0 - 7);
+    }
+    filled := new _int64[2];
+    filled[0] = 9;
+    show(first_of(filled));
+}

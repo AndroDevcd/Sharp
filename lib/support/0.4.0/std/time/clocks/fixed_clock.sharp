@@ -1,0 +1,25 @@
+mod std.time;
+
+/**
+ * A clock that always shows the same moment.
+ *
+ * For tests and for code that must treat a whole operation as happening "at
+ * one time" (take the time once, wrap it in a fixed_clock, hand that around).
+ * It is immutable; use `manual_clock` for a clock a test can move.
+ *
+ *     c := new fixed_clock(instant.parse("2024-02-29T12:00:00Z"));
+ *     c.now().to_string()      // always "2024-02-29T12:00:00Z"
+ */
+class fixed_clock : clock {
+    private moment : instant;
+
+    /** a clock that is stopped at `at` */
+    fixed_clock(at: instant) {
+        moment = at;
+    }
+
+    /** the moment the clock was created with, every time */
+    override def now(): instant {
+        return moment;
+    }
+}

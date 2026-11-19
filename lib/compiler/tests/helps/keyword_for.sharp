@@ -1,0 +1,9 @@
+// expect: E0100
+// help: for
+// replace: fro
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    fro(i := 0; i < 3; i++) { println(i); }
+}

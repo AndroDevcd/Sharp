@@ -1,0 +1,105 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions
+)
+
+/**
+ * `-x` AND `!x`
+ *
+ *      operand                 -x                              !x
+ *      ----------------------  ------------------------------  ----------------------------
+ *      a number                the same type                   _int8: 1 when x is 0, else 0
+ *      a literal               folded: `-5` is the literal -5  folded, with W1010 (`!0` is `true`)
+ *      an object               its operator-() (no parameter)  its operator!()     else E0511
+ *      object                  E0512                           E0512
+ *      an array, text          E0514                           E0514
+ *
+ * (`++` and `--` are assignments: backend/compiler/expressions/assignment.)
+ *
+ *      C++ comparison: `compile_unary_prefix_expression` in
+ *      unary/unary_expression.cpp.
+ */
+def analyse_unary(context: analysis_context, node: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    operation : _int64 = token_kind_at(context, node);
+    operand := analyse_value(context, context.tree.first_child!![node], null);
+    type : resolved_type = operand.type;
+    if(type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+
+    if(type.is_boolean() && operation != P_NOT) {
+        report_unary_does_not_apply(context, node, operand);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(type.is_number()) {
+        if(is_number_literal(operand)) { return fold_unary(context, node, operation, operand); }
+        result_type : resolved_type = type;
+        if(operation == P_NOT) { result_type = context.session.types.bool_type; }
+        operands : _int64 = OPERANDS_INTEGER;
+        if(type.kind == RT_DECIMAL) { operands = OPERANDS_DECIMAL; }
+        made := new bound_unary(context.unit, node, operation, operand, operands, result_type);
+        if(operand.constant != null && operand.constant!!.kind != CONST_TEXT) {
+            made.constant = unary_constant(operation, operand.constant!!);
+        }
+        return made;
+    }
+    if(type.kind == RT_CLASS && type.is_array == 0) {
+        called := call_operator(context, node, operand, "operator" + name_at(context, node), new list<call_argument>());
+        if(called != null) { return called!!; }
+        if(reported_as_misdeclared(context, node, type.class_of!!, "operator" + name_at(context, node), 0)) {
+            return new bound_error(context.unit, node, error_type);
+        }
+        d := problem_at(context, "E0511", "`" + type.to_text() + "` has no `operator" + name_at(context, node) + "()`", node);
+        d.with_label("no such operator");
+        d.with_note("`" + name_at(context, node) + "x` on an object calls the function `operator" + name_at(context, node)
+                    + "()` of its class, without parameters");
+        if(operation == P_NOT) {
+            // `if(!thing)` is how other languages ask "is there none?"
+            d.with_help("to ask whether there is NO object write `" + source_text_of(context, operand.node) + " == null`");
+        }
+        add_number_in_text_help(context, d, operand, name_at(context, node));
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(type.kind == RT_OBJECT && type.is_array == 0) {
+        report_operator_on_object(context, node, operand);
+    } else {
+        report_unary_does_not_apply(context, node, operand);
+    }
+    return new bound_error(context.unit, node, error_type);
+}
+
+/** `-5`, `!0`, `-2.5`: a literal again, of the same kind */
+def fold_unary(context: analysis_context, node: _int64, operation: _int64, operand: bound_expression) : bound_expression {
+    value : constant_value = unary_constant(operation, operand.constant!!);
+    if(operation == P_NOT) {
+        warn_not_on_literal(context, node, whole_of(value));
+        return bool_literal(context, node, whole_of(value));
+    }
+    if(value.kind == CONST_DECIMAL) {
+        return new bound_literal(context.unit, node, context.session.types.decimal_type, value, LIT_DECIMAL);
+    }
+    if(operand.literal == LIT_INTEGER) { return whole_literal(context, node, value.integer); }
+    return new bound_literal(context.unit, node, operand.type, value, operand.literal);
+}
+
+/** the constant of `-c` / `!c` */
+def unary_constant(operation: _int64, value: constant_value) : constant_value {
+    if(operation == P_NOT) {
+        if(value.kind == CONST_DECIMAL) { return integer_constant(value.number == 0); }
+        return integer_constant(value.integer == 0);
+    }
+    if(value.kind == CONST_DECIMAL) { return decimal_constant(0 - value.number); }
+    return integer_constant(0 - value.integer);
+}

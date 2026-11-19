@@ -1,0 +1,627 @@
+mod backend.preprocessor;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * STAGE 1 OF THE BACKEND: PRE-PROCESSING
+ *
+ * Walk the syntax tree of every file and build an object for everything it
+ * declares (backend/types): a sharp_class for each class with its fields,
+ * functions, constructors and nested classes inside it, a sharp_function for
+ * each function with its parameters, a sharp_type for every type that is
+ * written in a declaration.
+ *
+ *      class point base shape {            sharp_class point
+ *          x : decimal = 0;                  base_type: shape (not looked up yet)
+ *          def length() : decimal { }        fields:    [ x : decimal, initializer -> tree node ]
+ *      }                                     functions: [ length() : decimal, body -> tree node ]
+ *
+ * Everything that can be READ OFF THE TEXT is filled in here. Nothing is
+ * LOOKED UP: the preprocessor does not know what `shape` is, only that the
+ * word after `base` is "shape". That makes the order of files and of the
+ * declarations inside them irrelevant - a class can be used above the line
+ * that declares it, or in a file read before the one that declares it. (The
+ * textbook answer to "forward references"; a one-pass compiler makes the
+ * programmer declare things before using them instead.) Looking names up is
+ * the next stage, backend/postprocessor.
+ *
+ * Function BODIES and the values of fields are not turned into objects. The
+ * objects point at their tree nodes (sharp_function.body,
+ * sharp_field.initializer); the compiler stage works on them from there.
+ *
+ * (The C++ compiler's stage of the same name: lib/grammar/backend/preprocessor.)
+ *
+ *      pre_process(units, problems)    the way in; gives the sharp_program
+ */
+def pre_process(units: list<source_unit>, problems: list<diagnostic>) : sharp_program {
+    prog := new sharp_program();
+
+    for(i : _int64 = 0; i < units.size(); i++) {
+        unit := units.at(i);
+        if(!unit.is_good()) { continue; }       // a file with syntax errors has no tree to trust
+
+        module := prog.module_named(module_name_of(unit));
+        module.units.add(unit);
+        file := new sharp_file(unit, module);
+        prog.files.add(file);
+        prog.files_by_path.put(unit.file, file);
+
+        declare_children(prog, file, 0, null, 0, problems);
+    }
+    return prog;
+}
+
+/**
+ * The module a file says it belongs to (`mod std.io;` -> "std.io").
+ * A file without a `mod` line is in the module with the empty name.
+ */
+def module_name_of(unit: source_unit) : string {
+    tree : syntax_tree = unit.parsed!!.tree;
+    module_node : _int64 = tree.child_of_kind(0, N_MODULE);
+    if(module_node < 0) {
+        return "";
+    }
+    return dotted_name(unit, module_node);
+}
+
+/**
+ * Declare every child of `parent` that is a declaration.
+ *
+ * @param owner        the class the declarations are members of; null: they belong to the file's module
+ * @param extra_flags  flags every one of them gets on top of its own (FLAG_MUTATED for a mutate block)
+ */
+def declare_children(prog: sharp_program, file: sharp_file, parent: _int64, owner: sharp_class?,
+                     extra_flags: _int64, problems: list<diagnostic>) {
+    tree : syntax_tree = file.unit.parsed!!.tree;
+    child : _int64 = tree.first_child!![parent];
+    while(child >= 0) {
+        declare(prog, file, child, owner, extra_flags, problems);
+        child = tree.next_sibling!![child];
+    }
+}
+
+/** build the object for the declaration at `node`, and for what it contains */
+def declare(prog: sharp_program, file: sharp_file, node: _int64, owner: sharp_class?, extra_flags: _int64,
+            problems: list<diagnostic>) {
+    tree : syntax_tree = file.unit.parsed!!.tree;
+    kind : _int64 = tree.kinds!![node];
+
+    if(kind == N_CLASS) { declare_class(prog, file, node, D_CLASS, owner, extra_flags, problems); }
+    else if(kind == N_INTERFACE) { declare_class(prog, file, node, D_INTERFACE, owner, extra_flags, problems); }
+    else if(kind == N_ENUM) { declare_enum(file, node, owner, extra_flags, problems); }
+    else if(kind == N_ALIAS) { declare_alias(file, node, owner, extra_flags, problems); }
+    else if(kind == N_FUNCTION) { declare_function(file, node, owner, extra_flags); }
+    else if(kind == N_CONSTRUCTOR) { declare_constructor(file, node, owner, extra_flags); }
+    else if(kind == N_INIT) { declare_init_block(file, node, owner, extra_flags); }
+    else if(kind == N_VARIABLE) { declare_fields(file, node, owner, extra_flags); }
+    else if(kind == N_COMPONENT) { declare_component(file, node); }
+    else if(kind == N_MUTATE) {
+        // `mutate x { members }` adds members to a class declared somewhere
+        // else. Which class `x` is can only be said once every class is
+        // known, so it is noted here and carried out by the postprocessor.
+        prog.mutations.add(new pending_mutation(file, node));
+    }
+    // (N_MODULE, N_IMPORT and N_OBFUSCATE declare nothing.)
+}
+
+/** where a declaration with this owner is entered by name: the class's members, or the module's */
+def scope_for(file: sharp_file, owner: sharp_class?) : scope {
+    if(owner != null) { return owner!!.members!!; }
+    return file.module.declared;
+}
+
+// ---------------------------------------------------------------------------
+// classes, interfaces, enums, aliases
+// ---------------------------------------------------------------------------
+
+/**
+ * class name<T> base parent : interface, interface { members }
+ * (and the same with `interface`)
+ */
+def declare_class(prog: sharp_program, file: sharp_file, node: _int64, kind: _int64, owner: sharp_class?,
+                  extra_flags: _int64, problems: list<diagnostic>) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    declared := new sharp_class(kind, node_text(unit, node), unit, node, owner, file.module);
+    declared.flags = flags_of(unit, node) | extra_flags;
+    report_if_declared_twice(file, declared, owner, problems);
+    scope_for(file, owner).add(declared);
+    if(owner != null) { owner!!.classes.add(declared); }
+    else { file.module.classes.add(declared); }
+
+    // <T, U base x>: names that stand for types inside the class
+    parameters : _int64 = tree.child_of_kind(node, N_GENERIC_PARAMETERS);
+    if(parameters >= 0) {
+        parameter : _int64 = tree.first_child!![parameters];
+        while(parameter >= 0) {
+            type_parameter := make_type_parameter(unit, parameter, declared, file.module);
+            declared.type_parameters.add(type_parameter);
+            declared.members!!.add(type_parameter);
+            parameter = tree.next_sibling!![parameter];
+        }
+    }
+
+    // base parent
+    base_node : _int64 = tree.child_of_kind(node, N_BASE);
+    if(base_node >= 0) {
+        name_node : _int64 = tree.child_of_kind(base_node, N_TYPE_NAME);
+        if(name_node >= 0) { declared.base_type = make_named_type(unit, name_node); }
+    }
+
+    // : interface, interface
+    interfaces : _int64 = tree.child_of_kind(node, N_INTERFACES);
+    if(interfaces >= 0) {
+        name_node : _int64 = tree.first_child!![interfaces];
+        while(name_node >= 0) {
+            if(tree.kinds!![name_node] == N_TYPE_NAME) {
+                declared.interface_types.add(make_named_type(unit, name_node));
+            }
+            name_node = tree.next_sibling!![name_node];
+        }
+    }
+
+    members : _int64 = tree.child_of_kind(node, N_MEMBERS);
+    if(members >= 0) {
+        // (no extra flags: a class added by a `mutate` block is itself FLAG_MUTATED;
+        // what is written inside it is written in it like in any other class)
+        declare_children(prog, file, members, declared, 0, problems);
+    }
+}
+
+/** enum color { red, green = 5, blue } */
+def declare_enum(file: sharp_file, node: _int64, owner: sharp_class?, extra_flags: _int64,
+                 problems: list<diagnostic>) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    declared := new sharp_class(D_ENUM, node_text(unit, node), unit, node, owner, file.module);
+    declared.flags = flags_of(unit, node) | extra_flags;
+    report_if_declared_twice(file, declared, owner, problems);
+    scope_for(file, owner).add(declared);
+    if(owner != null) { owner!!.classes.add(declared); }
+    else { file.module.classes.add(declared); }
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_ENUM_VALUE) {
+            value := new sharp_enum_value(node_text(unit, child), unit, child, declared, file.module);
+            value.value_node = tree.first_child!![child];       // the expression after `=`, or -1
+            declared.enum_values.add(value);
+            declared.members!!.add(value);
+        }
+        child = tree.next_sibling!![child];
+    }
+}
+
+/** alias list<string> as names; */
+def declare_alias(file: sharp_file, node: _int64, owner: sharp_class?, extra_flags: _int64,
+                  problems: list<diagnostic>) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    declared := new sharp_alias(node_text(unit, node), unit, node, owner, file.module);
+    declared.flags = alias_flags(flags_of(unit, node) | extra_flags, owner);
+    type_node : _int64 = tree.child_of_kind(node, N_TYPE);
+    if(type_node >= 0) { declared.target = make_type(unit, type_node); }
+
+    report_if_declared_twice(file, declared, owner, problems);
+    scope_for(file, owner).add(declared);
+    if(owner != null) { owner!!.aliases.add(declared); }
+    else { file.module.aliases.add(declared); }
+}
+
+/**
+ * Who may name an alias is decided by WHERE it is declared, never by the
+ * words written in front of it: an alias in a module is public, an alias in
+ * a class is private (only that class may name it). The C++ parser reads
+ * `private alias ...` / `public alias ...` and throws the words away
+ * (parseAliasDeclaration frees its access list), so a program that writes
+ * them means exactly this. The words themselves get the warning W1040 in
+ * the modifiers check. The flags are set here, at declaration, because the
+ * type-names stage checks access (E0700) before the members stage would add
+ * the defaults.
+ */
+def alias_flags(written: _int64, owner: sharp_class?) : _int64 {
+    flags : _int64 = written - (written & (FLAG_PUBLIC | FLAG_PRIVATE | FLAG_PROTECTED | FLAG_LOCAL));
+    if(owner == null) { return flags | FLAG_PUBLIC | FLAG_STATIC; }
+    return flags | FLAG_PRIVATE | FLAG_STATIC;
+}
+
+/**
+ * Two types with one name in the same scope is an error - reported at the
+ * second, with the first shown.
+ */
+def report_if_declared_twice(file: sharp_file, declared: sharp_declaration, owner: sharp_class?,
+                             problems: list<diagnostic>) {
+    first := scope_for(file, owner).find_type(declared.name);
+    if(first == null) { return; }
+
+    // which of the two has a member is anybody's guess: neither is asked "you have no member ..."
+    if(is_declared_as_class(first!!)) { (first as sharp_class).members_uncertain = 1; }
+    if(is_declared_as_class(declared)) { (declared as sharp_class).members_uncertain = 1; }
+
+    where : string = "module `" + file.module.name + "`";
+    if(owner != null) { where = "`" + owner!!.qualified_name() + "`"; }
+
+    problems.add(error_at_node("E0302", "`" + declared.name + "` is declared twice in " + where, declared.unit, declared.node)
+        .with_label("a second " + declaration_kind_name(declared.kind) + " with this name")
+        .with_related_place(place_of_node(first!!.unit, first!!.node, "the first one is here"))
+        .with_help("rename one of them, or delete the one that is not meant to exist"));
+}
+
+/** a class, an interface or an enum: the declarations that are a sharp_class object */
+def is_declared_as_class(declared: sharp_declaration) : _int64 {
+    return declared.kind == D_CLASS || declared.kind == D_INTERFACE || declared.kind == D_ENUM;
+}
+
+/** T  or  T base constraint */
+def make_type_parameter(unit: source_unit, node: _int64, owner: sharp_class?, module: sharp_module) : sharp_type_parameter {
+    tree : syntax_tree = unit.parsed!!.tree;
+    parameter := new sharp_type_parameter(node_text(unit, node), unit, node, owner, module);
+    constraint : _int64 = tree.child_of_kind(node, N_TYPE);
+    if(constraint >= 0) { parameter.constraint = make_type(unit, constraint); }
+    return parameter;
+}
+
+// ---------------------------------------------------------------------------
+// fields
+// ---------------------------------------------------------------------------
+
+/**
+ * A variable declaration: one field per name.
+ *
+ *      private a : decimal = 1, b = 2;     two fields; `b` has the flags and the type of `a`
+ */
+def declare_fields(file: sharp_file, node: _int64, owner: sharp_class?, extra_flags: _int64) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    first := declare_one_field(file, node, owner, flags_of(unit, node) | extra_flags, null);
+
+    more : _int64 = tree.first_child!![node];
+    while(more >= 0) {
+        if(tree.kinds!![more] == N_VARIABLE) {
+            declare_one_field(file, more, owner, first.flags, first.type);
+        }
+        more = tree.next_sibling!![more];
+    }
+}
+
+/**
+ * @param shared_type  for the second and further names of a declaration: the
+ *                     type written for the first, which they share (null: none was written)
+ */
+def declare_one_field(file: sharp_file, node: _int64, owner: sharp_class?, flags: _int64,
+                      shared_type: sharp_type?) : sharp_field {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    declared := new sharp_field(node_text(unit, node), unit, node, owner, file.module);
+    declared.flags = flags;
+    declared.type = shared_type;
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind == N_TYPE) {
+            declared.type = make_type(unit, child);
+        } else if(kind == N_INITIALIZER) {
+            declared.initializer = tree.first_child!![child];       // the value itself
+        } else if(kind == N_INJECT) {
+            declared.inject_node = child;
+        } else if(kind == N_GETTER) {
+            declared.getter = make_accessor(file, child, D_GETTER, declared);
+        } else if(kind == N_SETTER) {
+            declared.setter = make_accessor(file, child, D_SETTER, declared);
+        }
+        child = tree.next_sibling!![child];
+    }
+
+    scope_for(file, owner).add(declared);
+    if(owner != null) { owner!!.fields.add(declared); }
+    else { file.module.fields.add(declared); }
+    return declared;
+}
+
+/**
+ * get { ... }      set value -> { ... }
+ * Functions that belong to a field. They are reached through the field, not
+ * by a name of their own, so they are in no scope.
+ */
+def make_accessor(file: sharp_file, node: _int64, kind: _int64, field: sharp_field) : sharp_function {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    accessor := new sharp_function(kind, field.name, unit, node, field.owner, file.module);
+    accessor.flags = flags_of(unit, node);
+    if(accessor.flags == 0) { accessor.flags = field.flags; }      // no words of its own: it is as visible as its field
+    accessor.field = field;
+    accessor.body = body_of(tree, node);
+
+    if(kind == D_SETTER) {
+        value_name : _int64 = tree.child_of_kind(node, N_NAME);
+        if(value_name >= 0) {
+            // the new value has the type of the field
+            accessor.parameters.add(new sharp_parameter(node_text(unit, value_name), field.type, value_name));
+        }
+    } else {
+        accessor.return_type = field.type;
+    }
+    return accessor;
+}
+
+// ---------------------------------------------------------------------------
+// functions, constructors, init blocks
+// ---------------------------------------------------------------------------
+
+/** `"sensors"` -> `sensors`: the text of a string token without its quotes */
+def text_without_quotes(text: string) : string {
+    size : _int64 = sizeof(text.data);
+    if(size >= 2 && text.data!![0] == '"' && text.data!![size - 1] == '"') { return new string(text.data!!, 1, size - 1); }
+    return text;
+}
+
+/** def name<T>(parameters) : type { body }   and its other forms (sharp_function.sharp) */
+def declare_function(file: sharp_file, node: _int64, owner: sharp_class?, extra_flags: _int64) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    declared := new sharp_function(D_FUNCTION, function_name(unit, node), unit, node, owner, file.module);
+    declared.flags = flags_of(unit, node) | extra_flags;
+    declared.is_operator = tree.child_of_kind(node, N_OPERATOR_NAME) >= 0;
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind == N_TYPE_NAME) {
+            declared.extends = make_named_type(unit, child);        // def string.shout()
+        } else if(kind == N_GENERIC_PARAMETERS) {
+            parameter : _int64 = tree.first_child!![child];
+            while(parameter >= 0) {
+                declared.type_parameters.add(make_type_parameter(unit, parameter, owner, file.module));
+                parameter = tree.next_sibling!![parameter];
+            }
+        } else if(kind == N_PARAMETERS) {
+            add_parameters(unit, child, declared);
+        } else if(kind == N_RETURN_TYPE) {
+            type_node : _int64 = tree.child_of_kind(child, N_TYPE);
+            if(type_node >= 0) { declared.return_type = make_type(unit, type_node); }
+            else { declared.returns_nil = 1; }
+        } else if(kind == N_BLOCK) {
+            declared.body = child;
+        } else if(kind == N_EXPRESSION_BODY) {
+            declared.expression = tree.first_child!![child];
+        } else if(kind == N_NATIVE_LIBRARY) {
+            declared.native_library = text_without_quotes(node_text(unit, child));     // native "sensors" { ... }
+        }
+        child = tree.next_sibling!![child];
+    }
+
+    scope_for(file, owner).add(declared);
+    if(owner != null) { owner!!.functions.add(declared); }
+    else { file.module.functions.add(declared); }
+}
+
+/** the name of a function; an operator function is called "operator" + the operator: operator+, operator[] */
+def function_name(unit: source_unit, node: _int64) : string {
+    tree : syntax_tree = unit.parsed!!.tree;
+    operator_node : _int64 = tree.child_of_kind(node, N_OPERATOR_NAME);
+    if(operator_node < 0) {
+        return node_text(unit, node);
+    }
+
+    name := "operator" + node_text(unit, operator_node);
+    if(name == "operator[") { name = "operator[]"; }
+    return name;
+}
+
+/** (a: int, b: string): one sharp_parameter each */
+def add_parameters(unit: source_unit, parameters: _int64, function: sharp_function) {
+    tree : syntax_tree = unit.parsed!!.tree;
+    parameter : _int64 = tree.first_child!![parameters];
+    while(parameter >= 0) {
+        if(tree.kinds!![parameter] == N_PARAMETER) {
+            type : sharp_type? = null;
+            type_node : _int64 = tree.child_of_kind(parameter, N_TYPE);
+            if(type_node >= 0) { type = make_type(unit, type_node); }
+            function.parameters.add(new sharp_parameter(node_text(unit, parameter), type, parameter));
+        }
+        parameter = tree.next_sibling!![parameter];
+    }
+}
+
+/** point(x: decimal) -> base(x) { body } */
+def declare_constructor(file: sharp_file, node: _int64, owner: sharp_class?, extra_flags: _int64) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    declared := new sharp_function(D_CONSTRUCTOR, node_text(unit, node), unit, node, owner, file.module);
+    declared.flags = flags_of(unit, node) | extra_flags;
+    read_parameters_and_body(unit, node, declared);
+
+    scope_for(file, owner).add(declared);
+    if(owner != null) { owner!!.constructors.add(declared); }
+}
+
+/** init { body }     init(arguments) -> base(arguments) { body } */
+def declare_init_block(file: sharp_file, node: _int64, owner: sharp_class?, extra_flags: _int64) {
+    unit := file.unit;
+    declared := new sharp_function(D_INIT, "init", unit, node, owner, file.module);
+    declared.flags = flags_of(unit, node) | extra_flags;
+    read_parameters_and_body(unit, node, declared);
+
+    // an init block is not called by name: it is in its class's list only
+    if(owner != null) { owner!!.init_blocks.add(declared); }
+}
+
+/** the parts a constructor and an init block have in common */
+def read_parameters_and_body(unit: source_unit, node: _int64, declared: sharp_function) {
+    tree : syntax_tree = unit.parsed!!.tree;
+    parameters : _int64 = tree.child_of_kind(node, N_PARAMETERS);
+    if(parameters >= 0) { add_parameters(unit, parameters, declared); }
+    declared.base_call = tree.child_of_kind(node, N_BASE_CALL);
+    declared.body = body_of(tree, node);
+}
+
+/**
+ * The body of a constructor, init block, getter or setter: a block, or the
+ * single statement that may stand in its place. It is the child that is none
+ * of the parts that come before a body.
+ */
+def body_of(tree: syntax_tree, node: _int64) : _int64 {
+    body : _int64 = 0 - 1;
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind != N_MODIFIERS && kind != N_PARAMETERS && kind != N_BASE_CALL && kind != N_NAME) {
+            body = child;
+        }
+        child = tree.next_sibling!![child];
+    }
+    return body;
+}
+
+/** component name { single { ... } factory("x") { ... } } */
+def declare_component(file: sharp_file, node: _int64) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    name : string = "";
+    name_node : _int64 = tree.child_of_kind(node, N_NAME);
+    if(name_node >= 0) { name = node_text(unit, name_node); }
+
+    declared := new sharp_component(name, unit, node, file.module);
+    file.module.components.add(declared);
+    if(name_node >= 0) { file.module.declared.add(declared); }
+}
+
+// ---------------------------------------------------------------------------
+// flags and types
+// ---------------------------------------------------------------------------
+
+/** the words in front of a declaration, as one number (FLAG_... added together) */
+def flags_of(unit: source_unit, node: _int64) : _int64 {
+    p : parse_state = unit.parsed!!;
+    tree : syntax_tree = p.tree;
+    flags : _int64 = 0;
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind == N_MODIFIER) {
+            // `localized` hangs directly under a variable
+            flags = flags | flag_of_keyword(p.kinds[tree.tokens!![child]]);
+        } else if(kind == N_MODIFIERS) {
+            word : _int64 = tree.first_child!![child];
+            while(word >= 0) {
+                flags = flags | flag_of_keyword(p.kinds[tree.tokens!![word]]);
+                word = tree.next_sibling!![word];
+            }
+        }
+        child = tree.next_sibling!![child];
+    }
+    return flags;
+}
+
+/**
+ * The sharp_type for an N_TYPE node: what the type is written as, with its
+ * `[]` and `?`. A name in it is NOT looked up here (sharp_type.sharp).
+ */
+def make_type(unit: source_unit, node: _int64) : sharp_type {
+    p : parse_state = unit.parsed!!;
+    tree : syntax_tree = p.tree;
+
+    type : sharp_type? = null;
+    nullable_marks : _int64 = 0;
+    is_array : _int64 = 0;
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind == N_NATIVE_TYPE) {
+            type = new sharp_type(TYPE_NATIVE, unit, node);
+            type!!.native_kind = p.kinds[tree.tokens!![child]];
+        } else if(kind == N_TYPE_NAME) {
+            type = make_named_type(unit, child);
+            type!!.node = node;
+        } else if(kind == N_FUNCTION_TYPE) {
+            type = make_function_type(unit, node, child);
+        } else if(kind == N_ARRAY_SUFFIX) {
+            is_array = 1;
+        } else if(kind == N_NULLABLE) {
+            nullable_marks++;
+        }
+        child = tree.next_sibling!![child];
+    }
+
+    if(type == null) {
+        type = new sharp_type(TYPE_NAMED, unit, node);     // a type the parser could not read (already reported)
+    }
+    type!!.is_array = is_array;
+    type!!.is_nullable = nullable_marks >= 1;
+    type!!.has_nullable_items = nullable_marks >= 2;
+    return type!!;
+}
+
+/**
+ * The sharp_type for an N_TYPE_NAME node: a named type and its type arguments.
+ * (`outer<a>.inner<b>`: the arguments kept are those of the last name.)
+ */
+def make_named_type(unit: source_unit, name_node: _int64) : sharp_type {
+    tree : syntax_tree = unit.parsed!!.tree;
+    type := new sharp_type(TYPE_NAMED, unit, name_node);
+
+    last_part : _int64 = 0 - 1;
+    part : _int64 = tree.first_child!![name_node];
+    while(part >= 0) {
+        if(tree.kinds!![part] == N_TYPE_PART) { last_part = part; }
+        part = tree.next_sibling!![part];
+    }
+
+    if(last_part >= 0) {
+        argument : _int64 = tree.first_child!![last_part];
+        while(argument >= 0) {
+            if(tree.kinds!![argument] == N_TYPE) {
+                type.arguments.add(make_type(unit, argument));
+            }
+            argument = tree.next_sibling!![argument];
+        }
+    }
+    return type;
+}
+
+/** (int, name: string)(decimal): the parameter types and what is returned */
+def make_function_type(unit: source_unit, type_node: _int64, function_node: _int64) : sharp_type {
+    tree : syntax_tree = unit.parsed!!.tree;
+    type := new sharp_type(TYPE_FUNCTION, unit, type_node);
+
+    parameters : _int64 = tree.child_of_kind(function_node, N_PARAMETERS);
+    if(parameters >= 0) {
+        parameter : _int64 = tree.first_child!![parameters];
+        while(parameter >= 0) {
+            parameter_type : _int64 = tree.child_of_kind(parameter, N_TYPE);
+            if(parameter_type >= 0) {
+                type.parameters.add(make_type(unit, parameter_type));
+            }
+            parameter = tree.next_sibling!![parameter];
+        }
+    }
+
+    result : _int64 = tree.child_of_kind(function_node, N_RETURN_TYPE);
+    if(result >= 0) {
+        result_type : _int64 = tree.child_of_kind(result, N_TYPE);
+        if(result_type >= 0) {
+            type.result = make_type(unit, result_type);
+        }
+    }
+    return type;
+}

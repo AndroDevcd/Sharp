@@ -62,8 +62,8 @@ A reference identifier is an identifier that may be a <refrence-pointer>
 <Utype-list>:
 <uType> [,<uType>...]
 
-<identifier-list>:
-<identifier> [,<identifier>...]
+<generic-identifier-list>:
+<identifier> [base <uType>] [,<identifier> [base <utype>]...]
 
 <typeidentifier>:
 An <nativetype> or <refrence-identifier> or <function-pointer>
@@ -75,7 +75,7 @@ An <nativetype> or <refrence-identifier> or <function-pointer>
 A value consists of an <expression>
 
 <uType>:
-<typeidentifier> [([])]                 i.e. object[] Main.foo[]
+<typeidentifier> [([]) (?)]                 i.e. object[] Main.foo[]
 
 <utype-naked>:
 <typeidentifier>
@@ -132,8 +132,11 @@ A value consists of an <expression>
     | '='
     | '=='
 
+<array-items>:
+<expression> [, <expression>...]
+
 <array-expression>:
-expression '[' expression ']' [<dot-notation-call-expr>] expression
+expression '[' <array-items> ']' [<dot-notation-call-expr>] expression
 
 <lambda-return-type>:
 `(` <utype> `)`
@@ -155,6 +158,7 @@ expression '[' expression ']' [<dot-notation-call-expr>] expression
     | new uType { <expression-list> }               // new_class_field_expression
     | new uType { <qualifying-field-initlization-list> } // new_class_field_init
     | { [<identifier = name> [: <uType>]]* -> <lambda-return-type> <lambda-block> }    // lambda function
+    | [<identifier = name> [: <uType>]]* -> <expression>    // lambda function
     | { [<dict-type>] [<expression> : <expression>]* }    // dictionary
     | { [<dict-type>] : }    // empty dictionary
     | sizeof '(' expression ')'
@@ -205,10 +209,10 @@ Mutate Declaration:
 mutate <refrence-identifier> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 Generic Class Declaration:
-`[<accesstype>] class <identifier = name> `<` <identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+`[<accesstype>] class <identifier = name> `<` <generic-identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 Generic Interface Declaration:
-`[<accesstype>] interface <identifier = name> `<` <identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
+`[<accesstype>] interface <identifier = name> `<` <generic-identifier-list> `>` [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
 
 interface Declaration:
 `[<accesstype>] interface <identifier = name> [base <refrence-identifier> ] [: <refrence-identifier-list>] {}`
@@ -221,6 +225,21 @@ enum Declaration:
 
 <lambda-block>:
  <statements>*
+
+<single-type>:
+single ["(" <string> ")"] { <expression> }
+
+<factory-type>:
+factory ["(" <string> ")"] { <expression> }
+
+<component-type>:
+<single-type> | <factory-type>
+
+<component-type-list>:
+<component-type> [<component-type>]*
+
+<inject_request>:
+inject ["(" <identifier> ")"]
 
 <switch-block>:
  { <switch-declarator>* }
@@ -241,7 +260,7 @@ Method Declaration:
 `[<accesstype>] def <identifier = name> <uTypeArg-list> [: <uType>] [ <block> | <infer-expr> ]
 
 Init Declaration:
-init <block>
+init [<uTypeArg-list>] <block>
 
 Delegate Method Declaration:
 `[<accesstype>] def delegate::<identifier = name> <uTypeArg-list> [: <uType>]
@@ -250,7 +269,7 @@ Operator Declaration:
 `[<accesstype>] def operator <override-operator> <uTypeArg-list> [: <uType>] <block>
 
 Variable Declaration statement:
-`[<accesstype>] [<storagelocality>] <identifier = name> [: <uType>] [ <infer-expr> | <assign-expr> <value>] (; [<getter-setter>] | [, <variable-decl> ;])`
+`[<accesstype>] [<storagelocality>] [<inject_request>] <identifier = name> [: <uType>] [ <infer-expr> | <assign-expr> <value>] (; [<getter-setter>] | [, <variable-decl> ;])`
 
 Getter Declaration:
  `get` <block>
@@ -260,6 +279,10 @@ Setter Declaration:
 
 Alias Declaration:
 alias <utype> as <identifier>
+
+
+Component Declaration:
+component [<identifier>] { <component-type-list> };
 
 Single Line comment Declaration:
 `//`

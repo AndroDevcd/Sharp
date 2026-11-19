@@ -1,0 +1,410 @@
+mod backend.finalizer.output;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * THE SECTIONS OF THE EXECUTABLE, in the order the VM's loader reads them
+ * (doc/codegen.md 3.2 has the picture; the loader is in lib/runtime/exe):
+ *
+ *      header              0F 'S' 'E' 'F'  00 x 15  07 1B 0C
+ *      manifest            01  <13 entries>  0A 03
+ *      symbols             05  <count of function types>  <function-type records> <class records>  0A 1D
+ *      strings             02  <string records>  0A 1D
+ *      constants           02  <decimal constants as text>  0A 1D
+ *      data                0E  <one record per function, in address order>
+ *      code                <one code record per function, in the same order>  0A 1D
+ *      meta                06  <one record per source file>  0A 1D
+ *
+ * Each section marker is read as ONE byte, so nothing may stand between the
+ * end of a section and the next marker. Inside a record everything is read
+ * by position. Between records the loader skips 00, 0A and 0D, which is why
+ * the C++ writer's '\n' before an end marker is harmless (the bootstrap
+ * writes the same bytes).
+ *
+ *      C++ comparison: finalizer/generation/file_generator.cpp
+ *      (`generate_exe`, `build_symbol_section` ...). This file follows the same
+ *      record layout; the differences are in what is written, not how
+ *      (codegen.md section 10).
+ */
+
+// ---- section markers and record tags (lib/core/exe_macros.h)
+const EXE_MANIFEST       : _int64 = 0x01;
+const EXE_SECTION        : _int64 = 0x02;   // the string and constant sections both start with it
+const EXE_SYMBOLS        : _int64 = 0x05;
+const EXE_META           : _int64 = 0x06;
+const EXE_DATA           : _int64 = 0x0e;
+const EXE_CODE_RECORD    : _int64 = 0x05;
+const EXE_END            : _int64 = 0x1d;
+const EXE_FUNCTION_TYPE  : _int64 = 0x1f;
+const EXE_CLASS          : _int64 = 0x2f;
+const EXE_FIELD          : _int64 = 0x22;
+const EXE_FUNCTION       : _int64 = 0x4c;
+const EXE_INTERFACE      : _int64 = 0x2e;
+const EXE_STRING         : _int64 = 0x1e;
+const EXE_CONSTANT       : _int64 = 0x1c;
+const EXE_FILE           : _int64 = 0x2c;
+const EXE_FILE_VERSION   : _int64 = 5;      // the loader takes 5 only (min_file_vers .. file_vers)
+
+/** what the manifest says about the program (options of the command line) */
+class executable_options {
+    application : string = "out";       // -o: the output name, as the C++ compiler writes it
+    version : string = "1.0";           // -v
+    target : _int64 = 2;                // -target; 2 is `alpha`, the C++ default
+    debug : _int64 = 0;                 // -dbg: the meta section carries the source text
+}
+
+/** the header: 0F, the letters SEF, fifteen 00 bytes, the signature 07 1B 0C */
+def write_header(out: byte_buffer) {
+    out.byte(0x0f);
+    out.raw_text("SEF");
+    for(i : _int64 = 0; i < 15; i++) { out.byte(0); }
+    out.byte(0x07);
+    out.byte(0x1b);
+    out.byte(0x0c);
+}
+
+/** the manifest: thirteen entries, each a one-byte tag and a value (codegen.md 3.3) */
+def write_manifest(out: byte_buffer, layout: program_layout, options: executable_options) {
+    out.byte(EXE_MANIFEST);
+    out.byte(0x02); out.text(options.application);
+    out.byte(0x04); out.text(options.version);
+    out.byte(0x05); out.flag_char(options.debug);
+    out.byte(0x06); out.int32(layout.entry!!.address);
+    out.byte(0x07); out.int32(layout.functions.size().value as _int64);
+    out.byte(0x08); out.int32(layout.classes.size().value as _int64);
+    out.byte(0x09); out.number_text(EXE_FILE_VERSION);
+    out.byte(0x0c); out.int32(layout.strings.count());
+    out.byte(0x0e); out.number_text(options.target);
+    out.byte(0x0f); out.int32(layout.files.count());
+    out.byte(0x1b); out.int32(layout.fiber_slots.value);
+    out.byte(0x1c); out.int32(layout.constants.count());
+    out.byte(0x2a); out.int32(layout.application_id);
+    out.byte(0x0a);
+    out.byte(0x03);
+}
+
+/**
+ * A type: its VM number, a class address or function-type index for the two
+ * that have one, then the "array" flag char (codegen.md 3.4). Nullability is
+ * not written.
+ */
+def write_type(out: byte_buffer, type: resolved_type?, layout: program_layout) {
+    if(type == null) {
+        out.int32(VM_TYPE_NIL);
+        out.flag_char(0);
+        return;
+    }
+    found : resolved_type = type!!;
+    kind : _int64 = found.kind;
+    if(kind == RT_INTEGER) { out.int32(integer_type_number(found)); }
+    else if(kind == RT_DECIMAL) { out.int32(VM_TYPE_DECIMAL); }
+    else if(kind == RT_NIL) { out.int32(VM_TYPE_NIL); }
+    else if(kind == RT_CLASS && found.class_of != null && found.class_of!!.kept == 1 && found.class_of!!.address >= 0) {
+        out.int32(VM_TYPE_CLASS);
+        out.int32(found.class_of!!.address);
+    }
+    else if(kind == RT_FUNCTION && layout.function_types.index_of(found) >= 0) {
+        out.int32(VM_TYPE_FUNCTION);
+        out.int32(layout.function_types.index_of(found));
+    }
+    else { out.int32(VM_TYPE_OBJECT); }
+    out.flag_char(found.is_array);
+}
+
+/** the symbol section: the function-type table, then one record per class (codegen.md 3.5) */
+def write_symbols(out: byte_buffer, layout: program_layout) {
+    out.byte(EXE_SYMBOLS);
+    types := layout.function_types.types;
+    out.int32(types.size().value as _int64);
+    for(i : _int64 = 0; i < types.size(); i++) {
+        type := types.at(i);
+        out.byte(EXE_FUNCTION_TYPE);
+        out.int32(type.parameters!!.size().value as _int64);
+        for(j : _int64 = 0; j < type.parameters!!.size(); j++) { write_type(out, type.parameters!!.at(j), layout); }
+        write_type(out, type.result, layout);
+    }
+    field_guid := new numbered(1);
+    for(i : _int64 = 0; i < layout.classes.size(); i++) { write_class(out, layout.classes.at(i), layout, field_guid); }
+    out.byte(0x0a);
+    out.byte(EXE_END);
+}
+
+/**
+ * One class record. The counts include what the classes above give it: the
+ * instance fields of every class above (their slots come first in an
+ * object), their methods and their interfaces (`invoke_delegate` looks
+ * through the methods last to first, so a function of a class below wins).
+ */
+def write_class(out: byte_buffer, made: class_layout, layout: program_layout, field_guid: numbered) {
+    out.byte(EXE_CLASS);
+    out.int32(made.address);
+    if(made.owner_layout != null) { out.int32(made.owner_layout!!.address); } else { out.int32(0 - 1); }
+    if(made.base_layout != null) { out.int32(made.base_layout!!.address); } else { out.int32(0 - 1); }
+    out.int32(made.address);                            // the guid: unique, so `is` and `catch` can trust it
+    out.text(made.name);
+    out.text(made.full_name);
+
+    chain := classes_from_the_top(made);
+    method_count : _int64 = 0;
+    for(i : _int64 = 0; i < chain.size(); i++) { method_count += chain.at(i).methods.size().value as _int64; }
+
+    out.int32(made.static_fields.size().value as _int64);
+    out.int32(made.instance_fields.size().value as _int64);
+    out.int32(method_count);
+    out.int32(made.interface_layouts.size().value as _int64);
+
+    for(i : _int64 = 0; i < made.instance_fields.size(); i++) {
+        write_field(out, made.instance_fields.at(i), layout, field_guid);
+    }
+    for(i : _int64 = 0; i < made.static_fields.size(); i++) {
+        write_field(out, made.static_fields.at(i), layout, field_guid);
+    }
+    for(i : _int64 = 0; i < chain.size(); i++) {
+        methods := chain.at(i).methods;
+        for(j : _int64 = 0; j < methods.size(); j++) {
+            out.byte(EXE_FUNCTION);
+            out.int32(methods.at(j).address);
+            out.byte(0);
+        }
+    }
+    for(i : _int64 = 0; i < made.interface_layouts.size(); i++) {
+        out.byte(EXE_INTERFACE);
+        out.int32(made.interface_layouts.at(i).address);
+        out.byte(0);
+    }
+}
+
+/** a class and the classes above it, the top first */
+def classes_from_the_top(made: class_layout) : list<class_layout> {
+    upward := new list<class_layout>();
+    current : class_layout? = made;
+    for(depth : _int64 = 0; current != null && depth < 256; depth++) {
+        upward.add(current!!);
+        current = current!!.base_layout;
+    }
+    chain := new list<class_layout>();
+    for(i : _int64 = (upward.size().value as _int64) - 1; i >= 0; i--) { chain.add(upward.at(i)); }
+    return chain;
+}
+
+/** one field record: a field, a global, an enum value, or @static_init_flag */
+def write_field(out: byte_buffer, declared: sharp_declaration, layout: program_layout, field_guid: numbered) {
+    holder : class_layout = layout_holding(declared, layout);
+    out.byte(EXE_FIELD);
+    name : string = declared.name;
+    if(declared.kind == D_FIELD && (declared as sharp_field).name_in_executable != null) {
+        name = (declared as sharp_field).name_in_executable!!;      // renamed by obfuscation (6.17)
+    }
+    out.text(name);
+    out.text(holder.full_name + "." + name);
+    out.int32(declared.address);
+    out.int32(field_guid.value);
+    field_guid.value++;
+    if(declared.kind == D_ENUM_VALUE) {
+        // an enum value: public static const excuse (0xD1), as the C++ compiler writes it; its type is its enum
+        out.int32(VM_PUBLIC | VM_STATIC | VM_CONST | VM_EXCUSE);
+        out.flag_char(0);
+        out.flag_char(0);
+        out.int32(VM_TYPE_CLASS);
+        out.int32(holder.address);
+    } else {
+        field := declared as sharp_field;
+        flags : _int64 = vm_flags_of(field.flags, holder.is_module_globals);
+        if(holder.is_module_globals == 0 && field.has(FLAG_STATIC)) { flags = flags | VM_STATIC; }
+        out.int32(flags);
+        is_array : _int64 = 0;
+        if(field.value_type != null) { is_array = field.value_type!!.is_array; }
+        out.flag_char(is_array);
+        out.flag_char(field.has(FLAG_LOCALIZED));
+        type_without_array(out, field.value_type, layout);
+    }
+    out.int32(holder.address);
+    out.byte(0);
+    out.byte(0);
+}
+
+/** a field's type: written as for any type, but the array flag stands before it in a field record */
+def type_without_array(out: byte_buffer, type: resolved_type?, layout: program_layout) {
+    if(type == null) {
+        out.int32(VM_TYPE_OBJECT);
+        return;
+    }
+    found : resolved_type = type!!;
+    kind : _int64 = found.kind;
+    if(kind == RT_INTEGER) { out.int32(integer_type_number(found)); }
+    else if(kind == RT_DECIMAL) { out.int32(VM_TYPE_DECIMAL); }
+    else if(kind == RT_CLASS && found.class_of != null && found.class_of!!.kept == 1 && found.class_of!!.address >= 0) {
+        out.int32(VM_TYPE_CLASS);
+        out.int32(found.class_of!!.address);
+    }
+    else if(kind == RT_FUNCTION && layout.function_types.index_of(found) >= 0) {
+        out.int32(VM_TYPE_FUNCTION);
+        out.int32(layout.function_types.index_of(found));
+    }
+    else { out.int32(VM_TYPE_OBJECT); }
+}
+
+/** the class that declares a field (for a global: its module's globals class) */
+def layout_holding(declared: sharp_declaration, layout: program_layout) : class_layout {
+    if(declared.owner == null) { return layout.module_globals.at(declared.module.name)!!; }
+    return layout.classes.at(declared.owner!!.address);
+}
+
+/** the string section: every text a `newstring` names, by number (codegen.md 3.6) */
+def write_strings(out: byte_buffer, layout: program_layout) {
+    out.byte(EXE_SECTION);
+    texts := layout.strings.texts;
+    for(i : _int64 = 0; i < texts.size(); i++) {
+        text := texts.at(i);
+        out.byte(EXE_STRING);
+        out.int32(sizeof(text.data));
+        out.raw_text(text);
+    }
+    out.byte(0x0a);
+    out.byte(EXE_END);
+}
+
+/** the constant section: every decimal `ldc` loads, as the text strtod reads back exactly */
+def write_constants(out: byte_buffer, layout: program_layout) {
+    out.byte(EXE_SECTION);
+    texts := layout.constants.texts;
+    for(i : _int64 = 0; i < texts.size(); i++) {
+        out.byte(EXE_CONSTANT);
+        out.text(texts.at(i));
+    }
+    out.byte(0x0a);
+    out.byte(EXE_END);
+}
+
+/**
+ * The data section: one record per function, in address order (the loader
+ * fills its method table by position, so record k must say address k), with
+ * what the VM needs to call it (codegen.md 3.7).
+ */
+def write_function_records(out: byte_buffer, layout: program_layout) {
+    out.byte(EXE_DATA);
+    for(i : _int64 = 0; i < layout.functions.size(); i++) {
+        made := layout.functions.at(i);
+        code : function_code = made.code!!;
+        out.byte(EXE_FUNCTION);
+        out.int32(made.address);
+        out.int32(made.address);                    // the guid
+        out.text(made.name);
+        out.text(made.full_name);
+        out.int32(made.file_index);
+        out.int32(made.owner.address);
+        out.int32(made.kind);
+        out.int32(code.stack_size);
+        out.int32(code.words.count);
+        out.int32(made.vm_flags);
+        out.int32(made.delegate_address);
+        out.int32(code.fp_offset);
+        out.int32(code.sp_offset);
+        out.int32(code.frame_stack_offset);
+        write_type(out, made.of.result_type, layout);
+        out.int32(made.parameter_count());
+        for(j : _int64 = 0; j < made.of.parameters.size(); j++) {
+            write_type(out, made.of.parameters.at(j).value_type, layout);
+        }
+        // a lambda's hidden last parameter: the closure record it is handed (codegen.md 6.12)
+        record_class := made.record_parameter_class();
+        if(made.of.takes_record == 1) {
+            if(record_class != null) { write_type(out, type_of_class(record_class!!), layout); }
+            else { write_type(out, layout.analysed.prog.types.object_type, layout); }
+        }
+        out.int32(code.line_pcs.count);
+        for(j : _int64 = 0; j < code.line_pcs.count; j++) {
+            out.int32(code.line_pcs.at(j));
+            out.int32(code.line_numbers.at(j));
+        }
+        write_try_records(out, code);
+    }
+}
+
+/**
+ * The try records of a function (codegen.md 3.8), in the order its `try`
+ * statements start: the VM asks them from the last to the first, so an inner
+ * `try` is asked before the one around it.
+ *
+ *      int32 try start, try end, block start, block end
+ *      int32 catch count, then per clause: handler pc, exception slot (-1: none), class address
+ *      01 int32 finally start, finally end, exception slot         when there is a finally
+ *      00                                                          when there is none
+ *
+ * (The loader reads try end BEFORE block start: data_processor.cpp.)
+ */
+def write_try_records(out: byte_buffer, code: function_code) {
+    out.int32(code.tries.size().value as _int64);
+    for(i : _int64 = 0; i < code.tries.size(); i++) {
+        record := code.tries.at(i);
+        out.int32(record.try_start);
+        out.int32(record.try_end);
+        out.int32(record.block_start);
+        out.int32(record.block_end);
+        out.int32(record.handler_pcs.count);
+        for(j : _int64 = 0; j < record.handler_pcs.count; j++) {
+            out.int32(record.handler_pcs.at(j));
+            out.int32(record.catch_slots.at(j));
+            out.int32(record.catch_classes.at(j));
+        }
+        if(record.has_finally == 1) {
+            out.byte(1);
+            out.int32(record.finally_start);
+            out.int32(record.finally_end);
+            out.int32(record.finally_slot);
+        } else {
+            out.byte(0);
+        }
+    }
+}
+
+/** the code section: for every function, 05 and its words (none for a delegate or native function) */
+def write_code(out: byte_buffer, layout: program_layout) {
+    for(i : _int64 = 0; i < layout.functions.size(); i++) {
+        words := layout.functions.at(i).code!!.words;
+        out.byte(EXE_CODE_RECORD);
+        for(j : _int64 = 0; j < words.count; j++) { out.int32(words.at(j)); }
+    }
+    out.byte(0x0a);
+    out.byte(EXE_END);
+}
+
+/**
+ * The meta section: the source files functions name, by number. With -dbg
+ * (the manifest's debug flag is then '1') each is followed by its whole text
+ * - a length, the characters, 00 - which the VM cuts into lines and prints
+ * under each line of a stack trace (codegen.md 3.9).
+ */
+def write_meta(out: byte_buffer, layout: program_layout, options: executable_options) {
+    out.byte(EXE_META);
+    files := layout.files.texts;
+    for(i : _int64 = 0; i < files.size(); i++) {
+        out.byte(EXE_FILE);
+        out.text(files.at(i));
+        if(options.debug != 0) { write_source_text(out, layout.file_units.at(i)); }
+    }
+    out.byte(0x0a);
+    out.byte(EXE_END);
+}
+
+/** the text of one source file as the meta section carries it: its length, its characters, 00 */
+def write_source_text(out: byte_buffer, unit: source_unit) {
+    parsed := unit.parsed;
+    if(parsed == null) {
+        out.int32(0);
+        out.byte(0);
+        return;
+    }
+    characters : _int8[] = parsed!!.source;
+    out.int32(sizeof(characters));
+    for(i : _int64 = 0; i < sizeof(characters); i++) { out.byte(characters[i]); }
+    out.byte(0);
+}

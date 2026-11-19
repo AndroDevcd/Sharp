@@ -1,0 +1,1404 @@
+mod std.guikit;
+
+import (
+    std.guikit.*,
+    std.time
+)
+
+/**
+ * gui - the front door to the whole framework.
+ *
+ *      class counter base composable {
+ *          count := state(0);
+ *
+ *          override def build() : element {
+ *              return column(modifier().fill().padding(24)) {
+ *                  text("count: " + count.value).size(28);
+ *                  button("Add one") { count.value += 1; };
+ *              }.center().gap(12);
+ *          }
+ *      }
+ *
+ *      def main() {
+ *          gui.run("Counter", 360, 240, new counter());
+ *      }
+ *
+ * Every widget function exists twice with the same meaning: here as
+ * gui.column(...), gui.text(...), and as a bare word, column(...), text(...)
+ * (words.sharp). Use the bare words; reach for `gui.` when one of them is
+ * also a name in your own program.
+ *
+ * WHAT IS HERE
+ *
+ *      run an app          gui.run(title, width, height, root)
+ *                          gui.use_theme(t)  gui.current_theme()  gui.after(seconds) { }  gui.every(seconds) { }
+ *      lay things out      column  row  stack  wrap  grid  grid_fit  spacer  gap  divider
+ *      scroll              scroll  scroll_row  lazy_column { item { }  items(n) { i -> } }
+ *      show things         text  image  progress
+ *      take input          button  checkbox  radio  toggle  slider  text_field
+ *                          dropdown { option(...) }  tabs { tab(...) }
+ *      float above         dialog(open) { }  menu(open) { menu_item(...) { } }  gui.toast(words)
+ *      animate             fade(visible) { }  modifier().opacity(x)  animated(first) in a composable
+ *      clipboard           gui.copy(words)  gui.paste()
+ *      screens             screens(nav, start) { screen<route>() { }  tab<route>(title) { } }
+ *                          nav_bar(nav)  top_bar(title, nav)  navigator  route
+ *      draw it yourself    canvas
+ *      the box of a widget modifier()            (modifier.sharp)
+ *      values              gui.state(first)  rgb(r, g, b)  rgba(r, g, b, a)
+ *      the layer below     gui.window(...)  gui.font(size)  gui.load_image(path)
+ *
+ * THE SHAPE OF EVERY WIDGET FUNCTION
+ *
+ *      name(what it needs)                         text("Hello")
+ *      name(what it needs, modifier)               text("Hello", modifier().padding(8))
+ *      ... and a block last, where it takes one    column(modifier().fill()) { ... }
+ *                                                  button("Save") { save(); }
+ *
+ * The modifier is the one place a widget's BOX is changed - size, padding,
+ * fill, background, click. What a widget IS, it says itself afterwards:
+ * text(...).size(24), column { ... }.gap(8), button(...) { }.outline().
+ *
+ * HOW THE FRAMEWORK IS BUILT (start reading at core/tree/behavior.sharp)
+ *
+ * It lives in the standard library, in std/guikit. Every folder is a module
+ * of its own, named after its path - a file in std/guikit/core/tree is
+ * `mod std.guikit.core.tree;` - and a program takes the whole family in with
+ *
+ *      import ( std.guikit.* )
+ *
+ *      std.guikit                  gui.sharp, words.sharp - the front door: every widget function,
+ *                                  as gui.x and as a bare word
+ *
+ *      std.guikit.platform         the layer underneath, over SDL2:
+ *                                  window  painter  event  color  font  image  surface
+ *          platform/native/        the C++ side (the "sharpgui" native library)
+ *
+ *      std.guikit.core.tree        behavior (the contracts)  view (one box)  widget  scope (nested blocks)
+ *      std.guikit.core.state       state  composable  reconciler (memory across rebuilds)
+ *      std.guikit.core.style       modifier  theme
+ *      std.guikit.core.runtime     host (the loop, input, gestures, focus, overlays)  timer
+ *      std.guikit.core.util        num  txt (small helpers)
+ *
+ *      std.guikit.layout.flow      flex (the algorithm)  row  column  wrap  spacer
+ *      std.guikit.layout.stacking  stack
+ *      std.guikit.layout.grids     grid
+ *      std.guikit.layout.scrolling scroller  lazy_list
+ *
+ *      std.guikit.widgets.display  label  picture  divider  progress_bar
+ *      std.guikit.widgets.input    button  checkbox  radio  toggle  slider  text_field  dropdown  tabs
+ *      std.guikit.widgets.drawing  canvas
+ *
+ *      std.guikit.animation        fader (fade in and out)  animated (a number that glides)
+ *      std.guikit.overlay          popup (dialogs and menus float above the page)  menu
+ *      std.guikit.navigation       navigator (the stack of screens)  screens (shows it, with transitions)
+ */
+stable class gui {
+
+    // ================================================================ running an app
+
+    /**
+     * Open a window and run `root` in it until the window is closed. `root`
+     * is usually one of your composables (new my_app()), but any widget works.
+     */
+    static def run(title: string, width: _int32, height: _int32, root: element) {
+        host := new ui_host(title, width, height);
+        host.run(root);
+    }
+
+    /**
+     * The same, for a screen written as a function instead of a class - handy
+     * for small programs whose state is made with gui.state(...):
+     *
+     *      clicks := gui.state(0);
+     *      gui.run("Clicker", 300, 200, { ->
+     *          return button("clicked " + clicks.value) { clicks.value += 1; };
+     *      });
+     */
+    static def run(title: string, width: _int32, height: _int32, build: ()(element)) {
+        host := new ui_host(title, width, height);
+        host.run(new built_by(build));
+    }
+
+    // ---------------------------------------------------------------- ... without a size, and in a mode
+
+    /**
+     * The size a window gets when the program names none: 960 x 640 units.
+     * Room for a real app, and it still fits a 1280 x 720 screen with its
+     * taskbar. On a screen smaller than that the window opens maximized.
+     */
+    static def default_width() : _int32 { return 960; }
+    static def default_height() : _int32 { return 640; }
+
+    /** run `root` in a window of the standard size (default_width x default_height) */
+    static def run(title: string, root: element) {
+        run(title, default_width(), default_height(), root);
+    }
+
+    static def run(title: string, build: ()(element)) {
+        run(title, default_width(), default_height(), build);
+    }
+
+    /**
+     * Run `root` maximized or fullscreen (window_mode, window.sharp):
+     *
+     *      gui.run("Kiosk", window_mode.fullscreen, new my_app());
+     *
+     * The window itself has the standard size - what it goes back to when the
+     * mode is changed to windowed later (gui.set_mode, gui.fullscreen(false)).
+     */
+    static def run(title: string, opened_as: window_mode, root: element) {
+        run(title, default_width(), default_height(), opened_as, root);
+    }
+
+    static def run(title: string, opened_as: window_mode, build: ()(element)) {
+        run(title, default_width(), default_height(), opened_as, build);
+    }
+
+    /** the same with the window's own size given: what it has when it is, or goes back to being, windowed */
+    static def run(title: string, width: _int32, height: _int32, opened_as: window_mode, root: element) {
+        host := new ui_host(title, width, height, opened_as);
+        host.run(root);
+    }
+
+    static def run(title: string, width: _int32, height: _int32, opened_as: window_mode, build: ()(element)) {
+        host := new ui_host(title, width, height, opened_as);
+        host.run(new built_by(build));
+    }
+
+    // ================================================================ the window while the app runs
+
+    /** maximize the app's window, make it fullscreen, or an ordinary window again. Does nothing while no app runs. */
+    static def set_mode(next: window_mode) {
+        if(ui_host.current != null) {
+            ui_host.current!!.win.set_mode(next);
+        }
+    }
+
+    /** how the app's window sits on the screen right now (windowed while no app runs) */
+    static def mode() : window_mode {
+        if(ui_host.current != null) {
+            return ui_host.current!!.win.mode();
+        }
+        return window_mode.windowed;
+    }
+
+    /**
+     * true: the app takes the whole screen. false: it goes back to what it was
+     * before (a game's "fullscreen" setting, or F11):
+     *
+     *      gui.fullscreen(!gui.is_fullscreen());       // switch
+     */
+    static def fullscreen(on: bool) {
+        if(ui_host.current != null) {
+            ui_host.current!!.win.fullscreen(on);
+        }
+    }
+
+    /** does the app have the whole screen? */
+    static def is_fullscreen() : bool {
+        if(ui_host.current != null) {
+            return ui_host.current!!.win.is_fullscreen();
+        }
+        return false;
+    }
+
+    /** the size of the whole screen, in the units a layout is written in: what a fullscreen window gets */
+    static def screen_width() : _int32 {
+        surface.ensure_loaded();
+        return surface_screen_width();
+    }
+
+    static def screen_height() : _int32 {
+        surface.ensure_loaded();
+        return surface_screen_height();
+    }
+
+    // ================================================================ the frame rate
+
+    /**
+     * The most frames the app paints in a second. 60 unless the program says
+     * otherwise; before gui.run or while the app runs.
+     *
+     *      gui.frame_rate(30);     // half the work while something moves: a Raspberry Pi, a laptop on battery
+     *      gui.frame_rate(10);     // visibly jerky, and very little work
+     *      gui.frame_rate(0);      // no limit: as fast as the machine paints
+     *
+     * It limits PAINTING. An app that stands still paints nothing whatever the
+     * rate is; events are read at once and only what they change on the screen
+     * waits for the next frame. Animations move by the clock, so a lower rate
+     * makes them jerkier, not slower. The lowest rate is 1 (anything below,
+     * except 0, counts as 1).
+     */
+    static def frame_rate(frames: _int64) {
+        if(frames < 0) {
+            frames = 1;
+        }
+        ui_host.frame_limit = frames;
+    }
+
+    /** the frame rate in force (0: no limit) */
+    static def frame_rate() : _int64 {
+        return ui_host.frame_limit;
+    }
+
+    /**
+     * true: a frame is shown only when the screen starts its next refresh (vsync), so
+     * nothing moving on the screen ever tears. false, the default: frames are shown as
+     * soon as they are painted, and the frame rate alone keeps the pace.
+     *
+     * Before gui.run or while the app runs. Where the system has no compositor (a
+     * Raspberry Pi), a frame that misses a refresh waits for the next one: with vsync on
+     * a 60 Hz screen shows 60, 30, 20, 15 ... frames a second and nothing in between, so
+     * a limit of 30 can come out lower. Turn it on when tearing shows, and check the
+     * rate with gui.show_fps(true).
+     */
+    static def vsync(on: bool) {
+        ui_host.vsync_wanted = on;
+        if(ui_host.current != null) {
+            ui_host.apply_vsync();              // the window is open: now (before gui.run, run applies it)
+        }
+    }
+
+    /** is vsync on? (gui.vsync) */
+    static def vsync() : bool {
+        return ui_host.vsync_wanted;
+    }
+
+    /**
+     * true: a small box in the top right corner, over everything the app paints,
+     * says how many frames were painted in the last second and how long the
+     * last one took ("60 fps  3.2 ms"). false: gone. An app that stands still
+     * shows 0 - it is not painting, which is what it should be doing.
+     */
+    static def show_fps(on: bool) {
+        ui_host.fps_shown = on;
+        if(ui_host.current != null) {
+            ui_host.current!!.repaint();
+        }
+    }
+
+    /**
+     * The colours and sizes the widgets use: theme.dark() (the default),
+     * theme.light(), or your own. Before gui.run it sets the theme the app
+     * starts with; while the app runs it switches the look on the spot (the
+     * whole screen is built again with the new theme).
+     */
+    static def use_theme(next: theme) {
+        if(ui_host.current != null) {
+            ui_host.current!!.set_theme(next);
+        } else {
+            ui_host.chosen_theme = next;
+        }
+    }
+
+    /** the theme in use right now: its colours and sizes, for your own widgets (t := gui.current_theme(); t.surface ...) */
+    static def current_theme() : theme {
+        if(ui_host.current != null) {
+            return ui_host.current!!.look;
+        }
+        if(ui_host.chosen_theme == null) {
+            ui_host.chosen_theme = theme.dark();
+        }
+        return ui_host.chosen_theme!!;
+    }
+
+    /** run `action` once, `seconds` from now. Returns the timer; .cancel() stops it. (timer.sharp) */
+    static def after(seconds: decimal, action: ()()) : timer {
+        return new timer(seconds, 0, action);
+    }
+
+    /** run `action` every `seconds`, until the timer it returns is cancelled. (timer.sharp) */
+    static def every(seconds: decimal, action: ()()) : timer {
+        return new timer(seconds, seconds, action);
+    }
+
+    /**
+     * A value the screen depends on, made outside a composable (inside one,
+     * use the composable's own state(...), which is also remembered when a
+     * parent rebuilds). Read it with .value while building; assign .value to
+     * change it - whatever was built from it is built again.
+     */
+    static def state(first: _int64) : state<_int64> {
+        return new state<_int64>(first);
+    }
+
+    /** a decimal state: gui.state(0.5) */
+    static def state(first: decimal) : state<decimal> {
+        return new state<decimal>(first);
+    }
+
+    /** a text state: gui.state("") */
+    static def state(first: string) : state<string> {
+        return new state<string>(new string(first));
+    }
+
+    /** a state holding any other kind of value (an object, a list); call .touch() after changing something inside it */
+    static def state_of<t>(first: t) : state<t> {
+        return new state<t>(first);
+    }
+
+    // ================================================================ the box of a widget
+
+    /**
+     * A new, empty modifier: chain the box settings you want onto it and pass
+     * it to a widget function (modifier.sharp).
+     *
+     *      text("Hello", modifier().padding(8).background(surface).corner(6))
+     */
+    static def modifier() : modifier {
+        return new modifier();
+    }
+
+    // ================================================================ layout
+    //
+    // Every container comes in four forms:
+    //
+    //      column()                    empty; fill it with .add(...) or .content { ... }
+    //      column(look)                the same, with a modifier
+    //      column { ... }              widgets made in the block are its children
+    //      column(look) { ... }        the same, with a modifier
+    //
+
+    /** children stacked top to bottom (column.sharp) */
+    static def column() : column {
+        return new column();
+    }
+
+    static def column(look: modifier) : column {
+        made := new column();
+        look.apply_to(made.node());
+        return made;
+    }
+
+    static def column(block: ()()) : column {
+        made := new column();
+        made.content(block);
+        return made;
+    }
+
+    static def column(look: modifier, block: ()()) : column {
+        made := new column();
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** children side by side, left to right (row.sharp) */
+    static def row() : row {
+        return new row();
+    }
+
+    static def row(look: modifier) : row {
+        made := new row();
+        look.apply_to(made.node());
+        return made;
+    }
+
+    static def row(block: ()()) : row {
+        made := new row();
+        made.content(block);
+        return made;
+    }
+
+    static def row(look: modifier, block: ()()) : row {
+        made := new row();
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** children on top of each other, first at the bottom (stack.sharp) */
+    static def stack() : stack {
+        return new stack();
+    }
+
+    static def stack(look: modifier) : stack {
+        made := new stack();
+        look.apply_to(made.node());
+        return made;
+    }
+
+    static def stack(block: ()()) : stack {
+        made := new stack();
+        made.content(block);
+        return made;
+    }
+
+    static def stack(look: modifier, block: ()()) : stack {
+        made := new stack();
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** a scrolling window onto content taller than the room there is (scroller.sharp) */
+    static def scroll(content: element) : scroller {
+        return new scroller(content, 0);
+    }
+
+    static def scroll(look: modifier, content: element) : scroller {
+        made := new scroller(content, 0);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** the block form: the widgets made in the block scroll, stacked top to bottom */
+    static def scroll(block: ()()) : scroller {
+        return new scroller(scrolling_column(block), 0);
+    }
+
+    static def scroll(look: modifier, block: ()()) : scroller {
+        made := new scroller(scrolling_column(block), 0);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** the column inside a block-form scroller: as wide as the scroller, as tall as its content */
+    private static def scrolling_column(block: ()()) : column {
+        inside := new column();
+        inside.node().fill_w = 1;
+        inside.content(block);
+        return inside;
+    }
+
+    /** the sideways scroller: the widgets made in the block sit side by side and scroll left-right */
+    static def scroll_row(block: ()()) : scroller {
+        return new scroller(scrolling_row(block), 1);
+    }
+
+    static def scroll_row(look: modifier, block: ()()) : scroller {
+        made := new scroller(scrolling_row(block), 1);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** the row inside a sideways scroller: as tall as the scroller, as wide as its content */
+    private static def scrolling_row(block: ()()) : row {
+        inside := new row();
+        inside.node().fill_h = 1;
+        inside.content(block);
+        return inside;
+    }
+
+    /**
+     * A scrolling list that only builds the rows in view - for long lists
+     * (lazy_list.sharp). Inside the block, only item { } and items(n) { i -> }.
+     */
+    static def lazy_column(block: ()()) : lazy_list {
+        made := new lazy_list();
+        made.content(block);
+        return made;
+    }
+
+    static def lazy_column(look: modifier, block: ()()) : lazy_list {
+        made := new lazy_list();
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** inside lazy_column { }: one row, built when it scrolls into view */
+    static def item(block: ()()) {
+        target := scope.inside("lazy_column", "item { ... }", "lazy_column { ... }").how as lazy_list;
+        target.add_section(1, { i: _int64 -> block(); });
+    }
+
+    /** inside lazy_column { }: `count` rows; row i (from 0) is built by the block when it scrolls into view */
+    static def items(count: _int64, each: (_int64)()) {
+        target := scope.inside("lazy_column", "items(count) { i -> ... }", "lazy_column { ... }").how as lazy_list;
+        target.add_section(count, each);
+    }
+
+    /** children in `columns` equal columns, row after row (grid.sharp) */
+    static def grid(columns: _int64, block: ()()) : grid {
+        made := new grid(columns, 0);
+        made.content(block);
+        return made;
+    }
+
+    static def grid(columns: _int64, look: modifier, block: ()()) : grid {
+        made := new grid(columns, 0);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** a grid with as many equal columns as fit, each at least `least` pixels wide (grid.sharp) */
+    static def grid_fit(least: decimal, block: ()()) : grid {
+        made := new grid(1, least);
+        made.content(block);
+        return made;
+    }
+
+    static def grid_fit(least: decimal, look: modifier, block: ()()) : grid {
+        made := new grid(1, least);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** children side by side, folding onto the next line when the line is full (wrap.sharp) */
+    static def wrap(block: ()()) : wrap {
+        made := new wrap();
+        made.content(block);
+        return made;
+    }
+
+    static def wrap(look: modifier, block: ()()) : wrap {
+        made := new wrap();
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /**
+     * Content that fades in while `visible` is not 0 and fades out when it
+     * turns 0; faded out, it takes no room (fader.sharp).
+     *
+     *      fade(saved.value) { text("Saved!"); }
+     */
+    static def fade(visible: _int64, block: ()()) : fader {
+        made := new fader(visible);
+        made.content(block);
+        return made;
+    }
+
+    static def fade(visible: _int64, look: modifier, block: ()()) : fader {
+        made := new fader(visible);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    // ================================================================ floating above the page
+
+    /**
+     * A context menu: a list of choices at the mouse, there while `open` is
+     * not 0 (menu.sharp). Open it from a right click:
+     *
+     *      row(modifier().right_click { opened.value = 1; }) { ... };
+     *      menu(opened) { menu_item("Delete") { remove(); }; }
+     */
+    static def menu(open: state<_int64>, block: ()()) : popup {
+        made := new popup(POPUP_AT_MOUSE, { -> open.value = 0; });
+        if(open.value != 0) {
+            made.content({ ->
+                t : theme = current_theme();
+                choices := new menu_box({ -> open.value = 0; });
+                box : view = choices.node();
+                box.pad_left = 4;
+                box.pad_top = 4;
+                box.pad_right = 4;
+                box.pad_bottom = 4;
+                box.back = t.surface_high;
+                box.corner = t.radius;
+                box.border_w = 1;
+                box.border_c = t.border;
+                box.shadow = 10;
+                box.min_w = 170;
+                choices.content(block);
+            });
+        }
+        return made;
+    }
+
+    /** inside menu { }: one choice. Choosing it runs `action` and closes the menu. */
+    static def menu_item(title: string, action: ()()) : row {
+        owner := scope.inside("menu", "menu_item(...)", "menu(state) { ... }").how as menu_box;
+        line := new row();
+        box : view = line.node();
+        box.fill_w = 1;
+        box.pad_left = 12;
+        box.pad_top = 8;
+        box.pad_right = 12;
+        box.pad_bottom = 8;
+        box.corner = 6;
+        box.feedback = 1;
+        box.on_click = { ->
+            owner.close();
+            action();
+        };
+        line.content({ -> text(title); });
+        return line;
+    }
+
+    /**
+     * A short message at the bottom of the window that goes away by itself
+     * after a few seconds: "Saved", "Copied". (Android: Toast / Snackbar.)
+     */
+    /**
+     * A sheet: a panel that rises from the bottom edge of the window over a
+     * dimmed page, there while `open` is not 0. A click outside it, or Escape,
+     * sets `open` back to 0. For a short task that belongs to the page behind
+     * it: adding an item, choosing among options. (popup.sharp)
+     *
+     *      adding := state(0);
+     *      sheet(adding) {
+     *          text("New task").size(20).bold();
+     *          text_field(title, modifier().fill_width());
+     *          button("Add") { add(); adding.value = 0; };
+     *      }
+     *
+     * (Compose: ModalBottomSheet. Android: BottomSheetDialogFragment.)
+     */
+    static def sheet(open: state<_int64>, block: ()()) : popup {
+        made := new popup(POPUP_BOTTOM, { -> open.value = 0; });
+        if(open.value != 0) {
+            made.content({ ->
+                t : theme = current_theme();
+                panel := new column();
+                panel.gap(12);
+                box : view = panel.node();
+                box.pad_left = 24;
+                box.pad_top = 10;
+                box.pad_right = 24;
+                box.pad_bottom = 28;
+                box.back = t.surface;
+                box.corner = 18;
+                box.shadow = 16;
+                panel.content({ ->
+                    // the small bar at the top that says "this is a sheet"
+                    stack(modifier().size(40, 4).background(t.border).corner(2).align(ALIGN_CENTER).margin(0, 0, 0, 6));
+                    block();
+                });
+            });
+        }
+        return made;
+    }
+
+    /**
+     * A card: a raised panel that groups what belongs together. Its children
+     * are stacked like a column's. A modifier adds to the card's own look
+     * (and can replace any part of it): card(modifier().fill_width().click { ... }) { ... }
+     * (Compose: Card. Android: CardView.)
+     */
+    static def card(block: ()()) : column {
+        return card(modifier(), block);
+    }
+
+    static def card(extra: modifier, block: ()()) : column {
+        t : theme = current_theme();
+        made := new column();
+        made.gap(8);
+        box : view = made.node();
+        box.pad_left = 16;
+        box.pad_top = 14;
+        box.pad_right = 16;
+        box.pad_bottom = 14;
+        box.back = t.surface;
+        box.corner = 12;
+        box.shadow = 6;
+        extra.apply_to(box);                // after the card's own look: what the modifier says wins
+        made.content(block);
+        return made;
+    }
+
+    /** the floating action button: put it in a stack, after the content it floats over (fab.sharp) */
+    static def fab(words: string, action: ()()) : fab {
+        return new fab(words, action);
+    }
+
+    static def fab(words: string, look: modifier, action: ()()) : fab {
+        made := new fab(words, action);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** a small rounded label: a tag, or a filter with a click (chip.sharp) */
+    static def chip(words: string) : chip {
+        return new chip(words);
+    }
+
+    static def chip(words: string, action: ()()) : chip {
+        return new chip(words, action);
+    }
+
+    /** a small filled dot with a count; nothing at all when the count is 0 (chip.sharp) */
+    static def badge(count: _int64) : badge {
+        return new badge(count);
+    }
+
+    static def toast(words: string) {
+        if(ui_host.current != null) {
+            ui_host.current!!.show_toast(words, 2.6);
+        }
+    }
+
+    /** put text on the system clipboard, where every other program can paste it */
+    static def copy(words: string) {
+        clipboard_write(words);
+    }
+
+    /** the text on the system clipboard ("" when there is none) */
+    static def paste() : string {
+        return clipboard_read();
+    }
+
+    /**
+     * A dialog: a card in the middle of the window, over a dimmed page, there
+     * while `open` is not 0. A click outside it, or Escape, sets `open` back to
+     * 0. (popup.sharp)
+     *
+     *      confirm := state(0);
+     *      dialog(confirm) {
+     *          text("Delete this file?").size(20).bold();
+     *          button("Delete") { remove(); confirm.value = 0; }.danger();
+     *      }
+     */
+    static def dialog(open: state<_int64>, block: ()()) : popup {
+        made := new popup(POPUP_CENTER, { -> open.value = 0; });
+        if(open.value != 0) {
+            made.content({ ->
+                t : theme = current_theme();
+                card := new column();
+                card.gap(12);
+                box : view = card.node();
+                box.pad_left = 22;
+                box.pad_top = 20;
+                box.pad_right = 22;
+                box.pad_bottom = 20;
+                box.back = t.surface;
+                box.corner = 12;
+                box.shadow = 14;
+                box.min_w = 280;
+                box.max_w = 460;
+                card.content(block);
+            });
+        }
+        return made;
+    }
+
+    // ================================================================ screens
+
+    /**
+     * The app's screens, in one list, and the place they are shown.
+     *
+     *      screens(nav, to_home(), modifier().grow(1)) {
+     *          tab<to_home>("Home")       { home_screen(nav); };
+     *          tab<to_library>("Library") { library_screen(nav); };
+     *          screen<to_detail>()        { detail_screen(nav, it.id); };
+     *      }
+     *
+     * `start` is the route the app opens with. The block lists what is shown
+     * for each kind of route: screen<route>() { } for an ordinary screen,
+     * tab<route>(title) { } for a top-level one the tab bar switches between.
+     * Inside each, `it` is the route the screen was opened with.
+     * (screens.sharp, navigator.sharp, route.sharp)
+     */
+    static def screens(nav: navigator, start: route, block: ()()) : screen_host {
+        write_screen_list(nav, start, block);
+        return new screen_host(nav);
+    }
+
+    static def screens(nav: navigator, start: route, look: modifier, block: ()()) : screen_host {
+        write_screen_list(nav, start, block);
+        made := new screen_host(nav);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /**
+     * Run the block of screens(...): every screen<...>() and tab<...>(...) in
+     * it adds a line to the navigator's screen list. Then open the first
+     * screen, if nothing is open yet.
+     */
+    private static def write_screen_list(nav: navigator, start: route, block: ()()) {
+        nav.begin_listing();
+        outer : navigator? = navigator.listing;
+        navigator.listing = nav;
+        listed : view = scope.collect("screens", block);
+        navigator.listing = outer;
+
+        if(listed.kid_count() > 0) {
+            throw new illegal_state_exception("inside `screens(nav, start) { ... }` only list screens: `screen<route>() { ... }` and `tab<route>(\"Title\") { ... }` (a widget was made directly in the block)");
+        }
+        nav.start_at(start);
+    }
+
+    /**
+     * Inside screens { }: what is shown for routes of type t. `it` is the
+     * route: screen<to_detail>() { detail_screen(nav, it.id); }
+     */
+    static def screen<t base route>(content: (t)()) {
+        scope.inside("screens", "screen<route>() { ... }", "screens(nav, start) { ... }");
+        navigator.listing!!.list_screen(new typed_screen<t>(content));
+    }
+
+    /**
+     * Inside screens { }: a top-level screen, one of the places the tab bar
+     * switches between: tab<to_home>("Home") { home_screen(nav); }
+     * The route class must be makeable with no arguments.
+     */
+    static def tab<t base route>(title: string, content: (t)()) {
+        scope.inside("screens", "tab<route>(\"Title\") { ... }", "screens(nav, start) { ... }");
+        navigator.listing!!.list_screen(new typed_tab<t>(title, content));
+    }
+
+    /** the bar that switches between the app's tabs; it hides while a screen is open on top of a tab (nav_bar.sharp) */
+    static def nav_bar(nav: navigator) : nav_bar {
+        return new nav_bar(nav);
+    }
+
+    /**
+     * The bar across the top of a screen: its title, and a back button
+     * whenever there is a screen to go back to.
+     */
+    static def top_bar(title: string, nav: navigator) : row {
+        bar := new row();
+        bar.gap(8);
+        box : view = bar.node();
+        box.fill_w = 1;
+        box.fixed_h = 52;
+        box.pad_left = 8;
+        box.pad_right = 12;
+        bar.content({ ->
+            if(nav.can_go_back() == 1) {
+                button("< Back", { -> nav.back(); }).plain();
+            } else {
+                gap(8);
+            }
+            text(title).size(20).bold();
+        });
+        return bar;
+    }
+
+    /** empty room that takes whatever is left over in a row or column: pushes things apart */
+    static def spacer() : spacer {
+        made := new spacer();
+        made.node().weight = 1;
+        return made;
+    }
+
+    /** exactly this many pixels of empty room (along the row or column it is in, and across) */
+    static def gap(pixels: decimal) : spacer {
+        made := new spacer();
+        made.node().fixed_w = pixels;
+        made.node().fixed_h = pixels;
+        return made;
+    }
+
+    /** a thin line between things (divider.sharp) */
+    static def divider() : divider {
+        return new divider();
+    }
+
+    // ================================================================ showing things
+
+    /** text; wraps when it does not fit (label.sharp) */
+    static def text(words: string) : label {
+        return new label(words);
+    }
+
+    static def text(words: string, look: modifier) : label {
+        made := new label(words);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** a picture from a file: PNG, JPG, BMP, GIF (picture.sharp) */
+    static def image(path: string) : picture {
+        return new picture(path);
+    }
+
+    static def image(path: string, look: modifier) : picture {
+        made := new picture(path);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** a bar that shows how far along something is: 0 = nothing, 1 = done (progress_bar.sharp) */
+    static def progress(fraction: decimal) : progress_bar {
+        return new progress_bar(fraction);
+    }
+
+    static def progress(fraction: decimal, look: modifier) : progress_bar {
+        made := new progress_bar(fraction);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    // ================================================================ taking input
+
+    /** words you can click: button("Save") { save(); } (button.sharp) */
+    static def button(words: string, action: ()()) : button {
+        return new button(words, action);
+    }
+
+    static def button(words: string, look: modifier, action: ()()) : button {
+        made := new button(words, action);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** a box you tick, bound to a 0/1 state (checkbox.sharp) */
+    static def checkbox(words: string, value: state<_int64>) : checkbox {
+        return new checkbox(words, value);
+    }
+
+    static def checkbox(words: string, value: state<_int64>, look: modifier) : checkbox {
+        made := new checkbox(words, value);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** an on/off switch, bound to a 0/1 state (toggle.sharp) */
+    static def toggle(value: state<_int64>) : toggle {
+        return new toggle(value);
+    }
+
+    static def toggle(value: state<_int64>, look: modifier) : toggle {
+        made := new toggle(value);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** a knob on a track that picks a number between `from` and `to`, bound to a decimal state (slider.sharp) */
+    static def slider(value: state<decimal>, from: decimal, to: decimal) : slider {
+        return new slider(value, from, to);
+    }
+
+    static def slider(value: state<decimal>, from: decimal, to: decimal, look: modifier) : slider {
+        made := new slider(value, from, to);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** a box to type one line of text into, bound to a text state (text_field.sharp) */
+    /** a box for text of several lines: wraps, scrolls, Enter starts a new line (text_area.sharp) */
+    // ------------------------------------------------------------ rich text
+
+    /**
+     * One text with parts that look different. The block says the parts with
+     * plain / bold / colored / quiet; text(...) shows the result.
+     * (rich_label.sharp)
+     *
+     *      text(rich { plain("Due "); bold("tomorrow"); });
+     */
+    static def rich(block: ()()) : rich_text {
+        made := new rich_text();
+        outer : rich_text? = rich_text.gathering;
+        rich_text.gathering = made;
+        block();
+        rich_text.gathering = outer;
+        return made;
+    }
+
+    /** inside rich { }: words in the ordinary look */
+    static def plain(words: string) { rich_text.open("plain(...)").add(words, 0, 0, null); }
+
+    /** inside rich { }: bold words */
+    static def bold(words: string) { rich_text.open("bold(...)").add(words, 1, 0, null); }
+
+    /** inside rich { }: words in a colour of their own */
+    static def colored(words: string, c: color) { rich_text.open("colored(...)").add(words, 0, 0, c); }
+
+    /** inside rich { }: words in the theme's quiet colour */
+    static def quiet(words: string) { rich_text.open("quiet(...)").add(words, 0, 1, null); }
+
+    /** a rich text on the screen */
+    static def text(words: rich_text) : rich_label {
+        return new rich_label(words);
+    }
+
+    static def text(words: rich_text, look: modifier) : rich_label {
+        made := new rich_label(words);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    // ------------------------------------------------------------ the size of things
+
+    /**
+     * How many real pixels one unit is. Sizes in this library are in UNITS
+     * that look the same on every screen; by default the scale follows the
+     * screen's own setting (1.5 on a laptop at 150 %). Call this BEFORE
+     * gui.run to choose it yourself: gui.scale(2) makes everything twice as
+     * big, text included and still sharp.
+     * (Android: dp / sp and the display density.)
+     */
+    static def scale(factor: decimal) {
+        if(ui_host.current != null) {
+            throw new illegal_state_exception("gui.scale(...) sets the size of everything before the window opens: call it before gui.run(...)");
+        }
+        if(factor <= 0) {
+            throw new illegal_argument_exception("gui.scale(...) takes a number above 0: 1 is one pixel per unit, 1.5 a screen at 150 %");
+        }
+        surface.ensure_loaded();
+        surface_scale(factor);
+    }
+
+    // ------------------------------------------------------------ movement
+
+    /**
+     * Content that grows open and fades in while `visible` is not 0, and
+     * shrinks away when it is 0 - with whatever is below moving along.
+     * (revealer.sharp)
+     *
+     *      animated_show(expanded.value) { text("The details ..."); };
+     */
+    static def animated_show(visible: _int64, block: ()()) : revealer {
+        made := new revealer(visible, SHOW_EXPAND);
+        made.content(block);
+        return made;
+    }
+
+    /** the same, coming and going another way: SHOW_EXPAND, SHOW_FADE or SHOW_SLIDE */
+    static def animated_show(visible: _int64, how: _int64, block: ()()) : revealer {
+        made := new revealer(visible, how);
+        made.content(block);
+        return made;
+    }
+
+    /**
+     * A row that can be pushed off the screen sideways; `action` runs when it
+     * has gone, and must take the item out of the list. (swipe_row.sharp)
+     *
+     *      swipe_to_dismiss({ -> model.remove(t); }) { task_card(t); }.behind("Delete");
+     */
+    static def swipe_to_dismiss(action: ()(), block: ()()) : swipe_row {
+        made := new swipe_row(action);
+        made.content(block);
+        return made;
+    }
+
+    static def swipe_to_dismiss(look: modifier, action: ()(), block: ()()) : swipe_row {
+        made := new swipe_row(action);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    // ------------------------------------------------------------ dates and times
+
+    /** a month as a calendar page; clicking a day puts that date into the state (month_grid.sharp) */
+    static def month_view(value: state<date>) : month_grid {
+        return new month_grid(value);
+    }
+
+    static def month_view(value: state<date>, look: modifier) : month_grid {
+        made := new month_grid(value);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** hours and minutes with arrows, to set a time of day (time_spinner.sharp) */
+    static def time_view(value: state<time_of_day>) : time_spinner {
+        return new time_spinner(value);
+    }
+
+    static def time_view(value: state<time_of_day>, look: modifier) : time_spinner {
+        made := new time_spinner(value);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /**
+     * A dialog to pick a date, there while `open` is not 0. The day that is
+     * clicked goes into `value` at once; "Done" (or a click outside, or
+     * Escape) closes it.
+     *
+     *      due     := state_of<date>(date.today());
+     *      picking := state(0);
+     *
+     *      button(date_words(due.value)) { picking.value = 1; }.outline();
+     *      date_picker(picking, due);
+     *
+     * (Android: MaterialDatePicker. Compose: DatePickerDialog.)
+     */
+    static def date_picker(open: state<_int64>, value: state<date>) : popup {
+        return dialog(open, { ->
+            text(date_words(value.value)).size(20).bold();
+            month_view(value, modifier().fill_width());
+            row(modifier().fill_width()) {
+                button("Today") { value.value = date.today(); }.plain();
+                spacer();
+                button("Done") { open.value = 0; };
+            };
+        });
+    }
+
+    /** a dialog to pick a time of day, there while `open` is not 0 (see date_picker) */
+    static def time_picker(open: state<_int64>, value: state<time_of_day>) : popup {
+        return dialog(open, { ->
+            text("Set the time").size(20).bold();
+            time_view(value, modifier().fill_width());
+            row(modifier().fill_width()) {
+                spacer();
+                button("Done") { open.value = 0; };
+            };
+        });
+    }
+
+    /** a date the way people write it: "Tue 17 Nov 2026" */
+    static def date_words(day: date) : string {
+        number : _int64 = day.day();
+        year : _int64 = day.year();
+        return day.day_of_week().short_name() + " " + number + " " + day.month_of_year().short_name() + " " + year;
+    }
+
+    /** a time of day as "09:30" */
+    static def time_words(at: time_of_day) : string {
+        hour : _int64 = at.hour();
+        minute : _int64 = at.minute();
+        words : string = "";
+        if(hour < 10) { words = words + "0"; }
+        words = words + hour + ":";
+        if(minute < 10) { words = words + "0"; }
+        return words + minute;
+    }
+
+    // ------------------------------------------------------------ logic apart from the screen
+
+    /**
+     * Run `action` on the main thread: the way back from a background thread
+     * to the one place where states may be changed. (main_queue.sharp)
+     *
+     *      launch_on(dispatchers.io(), { ->
+     *          found := read_the_file();
+     *          gui.on_main { shown.value = found; };
+     *      });
+     *
+     * Inside a view model use the model's own on_main: it also does nothing
+     * once the model's screen is gone.
+     */
+    static def on_main(action: ()()) {
+        main_queue.post(action);
+    }
+
+    /**
+     * The model of class t for the screen being built: made the first time,
+     * the same one every time after, dropped when the screen is popped.
+     * (view_model.sharp)
+     *
+     *      model := model_of<tasks_model>();
+     */
+    static def model_of<t base view_model>() : t {
+        return model_store.here().of<t>();
+    }
+
+    /**
+     * The model of class t that belongs to the whole APP rather than to one
+     * screen: every screen that asks gets the same one, and it lives until the
+     * window closes. For what several screens share - the list of tasks that
+     * one screen shows and another edits.
+     * (Android: a ViewModel scoped to the activity or the navigation graph.)
+     */
+    static def shared_model_of<t base view_model>() : t {
+        return model_store.app.of<t>();
+    }
+
+    /** a list the screen watches: adding, removing or moving an item rebuilds whoever showed it (state_list.sharp) */
+    static def state_list<t>() : state_list<t> {
+        return new state_list<t>();
+    }
+
+    /**
+     * A state that is still there the next time the program runs: every change
+     * is written to a small file in the app's data folder. (saved.sharp)
+     *
+     *      theme_choice := saved("theme", 0);
+     */
+    static def saved(key: string, first: _int64) : state<_int64> {
+        return saved_maker.whole(key, first);
+    }
+
+    static def saved(key: string, first: decimal) : state<decimal> {
+        return saved_maker.number(key, first);
+    }
+
+    static def saved(key: string, first: string) : state<string> {
+        return saved_maker.text(key, first);
+    }
+
+    /**
+     * A watched list that is saved: one item per line of its file. The two
+     * functions turn an item into text and back.
+     *
+     *      tasks := saved_list<task>("tasks", { t: task -> return t.to_text(); },
+     *                                         { s: string -> return task.from_text(s); });
+     */
+    static def saved_list<t>(key: string, to_text: (t)(string), from_text: (string)(t)) : state_list<t> {
+        made := new state_list<t>();
+        saved_store.join(new saved_items<t>(key, made, to_text, from_text));
+        return made;
+    }
+
+    /** the name of the app's data folder, instead of the window title: call it before gui.run */
+    static def data_name(name: string) {
+        saved_store.use_name(name);
+    }
+
+    static def text_area(value: state<string>) : text_area {
+        return new text_area(value);
+    }
+
+    static def text_area(value: state<string>, look: modifier) : text_area {
+        made := new text_area(value);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** the rules a set of fields must pass, and the messages when they do not (form.sharp) */
+    static def form() : form {
+        return new form();
+    }
+
+    static def text_field(value: state<string>) : text_field {
+        return new text_field(value);
+    }
+
+    static def text_field(value: state<string>, look: modifier) : text_field {
+        made := new text_field(value);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** one choice out of several: all radios sharing a state form a group; this one stands for `stands_for` (radio.sharp) */
+    static def radio(words: string, choice: state<_int64>, stands_for: _int64) : radio {
+        return new radio(words, choice, stands_for);
+    }
+
+    static def radio(words: string, choice: state<_int64>, stands_for: _int64, look: modifier) : radio {
+        made := new radio(words, choice, stands_for);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** a strip of titles that chooses a page: tabs(page) { tab("One"); tab("Two"); } (tabs.sharp) */
+    static def tabs(choice: state<_int64>, block: ()()) : tab_strip {
+        made := new tab_strip(choice);
+        made.content(block);
+        return made;
+    }
+
+    static def tabs(choice: state<_int64>, look: modifier, block: ()()) : tab_strip {
+        made := new tab_strip(choice);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** inside tabs { }: one title */
+    static def tab(title: string) : tab_item {
+        scope.inside("tabs", "tab(...)", "tabs(state) { ... }");
+        return new tab_item(title);
+    }
+
+    /** pick one named choice from a menu that drops down: dropdown(choice) { option("A"); option("B"); } (dropdown.sharp) */
+    static def dropdown(choice: state<_int64>, block: ()()) : dropdown {
+        return new dropdown(choice, options_of(block));
+    }
+
+    static def dropdown(choice: state<_int64>, look: modifier, block: ()()) : dropdown {
+        made := new dropdown(choice, options_of(block));
+        look.apply_to(made.node());
+        return made;
+    }
+
+    /** inside dropdown { }: one choice */
+    static def option(title: string) : menu_option {
+        scope.inside("dropdown", "option(...)", "dropdown(state) { ... }");
+        return new menu_option(title);
+    }
+
+    /** run a dropdown's block and gather the words of the options it lists */
+    private static def options_of(block: ()()) : list<string> {
+        gathered : view = scope.collect("dropdown", block);
+        titles := new list<string>();
+        count : _int64 = gathered.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            choice := gathered.kids.at(i).how as menu_option;
+            titles.add(choice.words);
+        }
+        return titles;
+    }
+
+    // ================================================================ drawing it yourself
+
+    /** an area you paint yourself every frame: charts, drawings, games (canvas.sharp). Give it a size with the modifier. */
+    static def canvas(drawing: (painter, frame)()) : canvas {
+        return new canvas(drawing);
+    }
+
+    static def canvas(look: modifier, drawing: (painter, frame)()) : canvas {
+        made := new canvas(drawing);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    // ================================================================ colours
+
+    /** A solid colour, each channel 0..255: rgb(24, 28, 40). */
+    static def rgb(r: _int32, g: _int32, b: _int32) : color {
+        return new color(r, g, b, 255);
+    }
+
+    /** A colour that can be see-through: alpha 0 (invisible) .. 255 (solid). */
+    static def rgba(r: _int32, g: _int32, b: _int32, a: _int32) : color {
+        return new color(r, g, b, a);
+    }
+
+    /**
+     * A solid colour as ONE NUMBER, 0xRRGGBBAA - the form the painter takes
+     * without making anything: p.rect(0, 0, 200, 80, gui.pack(60, 63, 70)) is
+     * p.rect(0, 0, 200, 80, 0x3C3F46FF). Channels outside 0..255 are brought
+     * inside. For a colour worked out while painting; one that never changes
+     * is best written as the hex number, or packed once and kept.
+     */
+    static def pack(r: _int64, g: _int64, b: _int64) : _int64 {
+        return pack(r, g, b, 255);
+    }
+
+    /** the same with an alpha: 0 (invisible) .. 255 (solid) */
+    static def pack(r: _int64, g: _int64, b: _int64, a: _int64) : _int64 {
+        if(r < 0) { r = 0; }
+        if(r > 255) { r = 255; }
+        if(g < 0) { g = 0; }
+        if(g > 255) { g = 255; }
+        if(b < 0) { b = 0; }
+        if(b > 255) { b = 255; }
+        if(a < 0) { a = 0; }
+        if(a > 255) { a = 255; }
+        return ((r * 256 + g) * 256 + b) * 256 + a;
+    }
+
+    // ================================================================ the layer below (for programs that paint everything themselves)
+
+    /**
+     * Open a bare window and drive it yourself: read events, paint with its
+     * painter, show the frame (window.sharp). gui.run does all of this for
+     * you; use this only for a program that wants the raw loop.
+     */
+    static def window(title: string, width: _int32, height: _int32) : window {
+        return new window(title, width, height);
+    }
+
+    /** ... of the standard size (default_width x default_height) */
+    static def window(title: string) : window {
+        return new window(title, default_width(), default_height());
+    }
+
+    /** ... opened maximized or fullscreen; w.set_mode(...) and w.fullscreen(true / false) change it later */
+    static def window(title: string, opened_as: window_mode) : window {
+        return new window(title, default_width(), default_height(), opened_as);
+    }
+
+    static def window(title: string, width: _int32, height: _int32, opened_as: window_mode) : window {
+        return new window(title, width, height, opened_as);
+    }
+
+    /** The system's standard font at this size in pixels, for painter.text. Needs an open window. */
+    static def font(size: decimal) : font {
+        return new font("", size);
+    }
+
+    /** Your own font file (.ttf / .otf) at this size in pixels, for painter.text. Needs an open window. */
+    static def font(path: string, size: decimal) : font {
+        return new font(path, size);
+    }
+
+    /** A picture file loaded for painter.image (in a layout, use image(path)). Needs an open window. */
+    static def load_image(path: string) : image {
+        return new image(path);
+    }
+}

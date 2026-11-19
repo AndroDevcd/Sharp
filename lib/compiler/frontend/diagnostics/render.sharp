@@ -1,0 +1,157 @@
+mod frontend.diagnostics;
+
+import (
+    std.io,
+    frontend.lexer
+)
+
+/**
+ * PRINTING A DIAGNOSTIC
+ *
+ *      error[E0301]: there is no type named `strng`              <- what
+ *       --> src/main.sharp:12:12                                 <- where (file:line:column, clickable in editors)
+ *         |
+ *      12 |     name : strng = "x";                              <- the line itself
+ *         |            ^^^^^ not declared in this file ...       <- exactly which part, and a few words about it
+ *         |
+ *         = note: ...                                            <- why
+ *         = help: did you mean `string`?                         <- what to do about it
+ *
+ * A related place is printed the same way, marked with `-` instead of `^`:
+ *
+ *        ::: src/shapes.sharp:3:7
+ *         |
+ *       3 | class point {
+ *         |       ----- first declared here
+ *
+ * The line number column is as wide as the longest line number shown, so the
+ * bars line up.
+ */
+
+/** the text for one diagnostic, ending in a blank line */
+def render(d: diagnostic) : string {
+    out := new string_builder("");
+
+    if(d.severity == SEVERITY_WARNING) { out.append("warning"); }
+    else { out.append("error"); }
+    out.append("[" + d.code + "]: " + d.message + "\n");
+
+    // how wide the line numbers are
+    width : _int64 = digits_of(line_of(d.table, d.from));
+    for(r : _int64 = 0; r < d.related.size(); r++) {
+        place := d.related.at(r);
+        w : _int64 = digits_of(line_of(place.table, place.from));
+        if(w > width) { width = w; }
+    }
+
+    render_place(out, " -->", d.file, d.source, d.table, d.from, d.to, d.label, '^', width);
+    for(r : _int64 = 0; r < d.related.size(); r++) {
+        place := d.related.at(r);
+        render_place(out, " :::", place.file, place.source, place.table, place.from, place.to, place.label, '-', width);
+    }
+
+    if(d.notes.size() > 0 || d.helps.size() > 0) {
+        pad(out, width + 1);
+        out.append("|\n");
+    }
+    for(n : _int64 = 0; n < d.notes.size(); n++) {
+        pad(out, width + 1);
+        out.append("= note: " + d.notes.at(n) + "\n");
+    }
+    for(h : _int64 = 0; h < d.helps.size(); h++) {
+        pad(out, width + 1);
+        out.append("= help: " + d.helps.at(h) + "\n");
+    }
+    out.append("\n");
+    return out.build();
+}
+
+/**
+ * One place: the "--> file:line:column" line, the source line, and the
+ * markers under the characters from..to with the label after them.
+ */
+def render_place(out: string_builder, arrow: string, file: string, source: _int8[], table: token_table,
+                 from: _int64, to: _int64, label: string, marker: _int64, width: _int64) {
+    size : _int64 = sizeof(source);
+    if(from > size) { from = size; }
+    if(to < from) { to = from; }
+
+    line : _int64 = line_of(table, from);
+    column : _int64 = column_of(table, from);
+
+    pad(out, width - 1);
+    out.append(arrow + " " + file + ":" + line + ":" + column + "\n");
+    pad(out, width + 1);
+    out.append("|\n");
+
+    // the source line: from its first character up to the line break
+    lines : _int32[] = table.line_starts!!;
+    line_from : _int64 = lines[line - 1];
+    line_to : _int64 = size;
+    if(line < table.line_count) { line_to = lines[line]; }
+    while(line_to > line_from && (source[line_to - 1] == '\n' || source[line_to - 1] == '\r')) {
+        line_to--;
+    }
+
+    number : string = "" + line;
+    pad(out, width - sizeof(number.data));
+    out.append(number + " | ");
+    for(i : _int64 = line_from; i < line_to; i++) {
+        c : _int64 = source[i];
+        if(c == '\t') { c = ' '; }          // one column per character, so the markers line up
+        out.append(c);
+    }
+    out.append("\n");
+
+    // the markers: at least one, and never past the end of the line
+    marked_to : _int64 = to;
+    if(marked_to > line_to) { marked_to = line_to; }
+    count : _int64 = marked_to - from;
+    if(count < 1) { count = 1; }
+
+    pad(out, width + 1);
+    out.append("| ");
+    pad(out, column - 1);
+    for(i : _int64 = 0; i < count; i++) {
+        out.append(marker);
+    }
+    if(sizeof(label.data) > 0) {
+        out.append(" " + label);
+    }
+    out.append("\n");
+}
+
+def pad(out: string_builder, spaces: _int64) {
+    for(i : _int64 = 0; i < spaces; i++) {
+        out.append(" ");
+    }
+}
+
+def digits_of(number: _int64) : _int64 {
+    digits : _int64 = 1;
+    while(number >= 10) {
+        number = number / 10;
+        digits++;
+    }
+    return digits;
+}
+
+/** how many of the diagnostics are errors (the others are warnings) */
+def count_errors(found: list<diagnostic>) : decimal {
+    errors : decimal = 0;
+    for(i : _int64 = 0; i < found.size(); i++) {
+        if(found.at(i).severity == SEVERITY_ERROR) { errors++; }
+    }
+    return errors;
+}
+
+/** print every diagnostic of a list; returns how many were errors */
+def print_diagnostics(found: list<diagnostic>) : decimal {
+    errors : decimal = 0;
+    for(i : _int64 = 0; i < found.size(); i++) {
+        d := found.at(i);
+        if(d.severity == SEVERITY_ERROR) { errors++; }
+        print(render(d));
+    }
+    return errors;
+}

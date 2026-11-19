@@ -1,0 +1,82 @@
+// expect: E0410 E0410 E0410 E0501 E0501 E0501 E0501 E0609 E0414 E0414 E0410 E0400 E0405 E0722 E0501
+mod second_look;
+
+import ( std, std.io )
+
+/**
+ * MISTAKES WHOSE MESSAGE USED TO POINT THE WRONG WAY (doc/backend.md 10.9)
+ *
+ *  - `o[i] = v` where the class HAS a put(index, value) that refuses the
+ *    value: the value's type is the mistake (E0410), not "cannot be assigned"
+ *  - a text literal given where an `int` or an object is wanted: the help is
+ *    about the quotes, not "use one of its items"
+ *  - a class of the library is never suggested to be edited: foreach over a
+ *    hash_map names its keys()/values(); m["a"] names at() and put()
+ *  - one wrongly declared local, one message: the uses after it are quiet
+ *    (members, foreach, index, assignment). A local whose VALUE was broken
+ *    keeps its written type
+ *  - a nullable local used without `?.`: one E0722, not one per use
+ *  - a class that has visitor<double> given where a visitor<string> is wanted
+ */
+
+class bag {
+    def operator[](i: _int64) : _int64 { return 0; }
+    def put(i: _int64, v: _int64) { }
+}
+class k { }
+class node { value : _int64 = 0; after : node?; }
+interface visitor<T> { def visit(n: _int64) : T; }
+class evaluator : visitor<decimal> { override def visit(n: _int64) : decimal { return 1.0; } }
+def show(v: visitor<string>) { }
+
+def take(n: int) { }
+def keep(item: k) { }
+
+def indexes() {
+    a := new list<int>();
+    a.add(1);
+    a[0] = "s";                                         // E0410: list<int>.put takes an int
+    a[0] = new k();                                     // E0410
+    b := new bag();
+    b[0] = "s";                                         // E0410: bag.put takes an _int64
+    a[0] = 5;                                           // fine
+}
+
+def literals() {
+    take("5");                                          // E0501: write 5
+    a := new list<int>();
+    x := a["k"];                                        // E0501: a number is wanted
+    s := "x";
+    if(s.equals("y")) { }                               // E0501: new string("y")
+    keep(new k());
+    keep("k");                                          // E0501: text is never a `k` (and no `new string` help)
+}
+
+def library_classes() {
+    m := new hash_map<string, int>();
+    foreach(x in m) { }                                 // E0609: m.keys()
+    m["a"] = "b";                                       // E0414: m.put("a", ...)
+    y := m["a"];                                        // E0414: m.at("a")
+}
+
+def one_mistake() {
+    ages : _int64 = { "ann": 31, "bob": 42 };           // E0410
+    println(ages.map);                                  // quiet: the declaration was refused
+    ages.put("cy", 3);                                  // quiet
+    foreach(name in ages) { }                           // quiet: `ages` is read as the error type
+    ages = "text";                                      // quiet
+    first := ages[0];                                   // quiet
+    count : _int64 = nothing_here;                      // E0400: here the VALUE is broken; the type stands,
+    count.size();                                       // E0405: and a use against it is reported
+}
+
+def walk(first: node?) : _int64 {
+    current := first;
+    total : _int64 = current.value;                     // E0722
+    after := current.after;                             // quiet: the same mistake
+    return total;
+}
+
+def visitors() {
+    show(new evaluator());                              // E0501: it has visitor<decimal>, not visitor<string>
+}

@@ -1,0 +1,180 @@
+mod std.collections;
+
+/**
+ * @class hash_set
+ *
+ * A collection that holds every element at most once and answers "is x in
+ * here?" in O(1) on average, however many elements it holds.
+ *
+ *     seen := new hash_set<string>();
+ *     seen.add("a");          // 1: added
+ *     seen.add("a");          // 0: was already there
+ *     seen.contains("a");     // 1
+ *     seen.size();            // 1
+ *
+ * Elements are found through `hash()` and compared with `==`, so the element
+ * type must give equal elements the same hash - int, string and the other
+ * std value types do. For your own classes override hash().
+ *
+ * Looping over the set (foreach, iterator, to_array, to_list) visits the
+ * elements in the order they were first added. That order is a guarantee:
+ * the set is built on `linked_hash_map` (each element is a key), which costs
+ * two extra references per element and buys predictable output.
+ *
+ * Besides the single element operations there are the classic set
+ * operations: union, intersect, subtract, contains_all.
+ *
+ * Limitation: the element type has to be an object type; native types such
+ * as `decimal` cannot be used as T.
+ */
+class hash_set<T base _object_> : loopable<T>, iterable<T> {
+    /** the elements are the keys of this map (each key maps to itself) */
+    private members : linked_hash_map<T, T>;
+
+    /** Create an empty set. */
+    hash_set() {
+        members = new linked_hash_map<T, T>();
+    }
+
+    /** Number of elements. O(1). */
+    def size() : decimal {
+        return members.size();
+    }
+
+    /** 1 when the set has no elements, otherwise 0. O(1). */
+    def is_empty() : decimal {
+        return members.is_empty();
+    }
+
+    /**
+     * Add an element unless an equal one is already in the set. O(1) on average.
+     *
+     * @return 1 when the element was added, 0 when it was already there
+     */
+    def add(element: T) : decimal {
+        return members.put_if_absent(element, element);
+    }
+
+    /**
+     * Add every element of a `list` (duplicates are skipped). O(n).
+     *
+     * @return how many elements were actually added
+     */
+    def add_all(elements: list<T>) : decimal {
+        added : decimal = 0;
+        n : decimal = elements.size().value;
+        for(i : decimal = 0; i < n; i++)
+            added += add(elements.at(i));
+        return added;
+    }
+
+    /**
+     * Add every element of an array (duplicates are skipped). O(n).
+     *
+     * @return how many elements were actually added
+     */
+    def add_all(elements: T[]) : decimal {
+        added : decimal = 0;
+        for(i : decimal = 0; i < sizeof(elements); i++)
+            added += add(elements[i]);
+        return added;
+    }
+
+    /** 1 when the set holds an element equal to `element`, otherwise 0. O(1) on average. */
+    def contains(element: T) : decimal {
+        return members.contains_key(element);
+    }
+
+    /**
+     * Remove an element. O(1) on average.
+     *
+     * @return 1 when it was removed, 0 when the set did not hold it
+     */
+    def remove(element: T) : decimal {
+        return members.remove(element);
+    }
+
+    /** Remove every element. O(1). */
+    def clear() {
+        members.clear();
+    }
+
+    /** 1 when every element of `other` is also in this set (other is a subset of this one). O(n) in the size of `other`. */
+    def contains_all(other: hash_set<T>) : decimal {
+        items := other.to_array();
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            if(!members.contains_key(items[i])) return 0;
+        }
+        return 1;
+    }
+
+    /**
+     * A new set with the elements that are in this set, in `other`, or in
+     * both. Neither set is changed. O(n + m).
+     */
+    def union(other: hash_set<T>) : hash_set<T> {
+        result := new hash_set<T>();
+        result.add_all(to_array());
+        result.add_all(other.to_array());
+        return result;
+    }
+
+    /**
+     * A new set with the elements that are in BOTH this set and `other`.
+     * Neither set is changed. O(n).
+     */
+    def intersect(other: hash_set<T>) : hash_set<T> {
+        result := new hash_set<T>();
+        items := to_array();
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            if(other.contains(items[i])) result.add(items[i]);
+        }
+        return result;
+    }
+
+    /**
+     * A new set with the elements of this set that are NOT in `other`.
+     * Neither set is changed. O(n).
+     */
+    def subtract(other: hash_set<T>) : hash_set<T> {
+        result := new hash_set<T>();
+        items := to_array();
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            if(!other.contains(items[i])) result.add(items[i]);
+        }
+        return result;
+    }
+
+    /**
+     * 1 when both sets hold exactly the same elements (the order they were
+     * added in does not matter), otherwise 0. O(n).
+     */
+    def same_elements(other: hash_set<T>) : decimal {
+        if(size() != other.size()) return 0;
+        return contains_all(other);
+    }
+
+    /** A new array with the elements in the order they were added (length 0 when empty). O(n). */
+    def to_array() : T[] {
+        return members.key_array();
+    }
+
+    /** A new `list` with the elements in the order they were added. O(n). */
+    def to_list() : list<T> {
+        return members.keys();
+    }
+
+    /**
+     * The elements in the order they were added, or null when the set is
+     * empty. This is what `foreach` uses. O(n).
+     */
+    override def get_elements() : T[]? {
+        if(members.is_empty()) return null;
+        return members.key_array();
+    }
+
+    /** An iterator over a snapshot of the elements, in the order they were added. O(n) to create. */
+    override def iterator() : iterator<T> {
+        return new array_iterator<T>(get_elements());
+    }
+}

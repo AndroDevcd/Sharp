@@ -1,0 +1,18 @@
+mod std;
+
+/**
+ * @class division_by_zero_exception
+ *
+ * The most common arithmetic_exception: a divisor was zero. It is its own
+ * type so callers can tell it apart from other arithmetic failures, and it is
+ * still caught by `catch(e: arithmetic_exception)`.
+ *
+ * Example:
+ *     throw new division_by_zero_exception("the denominator of a fraction cannot be 0");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class division_by_zero_exception base arithmetic_exception {
+    public division_by_zero_exception(message : string?) -> base(message) {}
+}

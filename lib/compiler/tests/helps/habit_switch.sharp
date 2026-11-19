@@ -1,0 +1,11 @@
+// expect: E0400
+// help: when(x) { 1 -> { ... } else -> { ... } }
+// replace: switch(x) { }
+// dots: println(x);
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    x := 1;
+    switch(x) { }
+}

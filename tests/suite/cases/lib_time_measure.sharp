@@ -1,0 +1,49 @@
+mod main;
+
+import ( std.testing )
+
+/**
+ * std/time.sharp: time.measure and the unit conversions.
+ *
+ * time.measure used to convert the two absolute clock readings to the wanted
+ * unit and subtract afterwards, which is wrong by up to one whole unit. It
+ * now subtracts first and converts the difference with time.nano_to_unit.
+ *
+ * The real clock is only checked for properties that always hold.
+ */
+
+def nothing() {
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_time_measure") {
+        took : decimal = 0;
+        took = time.measure(milliseconds, { -> nothing(); }).value;
+        test("measure(milliseconds) of nothing is not negative") { expect_true(took >= 0); };
+        test("...and far below a minute") { expect_true(took < 60000); };
+        took = time.measure(nanoseconds, { -> nothing(); }).value;
+        test("measure(nanoseconds) is not negative") { expect_true(took >= 0); };
+        test("measure(nanoseconds) is below a minute") { expect_true(took < 60000000000); };
+        took = time.measureMills({ -> nothing(); }).value;
+        test("measureMills") { expect_true(took >= 0 && took < 60000); };
+        took = time.measure(seconds, { -> nothing(); }).value;
+        test("measure(seconds) of nothing is 0") { expect(took).should_be(0); };
+
+        // the conversion measure() uses: the difference is converted, with the fraction dropped
+        test("1,999,999 ns is 1 ms") { expect(time.nano_to_unit(1999999, milliseconds).value).should_be(1); };
+        test("999,999 ns is 0 ms") { expect(time.nano_to_unit(999999, milliseconds).value).should_be(0); };
+        test("2,500,000,000 ns is 2 s") { expect(time.nano_to_unit(2500000000, seconds).value).should_be(2); };
+        test("1,999 ns is 1 microsecond") { expect(time.nano_to_unit(1999, microseconds).value).should_be(1); };
+        test("nanoseconds are left alone") { expect(time.nano_to_unit(1234567, nanoseconds).value).should_be(1234567); };
+
+        // the functions that were there before still work
+        test("nano_to_micro") { expect(time.nano_to_micro(5000).value).should_be(5); };
+        test("nano_to_mills") { expect(time.nano_to_mills(5000000).value).should_be(5); };
+        test("nano_to_secs") { expect(time.nano_to_secs(5000000000).value).should_be(5); };
+        test("nano_time is after 2020") { expect_true(time.nano_time().value > 1577836800000000000); };
+        test("mills_time is after 2020") { expect_true(time.mills_time().value > 1577836800000); };
+        test("micro_time is after 2020") { expect_true(time.micro_time().value > 1577836800000000); };
+    };
+    finish_tests("lib_time_measure");
+}

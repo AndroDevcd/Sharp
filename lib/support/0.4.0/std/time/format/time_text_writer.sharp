@@ -1,0 +1,164 @@
+mod std.time;
+
+/**
+ * A small text buffer used by std.time to build its strings: characters are
+ * appended to a byte array that grows by doubling, and `text()` copies the
+ * used part into a string.
+ *
+ * It exists because numbers have to be written as plain digits ("7", "07",
+ * "2024") and `"" + number` prints a `decimal` with sixteen decimals. Nothing in
+ * here knows about dates; it only knows digits, padding and fractions.
+ *
+ *     w := new time_text_writer();
+ *     w.put_padded(7, 2);          // "07"
+ *     w.put(':');
+ *     w.put_padded(30, 2);         // "07:30"
+ *     s := w.text();
+ */
+class time_text_writer {
+    /** the characters written so far live in buffer[0 .. length-1] */
+    private buffer : _int8[];
+    private length : decimal = 0;
+
+    init {
+        buffer = new _int8[32];
+    }
+
+    /** makes room for `extra` more characters (doubles the array until it fits) */
+    private def reserve(extra: decimal) {
+        needed : decimal = length + extra;
+        capacity : decimal = sizeof(buffer);
+        if(needed <= capacity) {
+            return;
+        }
+        while(capacity < needed) {
+            capacity = capacity * 2;
+        }
+        bigger : _int8[] = new _int8[capacity];
+        for(i : decimal = 0; i < length; i++) {
+            bigger[i] = buffer[i];
+        }
+        buffer = bigger;
+    }
+
+    /** appends one character */
+    def put(ch: _int8): time_text_writer {
+        reserve(1);
+        buffer[length] = ch;
+        length++;
+        return self;
+    }
+
+    /** appends every character of `s` (nothing for an empty string) */
+    def put_text(s: string): time_text_writer {
+        count : decimal = sizeof(s.data);
+        reserve(count);
+        for(i : decimal = 0; i < count; i++) {
+            buffer[length] = s.data[i];
+            length++;
+        }
+        return self;
+    }
+
+    /**
+     * Appends a whole number in decimal, with a leading '-' when it is
+     * negative: 0 -> "0", 2024 -> "2024", -5 -> "-5". A fraction is ignored.
+     * Exact for sizes below 2^53.
+     */
+    def put_number(n: decimal): time_text_writer {
+        if(n < 0) {
+            put('-');
+            n = 0 - n;
+        }
+        return put_padded(n, 1);
+    }
+
+    /**
+     * Appends a whole number that is not negative, with zeros in front until
+     * it is at least `width` digits long: (7, 2) -> "07", (123, 2) -> "123".
+     */
+    def put_padded(n: decimal, width: decimal): time_text_writer {
+        // count the digits first: 0 has one digit
+        digits : decimal = 1;
+        rest : decimal = time_math.trunc_div(n, 10);
+        while(rest > 0) {
+            digits++;
+            rest = time_math.trunc_div(rest, 10);
+        }
+
+        for(i : decimal = digits; i < width; i++) {
+            put('0');
+        }
+
+        // write the digits from the last one backwards into their final place
+        reserve(digits);
+        rest = n;
+        for(i : decimal = digits - 1; i >= 0; i--) {
+            buffer[length + i] = '0' + (rest % 10);
+            rest = time_math.trunc_div(rest, 10);
+        }
+        length += digits;
+        return self;
+    }
+
+    /**
+     * Appends the digits of a fraction of a second.
+     *
+     * `nanos` is 0 .. 999,999,999. With `fixed_digits` of 1 .. 9 exactly that
+     * many leading digits are written (500,000,000 with 3 -> "500"). With
+     * `fixed_digits` 0 the trailing zeros are dropped and at least one digit
+     * is written (500,000,000 -> "5", 120,000 -> "00012").
+     */
+    def put_fraction(nanos: decimal, fixed_digits: decimal): time_text_writer {
+        divisor : decimal = 100000000;
+        rest : decimal = nanos;
+        written : decimal = 0;
+        while(written < 9) {
+            if(fixed_digits > 0 && written >= fixed_digits) {
+                break;
+            }
+            if(fixed_digits == 0 && written > 0 && rest == 0) {
+                break;
+            }
+            digit : decimal = time_math.trunc_div(rest, divisor);
+            put('0' + digit);
+            rest = rest - digit * divisor;
+            divisor = divisor / 10;
+            written++;
+        }
+        return self;
+    }
+
+    /**
+     * Appends the fraction of a second the way ISO-8601 output in java.time
+     * does: nothing when `nanos` is 0, otherwise a '.' followed by 3, 6 or 9
+     * digits - the shortest of the three that loses nothing
+     * (500,000,000 -> ".500", 1,000 -> ".000001", 1 -> ".000000001").
+     */
+    def put_iso_fraction(nanos: decimal): time_text_writer {
+        if(nanos == 0) {
+            return self;
+        }
+        put('.');
+        if(nanos % 1000000 == 0) {
+            return put_fraction(nanos, 3);
+        }
+        if(nanos % 1000 == 0) {
+            return put_fraction(nanos, 6);
+        }
+        return put_fraction(nanos, 9);
+    }
+
+    /** how many characters have been written */
+    def size(): decimal {
+        return length;
+    }
+
+    /** a new string holding everything written so far ("" when nothing was) */
+    def text(): string {
+        if(length == 0) {
+            return "";
+        }
+        return new string(buffer, 0, length);
+    }
+}

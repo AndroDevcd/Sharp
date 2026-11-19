@@ -1,0 +1,46 @@
+mod backend.types.program;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations
+)
+
+/**
+ * ONE NAME OF AN `obfuscate` BLOCK, RESOLVED
+ *
+ *      obfuscate -keep { "std.io", point, point.move(decimal, decimal), main(string[]) }
+ *
+ * An obfuscator renames what a program declares so that the compiled file
+ * gives little away. Some names must survive - the library classes the
+ * runtime looks up by name, a function another program calls - and an
+ * `obfuscate` block lists them, with what is to happen to each:
+ *
+ *      obfuscate { ... }                   these may be renamed
+ *      obfuscate -keep { ... }             these keep their names
+ *      obfuscate -keep_inclusive { ... }   ... and so does everything inside each class listed
+ *      obfuscate -inclusive { ... }        these may be renamed, and everything inside each class
+ *
+ * Analysis only ties each listed name to what it names
+ * (backend/compiler/obfuscation) and keeps the answers here, in
+ * `sharp_program.obfuscation_rules`, in the order written; they matter to
+ * code generation alone.
+ */
+const OBFUSCATE_PLAIN          : _int64 = 0;    // obfuscate { }
+const OBFUSCATE_KEEP           : _int64 = 1;    // obfuscate -keep { }
+const OBFUSCATE_KEEP_INCLUSIVE : _int64 = 2;    // obfuscate -keep_inclusive { }
+const OBFUSCATE_INCLUSIVE      : _int64 = 3;    // obfuscate -inclusive { }
+
+class obfuscation_rule {
+    mode : _int64;                      // OBFUSCATE_...
+    module : sharp_module?;             // "std.io": a whole module; null when a declaration is named
+    declaration : sharp_declaration?;   // the class, field or function named; null when a module is
+    unit : source_unit;
+    node : _int64;                      // the N_OBFUSCATE_ELEMENT
+
+    obfuscation_rule(mode: _int64, unit: source_unit, node: _int64) {
+        self->mode = mode;
+        self->unit = unit;
+        self->node = node;
+    }
+}

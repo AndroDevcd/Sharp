@@ -1,0 +1,18 @@
+mod std;
+
+/**
+ * @class arithmetic_exception
+ *
+ * Thrown when a calculation has no answer: dividing a whole number by zero,
+ * inverting a matrix that has no inverse, a result that cannot be
+ * represented (Java/Kotlin: ArithmeticException).
+ *
+ * Example:
+ *     throw new arithmetic_exception("division by zero");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class arithmetic_exception base exception {
+    public arithmetic_exception(message : string?) -> base(message) {}
+}

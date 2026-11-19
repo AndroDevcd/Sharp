@@ -1,0 +1,153 @@
+mod backend.optimizer.passes.control;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * JUMP CLEANUP: jumps that go nowhere, or somewhere only to jump again
+ *
+ *      jump L3                     jump L7              a jump to a jump goes straight to the end ("threading")
+ *      ...
+ *    L3:
+ *      jump L7
+ *
+ *      jump L5                     (gone)               a jump to the very next instruction
+ *    L5:
+ *
+ *      jump_unless %5, L7          jump_if %5, L5       a test that jumps over a jump: the test turned round
+ *      jump L5
+ *    L7:
+ *
+ *      jump L9                     return_value %1      a jump to a return: the return itself (one jump less)
+ *      ...
+ *    L9:
+ *      return_value %1
+ *
+ * and then every label no jump goes to any more is removed, so the blocks it
+ * separated are one (more for the other passes to work with). The labels of
+ * a `try` stay, and so does the jump that closes one of its ranges (rule R1 of
+ * codegen.md 4.7: a range ends in that jump, never in a call).
+ *
+ * These shapes come from the generator's habit of always closing a statement
+ * with a jump to the label after it, and from the other passes (a decided
+ * branch, an emptied block).
+ *
+ *      C++ comparison: passes/pass_jump_cleanup.cpp.
+ */
+def clean_up_jumps(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(!has_jumps_or_labels(code)) { return 0; }
+    changes : _int64 = 0;
+    places := places_of_labels(code);
+    facts := label_facts_of(code);
+    count : _int64 = code.instructions.size().value as _int64;
+
+    // ---- 1. a jump to a jump goes to where the last one goes; a jump to a return returns
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(!is_jump(made)) { continue; }
+        final : _int64 = final_target(code, places, made.number);
+        if(final != made.number) {
+            made.number = final;
+            changes++;
+        }
+        if(made.kind == IR_JUMP && places.at(made.number) >= 0) {
+            landing : _int64 = next_real_instruction(code, places.at(made.number));
+            if(landing >= 0) {
+                there := code.instructions.at(landing);
+                if(there.kind == IR_RETURN || there.kind == IR_RETURN_VALUE) {
+                    made.kind = there.kind;
+                    made.first = there.first;
+                    made.number = there.number;     // (the narrowing of the value returned)
+                    changes++;
+                }
+            }
+        }
+    }
+
+    // ---- 2. a jump to the next instruction goes; a test over a jump is turned round
+    remove := new number_list();
+    for(i : _int64 = 0; i < count; i++) { remove.add(0); }
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(!is_jump(made) || remove.at(i) == 1) { continue; }
+        if(lands_right_after(code, places, i, made.number)) {
+            if(!closes_a_range(code, facts, i)) {
+                remove.replace(i, 1);
+                changes++;
+            }
+            continue;
+        }
+        if((made.kind == IR_JUMP_IF || made.kind == IR_JUMP_UNLESS) && i + 1 < count) {
+            over := code.instructions.at(i + 1);
+            if(over.kind == IR_JUMP && lands_right_after(code, places, i + 1, made.number)
+               && !closes_a_range(code, facts, i + 1)) {
+                if(made.kind == IR_JUMP_IF) { made.kind = IR_JUMP_UNLESS; } else { made.kind = IR_JUMP_IF; }
+                made.number = over.number;
+                remove.replace(i + 1, 1);
+                changes++;
+            }
+        }
+    }
+
+    // ---- 3. labels no jump goes to any more (and no `try` names)
+    jumps_to := new number_list();
+    for(l : _int64 = 0; l < code.label_count; l++) { jumps_to.add(0); }
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(remove.at(i) == 0 && is_jump(made)) { jumps_to.replace(made.number, jumps_to.at(made.number) + 1); }
+    }
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(made.kind == IR_LABEL && jumps_to.at(made.number) == 0 && !facts.is_protected(made.number)) {
+            remove.replace(i, 1);
+            changes++;
+        }
+    }
+
+    indexes := new number_list();
+    for(i : _int64 = 0; i < count; i++) {
+        if(remove.at(i) == 1) { indexes.add(i); }
+    }
+    remove_instructions(code, indexes);
+    if(changes > 0) { analyses.changed(); }
+    return changes;
+}
+
+/** does the function have a jump or a label at all (most small functions have neither)? */
+def has_jumps_or_labels(code: ir_function) : _int64 {
+    total : _int64 = code.instructions.size().value as _int64;
+    for(i : _int64 = 0; i < total; i++) {
+        kind : _int64 = code.instructions.at(i).kind;
+        if(kind == IR_LABEL || kind == IR_JUMP || kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS) { return 1; }
+    }
+    return 0;
+}
+
+/** where a jump to `label` really ends up: through any number of jumps that follow labels (a loop of them is left) */
+def final_target(code: ir_function, places: number_list, label: _int64) : _int64 {
+    current : _int64 = label;
+    for(hops : _int64 = 0; hops < 32; hops++) {
+        if(places.at(current) < 0) { return current; }
+        landing : _int64 = next_real_instruction(code, places.at(current));
+        if(landing < 0) { return current; }
+        there := code.instructions.at(landing);
+        if(there.kind != IR_JUMP || there.number == current) { return current; }
+        current = there.number;
+    }
+    return label;
+}
+
+/** is `label` placed right after instruction `index`, with only labels and line marks between? */
+def lands_right_after(code: ir_function, places: number_list, index: _int64, label: _int64) : _int64 {
+    place : _int64 = places.at(label);
+    if(place <= index) { return 0; }
+    for(i : _int64 = index + 1; i < place; i++) {
+        kind : _int64 = code.instructions.at(i).kind;
+        if(kind != IR_LABEL && kind != IR_LINE) { return 0; }
+    }
+    return 1;
+}

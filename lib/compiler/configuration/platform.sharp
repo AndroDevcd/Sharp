@@ -1,0 +1,33 @@
+mod configuration;
+
+/*
+ * THE PLATFORMS `-target` CAN NAME
+ *
+ * A platform is a release of the virtual machine: the executable says in its
+ * manifest which one it was written for, and the VM refuses a file made for
+ * a platform it does not know. There is one today.
+ *
+ *      sharpc main.sharp -target alpha         (or alpha-cr4, or its number)
+ *
+ * (The enum is written `configuration#platform` where it is used: the
+ * standard library has a MODULE called `platform` as well.)
+ *
+ *      C++ comparison: the `alpha_cr4` constants of lib/grammar/settings/settings.h.
+ *
+ * Created by bknun on 6/12/2018
+ */
+enum platform {
+    /**
+     * Aug 10, 2021 Build release of Sharp 0.3.0
+     *
+     * Alpha Compiler Revision 4
+     * This version offers:
+     * - Greater stability in the task scheduling system
+     * - Newly revised compiler that includes:
+     *      - Faster compile times
+     *      - Better code generation system
+     *      - Significantly improved code optimization system
+     *      - Supports compiled projects for the language
+     */
+    alpha_cr4 = 3
+}

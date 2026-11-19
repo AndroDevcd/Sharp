@@ -1,0 +1,189 @@
+mod backend.compiler.program.usage;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements
+)
+
+/**
+ * WHAT ONE TYPED TREE NAMES
+ *
+ *      def total(items: list<item>) : decimal {          uses:
+ *          sum := new tally();                             tally, tally()
+ *          foreach(i in items) { sum.add(i.price); }       list<item>.get_elements, tally.add, item.price
+ *          return sum.value;                               tally.value
+ *      }
+ *
+ * The "uses" of a body (the textbook's def-use information, at the level of
+ * declarations) are the functions it calls, the constructors and classes it
+ * makes objects of, the fields it reads or writes, the enum values, the
+ * lambdas written in it and the functions named as values; also a class
+ * only TESTED or CAST to (`x is circle`: the code generator needs that
+ * class), and the value of a component definition a `get` / `inject`
+ * receives (walked in place: it runs where the request is).
+ *
+ * Every tree is walked once; each declaration is listed once per owner
+ * (`sharp_declaration.usage_stamp`). The result is kept on the owner -
+ * `sharp_declaration.uses` - for the reachability walk and for the code
+ * generator (what a function depends on).
+ *
+ *      C++ comparison: the `dependencies` lists of sharp_function /
+ *      sharp_field / sharp_class, filled in by dependency.cpp while it
+ *      resolves names (`create_dependency`).
+ */
+class use_collector {
+    uses : list<sharp_declaration>;         // of the owner being walked, each once
+    stamp : _int64 = 0;                     // marks what is already in `uses`
+    expressions : list<bound_expression>;   // the walk's work lists, shared by every tree
+    statements : list<bound_statement>;
+    definitions : list<type_definition>;    // component definitions walked for this owner (a circle is possible)
+
+    use_collector() {
+        uses = new list<sharp_declaration>();
+        expressions = new list<bound_expression>();
+        statements = new list<bound_statement>();
+        definitions = new list<type_definition>();
+    }
+
+    /** start collecting for another owner */
+    def start(next_stamp: _int64) {
+        uses = new list<sharp_declaration>();       // the list before now belongs to its owner
+        if(definitions.size() > 0) { definitions = new list<type_definition>(); }   // nearly always empty: keep it
+        stamp = next_stamp;
+    }
+
+    /** a declaration this owner uses (once) */
+    def note(declared: sharp_declaration?) {
+        if(declared == null) { return; }
+        found : sharp_declaration = declared!!;
+        if(found.usage_stamp == stamp) { return; }
+        found.usage_stamp = stamp;
+        uses.add(found);
+    }
+
+    /** the class of a type, when it is one */
+    def note_class_of(type: resolved_type?) {
+        if(type == null) { return; }
+        if(type!!.kind == RT_CLASS && type!!.class_of != null) { note(type!!.class_of); }
+    }
+
+    /** what a conversion runs: a constructor or `init(x)`, the `value` field of a number class */
+    def note_conversion(how: conversion?) {
+        current : conversion? = how;
+        for(depth : _int64 = 0; current != null && depth < 8; depth++) {
+            note(current!!.function);
+            note(current!!.field);
+            current = current!!.inner;
+        }
+    }
+}
+
+/** everything a statement and the statements and expressions inside it use */
+def collect_in_statement(statement: bound_statement, collector: use_collector) {
+    collector.statements.add(statement);
+    while(collector.statements.size() > 0) {
+        next : bound_statement = collector.statements.pop_last();
+        note_statement(next, collector);
+        statement_parts(next, collector.expressions, collector.statements);
+        drain(collector);
+    }
+}
+
+/** everything an expression and the expressions inside it use */
+def collect_in_expression(expression: bound_expression, collector: use_collector) {
+    collector.expressions.add(expression);
+    drain(collector);
+}
+
+/** the expressions on the work list, and their parts, until it is empty */
+def drain(collector: use_collector) {
+    while(collector.expressions.size() > 0) {
+        expression : bound_expression = collector.expressions.pop_last();
+        note_expression(expression, collector);
+        add_parts(expression, collector.expressions);
+    }
+}
+
+/** what a statement itself names, beside its parts: a start object, a caught class, asm operands */
+def note_statement(statement: bound_statement, collector: use_collector) {
+    kind : _int64 = statement.kind;
+    if(kind == BS_LOCAL_DECLARATION) {
+        declaration := statement as bound_local_declaration;
+        collector.note(declaration.default_constructor);
+        if(declaration.injected_from != null) { note_definition(declaration.injected_from!!, collector); }
+    } else if(kind == BS_FOREACH) {
+        collector.note_conversion((statement as bound_foreach).item_conversion);
+    } else if(kind == BS_TRY) {
+        catches := (statement as bound_try).catches;
+        for(i : _int64 = 0; i < catches.size(); i++) { collector.note(catches.at(i).caught); }
+    } else if(kind == BS_ASM) {
+        instructions := (statement as bound_asm).instructions;
+        for(i : _int64 = 0; i < instructions.size(); i++) {
+            operands := instructions.at(i).operands;
+            for(j : _int64 = 0; j < operands.size(); j++) {
+                operand := operands.at(j);
+                collector.note(operand.field);
+                collector.note(operand.function);
+                collector.note(operand.class_of);
+            }
+        }
+    }
+}
+
+/** what one expression itself names (its parts are walked by the caller) */
+def note_expression(expression: bound_expression, collector: use_collector) {
+    kind : _int64 = expression.kind;
+    if(kind == BX_CALL) { collector.note((expression as bound_call).function); }
+    else if(kind == BX_FIELD) { collector.note((expression as bound_field).field); }
+    else if(kind == BX_NEW) {
+        made := expression as bound_new;
+        collector.note(made.class_of);
+        collector.note(made.constructor);
+    }
+    else if(kind == BX_ENUM_VALUE) { collector.note((expression as bound_enum_value).value); }
+    else if(kind == BX_FUNCTION_REFERENCE) { collector.note((expression as bound_function_reference).function); }
+    else if(kind == BX_LAMBDA) { collector.note((expression as bound_lambda).function); }
+    else if(kind == BX_CONVERSION) { collector.note_conversion((expression as bound_conversion).how); }
+    else if(kind == BX_CAST) {
+        collector.note_conversion((expression as bound_cast).how);
+        collector.note_class_of(expression.type);
+    }
+    else if(kind == BX_IS) { collector.note_class_of((expression as bound_is).tested); }
+    else if(kind == BX_TYPE_NAME) { collector.note_class_of(expression.type); }
+    else if(kind == BX_ASSIGN) {
+        collector.note((expression as bound_assign).getter);
+        collector.note((expression as bound_assign).setter);
+        collector.note_conversion((expression as bound_assign).store);
+    }
+    else if(kind == BX_INCREMENT) {
+        collector.note((expression as bound_increment).getter);
+        collector.note((expression as bound_increment).setter);
+    }
+    else if(kind == BX_DICTIONARY) {
+        dictionary := expression as bound_dictionary;
+        collector.note(dictionary.pair_class);
+        collector.note(dictionary.dictionary_class);
+        collector.note(dictionary.pair_constructor);
+        collector.note(dictionary.dictionary_constructor);
+    }
+    else if(kind == BX_NEW_ARRAY) { collector.note_class_of((expression as bound_new_array).element); }
+    else if(kind == BX_GET_COMPONENT) { note_definition((expression as bound_get_component).definition, collector); }
+}
+
+/**
+ * The value of a component definition runs where a `get` or `inject`
+ * receives it, so what it uses is used there. Walked once per owner: two
+ * definitions may ask for each other (that is reported, E0908, but the
+ * walk must still end).
+ */
+def note_definition(definition: type_definition, collector: use_collector) {
+    for(i : _int64 = 0; i < collector.definitions.size(); i++) {
+        if(collector.definitions.at(i) == definition) { return; }
+    }
+    collector.definitions.add(definition);
+    if(definition.value != null) { collector.expressions.add(definition.value!!); }
+}

@@ -1,0 +1,18 @@
+mod backend.types.declarations;
+
+/**
+ * THE OBJECTS FOR WHAT A PROGRAM DECLARES
+ *
+ * The files of this package (module `backend.types.declarations`):
+ *
+ *      sharp_declaration.sharp  what all declared things share (kind, name, flags, place, owner); the scope of names
+ *      sharp_class.sharp        a class, interface or enum; a type parameter; an enum value
+ *      sharp_field.sharp        a field or global variable; an alias
+ *      sharp_function.sharp     a function, constructor, init block, getter, setter; a parameter
+ *      sharp_component.sharp    a component, one `single` / `factory` definition of it, what a `get` / `inject` asks for
+ *      local_variable.sharp     a parameter or local variable of a function body (stage 6)
+ *      closure_record.sharp     the variables of one function that its lambdas capture (stage 9)
+ *      name_table.sharp         a hash table from names to what they mean, faster than hash_map<string, ...> (stage 10)
+ *
+ * This file is the package's front door: it only says what is where.
+ */

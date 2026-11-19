@@ -1,0 +1,203 @@
+mod backend.compiler.program;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * THE SELF-CHECK: no expression may be "not known" without a message
+ *
+ * An expression the analysis could not give a type gets the error type. That
+ * is right after a mistake was REPORTED (one mistake, one message: what
+ * follows from it stays quiet). Anywhere else it is a hole in the compiler -
+ * a construct some stage has no rule for, passed on silently - and a code
+ * generator handed such a tree would have to guess.
+ *
+ * After the body stages this walks every typed tree - every function,
+ * constructor, init block, accessor and lambda body, every base call, field
+ * value, enum value and component definition - and counts the expressions with the error type in
+ * the files where no error was reported. That number must be 0: the gates
+ * check it on the standard library, where nothing is reported at all.
+ *
+ * It is never left at a count. For every file that has such an expression
+ * the first one is REPORTED, as an internal error, so a program the compiler
+ * did not fully understand can never end with "analysis complete: no errors":
+ *
+ *      E0991   internal: an expression the analysis gave no type, and nothing was reported about it
+ *
+ * The count is printed with -timings (and -analysis-stats):
+ *
+ *      unknown: 0 expression(s) without a type and without a message
+ *
+ *      C++ comparison: none - the C++ compiler has no such check; a hole there
+ *      shows as wrong bytecode or a crash of the code generator.
+ */
+class unknown_count {
+    silent : _int64 = 0;            // error-typed expressions in files without a reported error
+    first_silent : bound_expression?;   // the first one found, to show where to look
+    first_in_file : list<bound_expression>; // the first one of each file (E0991 is reported once per file)
+    files_seen : hash_map<string, string>;  // the files first_in_file has one for
+
+    // the walk's work lists, shared by every tree (one list each instead of one per node)
+    expressions : list<bound_expression>;
+    statements : list<bound_statement>;
+
+    unknown_count() {
+        expressions = new list<bound_expression>();
+        statements = new list<bound_statement>();
+        first_in_file = new list<bound_expression>();
+        files_seen = new hash_map<string, string>();
+    }
+}
+
+/** count the silently unknown expressions of the whole program */
+def count_unknown_expressions(session: analysis_session) : unknown_count {
+    counted := new unknown_count();
+    with_errors := files_with_errors_in(session.problems);
+    prog : sharp_program = session.prog;
+
+    functions : list<sharp_function> = session.analysed_functions;
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        if(with_errors.has(function.unit.file)) { continue; }
+        if(function.bound_body != null) { count_in_statement(function.bound_body!!, counted); }
+        if(function.bound_base_call != null) { count_in_expression(function.bound_base_call!!, counted); }
+    }
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.fields.size(); j++) { count_in_field(module.fields.at(j), with_errors, counted); }
+    }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) { count_in_class(prog.all_classes.at(i), with_errors, counted); }
+    for(i : _int64 = 0; i < prog.generic_instances.size(); i++) { count_in_class(prog.generic_instances.at(i), with_errors, counted); }
+    for(i : _int64 = 0; i < prog.components.size(); i++) {
+        definitions := prog.components.at(i).definitions;
+        for(j : _int64 = 0; j < definitions.size(); j++) {
+            definition := definitions.at(j);
+            if(definition.value != null && !with_errors.has(definition.unit.file)) { count_in_expression(definition.value!!, counted); }
+        }
+    }
+    return counted;
+}
+
+/** the field values and enum values of one class (its function bodies are in the session's list) */
+def count_in_class(declared: sharp_class, with_errors: files_with_errors, counted: unknown_count) {
+    if(declared.bodies_analysed == 0 || declared.is_open()) { return; }
+    for(i : _int64 = 0; i < declared.fields.size(); i++) { count_in_field(declared.fields.at(i), with_errors, counted); }
+    if(with_errors.has(declared.unit.file)) { return; }
+    for(i : _int64 = 0; i < declared.enum_values.size(); i++) {
+        value := declared.enum_values.at(i);
+        if(value.bound_value != null) { count_in_expression(value.bound_value!!, counted); }
+    }
+}
+
+/** the value of one field */
+def count_in_field(field: sharp_field, with_errors: files_with_errors, counted: unknown_count) {
+    if(field.bound_initializer == null || with_errors.has(field.unit.file)) { return; }
+    count_in_expression(field.bound_initializer!!, counted);
+}
+
+/** a statement and everything inside it */
+def count_in_statement(statement: bound_statement, counted: unknown_count) {
+    counted.statements.add(statement);
+    while(counted.statements.size() > 0) {
+        next : bound_statement = counted.statements.pop_last();
+        statement_parts(next, counted.expressions, counted.statements);
+        drain_expressions(counted);
+    }
+}
+
+/** an expression and everything inside it */
+def count_in_expression(expression: bound_expression, counted: unknown_count) {
+    counted.expressions.add(expression);
+    drain_expressions(counted);
+}
+
+/** count every expression on the work list, and the parts of each, until it is empty */
+def drain_expressions(counted: unknown_count) {
+    while(counted.expressions.size() > 0) {
+        expression : bound_expression = counted.expressions.pop_last();
+        if(expression.type.kind == RT_ERROR) {
+            counted.silent++;
+            if(counted.first_silent == null) { counted.first_silent = expression; }
+            if(counted.files_seen.at(expression.unit.file) == null) {
+                counted.files_seen.put(expression.unit.file, expression.unit.file);
+                counted.first_in_file.add(expression);
+            }
+        }
+        add_parts(expression, counted.expressions);
+    }
+}
+
+/**
+ * The files in which an error (not a warning) was reported. Asked once per
+ * function and field of the program, so the usual answer - a build without
+ * errors has no such file - is given without looking anything up.
+ */
+class files_with_errors {
+    files := new hash_map<string, string>();
+    count : _int64 = 0;
+
+    /** was an error reported in this file? */
+    def has(file: string) : _int64 {
+        if(count == 0) { return 0; }
+        return files.at(file) != null;
+    }
+}
+
+/** the files in which the problems reported so far include an error */
+def files_with_errors_in(problems: list<diagnostic>) : files_with_errors {
+    found := new files_with_errors();
+    for(i : _int64 = 0; i < problems.size(); i++) {
+        d := problems.at(i);
+        if(d.severity == SEVERITY_WARNING) { continue; }
+        found.files.put(d.file, d.file);
+        found.count++;
+    }
+    return found;
+}
+
+/**
+ * The pass: count the silently unknown expressions, and report the first of
+ * each file as E0991. Returns the count for the `unknown:` line.
+ */
+def check_completeness(session: analysis_session) : unknown_count {
+    counted := count_unknown_expressions(session);
+    for(i : _int64 = 0; i < counted.first_in_file.size(); i++) {
+        report_silent_unknown(session, counted.first_in_file.at(i), counted.silent);
+    }
+    return counted;
+}
+
+/** E0991 at one expression the analysis left without a type */
+def report_silent_unknown(session: analysis_session, expression: bound_expression, total: _int64) {
+    file := session.prog.file_of(expression.unit);
+    if(file == null) { return; }
+    context := new analysis_context(session, file!!);
+    d := problem_over(context, "E0991", "internal: the compiler could not work out what this expression is", expression.node);
+    d.with_label("no type, and no message says why");
+    d.with_note("this is a gap in the compiler, not necessarily a mistake in your program: some rule for this construct is missing");
+    if(total > 1) { d.with_note("" + total + " expression(s) in this build are left like this; this is the first of its file"); }
+    d.with_help("write the expression another way (give a type, split it into steps), and report the construct so the rule can be added");
+    report(context, d);
+}
+
+/** the line the -timings option prints */
+def unknown_line(counted: unknown_count) : string {
+    text := "unknown: " + counted.silent + " expression(s) without a type and without a message";
+    if(counted.first_silent != null) {
+        first : bound_expression = counted.first_silent!!;
+        p : parse_state = first.unit.parsed!!;
+        offset : _int64 = p.start_of(p.tree.tokens!![first.node]);
+        text = text + "; the first: " + first.unit.file + ":" + line_of(p.table, offset) + ":" + column_of(p.table, offset);
+    }
+    return text;
+}

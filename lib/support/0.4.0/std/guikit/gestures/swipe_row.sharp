@@ -1,0 +1,178 @@
+mod std.guikit.gestures;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * swipe_row - a row you can push off the screen sideways to get rid of it.
+ * Made with swipe_to_dismiss(...).
+ *
+ *      swipe_to_dismiss({ -> model.remove(t); }) {
+ *          task_card(t);
+ *      }.behind("Delete");
+ *
+ * Drag the row left or right: it follows the mouse, and the colour behind it
+ * shows what letting go will do. Let go past a third of its width and it
+ * flies the rest of the way, then the action runs. Let go sooner and it
+ * glides back.
+ *
+ * THE ACTION MUST REMOVE THE ROW (take the item out of the list the screen is
+ * built from). The row itself does not vanish - like everything here, the
+ * screen shows what the state says.
+ *
+ * In a list that scrolls, an up-and-down drag still scrolls the list: the row
+ * decides from the first movement which way the drag goes, and hands a
+ * vertical one on to the scroller around it.
+ * (Compose: SwipeToDismissBox. Android: ItemTouchHelper with onSwiped.)
+ */
+stable class swipe_row base widget : behavior {
+    private action : ()();
+    private words : string = "Delete";      // shown behind the row while it is pushed aside
+    private tint : color?;                  // the colour behind it (null: the theme's danger colour)
+
+    private offset : decimal = 0;           // how far the row is pushed: negative left, positive right
+    private axis : _int64 = 0;              // of the drag going on: 0 not decided, 1 sideways (mine), 2 up-down (the scroller's)
+    private leaving : _int64 = 0;           // 1: flying off after being let go; 2: gone, the action has run
+
+    private static const FLY : decimal = 2600;      // pixels per second while flying off
+
+    swipe_row(on_dismiss: ()()) {
+        attach(self);
+        action = on_dismiss;
+        me.fill_w = 1;
+        me.on_drag_start = { -> axis = 0; };
+        me.on_drag = { dx: decimal, dy: decimal -> pushed(dx, dy); };
+        me.on_drag_end = { -> let_go(); };
+    }
+
+    def content(block: ()()) : swipe_row {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** the word shown behind the row while it is pushed aside ("Delete" unless you say otherwise) */
+    def behind(caption: string) : swipe_row {
+        words = caption;
+        return self;
+    }
+
+    /** the same, on a colour of your own (archive is not as alarming as delete) */
+    def behind(caption: string, back: color) : swipe_row {
+        words = caption;
+        tint = back;
+        return self;
+    }
+
+    override def kind() : string { return "swipe_row"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        widest : decimal = 0;
+        tall : decimal = 0;
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            kid.measure(min_w, max_w, 0, UNBOUNDED);
+            widest = num.larger(widest, kid.want_w);
+            tall = tall + kid.want_h;
+        }
+        me.content_w = widest;
+        me.content_h = tall;
+    }
+
+    override def arrange() {
+        top : decimal = me.inner_y();
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            kid.arrange(me.inner_x(), top, kid.want_w, kid.want_h);
+            top = top + kid.want_h;
+        }
+    }
+
+    // ------------------------------------------------------------ the drag
+
+    /** paint the content this far aside */
+    private def push_to(amount: decimal) {
+        offset = amount;
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            me.kids.at(i).shift_x = amount;
+        }
+        if(ui_host.current != null) { ui_host.current!!.repaint(); }
+    }
+
+    private def pushed(dx: decimal, dy: decimal) {
+        if(leaving != 0) {
+            return;
+        }
+        if(axis == 0) {
+            // the first movement decides whose drag this is
+            across : decimal = num.larger(dx, 0 - dx);
+            down : decimal = num.larger(dy, 0 - dy);
+            axis = 2;
+            if(across >= down) { axis = 1; }
+        }
+        if(axis == 1) {
+            push_to(offset + dx);
+        } else if(ui_host.current != null) {
+            ui_host.current!!.scroll_by_hand(me, dx, dy);
+        }
+    }
+
+    private def let_go() {
+        if(axis != 1 || leaving != 0) {
+            return;
+        }
+        far : decimal = num.larger(offset, 0 - offset);
+        if(far > me.w * 0.33) {
+            leaving = 1;                                // far enough: it goes (paint() flies it off)
+            if(ui_host.current != null) { ui_host.current!!.request_frame(); }
+        } else {
+            // not far enough: back to where it belongs
+            offset = 0;
+            count : _int64 = me.kids.size().value;
+            for(i : _int64 = 0; i < count; i++) {
+                glide.to(me.kids.at(i), 0, 0);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ painting: what is behind the row, and flying off
+
+    override def paint(p: painter) {
+        if(ui_host.current == null) {
+            return;
+        }
+        host := ui_host.current!!;
+        t : theme = host.look;
+
+        if(leaving == 1) {
+            way : decimal = 1;
+            if(offset < 0) { way = 0 - 1; }
+            push_to(offset + way * FLY * num.smaller(host.step, 0.05));
+            if(offset > me.w || offset < 0 - me.w) {
+                leaving = 2;
+                action();                               // the list loses the item; the rows below glide up
+            } else {
+                host.request_frame();
+            }
+        }
+
+        if(offset == 0 || leaving == 2) {
+            return;
+        }
+        back : color = t.danger;
+        if(tint != null) { back = tint!!; }
+        p.rect(me.x, me.y, me.w, me.h, 12, back);
+
+        // the word sits on the side the row has left free
+        f : font = host.font_of(t.text_size, 1);
+        top : decimal = me.y + (me.h - f.line_height) / 2;
+        if(offset > 0) {
+            p.text(words, me.x + 18, top, f, t.on_primary);
+        } else {
+            p.text(words, me.x + me.w - 18 - f.width_of(words), top, f, t.on_primary);
+        }
+    }
+}

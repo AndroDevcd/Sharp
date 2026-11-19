@@ -1,0 +1,244 @@
+mod std.guikit.animation;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * glide - boxes that move to their new place instead of jumping there.
+ * FRAMEWORK USE: apps ask for it with .animate_items() on a column or row and
+ * modifier().animate_size(); the host calls the functions here.
+ *
+ * THE IDEA (known as FLIP: first, last, invert, play)
+ *
+ *   When a list changes - a row is added, removed, moved - layout simply puts
+ *   every row where it now belongs. Nothing about layout is animated. Instead:
+ *
+ *      1. each box remembers where the LAST layout put it (view.was_x / was_y,
+ *         relative to its parent, so scrolling the parent is not a "move");
+ *      2. after the new layout, a box that is somewhere else gets a SHIFT that
+ *         paints it exactly where it was a moment ago;
+ *      3. the shift is then run down to 0 over a quarter of a second.
+ *
+ *   To the eye the row slides from its old place to its new one. To layout,
+ *   and to the mouse, it has been at the new place all along.
+ *
+ *   A box with no past in a container that has one is NEW: it fades in and
+ *   drops a few pixels into place. A row that is removed is simply gone - and
+ *   the rows below glide up into the room it left.
+ *
+ * WHICH BOX IS "THE SAME BOX" after a rebuild is the reconciler's business
+ * (reconciler.sharp): it matches by key first, then by position, and carries
+ * the memory over. So give rows a key - modifier().key(task.id) - or the row
+ * at position 3 is "the same" as whatever was at position 3 before, and
+ * nothing appears to move.
+ *
+ * (Compose: Modifier.animateItem() in lazy lists, animateContentSize().
+ * Android: RecyclerView's DefaultItemAnimator, LayoutTransition.)
+ */
+stable class glide {
+    /** how long a movement takes, in seconds */
+    static const TIME : decimal = 0.24;
+
+    // the boxes whose shift (or veil) is on its way right now
+    private static moving : list<view> = new list<view>();
+
+    /** fast at first, settling at the end: 0..1 in, 0..1 out */
+    static def ease(through: decimal) : decimal {
+        left_to_go : decimal = 1 - num.between(through, 0, 1);
+        return 1 - left_to_go * left_to_go * left_to_go;
+    }
+
+    // ------------------------------------------------------------ after every layout
+
+    /** the host calls this when the tree has been laid out: every container that glides looks at its children */
+    static def settle(top: view) {
+        if(top.shown == 0) {
+            return;
+        }
+        if(top.glides == 1) {
+            settle_children(top);
+        }
+        count : _int64 = top.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            settle(top.kids.at(i));
+        }
+    }
+
+    private static def settle_children(parent: view) {
+        clock : decimal = 0;
+        if(ui_host.current != null) { clock = ui_host.current!!.now; }
+
+        count : _int64 = parent.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = parent.kids.at(i);
+            rel_x : decimal = kid.x - parent.x;
+            rel_y : decimal = kid.y - parent.y;
+
+            if(kid.was_placed == 1) {
+                if(far(kid.was_x - rel_x) == 1 || far(kid.was_y - rel_y) == 1) {
+                    // it is somewhere else now: paint it where it WAS (wherever a
+                    // movement that is still running had got it to), then run that down
+                    back_x : decimal = kid.was_x + kid.shift_x - rel_x;
+                    back_y : decimal = kid.was_y + kid.shift_y - rel_y;
+                    if(far(back_x) == 1 || far(back_y) == 1) {
+                        kid.shift_x = back_x;
+                        kid.shift_y = back_y;
+                        to(kid, 0, 0);
+                    } else {
+                        kid.shift_x = 0;            // it was already painted there (a row dropped where it now belongs)
+                        kid.shift_y = 0;
+                        kid.glide_on = 0;
+                    }
+                }
+            } else if(parent.was_placed == 1) {
+                // new in a container that was already there: fade in, dropping into place
+                kid.veil = 0;
+                kid.entering = 1;
+                kid.shift_y = 0 - 12;
+                to(kid, 0, 0);
+            }
+
+            kid.was_x = rel_x;
+            kid.was_y = rel_y;
+            kid.was_placed = 1;
+        }
+        parent.was_placed = 1;
+    }
+
+    /** is this distance worth animating (more than half a pixel)? */
+    private static def far(distance: decimal) : _int64 {
+        if(distance > 0.5 || distance < 0 - 0.5) { return 1; }
+        return 0;
+    }
+
+    // ------------------------------------------------------------ starting a movement
+
+    /** run the box's shift from where it is now to (aim_x, aim_y) */
+    static def to(box: view, aim_x: decimal, aim_y: decimal) {
+        clock : decimal = 0;
+        if(ui_host.current != null) {
+            clock = ui_host.current!!.now;
+            ui_host.current!!.request_frame();
+        }
+        box.glide_from_x = box.shift_x;
+        box.glide_from_y = box.shift_y;
+        box.glide_aim_x = aim_x;
+        box.glide_aim_y = aim_y;
+        box.glide_start = clock;
+        if(box.glide_on == 0) {
+            box.glide_on = 1;
+            moving.add(box);
+        }
+    }
+
+    // ------------------------------------------------------------ every frame
+
+    /** move every gliding box on to where it should be at `clock`. Gives 1 while anything is still moving. */
+    static def step(clock: decimal) : _int64 {
+        count : _int64 = moving.size().value;
+        if(count == 0) {
+            return 0;
+        }
+        for(i : _int64 = count - 1; i >= 0; i--) {
+            box : view = moving.at(i);
+            if(box.glide_on == 0) {
+                moving.remove_at(i);                // stopped from outside (settle found it in place)
+                continue;
+            }
+            through : decimal = (clock - box.glide_start) / TIME;
+            if(through >= 1) {
+                box.shift_x = box.glide_aim_x;
+                box.shift_y = box.glide_aim_y;
+                box.glide_on = 0;
+                if(box.entering == 1) {
+                    box.entering = 0;
+                    box.veil = 1;
+                }
+                moving.remove_at(i);
+            } else {
+                eased : decimal = ease(through);
+                box.shift_x = box.glide_from_x + (box.glide_aim_x - box.glide_from_x) * eased;
+                box.shift_y = box.glide_from_y + (box.glide_aim_y - box.glide_from_y) * eased;
+                if(box.entering == 1) {
+                    box.veil = num.between(through, 0, 1);
+                }
+            }
+        }
+        return 1;
+    }
+
+    // ------------------------------------------------------------ across rebuilds
+
+    /**
+     * A rebuild made a new box for the same thing (the reconciler matched
+     * them): the new one takes over the old one's past and any movement that
+     * was running, so nothing restarts and nothing jumps.
+     */
+    static def carry(fresh: view, before: view) {
+        fresh.was_x = before.was_x;
+        fresh.was_y = before.was_y;
+        fresh.was_placed = before.was_placed;
+        fresh.shift_x = before.shift_x;
+        fresh.shift_y = before.shift_y;
+        fresh.veil = before.veil;
+        fresh.entering = before.entering;
+        fresh.glide_from_x = before.glide_from_x;
+        fresh.glide_from_y = before.glide_from_y;
+        fresh.glide_aim_x = before.glide_aim_x;
+        fresh.glide_aim_y = before.glide_aim_y;
+        fresh.glide_start = before.glide_start;
+
+        fresh.size_known = before.size_known;
+        fresh.size_shown = before.size_shown;
+        fresh.size_from = before.size_from;
+        fresh.size_target = before.size_target;
+        fresh.size_start = before.size_start;
+
+        if(before.glide_on == 1) {
+            before.glide_on = 0;                    // step() drops the old box from its list
+            fresh.glide_on = 1;
+            moving.add(fresh);
+        }
+    }
+
+    // ------------------------------------------------------------ a height that glides
+
+    /**
+     * The height a box with animate_size() reports while it is being
+     * measured: `target` is what it really wants. The first time that is
+     * simply the answer. When the target changes, the height runs from what
+     * it is to the new target, and the tree is laid out again every frame
+     * until it gets there.
+     */
+    static def sized(box: view, target: decimal) : decimal {
+        if(ui_host.current == null) {
+            return target;
+        }
+        host := ui_host.current!!;
+
+        if(box.size_known == 0) {
+            box.size_known = 1;
+            box.size_shown = target;
+            box.size_target = target;
+            return target;
+        }
+        if(far(target - box.size_target) == 1) {
+            box.size_from = box.size_shown;
+            box.size_target = target;
+            box.size_start = host.now;
+        }
+        if(far(box.size_shown - box.size_target) == 0) {
+            box.size_shown = box.size_target;
+            return box.size_shown;
+        }
+        through : decimal = (host.now - box.size_start) / TIME;
+        if(through >= 1) {
+            box.size_shown = box.size_target;
+        } else {
+            box.size_shown = box.size_from + (box.size_target - box.size_from) * ease(through);
+            host.relayout();                        // not there yet: lay out again for the next frame
+        }
+        return box.size_shown;
+    }
+}

@@ -1,20 +1,38 @@
 mod main;
 
-import platform;
-
-native def print_message();
+import ( platform )
 
 /**
- * This is a simple hello world programm written in c++
- * to compile simply type the following commands:
+ * HELLO WORLD, WITH THE WORK DONE IN C++ (the Sharp Native Interface)
  *
- * sharpc helloworld.sharp -o helloworld
- * g++ hello.cpp generated/*.cpp -shared -o hello.so -fPIC
- * sharp helloworld
+ * The functions in the `native` block have no body here: they are written in
+ * C++, in hello.cpp. Three commands, run in this folder:
  *
- * output: Hello, world!
+ *      sharpc helloworld.sharp -o helloworld -sni generated
+ *      g++ -shared -fPIC -std=c++11 -I generated hello.cpp generated/hello_sni.cpp -o hello.so
+ *      sharp helloworld
+ *
+ * (On Windows the second one is:
+ *      g++ -shared -static -std=c++11 -I generated hello.cpp generated/hello_sni.cpp -o hello.dll
+ *  with a Windows g++ (MinGW-w64) - not the g++ of WSL, which writes a Linux library. )
+ *
+ * The first command writes generated/hello_sni.h - the C++ prototypes of the
+ * two functions below, with real C++ types. hello.cpp must define exactly
+ * those, or it does not compile.
+ *
+ * The name "hello" of the block only groups the functions (it names the
+ * generated files). The program loads the library itself: load_library.
+ *
+ *      output:  Hello, world!
+ *               2 + 3 = 5
  */
+native "hello" {
+    def greeting(name: string) : string;
+    def add(a: _int32, b: _int32) : _int32;
+}
+
 def main() {
-    load_library("hello");
-    print_message();
+    load_library("hello");            // hello.dll / hello.so, in the folder `sharp` is started in
+    println(greeting("world"));
+    println("2 + 3 = " + add(2, 3));
 }

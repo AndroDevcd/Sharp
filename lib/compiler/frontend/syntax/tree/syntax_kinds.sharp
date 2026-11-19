@@ -1,0 +1,255 @@
+mod frontend.syntax.tree;
+
+/**
+ * THE KINDS OF NODE IN A SYNTAX TREE
+ *
+ * syntax_tree.kinds[n] is one of these numbers. For each kind this file says
+ * what the node's token is and what its children are, in order. That is the
+ * whole contract between the parser, which builds the tree, and everything
+ * that reads it.
+ *
+ *      "token"     syntax_tree.tokens[n]: where the node is in the source
+ *      [ x ]       an optional child
+ *      x...        zero or more children of that kind
+ *
+ * Optional children are told apart by their kind, never by their position:
+ * a class with no base simply has no N_BASE child.
+ */
+
+// ---- the file ------------------------------------------------------------
+const N_FILE            : _int64 = 1;   // children: declarations...
+const N_MODULE          : _int64 = 2;   // mod a.b;                  children: N_NAME...
+const N_IMPORT          : _int64 = 3;   // import (a.b, c.*)         children: N_IMPORT_ITEM..., [N_NAME alias]
+const N_IMPORT_ITEM     : _int64 = 4;   // a.b  or  a.b.*            children: N_NAME..., [N_STAR]
+const N_STAR            : _int64 = 5;   // the `*` of a.b.*
+const N_NAME            : _int64 = 6;   // an identifier; token: the identifier
+
+// ---- declarations ----------------------------------------------------------
+const N_MODIFIERS       : _int64 = 10;  // public static ...         children: N_MODIFIER...
+const N_MODIFIER        : _int64 = 11;  // token: the keyword
+const N_CLASS           : _int64 = 12;  // token: the name.  children: [N_MODIFIERS] [N_GENERIC_PARAMETERS] [N_BASE] [N_INTERFACES] N_MEMBERS
+const N_INTERFACE       : _int64 = 13;  // like N_CLASS
+const N_MUTATE          : _int64 = 14;  // token: `mutate`.  children: N_TYPE_NAME [N_BASE] [N_INTERFACES] N_MEMBERS
+const N_ENUM            : _int64 = 15;  // token: the name.  children: [N_MODIFIERS] N_ENUM_VALUE...
+const N_ENUM_VALUE      : _int64 = 16;  // token: the name.  children: [expression]
+const N_GENERIC_PARAMETERS : _int64 = 17; // <T, U base x>   children: N_GENERIC_PARAMETER...
+const N_GENERIC_PARAMETER  : _int64 = 18; // token: the name. children: [type]
+const N_BASE            : _int64 = 19;  // base x            children: N_TYPE_NAME
+const N_INTERFACES      : _int64 = 20;  // : a, b            children: N_TYPE_NAME...
+const N_MEMBERS         : _int64 = 21;  // { ... } of a class        children: declarations...
+const N_FUNCTION        : _int64 = 22;  // def name(...)     token: the name (or `operator`).
+                                        //   children: [N_MODIFIERS] [N_TYPE_NAME owner] [N_OPERATOR_NAME] [N_GENERIC_PARAMETERS]
+                                        //             N_PARAMETERS [N_RETURN_TYPE] [body]
+                                        //   body: N_BLOCK, or N_EXPRESSION_BODY, or nothing (`def f();`)
+const N_CONSTRUCTOR     : _int64 = 23;  // name(...) { }     children: [N_MODIFIERS] N_PARAMETERS [N_BASE_CALL] body
+const N_INIT            : _int64 = 24;  // init { }          children: [N_MODIFIERS] [N_PARAMETERS] [N_BASE_CALL] body
+const N_PARAMETERS      : _int64 = 25;  // (a: int, b: int)  children: N_PARAMETER...
+const N_PARAMETER       : _int64 = 26;  // token: the name (or the first token of the type when unnamed). children: [type]
+const N_RETURN_TYPE     : _int64 = 27;  // : type  or  : nil children: [type]   (no child: nil)
+const N_EXPRESSION_BODY : _int64 = 28;  // := e;  or  : t = e;       children: expression
+const N_BASE_CALL       : _int64 = 29;  // -> base(args)     children: N_ARGUMENTS
+const N_OPERATOR_NAME   : _int64 = 30;  // operator+         token: the operator
+const N_VARIABLE        : _int64 = 31;  // name : type = e;  token: the name.
+                                        //   children: [N_MODIFIERS] [N_INJECT] [type] [N_INITIALIZER] [N_GETTER] [N_SETTER]
+const N_INITIALIZER     : _int64 = 32;  // = e  or  := e     token: the `=` / `:=`. children: expression
+const N_GETTER          : _int64 = 33;  // get { }           children: [N_MODIFIERS] body
+const N_SETTER          : _int64 = 34;  // set v -> { }      children: [N_MODIFIERS] N_NAME body
+const N_ALIAS           : _int64 = 35;  // alias type as name;   token: the name. children: type
+const N_INJECT          : _int64 = 36;  // inject  or  inject(component)   children: [N_NAME]
+const N_COMPONENT       : _int64 = 37;  // component name { }    children: [N_NAME] N_COMPONENT_TYPE...
+const N_COMPONENT_TYPE  : _int64 = 38;  // single("n") { e }     token: `single` / `factory`. children: [N_LITERAL] expression
+const N_OBFUSCATE       : _int64 = 39;  // obfuscate -keep { }   children: [N_NAME option] N_OBFUSCATE_ELEMENT...
+const N_OBFUSCATE_ELEMENT : _int64 = 40; // children: N_LITERAL, or type [N_PARAMETERS]
+
+// ---- types -----------------------------------------------------------------
+const N_TYPE            : _int64 = 50;  // a type as written.  children: N_TYPE_NAME | N_NATIVE_TYPE | N_FUNCTION_TYPE,
+                                        //                               [N_ARRAY_SUFFIX] [N_NULLABLE] [N_NULLABLE]
+const N_TYPE_NAME       : _int64 = 51;  // std.x#list<int>.node   children: [N_MODULE_PATH] N_TYPE_PART...
+const N_MODULE_PATH     : _int64 = 52;  // std.x  before the #    children: N_NAME...
+const N_TYPE_PART       : _int64 = 53;  // list<int>              token: the name. children: types (the generic arguments)...
+const N_NATIVE_TYPE     : _int64 = 54;  // decimal, _int32, object    token: the keyword
+const N_FUNCTION_TYPE   : _int64 = 55;  // (int, a: string)(decimal)  children: N_PARAMETERS N_RETURN_TYPE
+const N_ARRAY_SUFFIX    : _int64 = 56;  // []
+const N_NULLABLE        : _int64 = 57;  // ?
+
+// ---- statements ------------------------------------------------------------
+const N_BLOCK           : _int64 = 60;  // { ... }           children: statements...
+const N_RETURN          : _int64 = 61;  // children: [expression]
+const N_IF              : _int64 = 62;  // children: expression, statement, [statement]   (the else part; an `else if` is an N_IF there)
+const N_WHILE           : _int64 = 63;  // children: expression, statement
+const N_DO_WHILE        : _int64 = 64;  // children: statement, expression
+const N_FOR             : _int64 = 65;  // children: N_FOR_INIT, N_FOR_CONDITION, N_FOR_STEP, statement
+const N_FOR_INIT        : _int64 = 66;  // children: N_VARIABLE... (may be none)
+const N_FOR_CONDITION   : _int64 = 67;  // children: [expression]
+const N_FOR_STEP        : _int64 = 68;  // children: [expression]
+const N_FOREACH         : _int64 = 69;  // children: N_PARAMETER, expression, statement
+const N_THROW           : _int64 = 70;  // children: expression
+const N_BREAK           : _int64 = 71;
+const N_CONTINUE        : _int64 = 72;
+const N_LOCK            : _int64 = 73;  // children: expression, statement
+const N_TRY             : _int64 = 74;  // children: statement, N_CATCH..., [N_FINALLY]
+const N_CATCH           : _int64 = 75;  // children: N_PARAMETER, statement
+const N_FINALLY         : _int64 = 76;  // children: statement
+const N_WHEN            : _int64 = 77;  // children: [N_WHEN_SUBJECT] N_WHEN_CLAUSE... [N_WHEN_ELSE]
+const N_WHEN_SUBJECT    : _int64 = 78;  // children: expression
+const N_WHEN_CLAUSE     : _int64 = 79;  // a, b -> statement     children: expression..., statement (the last child)
+const N_WHEN_ELSE       : _int64 = 80;  // else -> statement     children: statement
+const N_ASM             : _int64 = 81;  // asm { ... }       children: N_ASM_INSTRUCTION and N_ASM_LABEL, in order (parse_asm.sharp)
+const N_ASM_INSTRUCTION : _int64 = 82;  // movi ebx, 5       token: the mnemonic. children: its operands
+const N_ASM_LABEL       : _int64 = 85;  // .name:            token: the name
+const N_ASM_REGISTER    : _int64 = 86;  // ebx               token: the register
+const N_ASM_NEGATIVE    : _int64 = 87;  // -1                children: N_LITERAL
+const N_ASM_LABEL_REF   : _int64 = 88;  // @name             token: the name
+const N_ASM_MEMBER      : _int64 = 89;  // [name]            token: the name
+const N_ASM_TYPE        : _int64 = 90;  // $type  $type[m]   children: N_TYPE [N_ASM_MEMBER]
+const N_EXPRESSION_STATEMENT : _int64 = 83; // children: expression
+const N_EMPTY_STATEMENT : _int64 = 84;  // ;
+
+// ---- expressions -----------------------------------------------------------
+const N_LITERAL         : _int64 = 100; // 12, 1.5, 0xff, "text", 'c', true, false    token: the literal
+const N_NULL            : _int64 = 101;
+const N_SELF            : _int64 = 102;
+const N_BASE_VALUE      : _int64 = 103; // base  or  base@type       children: [type]
+const N_IDENTIFIER      : _int64 = 104; // a name used as a value    token: the name. children: types (generic arguments)...
+                                        //   `operator+` used as a name: token `operator`, one N_OPERATOR_NAME child
+const N_MODULE_NAME     : _int64 = 105; // std.io#name               children: N_MODULE_PATH, N_IDENTIFIER
+const N_BINARY          : _int64 = 106; // a + b             token: the operator. children: left, right
+const N_UNARY           : _int64 = 107; // -a  !a  ++a  --a  token: the operator. children: operand
+const N_POSTFIX         : _int64 = 108; // a++  a--          token: the operator. children: operand
+const N_ASSIGN          : _int64 = 109; // a = b  a += b     token: the operator. children: target, value
+const N_TERNARY         : _int64 = 110; // c ? a : b         children: condition, when true, when false
+const N_ELVIS           : _int64 = 111; // a ?: b            children: value, fallback
+const N_NOT_NULL        : _int64 = 112; // a!!               children: operand
+const N_CAST            : _int64 = 113; // a as t            children: operand, type
+const N_IS              : _int64 = 114; // a is t            children: operand, type
+const N_MEMBER          : _int64 = 115; // a.b  a?.b  a!!.b  self->b   token: the dot. children: object, N_IDENTIFIER
+const N_CALL            : _int64 = 116; // f(a, b) { lambda }        children: callee, N_ARGUMENTS, [N_LAMBDA trailing]
+const N_ARGUMENTS       : _int64 = 117; // children: expressions...
+const N_INDEX           : _int64 = 118; // a[i]              children: object, expressions (the index items)...
+const N_NEW             : _int64 = 119; // new t(args)       children: type, N_ARGUMENTS
+const N_NEW_ARRAY       : _int64 = 120; // new t[n]  or  new t[] { a, b }   children: type, (expression | N_ARRAY_LITERAL)
+const N_ARRAY_LITERAL   : _int64 = 121; // { a, b }          children: expressions...
+const N_DICTIONARY      : _int64 = 122; // { k : v }  { as <k, v> : }   children: [N_DICTIONARY_TYPE] N_DICTIONARY_PAIR...
+const N_DICTIONARY_TYPE : _int64 = 123; // children: type, type
+const N_DICTIONARY_PAIR : _int64 = 124; // children: key, value
+const N_LAMBDA          : _int64 = 125; // { a, b -> (t) body }      children: N_PARAMETERS [N_RETURN_TYPE] N_BLOCK
+const N_SIZEOF          : _int64 = 126; // sizeof(e)         children: expression
+const N_PAREN           : _int64 = 127; // (e)               children: expression
+const N_GET_COMPONENT   : _int64 = 128; // get<t>("name", component)   children: [type] [N_LITERAL] [N_NAME]
+const N_STRING_TEMPLATE : _int64 = 130; // "a ${x + 1} b $name c"     children, alternating: N_LITERAL (a piece of text,
+                                        //   possibly empty) and an expression; it starts and ends with a piece
+const N_NATIVE_LIBRARY  : _int64 = 131; // "sensors" of `native "sensors" { ... }`: a child of every N_FUNCTION declared in the block
+const N_ERROR           : _int64 = 129; // where something could not be parsed (an error was reported)
+
+/** the name of a node kind, for tree dumps and messages about the tree itself */
+def node_kind_name(kind: _int64) : string {
+    if(kind == N_FILE) { return "file"; }
+    if(kind == N_MODULE) { return "module"; }
+    if(kind == N_IMPORT) { return "import"; }
+    if(kind == N_IMPORT_ITEM) { return "import_item"; }
+    if(kind == N_STAR) { return "star"; }
+    if(kind == N_NAME) { return "name"; }
+    if(kind == N_MODIFIERS) { return "modifiers"; }
+    if(kind == N_MODIFIER) { return "modifier"; }
+    if(kind == N_CLASS) { return "class"; }
+    if(kind == N_INTERFACE) { return "interface"; }
+    if(kind == N_MUTATE) { return "mutate"; }
+    if(kind == N_ENUM) { return "enum"; }
+    if(kind == N_ENUM_VALUE) { return "enum_value"; }
+    if(kind == N_GENERIC_PARAMETERS) { return "generic_parameters"; }
+    if(kind == N_GENERIC_PARAMETER) { return "generic_parameter"; }
+    if(kind == N_BASE) { return "base"; }
+    if(kind == N_INTERFACES) { return "interfaces"; }
+    if(kind == N_MEMBERS) { return "members"; }
+    if(kind == N_FUNCTION) { return "function"; }
+    if(kind == N_CONSTRUCTOR) { return "constructor"; }
+    if(kind == N_INIT) { return "init"; }
+    if(kind == N_PARAMETERS) { return "parameters"; }
+    if(kind == N_PARAMETER) { return "parameter"; }
+    if(kind == N_RETURN_TYPE) { return "return_type"; }
+    if(kind == N_EXPRESSION_BODY) { return "expression_body"; }
+    if(kind == N_BASE_CALL) { return "base_call"; }
+    if(kind == N_OPERATOR_NAME) { return "operator_name"; }
+    if(kind == N_VARIABLE) { return "variable"; }
+    if(kind == N_INITIALIZER) { return "initializer"; }
+    if(kind == N_GETTER) { return "getter"; }
+    if(kind == N_SETTER) { return "setter"; }
+    if(kind == N_ALIAS) { return "alias"; }
+    if(kind == N_INJECT) { return "inject"; }
+    if(kind == N_COMPONENT) { return "component"; }
+    if(kind == N_COMPONENT_TYPE) { return "component_type"; }
+    if(kind == N_OBFUSCATE) { return "obfuscate"; }
+    if(kind == N_OBFUSCATE_ELEMENT) { return "obfuscate_element"; }
+    if(kind == N_TYPE) { return "type"; }
+    if(kind == N_TYPE_NAME) { return "type_name"; }
+    if(kind == N_MODULE_PATH) { return "module_path"; }
+    if(kind == N_TYPE_PART) { return "type_part"; }
+    if(kind == N_NATIVE_TYPE) { return "native_type"; }
+    if(kind == N_FUNCTION_TYPE) { return "function_type"; }
+    if(kind == N_ARRAY_SUFFIX) { return "array_suffix"; }
+    if(kind == N_NULLABLE) { return "nullable"; }
+    if(kind == N_BLOCK) { return "block"; }
+    if(kind == N_RETURN) { return "return"; }
+    if(kind == N_IF) { return "if"; }
+    if(kind == N_WHILE) { return "while"; }
+    if(kind == N_DO_WHILE) { return "do_while"; }
+    if(kind == N_FOR) { return "for"; }
+    if(kind == N_FOR_INIT) { return "for_init"; }
+    if(kind == N_FOR_CONDITION) { return "for_condition"; }
+    if(kind == N_FOR_STEP) { return "for_step"; }
+    if(kind == N_FOREACH) { return "foreach"; }
+    if(kind == N_THROW) { return "throw"; }
+    if(kind == N_BREAK) { return "break"; }
+    if(kind == N_CONTINUE) { return "continue"; }
+    if(kind == N_LOCK) { return "lock"; }
+    if(kind == N_TRY) { return "try"; }
+    if(kind == N_CATCH) { return "catch"; }
+    if(kind == N_FINALLY) { return "finally"; }
+    if(kind == N_WHEN) { return "when"; }
+    if(kind == N_WHEN_SUBJECT) { return "when_subject"; }
+    if(kind == N_WHEN_CLAUSE) { return "when_clause"; }
+    if(kind == N_WHEN_ELSE) { return "when_else"; }
+    if(kind == N_ASM) { return "asm"; }
+    if(kind == N_ASM_INSTRUCTION) { return "asm_instruction"; }
+    if(kind == N_ASM_LABEL) { return "asm_label"; }
+    if(kind == N_ASM_REGISTER) { return "asm_register"; }
+    if(kind == N_ASM_NEGATIVE) { return "asm_negative"; }
+    if(kind == N_ASM_LABEL_REF) { return "asm_label_ref"; }
+    if(kind == N_ASM_MEMBER) { return "asm_member"; }
+    if(kind == N_ASM_TYPE) { return "asm_type"; }
+    if(kind == N_STRING_TEMPLATE) { return "string_template"; }
+    if(kind == N_NATIVE_LIBRARY) { return "native_library"; }
+    if(kind == N_EXPRESSION_STATEMENT) { return "expression_statement"; }
+    if(kind == N_EMPTY_STATEMENT) { return "empty_statement"; }
+    if(kind == N_LITERAL) { return "literal"; }
+    if(kind == N_NULL) { return "null"; }
+    if(kind == N_SELF) { return "self"; }
+    if(kind == N_BASE_VALUE) { return "base_value"; }
+    if(kind == N_IDENTIFIER) { return "identifier"; }
+    if(kind == N_MODULE_NAME) { return "module_name"; }
+    if(kind == N_BINARY) { return "binary"; }
+    if(kind == N_UNARY) { return "unary"; }
+    if(kind == N_POSTFIX) { return "postfix"; }
+    if(kind == N_ASSIGN) { return "assign"; }
+    if(kind == N_TERNARY) { return "ternary"; }
+    if(kind == N_ELVIS) { return "elvis"; }
+    if(kind == N_NOT_NULL) { return "not_null"; }
+    if(kind == N_CAST) { return "cast"; }
+    if(kind == N_IS) { return "is"; }
+    if(kind == N_MEMBER) { return "member"; }
+    if(kind == N_CALL) { return "call"; }
+    if(kind == N_ARGUMENTS) { return "arguments"; }
+    if(kind == N_INDEX) { return "index"; }
+    if(kind == N_NEW) { return "new"; }
+    if(kind == N_NEW_ARRAY) { return "new_array"; }
+    if(kind == N_ARRAY_LITERAL) { return "array_literal"; }
+    if(kind == N_DICTIONARY) { return "dictionary"; }
+    if(kind == N_DICTIONARY_TYPE) { return "dictionary_type"; }
+    if(kind == N_DICTIONARY_PAIR) { return "dictionary_pair"; }
+    if(kind == N_LAMBDA) { return "lambda"; }
+    if(kind == N_SIZEOF) { return "sizeof"; }
+    if(kind == N_PAREN) { return "paren"; }
+    if(kind == N_GET_COMPONENT) { return "get_component"; }
+    if(kind == N_ERROR) { return "error"; }
+    return "?";
+}

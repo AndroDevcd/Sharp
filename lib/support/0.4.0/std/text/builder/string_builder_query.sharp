@@ -1,0 +1,127 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string_builder - asking questions (part of the `string_builder` class in std/string_builder.sharp)
+ *
+ * length, is_empty, capacity management (capacity, ensure_capacity,
+ * trim_to_size), char_at / first / last, index_of / last_index_of / contains,
+ * equals, and slice (a part of the text as a string).
+ *
+ * Positions and yes/no answers are native numbers (`decimal`); -1 = not found.
+ * None of these change the text.
+ */
+mutate string_builder {
+
+    /** The number of characters in the text, as a native number. */
+    def length() : decimal {
+        return cursor;
+    }
+
+    /** 1 if the builder holds no text. */
+    def is_empty() : decimal {
+        return cursor == 0;
+    }
+
+    /** 1 if the builder holds at least one character. */
+    def is_not_empty() : decimal {
+        return cursor != 0;
+    }
+
+    /** How many characters the buffer can hold before it has to grow. Always >= length(). */
+    def capacity() : decimal {
+        return sizeof(data);
+    }
+
+    /**
+     * Makes sure the buffer can hold at least `min_capacity` characters in
+     * total, growing it once if needed. Call it before appending a lot of text
+     * of known size to avoid repeated growing. Never shrinks; never changes the text.
+     */
+    def ensure_capacity(min_capacity: int) : string_builder {
+        if(min_capacity.value > cursor) reserve(min_capacity.value - cursor);
+        return self;
+    }
+
+    /**
+     * Shrinks the buffer to the size of the text to give memory back (an empty
+     * builder keeps a buffer of one character). Useful for a builder that is
+     * kept around after a large text was built in it.
+     */
+    def trim_to_size() : string_builder {
+        wanted : decimal = cursor > 0 ? cursor : 1;
+        if(data != null && sizeof(data) > wanted) realloc(data!!, wanted);
+        return self;
+    }
+
+    /**
+     * The character at `pos` as a native number.
+     * Throws out_of_bounds_exception if pos is not a position inside the text.
+     */
+    def char_at(pos: int) : decimal {
+        at : decimal = pos.value;
+        if(at < 0 || at >= cursor)
+            throw new bounds_except("char_at: index $pos is outside of a text of ${size()} characters");
+        return data[at];
+    }
+
+    /** The first character. Throws out_of_bounds_exception if the builder is empty. */
+    def first() : decimal {
+        if(cursor == 0) throw new bounds_except("first: the builder is empty");
+        return data[0];
+    }
+
+    /** The last character. Throws out_of_bounds_exception if the builder is empty. */
+    def last() : decimal {
+        if(cursor == 0) throw new bounds_except("last: the builder is empty");
+        return data[cursor - 1];
+    }
+
+    /** Position of the first occurrence of `text`, or -1. "" is found at 0. */
+    def index_of(text: string) : decimal {
+        return find_from(text.data, sizeof(text.data), 0);
+    }
+
+    /**
+     * Position of the first occurrence of `text` at or after `start`, or -1.
+     * A negative start counts as 0.
+     */
+    def index_of(text: string, start: int) : decimal {
+        return find_from(text.data, sizeof(text.data), start.value);
+    }
+
+    /** Position of the last occurrence of `text`, or -1. "" is found at length(). */
+    def last_index_of(text: string) : decimal {
+        len : decimal = sizeof(text.data);
+        for(i : decimal = cursor - len; i >= 0; i--) {
+            if(matches_at(i, text.data, len)) return i;
+        }
+        return -1;
+    }
+
+    /** 1 if `text` occurs anywhere in the builder's text. */
+    def contains(text: string) : decimal {
+        return find_from(text.data, sizeof(text.data), 0) >= 0;
+    }
+
+    /** 1 if the builder's text is exactly `text`. (Same as `==`, as a native number.) */
+    def equals_text(text: string) : decimal {
+        return cursor == sizeof(text.data) && matches_at(0, text.data, cursor);
+    }
+
+    /**
+     * The characters from `start` up to (not including) `end` as a string.
+     * start == end gives "".
+     * Throws out_of_bounds_exception if the range is not inside the text.
+     * (`substring(start, end)` returns the same part as a new builder.)
+     */
+    def slice(start: int, end: int) : string {
+        from : decimal = start.value;
+        to : decimal = end.value;
+        if(from < 0 || to > cursor || to < from)
+            throw new bounds_except("slice: range $start..$end is not inside a text of ${size()} characters");
+        if(from == to) return new string();
+        return new string(data!!, from, to);
+    }
+}

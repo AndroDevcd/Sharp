@@ -1,0 +1,140 @@
+mod std.guikit.core.state;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * state_list - a list the screen watches: add, remove or move an item and
+ * every screen that showed the list is built again.
+ *
+ *      tasks := state_list<task>();
+ *
+ *      tasks.add(task("Write the notes"));         // the screen follows
+ *      tasks.remove(done_one);
+ *      tasks.move(0, 3);
+ *
+ *      for(i : _int64 = 0; i < tasks.size(); i++) { task_row(tasks.at(i)); }
+ *
+ * WHY NOT state<list<t>>: a state only notices that it was given a NEW value.
+ * Adding to the list it already holds changes nothing it can see, so the
+ * screen would stay as it was (unless you remember to call touch()). This
+ * class does the remembering: every function that changes the list announces
+ * it.
+ *
+ * Changing something INSIDE an item (task.done = 1) is still invisible to the
+ * list - it holds the same item as before. Say so with changed():
+ *
+ *      t.done = 1;
+ *      tasks.changed();
+ *
+ * (Compose: mutableStateListOf / SnapshotStateList.)
+ */
+stable class state_list<t> {
+    private held : list<t> = new list<t>();
+    private version : state<_int64> = new state<_int64>(0);     // bumped by every change: what screens really watch
+
+    // ------------------------------------------------------------ reading (signs the building screen up)
+
+    /** how many items */
+    def size() : _int64 {
+        seen : _int64 = version.value;
+        return held.size().value;
+    }
+
+    /** the item at `index` (0 is the first) */
+    def at(index: _int64) : t {
+        seen : _int64 = version.value;
+        return held.at(index);
+    }
+
+    /** 1 when the list has no items */
+    def is_empty() : _int64 {
+        if(size() == 0) { return 1; }
+        return 0;
+    }
+
+    /** where `item` is in the list, or -1 when it is not in it */
+    def index_of(item: t) : _int64 {
+        seen : _int64 = version.value;
+        count : _int64 = held.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            if(held.at(i) == item) { return i; }
+        }
+        return 0 - 1;
+    }
+
+    // ------------------------------------------------------------ changing (tells every screen that read it)
+
+    def add(item: t) {
+        held.add(item);
+        changed();
+    }
+
+    /** put `item` in at `index`, moving the ones from there on down by one */
+    def insert(index: _int64, item: t) {
+        held.insert(index, item);
+        changed();
+    }
+
+    /** take `item` out. Gives 1 when it was in the list. */
+    def remove(item: t) : _int64 {
+        index : _int64 = index_of(item);
+        if(index < 0) {
+            return 0;
+        }
+        held.remove_at(index);
+        changed();
+        return 1;
+    }
+
+    def remove_at(index: _int64) {
+        held.remove_at(index);
+        changed();
+    }
+
+    /** take the item at `from` out and put it back in at `to`: what dragging a row to a new place does */
+    def move(from: _int64, to: _int64) {
+        if(from == to) {
+            return;
+        }
+        item : t = held.at(from);
+        held.remove_at(from);
+        held.insert(to, item);
+        changed();
+    }
+
+    def clear() {
+        held.clear();
+        changed();
+    }
+
+    /** replace everything with the items of `items` (what loading from a file or a server ends with) */
+    def replace_all(items: list<t>) {
+        held.clear();
+        count : _int64 = items.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            held.add(items.at(i));
+        }
+        changed();
+    }
+
+    /** something INSIDE an item changed: the screens that show the list are built again */
+    def changed() {
+        version.value = version.peek() + 1;
+    }
+
+    /** run `action` after every change (for logic that follows the list - saving it) */
+    def on_change(action: ()()) {
+        version.on_change(action);
+    }
+
+    /** the items, put in without telling anybody: for what a saved list had in its file (saved.sharp) */
+    def restore(items: list<t>) {
+        held.clear();
+        count : _int64 = items.size().value;
+        for(i : _int64 = 0; i < count; i++) {
+            held.add(items.at(i));
+        }
+    }
+}
