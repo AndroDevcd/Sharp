@@ -91,7 +91,9 @@ enum interrupt_flag
     OP_C_LIBRARY = 0x56,             // pop: where a C library is, pop: the library's name (cffi/c_bind.h)
     OP_C_LINK_ALL = 0x57,
     OP_C_KEEP = 0x58,                // pop: a function C will call after the call it is handed to (cffi/c_callback.h)
-    OP_C_DROP = 0x59,                // pop: a function C no longer has            // push: "" when every extern function of the program was found, else what is missing          // push: the whole path of the `sharp` runtime binary itself (libs ship beside it)
+    OP_C_DROP = 0x59,
+    OP_C_SERVE_ONE = 0x5a,           // run one call from a thread C started; push: an array of 1 item to go on, of none to stop
+    OP_C_SERVE_START = 0x5b,         // calls from threads C started wait for the serving thread from now on                // pop: a function C no longer has            // push: "" when every extern function of the program was found, else what is missing          // push: the whole path of the `sharp` runtime binary itself (libs ship beside it)
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

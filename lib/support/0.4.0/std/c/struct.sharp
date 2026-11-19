@@ -25,6 +25,16 @@ mod std.c;
  * pointer is a `pointer`. Static fields, and everything else a class may have
  * (functions, constructors), do not count.
  *
+ * AN ARRAY MEMBER is an array field whose value says how many items:
+ *
+ *      name : c_char[] = new c_char[32];               // char name[32];
+ *
+ * THE SIZE C HAS FOR THE STRUCT may be said, as a static field called
+ * c_bytes. It is checked when a function that uses the struct is linked, so
+ * a field that is missing or of another type shows before the first call:
+ *
+ *      static const c_bytes : _int64 = 16;             // sizeof(SDL_Rect)
+ *
  * BY VALUE OR BY POINTER is how the parameter is written:
  *
  *      rect: SDL_Rect          the struct itself, by value         void f(SDL_Rect rect)

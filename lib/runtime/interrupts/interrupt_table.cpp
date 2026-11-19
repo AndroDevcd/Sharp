@@ -133,6 +133,8 @@ static const interrupt_row interrupt_rows[] = {
     { OP_C_LINK_ALL,            "c_link_all",           op_c_link_all },
     { OP_C_KEEP,                "c_keep",               op_c_keep },
     { OP_C_DROP,                "c_drop",               op_c_drop },
+    { OP_C_SERVE_ONE,           "c_serve_one",          op_c_serve_one },
+    { OP_C_SERVE_START,         "c_serve_start",        op_c_serve_start },
 
     // ---- native_lib.cpp
     { OP_LOAD_LIBRARY,          "load_library",         op_load_library },

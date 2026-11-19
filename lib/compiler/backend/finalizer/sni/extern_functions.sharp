@@ -128,7 +128,8 @@ def c_struct_text(declared: sharp_class, depth: _int64) : string {
     members : string = c_struct_members(declared, depth);
     if(sizeof(members.data) > 0 && members.data!![0] == '!') { return members; }
     if(sizeof(members.data) == 0) { return "!the struct `" + declared.name + "` has no fields: a C struct has at least one member"; }
-    text : string = "{" + members + "}";
+    // (@ and the class's name first: for a struct C hands to a Sharp function, the VM makes an object of that class)
+    text : string = "{@" + declared.full_name() + " " + members + "}";
     bytes : _int64 = declared_bytes_of(declared);
     if(bytes > 0) { text = text + "=" + bytes; }
     return text;
@@ -217,8 +218,8 @@ def c_function_text(written: sharp_type?, found: resolved_type) : string {
         if(written_parameters != null && i < written_parameters!!.size()) { one = written_parameters!!.at(i); }
         piece : string = c_type_text(one, found.parameters!!.at(i), 0);
         if(sizeof(piece.data) > 0 && piece.data!![0] == '!') { return piece; }
-        if(piece == "cstr" || piece == "buf" || piece == "void" || (sizeof(piece.data) > 0 && (piece.data!![0] == '{' || piece.data!![0] == '*' || piece.data!![0] == 'f' && piece != "f32" && piece != "f64"))) {
-            return "!a function handed to C takes numbers and `pointer`s: its parameter " + (i + 1) + " is something else (a text or a struct arrives as a `pointer`)";
+        if(piece == "cstr" || piece == "buf" || piece == "void" || (sizeof(piece.data) > 0 && (piece.data!![0] == '*' || piece.data!![0] == 'f' && piece != "f32" && piece != "f64"))) {
+            return "!a function handed to C takes numbers, `pointer`s and structs by value: its parameter " + (i + 1) + " is something else (a text, an array or a pointer to a struct arrives as a `pointer`)";
         }
         if(i > 0) { text.append(","); }
         text.append(piece);
@@ -226,8 +227,8 @@ def c_function_text(written: sharp_type?, found: resolved_type) : string {
     text.append(")");
     result : string = c_type_text(written_result, found.result, 1);
     if(sizeof(result.data) > 0 && result.data!![0] == '!') { return result; }
-    if(result == "cstr" || (sizeof(result.data) > 0 && (result.data!![0] == '{' || result.data!![0] == '*'))) {
-        return "!a function handed to C returns a number, a `pointer` or nothing";
+    if(result == "cstr" || (sizeof(result.data) > 0 && result.data!![0] == '*')) {
+        return "!a function handed to C returns a number, a `pointer`, a struct by value or nothing";
     }
     text.append(result);
     return text.build();

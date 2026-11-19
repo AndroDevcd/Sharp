@@ -155,6 +155,17 @@ C_TEST double va_doubles(int32_t count, ...);
 C_TEST double va_mixed(const char *kinds, ...);
 C_TEST double va_after_float(float first, double second, int32_t count, ...);
 
+typedef double (*struct_callback)(rect16 r, int32_t n, vec2 v, big24 g, double x);
+typedef rect16 (*rect_maker)(int32_t seed);
+typedef vec2 (*vec2_maker)(int32_t seed);
+typedef big24 (*big24_maker)(int32_t seed, double x);
+typedef mixed_id (*mixed_maker)(int32_t seed);
+C_TEST double call_with_structs(struct_callback f);
+C_TEST double call_for_rect(rect_maker f, int32_t seed);
+C_TEST double call_for_vec2(vec2_maker f, int32_t seed);
+C_TEST double call_for_big24(big24_maker f, int32_t seed);
+C_TEST double call_for_mixed(mixed_maker f, int32_t seed);
+
 /* mistakes on purpose (the protections' tests) */
 C_TEST void write_past_end(uint8_t *bytes, int32_t size, int32_t extra);
 C_TEST int32_t read_null(const int32_t *p);

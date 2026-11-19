@@ -131,7 +131,8 @@ def c_check_libraries() {
  * often it is handed over. Keep it BEFORE it is handed over.
  *
  * A callback runs on the thread that made the C call, while a C call of that
- * thread is running.
+ * thread is running. For a C library that calls from threads of its own, see
+ * c_serve_other_threads() (std/c/threads.sharp).
  */
 def c_keep(callback: object) {
     asm {

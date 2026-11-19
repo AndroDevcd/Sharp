@@ -232,3 +232,15 @@ double va_after_float(float first, double second, int32_t count, ...) {
     va_end(list);
     return sum;
 }
+
+/* functions handed to C that take and return structs by value */
+double call_with_structs(struct_callback f) {
+    rect16 r = make_rect16(3);
+    vec2 v = make_vec2(4);
+    big24 g = make_big24(5);
+    return f(r, 7, v, g, 2.5);
+}
+double call_for_rect(rect_maker f, int32_t seed) { return take_rect16(f(seed)); }
+double call_for_vec2(vec2_maker f, int32_t seed) { return take_vec2(f(seed)); }
+double call_for_big24(big24_maker f, int32_t seed) { return take_big24(f(seed, 1.5)); }
+double call_for_mixed(mixed_maker f, int32_t seed) { return take_mixed_id(f(seed)); }

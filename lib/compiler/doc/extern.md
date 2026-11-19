@@ -44,10 +44,23 @@ up by its name and hands the arguments over as the machine's C calling conventio
 | a class based on `c_struct` | a struct **by value** | section 3 |
 | ... written with `?` | a **pointer** to the struct | null is NULL |
 | a function type: `(c_int, c_int)(c_int)` | a pointer to a function | a Sharp function C can call: section 3a |
+| `...` between two parameters | C's `...` | where the variable arguments begin: section 2a |
 | nothing after the `:` | `void` | |
 
 The names are aliases in `std/c/types.sharp`. `c_float`, `c_long`, `c_ulong`, `c_size`, `c_ssize`
 and `pointer` are known to the compiler by name, because C tells them apart and Sharp does not.
+
+## 2a. Variable arguments (`printf`)
+
+```
+extern "c" {
+    def sprintf(into: _int8[], format: string, ..., count: c_int, ratio: c_double, name: string) : c_int;
+}
+```
+
+`...` stands where C's does. What follows it are the arguments of ONE call shape: Sharp has no
+variable arguments of its own, so each shape that is called gets a declaration (they may share the
+name). A `c_float` after the `...` is handed over as a double, as C does.
 
 ## 3. Structs
 
@@ -65,6 +78,31 @@ out as C does; after a call that took a pointer, what C wrote is read back into 
 struct that comes back is a new object (through a pointer: a copy of what it points to).
 
 C never holds the object itself. For a struct C keeps the address of, use C's own memory.
+
+**An array member** is an array field whose value says how many items it has:
+
+```
+class record base c_struct {
+    name : c_char[] = new c_char[32];       // char name[32];
+    count : c_int;
+}
+```
+
+**The size C has for the struct** can be said, and is then checked when a function that uses the
+struct is linked - a field that is missing or of another type is found before the first call:
+
+```
+class SDL_Rect base c_struct {
+    static const c_bytes : _int64 = 16;     // sizeof(SDL_Rect)
+    x : c_int; y : c_int; w : c_int; h : c_int;
+}
+```
+
+```
+unsatisfied_link_error: ... the struct {...}=24 is 16 bytes the way its fields are laid out on this
+system (Windows x64), and it is declared to be 24 (c_bytes): a field is missing, has another type
+than the C member, or stands in another place
+```
 
 ## 3a. Functions handed to C
 
@@ -89,12 +127,17 @@ c_drop(on_tick);                    // C no longer has it
 
 A kept function has one address in C until it is dropped, however often it is handed over.
 
-- What C calls it with are numbers and `pointer`s (a text or a struct arrives as a `pointer`:
-  read it with `c_memory.view`).
-- A callback runs on the thread that made the C call, while a C call of that thread runs. One that
-  arrives on a thread C started itself cannot run: it is reported and answers 0.
+- What C calls it with, and what it returns: numbers, `pointer`s, and structs by value (a class
+  based on `c_struct`: it arrives as a new object, and a returned object is laid out as C's struct).
+  A text or a pointer to a struct arrives as a `pointer`: read it with `c_memory.view`.
 - An exception thrown inside a callback is raised in Sharp when the C call returns.
-- At most 32 functions of one shape are handed to C at the same time (8 on Windows).
+- At most 64 functions of one shape are handed to C at the same time.
+
+**From a thread C started itself** (an audio thread, a library's workers) Sharp code cannot run:
+that thread is not a Sharp thread. Call `c_serve_other_threads()` once; such a call is then handed
+to a Sharp thread that waits for them - C's thread waits, the Sharp thread runs the function, C's
+thread gets the answer. Calls from several C threads take turns, and an exception inside one is
+printed (C gets 0). Without it, such a call is reported on the console and answers 0.
 
 ## 3b. Memory that is C's
 
@@ -134,6 +177,13 @@ program, in the project's folder (the one with `settings.json`), in the folder t
 started in, and then wherever the system looks for libraries. The ending (`.dll`, `.so`) and a
 leading `lib` are added when left off.
 
+**A project's libraries go with the program.** A place in `settings.json` that is a path inside
+the project (`libs/SDL2.dll`) is copied, on every build, to the same place beside the executable
+(`build/outputs/libs/SDL2.dll`) - so the output folder can be copied to another machine as it is.
+
+On Windows the library `"c"` is two files: what `ucrtbase.dll` does not hand out by name (the
+`printf` family) is looked for in `msvcrt.dll`.
+
 `c_check_libraries()` opens every library and finds every function at once, so a missing one
 shows when the program starts and not at its first call.
 
@@ -146,6 +196,8 @@ shows when the program starts and not at its first call.
 | the library has no such function | `unsatisfied_link_error` naming the library's file and the function |
 | `c_library()` after the library was opened | `illegal_state_exception` |
 | a null struct handed over by value | `nullptr_exception` before C is entered |
+| a struct whose fields are not laid out to the size it declares (`c_bytes`) | `unsatisfied_link_error` with both sizes |
+| `...` in a function that is not in an `extern` block | a compile error |
 | a read or write outside a `c_memory` block, or after `release()` | `out_of_bounds_exception`, `illegal_state_exception` |
 | C wrote past the end of a `c_memory` block | `damaged()` is true; `release()` throws |
 | too many functions handed to C at once | `illegal_state_exception` naming the limit |
@@ -161,7 +213,8 @@ becomes a plan: for each argument, which bytes go to which register or stack pla
 machine's convention. A call fills three blocks (integer registers, floating point registers,
 stack) and calls through a C++ function type that takes all of those registers, so the C++
 compiler loads every one and the C function reads the ones it uses. One file covers Windows x64,
-Linux x64, ARM64 and ARM32 (hard float).
+Linux x64, ARM64 and ARM32 (hard float); `tests/cffi/engine_test.sh` runs against each (the two ARM
+ones under qemu: `CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ RUN="qemu-arm -L /usr/arm-linux-gnueabihf"`).
 
 ## 7. Where the code is
 

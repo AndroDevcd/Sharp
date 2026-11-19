@@ -24,3 +24,11 @@ void c_keep(sharp_object *function);
 /** From Sharp, c_drop(function): C no longer has it. */
 void c_drop(sharp_object *function);
 bool c_is_kept(sharp_object *function);
+
+/**
+ * Calls that arrive on a thread C started itself are run by a Sharp thread that serves them.
+ * c_serve_start: from now on such calls wait for that thread. c_serve_one, called by it over and
+ * over: wait for one call and run it; false when the program is ending.
+ */
+void c_serve_start();
+bool c_serve_one();

@@ -93,3 +93,17 @@ void op_c_keep(Int interrupt) {
 void op_c_drop(Int interrupt) {
     c_drop((thread_self->task->sp--)->obj.o);
 }
+
+//
+// c_serve_one(): the thread that serves the calls of C's own threads waits for one and runs it
+// (cffi/c_callback.h). Pushes an array of one item to go on, of none when the program is ending.
+//
+void op_c_serve_one(Int interrupt) {
+    bool more = c_serve_one();
+    auto task = thread_self->task;
+    copy_object(&push_stack_object, more ? create_object(1, type_int8) : create_empty_array(type_int8));
+}
+
+void op_c_serve_start(Int interrupt) {
+    c_serve_start();
+}

@@ -150,6 +150,8 @@ void op_c_library(Int interrupt);
 void op_c_link_all(Int interrupt);
 void op_c_keep(Int interrupt);
 void op_c_drop(Int interrupt);
+void op_c_serve_one(Int interrupt);
+void op_c_serve_start(Int interrupt);
 
 // native_lib.cpp - native libraries (SNI)
 void op_load_library(Int interrupt);

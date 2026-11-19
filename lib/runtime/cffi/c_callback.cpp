@@ -20,17 +20,23 @@
 // a timer), the program says so first - c_keep(function) - and the thunk stays that function's
 // until c_drop(function); handed over again, the same function gets the same address.
 //
-// WHERE A CALLBACK MAY COME FROM: the thread that made the C call, while that call runs. A
-// callback on a thread C made itself has no Sharp thread to run on; it is reported and answers 0.
+// WHERE A CALLBACK MAY COME FROM. From a Sharp thread that is inside a C call: it runs right there.
+// From a thread C STARTED ITSELF (an audio thread, a worker of a C library): that thread is not
+// Sharp's - it has no Sharp stack and the garbage collector does not know it - so the function
+// cannot run on it. It is handed to a Sharp thread that serves such calls (c_serve_other_threads()
+// in Sharp starts it): the C thread waits, the serving thread runs the function, the C thread gets
+// the answer. Without a serving thread the call is reported and answers 0.
 //
-// WHAT IS NOT DONE YET: struct arguments and struct results of a callback (numbers and pointers
-// are), and more than 8 words of stack arguments.
+// WHAT A CALLBACK TAKES AND RETURNS: numbers, pointers, and structs by value - a struct arrives as a
+// new object of its class and a returned object is laid out as C's struct (c_bind.cpp does both).
+// Not: more than 8 words of arguments on the stack, and on ARM64 a struct result over 16 bytes.
 //
 // No machine code is made here either: the thunks are ordinary C++ functions, one per number,
 // written once as a template (see c_call.cpp for the same idea in the other direction).
 //
 #include "c_callback.h"
 #include "c_call.h"
+#include "c_bind.h"
 #include "../sni/sni_runtime.h"
 #include "../virtual_machine.h"
 #include "../memory/tracing_collector.h"
@@ -43,6 +49,10 @@
 #include "../../core/thread_state.h"
 #include "../../core/opcode/opcode_macros.h"
 #include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <deque>
+#include <chrono>
 #include <cstring>
 #include <cstdio>
 
@@ -73,42 +83,129 @@ struct c_slot {
 
 #if defined(CB_WIN64)
 static const int FAMILIES = 32;             // which of the four first arguments are floating point (16) x the result is (2)
-static const int PER_FAMILY = 8;
+static const int PER_FAMILY = 64;
+#elif defined(__x86_64__)
+static const int FAMILIES = 4;              // the registers the result travels in: c_call.cpp's four shapes
+static const int PER_FAMILY = 64;
 #else
-static const int FAMILIES = 2;              // the result is a whole number / a floating point number
-static const int PER_FAMILY = 32;
+static const int FAMILIES = 2;              // the result travels in whole-number / in floating point registers
+static const int PER_FAMILY = 64;
 #endif
 
 static c_slot slots[FAMILIES][PER_FAMILY];
 static std::recursive_mutex slots_mutex;
 
-/** What a thunk hands on: the registers and stack words it was called with; what it gets back to return. */
+/** What a thunk hands on: the registers and stack words it was called with. */
 struct c_arrival {
     uint8_t ints[8 * 8];
     uint8_t fps[8 * 8];
     uint8_t stack[STACK_WORDS * 8];
 };
 
+/** What a thunk hands back to C: the result registers, as bytes. */
+struct c_returned {
+    uint8_t ints[16];
+    uint8_t fps[32];
+};
+
 static void foreign_thread(const c_slot &slot) {
-    fprintf(stderr, "sharp: a C callback (handed to `%s`) arrived on a thread Sharp did not start; it cannot run there and answers 0.\n"
-                    "       A callback runs on the thread that made the C call, while that call lasts.\n",
+    fprintf(stderr, "sharp: a C callback (handed to `%s`) arrived on a thread C started itself, and nothing serves such calls: it answers 0.\n"
+                    "       Call c_serve_other_threads() once, before C can call from threads of its own.\n",
             slot.made_for == nullptr ? "?" : slot.made_for->fullName.c_str());
     fflush(stderr);
 }
 
-/** Run the Sharp function of a thunk. The result: a whole number's bits, or a decimal in `decimal`. */
-static uint64_t run(int family, int number, const c_arrival &arrival, double &decimal) {
-    decimal = 0;
+// ---- calls from threads that are not Sharp's: handed to the thread that serves them
+
+/** One call waiting to be run: what it arrived with, and - when `done` - what it answers. */
+struct c_request {
+    int family, number;
+    const c_arrival *arrival;
+    c_returned *out;
+    bool done = false;
+};
+
+static std::mutex serve_mutex;
+static std::condition_variable serve_wake, serve_done;
+static std::deque<c_request*> waiting_calls;
+static std::atomic<bool> serving(false);
+
+static void run_here(c_slot &slot, const c_arrival &arrival, c_returned &out, bool inside_c_call);
+
+/** Run the Sharp function of a thunk; `out` is what the thunk returns to C. */
+static void run(int family, int number, const c_arrival &arrival, c_returned &out) {
+    memset(&out, 0, sizeof(out));
     c_slot &slot = slots[family][number];
     sharp_thread *thread = thread_self;
-    if(!slot.used || slot.function == nullptr) return 0;
-    if(thread == nullptr || !sni_in_native(thread)) { foreign_thread(slot); return 0; }
+    if(!slot.used || slot.function == nullptr) return;
+    if(thread == nullptr) {
+        // a thread C started: the serving thread runs it, this one waits for the answer
+        if(!serving) { foreign_thread(slot); return; }
+        c_request request;
+        request.family = family;
+        request.number = number;
+        request.arrival = &arrival;
+        request.out = &out;
+        std::unique_lock<std::mutex> lock(serve_mutex);
+        waiting_calls.push_back(&request);
+        serve_wake.notify_one();
+        serve_done.wait(lock, [&] { return request.done; });
+        return;
+    }
+    if(!sni_in_native(thread)) return;
+    run_here(slot, arrival, out, true);
+}
+
+void c_serve_start() {
+    serving = true;
+}
+
+bool c_serve_one() {
+    sharp_thread *thread = thread_self;
+    serving = true;
+    c_request *request = nullptr;
+    {
+        gc_safe_region idle;                // waiting: the collector does not wait for this thread
+        std::unique_lock<std::mutex> lock(serve_mutex);
+        while(waiting_calls.empty()) {
+            if(hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED || vm.state == VM_SHUTTING_DOWN) {
+                // the program is ending: nobody waits for an answer for ever
+                serving = false;
+                return false;
+            }
+            serve_wake.wait_for(lock, std::chrono::milliseconds(50));
+        }
+        request = waiting_calls.front();
+        waiting_calls.pop_front();
+    }                                       // (waits here while a collection is running)
+    c_slot &slot = slots[request->family][request->number];
+    if(slot.used && slot.function != nullptr) run_here(slot, *request->arrival, *request->out, false);
+    {
+        std::lock_guard<std::mutex> lock(serve_mutex);
+        request->done = true;
+    }
+    serve_done.notify_all();
+    return true;
+}
+
+/** The arguments say something the callback cannot do: said once per kind of mistake, on the console. */
+static void callback_problem(const c_slot &slot, const std::string &why) {
+    fprintf(stderr, "sharp: a function handed to `%s` could not be called by C: %s\n",
+            slot.made_for == nullptr ? "?" : slot.made_for->fullName.c_str(), why.c_str());
+    fflush(stderr);
+}
+
+/**
+ * Run the function on THIS thread, which is a Sharp thread. `inside_c_call`: it is inside a C call
+ * (counted as paused for the collector); else it is the serving thread, in the VM already.
+ */
+static void run_here(c_slot &slot, const c_arrival &arrival, c_returned &out, bool inside_c_call) {
+    sharp_thread *thread = thread_self;
     // an exception is already on its way out of an earlier callback: nothing more runs until C has returned
-    if(hasSignal(thread->signal, tsig_except)) return 0;
+    if(hasSignal(thread->signal, tsig_except)) return;
 
     const c_signature &sig = slot.signature;
-    uint64_t result = 0;
-    tgc_leave_safe(thread);                 // back in the VM: objects may be touched again
+    if(inside_c_call) tgc_leave_safe(thread);       // back in the VM: objects may be touched again
     {
         fiber *task = thread->task;
         stack_item *before = task->sp;
@@ -121,18 +218,45 @@ static uint64_t run(int family, int number, const c_arrival &arrival, double &de
             task = thread->task;
             before = task->sp;
 
-            // the function value, then its arguments, read out of the registers the way the plan says
-            (++task->sp)->obj.o = slot.function;
-            TC(TC_ST(task->sp) = tk_obj;)
+            // the arguments, read out of the registers and the stack the way the plan says: a number's
+            // bytes into `bits`, a struct's into a block of its own
             uint64_t bits[C_MAX_ARGUMENTS];
             memset(bits, 0, sizeof(uint64_t) * count);
+            std::vector<std::vector<uint8_t> > structs(count);
+            for(size_t a = 0; a < count; a++)
+                if(sig.args[a].kind == C_STRUCT) structs[a].assign((size_t) sig.args[a].size + 8, (uint8_t) 0);
+            void *result_memory = nullptr;          // where C wants a struct result written (a hidden argument)
             for(const c_move &move : sig.moves) {
                 const uint8_t *from = (move.place == C_IN_INT ? arrival.ints : move.place == C_IN_FP ? arrival.fps : arrival.stack) + move.to;
-                memcpy((uint8_t*) &bits[move.arg] + move.from, from, move.bytes);
+                if(move.source == C_FROM_RESULT_ADDRESS) {
+                    uintptr_t address = 0;
+                    memcpy(&address, from, sizeof(address));
+                    result_memory = (void*) address;
+                } else if(move.source == C_FROM_COPY_ADDRESS) {
+                    // the struct came as the address of a copy
+                    uintptr_t address = 0;
+                    memcpy(&address, from, sizeof(address));
+                    if(address != 0) memcpy(structs[move.arg].data(), (const void*) address, sig.args[move.arg].size);
+                } else if(sig.args[move.arg].kind == C_STRUCT) {
+                    memcpy(structs[move.arg].data() + move.from, from, move.bytes);
+                } else {
+                    memcpy((uint8_t*) &bits[move.arg] + move.from, from, move.bytes);
+                }
             }
+
+            // the function value, then its arguments
+            (++task->sp)->obj.o = slot.function;
+            TC(TC_ST(task->sp) = tk_obj;)
+            std::string why;
             for(size_t a = 0; a < count; a++) {
                 stack_item *item = ++task->sp;
                 const uint8_t *raw = (const uint8_t*) &bits[a];
+                if(sig.args[a].kind == C_STRUCT) {
+                    item->obj.o = nullptr;
+                    TC(TC_ST(item) = tk_obj;)
+                    if(!c_struct_to_object(sig.args[a].text, structs[a].data(), &item->obj, why)) throw vm_exception(vm.runtime_except, why);
+                    continue;
+                }
                 switch(sig.args[a].kind) {
                     case C_I8: { int8_t v; memcpy(&v, raw, 1); item->var.i = v; break; }
                     case C_U8: { uint8_t v; memcpy(&v, raw, 1); item->var.i = v; break; }
@@ -152,7 +276,7 @@ static uint64_t run(int family, int number, const c_arrival &arrival, double &de
             // native code (prepare_method). The Sharp function that made the C call is not; the
             // extern function it called is - so for this call that one is the caller.
             sni_thread_state *state = sni_state_of(thread);
-            task->current = state->function != nullptr ? state->function : caller;
+            task->current = inside_c_call && state->function != nullptr ? state->function : slot.made_for;
             call_function_value((Int) count);
             task = thread->task;
             task->current = caller;
@@ -161,12 +285,28 @@ static uint64_t run(int family, int number, const c_arrival &arrival, double &de
             task->rom = caller->bytecode;
             task->pc = resume_at;
 
-            if(!hasSignal(thread->signal, tsig_except)) {
-                // a result is on top of where the function value was
-                bool returns = sig.result.kind != C_VOID;
-                if(returns && task->sp > before) {
-                    if(sig.result.kind == C_F32 || sig.result.kind == C_F64) decimal = task->sp->var.d;
-                    else result = (uint64_t) task->sp->var.i;
+            if(!hasSignal(thread->signal, tsig_except) && sig.result.kind != C_VOID && task->sp > before) {
+                // the result is on top of where the function value was: into the registers C reads it from
+                const c_type &r = sig.result;
+                if(r.kind == C_STRUCT) {
+                    std::vector<uint8_t> bytes((size_t) r.size + 8, (uint8_t) 0);
+                    if(!c_struct_from_object(r.text, task->sp->obj.o, bytes.data(), why)) throw vm_exception(vm.runtime_except, why);
+                    if(sig.result_in_memory) {
+                        if(result_memory != nullptr) memcpy(result_memory, bytes.data(), r.size);
+                        uintptr_t address = (uintptr_t) result_memory;
+                        memcpy(out.ints, &address, sizeof(address));        // (and C gets the address back)
+                    } else {
+                        for(const c_move &piece : sig.pieces)
+                            memcpy((piece.place == C_IN_INT ? out.ints : out.fps) + piece.from, bytes.data() + piece.to, piece.bytes);
+                    }
+                } else if(r.kind == C_F64) {
+                    memcpy(out.fps, &task->sp->var.d, 8);
+                } else if(r.kind == C_F32) {
+                    float narrow = (float) task->sp->var.d;     // (a float is the low 4 bytes of the register)
+                    memcpy(out.fps, &narrow, 4);
+                } else {
+                    int64_t whole = (int64_t) task->sp->var.i;
+                    memcpy(out.ints, &whole, 8);
                 }
             }
             task->sp = before;
@@ -179,24 +319,15 @@ static uint64_t run(int family, int number, const c_arrival &arrival, double &de
             task->pc = resume_at;
         }
     }
-    tgc_enter_safe(thread);                 // C goes on
-    return result;
-}
-
-/** A float result travels as the low 32 bits of the floating point register. */
-static double as_returned(const c_slot &slot, double decimal) {
-    if(slot.signature.result.kind != C_F32) return decimal;
-    float narrow = (float) decimal;
-    uint64_t bits = 0;
-    memcpy(&bits, &narrow, 4);
-    double carried;
-    memcpy(&carried, &bits, 8);
-    return carried;
+    if(inside_c_call) tgc_enter_safe(thread);       // C goes on
 }
 
 // ---------------------------------------------------------------------------------
 // The thunks
 // ---------------------------------------------------------------------------------
+
+#define ROW8(F, K) (void*) F<K>, (void*) F<K + 1>, (void*) F<K + 2>, (void*) F<K + 3>, (void*) F<K + 4>, (void*) F<K + 5>, (void*) F<K + 6>, (void*) F<K + 7>
+#define ROW64(F) { ROW8(F, 0), ROW8(F, 8), ROW8(F, 16), ROW8(F, 24), ROW8(F, 32), ROW8(F, 40), ROW8(F, 48), ROW8(F, 56) }
 
 #if defined(CB_WIN64)
 
@@ -219,18 +350,24 @@ template<> struct cb_slot<true> {
 
 template<int M, int N> static uint64_t thunk_whole(CB_PARAMS) {
     CB_ARRIVE
-    double decimal;
-    return run(M * 2, N, a, decimal);
+    c_returned out;
+    run(M * 2, N, a, out);
+    uint64_t result;
+    memcpy(&result, out.ints, 8);
+    return result;
 }
 template<int M, int N> static double thunk_decimal(CB_PARAMS) {
     CB_ARRIVE
-    double decimal;
-    run(M * 2 + 1, N, a, decimal);
-    return as_returned(slots[M * 2 + 1][N], decimal);
+    c_returned out;
+    run(M * 2 + 1, N, a, out);
+    double result;
+    memcpy(&result, out.fps, 8);
+    return result;
 }
 
-#define ROW8(F, M) { (void*) F<M, 0>, (void*) F<M, 1>, (void*) F<M, 2>, (void*) F<M, 3>, (void*) F<M, 4>, (void*) F<M, 5>, (void*) F<M, 6>, (void*) F<M, 7> }
-#define MASK(M) ROW8(thunk_whole, M), ROW8(thunk_decimal, M)
+#define WROW8(F, M, K) (void*) F<M, K>, (void*) F<M, K + 1>, (void*) F<M, K + 2>, (void*) F<M, K + 3>, (void*) F<M, K + 4>, (void*) F<M, K + 5>, (void*) F<M, K + 6>, (void*) F<M, K + 7>
+#define WROW64(F, M) { WROW8(F, M, 0), WROW8(F, M, 8), WROW8(F, M, 16), WROW8(F, M, 24), WROW8(F, M, 32), WROW8(F, M, 40), WROW8(F, M, 48), WROW8(F, M, 56) }
+#define MASK(M) WROW64(thunk_whole, M), WROW64(thunk_decimal, M)
 static void *const thunks[FAMILIES][PER_FAMILY] = {
     MASK(0), MASK(1), MASK(2), MASK(3), MASK(4), MASK(5), MASK(6), MASK(7),
     MASK(8), MASK(9), MASK(10), MASK(11), MASK(12), MASK(13), MASK(14), MASK(15)
@@ -259,26 +396,34 @@ static int family_of(const c_signature &sig) {
                   double f[8] = { f0, f1, f2, f3, f4, f5, f6, f7 }; memcpy(a.fps, f, sizeof(f)); \
                   word_t s[8] = { s0, s1, s2, s3, s4, s5, s6, s7 }; memcpy(a.stack, s, sizeof(s));
 
-template<int N> static uint64_t thunk_whole(CB_PARAMS) {
-    CB_ARRIVE
-    double decimal;
-    return run(0, N, a, decimal);
-}
-template<int N> static double thunk_decimal(CB_PARAMS) {
-    CB_ARRIVE
-    double decimal;
-    run(1, N, a, decimal);
-    return as_returned(slots[1][N], decimal);
-}
+// what a thunk returns, by the registers the result travels in (the shapes of c_call.cpp)
+struct cb_ii { word_t a, b; };
+struct cb_dd { double a, b; };
+struct cb_id { word_t a; double b; };
+struct cb_di { double a; word_t b; };
+struct cb_d4 { double a, b, c, d; };
 
-#define ROW8(F, K) (void*) F<K>, (void*) F<K + 1>, (void*) F<K + 2>, (void*) F<K + 3>, (void*) F<K + 4>, (void*) F<K + 5>, (void*) F<K + 6>, (void*) F<K + 7>
-static void *const thunks[FAMILIES][PER_FAMILY] = {
-    { ROW8(thunk_whole, 0), ROW8(thunk_whole, 8), ROW8(thunk_whole, 16), ROW8(thunk_whole, 24) },
-    { ROW8(thunk_decimal, 0), ROW8(thunk_decimal, 8), ROW8(thunk_decimal, 16), ROW8(thunk_decimal, 24) }
-};
+#if CB_INTS == 6
+// Linux x64: whole:whole, fp:fp, whole then fp, fp then whole
+template<int N> static cb_ii thunk_0(CB_PARAMS) { CB_ARRIVE c_returned out; run(0, N, a, out); cb_ii back; memcpy(&back, out.ints, 16); return back; }
+template<int N> static cb_dd thunk_1(CB_PARAMS) { CB_ARRIVE c_returned out; run(1, N, a, out); cb_dd back; memcpy(&back, out.fps, 16); return back; }
+template<int N> static cb_id thunk_2(CB_PARAMS) { CB_ARRIVE c_returned out; run(2, N, a, out); cb_id back; memcpy(&back.a, out.ints, 8); memcpy(&back.b, out.fps, 8); return back; }
+template<int N> static cb_di thunk_3(CB_PARAMS) { CB_ARRIVE c_returned out; run(3, N, a, out); cb_di back; memcpy(&back.a, out.fps, 8); memcpy(&back.b, out.ints, 8); return back; }
+static void *const thunks[FAMILIES][PER_FAMILY] = { ROW64(thunk_0), ROW64(thunk_1), ROW64(thunk_2), ROW64(thunk_3) };
+#elif CB_INTS == 8
+// ARM64: two whole-number registers, or up to four floating point ones
+template<int N> static cb_ii thunk_0(CB_PARAMS) { CB_ARRIVE c_returned out; run(0, N, a, out); cb_ii back; memcpy(&back, out.ints, 16); return back; }
+template<int N> static cb_d4 thunk_1(CB_PARAMS) { CB_ARRIVE c_returned out; run(1, N, a, out); cb_d4 back; memcpy(&back, out.fps, 32); return back; }
+static void *const thunks[FAMILIES][PER_FAMILY] = { ROW64(thunk_0), ROW64(thunk_1) };
+#else
+// ARM32: r0:r1, or the floating point registers
+template<int N> static uint64_t thunk_0(CB_PARAMS) { CB_ARRIVE c_returned out; run(0, N, a, out); uint64_t back; memcpy(&back, out.ints, 8); return back; }
+template<int N> static cb_d4 thunk_1(CB_PARAMS) { CB_ARRIVE c_returned out; run(1, N, a, out); cb_d4 back; memcpy(&back, out.fps, 32); return back; }
+static void *const thunks[FAMILIES][PER_FAMILY] = { ROW64(thunk_0), ROW64(thunk_1) };
+#endif
 
 static int family_of(const c_signature &sig) {
-    return sig.shape == 1 ? 1 : 0;
+    return sig.shape < FAMILIES ? sig.shape : 0;
 }
 
 #else
@@ -297,12 +442,12 @@ static std::string refused(const c_signature &sig) {
 #if defined(CB_NONE)
     return "handing a function to C is not available on this processor yet";
 #endif
-    if(sig.result.kind == C_STRUCT) return "a function handed to C cannot return a struct yet (numbers and pointers can)";
-    for(const c_type &type : sig.args)
-        if(type.kind == C_STRUCT) return "a function handed to C cannot take a struct by value yet (a pointer to one can)";
-    for(const c_move &move : sig.moves)
-        if(move.source != C_FROM_VALUE) return "a function handed to C cannot take this argument yet";
-    if(sig.stack_bytes > (uint32_t) STACK_WORDS * WORD_BYTES) return "a function handed to C takes more arguments than fit (8 on the stack beside those in registers)";
+#if defined(__aarch64__)
+    // (such a result is written where a register says that is not one of the arguments' - a thunk never sees it)
+    if(sig.result.kind == C_STRUCT && sig.result_in_memory) return "on ARM64 a function handed to C cannot return a struct of more than 16 bytes";
+#endif
+    if(sig.variadic_from >= 0) return "a function handed to C cannot have variable arguments";
+    if(sig.stack_bytes > (uint32_t) STACK_WORDS * WORD_BYTES) return "a function handed to C takes more arguments than fit (8 words on the stack beside those in registers)";
     return "";
 }
 

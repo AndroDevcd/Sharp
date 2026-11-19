@@ -25,6 +25,19 @@ extern "c_test" {
     def call_on_other_thread(f: (c_int, c_int)(c_int), a: c_int, b: c_int) : c_int;
 }
 
+class rect16 base c_struct { x : c_int; y : c_int; w : c_int; h : c_int; }
+class vec2 base c_struct { x : c_float; y : c_float; }
+class big24 base c_struct { a : _int64; b : _int64; c : _int64; }
+class mixed_id base c_struct { a : _int64; b : c_double; }
+
+extern "c_test" {
+    def call_with_structs(f: (rect16, c_int, vec2, big24, c_double)(c_double)) : c_double;
+    def call_for_rect(f: (c_int)(rect16), seed: c_int) : c_double;
+    def call_for_vec2(f: (c_int)(vec2), seed: c_int) : c_double;
+    def call_for_big24(f: (c_int, c_double)(big24), seed: c_int) : c_double;
+    def call_for_mixed(f: (c_int)(mixed_id), seed: c_int) : c_double;
+}
+
 checks : _int64 = 0;
 failures : _int64 = 0;
 calls_seen : _int64 = 0;
@@ -111,8 +124,56 @@ def main(args: string[]) {
     same("an exception thrown in a callback is raised when C returns", caught, 1);
     same("... and the next call works", call_int(add_them, 1, 2), 4);
 
-    // ---- a callback from a thread C made itself cannot run: it answers 0 and says why
-    same("a callback on a foreign thread answers 0", call_on_other_thread(add_them, 1, 2), 0);
+    // ---- structs by value into a callback: each arrives as an object of its class
+    same("structs handed to a function", call_with_structs({ r: rect16, n: c_int, v: vec2, g: big24, x: c_double ->
+        return r.x + 2 * r.y + 3 * r.w + 4 * r.h + 10 * n + v.x + 2 * v.y + g.a + g.b + g.c + 100 * x;
+    }), 3 + 8 + 15 + 24 + 70 + 4.5 + 10.5 + 5 + 20000000000 - 5 + 250);
+    // ---- structs by value out of a callback: small, of floats, larger than the registers, mixed
+    same("a function that returns a struct", call_for_rect({ seed: c_int ->
+        made := new rect16();
+        made.x = seed; made.y = seed + 1; made.w = seed + 2; made.h = seed + 3;
+        return made;
+    }, 5), 5 + 12 + 21 + 32);
+    same("... of two floats", call_for_vec2({ seed: c_int ->
+        made := new vec2();
+        made.x = seed + 0.5; made.y = seed + 1.25;
+        return made;
+    }, 5), 5.5 + 12.5);
+    same("... of 24 bytes", call_for_big24({ seed: c_int, x: c_double ->
+        made := new big24();
+        made.a = seed; made.b = seed * 4000000000; made.c = 0 - seed + x * 2;
+        return made;
+    }, 5), 5 + 40000000000 - 6);
+    same("... of a whole number and a decimal", call_for_mixed({ seed: c_int ->
+        made := new mixed_id();
+        made.a = seed * 1000000007; made.b = seed + 0.75;
+        return made;
+    }, 5), 5000000035 + 11.5);
+
+    // ---- many functions kept at once: more than there used to be room for
+    kept_many := new object[40];
+    for(i : _int64 = 0; i < 40; i++) {
+        one_of : (c_int, c_int)(c_int) = { a: c_int, b: c_int -> return a + b; };
+        kept_many[i] = one_of;
+        c_keep(one_of);
+        keep_callback(one_of);
+    }
+    same("forty functions kept, the last one called", call_kept(20, 22), 42);
+    for(i : _int64 = 0; i < 40; i++) { c_drop(kept_many[i]); }
+    keep_callback(nothing!!);
+
+    // ---- a callback from a thread C started itself: nothing serves it yet, it answers 0 and says why
+    same("a callback on a thread of C's own, not served, answers 0", call_on_other_thread(add_them, 1, 2), 0);
+    // ---- ... and with a serving thread it runs
+    c_serve_other_threads();
+    before : _int64 = calls_seen;
+    same("a callback on a thread of C's own", call_on_other_thread(add_them, 30, 12), 42);
+    same("... ran once", calls_seen - before, 1);
+    total = 0;
+    for(i : _int64 = 0; i < 50; i++) { total = total + call_on_other_thread({ a: c_int, b: c_int -> return a * b; }, i, 2); }
+    same("fifty of them, each a lambda", total, 2450);
+    same("an exception in one is printed and C gets 0", call_on_other_thread(throws, 1, 2), 0);
+    same("... and the next one works", call_on_other_thread(add_them, 2, 3), 5);
 
     if(failures == 0) { println("CALLBACKS: PASS (" + checks + " checks)"); }
     else { println("CALLBACKS: FAIL (" + failures + " of " + checks + " checks failed)"); }

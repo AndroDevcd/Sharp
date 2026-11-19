@@ -41,6 +41,7 @@
 #include <cstring>
 #include <cstdio>
 #include <deque>
+#include <map>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -240,6 +241,7 @@ struct c_shape_field {
 
 struct c_shape {
     uint32_t size = 0;
+    std::string class_name;                 // the Sharp class it is ("" when the text does not say)
     std::vector<c_shape_field> fields;
 };
 
@@ -256,6 +258,13 @@ static int parse_shape(const char *&p, std::deque<c_shape> &shapes, std::string 
         while(*p == ' ' || *p == ',') p++;
         if(*p == '}') { p++; break; }
         if(*p == 0) { why = "a `{` is never closed"; return -1; }
+        if(*p == '@') {
+            p++;
+            std::string name;
+            while(*p != 0 && *p != ' ' && *p != '}') name += *p++;
+            shapes[(size_t) index].class_name = name;
+            continue;
+        }
         c_shape_field field;
         field.inner = -1;
         while(*p != 0 && *p != ':' && *p != ' ' && *p != '}') field.name += *p++;
@@ -344,6 +353,47 @@ static void get_number(c_kind kind, const uint8_t *from, int64_t &whole, double 
         case C_PTR: { uintptr_t v = 0; memcpy(&v, from, sizeof(v)); whole = (int64_t) v; break; }
         default: break;
     }
+}
+
+static void pack(const std::deque<c_shape> &shapes, int index, sharp_object *o, uint8_t *bytes);
+static void unpack(const std::deque<c_shape> &shapes, int index, const uint8_t *bytes, sharp_object *o);
+
+/** The shapes of a struct text, kept: a function handed to C is called with the same structs again and again. */
+struct c_known_struct {
+    std::deque<c_shape> shapes;
+    int index = -1;
+};
+static std::map<std::string, c_known_struct> known_structs;
+static std::recursive_mutex known_mutex;
+
+static c_known_struct *known_struct(const std::string &text, std::string &why) {
+    std::lock_guard<std::recursive_mutex> guard(known_mutex);
+    auto found = known_structs.find(text);
+    if(found != known_structs.end()) return &found->second;
+    c_known_struct made;
+    const char *p = text.c_str();
+    made.index = parse_shape(p, made.shapes, why);
+    if(made.index < 0) return nullptr;
+    return &(known_structs[text] = made);
+}
+
+bool c_struct_to_object(const std::string &text, const uint8_t *bytes, object *slot, std::string &why) {
+    c_known_struct *known = known_struct(text, why);
+    if(known == nullptr) return false;
+    const std::string &name = known->shapes[(size_t) known->index].class_name;
+    sharp_class *of = name.empty() ? nullptr : locate_class(name.c_str());
+    if(of == nullptr) { why = "the program has no class `" + name + "` to make the struct an object of"; return false; }
+    copy_object(slot, create_object(of));
+    unpack(known->shapes, known->index, bytes, slot->o);
+    return true;
+}
+
+bool c_struct_from_object(const std::string &text, sharp_object *o, uint8_t *bytes, std::string &why) {
+    c_known_struct *known = known_struct(text, why);
+    if(known == nullptr) return false;
+    if(o == nullptr) { why = "the function returned null where C expects a struct by value"; return false; }
+    pack(known->shapes, known->index, o, bytes);
+    return true;
 }
 
 /** PACK: the object's fields, laid out as C's bytes. */

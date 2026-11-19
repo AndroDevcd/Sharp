@@ -113,6 +113,11 @@ static bool parse_one(const char *&p, c_type &type, std::string &why, int depth)
             if(*p == ',') { p++; continue; }
             if(*p == '}') { p++; break; }
             if(*p == 0) { why = "a `{` is never closed"; return false; }
+            // {@module#class x:i32}: the Sharp class the struct is (c_bind.cpp makes objects of it)
+            if(*p == '@') {
+                while(*p != 0 && *p != ' ' && *p != '}') p++;
+                continue;
+            }
             // a member may carry its name:  x:i32   (the names are for c_bind.cpp; the layout does not need them)
             {
                 const char *ahead = p;

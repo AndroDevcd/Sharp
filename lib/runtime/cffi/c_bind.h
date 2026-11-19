@@ -46,6 +46,16 @@ void c_set_library(const std::string &library, const std::string &place);
 /** An extern function is called: `argSize` arguments are on the stack. */
 void c_call_extern(sharp_function *fun, Int argSize);
 
+struct object;
+struct sharp_object;
+/**
+ * For functions handed to C (c_callback.cpp): a struct C handed over, as a new object of the struct's
+ * class in `slot`; and the struct an object is, as C's bytes. `text` is the struct as a signature
+ * spells it, {@module#class x:i32 y:i32}. false and `why` when it cannot be done.
+ */
+bool c_struct_to_object(const std::string &text, const uint8_t *bytes, object *slot, std::string &why);
+bool c_struct_from_object(const std::string &text, sharp_object *o, uint8_t *bytes, std::string &why);
+
 /** Open the library and find the function now (instead of at the first call). Throws when it is not there. */
 void c_link(sharp_function *fun);
 /** Find every extern function of the program now: "" when all are there, otherwise what is missing. */
