@@ -1,0 +1,62 @@
+mod main;
+
+import ( std.testing, std.io, std.system )
+
+/**
+ * std.system environment: reading, setting and removing environment
+ * variables - asked of the system directly - and that a program this one
+ * starts sees what was set.
+ */
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_system_environment") {
+        test("PATH is set") { expect_true(environment.has("PATH")); };
+        test("... and has something in it") { expect_true(sizeof(environment.value("PATH")!!.data) > 0); };
+        test("a variable nobody set is null") { expect_null(environment.value("SHARP_SUITE_NO_SUCH_VARIABLE")); };
+        test("... and not there") { expect_false(environment.has("SHARP_SUITE_NO_SUCH_VARIABLE")); };
+        test("get_or gives the fallback") { expect(environment.value_or("SHARP_SUITE_NO_SUCH_VARIABLE", "dflt")).should_be("dflt"); };
+        test("get_or gives the value when there is one") { expect(environment.value_or("PATH", "dflt")).should_be(environment.value("PATH")!!); };
+
+        // ---- set, read back, change, remove
+        environment.put("SHARP_SUITE_SET", "first value");
+        test("set, then get") { expect(environment.value("SHARP_SUITE_SET")!!).should_be("first value"); };
+        environment.put("SHARP_SUITE_SET", "second");
+        test("set again replaces") { expect(environment.value("SHARP_SUITE_SET")!!).should_be("second"); };
+        test("has") { expect_true(environment.has("SHARP_SUITE_SET")); };
+        environment.remove("SHARP_SUITE_SET");
+        test("removed") { expect_null(environment.value("SHARP_SUITE_SET")); };
+        environment.remove("SHARP_SUITE_SET");
+        test("removing what is not there does nothing") { expect_false(environment.has("SHARP_SUITE_SET")); };
+
+        // ---- a value longer than the first buffer, and one with odd characters
+        long_value := new char_buffer();
+        for(i : decimal = 0; i < 300; i++) { long_value.append("0123456789"); }
+        environment.put("SHARP_SUITE_LONG", long_value.to_string()!!);
+        test("a value of 3000 characters") { expect(sizeof(environment.value("SHARP_SUITE_LONG")!!.data)).should_be(3000); };
+        test("... unchanged") { expect(environment.value("SHARP_SUITE_LONG")!!).should_be(long_value.to_string()!!); };
+        environment.remove("SHARP_SUITE_LONG");
+        environment.put("SHARP_SUITE_ODD", "a b;c=d \"e\" %PATH% $$HOME");
+        test("spaces, quotes, = and signs come back as they went in") { expect(environment.value("SHARP_SUITE_ODD")!!).should_be("a b;c=d \"e\" %PATH% $$HOME"); };
+        environment.remove("SHARP_SUITE_ODD");
+
+        // ---- the older way of asking still answers, and the same
+        test("process.environment") { expect(process.environment("PATH")!!).should_be(environment.value("PATH")!!); };
+        test("process.environment of nothing") { expect_true(io_strings.is_null(process.environment("SHARP_SUITE_NO_SUCH_VARIABLE"))); };
+
+        // ---- a program this one starts sees what was set
+        environment.put("SHARP_SUITE_CHILD", "seen by the child");
+        command : string = "echo $$SHARP_SUITE_CHILD";
+        if(platform_info.is_windows()) { command = "echo %SHARP_SUITE_CHILD%"; }
+        test("a started program sees a variable that was set") { expect(process.run(command).output_trimmed()).should_be("seen by the child"); };
+        environment.remove("SHARP_SUITE_CHILD");
+
+        // ---- names that are not names
+        refused : decimal = 0;
+        try { environment.value(""); } catch(wrong: illegal_argument_exception) { refused++; }
+        try { environment.put("A=B", "x"); } catch(wrong: illegal_argument_exception) { refused++; }
+        try { environment.remove(""); } catch(wrong: illegal_argument_exception) { refused++; }
+        test("an empty name and a name with = are refused") { expect(refused).should_be(3); };
+    };
+    finish_tests("lib_system_environment");
+}

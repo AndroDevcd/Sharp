@@ -222,9 +222,8 @@ class process {
 
     /**
      * The value of the environment variable `name`, or null when it is not
-     * set (or set to nothing). The runtime cannot read the environment, so
-     * the shell is asked; that costs one small process per call - keep the
-     * answer when you need it often.
+     * set (or set to nothing). The system is asked directly (environment.sharp);
+     * no shell is started.
      * Throws illegal_argument_exception when the name contains anything
      * but letters, digits and '_'.
      */
@@ -241,28 +240,7 @@ class process {
             throw new illegal_argument_exception("process: not a name of an environment variable: \"" + name + "\"");
         }
 
-        command := new char_buffer(64);
-        if(build.is_windows()) {
-            command.append("echo %").append(name).append("%");
-        } else {
-            // printf prints the value as it is, without a line end; 36 is the dollar sign
-            command.append("printf '%s' ").append_char('"').append_char(36).append(name).append_char('"');
-        }
-        result := run(command.to_string()!!);
-        value : string = result.out_text;
-        if(build.is_windows()) {
-            value = io_strings.trim(value);
-            // cmd.exe prints the name itself for a variable that is not set
-            unset := new char_buffer(n + 2);
-            unset.append("%").append(name).append("%");
-            if(io_strings.equals(value, unset.to_string()!!)) {
-                return null;
-            }
-        }
-        if(sizeof(value.data) == 0) {
-            return null;
-        }
-        return value;
+        return environment.value(name);
     }
 
     /** true when the shell can find a program called `name` (looked up the way the shell does, in the PATH) */

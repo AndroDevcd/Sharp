@@ -184,6 +184,11 @@ the project (`libs/SDL2.dll`) is copied, on every build, to the same place besid
 On Windows the library `"c"` is two files: what `ucrtbase.dll` does not hand out by name (the
 `printf` family) is looked for in `msvcrt.dll`.
 
+**A library only one system has** says so in front of its name: `extern "windows:ws2_32" { }`,
+`extern "unix:c" { }` (`windows`, `linux`, `mac`, or `unix` for the last two). On another system
+`c_check_libraries()` leaves its functions alone, and calling one says it is that system's - so one
+source file can hold both systems' declarations, as `std/net/system_sockets.sharp` does.
+
 `c_check_libraries()` opens every library and finds every function at once, so a missing one
 shows when the program starts and not at its first call.
 

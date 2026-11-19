@@ -494,6 +494,7 @@ static void unpack(const std::deque<c_shape> &shapes, int index, const uint8_t *
 struct c_binding {
     sharp_function *function = nullptr;
     std::string library, symbol, text;
+    std::string only_on;                    // "windows", "linux", "mac", "unix": the one system that has it ("" for every system)
     c_signature signature;
     std::vector<uint8_t> roles;             // what Sharp hands over for each argument
     uint8_t result_role = ROLE_NOTHING;
@@ -513,6 +514,16 @@ void c_declare(sharp_function *fun, const std::string &library, const std::strin
     c_binding &binding = bindings.back();
     binding.function = fun;
     binding.library = library;
+    // extern "windows:ws2_32" { }: a library only that system has. The function is the other
+    // systems' business to leave alone - checking the libraries skips it there, calling it says so.
+    size_t colon = library.find(':');
+    if(colon != std::string::npos && colon > 1) {           // (not the colon of a drive: "C:/libs/x.dll")
+        std::string system = library.substr(0, colon);
+        if(system == "windows" || system == "linux" || system == "mac" || system == "unix") {
+            binding.only_on = system;
+            binding.library = library.substr(colon + 1);
+        }
+    }
     binding.symbol = symbol;
     binding.text = signature;
     fun->externC = &binding;
@@ -531,10 +542,27 @@ static uint8_t role_of(const c_type &type) {
     return ROLE_WHOLE;
 }
 
+/** Is this the system a binding that names one is for? */
+static bool on_this_system(const c_binding &binding) {
+    if(binding.only_on.empty()) return true;
+#if defined(_WIN32)
+    return binding.only_on == "windows";
+#elif defined(__APPLE__)
+    return binding.only_on == "mac" || binding.only_on == "unix";
+#else
+    return binding.only_on == "linux" || binding.only_on == "unix";
+#endif
+}
+
 static void link(c_binding &binding) {
     std::lock_guard<std::recursive_mutex> guard(bind_mutex);
     if(binding.linked) return;
     sharp_function *fun = binding.function;
+    if(!on_this_system(binding)) {
+        throw vm_exception(vm.unsatisfied_link_except,
+            "the extern function `" + fun->fullName + "` is of a library for " + binding.only_on + " (\"" + binding.only_on + ":" + binding.library
+            + "\"), and this is another system: ask which system it is before calling it (build.is_windows())");
+    }
 
     std::string why;
     if(!c_parse_signature(binding.text, binding.signature, why)) {
@@ -594,6 +622,7 @@ void c_link(sharp_function *fun) {
 std::string c_link_all() {
     std::string missing;
     for(c_binding &binding : bindings) {
+        if(!on_this_system(binding)) continue;      // another system's library: nothing to find here
         try { link(binding); }
         catch(vm_exception &problem) { missing += (missing.empty() ? "" : "\n") + std::string(problem.what()); }
     }

@@ -35,7 +35,7 @@ class socket_time base c_struct {
 }
 
 class posix_sockets {
-    extern "c" {
+    extern "unix:c" {
         static def socket(family: c_int, kind: c_int, protocol: c_int) : c_int;
         static def connect(s: c_int, address: socket_address?, length: c_uint) : c_int;
         static def bind(s: c_int, address: socket_address?, length: c_uint) : c_int;
@@ -56,7 +56,7 @@ class posix_sockets {
 }
 
 class windows_sockets {
-    extern "ws2_32" {
+    extern "windows:ws2_32" {
         static def WSAStartup(version: c_ushort, data: _int8[]) : c_int;
         static def WSAGetLastError() : c_int;
         static def socket(family: c_int, kind: c_int, protocol: c_int) : pointer;

@@ -1,0 +1,231 @@
+mod std.io;
+
+import ( std.c, platform )
+
+/**
+ * A FILE READ AND WRITTEN PIECE BY PIECE
+ *
+ *      log := file_stream.open("server.log", "a");     // "r" read, "w" write anew, "a" add at the end,
+ *      log.write_text("started\n");                    // "r+" read and write what is there
+ *      log.close();
+ *
+ *      big := file_stream.open("movie.bin", "r");
+ *      while(!big.at_end()) {
+ *          part := big.read(65536);                    // 64 KB at a time, however large the file is
+ *          ...
+ *      }
+ *      big.close();
+ *
+ * file.read_text() and file.write_text() take or make a WHOLE file. A stream
+ * is for a file that is too large for that, that grows while the program
+ * runs (a log), or of which only a part is wanted: it reads on from where it
+ * stands, and can be moved (seek) to any byte of the file.
+ *
+ * Bytes are bytes: nothing is changed on the way, a line end is what was
+ * written ("\n", or "\r\n" in a file made on Windows - read_line() drops both).
+ *
+ * A stream is the C library's own (fopen and its family, called directly).
+ * It collects what is written and hands it to the system in blocks; flush()
+ * does it now, close() always. An open stream holds the file: close it.
+ *
+ *      Java comparison: RandomAccessFile; Python: open(path, "rb").
+ */
+class file_stream {
+    extern "c" {
+        static def fopen(path: string, mode: string) : pointer;
+        static def fclose(stream: pointer) : c_int;
+        static def fread(into: _int8[], size: c_size, count: c_size, stream: pointer) : c_size;
+        static def fwrite(from: _int8[], size: c_size, count: c_size, stream: pointer) : c_size;
+        static def fgets(into: _int8[], size: c_int, stream: pointer) : pointer;
+        static def fflush(stream: pointer) : c_int;
+        static def feof(stream: pointer) : c_int;
+        static def ferror(stream: pointer) : c_int;
+        static def strlen(text: _int8[]) : c_size;
+    }
+    // where the stream stands, as a 64-bit number on every system (files over 2 GB)
+    extern "unix:c" {
+        static def fseeko64(stream: pointer, offset: _int64, from: c_int) : c_int;
+        static def ftello64(stream: pointer) : _int64;
+    }
+    extern "windows:c" {
+        static def _fseeki64(stream: pointer, offset: _int64, from: c_int) : c_int;
+        static def _ftelli64(stream: pointer) : _int64;
+    }
+
+    private stream : pointer = 0;
+    private name : string = "";
+    private line := new _int8[4096];
+
+    private file_stream(stream: pointer, name: string) {
+        self->stream = stream;
+        self->name = name;
+    }
+
+    /**
+     * Open the file at `path`.
+     *
+     *      "r"     read; the file has to be there
+     *      "w"     write; the file is made, or emptied when it is there
+     *      "a"     write at the end; the file is made when it is not there
+     *      "r+"    read and write a file that is there, from its beginning
+     *      "w+"    read and write; the file is made or emptied
+     *
+     * Throws io_exception when it cannot be opened (not there, no right to,
+     * a directory) and illegal_argument_exception for another mode.
+     */
+    static def open(path: string, mode: string) : file_stream {
+        if(mode != "r" && mode != "w" && mode != "a" && mode != "r+" && mode != "w+" && mode != "a+") {
+            throw new illegal_argument_exception("file_stream.open: the mode is \"r\", \"w\", \"a\", \"r+\", \"w+\" or \"a+\", not \"" + mode + "\"");
+        }
+        // (b: bytes as they are - without it Windows would change line ends on the way)
+        opened : pointer = fopen(path, mode + "b");
+        if(opened == 0) { throw new io_exception("the file could not be opened (mode \"" + mode + "\"): " + path); }
+        return new file_stream(opened, path);
+    }
+
+    /** the path it was opened with */
+    def path() : string {
+        return name;
+    }
+
+    def is_open() : bool {
+        return stream != 0;
+    }
+
+    private def usable() {
+        if(stream == 0) { throw new io_exception("the stream is closed: " + name); }
+    }
+
+    /**
+     * Read up to `most` bytes from where the stream stands. Fewer come back
+     * at the end of the file; an empty array means the end was reached before.
+     * Throws io_exception when reading fails.
+     */
+    def read(most: _int64) : _int8[] {
+        usable();
+        if(most < 1) { return new _int8[0]; }
+        into := new _int8[most];
+        got : _int64 = fread(into, 1, most, stream);
+        if(got < most && ferror(stream) != 0) { throw new io_exception("reading failed: " + name); }
+        if(got == most) { return into; }
+        if(got == 0) { return new _int8[0]; }
+        return copy(into, 0, got)!!;
+    }
+
+    /** read up to `most` bytes as a text */
+    def read_text(most: _int64) : string {
+        bytes := read(most);
+        if(sizeof(bytes) == 0) { return ""; }
+        return new string(bytes, 0, sizeof(bytes));
+    }
+
+    /**
+     * Read one line: the text up to the next line end, which is not part of
+     * it ("\n" and "\r\n" both end a line). Null at the end of the file.
+     */
+    def read_line() : string? {
+        usable();
+        whole : char_buffer? = null;
+        while(true) {
+            if(fgets(line, sizeof(line), stream) == 0) {
+                if(whole == null) { return null; }
+                break;
+            }
+            count : _int64 = strlen(line);
+            ended : bool = count > 0 && line[count - 1] == '\n';
+            if(ended) { count--; }
+            if(ended && count > 0 && line[count - 1] == '\r') { count--; }
+            if(ended && whole == null) {
+                if(count == 0) { return ""; }
+                return new string(line, 0, count);         // the usual case: the line fits
+            }
+            if(whole == null) { whole = new char_buffer(); }
+            for(i : _int64 = 0; i < count; i++) { whole!!.append_char(line[i]); }
+            if(ended) { break; }
+        }
+        return whole!!.to_string() ?: "";
+    }
+
+    /** write all of `data` where the stream stands. Throws io_exception when it fails (the disk is full). */
+    def write(data: _int8[]) : file_stream {
+        return write(data, sizeof(data));
+    }
+
+    /** write the first `count` bytes of `data` */
+    def write(data: _int8[], count: _int64) : file_stream {
+        usable();
+        if(count > sizeof(data)) { count = sizeof(data); }
+        if(count < 1) { return self; }
+        if(fwrite(data, 1, count, stream) != count) { throw new io_exception("writing failed: " + name); }
+        return self;
+    }
+
+    /** write a text, as its bytes */
+    def write_text(text: string) : file_stream {
+        if(sizeof(text.data) == 0) { return self; }
+        return write(text.data!!);
+    }
+
+    /** hand what was written so far to the system now */
+    def flush() : file_stream {
+        usable();
+        fflush(stream);
+        return self;
+    }
+
+    /** where the stream stands: how many bytes from the beginning of the file */
+    def position() : _int64 {
+        usable();
+        if(build.is_windows()) { return _ftelli64(stream); }
+        return ftello64(stream);
+    }
+
+    private def move(offset: _int64, from: _int64) {
+        usable();
+        result : _int64 = 0;
+        if(build.is_windows()) { result = _fseeki64(stream, offset, from); }
+        else { result = fseeko64(stream, offset, from); }
+        if(result != 0) { throw new io_exception("the stream cannot be moved there (" + offset + "): " + name); }
+    }
+
+    /** stand at byte `offset` of the file (0: its beginning) */
+    def seek(offset: _int64) : file_stream {
+        if(offset < 0) { throw new illegal_argument_exception("file_stream.seek: a position is 0 or more, not " + offset); }
+        move(offset, 0);
+        return self;
+    }
+
+    /** move by `bytes` from where the stream stands (back, when negative) */
+    def skip(bytes: _int64) : file_stream {
+        move(bytes, 1);
+        return self;
+    }
+
+    /** stand at the end of the file */
+    def seek_end() : file_stream {
+        move(0, 2);
+        return self;
+    }
+
+    /** how many bytes the file has now (the stream stays where it stands) */
+    def size() : _int64 {
+        here : _int64 = position();
+        move(0, 2);
+        end : _int64 = position();
+        move(here, 0);
+        return end;
+    }
+
+    /** has a read run into the end of the file? (true only AFTER a read came back short) */
+    def at_end() : bool {
+        usable();
+        return feof(stream) != 0;
+    }
+
+    /** write what is left and let go of the file. Closing twice does nothing. */
+    def close() {
+        if(stream == 0) { return; }
+        fclose(stream);
+        stream = 0;
+    }
+}

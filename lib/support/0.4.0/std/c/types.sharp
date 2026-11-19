@@ -49,6 +49,11 @@ mod std.c;
  * is called something else, say so before the first call with c_library(), or
  * in the project's settings.json ("c_libraries").
  *
+ * A LIBRARY ONLY ONE SYSTEM HAS says so in front of its name:
+ * `extern "windows:kernel32" { }`, `extern "unix:c" { }` (windows, linux,
+ * mac, or unix for the last two). Its functions are left alone on the other
+ * systems; ask build.is_windows() before calling one.
+ *
  * WHEN SOMETHING IS WRONG. A library or a function that is not there is an
  * unsatisfied_link_error that lists what was looked for. C itself checks
  * nothing: a declaration that does not match the C function, or an address C
