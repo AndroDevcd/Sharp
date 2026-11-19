@@ -67,6 +67,9 @@ def parse_declaration(p: parse_state, parent: _int64, in_class: _int64) {
 
     // native "sensors" { def read(port: _int32) : decimal; }
     if(p.at(K_NATIVE) && p.peek(1) == T_STRING) { parse_native_block(p, parent); return; }
+    // extern "sdl" { def SDL_GetTicks() : c_uint; }
+    // (`extern` is a word only here, in front of a library's name: it stays free as a name everywhere else)
+    if(p.at(T_IDENTIFIER) && p.peek(1) == T_STRING && p.current_text() == "extern") { parse_extern_block(p, parent); return; }
 
     modifiers : _int64 = parse_modifiers(p);
     kind : _int64 = p.kind();
@@ -164,6 +167,56 @@ def parse_native_block(p: parse_state, parent: _int64) {
         }
     }
     p.expect_closing(P_RBRACE, "`}` to end the native block", opener);
+}
+
+/**
+ * AN EXTERN BLOCK: functions of a C library, called directly
+ *
+ *      extern "sdl" {
+ *          def SDL_GetTicks() : c_uint;
+ *          def SDL_Delay(ms: c_uint);
+ *      }
+ *
+ * Each `def` inside is a function declaration without a body whose name IS
+ * the C function's name. Like a native block it leaves no node of its own:
+ * every function is an N_FUNCTION of the parent the block stands in, with one
+ * more child - an N_EXTERN_LIBRARY at the library's name. No C++ is written
+ * for these: the VM finds the function in the library and calls it
+ * (backend/finalizer/sni/extern_functions.sharp, lib/runtime/cffi).
+ *
+ * THE NAME IS THE LIBRARY, as the program calls it. Which file that is, is
+ * settled when the program runs.
+ *
+ *      Java comparison: a `Linker.nativeLinker().downcallHandle(...)` per
+ *      function; C#'s [DllImport("sdl")] on a block of declarations.
+ */
+def parse_extern_block(p: parse_state, parent: _int64) {
+    p.advance();                                    // extern
+    library_at : _int64 = p.position;
+    p.advance();                                    // "sdl"
+    opener : _int64 = p.position;
+    if(p.expect(P_LBRACE, "`{` to begin the functions of the C library") == 0) { return; }
+
+    while(!p.at(P_RBRACE) && !p.at(T_EOF)) {
+        if(p.at(P_SEMICOLON)) { p.advance(); continue; }
+        before : _int64 = p.position;
+        modifiers : _int64 = parse_modifiers(p);
+        if(!p.at(K_DEF)) {
+            p.error("only function declarations go in an `extern` block")
+                .with_label("expected `def name(parameters) : type;`")
+                .with_help("an extern block lists functions of a C library, each without a body: `def SDL_Delay(ms: c_uint);`");
+            while(!p.at(P_SEMICOLON) && !p.at(P_RBRACE) && !p.at(T_EOF)) { p.advance(); }
+            if(p.position == before) { p.advance(); }
+            continue;
+        }
+        p.last_function = 0 - 1;
+        parse_function(p, parent, modifiers);
+        if(p.last_function >= 0) {
+            library : _int64 = p.child(p.last_function, N_EXTERN_LIBRARY);
+            p.tree.tokens!![library] = library_at;
+        }
+    }
+    p.expect_closing(P_RBRACE, "`}` to end the extern block", opener);
 }
 
 /**

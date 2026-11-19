@@ -2,6 +2,7 @@
 // Created by bknun on 9/16/2022.
 //
 
+#include "../cffi/c_bind.h"
 #include "exe_processor.h"
 #include "../../util/File.h"
 #include "../main.h"
@@ -39,6 +40,8 @@ void validate_authenticity() {
     throw runtime_error("file `" + executable + "` could not be ran.\n");
 }
 
+void process_extern_data(KeyPair<int, string> &result);
+
 KeyPair<int, string> process_exe() {
     KeyPair<int, string> result(0, "");
 
@@ -62,6 +65,7 @@ KeyPair<int, string> process_exe() {
         process_function_data(result);
         process_bytecode(result);
         process_meta_data(result);
+        process_extern_data(result);
     } catch(invalid_argument &e) {
         return result.with(CORRUPT_FILE, e.what());
     } catch(overflow_error &e) {
@@ -73,6 +77,50 @@ KeyPair<int, string> process_exe() {
     }
 
     return result;
+}
+
+//
+// The extern section: the C functions the program calls (the compiler: backend/finalizer/output,
+// write_externs). It stands after the meta section and only in a program that has extern
+// functions - an executable that ends with the meta section has none.
+//
+//      0x3d   then per function:  0x3f, its address (int32), the library, the C function, the signature (texts)
+//             per library the project placed:  0x3e, the library, the place (texts)
+//             the project's folder:  0x3c, the folder (text)
+//      0x1d
+//
+void process_extern_data(KeyPair<int, string> &result) {
+    if((cursor + 1) >= exeData.size() || exeData[cursor + 1] != 0x3d) return;
+    next_char();
+    for(;;) {
+        char tag = next_char();
+        if(tag == 0x1d) break;
+        if(tag == 0x0a) continue;
+        if(tag == 0x3f) {
+            int32_t address = next_int32();
+            string library, symbol, signature;
+            next_string(library);
+            next_string(symbol);
+            next_string(signature);
+            if(address < 0 || (uInt) address >= vm.mf.methods) {
+                result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt: an extern function that is not in the function table.\n");
+                throw runtime_error("");
+            }
+            c_declare(&vm.methods[address], library, symbol, signature);
+        } else if(tag == 0x3e) {
+            string library, place;
+            next_string(library);
+            next_string(place);
+            c_project_library(library, place);
+        } else if(tag == 0x3c) {
+            string folder;
+            next_string(folder);
+            c_project_folder(folder);
+        } else {
+            result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt (its extern section).\n");
+            throw runtime_error("");
+        }
+    }
 }
 
 void check_section(int section_type, Int error_code, KeyPair<int, string> &result) {

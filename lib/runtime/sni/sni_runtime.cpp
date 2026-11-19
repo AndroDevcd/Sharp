@@ -36,6 +36,7 @@
 //      "thread in native" state HotSpot keeps for safepoints.
 //
 
+#include "../cffi/c_bind.h"
 #include "sni_runtime.h"
 #include "../virtual_machine.h"
 #include "../main.h"
@@ -330,6 +331,10 @@ static sni_thread_state *state_of(sharp_thread *thread) {
     return thread->sni;
 }
 
+sni_thread_state *sni_state_of(sharp_thread *thread) {
+    return state_of(thread);
+}
+
 void sni_free_thread_state(sharp_thread *thread) {
     // (an abandoned thread is still inside C++ and may come back to its state: it is left alone)
     if(thread->sni != nullptr && thread->sni->depth > 0) return;
@@ -508,6 +513,8 @@ static const sni_api the_api = {
 void sni_call_native(sharp_function *fun, Int argSize) {
     sharp_thread *thread = thread_self;
     fiber *task = thread->task;
+    // a function of an `extern` block is a C function: no glue, the VM hands the arguments over itself
+    if(fun->externC != nullptr) { c_call_extern(fun, argSize); return; }
     if(fun->nativeGlue == nullptr) sni_link(fun);
 
     sni_thread_state *state = state_of(thread);

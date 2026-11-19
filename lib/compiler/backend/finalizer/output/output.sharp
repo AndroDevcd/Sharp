@@ -38,6 +38,7 @@ def executable_bytes(layout: program_layout, options: executable_options) : _int
     write_function_records(out, layout);
     write_code(out, layout);
     write_meta(out, layout, options);
+    write_externs(out, layout);
     return out.to_array();
 }
 

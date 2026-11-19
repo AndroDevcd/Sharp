@@ -7,7 +7,8 @@ import (
     backend.types.program,
     backend.types.type_system,
     backend.finalizer.ir,
-    backend.finalizer.layout
+    backend.finalizer.layout,
+    backend.finalizer.sni
 )
 
 /**
@@ -51,6 +52,8 @@ const EXE_INTERFACE      : _int64 = 0x2e;
 const EXE_STRING         : _int64 = 0x1e;
 const EXE_CONSTANT       : _int64 = 0x1c;
 const EXE_FILE           : _int64 = 0x2c;
+const EXE_EXTERNS        : _int64 = 0x3d;   // the section after the meta section: the C functions the program calls
+const EXE_EXTERN         : _int64 = 0x3f;
 const EXE_FILE_VERSION   : _int64 = 5;      // the loader takes 5 only (min_file_vers .. file_vers)
 
 /** what the manifest says about the program (options of the command line) */
@@ -390,6 +393,31 @@ def write_meta(out: byte_buffer, layout: program_layout, options: executable_opt
         out.byte(EXE_FILE);
         out.text(files.at(i));
         if(options.debug != 0) { write_source_text(out, layout.file_units.at(i)); }
+    }
+    out.byte(0x0a);
+    out.byte(EXE_END);
+}
+
+/**
+ * The extern section: per C function the program calls (extern_functions.sharp)
+ * its address in the function table, the library's name, the C function's
+ * name and its signature.
+ *
+ * It stands AFTER the meta section, where the loader of an older VM has
+ * stopped reading, and only in a program that has extern functions: every
+ * other executable is byte for byte what it was.
+ */
+def write_externs(out: byte_buffer, layout: program_layout) {
+    externs := extern_functions_of(layout);
+    if(externs.size() == 0) { return; }
+    out.byte(EXE_EXTERNS);
+    for(i : _int64 = 0; i < externs.size(); i++) {
+        entry := externs.at(i);
+        out.byte(EXE_EXTERN);
+        out.int32(entry.made.address);
+        out.text(entry.library);
+        out.text(entry.symbol);
+        out.text(entry.signature);
     }
     out.byte(0x0a);
     out.byte(EXE_END);

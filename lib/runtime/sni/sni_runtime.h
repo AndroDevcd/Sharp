@@ -39,6 +39,9 @@ struct sni_thread_state {
     bool abandoned = false;                     // it ignored a stop for longer than the grace time: nobody waits for it any more
 };
 
+/** What `thread` keeps for its native calls (made when it is first asked for). */
+sni_thread_state *sni_state_of(sharp_thread *thread);
+
 /** A native function is called: `argSize` arguments (the object first, for a function of a class) are on the stack. */
 void sni_call_native(sharp_function *fun, Int argSize);
 

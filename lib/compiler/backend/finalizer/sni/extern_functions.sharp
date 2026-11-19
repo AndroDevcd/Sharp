@@ -1,0 +1,212 @@
+mod backend.finalizer.sni;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.layout
+)
+
+/**
+ * THE EXTERN FUNCTIONS OF A PROGRAM: C functions it calls directly
+ *
+ *      extern "sdl" {                                      the library "sdl"
+ *          def SDL_GetTicks() : c_uint;                    the C function SDL_GetTicks
+ *          def SDL_Delay(ms: c_uint);
+ *      }
+ *
+ * An extern function is a native function (the same flag, the same call
+ * instruction) that needs no C++ written for it: the VM finds the C function
+ * by its name in the library and hands the arguments over the way C's calling
+ * convention wants them (lib/runtime/cffi). For that the executable carries,
+ * per extern function, three texts:
+ *
+ *      the library      "sdl"            a name; which file that is, is settled when the
+ *                                        program runs (c_bind.cpp: the program can say, and
+ *                                        a project's settings.json can)
+ *      the symbol       "SDL_GetTicks"   the C function's name: the Sharp function's
+ *      the signature    "()u32"          what C takes and gives back
+ *
+ * THE SIGNATURE is made from the types the declaration is written with:
+ *
+ *      _int8 ... _uint64, bool      i8 ... u64, u8      (c_int, c_uint, c_short ... are other names for these)
+ *      decimal                      f64                 (c_double)
+ *      c_float                      f32                 a decimal in Sharp, a float in C
+ *      c_long c_ulong c_size        long ulong size     as wide as C has them on the machine that runs the program
+ *      pointer                      ptr                 an address, as a number
+ *      string                       cstr                handed over as a C string; a C string that comes back is copied
+ *      a number array               buf                 its items, in place: C reads and writes the array itself
+ *      a class based on c_struct    {x:i32 y:i32}       a C struct BY VALUE: the class's fields, in order, are its members
+ *      ... written with a `?`       *{x:i32 y:i32}      a POINTER to that struct (null is C's NULL)
+ *      nothing after the `:`        void
+ *
+ * The names c_float, c_long, c_ulong, c_size, c_ssize and pointer are aliases
+ * of the library (std/c/types.sharp). An alias is the type it stands for
+ * everywhere else in the compiler; HERE the name that was written decides,
+ * because `c_float` and `decimal` are the same to Sharp and not to C.
+ *
+ *      Java comparison: the function descriptors of the Foreign Function &
+ *      Memory API (FunctionDescriptor.of(JAVA_INT, ADDRESS)), written by the
+ *      compiler instead of by hand.
+ */
+class extern_function {
+    made : function_layout;
+    library : string = "";
+    symbol : string = "";
+    signature : string = "";
+    problem : string = "";          // "" or why the declaration cannot be a C function
+
+    extern_function(made: function_layout) {
+        self->made = made;
+    }
+}
+
+/** the name the type was written with, when that is an alias and not an array; "" otherwise */
+def written_alias_name(written: sharp_type?) : string {
+    if(written == null) { return ""; }
+    type : sharp_type = written!!;
+    if(type.form != TYPE_NAMED || type.is_array == 1 || type.declaration == null) { return ""; }
+    if(type.declaration!!.kind != D_ALIAS) { return ""; }
+    return type.declaration!!.name;
+}
+
+/** does `declared` derive from the library's `c_struct` (std/c/struct.sharp)? */
+def is_c_struct(declared: sharp_class?) : _int64 {
+    if(declared == null) { return 0; }
+    above : sharp_class? = declared!!.base_class;
+    steps : _int64 = 0;
+    while(above != null && steps < 64) {
+        if(above!!.name == "c_struct") { return 1; }
+        above = above!!.base_class;
+        steps++;
+    }
+    return 0;
+}
+
+/** the members of a struct class as the signature spells them, those of its base classes first: "x:i32 y:i32" */
+def c_struct_members(declared: sharp_class, depth: _int64) : string {
+    text := new string_builder("");
+    if(declared.base_class != null && declared.base_class!!.name != "c_struct") {
+        text.append(c_struct_members(declared.base_class!!, depth));
+    }
+    for(i : _int64 = 0; i < declared.fields.size(); i++) {
+        field := declared.fields.at(i);
+        if(field.has(FLAG_STATIC)) { continue; }
+        piece : string = c_member_text(field, depth);
+        if(sizeof(piece.data) > 0 && piece.data!![0] == '!') { return piece; }
+        if(text.size() > 0) { text.append(" "); }
+        text.append(field.name);
+        text.append(":");
+        text.append(piece);
+    }
+    return text.build();
+}
+
+/** one field of a struct class */
+def c_member_text(field: sharp_field, depth: _int64) : string {
+    where : string = "the field `" + field.name + "` of the struct `" + field.owner!!.name + "`";
+    if(field.value_type == null) { return "!" + where + " has no type C could know: write it, `" + field.name + " : c_int;`"; }
+    found : resolved_type = field.value_type!!;
+    if(found.is_array == 1) { return "!" + where + " is an array: a C struct's members are numbers, `pointer`s and other structs (write the items as fields, or keep the struct in raw memory)"; }
+    if(found.kind == RT_CLASS && is_c_struct(found.class_of) == 1) {
+        if(found.is_nullable == 1) { return "!" + where + " is a struct written with `?`: inside a struct a pointer is written `pointer`"; }
+        if(depth > 8) { return "!" + where + ": structs inside structs, more than 8 deep (a struct cannot contain itself)"; }
+        inner : string = c_struct_members(found.class_of!!, depth + 1);
+        if(sizeof(inner.data) > 0 && inner.data!![0] == '!') { return inner; }
+        return "{" + inner + "}";
+    }
+    piece : string = c_type_text(field.type, field.value_type, 0);
+    if(piece == "cstr") { return "!" + where + " is a string: inside a C struct a text is an address, write `pointer`"; }
+    if(sizeof(piece.data) > 0 && piece.data!![0] == '!') { return "!" + where + ": " + new string(piece.data!!, 1, sizeof(piece.data)); }
+    return piece;
+}
+
+/**
+ * One type as the signature spells it. A type C cannot be handed comes back
+ * as "!" and the reason.
+ */
+def c_type_text(written: sharp_type?, type: resolved_type?, is_result: _int64) : string {
+    name : string = written_alias_name(written);
+    if(name == "c_float") { return "f32"; }
+    if(name == "c_long") { return "long"; }
+    if(name == "c_ulong") { return "ulong"; }
+    if(name == "c_size") { return "size"; }
+    if(name == "c_ssize") { return "ssize"; }
+    if(name == "pointer") { return "ptr"; }
+
+    if(type == null) { return "void"; }
+    found : resolved_type = type!!;
+    if(found.kind == RT_NIL) { return "void"; }
+    is_number : _int64 = 0;
+    if(found.kind == RT_INTEGER || found.kind == RT_DECIMAL) { is_number = 1; }
+
+    if(found.is_array == 1) {
+        if(is_number == 0) { return "!an array of objects cannot be handed to C: only an array of numbers (its items are handed over in place)"; }
+        if(is_result == 1) { return "!C cannot return a Sharp array: declare the result as `pointer` and read the memory it points to"; }
+        return "buf";
+    }
+    if(found.kind == RT_DECIMAL) { return "f64"; }
+    if(found.kind == RT_INTEGER) {
+        if(found.is_bool_type == 1) { return "u8"; }
+        text : string = "i";
+        if(found.is_signed == 0) { text = "u"; }
+        return text + found.bits;
+    }
+    if(found.kind == RT_CLASS && found.class_of != null && found.class_of!!.name == "string") { return "cstr"; }
+    if(found.kind == RT_CLASS && is_c_struct(found.class_of) == 1) {
+        members : string = c_struct_members(found.class_of!!, 0);
+        if(sizeof(members.data) > 0 && members.data!![0] == '!') { return members; }
+        if(sizeof(members.data) == 0) { return "!the struct `" + found.class_of!!.name + "` has no fields: a C struct has at least one member"; }
+        if(found.is_nullable == 1) { return "*{" + members + "}"; }
+        return "{" + members + "}";
+    }
+    return "!`" + found.to_text() + "` cannot be handed to C: an extern function takes numbers, `pointer`, `string`, arrays of numbers and classes based on `c_struct`";
+}
+
+/**
+ * Every extern function the program keeps, in the order of their addresses
+ * (so two compiles of one program write the same file).
+ */
+def extern_functions_of(layout: program_layout) : list<extern_function> {
+    found := new list<extern_function>();
+    for(i : _int64 = 0; i < layout.functions.size(); i++) {
+        made := layout.functions.at(i);
+        if(!made.of.has(FLAG_NATIVE) || sizeof(made.of.extern_library.data) == 0) { continue; }
+
+        entry := new extern_function(made);
+        entry.library = made.of.extern_library;
+        entry.symbol = made.of.name;
+        where : string = "the extern function `" + made.of.name + "` (library \"" + entry.library + "\")";
+        if(made.is_static == 0) {
+            entry.problem = where + " is declared inside a class without `static`: a C function has no object to belong to";
+        }
+
+        text := new string_builder("(");
+        for(j : _int64 = 0; j < made.of.parameters.size(); j++) {
+            parameter := made.of.parameters.at(j);
+            if(j > 0) { text.append(","); }
+            piece : string = c_type_text(parameter.type, parameter.value_type, 0);
+            if(piece == "void") { piece = "!a parameter needs a type"; }
+            if(sizeof(piece.data) > 0 && piece.data!![0] == '!') {
+                if(sizeof(entry.problem.data) == 0) {
+                    entry.problem = where + ", parameter `" + parameter.name + "`: " + new string(piece.data!!, 1, sizeof(piece.data));
+                }
+                piece = "ptr";
+            }
+            text.append(piece);
+        }
+        text.append(")");
+        result : string = c_type_text(made.of.return_type, made.of.result_type, 1);
+        if(sizeof(result.data) > 0 && result.data!![0] == '!') {
+            if(sizeof(entry.problem.data) == 0) {
+                entry.problem = where + ", its result: " + new string(result.data!!, 1, sizeof(result.data));
+            }
+            result = "ptr";
+        }
+        text.append(result);
+        entry.signature = text.build();
+        found.add(entry);
+    }
+    return found;
+}

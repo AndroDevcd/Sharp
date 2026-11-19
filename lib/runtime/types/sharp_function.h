@@ -46,6 +46,8 @@ struct sharp_function {
     // a `native` function's C++ side: the glue of its entry in a library's table (sni/sni_runtime.h);
     // null until the function is first called and found
     sni_glue nativeGlue;
+    // a function of an `extern` block: which C function it is (cffi/c_bind.h); null for every other function
+    struct c_binding *externC;
     function_param *params;
     linkedlist<line_data> lineTable;
     linkedlist<try_catch_data> tryCatchTable;

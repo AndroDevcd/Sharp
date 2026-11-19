@@ -2,6 +2,7 @@
 // Created by bknun on 9/21/2022.
 //
 
+#include "cffi/c_bind.h"
 #include <csignal>
 #include "sig_handler.h"
 #include "multitasking/thread/sharp_thread.h"
@@ -58,7 +59,11 @@ void os_signal(int signal) {
             cerr << st << endl;
         }
 
-        cerr << "(" << signalToString(signal) << ") found, please contact the language developer with the call stack below" << endl;
+        // a crash inside a C function the program called is the C side's (or the declaration's), not the VM's:
+        // it is reported as that, with what the function is and what it was handed (cffi/c_bind.cpp)
+        string in_c = thread_self != NULL ? c_describe_call(thread_self) : string();
+        if(!in_c.empty()) cerr << "(" << signalToString(signal) << ") " << in_c << endl;
+        else cerr << "(" << signalToString(signal) << ") found, please contact the language developer with the call stack below" << endl;
     }
 
 #ifdef POSIX_

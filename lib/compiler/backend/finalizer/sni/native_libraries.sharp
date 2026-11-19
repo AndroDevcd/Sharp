@@ -140,6 +140,8 @@ def native_libraries_of(layout: program_layout) : list<native_library> {
     for(i : _int64 = 0; i < layout.functions.size(); i++) {
         made := layout.functions.at(i);
         if(!made.of.has(FLAG_NATIVE)) { continue; }
+        // (a function of an `extern` block is a C function the VM calls itself: no glue, no library of ours)
+        if(sizeof(made.of.extern_library.data) > 0) { continue; }
 
         wanted := library_name_of(made.of);
         library : native_library? = null;

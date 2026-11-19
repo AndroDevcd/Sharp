@@ -402,6 +402,10 @@ def declare_function(file: sharp_file, node: _int64, owner: sharp_class?, extra_
             declared.expression = tree.first_child!![child];
         } else if(kind == N_NATIVE_LIBRARY) {
             declared.native_library = text_without_quotes(node_text(unit, child));     // native "sensors" { ... }
+        } else if(kind == N_EXTERN_LIBRARY) {
+            // extern "sdl" { ... }: a native function the VM calls in a C library, static wherever it is written
+            declared.extern_library = text_without_quotes(node_text(unit, child));
+            declared.flags = declared.flags | FLAG_NATIVE;
         }
         child = tree.next_sibling!![child];
     }

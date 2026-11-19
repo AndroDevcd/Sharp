@@ -178,6 +178,18 @@ class kept_walk {
                 if(block.parameters.size() == 0) { keep(block); }      // init { } and static init { }; not init(x)
             }
             for(i : _int64 = 0; i < made.enum_values.size(); i++) { keep(made.enum_values.at(i)); }
+            // a C struct (a class based on std.c's c_struct): C reads and writes its members by name, so
+            // every field of it is used whether or not Sharp code names it (lib/runtime/cffi/c_bind.cpp)
+            above : sharp_class? = made.base_class;
+            for(depth : _int64 = 0; above != null && depth < 64; depth++) {
+                if(above!!.name == "c_struct") {
+                    for(i : _int64 = 0; i < made.fields.size(); i++) {
+                        if(!made.fields.at(i).has(FLAG_STATIC)) { keep(made.fields.at(i)); }
+                    }
+                    break;
+                }
+                above = above!!.base_class;
+            }
             for(i : _int64 = 0; i < made.functions.size(); i++) {
                 function := made.functions.at(i);
                 root := function.family_root;

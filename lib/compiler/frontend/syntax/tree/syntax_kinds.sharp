@@ -139,6 +139,7 @@ const N_GET_COMPONENT   : _int64 = 128; // get<t>("name", component)   children:
 const N_STRING_TEMPLATE : _int64 = 130; // "a ${x + 1} b $name c"     children, alternating: N_LITERAL (a piece of text,
                                         //   possibly empty) and an expression; it starts and ends with a piece
 const N_NATIVE_LIBRARY  : _int64 = 131; // "sensors" of `native "sensors" { ... }`: a child of every N_FUNCTION declared in the block
+const N_EXTERN_LIBRARY  : _int64 = 132; // "sdl" of `extern "sdl" { ... }`: a child of every N_FUNCTION declared in the block
 const N_ERROR           : _int64 = 129; // where something could not be parsed (an error was reported)
 
 /** the name of a node kind, for tree dumps and messages about the tree itself */
@@ -219,6 +220,7 @@ def node_kind_name(kind: _int64) : string {
     if(kind == N_ASM_TYPE) { return "asm_type"; }
     if(kind == N_STRING_TEMPLATE) { return "string_template"; }
     if(kind == N_NATIVE_LIBRARY) { return "native_library"; }
+    if(kind == N_EXTERN_LIBRARY) { return "extern_library"; }
     if(kind == N_EXPRESSION_STATEMENT) { return "expression_statement"; }
     if(kind == N_EMPTY_STATEMENT) { return "empty_statement"; }
     if(kind == N_LITERAL) { return "literal"; }

@@ -87,7 +87,9 @@ enum interrupt_flag
     OP_REFLECT_FIELD_VALUE = 0x52,
     OP_PROGRAM_PATH = 0x53,          // push: the whole path of the program file the VM is running
     OP_OS_NAME = 0x54,               // push: the operating system the VM runs on, "win" or "posix"
-    OP_RUNTIME_PATH = 0x55,          // push: the whole path of the `sharp` runtime binary itself (libs ship beside it)
+    OP_RUNTIME_PATH = 0x55,
+    OP_C_LIBRARY = 0x56,             // pop: where a C library is, pop: the library's name (cffi/c_bind.h)
+    OP_C_LINK_ALL = 0x57,            // push: "" when every extern function of the program was found, else what is missing          // push: the whole path of the `sharp` runtime binary itself (libs ship beside it)
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

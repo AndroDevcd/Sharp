@@ -129,6 +129,8 @@ static const interrupt_row interrupt_rows[] = {
     { OP_OS_NAME,               "os_name",              op_os_name },
     { OP_PROGRAM_PATH,          "program_path",         op_program_path },
     { OP_RUNTIME_PATH,          "runtime_path",         op_runtime_path },
+    { OP_C_LIBRARY,             "c_library",            op_c_library },
+    { OP_C_LINK_ALL,            "c_link_all",           op_c_link_all },
 
     // ---- native_lib.cpp
     { OP_LOAD_LIBRARY,          "load_library",         op_load_library },

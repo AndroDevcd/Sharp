@@ -119,6 +119,7 @@ class sharp_function base sharp_declaration {
     takes_record : _int64 = 0;
     native_library : string = "";       // for a `native` function: the library a `native "name" { }` block names;
                                         // "" for one declared alone (its library is then named after its module)
+    extern_library : string = "";       // for a function of an `extern "name" { }` block: the C library's name ("" for every other function)
     // the variables of THIS function that its lambdas capture; null when they capture none
     closure : closure_record?;
     // the lambdas written directly in this function, in order

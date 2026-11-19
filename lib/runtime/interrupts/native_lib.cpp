@@ -5,6 +5,7 @@
 // Moved verbatim from the old switch in virtual_machine.cpp (OP_LOAD_LIBRARY,
 // OP_FREE_LIBRARY, OP_LINK_FUNC). See interrupt_internal.h for what a handler is.
 //
+#include "../cffi/c_bind.h"
 #include "interrupt_internal.h"
 
 //
@@ -51,4 +52,31 @@ void op_link_func(Int interrupt) {
         populate_string(funcname, funcNameObj);
         registers[EBX].i = sni_link_from(libname, locate_function(funcname.c_str()));
     }
+}
+
+//
+// c_library(name, place): where the C library the program calls `name` is - a path or a file's
+// name (cffi/c_bind.h). The place is popped, then the name.
+//
+void op_c_library(Int interrupt) {
+    sharp_object *placeObj = (thread_self->task->sp--)->obj.o;
+    sharp_object *nameObj = (thread_self->task->sp--)->obj.o;
+    if (placeObj == NULL || placeObj->type > type_var || nameObj == NULL || nameObj->type > type_var)
+        throw vm_exception(vm.nullptr_except, "");
+    string name, place;
+    populate_string(name, nameObj);
+    populate_string(place, placeObj);
+    c_set_library(name, place);
+}
+
+//
+// c_link_all(): open every C library the program's extern functions name and find every one of
+// those functions now. Pushes "" when all are there, otherwise what is missing.
+//
+void op_c_link_all(Int interrupt) {
+    auto task = thread_self->task;
+    string missing = c_link_all();
+    auto strObject = create_object(missing.size(), type_int8);
+    copy_object(&push_stack_object, strObject);
+    if(strObject && missing.size() > 0) assign_string_field(strObject, missing);
 }

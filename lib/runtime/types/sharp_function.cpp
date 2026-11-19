@@ -30,6 +30,7 @@ void init_struct(sharp_function *sf) {
     sf->frameStackOffset = 0;
     sf->nativeFunc = false;
     sf->nativeGlue = nullptr;
+    sf->externC = nullptr;
     sf->callCount = 0;
     sf->loopCount = 0;
     sf->isHighFrequency = false;

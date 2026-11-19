@@ -146,6 +146,8 @@ void op_exit(Int interrupt);
 void op_os_name(Int interrupt);
 void op_program_path(Int interrupt);
 void op_runtime_path(Int interrupt);
+void op_c_library(Int interrupt);
+void op_c_link_all(Int interrupt);
 
 // native_lib.cpp - native libraries (SNI)
 void op_load_library(Int interrupt);

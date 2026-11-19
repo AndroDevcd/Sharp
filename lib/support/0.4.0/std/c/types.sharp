@@ -1,0 +1,116 @@
+mod std.c;
+
+/**
+ * CALLING C: the names of C's types, and where a C library is
+ *
+ *      import ( std.c )
+ *
+ *      extern "c" {                                    // "c": the functions every C program has
+ *          def strlen(text: string) : c_size;
+ *          def abs(value: c_int) : c_int;
+ *      }
+ *
+ *      extern "sdl" {                                  // a library of your own choosing
+ *          def SDL_GetTicks() : c_uint;
+ *          def SDL_Delay(ms: c_uint);
+ *      }
+ *
+ *      def main() {
+ *          c_library("sdl", "SDL2");                   // which file "sdl" is (not needed when the name is the file's)
+ *          println("" + strlen("hello"));              // 5
+ *      }
+ *
+ * AN EXTERN BLOCK lists functions of a C library, each without a body and
+ * with the C function's own name. Nothing else is written - no C++, no glue:
+ * the first call opens the library, finds the function and hands the
+ * arguments over the way C wants them.
+ *
+ * THE TYPES below are the C types by their C names. Most are other names for
+ * Sharp's own numbers; five are more than that, because C tells apart what
+ * Sharp does not:
+ *
+ *      c_float                 a decimal in Sharp, a `float` (32 bits) in C
+ *      c_long, c_ulong         C's `long`: 32 bits on Windows and on a 32-bit machine, 64 on 64-bit Linux
+ *      c_size, c_ssize         C's `size_t` and `ssize_t`: as wide as an address
+ *      pointer                 an address, as a number. 0 is C's NULL.
+ *
+ * and beside the numbers an extern function takes
+ *
+ *      string                  handed to C as a C string (a copy with the 0 at its end; null is NULL).
+ *                              A C string that comes BACK is copied into a new Sharp string.
+ *      _int8[], _int32[], decimal[] ...
+ *                              an array of numbers: C gets the address of its items and reads and
+ *                              writes the array itself. Tell C how many there are - it cannot know.
+ *
+ * WHERE A LIBRARY IS. The name in `extern "name"` is tried as a file: beside
+ * the program, in the project's folder, in the folder the program was started
+ * in, then wherever the system looks for libraries - with the system's ending
+ * (.dll, .so) and `lib` in front added when they are left off. When the file
+ * is called something else, say so before the first call with c_library(), or
+ * in the project's settings.json ("c_libraries").
+ *
+ * WHEN SOMETHING IS WRONG. A library or a function that is not there is an
+ * unsatisfied_link_error that lists what was looked for. C itself checks
+ * nothing: a declaration that does not match the C function, or an address C
+ * may not use, crashes the program - the crash report then names the C
+ * function, how it was declared and what it was handed.
+ *
+ *      Java comparison: java.lang.foreign (the linker, ValueLayout.JAVA_INT ...);
+ *      C#: [DllImport]; Python: ctypes.
+ */
+
+alias _int8   as c_char;
+alias _uint8  as c_uchar;
+alias _int16  as c_short;
+alias _uint16 as c_ushort;
+alias _int32  as c_int;
+alias _uint32 as c_uint;
+alias _int64  as c_longlong;
+alias _uint64 as c_ulonglong;
+alias decimal as c_double;
+
+// (the compiler knows these six by name: backend/finalizer/sni/extern_functions.sharp)
+alias decimal as c_float;
+alias _int64  as c_long;
+alias _uint64 as c_ulong;
+alias _uint64 as c_size;
+alias _int64  as c_ssize;
+alias _int64  as pointer;
+
+/**
+ * Say which file the C library `name` is: a path (absolute, or looked for
+ * beside the program, in the project and in the folder the program was
+ * started in) or a file's name the system finds itself. The ending (.dll,
+ * .so) may be left off. Said more than once, each place is tried in order.
+ *
+ *      c_library("sdl", build.is_windows() ? "SDL2.dll" : "libSDL2-2.0.so.0");
+ *
+ * Throws illegal_state_exception when the library is already open: say it
+ * before the first call of one of its functions.
+ */
+def c_library(name: string, place: string) {
+    library_name : _int8[] = name.data!!;
+    library_place : _int8[] = place.data!!;
+    asm {
+        pushl [library_name]
+        pushl [library_place]
+        int 0x56
+    };
+}
+
+/**
+ * Open every C library the program's extern functions name and find every
+ * one of those functions NOW, instead of at each one's first call - so a
+ * missing library or a misspelt function shows when the program starts.
+ * Throws unsatisfied_link_error with everything that is missing.
+ */
+def c_check_libraries() {
+    missing : _int8[];
+    asm {
+        int 0x57
+        popl [missing]
+    };
+    if(sizeof(missing) > 0) {
+        throw new unsatisfied_link_error("$missing");
+    }
+}

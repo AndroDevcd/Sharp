@@ -246,6 +246,13 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
         return result;
     }
 
+    // an extern function C cannot have (a parameter that is an object, a function of an object)
+    externs := extern_functions_of(layout);
+    for(i : _int64 = 0; i < externs.size(); i++) {
+        if(sizeof(externs.at(i).problem.data) > 0) { result.plain_errors.add("error: " + externs.at(i).problem + "\n"); }
+    }
+    if(result.plain_errors.size() > 0) { return result; }
+
     // ---- 5. the file
     started = clock_ms();
     options := new executable_options();
