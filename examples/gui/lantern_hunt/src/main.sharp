@@ -194,7 +194,8 @@ class lantern_hunt base composable {
                 group {
                     model(assets + "Lantern_01/Lantern_01.gltf").scale(2.4).spin(50).glow(0.35);
                     lamp().at(0, 0.5, 0).reach(11).color(0xFFC560FF).strength(1.6);
-                }.at(lantern_x[i], ground_at(lantern_x[i], lantern_z[i]) + 0.5, lantern_z[i]).bob(0.14, 2.2);
+                }.at(lantern_x[i], ground_at(lantern_x[i], lantern_z[i]) + 0.5, lantern_z[i])
+                .bob(0.14, 2.2);
             }
 
             add(me);
