@@ -29,7 +29,7 @@
 //
 // WHAT A CALLBACK TAKES AND RETURNS: numbers, pointers, and structs by value - a struct arrives as a
 // new object of its class and a returned object is laid out as C's struct (c_bind.cpp does both).
-// Not: more than 8 words of arguments on the stack, and on ARM64 a struct result over 16 bytes.
+// Not: more than 8 words of arguments on the stack.
 //
 // No machine code is made here either: the thunks are ordinary C++ functions, one per number,
 // written once as a template (see c_call.cpp for the same idea in the other direction).
@@ -87,6 +87,9 @@ static const int PER_FAMILY = 64;
 #elif defined(__x86_64__)
 static const int FAMILIES = 4;              // the registers the result travels in: c_call.cpp's four shapes
 static const int PER_FAMILY = 64;
+#elif defined(__aarch64__)
+static const int FAMILIES = 3;              // the result travels in whole-number registers / in floating point ones / is written where x8 says
+static const int PER_FAMILY = 64;
 #else
 static const int FAMILIES = 2;              // the result travels in whole-number / in floating point registers
 static const int PER_FAMILY = 64;
@@ -100,6 +103,7 @@ struct c_arrival {
     uint8_t ints[8 * 8];
     uint8_t fps[8 * 8];
     uint8_t stack[STACK_WORDS * 8];
+    uintptr_t memory = 0;                   // ARM64: where C wants a large struct result written (it says so in x8)
 };
 
 /** What a thunk hands back to C: the result registers, as bytes. */
@@ -225,7 +229,7 @@ static void run_here(c_slot &slot, const c_arrival &arrival, c_returned &out, bo
             std::vector<std::vector<uint8_t> > structs(count);
             for(size_t a = 0; a < count; a++)
                 if(sig.args[a].kind == C_STRUCT) structs[a].assign((size_t) sig.args[a].size + 8, (uint8_t) 0);
-            void *result_memory = nullptr;          // where C wants a struct result written (a hidden argument)
+            void *result_memory = (void*) arrival.memory;   // where C wants a struct result written (a hidden argument, or x8)
             for(const c_move &move : sig.moves) {
                 const uint8_t *from = (move.place == C_IN_INT ? arrival.ints : move.place == C_IN_FP ? arrival.fps : arrival.stack) + move.to;
                 if(move.source == C_FROM_RESULT_ADDRESS) {
@@ -414,7 +418,22 @@ static void *const thunks[FAMILIES][PER_FAMILY] = { ROW64(thunk_0), ROW64(thunk_
 // ARM64: two whole-number registers, or up to four floating point ones
 template<int N> static cb_ii thunk_0(CB_PARAMS) { CB_ARRIVE c_returned out; run(0, N, a, out); cb_ii back; memcpy(&back, out.ints, 16); return back; }
 template<int N> static cb_d4 thunk_1(CB_PARAMS) { CB_ARRIVE c_returned out; run(1, N, a, out); cb_d4 back; memcpy(&back, out.fps, 32); return back; }
-static void *const thunks[FAMILIES][PER_FAMILY] = { ROW64(thunk_0), ROW64(thunk_1) };
+// A struct of more than 16 bytes is written where the caller says in x8 - a register that is not an
+// argument's, and that the thunk's own code is free to use before any statement of ours runs. So the
+// thunk is itself a function that returns a large struct: the C++ compiler then keeps that address,
+// as the address of the one object the function returns (`back` below IS the caller's memory - the
+// compiler builds a function's only returned object in place). Only as many bytes as the real struct
+// has are written into it; the rest of `back` is never touched.
+struct cb_big { char bytes[C_MAX_RESULT]; };
+template<int N> static cb_big thunk_2(CB_PARAMS) {
+    cb_big back;
+    CB_ARRIVE
+    a.memory = (uintptr_t) &back;
+    c_returned out;
+    run(2, N, a, out);
+    return back;
+}
+static void *const thunks[FAMILIES][PER_FAMILY] = { ROW64(thunk_0), ROW64(thunk_1), ROW64(thunk_2) };
 #else
 // ARM32: r0:r1, or the floating point registers
 template<int N> static uint64_t thunk_0(CB_PARAMS) { CB_ARRIVE c_returned out; run(0, N, a, out); uint64_t back; memcpy(&back, out.ints, 8); return back; }
@@ -441,10 +460,6 @@ static int family_of(const c_signature &sig) { return 0; }
 static std::string refused(const c_signature &sig) {
 #if defined(CB_NONE)
     return "handing a function to C is not available on this processor yet";
-#endif
-#if defined(__aarch64__)
-    // (such a result is written where a register says that is not one of the arguments' - a thunk never sees it)
-    if(sig.result.kind == C_STRUCT && sig.result_in_memory) return "on ARM64 a function handed to C cannot return a struct of more than 16 bytes";
 #endif
     if(sig.variadic_from >= 0) return "a function handed to C cannot have variable arguments";
     if(sig.stack_bytes > (uint32_t) STACK_WORDS * WORD_BYTES) return "a function handed to C takes more arguments than fit (8 words on the stack beside those in registers)";

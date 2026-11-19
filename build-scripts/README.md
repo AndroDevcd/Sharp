@@ -24,6 +24,7 @@ build-scripts/
 tests/cffi/      calls to C (extern blocks), in seconds:
                    engine_test.sh   the calling conventions alone, without the VM
                    run.sh           from Sharp: numbers, structs, memory, callbacks, mistakes, a project
+                   arm.sh           both of them for 32- and 64-bit ARM, on a PC: a cross compiler and qemu
                  (both run in WSL and in Git Bash; on Windows, before a release is installed:
                   COMPILER=<the sharpc_boot built in WSL> bash tests/cffi/run.sh)
 ```

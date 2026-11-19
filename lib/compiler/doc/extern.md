@@ -214,7 +214,8 @@ machine's convention. A call fills three blocks (integer registers, floating poi
 stack) and calls through a C++ function type that takes all of those registers, so the C++
 compiler loads every one and the C function reads the ones it uses. One file covers Windows x64,
 Linux x64, ARM64 and ARM32 (hard float); `tests/cffi/engine_test.sh` runs against each (the two ARM
-ones under qemu: `CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ RUN="qemu-arm -L /usr/arm-linux-gnueabihf"`).
+ones under qemu). `tests/cffi/arm.sh` does all of it for ARM on a PC: the engine test, then the whole
+VM built for ARM with a cross compiler and every Sharp-side test run on it under qemu.
 
 ## 7. Where the code is
 
