@@ -130,7 +130,7 @@ enum emit_result {
 };
 
 /** rare code that is placed after the function (sections/slow_paths.cpp) */
-enum slow_kind { slow_grow, slow_null, slow_bounds, slow_safepoint, slow_call };
+enum slow_kind { slow_grow, slow_null, slow_bounds, slow_safepoint, slow_call, slow_barrier };
 
 struct slow_path_request {
     slow_kind kind;

@@ -239,7 +239,7 @@ def vm_named_classes() : name_table<numbered> {
     found := split_words("std#throwable std#runtime_exception std#stack_overflow_exception std#thread_stack_exception "
         + "std#out_of_bounds_exception std#nullptr_exception std#class_cast_exception std#out_of_memory_exception "
         + "std#invalid_operation_exception std#unsatisfied_link_error std#illegal_state_exception "
-        + "std#incompatible_class_exception std#object_import_error std#string std#int std#char std#bool std#short "
+        + "std#incompatible_class_exception std#object_import_error std#string std#int std#char std#boolean std#short "
         + "std#byte std#uint std#uchar std#ushort std#long std#ulong platform.kernel#stack_state std.io#thread "
         + "std#exception std#error std#char_array std.io.fiber#fiber std.reflect#_class_ std.reflect#_field_ "
         + "std.reflect#_function_ std.reflect#data_type std.reflect#_function_param_ std.reflect#description "

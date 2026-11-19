@@ -75,7 +75,7 @@ check_one() {
     else echo "CLEAN $(basename "$exe")"; fi
 }
 export -f check_one
-results=$(find "$FOLDER" -maxdepth 1 -type f ! -name "*.*" | sort | xargs -P 4 -I{} bash -c 'check_one {}')
+results=$(find "$FOLDER" -maxdepth 1 -type f ! -name "*.*" | sort | xargs -P ${TEST_JOBS:-4} -I{} bash -c 'check_one {}')
 echo "$results" | grep '^\[type check\]' | head -20 | cut -c1-200
 echo "$results" | grep '^NOT-PASSED' | head -10
 clean=$(echo "$results" | grep -c '^CLEAN')

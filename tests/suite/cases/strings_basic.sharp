@@ -148,20 +148,20 @@ def main(args: string[]) {
 
     // ---- comparing with == and !=
     same := "abcd";
-    expect_true("variable == literal", (same == "abcd").value);
-    expect_false("variable == a different literal", (same == "abce").value);
-    expect_true("variable != a different literal", (same != "abce").value);
-    expect_false("variable != the same literal", (same != "abcd").value);
-    expect_true("two strings built differently, same characters", (same == joined).value);
-    expect_false("...are not !=", (same != joined).value);
-    expect_true("a string equals itself", (same == same).value);
-    expect_false("capitals matter", (same == "ABCD").value);
-    expect_false("a shorter string is different", (same == "abc").value);
-    expect_false("a longer string is different", (same == "abcde").value);
-    expect_false("a space matters", (same == "abcd ").value);
-    expect_false("the order matters", (same == "dcba").value);
-    expect_true("a joined string == literal", (a + b == "abcd").value);
-    expect_true("an interpolated string == literal", ("$a$b" == "abcd").value);
+    expect_true("variable == literal", (same == "abcd"));
+    expect_false("variable == a different literal", (same == "abce"));
+    expect_true("variable != a different literal", (same != "abce"));
+    expect_false("variable != the same literal", (same != "abcd"));
+    expect_true("two strings built differently, same characters", (same == joined));
+    expect_false("...are not !=", (same != joined));
+    expect_true("a string equals itself", (same == same));
+    expect_false("capitals matter", (same == "ABCD"));
+    expect_false("a shorter string is different", (same == "abc"));
+    expect_false("a longer string is different", (same == "abcde"));
+    expect_false("a space matters", (same == "abcd "));
+    expect_false("the order matters", (same == "dcba"));
+    expect_true("a joined string == literal", (a + b == "abcd"));
+    expect_true("an interpolated string == literal", ("$a$b" == "abcd"));
     if(same == "abcd") {
         pass("if(same == \"abcd\")");
     } else {
@@ -181,14 +181,14 @@ def main(args: string[]) {
     // ---- empty strings
     empty := "";
     expect("the size of \"\"", empty.size().value, 0);
-    expect_true("\"\".empty()", empty.empty().value);
-    expect_false("\"x\".empty()", s.empty().value);
-    expect_true("\"\" == \"\"", (empty == "").value);
-    expect_false("\"\" == \"a\"", (empty == "a").value);
-    expect_true("\"\" != \"a\"", (empty != "a").value);
-    expect_false("\" \" is not empty", (empty == " ").value);
+    expect_true("\"\".empty()", empty.empty());
+    expect_false("\"x\".empty()", s.empty());
+    expect_true("\"\" == \"\"", (empty == ""));
+    expect_false("\"\" == \"a\"", (empty == "a"));
+    expect_true("\"\" != \"a\"", (empty != "a"));
+    expect_false("\" \" is not empty", (empty == " "));
     another_empty := "";
-    expect_true("two empty strings are equal", (empty == another_empty).value);
+    expect_true("two empty strings are equal", (empty == another_empty));
     expect_not_null("an empty string is not null", empty);
 
     // ---- numbers inside strings are characters
@@ -198,13 +198,13 @@ def main(args: string[]) {
     expect("the first is the character '1'", digits.at(0).value, '1');
     expect("...which is 49, not 1", digits.at(0).value, 49);
     expect("a digit's value is the character - '0'", digits.at(3).value - '0', 4);
-    expect_false("\"1\" is not \"1.0\"", ("1" == "1.0").value);
-    expect_false("\"07\" is not \"7\"", ("07" == "7").value);
+    expect_false("\"1\" is not \"1.0\"", ("1" == "1.0"));
+    expect_false("\"07\" is not \"7\"", ("07" == "7"));
     mixed := "abc123";
     expect("letters and digits", mixed.size().value, 6);
     expect_str("a version number", "v" + 9 + "." + 99, "v9.99");
     seven : int = 7;
-    expect_true("an int turned into a string", ("" + seven == "7").value);
+    expect_true("an int turned into a string", ("" + seven == "7"));
 
     // ---- strings in and out of functions
     expect_str("greet(\"bob\")", greet("bob"), "hello bob");

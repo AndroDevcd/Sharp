@@ -62,7 +62,7 @@ def c2() { o := new plain(); do { } while(o); }             // E0411
 def c3() { o := new plain(); for(; o;) { } }                // E0411
 def c4() { i := 5; if(i) { } }                              // E0411 of the number classes only bool is a condition
 def c5() { if(true) { } else if("s") { } }                  // E0411
-def c6() { b : bool? = null; if(b) { } }                    // W1028 (C++: nothing)
+def c6() { b : boolean? = null; if(b) { } }                    // W1028 (C++: nothing)
 
 // ---- names: a second local, a second alias
 def n1(p: _int64) { p : _int64 = 2; }                       // E0600

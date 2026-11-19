@@ -7,7 +7,7 @@ mod std.math;
  *
  *     bits.count_ones(255)            // 8
  *     bits.highest_one_bit(100)       // 64
- *     bits.is_power_of_two(64).value  // true
+ *     bits.is_power_of_two(64)  // true
  *     bits.next_power_of_two(100)     // 128
  *     bits.rotate_left(1, 31)         // 2147483648
  *
@@ -172,19 +172,19 @@ class bits {
 
     /** n with the bit at `position` set to 1: set_bit(4, 0) == 5 */
     static def set_bit(n: decimal, position: decimal): decimal {
-        if(test_bit(n, position).value) return n;
+        if(test_bit(n, position)) return n;
         return n + two_to(position);
     }
 
     /** n with the bit at `position` set to 0: clear_bit(5, 0) == 4 */
     static def clear_bit(n: decimal, position: decimal): decimal {
-        if(!test_bit(n, position).value) return n;
+        if(!test_bit(n, position)) return n;
         return n - two_to(position);
     }
 
     /** n with the bit at `position` flipped: toggle_bit(5, 1) == 7, toggle_bit(7, 1) == 5 */
     static def toggle_bit(n: decimal, position: decimal): decimal {
-        if(test_bit(n, position).value) return n - two_to(position);
+        if(test_bit(n, position)) return n - two_to(position);
         return n + two_to(position);
     }
 

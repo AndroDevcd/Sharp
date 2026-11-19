@@ -114,24 +114,24 @@ def test_capacities() {
     // ---- buffered
     b := new channel<int>(3);
     test("capacity") { expect(b.get_capacity()).should_be(3); };
-    test("new channel is empty") { expect_true(b.is_empty().value); };
-    test("try_send 1") { expect_true(b.try_send(1).value); };
-    test("try_send 2") { expect_true(b.try_send(2).value); };
-    test("try_send 3") { expect_true(b.try_send(3).value); };
-    test("try_send on a full buffer") { expect_false(b.try_send(4).value); };
+    test("new channel is empty") { expect_true(b.is_empty()); };
+    test("try_send 1") { expect_true(b.try_send(1)); };
+    test("try_send 2") { expect_true(b.try_send(2)); };
+    test("try_send 3") { expect_true(b.try_send(3)); };
+    test("try_send on a full buffer") { expect_false(b.try_send(4)); };
     test("size of a full buffer") { expect(b.size()).should_be(3); };
     test("receive gives the oldest") { expect(b.receive().value).should_be(1); };
     test("try_receive gives the next") { expect(b.try_receive()!!.value).should_be(2); };
-    test("room again") { expect_true(b.try_send(5).value); };
+    test("room again") { expect_true(b.try_send(5)); };
     test("order kept") { expect(b.receive().value).should_be(3); };
     test("order kept (2)") { expect(b.receive().value).should_be(5); };
     test("try_receive on an empty channel") { expect_null(b.try_receive()); };
-    test("empty again") { expect_true(b.is_empty().value); };
+    test("empty again") { expect_true(b.is_empty()); };
 
     // ---- rendezvous
     r := new channel<int>();
     test("default capacity is rendezvous") { expect(r.get_capacity()).should_be(channels.RENDEZVOUS); };
-    test("try_send without a receiver") { expect_false(r.try_send(1).value); };
+    test("try_send without a receiver") { expect_false(r.try_send(1)); };
     test("try_receive without a sender") { expect_null(r.try_receive()); };
 
     run_blocking({ ->
@@ -146,7 +146,7 @@ def test_capacities() {
         test("rendezvous 4") { expect(r.receive().value).should_be(13); };
         test("rendezvous 5") { expect(r.receive().value).should_be(14); };
         producer.join();
-        test("producer finished after its last element was taken") { expect_true(producer.is_completed().value); };
+        test("producer finished after its last element was taken") { expect_true(producer.is_completed()); };
     });
 
     // a sender that waits does not finish before a receiver comes
@@ -158,10 +158,10 @@ def test_capacities() {
         sender := launch(l, { s: object -> send_range(s as link); });
         yield();
         yield();
-        test("rendezvous sender is still waiting") { expect_true(sender.is_active().value); };
+        test("rendezvous sender is still waiting") { expect_true(sender.is_active()); };
         test("try_receive takes from a waiting sender") { expect(r.try_receive()!!.value).should_be(77); };
         sender.join();
-        test("sender finished") { expect_true(sender.is_completed().value); };
+        test("sender finished") { expect_true(sender.is_completed()); };
     });
 
     // ---- unlimited
@@ -197,11 +197,11 @@ def test_close() {
     ch := new channel<int>(4);
     ch.send(1);
     ch.send(2);
-    test("open channel: not closed for send") { expect_false(ch.is_closed_for_send().value); };
+    test("open channel: not closed for send") { expect_false(ch.is_closed_for_send()); };
     ch.close();
-    test("closed for send") { expect_true(ch.is_closed_for_send().value); };
-    test("not closed for receive while elements remain") { expect_false(ch.is_closed_for_receive().value); };
-    test("try_send on a closed channel") { expect_false(ch.try_send(3).value); };
+    test("closed for send") { expect_true(ch.is_closed_for_send()); };
+    test("not closed for receive while elements remain") { expect_false(ch.is_closed_for_receive()); };
+    test("try_send on a closed channel") { expect_false(ch.try_send(3)); };
     try {
         ch.send(3);
         test("send on a closed channel") { fail_test("returned normally"); };
@@ -210,7 +210,7 @@ def test_close() {
     }
     test("element sent before close (1)") { expect(ch.receive().value).should_be(1); };
     test("element sent before close (2)") { expect(ch.receive_or_null()!!.value).should_be(2); };
-    test("closed for receive when drained") { expect_true(ch.is_closed_for_receive().value); };
+    test("closed for receive when drained") { expect_true(ch.is_closed_for_receive()); };
     test("receive_or_null on a closed, empty channel") { expect_null(ch.receive_or_null()); };
     try {
         ch.receive();
@@ -272,9 +272,9 @@ def test_close() {
         blocked.join();
     });
     test("cancel failed the waiting sender") { expect(closed_seen.read()).should_be(1); };
-    test("cancelled channel") { expect_true(gone.is_cancelled().value); };
+    test("cancelled channel") { expect_true(gone.is_cancelled()); };
     test("cancel discarded the buffer") { expect_null(gone.receive_or_null()); };
-    test("cancelled channel is closed for receive") { expect_true(gone.is_closed_for_receive().value); };
+    test("cancelled channel is closed for receive") { expect_true(gone.is_closed_for_receive()); };
 }
 
 def test_cancellation() {
@@ -285,14 +285,14 @@ def test_cancellation() {
     receiver := launch(ch, { s: object -> c := s as channel<int>; c.receive(); never_reached.increment(); });
     delay(5);
     receiver.cancel_and_join();
-    test("waiting receiver was cancelled") { expect_true(receiver.is_cancelled().value); };
-    test("the channel offers nothing to a cancelled receiver") { expect_false(ch.try_send(1).value); };
+    test("waiting receiver was cancelled") { expect_true(receiver.is_cancelled()); };
+    test("the channel offers nothing to a cancelled receiver") { expect_false(ch.try_send(1)); };
 
     // a sender that is cancelled while it waits takes its element back
     sender := launch(ch, { s: object -> c := s as channel<int>; c.send(9); never_reached.increment(); });
     delay(5);
     sender.cancel_and_join();
-    test("waiting sender was cancelled") { expect_true(sender.is_cancelled().value); };
+    test("waiting sender was cancelled") { expect_true(sender.is_cancelled()); };
     test("the element of a cancelled sender is gone") { expect_null(ch.try_receive()); };
 
     // the channel still works afterwards
@@ -316,12 +316,12 @@ def test_cancellation() {
     });
     delay(5);
     busy.cancel_and_join();
-    test("a coroutine that never waits is cancelled at a channel operation") { expect_true(busy.is_cancelled().value); };
+    test("a coroutine that never waits is cancelled at a channel operation") { expect_true(busy.is_cancelled()); };
 
     // with_timeout around a receive that never gets anything
     r := with_timeout_or_null(20, { -> (object) return ch.receive(); });
     test("receive under a time limit") { expect_null(r); };
-    test("no stale receiver left behind") { expect_false(ch.try_send(3).value); };
+    test("no stale receiver left behind") { expect_false(ch.try_send(3)); };
 
     test("no cancelled wait ever continued") { expect(never_reached.read()).should_be(0); };
 }
@@ -379,7 +379,7 @@ def test_produce() {
         test("produce 4") { expect(squares.receive().value).should_be(16); };
         test("produce 5") { expect(squares.receive().value).should_be(25); };
         test("produce closes its channel at the end") { expect_null(squares.receive_or_null()); };
-        test("produced channel is closed") { expect_true(squares.is_closed_for_receive().value); };
+        test("produced channel is closed") { expect_true(squares.is_closed_for_receive()); };
     });
 
     // with a buffer and a state object

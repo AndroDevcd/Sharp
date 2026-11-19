@@ -8,13 +8,13 @@ import ( std.testing, std.math )
  */
 
 def check_divisors() {
-    test("is_even(4)") { expect_true(is_even(4).value); };
-    test("is_even(7)") { expect_false(is_even(7).value); };
-    test("is_even(0)") { expect_true(is_even(0).value); };
-    test("is_even(-6)") { expect_true(is_even(0 - 6).value); };
-    test("is_odd(7)") { expect_true(is_odd(7).value); };
-    test("is_odd(-7)") { expect_true(is_odd(0 - 7).value); };
-    test("is_odd(8)") { expect_false(is_odd(8).value); };
+    test("is_even(4)") { expect_true(is_even(4)); };
+    test("is_even(7)") { expect_false(is_even(7)); };
+    test("is_even(0)") { expect_true(is_even(0)); };
+    test("is_even(-6)") { expect_true(is_even(0 - 6)); };
+    test("is_odd(7)") { expect_true(is_odd(7)); };
+    test("is_odd(-7)") { expect_true(is_odd(0 - 7)); };
+    test("is_odd(8)") { expect_false(is_odd(8)); };
 
     test("gcd(12, 18)") { expect(gcd(12, 18)).should_be(6); };
     test("gcd(18, 12)") { expect(gcd(18, 12)).should_be(6); };
@@ -72,28 +72,28 @@ def check_counting() {
 }
 
 def check_primes() {
-    test("is_prime(0)") { expect_false(is_prime(0).value); };
-    test("is_prime(1)") { expect_false(is_prime(1).value); };
-    test("is_prime(2)") { expect_true(is_prime(2).value); };
-    test("is_prime(3)") { expect_true(is_prime(3).value); };
-    test("is_prime(4)") { expect_false(is_prime(4).value); };
-    test("is_prime(5)") { expect_true(is_prime(5).value); };
-    test("is_prime(9)") { expect_false(is_prime(9).value); };
-    test("is_prime(25)") { expect_false(is_prime(25).value); };
-    test("is_prime(49)") { expect_false(is_prime(49).value); };
-    test("is_prime(97)") { expect_true(is_prime(97).value); };
-    test("is_prime(91)") { expect_false(is_prime(91).value); };
-    test("is_prime(7919)") { expect_true(is_prime(7919).value); };
-    test("is_prime(1000003)") { expect_true(is_prime(1000003).value); };
-    test("is_prime(1000001)") { expect_false(is_prime(1000001).value); };
-    test("is_prime(2147483647)") { expect_true(is_prime(2147483647).value); };
-    test("is_prime(-7)") { expect_false(is_prime(0 - 7).value); };
-    test("is_prime(7.5)") { expect_false(is_prime(7.5).value); };
+    test("is_prime(0)") { expect_false(is_prime(0)); };
+    test("is_prime(1)") { expect_false(is_prime(1)); };
+    test("is_prime(2)") { expect_true(is_prime(2)); };
+    test("is_prime(3)") { expect_true(is_prime(3)); };
+    test("is_prime(4)") { expect_false(is_prime(4)); };
+    test("is_prime(5)") { expect_true(is_prime(5)); };
+    test("is_prime(9)") { expect_false(is_prime(9)); };
+    test("is_prime(25)") { expect_false(is_prime(25)); };
+    test("is_prime(49)") { expect_false(is_prime(49)); };
+    test("is_prime(97)") { expect_true(is_prime(97)); };
+    test("is_prime(91)") { expect_false(is_prime(91)); };
+    test("is_prime(7919)") { expect_true(is_prime(7919)); };
+    test("is_prime(1000003)") { expect_true(is_prime(1000003)); };
+    test("is_prime(1000001)") { expect_false(is_prime(1000001)); };
+    test("is_prime(2147483647)") { expect_true(is_prime(2147483647)); };
+    test("is_prime(-7)") { expect_false(is_prime(0 - 7)); };
+    test("is_prime(7.5)") { expect_false(is_prime(7.5)); };
 
     // count the primes below 100: there are 25
     count : decimal = 0;
     for(n : decimal = 0; n < 100; n++) {
-        if(is_prime(n).value) count++;
+        if(is_prime(n)) count++;
     }
     test("25 primes below 100") { expect(count).should_be(25); };
 
@@ -188,20 +188,20 @@ def check_bits() {
     test("leading_zeros(2^32 - 1)") { expect(bits.leading_zeros(4294967295)).should_be(0); };
     test("leading_zeros(65536)") { expect(bits.leading_zeros(65536)).should_be(15); };
 
-    test("is_power_of_two(1)") { expect_true(bits.is_power_of_two(1).value); };
-    test("is_power_of_two(64)") { expect_true(bits.is_power_of_two(64).value); };
-    test("is_power_of_two(0)") { expect_false(bits.is_power_of_two(0).value); };
-    test("is_power_of_two(96)") { expect_false(bits.is_power_of_two(96).value); };
-    test("is_power_of_two(-4)") { expect_false(bits.is_power_of_two(0 - 4).value); };
-    test("is_power_of_two(0.5)") { expect_false(bits.is_power_of_two(0.5).value); };
+    test("is_power_of_two(1)") { expect_true(bits.is_power_of_two(1)); };
+    test("is_power_of_two(64)") { expect_true(bits.is_power_of_two(64)); };
+    test("is_power_of_two(0)") { expect_false(bits.is_power_of_two(0)); };
+    test("is_power_of_two(96)") { expect_false(bits.is_power_of_two(96)); };
+    test("is_power_of_two(-4)") { expect_false(bits.is_power_of_two(0 - 4)); };
+    test("is_power_of_two(0.5)") { expect_false(bits.is_power_of_two(0.5)); };
     test("next_power_of_two(100)") { expect(bits.next_power_of_two(100)).should_be(128); };
     test("next_power_of_two(64)") { expect(bits.next_power_of_two(64)).should_be(64); };
     test("next_power_of_two(0)") { expect(bits.next_power_of_two(0)).should_be(1); };
     test("next_power_of_two(65)") { expect(bits.next_power_of_two(65)).should_be(128); };
 
-    test("test_bit(5, 2)") { expect_true(bits.test_bit(5, 2).value); };
-    test("test_bit(5, 1)") { expect_false(bits.test_bit(5, 1).value); };
-    test("test_bit(5, 0)") { expect_true(bits.test_bit(5, 0).value); };
+    test("test_bit(5, 2)") { expect_true(bits.test_bit(5, 2)); };
+    test("test_bit(5, 1)") { expect_false(bits.test_bit(5, 1)); };
+    test("test_bit(5, 0)") { expect_true(bits.test_bit(5, 0)); };
     test("set_bit(4, 0)") { expect(bits.set_bit(4, 0)).should_be(5); };
     test("set_bit(5, 0) stays") { expect(bits.set_bit(5, 0)).should_be(5); };
     test("clear_bit(5, 0)") { expect(bits.clear_bit(5, 0)).should_be(4); };

@@ -28,6 +28,63 @@
 //              ones get their mark bit cleared for the next collection.
 //   4. RESUME  the threads continue.
 //
+// GENERATIONS: MOST COLLECTIONS LOOK AT NEW OBJECTS ONLY
+// -----------------------------------------------------
+// Most objects die young, and what has survived one collection usually lives
+// on. Marking and sweeping EVERYTHING each time therefore spends most of its
+// work on objects that are not going anywhere: with a million live objects a
+// collection took 160 to 210 ms, however little had been allocated.
+//
+//      YOUNG   created since the last collection      list: gc.objects
+//      OLD     survived a collection                  array: gc.oldObjects
+//
+//   MINOR collection (the usual one, after about 8 MB of new objects):
+//      mark    from the roots, through YOUNG objects only. An old object is
+//              alive by definition and is not followed.
+//      sweep   the young list only. What was reached becomes OLD: it is taken
+//              off the young list and put on the old one. Nothing is copied
+//              and no object ever changes its address.
+//   FULL collection (when the old objects take three times the bytes the last
+//      full one left, when the memory limit is near, or when the program asks):
+//      mark and sweep everything, as every collection used to.
+//
+// The cost of a minor collection follows what was created since the last one,
+// not everything that is alive.
+//
+// THE WRITE BARRIER. A minor collection does not follow old objects, so a
+// young object that only an OLD object refers to would be missed. Hence every
+// store of a reference into an object goes through a write barrier
+// (memory/sharp_object.h): an old object that a young one is stored into is
+// REMEMBERED, and the next minor collection looks at its slots as if it were
+// a root. After a minor collection no young object is left (the survivors are
+// old), so the remembered set starts empty again.
+//
+//      This is the "sticky mark bit" design (Demers et al., POPL 1990). Ruby
+//      (since 2.1) and Lua 5.4 are generational in the same non-moving way.
+//
+//      C++ comparison: none - C++ has no collector. Java, C# and V8 MOVE the
+//      survivors instead, which is faster still but changes every address an
+//      object is known by; here the JIT, object locks and native code all
+//      hold plain addresses.
+//
+// THE TWO NUMBERS (measured on x86-64 Linux, November 2026: the benchmarks, the
+// compiler compiling a program, and a program whose objects die just after
+// they became old - the worst case for this design):
+//      young budget 8 MB       2 and 4 MB: more collections, no shorter in total.
+//                              16 and 32 MB: each minor collection takes longer
+//                              (up to 130 ms at 32 MB in the worst case) and
+//                              nothing ran faster. A budget that grows when
+//                              many objects survive was tried too: no gain.
+//      full at 300%            a full collection when the old objects take three
+//                              times what the last full one left, and at least
+//                              16 MB more. 200% ran more full collections for
+//                              the same peak memory; 400% saved little more.
+//
+// TUNING, without building again (SHARP_GC, see TESTING IT):
+//      young=<mb>      new objects between two collections          (default 8)
+//      full=<percent>  a full collection when the old objects reach this much
+//                      of what the last full one left               (default 300)
+//
 // THE ROOTS (tracing_collector.cpp, mark_roots)
 // ---------------------------------------------
 //   - static fields of every class            vm.staticHeap
@@ -38,7 +95,8 @@
 //                                             sp, exceptionObject, fiberObject,
 //                                             the object it waits to lock and
 //                                             the objects it holds locks on,
-//                                             and the owner of task->ptr
+//                                             the owner of task->ptr and
+//                                             task->ptrOwner
 //   - objects native libraries hold           the pin table (tgc_pin)
 //
 // STACK SLOTS ABOVE sp
@@ -78,6 +136,10 @@
 //                                        with -fsanitize=address)
 //      sharp -gclog program              one line per collection on stderr
 //      SHARP_GC=stress=1,log             the same through the environment
+//                                        (under stress every fourth collection
+//                                        is a full one, the others are minor:
+//                                        a missing write barrier shows up as
+//                                        quickly as a missing root)
 //
 // ADDING A NEW PLACE THAT HOLDS AN OBJECT
 // ---------------------------------------

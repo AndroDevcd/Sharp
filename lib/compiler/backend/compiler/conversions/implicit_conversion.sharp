@@ -28,6 +28,8 @@ import (
  *      null                    anything else               NO (E0720)
  *      a number                any other number type       number (never refused:  1
  *                                                          the value is cut down)
+ *      a bool                  a number                    number (1 or 0)         1
+ *      a number                bool                        NO: write the test (`n != 0`)
  *      n[] (numbers)           the same n[] only           identity                0
  *      class C                 a class above C, an         upcast                  2
  *                              interface C has
@@ -124,6 +126,7 @@ def conversion_of_null(from: resolved_type, to: resolved_type) : conversion {
  */
 def conversion_of_number(session: analysis_session, from: resolved_type, to: resolved_type,
                          allow_construction: _int64) : conversion {
+    if(to.is_boolean() && !from.is_boolean()) { return refused(from, to, WHY_NUMBER_TO_BOOL); }
     if(to.is_number()) { return accepted(CONV_NUMERIC, from, to, 1); }
     if(to.is_array == 1) { return refused(from, to, WHY_ARRAY); }
     if(allow_construction == 1) {
@@ -148,7 +151,7 @@ def conversion_of_reference(session: analysis_session, from: resolved_type, to: 
     to_is_number_array : _int64 = to.kind == RT_INTEGER || to.kind == RT_DECIMAL;
     if(from_is_number_array == 1 || to_is_number_array == 1) {
         // _int8[] is only ever an _int8[]: the items of a number array are not objects
-        if(from.kind == to.kind && from.bits == to.bits && from.is_signed == to.is_signed) {
+        if(from.kind == to.kind && from.bits == to.bits && from.is_signed == to.is_signed && from.is_bool_type == to.is_bool_type) {
             return accepted(CONV_TO_NULLABLE, from, to, 0);
         }
         return refused(from, to, WHY_UNRELATED);

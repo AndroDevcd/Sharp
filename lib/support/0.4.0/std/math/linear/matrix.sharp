@@ -196,7 +196,7 @@ class matrix {
      * Throws illegal_argument_exception when the sizes differ.
      */
     def operator+(other: matrix): matrix {
-        if(!same_size(other).value)
+        if(!same_size(other))
             throw new illegal_argument_exception("matrix: cannot add " + size_text() + " and " + other.size_text());
 
         result := new matrix(rows, columns);
@@ -211,7 +211,7 @@ class matrix {
      * Throws illegal_argument_exception when the sizes differ.
      */
     def operator-(other: matrix): matrix {
-        if(!same_size(other).value)
+        if(!same_size(other))
             throw new illegal_argument_exception("matrix: cannot subtract " + other.size_text() + " from " + size_text());
 
         result := new matrix(rows, columns);
@@ -275,7 +275,7 @@ class matrix {
 
     /** true when the sizes differ or at least one cell differs */
     def operator!=(other: matrix): bool {
-        return !operator==(other).value;
+        return !operator==(other);
     }
 
     /** true when both matrices have the same size and every pair of cells differs by at most `tolerance` */

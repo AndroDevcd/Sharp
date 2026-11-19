@@ -157,7 +157,7 @@ class regex {
      */
     regex(pattern: string, ignore_case: bool) {
         source = pattern;
-        self->ignore_case = ignore_case.value;
+        self->ignore_case = ignore_case;
         compile();
     }
 

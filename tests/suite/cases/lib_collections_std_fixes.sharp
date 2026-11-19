@@ -140,15 +140,15 @@ def test_synced_list() {
 
 def test_hash_map() {
     m := new hash_map<string, int>();
-    test("map is_empty yes") { expect_true(m.is_empty().value); };
+    test("map is_empty yes") { expect_true(m.is_empty()); };
     m.put("a", 1); m.put("b", 2); m.put("c", 3);
-    test("map is_empty no") { expect_false(m.is_empty().value); };
-    test("map contains_key") { expect_true(m.contains_key("b").value); };
-    test("map contains_key missing") { expect_false(m.contains_key("z").value); };
+    test("map is_empty no") { expect_false(m.is_empty()); };
+    test("map contains_key") { expect_true(m.contains_key("b")); };
+    test("map contains_key missing") { expect_false(m.contains_key("z")); };
     test("map at missing is null, also for number values") { expect_null(m.at("z")); };
 
-    test("map remove") { expect_true(m.remove("b").value); };
-    test("map remove again") { expect_false(m.remove("b").value); };
+    test("map remove") { expect_true(m.remove("b")); };
+    test("map remove again") { expect_false(m.remove("b")); };
     test("map size after remove") { expect(m.size).should_be(2); };
     test("map removed key is gone") { expect_null(m.at("b")); };
     test("map other keys survive") { expect(m.at("a")!!.value + m.at("c")!!.value).should_be(4); };
@@ -174,12 +174,12 @@ def test_hash_map() {
     chain := new hash_map<int, string>();
     chain.put(1, "one"); chain.put(129, "two"); chain.put(257, "three");
     test("map missing key in a full bucket is null") { expect_null(chain.at(385)); };
-    test("map remove from a chain") { expect_true(chain.remove(129).value); };
+    test("map remove from a chain") { expect_true(chain.remove(129)); };
     test("map chain: first survives") { expect(chain.at(1)!!).should_be("one"); };
     test("map chain: last survives") { expect(chain.at(257)!!).should_be("three"); };
     test("map chain: removed is gone") { expect_null(chain.at(129)); };
-    test("map remove another of the chain") { expect_true(chain.remove(257).value); };
-    test("map remove the last of the chain") { expect_true(chain.remove(1).value); };
+    test("map remove another of the chain") { expect_true(chain.remove(257)); };
+    test("map remove the last of the chain") { expect_true(chain.remove(1)); };
     test("map chain: empty") { expect(chain.size).should_be(0); };
     chain.put(1, "again");
     test("map chain: usable again") { expect(chain.at(1)!!).should_be("again"); };
@@ -205,25 +205,25 @@ def test_hash_map() {
     test("map growth: keys()") { expect(big.keys().size().value).should_be(1000); };
     big.clear();
     test("map clear") { expect(big.size).should_be(0); };
-    test("map is_empty after clear") { expect_true(big.is_empty().value); };
+    test("map is_empty after clear") { expect_true(big.is_empty()); };
 }
 
 def test_hash_table() {
     t := new hash_table<string, int>();
-    test("table put new") { expect_true(t.put("ann", 31).value); };
-    test("table put existing") { expect_false(t.put("ann", 32).value); };
+    test("table put new") { expect_true(t.put("ann", 31)); };
+    test("table put existing") { expect_false(t.put("ann", 32)); };
     test("table at") { expect(t.at("ann")!!.value).should_be(32); };
     test("table size") { expect(t.size).should_be(1); };
     test("table at missing") { expect_null(t.at("bob")); };
-    test("table contains_key") { expect_true(t.contains_key("ann").value); };
-    test("table contains_key missing") { expect_false(t.contains_key("bob").value); };
+    test("table contains_key") { expect_true(t.contains_key("ann")); };
+    test("table contains_key missing") { expect_false(t.contains_key("bob")); };
     t.put("bob", 45);
     test("table keys") { expect(t.keys().size().value).should_be(2); };
     sum : decimal = 0;
     foreach(x in t.values()) { sum += x.value; }
     test("table values") { expect(sum).should_be(77); };
-    test("table remove") { expect_true(t.remove("ann").value); };
-    test("table remove again") { expect_false(t.remove("ann").value); };
+    test("table remove") { expect_true(t.remove("ann")); };
+    test("table remove again") { expect_false(t.remove("ann")); };
     test("table removed key") { expect_null(t.at("ann")); };
     test("table size after remove") { expect(t.size).should_be(1); };
 

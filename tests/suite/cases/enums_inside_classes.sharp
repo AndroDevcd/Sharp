@@ -6,6 +6,6 @@ class holder {
 }
 def main(args: string[]) {
     h := new holder();
-    expect_true("enum inside a class named from outside", (h.state == holder.inner.off).value);
+    expect_true("enum inside a class named from outside", (h.state == holder.inner.off));
     finish("enums_inside_classes");
 }

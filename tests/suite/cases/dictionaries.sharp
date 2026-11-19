@@ -120,7 +120,7 @@ def main(args: string[]) {
     // ---- hash_map: put and at
     m := new hash_map<string, int>();
     expect("a new map is empty", m.size, 0);
-    expect_true("put a new key says true", m.put("one", 1).value);
+    expect_true("put a new key says true", m.put("one", 1));
     m.put("two", 2);
     m.put("three", 3);
     expect("size after three puts", m.size, 3);
@@ -136,7 +136,7 @@ def main(args: string[]) {
     expect("a key built at run time", m.at(built)!!.value, 2);
 
     // ---- putting a key again replaces its value
-    expect_false("put an existing key says false", m.put("one", 11).value);
+    expect_false("put an existing key says false", m.put("one", 11));
     expect("the new value", m.at("one")!!.value, 11);
     expect("the size did not change", m.size, 3);
     expect("the other keys are untouched", m.at("two")!!.value + m.at("three")!!.value, 5);

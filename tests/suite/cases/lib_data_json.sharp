@@ -29,7 +29,7 @@ def expect_error(name: string, text: string, line: decimal, column: decimal) {
 
 /** the text must be rejected (position not checked) */
 def expect_invalid(name: string, text: string) {
-    test(name) { expect_false(json_parser.is_valid(text).value); };
+    test(name) { expect_false(json_parser.is_valid(text)); };
 }
 
 /** parse, write compact, compare with the expected text */
@@ -42,28 +42,28 @@ def expect_round_trip(name: string, text: string) {
     first := json_parser.parse(text);
     compact := json_parser.parse(json_writer.to_compact(first));
     pretty := json_parser.parse(json_writer.to_pretty(first));
-    test(name + " (compact)") { expect_true(first.equals_value(compact).value); };
-    test(name + " (pretty)") { expect_true(first.equals_value(pretty).value); };
+    test(name + " (compact)") { expect_true(first.equals_value(compact)); };
+    test(name + " (pretty)") { expect_true(first.equals_value(pretty)); };
 }
 
 def test_values() {
     n := json_value.of_null();
-    test("null is_null") { expect_true(n.is_null().value); };
+    test("null is_null") { expect_true(n.is_null()); };
     test("null kind_name") { expect(n.kind_name()).should_be("null"); };
     test("null kind") { expect(n.kind()).should_be(json_value.kind_null); };
     b := json_value.of_bool(true);
-    test("bool is_bool") { expect_true(b.is_bool().value); };
-    test("as_bool") { expect_true(b.as_bool().value); };
-    test("as_bool false") { expect_false(json_value.of_bool(false).as_bool().value); };
+    test("bool is_bool") { expect_true(b.is_bool()); };
+    test("as_bool") { expect_true(b.as_bool()); };
+    test("as_bool false") { expect_false(json_value.of_bool(false).as_bool()); };
     num := json_value.of_number(2.5);
-    test("is_number") { expect_true(num.is_number().value); };
+    test("is_number") { expect_true(num.is_number()); };
     test("as_number") { expect(num.as_number()).should_be(2.5); };
     test("as_int") { expect(json_value.of_number(42).as_int()).should_be(42); };
     s := json_value.of_string("text");
-    test("is_string") { expect_true(s.is_string().value); };
+    test("is_string") { expect_true(s.is_string()); };
     test("as_string") { expect(s.as_string()).should_be("text"); };
     test("kind_name string") { expect(s.kind_name()).should_be("string"); };
-    test("string is not a number") { expect_false(s.is_number().value); };
+    test("string is not a number") { expect_false(s.is_number()); };
 
     try { s.as_number(); test("as_number on string") { fail_test("no exception"); }; }
     catch(e: json_exception) { test("as_number on string") { }; }
@@ -78,13 +78,13 @@ def test_values() {
 
     // arrays
     arr := json_value.new_array();
-    test("is_array") { expect_true(arr.is_array().value); };
-    test("new array is empty") { expect_true(arr.is_empty().value); };
+    test("is_array") { expect_true(arr.is_array()); };
+    test("new array is empty") { expect_true(arr.is_empty()); };
     arr.add_string("a").add_number(1).add_bool(false).add_null().add(json_value.new_array()).add(null);
     test("array size") { expect(arr.size()).should_be(6); };
     test("array to_string") { expect(arr.to_string()!!).should_be("[" + q + "a" + q + ",1,false,null,[],null]"); };
     test("at") { expect(arr.at(0).as_string()).should_be("a"); };
-    test("add(null) stores a JSON null") { expect_true(arr.at(5).is_null().value); };
+    test("add(null) stores a JSON null") { expect_true(arr.at(5).is_null()); };
     old := arr.put_at(1, json_value.of_number(2));
     test("put_at returns the old value") { expect(old.as_number()).should_be(1); };
     test("put_at stored") { expect(arr.at(1).as_number()).should_be(2); };
@@ -111,24 +111,24 @@ def test_values() {
 
     // objects
     obj := json_value.new_object();
-    test("is_object") { expect_true(obj.is_object().value); };
+    test("is_object") { expect_true(obj.is_object()); };
     obj.put_string("name", "Ada").put_number("age", 36).put_bool("admin", true).put_null("email").put("tags", json_value.new_array());
     test("object size") { expect(obj.size()).should_be(5); };
     test("object to_string") { expect(obj.to_string()!!).should_be("{" + q + "name" + q + ":" + q + "Ada" + q + "," + q + "age" + q + ":36," + q + "admin" + q + ":true," + q + "email" + q + ":null," + q + "tags" + q + ":[]}"); };
-    test("has") { expect_true(obj.has("age").value); };
-    test("has member with null value") { expect_true(obj.has("email").value); };
-    test("has not") { expect_false(obj.has("Age").value); };
+    test("has") { expect_true(obj.has("age")); };
+    test("has member with null value") { expect_true(obj.has("email")); };
+    test("has not") { expect_false(obj.has("Age")); };
     test("member") { expect(obj.member("name").as_string()).should_be("Ada"); };
     test("find") { expect_not_null(obj.find("age")); };
     test("find missing") { expect_null(obj.find("nope")); };
-    test("find null member gives a JSON null") { expect_true(obj.find("email")!!.is_null().value); };
+    test("find null member gives a JSON null") { expect_true(obj.find("email")!!.is_null()); };
     test("string_or") { expect(obj.string_or("name", "?")).should_be("Ada"); };
     test("string_or missing") { expect(obj.string_or("city", "?")).should_be("?"); };
     test("string_or wrong kind") { expect(obj.string_or("age", "?")).should_be("?"); };
     test("number_or") { expect(obj.number_or("age", 0)).should_be(36); };
     test("number_or missing") { expect(obj.number_or("height", 0 - 1)).should_be(0 - 1); };
-    test("bool_or") { expect_true(obj.bool_or("admin", false).value); };
-    test("bool_or missing") { expect_true(obj.bool_or("guest", true).value); };
+    test("bool_or") { expect_true(obj.bool_or("admin", false)); };
+    test("bool_or missing") { expect_true(obj.bool_or("guest", true)); };
     test("keys") { expect(io_strings.join(obj.keys(), ",")).should_be("name,age,admin,email,tags"); };
     test("key_at") { expect(obj.key_at(1)).should_be("age"); };
     test("value_at on object") { expect(obj.value_at(1).as_number()).should_be(36); };
@@ -136,8 +136,8 @@ def test_values() {
     test("put again replaces") { expect(obj.member("age").as_number()).should_be(37); };
     test("...without adding") { expect(obj.size()).should_be(5); };
     test("...and keeps its place") { expect(obj.key_at(1)).should_be("age"); };
-    test("remove") { expect_true(obj.remove("admin").value); };
-    test("remove missing") { expect_false(obj.remove("admin").value); };
+    test("remove") { expect_true(obj.remove("admin")); };
+    test("remove missing") { expect_false(obj.remove("admin")); };
     test("keys after remove") { expect(io_strings.join(obj.keys(), ",")).should_be("name,age,email,tags"); };
     try { obj.member("nope"); test("member missing") { fail_test("no exception"); }; }
     catch(e: json_exception) { test("member missing") { }; }
@@ -161,14 +161,14 @@ def test_values() {
         }
     }
     test("all 500 members found") { expect_true(found_all); };
-    test("missing in large object") { expect_false(large.has("key500").value); };
+    test("missing in large object") { expect_false(large.has("key500")); };
     large.put_number("key250", 0 - 250);
     test("replace in large object") { expect(large.member("key250").as_number()).should_be(0 - 250); };
     test("size unchanged by replace") { expect(large.size()).should_be(500); };
-    test("remove from large object") { expect_true(large.remove("key0").value); };
+    test("remove from large object") { expect_true(large.remove("key0")); };
     test("lookup after remove") { expect(large.member("key499").as_number()).should_be(499); };
     test("first key after remove") { expect(large.key_at(0)).should_be("key1"); };
-    test("removed key gone") { expect_false(large.has("key0").value); };
+    test("removed key gone") { expect_false(large.has("key0")); };
     large.put_number("key0", 1000);
     test("re-added key goes to the end") { expect(large.key_at(499)).should_be("key0"); };
 }
@@ -179,7 +179,7 @@ def test_paths_copy_equals() {
     test("at_path member.index") { expect(doc.at_path("server.ports[1]")!!.as_number()).should_be(443); };
     test("at_path member.member") { expect(doc.at_path("server.name")!!.as_string()).should_be("main"); };
     test("at_path index.member") { expect(doc.at_path("list[1].id")!!.as_number()).should_be(2); };
-    test("at_path empty is the value itself") { expect_true(doc.at_path("")!!.is_object().value); };
+    test("at_path empty is the value itself") { expect_true(doc.at_path("")!!.is_object()); };
     test("at_path missing member") { expect_null(doc.at_path("server.host")); };
     test("at_path index outside") { expect_null(doc.at_path("server.ports[2]")); };
     test("at_path through a number") { expect_null(doc.at_path("server.ports[0].x")); };
@@ -197,30 +197,30 @@ def test_paths_copy_equals() {
     catch(e: json_exception) { test("path starting with a period") { }; }
 
     copy_doc := doc.deep_copy();
-    test("deep_copy equals") { expect_true(doc.equals_value(copy_doc).value); };
+    test("deep_copy equals") { expect_true(doc.equals_value(copy_doc)); };
     copy_doc.member("server").member("ports").add_number(8080);
     test("copy changed") { expect(copy_doc.at_path("server.ports")!!.size()).should_be(3); };
     test("original untouched") { expect(doc.at_path("server.ports")!!.size()).should_be(2); };
-    test("no longer equal") { expect_false(doc.equals_value(copy_doc).value); };
+    test("no longer equal") { expect_false(doc.equals_value(copy_doc)); };
     test("deep_copy of a string") { expect(json_value.of_string("s").deep_copy().as_string()).should_be("s"); };
 
     a := json_parser.parse("{" + q + "x" + q + ": 1, " + q + "y" + q + ": [true, null]}");
     b := json_parser.parse("{" + q + "y" + q + ": [true, null], " + q + "x" + q + ": 1.0}");
-    test("member order does not matter") { expect_true(a.equals_value(b).value); };
+    test("member order does not matter") { expect_true(a.equals_value(b)); };
     c := json_parser.parse("{" + q + "x" + q + ": 1, " + q + "y" + q + ": [null, true]}");
-    test("element order matters") { expect_false(a.equals_value(c).value); };
-    test("equals null") { expect_false(a.equals_value(null).value); };
-    test("number vs string") { expect_false(json_value.of_number(1).equals_value(json_value.of_string("1")).value); };
-    test("different member names") { expect_false(a.equals_value(json_parser.parse("{" + q + "x" + q + ": 1, " + q + "z" + q + ": [true, null]}")).value); };
-    test("different sizes") { expect_false(a.equals_value(json_parser.parse("{" + q + "x" + q + ": 1}")).value); };
-    test("null equals null") { expect_true(json_value.of_null().equals_value(json_value.of_null()).value); };
-    test("false vs zero") { expect_false(json_value.of_bool(false).equals_value(json_value.of_number(0)).value); };
+    test("element order matters") { expect_false(a.equals_value(c)); };
+    test("equals null") { expect_false(a.equals_value(null)); };
+    test("number vs string") { expect_false(json_value.of_number(1).equals_value(json_value.of_string("1"))); };
+    test("different member names") { expect_false(a.equals_value(json_parser.parse("{" + q + "x" + q + ": 1, " + q + "z" + q + ": [true, null]}"))); };
+    test("different sizes") { expect_false(a.equals_value(json_parser.parse("{" + q + "x" + q + ": 1}"))); };
+    test("null equals null") { expect_true(json_value.of_null().equals_value(json_value.of_null())); };
+    test("false vs zero") { expect_false(json_value.of_bool(false).equals_value(json_value.of_number(0))); };
 }
 
 def test_parser_good() {
-    test("true") { expect_true(json_parser.parse("true").as_bool().value); };
-    test("false") { expect_false(json_parser.parse("false").as_bool().value); };
-    test("null") { expect_true(json_parser.parse("null").is_null().value); };
+    test("true") { expect_true(json_parser.parse("true").as_bool()); };
+    test("false") { expect_false(json_parser.parse("false").as_bool()); };
+    test("null") { expect_true(json_parser.parse("null").is_null()); };
     test("zero") { expect(json_parser.parse("0").as_number()).should_be(0); };
     test("integer") { expect(json_parser.parse("12345").as_number()).should_be(12345); };
     test("negative") { expect(json_parser.parse("-17").as_number()).should_be(0 - 17); };
@@ -275,9 +275,9 @@ def test_parser_good() {
     doc := json_parser.parse("{\n  " + q + "a" + q + " : [1, 2, {" + q + "b" + q + ": null}],\n  " + q + "c" + q + " : {" + q + "d" + q + ": [[], {}]},\n  " + q + q + ": " + q + "empty name" + q + "\n}");
     test("document members") { expect(doc.size()).should_be(3); };
     test("nested array") { expect(doc.member("a").size()).should_be(3); };
-    test("null in nested object") { expect_true(doc.at_path("a[2].b")!!.is_null().value); };
+    test("null in nested object") { expect_true(doc.at_path("a[2].b")!!.is_null()); };
     test("empty array inside") { expect(doc.at_path("c.d[0]")!!.size()).should_be(0); };
-    test("empty object inside") { expect_true(doc.at_path("c.d[1]")!!.is_object().value); };
+    test("empty object inside") { expect_true(doc.at_path("c.d[1]")!!.is_object()); };
     test("empty member name") { expect(doc.member("").as_string()).should_be("empty name"); };
     dup := json_parser.parse("{" + q + "k" + q + ": 1, " + q + "k" + q + ": 2}");
     test("duplicate name: one member") { expect(dup.size()).should_be(1); };
@@ -297,14 +297,14 @@ def test_parser_good() {
     nested := json_parser.parse(deep_text);
     depth : decimal = 0;
     walk := nested;
-    while(walk.is_array().value) {
+    while(walk.is_array()) {
         walk = walk.at(0);
         depth++;
     }
     test("900 levels parsed") { expect(depth).should_be(900); };
     test("900 levels written") { expect(nested.to_string()!!).should_be(deep_text); };
-    test("900 levels compared") { expect_true(nested.equals_value(nested.deep_copy()).value); };
-    test("900 levels pretty and back") { expect_true(nested.equals_value(json_parser.parse(nested.to_pretty_string())).value); };
+    test("900 levels compared") { expect_true(nested.equals_value(nested.deep_copy())); };
+    test("900 levels pretty and back") { expect_true(nested.equals_value(json_parser.parse(nested.to_pretty_string()))); };
 
     limited := new json_parser().set_max_depth(3);
     test("max depth getter") { expect(limited.get_max_depth()).should_be(3); };
@@ -383,7 +383,7 @@ def test_parser_bad() {
     expect_error("comment", "[1] // no", 1, 5);
     expect_invalid("is_valid: garbage", "hello");
     expect_invalid("is_valid: open brace", "{");
-    test("is_valid: good") { expect_true(json_parser.is_valid("{" + q + "a" + q + ": [1, 2, 3]}").value); };
+    test("is_valid: good") { expect_true(json_parser.is_valid("{" + q + "a" + q + ": [1, 2, 3]}")); };
 
     try {
         json_parser.parse("[1, 2,\n 3 4]");
@@ -449,7 +449,7 @@ def test_writer() {
     test("non-ASCII written as bytes by default") { expect(io_strings.length(plain)).should_be(16); };
     ascii := new json_writer().set_ascii_only(true).write(euro);
     test("ascii only") { expect(ascii).should_be(q + "caf\\u00e9 \\u20ac \\ud83d\\ude00" + q); };
-    test("ascii only reads back the same") { expect_true(json_parser.parse(ascii).equals_value(euro).value); };
+    test("ascii only reads back the same") { expect_true(json_parser.parse(ascii).equals_value(euro)); };
     broken := new _int8[2];
     broken[0] = 0xC3; broken[1] = 'x';
     test("invalid UTF-8 escaped byte by byte") { expect(new json_writer().set_ascii_only(true).write(json_value.of_string(new string(broken)))).should_be(q + "\\u00c3x" + q); };
@@ -471,8 +471,8 @@ def test_round_trips() {
     target := new file(base_dir + "/doc.json");
     new json_writer().set_indent(2).write_file(doc, target);
     text := target.read_text();
-    test("indented file ends with a newline") { expect_true(io_strings.ends_with(text, "}\n").value); };
-    test("parse_file") { expect_true(json_parser.parse_file(target).equals_value(doc).value); };
+    test("indented file ends with a newline") { expect_true(io_strings.ends_with(text, "}\n")); };
+    test("parse_file") { expect_true(json_parser.parse_file(target).equals_value(doc)); };
     new json_writer().write_file(doc, target);
     test("compact file") { expect(target.read_text()).should_be(doc.to_string()!!); };
     try { json_parser.parse_file(new file(base_dir + "/missing.json")); test("parse missing file") { fail_test("no exception"); }; }
@@ -484,8 +484,8 @@ def test_round_trips() {
     // sorted, ascii-only, indented output still parses to the same value
     mixed := json_parser.parse("{" + q + "z" + q + ": [1, {" + q + "b" + q + ": " + q + "\\u00fc" + q + ", " + q + "a" + q + ": null}], " + q + "a" + q + ": " + q + "x" + q + "}");
     fancy := new json_writer().set_indent(3).set_sort_keys(true).set_ascii_only(true).write(mixed);
-    test("all options together round trip") { expect_true(json_parser.parse(fancy).equals_value(mixed).value); };
-    test("sorted output starts with a") { expect_true(io_strings.starts_with(fancy, "{\n   " + q + "a" + q + ": ").value); };
+    test("all options together round trip") { expect_true(json_parser.parse(fancy).equals_value(mixed)); };
+    test("sorted output starts with a") { expect_true(io_strings.starts_with(fancy, "{\n   " + q + "a" + q + ": ")); };
 }
 
 def main(args: string[]) {
@@ -493,7 +493,7 @@ def main(args: string[]) {
     tests("lib_data_json") {
         start := new file(base_dir);
         start.delete_recursively();
-        test("test directory created") { expect_true(start.mkdirs().value); };
+        test("test directory created") { expect_true(start.mkdirs()); };
 
         test_values();
         test_paths_copy_equals();
@@ -502,7 +502,7 @@ def main(args: string[]) {
         test_writer();
         test_round_trips();
 
-        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("cleanup") { expect_true(start.delete_recursively()); };
     };
     finish_tests("lib_data_json");
 }

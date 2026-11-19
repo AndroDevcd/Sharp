@@ -48,5 +48,15 @@ copy_sources() {
     rsync -a --delete "$REPO/tests/suite/" "$WORK/suite/"
 }
 
+# How many compiles and test programs run at once: one per core, but no more than the free memory
+# allows (a compile takes up to about 500 MB).   TEST_JOBS=<n> chooses it yourself.
+if [ -z "$TEST_JOBS" ]; then
+    TEST_JOBS=$(nproc 2>/dev/null || echo 4)
+    by_memory=$(( $(awk '/MemAvailable/ {print int($2/1024)}' /proc/meminfo 2>/dev/null || echo 2048) / 500 ))
+    [ "$by_memory" -lt "$TEST_JOBS" ] && TEST_JOBS=$by_memory
+    [ "$TEST_JOBS" -lt 1 ] && TEST_JOBS=1
+fi
+export TEST_JOBS
+
 # stop with a message
 fail() { echo "$*"; exit 1; }

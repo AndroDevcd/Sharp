@@ -26,45 +26,45 @@ def main(args: string[]) {
         // ================= string keys, number values
         ages := new hash_table<string, int>();
         test("a new table has size 0") { expect(ages.size).should_be(0); };
-        test("a new table contains no key") { expect_false(ages.contains_key("ann").value); };
+        test("a new table contains no key") { expect_false(ages.contains_key("ann")); };
 
         // ---- put says whether the key is new
-        test("put of a new key returns true") { expect_true(ages.put("ann", 31).value); };
-        test("put of a second key returns true") { expect_true(ages.put("bob", 45).value); };
-        test("put of a third key returns true") { expect_true(ages.put("cy", 8).value); };
+        test("put of a new key returns true") { expect_true(ages.put("ann", 31)); };
+        test("put of a second key returns true") { expect_true(ages.put("bob", 45)); };
+        test("put of a third key returns true") { expect_true(ages.put("cy", 8)); };
         test("size after three puts") { expect(ages.size).should_be(3); };
 
         // ---- at and contains_key
         test("at(ann)") { expect(ages.at("ann")!!.value).should_be(31); };
         test("at(bob)") { expect(ages.at("bob")!!.value).should_be(45); };
         test("at(cy)") { expect(ages.at("cy")!!.value).should_be(8); };
-        test("contains_key of a key that was put") { expect_true(ages.contains_key("bob").value); };
-        test("contains_key of another key") { expect_false(ages.contains_key("dora").value); };
+        test("contains_key of a key that was put") { expect_true(ages.contains_key("bob")); };
+        test("contains_key of another key") { expect_false(ages.contains_key("dora")); };
         built := "a" + "nn";
         test("a key built at run time finds the entry") { expect(ages.at(built)!!.value).should_be(31); };
 
         // ---- overwrite
-        test("put of an existing key returns false") { expect_false(ages.put("bob", 46).value); };
+        test("put of an existing key returns false") { expect_false(ages.put("bob", 46)); };
         test("the value was replaced") { expect(ages.at("bob")!!.value).should_be(46); };
         test("overwriting does not change the size") { expect(ages.size).should_be(3); };
         test("the other entries are untouched") { expect(ages.at("ann")!!.value + ages.at("cy")!!.value).should_be(39); };
 
         // ---- remove
-        test("remove of an existing key returns true") { expect_true(ages.remove("bob").value); };
+        test("remove of an existing key returns true") { expect_true(ages.remove("bob")); };
         test("remove makes the table smaller") { expect(ages.size).should_be(2); };
-        test("a removed key is not contained") { expect_false(ages.contains_key("bob").value); };
+        test("a removed key is not contained") { expect_false(ages.contains_key("bob")); };
         test("at() of a removed key is null") { expect_null(ages.at("bob")); };
-        test("remove of a key that is not there returns false") { expect_false(ages.remove("bob").value); };
+        test("remove of a key that is not there returns false") { expect_false(ages.remove("bob")); };
         test("...and changes nothing") { expect(ages.size).should_be(2); };
         test("the other keys survive a remove") { expect(ages.at("ann")!!.value).should_be(31); };
-        test("a removed key can be put again as a new key") { expect_true(ages.put("bob", 50).value); };
+        test("a removed key can be put again as a new key") { expect_true(ages.put("bob", 50)); };
         test("...with its new value") { expect(ages.at("bob")!!.value).should_be(50); };
 
         // ---- clear
         ages.clear();
         test("clear: size 0") { expect(ages.size).should_be(0); };
-        test("clear: the keys are gone") { expect_false(ages.contains_key("ann").value); };
-        test("after clear a key is new again") { expect_true(ages.put("ann", 1).value); };
+        test("clear: the keys are gone") { expect_false(ages.contains_key("ann")); };
+        test("after clear a key is new again") { expect_true(ages.put("ann", 1)); };
         test("value put after clear") { expect(ages.at("ann")!!.value).should_be(1); };
 
         // ================= object values
@@ -91,17 +91,17 @@ def main(args: string[]) {
         test("third key of the bucket") { expect(names.at(257)!!).should_be("two hundred fifty seven"); };
         test("key 0") { expect(names.at(0)!!).should_be("zero"); };
         test("key -7") { expect(names.at(0 - 7)!!).should_be("minus seven"); };
-        test("a missing key of the same bucket is not contained") { expect_false(names.contains_key(385).value); };
-        test("remove of the middle key of a bucket") { expect_true(names.remove(129).value); };
+        test("a missing key of the same bucket is not contained") { expect_false(names.contains_key(385)); };
+        test("remove of the middle key of a bucket") { expect_true(names.remove(129)); };
         test("...keeps the one before it") { expect(names.at(1)!!).should_be("one"); };
         test("...and the one after it") { expect(names.at(257)!!).should_be("two hundred fifty seven"); };
-        test("...and the removed one is gone") { expect_false(names.contains_key(129).value); };
+        test("...and the removed one is gone") { expect_false(names.contains_key(129)); };
 
         // ================= many entries
         squares := new hash_table<int, int>();
         new_keys : decimal = 0;
         for(i : decimal = 0; i < 500; i++) {
-            if(squares.put(i, i * i).value) new_keys++;
+            if(squares.put(i, i * i)) new_keys++;
         }
         test("500 puts: every key was new") { expect(new_keys).should_be(500); };
         test("500 puts: size") { expect(squares.size).should_be(500); };
@@ -117,11 +117,11 @@ def main(args: string[]) {
         // remove every second key
         removed : decimal = 0;
         for(i : decimal = 0; i < 500; i += 2) {
-            if(squares.remove(i).value) removed++;
+            if(squares.remove(i)) removed++;
         }
         test("250 removes all found their key") { expect(removed).should_be(250); };
         test("250 entries left") { expect(squares.size).should_be(250); };
-        test("a removed key") { expect_false(squares.contains_key(200).value); };
+        test("a removed key") { expect_false(squares.contains_key(200)); };
         test("a key that was kept") { expect(squares.at(201)!!.value).should_be(40401); };
 
         // ================= keys() and values()

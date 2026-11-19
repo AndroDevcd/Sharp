@@ -124,7 +124,7 @@ def keyword_list() : string[] {
              "_uint16", "_uint32", "_uint64", "interface", "lock", "enum", "when",
              "local", "native", "localized", "nil", "ext", "stable", "mutate", "init",
              "get", "set", "alias", "as", "in", "override", "obfuscate", "is", "inject",
-             "component", "single", "factory" };
+             "component", "single", "factory", "bool" };
 }
 
 /** the hash the scanner computes over an identifier: h = h * 31 + c, kept in 31 bits, never 0 */

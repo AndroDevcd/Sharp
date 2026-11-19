@@ -34,7 +34,8 @@ struct object {
 static_assert(sizeof(object) == 8, "a reference slot is 8 bytes on every machine: number fields share the array");
 static_assert(sizeof(vm_cell) == 8, "a VM number is 8 bytes on every machine");
 
-struct sharp_object {
+// (8: a payload stored right behind the header holds 8-byte numbers, also on a 32-bit CPU)
+struct alignas(8) sharp_object {
     union {
         // A number array (type <= type_var: _int8[] .. decimal[], a string):
         // `size` elements of element_size(type) bytes each, packed. Read and
@@ -54,6 +55,18 @@ struct sharp_object {
     // class, made at startup by create_static_object): its slots are described
     // by the class's static fields, not its instance fields
     unsigned short staticObject : 1;
+    // `data` / `node` is not a block of its own: it is the memory
+    // right behind this header, allocated with it (see new_object_with_payload)
+    unsigned short inlineData : 1;
+    // which size class of the object pool this block came from;
+    // 0 = it came from malloc (see OBJECT POOL in sharp_object.cpp)
+    unsigned short poolClass : 5;
+    // 1 while this OLD object is in the collector's remembered set: a reference
+    // was stored into it since the last collection, so it may point at a young
+    // object (see THE WRITE BARRIER below). A byte of its own, not one of the
+    // bits above: a thread sets it without a lock, and that must not disturb
+    // the bits another thread may be changing.
+    uint8_t remembered;
 
     /**
      * Information package
@@ -190,13 +203,78 @@ void init_struct(sharp_object *);
  *
  *      C++ comparison: assigning a raw pointer instead of a std::shared_ptr.
  */
-inline void copy_object(object *to, object *from) {
+
+/*
+ * THE WRITE BARRIER (memory/tracing_collector.h, "GENERATIONS")
+ *
+ * A minor collection looks at young objects only. It finds them from the roots
+ * - and from OLD objects that point at young ones, which it can only know
+ * about if every store of a reference tells it. That is the write barrier:
+ * the little extra work beside a store.
+ *
+ *      store_object(slot, value)       the store alone. For slots the collector
+ *                                      scans anyway: a fiber's stack, a field of
+ *                                      the fiber or the thread.
+ *      write_barrier(owner, value,     `value` was stored into `slot`, a slot of
+ *                    slot)             the object `owner`: if owner is old and
+ *                                      value young, the next minor collection is
+ *                                      told where to look. For most objects that
+ *                                      is "all of owner, once" (owner->remembered).
+ *                                      For a LARGE ARRAY it is the one slot: a
+ *                                      list of a million elements that gets one
+ *                                      new element must not be read through a
+ *                                      million times.
+ *      copy_object(slot, value)        for C++ code that does not know which
+ *                                      object a slot belongs to: stores, and
+ *                                      when the value is young and the slot is
+ *                                      not on the running fiber's stack, keeps
+ *                                      the VALUE alive through the next minor
+ *                                      collection. Never wrong, sometimes keeps
+ *                                      an object one collection too long.
+ *
+ *      C++ comparison: none. Java, C#, Go, Ruby and Lua all have one.
+ */
+#define OBJECT_GENERATION(o) (((o)->info >> 28) & 0x3u)     // 0 = young (garbage_collector.h: GENERATION)
+
+// an array with more elements than this is remembered slot by slot, not as a whole
+#define LARGE_ARRAY_SLOTS 128
+
+void gc_remember(sharp_object *owner);                  // tracing_collector.cpp
+void gc_remember_store(sharp_object *owner, object *slot);
+void gc_remember_range(sharp_object *owner, Int first, Int count);
+void gc_keep_young(object *slot, sharp_object *value);  // tracing_collector.cpp
+
+inline void store_object(object *to, sharp_object *from) {
+    to->o = from;
+}
+
+inline void store_object(object *to, object *from) {
     to->o = from ? from->o : nullptr;
+}
+
+inline void write_barrier(sharp_object *owner, sharp_object *value, object *slot) {
+    if(value != nullptr && owner != nullptr && OBJECT_GENERATION(value) == 0
+       && OBJECT_GENERATION(owner) != 0 && !owner->remembered)
+        gc_remember_store(owner, slot);
+}
+
+/** `count` references were stored into `owner` from element `first` on, by a block copy */
+inline void write_barrier_range(sharp_object *owner, Int first, Int count) {
+    if(owner != nullptr && OBJECT_GENERATION(owner) != 0 && !owner->remembered)
+        gc_remember_range(owner, first, count);
 }
 
 inline void copy_object(object *to, sharp_object *from) {
     to->o = from;
+    if(from != nullptr && OBJECT_GENERATION(from) == 0)
+        gc_keep_young(to, from);
 }
+
+inline void copy_object(object *to, object *from) {
+    copy_object(to, from ? from->o : (sharp_object*) nullptr);
+}
+void pool_free_swept(sharp_object *o);     // called by the sweep for every dead object
+void pool_sweep_done();                    // ... and once when the sweep is over
 sharp_object* create_object(sharp_class* sc, bool unsafe = false);
 sharp_object* create_object(sharp_class* sc, Int size, bool unsafe = false);
 sharp_object* create_static_object(sharp_class* sc, bool unsafe = false);

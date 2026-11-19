@@ -30,7 +30,170 @@ void init_struct(sharp_object *o) {
     o->info = 0;
     o->arrayFlag = 0;
     o->staticObject = 0;
+    o->inlineData = 0;
+    o->poolClass = 0;
+    o->remembered = 0;
     o->data = nullptr;
+}
+
+static_assert(sizeof(sharp_object) % 8 == 0, "what is stored right behind the header holds 8-byte numbers");
+
+/*
+ * ONE BLOCK PER OBJECT. The header and its payload (the slots of
+ * an instance, the elements of an array) used to be two allocations: malloc
+ * for the header, calloc for the payload - and two frees when it died. Up to
+ * INLINE_LIMIT bytes the payload now sits right behind the header in the same
+ * block. Larger arrays keep their own block (calloc gets zeroed pages from the
+ * system without writing to them, and realloc can grow them in place).
+ *
+ *      C++ comparison: std::make_shared (one block for the control block and
+ *      the object) instead of std::shared_ptr<T>(new T).
+ */
+#define INLINE_LIMIT 1024
+
+/*
+ * OBJECT POOL: small blocks without malloc.
+ *
+ * Most objects are small and of a few sizes. The general purpose malloc/free
+ * of the C library cost 150 to 250 machine instructions for each of them here
+ * - above all because the collector frees a million blocks in one go, which
+ * defeats malloc's own per-thread cache. The pool hands out blocks of fixed
+ * sizes from free lists instead:
+ *
+ *      size class c (1..POOL_CLASSES)      a block of 16 + 16 * c bytes
+ *                                          (32, 48, ... 288: the header plus up to 256 bytes)
+ *
+ *      allocating      take the first block of this thread's list for the class
+ *                      (no lock); when it is empty, take POOL_BATCH blocks from
+ *                      the shared list (one lock), or cut a new chunk into blocks
+ *      freeing         only the collector frees. The sweep strings the dead
+ *                      blocks of each class together and gives them to the
+ *                      shared list in one go when it is done.
+ *
+ * Anything larger comes from malloc as before (poolClass = 0).
+ *
+ *      C++ comparison: a std::pmr::unsynchronized_pool_resource per thread in
+ *      front of a shared one.
+ *
+ * A thread that ends gives the blocks left in its lists back to the shared
+ * list (pool_thread_lists, below). Chunks are never returned to the system:
+ * a program's small objects are reused for its whole run.
+ */
+#define POOL_CLASSES 17
+#define POOL_BATCH 256
+#define POOL_CHUNK_BYTES (256 * 1024)
+
+struct pool_block { pool_block *next; };
+
+static std::mutex pool_mut;
+static pool_block *poolShared[POOL_CLASSES + 1];             // guarded by pool_mut
+
+/** the free blocks of one thread, by size class; handed back when the thread ends */
+struct pool_thread_lists {
+    pool_block *list[POOL_CLASSES + 1] = {};
+
+    ~pool_thread_lists() {
+        std::lock_guard<std::mutex> guard(pool_mut);
+        for(int c = 1; c <= POOL_CLASSES; c++) {
+            if(list[c] == nullptr) continue;
+            pool_block *last = list[c];
+            while(last->next != nullptr) last = last->next;
+            last->next = poolShared[c];
+            poolShared[c] = list[c];
+            list[c] = nullptr;
+        }
+    }
+};
+static thread_local pool_thread_lists poolOfThread;
+#define poolLocal (poolOfThread.list)
+
+static inline size_t pool_block_bytes(int c) { return 16 + 16 * (size_t)c; }
+
+static void pool_refill(int c) {
+    std::lock_guard<std::mutex> guard(pool_mut);
+    pool_block *first = poolShared[c];
+
+    if(first != nullptr) {
+        // take up to POOL_BATCH blocks off the front of the shared list
+        pool_block *last = first;
+        for(int i = 1; i < POOL_BATCH && last->next != nullptr; i++) last = last->next;
+        poolShared[c] = last->next;
+        last->next = nullptr;
+        poolLocal[c] = first;
+        return;
+    }
+
+    // nothing free: cut a new chunk into blocks, all for this thread
+    size_t bytes = pool_block_bytes(c), count = POOL_CHUNK_BYTES / bytes;
+    char *chunk = (char*) malloc(count * bytes);
+    if(chunk == nullptr) throw vm_exception(vm.out_of_memory_except, "out of memory");
+    for(size_t i = 0; i < count; i++) {
+        pool_block *block = (pool_block*)(chunk + i * bytes);
+        block->next = i + 1 < count ? (pool_block*)(chunk + (i + 1) * bytes) : nullptr;
+    }
+    poolLocal[c] = (pool_block*) chunk;
+}
+
+static inline void* pool_alloc(int c) {
+    pool_block *block = poolLocal[c];
+    if(block == nullptr) {
+        pool_refill(c);
+        block = poolLocal[c];
+    }
+    poolLocal[c] = block->next;
+    return block;
+}
+
+// the sweep: dead blocks of each class, strung together until the sweep is over
+static pool_block *sweptFirst[POOL_CLASSES + 1], *sweptLast[POOL_CLASSES + 1];
+
+void pool_free_swept(sharp_object *o) {
+    int c = o->poolClass;
+    if(c == 0) { std::free(o); return; }
+
+    pool_block *block = (pool_block*) o;
+    block->next = sweptFirst[c];
+    if(sweptFirst[c] == nullptr) sweptLast[c] = block;
+    sweptFirst[c] = block;
+}
+
+void pool_sweep_done() {
+    std::lock_guard<std::mutex> guard(pool_mut);
+    for(int c = 1; c <= POOL_CLASSES; c++) {
+        if(sweptFirst[c] == nullptr) continue;
+        sweptLast[c]->next = poolShared[c];
+        poolShared[c] = sweptFirst[c];
+        sweptFirst[c] = sweptLast[c] = nullptr;
+    }
+}
+
+static sharp_object* new_object_with_payload(size_t bytes, bool unsafe) {
+    if(bytes > INLINE_LIMIT) {
+        auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+        init_struct(o);
+        o->data = calloc_mem<char>(bytes, 1, unsafe);
+        return o;
+    }
+
+    size_t total = sizeof(sharp_object) + bytes;
+    int c = (int)((total + 15) / 16) - 1;      // 32 bytes -> class 1, 48 -> 2 ...
+    sharp_object *o;
+    if(c <= POOL_CLASSES) {
+        reserve_bytes(total, unsafe);
+        o = (sharp_object*) pool_alloc(c);
+    } else {
+        o = (sharp_object*) malloc_mem<char>(total, unsafe);
+        c = 0;
+    }
+
+    init_struct(o);
+    o->poolClass = c;
+    if(bytes > 0) {
+        o->data = (void*)(o + 1);
+        memset(o->data, 0, bytes);
+        o->inlineData = 1;
+    }
+    return o;
 }
 
 sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
@@ -57,19 +220,11 @@ sharp_object* create_static_object(sharp_class* sc, bool unsafe) {
 
 sharp_object* create_object(sharp_class* sc, bool unsafe) {
     TELEMETRY_COUNT(tm_objects_created)
-    auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+    auto o = new_object_with_payload(sizeof(object) * (size_t)sc->instanceFields, unsafe);
 
-    init_struct(o);
     o->size = sc->instanceFields;
     o->type = type_class;
     SET_INFO(o->info, sc->address, gc_normal);
-
-    if(o->size > 0)
-    {
-        // one allocation for the object and one for its slots, nothing per
-        // field: number fields live in their slot and start as 0
-        o->node = calloc_mem<object>(o->size, sizeof(object), unsafe);
-    }
 
     push_object(o);
     return o;
@@ -79,15 +234,12 @@ sharp_object* create_object(sharp_class* sc, Int size, bool unsafe) {
     TELEMETRY_COUNT(tm_objects_created)
     if(size > 0)
     {
-        auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+        auto o = new_object_with_payload(sizeof(object) * (size_t)size, unsafe);
 
-        init_struct(o);
         o->size = size;
         o->type = type_class;
         o->arrayFlag = 1;
         SET_INFO(o->info, sc->address, gc_normal);
-
-        o->node = calloc_mem<object>(size, sizeof(object), unsafe);
         push_object(o);
         return o;
     }
@@ -99,6 +251,18 @@ void realloc_object(sharp_object *o, Int size, bool unsafe) {
     if(o) {
         if(size <= 0) {
             throw vm_exception("call to realloc() with size <= 0");
+        }
+
+        if(o->inlineData) {
+            // the payload is part of the header's block and cannot
+            // be resized: give it a block of its own first. The old bytes stay
+            // where they are until the object dies; they are no longer counted.
+            size_t bytes = (o->type <= type_var ? (size_t)element_size(o->type) : sizeof(object)) * o->size;
+            char *moved = malloc_mem<char>(bytes, unsafe);
+            memcpy(moved, o->data, bytes);
+            release_bytes(bytes);
+            o->data = moved;
+            o->inlineData = 0;
         }
 
         if(o->type <= type_var) {
@@ -152,15 +316,12 @@ sharp_object* create_object(Int size, bool unsafe) {
     TELEMETRY_COUNT(tm_objects_created)
     if(size > 0)
     {
-        auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+        auto o = new_object_with_payload(sizeof(object) * (size_t)size, unsafe);
 
-        init_struct(o);
         o->size = size;
         o->type = type_object;
         o->arrayFlag = 1;
         SET_GENERATION(o->info, gc_normal);
-
-        o->node = calloc_mem<object>(size, sizeof(object), unsafe);
         push_object(o);
         return o;
     }
@@ -172,14 +333,12 @@ sharp_object* create_object(Int size, data_type type, bool unsafe) {
     TELEMETRY_COUNT(tm_objects_created)
     if(size > 0)
     {
-        auto o = malloc_mem<sharp_object>(sizeof(sharp_object), unsafe);
+        auto o = new_object_with_payload((size_t)size * element_size(type), unsafe);     // see element_size() in sharp_object.h
 
-        init_struct(o);
         o->size = size;
         o->type = type;
         o->arrayFlag = 1;
         SET_GENERATION(o->info, gc_normal);
-        o->data = calloc_mem<char>(size, element_size(type), unsafe);     // see element_size() in sharp_object.h
 
         push_object(o);
         return o;

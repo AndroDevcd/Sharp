@@ -196,14 +196,14 @@ def main(args: string[]) {
     expect("ordinal through a variable", l.ordinal, 20);
 
     // ---- == and !=
-    expect("== same member", (c == color.red).value, 1);
-    expect("== different member", (c == color.green).value, 0);
-    expect("!= same member", (c != color.red).value, 0);
-    expect("!= different member", (c != color.blue).value, 1);
-    expect("== between two variables", (typed == other).value, 1);
-    expect("== member with itself", (color.green == color.green).value, 1);
-    expect("== with explicit values", (l == level.medium).value, 1);
-    expect("!= with explicit values", (l != level.high).value, 1);
+    expect("== same member", (c == color.red), 1);
+    expect("== different member", (c == color.green), 0);
+    expect("!= same member", (c != color.red), 0);
+    expect("!= different member", (c != color.blue), 1);
+    expect("== between two variables", (typed == other), 1);
+    expect("== member with itself", (color.green == color.green), 1);
+    expect("== with explicit values", (l == level.medium), 1);
+    expect("!= with explicit values", (l != level.high), 1);
 
     // ---- in an if
     if(c == color.red) {

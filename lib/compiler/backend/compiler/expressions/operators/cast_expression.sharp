@@ -143,7 +143,10 @@ def report_impossible_cast(context: analysis_context, value: bound_expression, h
     d := problem_over(context, "E0412", described_type(from) + " cannot be cast to `" + to.to_text() + "`", value.node);
     d.with_label("this value cannot become a `" + to.to_text() + "` by a cast");
     operand := as_operand_text(context, value.node);
-    if(how.problem == WHY_NUMBER_TO_OBJECT) {
+    if(how.problem == WHY_NUMBER_TO_BOOL) {
+        d.with_note("a number does not become true or false by a cast");
+        d.with_help("say what is being asked: `" + operand + " != 0`");
+    } else if(how.problem == WHY_NUMBER_TO_OBJECT) {
         d.with_note("a cast does not turn a plain number into an object");
         if(to.kind == RT_CLASS && context.session.known.is_box(to.class_of!!)) {
             d.with_help("make the object: `new " + to.to_text() + "(" + written + ")`");

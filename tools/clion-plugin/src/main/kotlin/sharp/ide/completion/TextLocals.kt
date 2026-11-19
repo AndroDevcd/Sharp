@@ -124,7 +124,7 @@ object TextLocals {
             first.type == SharpTokenKinds.STRING_TEXT -> return string?.let { view.lookup.typeOfClass(it) }
             first.type == SharpTokenKinds.INTEGER && expression.size == 1 -> return view.lookup.resolveTypeName("int", scope)
             first.type == SharpTokenKinds.DECIMAL && expression.size == 1 -> return SharpType("decimal")
-            first.isKeyword("true") || first.isKeyword("false") -> return view.lookup.resolveTypeName("bool", scope)
+            first.isKeyword("true") || first.isKeyword("false") -> return SharpType("bool")
         }
         return chainType(expression)
     }

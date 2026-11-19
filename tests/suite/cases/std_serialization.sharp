@@ -127,7 +127,7 @@ def main(args: string[]) {
         }
         long_copy := round_trip(new address(long_name, 9)) as address;
         test("a 1000 character string: length") { expect(long_copy.street.size().value).should_be(1000); };
-        test("a 1000 character string: content") { expect_true((long_copy.street == long_name).value); };
+        test("a 1000 character string: content") { expect_true((long_copy.street == long_name)); };
 
         // ================= an object with every kind of field
         ann := make_person("Ann", 34);
@@ -240,10 +240,10 @@ def main(args: string[]) {
         ann_bytes := serialize(ann);
         test("serialize gives bytes") { expect_true(sizeof(ann_bytes.data) > 0); };
         again := serialize(ann);
-        test("the same object serializes to the same bytes") { expect_true((ann_bytes.to_string() == again.to_string()).value); };
+        test("the same object serializes to the same bytes") { expect_true((ann_bytes.to_string() == again.to_string())); };
         ann.age = 35;
         changed := serialize(ann);
-        test("a changed object serializes to other bytes") { expect_false((ann_bytes.to_string() == changed.to_string()).value); };
+        test("a changed object serializes to other bytes") { expect_false((ann_bytes.to_string() == changed.to_string())); };
         ann.age = 34;
 
         // ---- the bytes can be kept and used later, and more than once

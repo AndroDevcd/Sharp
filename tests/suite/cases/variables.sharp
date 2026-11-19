@@ -116,7 +116,7 @@ def main(args: string[]) {
     expect("c := 'a' is a char object", c.value, 97);
     expect_str("...which prints as a character", "$c", "a");
     t := true;
-    expect("t := true is a bool object", t.value, 1);
+    expect("t := true is a bool object", t, 1);
     expect_str("...which prints as a word", "$t", "true");
     copy := s;
     expect_str("copy := s", copy, "a");
@@ -131,7 +131,7 @@ def main(args: string[]) {
     expect("long holds more than 32 bits", l.value, 5000000000);
     expect("double", dd.value, 1.5);
     expect("char", ch.value, 122);
-    expect("bool", flag.value, 0);
+    expect("bool", flag, 0);
     i = 43;
     expect("int assigned again", i.value, 43);
     back : decimal = i.value;

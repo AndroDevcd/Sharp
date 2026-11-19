@@ -140,7 +140,7 @@ PYTHON
 export -f one
 
 # (the folder has spaces in its name: each path goes to `one` as one argument)
-find "$HERE/helps" -name "*.sharp" -print0 | xargs -0 -P 4 -I{} bash -c 'one "$1"' _ {}
+find "$HERE/helps" -name "*.sharp" -print0 | xargs -0 -P ${TEST_JOBS:-4} -I{} bash -c 'one "$1"' _ {}
 
 passed=0
 failed=0

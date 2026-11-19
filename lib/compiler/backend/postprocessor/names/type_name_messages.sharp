@@ -75,7 +75,7 @@ def name_in_sharp(name: string) : string {
     if(name == "u64" || name == "uint64" || name == "uint64_t" || name == "size_t" || name == "usize") { return "an unsigned 64-bit integer is written `_uint64`"; }
     if(name == "void") { return "a function that returns nothing has no return type at all (or `: nil`)"; }
     if(name == "any" || name == "Object" || name == "dynamic") { return "\"a value of any class\" is written `object`"; }
-    if(name == "boolean" || name == "Boolean") { return "true / false is the class `bool`"; }
+    if(name == "Boolean") { return "true / false is the type `bool` (its object form is the class `boolean`)"; }
     if(name == "str" || name == "String") { return "text is the class `string`"; }
     return "";
 }

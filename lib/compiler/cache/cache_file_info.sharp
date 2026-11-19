@@ -31,7 +31,7 @@ import (
  * Changes whenever what is stored changes shape: the tokens, the syntax tree,
  * this index. An index written with another version is thrown away whole.
  */
-const cache_format_version : decimal = 3;
+const cache_format_version : decimal = 4;
 
 /** one source file in the index */
 class file_data {

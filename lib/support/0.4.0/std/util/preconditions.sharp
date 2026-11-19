@@ -32,13 +32,13 @@ class preconditions {
      * Use it to validate the arguments of a function.
      */
     static def require(condition: bool, message: string) {
-        if(!condition.value)
+        if(!condition)
             throw new illegal_argument_exception(message);
     }
 
     /** like require(condition, message) with the message "requirement failed" */
     static def require(condition: bool) {
-        if(!condition.value)
+        if(!condition)
             throw new illegal_argument_exception("requirement failed");
     }
 
@@ -47,13 +47,13 @@ class preconditions {
      * Use it to validate the state of the object a method was called on.
      */
     static def check(condition: bool, message: string) {
-        if(!condition.value)
+        if(!condition)
             throw new illegal_state_exception(message);
     }
 
     /** like check(condition, message) with the message "check failed" */
     static def check(condition: bool) {
-        if(!condition.value)
+        if(!condition)
             throw new illegal_state_exception("check failed");
     }
 

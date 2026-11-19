@@ -131,10 +131,10 @@ def main(args: string[]) {
     expect("true in a var", yes, 1);
     expect("false in a var", no, 0);
     flag : bool = true;
-    expect("true in a bool object", flag.value, 1);
+    expect("true in a bool object", flag, 1);
     expect_str("a bool object prints as a word", "$flag", "true");
     flag = false;
-    expect("false in a bool object", flag.value, 0);
+    expect("false in a bool object", flag, 0);
     expect_str("false prints as a word", "$flag", "false");
 
     // ---- string literals

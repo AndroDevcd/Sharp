@@ -37,6 +37,11 @@ import (
  *
  * Used by `report_no_conversion` (conversion_messages.sharp) for E0410.
  */
+def whole_of_constant(value: constant_value) : _int64 {
+    if(value.kind == CONST_DECIMAL) { return value.number as _int64; }
+    return value.integer;
+}
+
 def explain_mismatch(context: analysis_context, d: diagnostic, value: bound_expression, how: conversion) {
     from : resolved_type = how.from;
     to : resolved_type = how.to;
@@ -57,6 +62,11 @@ def explain_mismatch(context: analysis_context, d: diagnostic, value: bound_expr
         // run(5) where a function value is wanted
         d.with_note("a function value is wanted here: something of the type `" + to.as_non_null().to_text() + "` that can be called");
         d.with_help("pass a lambda, `{ ... }`, or the name of a function with those parameters");
+    } else if(how.problem == WHY_NUMBER_TO_BOOL) {
+        d.with_note("a `bool` is true or false; a number does not become one by itself");
+        if(value.literal == LIT_INTEGER && value.constant != null && whole_of_constant(value.constant!!) == 1) { d.with_help("write `true`"); }
+        else if(value.literal == LIT_INTEGER && value.constant != null && whole_of_constant(value.constant!!) == 0) { d.with_help("write `false`"); }
+        else { d.with_help("say what is being asked: `" + as_operand_text(context, value.node) + " != 0`"); }
     } else if(how.problem == WHY_NUMBER_TO_OBJECT) {
         explain_number_for_object(context, d, from, to, written, as_operand_text(context, value.node));
     } else if(how.problem == WHY_OBJECT_TO_NUMBER) {

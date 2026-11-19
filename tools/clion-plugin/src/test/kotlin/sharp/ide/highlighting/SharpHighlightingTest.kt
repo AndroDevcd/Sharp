@@ -38,12 +38,12 @@ class SharpHighlightingTest {
                 "class -> KEYWORD_DECLARATION", "def -> KEYWORD_DECLARATION",
                 "if -> KEYWORD_CONTROL", "return -> KEYWORD_CONTROL",
                 "static -> KEYWORD_MODIFIER", "private -> KEYWORD_MODIFIER",
-                "_int64 -> BUILT_IN_TYPE", "decimal -> BUILT_IN_TYPE",
+                "_int64 -> BUILT_IN_TYPE", "bool -> BUILT_IN_TYPE", "decimal -> BUILT_IN_TYPE",
                 "true -> BUILT_IN_VALUE", "null -> BUILT_IN_VALUE", "self -> BUILT_IN_VALUE",
                 "new -> KEYWORD_OPERATOR", "as -> KEYWORD_OPERATOR",
                 "name -> IDENTIFIER",
             ),
-            colours("class def if return static private _int64 decimal true null self new as name"),
+            colours("class def if return static private _int64 bool decimal true null self new as name"),
         )
     }
 

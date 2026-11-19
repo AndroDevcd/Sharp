@@ -58,7 +58,8 @@ def analyse_increment(context: analysis_context, node: _int64, is_postfix: _int6
         report_operator_on_object(context, node, read);
         return new bound_error(context.unit, node, error_type);
     }
-    if(!type.is_number()) {         // (`true++`: a number, but no place - E0711 below)
+    is_place : _int64 = target.kind == TARGET_STORAGE || target.kind == TARGET_PROPERTY;
+    if(!type.is_number() || (type.is_boolean() && is_place == 1)) {     // (`true++`, `5++`: no place - E0711 below)
         report_unary_does_not_apply(context, node, read);
         return new bound_error(context.unit, node, error_type);
     }

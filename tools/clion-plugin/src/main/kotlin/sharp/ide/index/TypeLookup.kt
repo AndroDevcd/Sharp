@@ -218,7 +218,7 @@ class TypeLookup(val index: RunIndex) {
     }
 
     /** The type words that are not classes. */
-    val builtInTypeWords = listOf("decimal", "object", "_int8", "_int16", "_int32", "_int64", "_uint8", "_uint16", "_uint32", "_uint64")
+    val builtInTypeWords = listOf("decimal", "object", "bool", "_int8", "_int16", "_int32", "_int64", "_uint8", "_uint16", "_uint32", "_uint64")
 
     /**
      * A written type as a SharpType: `list<string>?`, `std.io#file`, `int[]`, `T`, `_int64`. Null when

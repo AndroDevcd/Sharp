@@ -22,14 +22,12 @@
 #     GLUE=<folder>    the bridge                        (default: build/gui/glue)
 #     OUT=<folder>     where sharpgui.dll goes           (default: build/gui)
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-MINGW=${MINGW:-$LOCALAPPDATA/Programs/CLion/bin/mingw/bin}
 OUT=${OUT:-$ROOT/build/gui}; mkdir -p "$OUT"
 GLUE=${GLUE:-$ROOT/build/gui/glue}
 LIBRARY="$ROOT/lib/support/$(ls "$ROOT/lib/support" | sort -V | tail -1)"
 NATIVE="$LIBRARY/std/guikit/platform/native"
 SDL2=${SDL2:-$(ls -d "$ROOT"/build/deps/SDL2-*/x86_64-w64-mingw32 2>/dev/null | sort -V | tail -1)}
-export PATH="$MINGW:$PATH"
-[ -x "$MINGW/g++.exe" ] || { echo "no g++.exe in $MINGW (set MINGW=<folder>)"; exit 1; }
+source "$ROOT/build-scripts/windows/mingw.sh"
 [ -f "$SDL2/lib/libSDL2.a" ] || { echo "SDL2's MinGW development files were not found in build/deps/ (the top of this script says where to get them)"; exit 1; }
 
 # ---- the bridge
@@ -43,7 +41,7 @@ echo "bridge: $(grep -c 'sharpgui_' "$GLUE/sharpgui_sni.h" 2>/dev/null) native f
 # ---- the library
 # -static: SDL2 and the C++ runtime go INTO the dll; what follows -lSDL2 is what SDL2 itself needs from Windows
 TARGET="$OUT/sharpgui.dll"; rm -f "$TARGET"
-g++ -shared -std=c++17 -O2 -w -I "$GLUE" -I "$NATIVE" -I "$SDL2/include" -I "$SDL2/include/SDL2" \
+g++ -shared -std=c++17 -O2 -w $CRT_FLAG -I "$GLUE" -I "$NATIVE" -I "$SDL2/include" -I "$SDL2/include/SDL2" \
     "$GLUE/sharpgui_sni.cpp" "$NATIVE"/*.cpp -o "$TARGET" \
     -static -L "$SDL2/lib" -lSDL2 \
     -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lole32 -loleaut32 -lshell32 -lsetupapi -lversion -luuid \

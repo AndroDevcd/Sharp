@@ -89,7 +89,7 @@ def check_uuid() {
     test("parse and to_string") { expect(id.to_string()!!).should_be("123e4567-e89b-42d3-a456-426614174000"); };
     test("version_number") { expect(id.version_number()).should_be(4); };
     test("variant") { expect(id.variant()).should_be(2); };
-    test("is_nil") { expect_false(id.is_nil().value); };
+    test("is_nil") { expect_false(id.is_nil()); };
     test("capital letters are accepted and printed small") { expect(uuid.parse("ABCDEF01-2345-6789-ABCD-EF0123456789").to_string()!!).should_be("abcdef01-2345-6789-abcd-ef0123456789"); };
     test("version 1 is recognised") { expect(uuid.parse("c232ab00-9414-11ec-b3c8-9f6bdeced846").version_number()).should_be(1); };
     test("the old NCS variant") { expect(uuid.parse("00000000-0000-0000-7000-000000000000").variant()).should_be(0); };
@@ -98,7 +98,7 @@ def check_uuid() {
 
     zero := uuid.nil_uuid();
     test("nil") { expect(zero.to_string()!!).should_be("00000000-0000-0000-0000-000000000000"); };
-    test("nil is_nil") { expect_true(zero.is_nil().value); };
+    test("nil is_nil") { expect_true(zero.is_nil()); };
     test("nil has version 0") { expect(zero.version_number()).should_be(0); };
 
     bytes := id.to_bytes();
@@ -109,30 +109,30 @@ def check_uuid() {
     bytes[0] = 255;
     test("to_bytes is a copy") { expect(id.to_string()!!).should_be("123e4567-e89b-42d3-a456-426614174000"); };
     rebuilt := uuid.from_bytes(id.to_bytes());
-    test("from_bytes") { expect_true((rebuilt == id).value); };
+    test("from_bytes") { expect_true((rebuilt == id)); };
     counting := new decimal[16];
     for(i : decimal = 0; i < 16; i++) { counting[i] = i * 17; }
     test("from_bytes text") { expect(uuid.from_bytes(counting).to_string()!!).should_be("00112233-4455-6677-8899-aabbccddeeff"); };
 
     same := uuid.parse("123E4567-E89B-42D3-A456-426614174000");
     later := uuid.parse("123e4567-e89b-42d3-a456-426614174001");
-    test("==") { expect_true((id == same).value); };
-    test("== different") { expect_false((id == later).value); };
-    test("!=") { expect_true((id != later).value); };
+    test("==") { expect_true((id == same)); };
+    test("== different") { expect_false((id == later)); };
+    test("!=") { expect_true((id != later)); };
     test("compare_to smaller") { expect(id.compare_to(later)).should_be(0 - 1); };
     test("compare_to larger") { expect(later.compare_to(id)).should_be(1); };
     test("compare_to equal") { expect(id.compare_to(same)).should_be(0); };
-    test("<") { expect_true((id < later).value); };
-    test(">") { expect_true((later > id).value); };
-    test("the first byte decides") { expect_true((uuid.parse("10000000-0000-0000-0000-000000000000") > uuid.parse("0fffffff-ffff-ffff-ffff-ffffffffffff")).value); };
-    test("equal uuids have equal hashes") { expect_true((id.hash() == same.hash()).value); };
+    test("<") { expect_true((id < later)); };
+    test(">") { expect_true((later > id)); };
+    test("the first byte decides") { expect_true((uuid.parse("10000000-0000-0000-0000-000000000000") > uuid.parse("0fffffff-ffff-ffff-ffff-ffffffffffff"))); };
+    test("equal uuids have equal hashes") { expect_true((id.hash() == same.hash())); };
 
-    test("is_valid") { expect_true(uuid.is_valid("123e4567-e89b-42d3-a456-426614174000").value); };
-    test("is_valid: too short") { expect_false(uuid.is_valid("123e4567-e89b-42d3-a456-42661417400").value); };
-    test("is_valid: no dashes") { expect_false(uuid.is_valid("123e4567e89b42d3a456426614174000xxxx").value); };
-    test("is_valid: a dash in the wrong place") { expect_false(uuid.is_valid("123e45678-e89-42d3-a456-426614174000").value); };
-    test("is_valid: not hexadecimal") { expect_false(uuid.is_valid("123e4567-e89b-42d3-a456-42661417400g").value); };
-    test("is_valid: empty") { expect_false(uuid.is_valid("").value); };
+    test("is_valid") { expect_true(uuid.is_valid("123e4567-e89b-42d3-a456-426614174000")); };
+    test("is_valid: too short") { expect_false(uuid.is_valid("123e4567-e89b-42d3-a456-42661417400")); };
+    test("is_valid: no dashes") { expect_false(uuid.is_valid("123e4567e89b42d3a456426614174000xxxx")); };
+    test("is_valid: a dash in the wrong place") { expect_false(uuid.is_valid("123e45678-e89-42d3-a456-426614174000")); };
+    test("is_valid: not hexadecimal") { expect_false(uuid.is_valid("123e4567-e89b-42d3-a456-42661417400g")); };
+    test("is_valid: empty") { expect_false(uuid.is_valid("")); };
     test("parse_or_null of bad text") { expect_null(uuid.parse_or_null("nope")); };
     test("parse_or_null of good text") { expect_not_null(uuid.parse_or_null("123e4567-e89b-42d3-a456-426614174000")); };
     caught : decimal = 0;
@@ -162,8 +162,8 @@ def check_uuid() {
         text := made.to_string()!!;
         if(made.version_number() != 4 || made.variant() != 2) well_formed = 0;
         if(text.size() != 36 || text.at(14).value != '4') well_formed = 0;
-        if(!uuid.is_valid(text).value) well_formed = 0;
-        if((uuid.parse(text) != made).value) well_formed = 0;
+        if(!uuid.is_valid(text)) well_formed = 0;
+        if((uuid.parse(text) != made)) well_formed = 0;
     }
     test("50 random uuids are well formed version 4 ids") { expect_true(well_formed); };
 }
@@ -185,17 +185,17 @@ def check_version() {
     test("no pre-release") { expect(plain.pre_release).should_be(""); };
     test("no build") { expect(plain.build).should_be(""); };
     test("to_string") { expect(plain.to_string()!!).should_be("1.4.2"); };
-    test("is_pre_release") { expect_false(plain.is_pre_release().value); };
-    test("is_stable") { expect_true(plain.is_stable().value); };
+    test("is_pre_release") { expect_false(plain.is_pre_release()); };
+    test("is_stable") { expect_true(plain.is_stable()); };
 
     full := v("2.0.0-rc.1+build.42");
     test("full: major") { expect(full.major).should_be(2); };
     test("full: pre_release") { expect(full.pre_release).should_be("rc.1"); };
     test("full: build") { expect(full.build).should_be("build.42"); };
     test("full: to_string") { expect(full.to_string()!!).should_be("2.0.0-rc.1+build.42"); };
-    test("full: is_pre_release") { expect_true(full.is_pre_release().value); };
-    test("full: is_stable") { expect_false(full.is_stable().value); };
-    test("0.x is not stable") { expect_false(v("0.9.5").is_stable().value); };
+    test("full: is_pre_release") { expect_true(full.is_pre_release()); };
+    test("full: is_stable") { expect_false(full.is_stable()); };
+    test("0.x is not stable") { expect_false(v("0.9.5").is_stable()); };
     test("build without pre-release") { expect(v("1.0.0+exp.sha.5114f85").build).should_be("exp.sha.5114f85"); };
     test("build without pre-release has no pre-release") { expect(v("1.0.0+exp.sha.5114f85").pre_release).should_be(""); };
     test("a dash inside an identifier") { expect(v("1.0.0-x-y.z--").pre_release).should_be("x-y.z--"); };
@@ -232,14 +232,14 @@ def check_version() {
 
     a := v("1.2.3");
     b := v("1.3.0");
-    test("<") { expect_true((a < b).value); };
-    test("< reversed") { expect_false((b < a).value); };
-    test(">") { expect_true((b > a).value); };
-    test("<=") { expect_true((a <= v("1.2.3")).value); };
-    test(">=") { expect_true((b >= a).value); };
-    test("==") { expect_true((a == v("1.2.3+meta")).value); };
-    test("!=") { expect_true((a != b).value); };
-    test("equal versions have equal hashes") { expect_true((a.hash() == v("1.2.3+meta").hash()).value); };
+    test("<") { expect_true((a < b)); };
+    test("< reversed") { expect_false((b < a)); };
+    test(">") { expect_true((b > a)); };
+    test("<=") { expect_true((a <= v("1.2.3"))); };
+    test(">=") { expect_true((b >= a)); };
+    test("==") { expect_true((a == v("1.2.3+meta"))); };
+    test("!=") { expect_true((a != b)); };
+    test("equal versions have equal hashes") { expect_true((a.hash() == v("1.2.3+meta").hash())); };
 
     test("next_major") { expect(a.next_major().to_string()!!).should_be("2.0.0"); };
     test("next_minor") { expect(a.next_minor().to_string()!!).should_be("1.3.0"); };
@@ -248,14 +248,14 @@ def check_version() {
     test("release") { expect(full.release().to_string()!!).should_be("2.0.0"); };
     test("the original is unchanged") { expect(a.to_string()!!).should_be("1.2.3"); };
 
-    test("compatible: same major, newer") { expect_true(v("1.4.0").is_compatible_with(v("1.2.3")).value); };
-    test("compatible: the same version") { expect_true(v("1.2.3").is_compatible_with(v("1.2.3")).value); };
-    test("not compatible: older") { expect_false(v("1.2.2").is_compatible_with(v("1.2.3")).value); };
-    test("not compatible: another major") { expect_false(v("2.0.0").is_compatible_with(v("1.2.3")).value); };
-    test("0.x: the same minor") { expect_true(v("0.3.5").is_compatible_with(v("0.3.1")).value); };
-    test("0.x: another minor") { expect_false(v("0.4.0").is_compatible_with(v("0.3.1")).value); };
+    test("compatible: same major, newer") { expect_true(v("1.4.0").is_compatible_with(v("1.2.3"))); };
+    test("compatible: the same version") { expect_true(v("1.2.3").is_compatible_with(v("1.2.3"))); };
+    test("not compatible: older") { expect_false(v("1.2.2").is_compatible_with(v("1.2.3"))); };
+    test("not compatible: another major") { expect_false(v("2.0.0").is_compatible_with(v("1.2.3"))); };
+    test("0.x: the same minor") { expect_true(v("0.3.5").is_compatible_with(v("0.3.1"))); };
+    test("0.x: another minor") { expect_false(v("0.4.0").is_compatible_with(v("0.3.1"))); };
 
-    test("is_valid") { expect_true(version.is_valid("1.2.3-beta+build").value); };
+    test("is_valid") { expect_true(version.is_valid("1.2.3-beta+build")); };
     test("parse_or_null of bad text") { expect_null(version.parse_or_null("1.2")); };
     test("parse_or_null of good text") { expect_not_null(version.parse_or_null("1.2.3")); };
     bad := new string[14];
@@ -275,16 +275,16 @@ def check_version() {
     bad[13] = new string("-1.2.3");
     rejected : decimal = 0;
     for(i : decimal = 0; i < 14; i++) {
-        if(!version.is_valid(bad[i]).value) {
+        if(!version.is_valid(bad[i])) {
             rejected++;
         } else {
             test("is_valid") { fail_test("accepted: " + bad[i]); };
         }
     }
     test("14 malformed versions are rejected") { expect(rejected).should_be(14); };
-    test("a leading zero is fine in a word") { expect_true(version.is_valid("1.2.3-0a").value); };
-    test("a leading zero is fine in the build part") { expect_true(version.is_valid("1.2.3+001").value); };
-    test("a single zero is a valid number") { expect_true(version.is_valid("1.2.3-0").value); };
+    test("a leading zero is fine in a word") { expect_true(version.is_valid("1.2.3-0a")); };
+    test("a leading zero is fine in the build part") { expect_true(version.is_valid("1.2.3+001")); };
+    test("a single zero is a valid number") { expect_true(version.is_valid("1.2.3-0")); };
 
     caught : decimal = 0;
     try { version.parse("1.2"); } catch(e: parse_exception) { caught++; }

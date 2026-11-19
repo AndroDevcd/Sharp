@@ -105,6 +105,13 @@ public:
     unsigned char *slotTags;
 #endif
     object *ptr;
+    // The object whose slot `ptr` points at, when ptr was last pointed INTO an
+    // object (MOVN / MOVND: a field, an array element). The write barrier of
+    // POPOBJ needs it: a store through ptr has to know which object it changes
+    // (memory/sharp_object.h, THE WRITE BARRIER). It is not cleared when ptr
+    // moves to a local or a static - the barrier then looks at an object that
+    // was not written to, which is harmless - so it is a root of the collector.
+    sharp_object *ptrOwner;
     long long delayTime;        // scheduler time (sched_now_micros) it sleeps until, -1 = not sleeping
     bool wakeable;              // false while suspended by fiber.suspend()
 

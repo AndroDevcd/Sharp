@@ -132,25 +132,25 @@ def check_rect() {
     test("center x") { expect(r.center().x).should_be(5); };
     test("center y") { expect(r.center().y).should_be(2.5); };
     test("diagonal") { expect(new rect(1, 1, 3, 4).diagonal()).should_be(5); };
-    test("is_empty") { expect_false(r.is_empty().value); };
-    test("is_empty with no width") { expect_true(new rect(1, 1, 0, 4).is_empty().value); };
-    test("is_square") { expect_false(r.is_square().value); };
-    test("is_square 3 x 3") { expect_true(new rect(0, 0, 3, 3).is_square().value); };
+    test("is_empty") { expect_false(r.is_empty()); };
+    test("is_empty with no width") { expect_true(new rect(1, 1, 0, 4).is_empty()); };
+    test("is_square") { expect_false(r.is_square()); };
+    test("is_square 3 x 3") { expect_true(new rect(0, 0, 3, 3).is_square()); };
     test("copy") { expect(new rect(r).width).should_be(10); };
 
-    test("contains an inner point") { expect_true(r.contains(3, 4).value); };
-    test("contains a border point") { expect_true(r.contains(10, 5).value); };
-    test("does not contain an outer point") { expect_false(r.contains(11, 2).value); };
-    test("does not contain a point below") { expect_false(r.contains(3, 0 - 0.1).value); };
-    test("contains a vector2") { expect_true(r.contains(new vector2(1, 1)).value); };
-    test("contains an inner rect") { expect_true(r.contains(new rect(2, 1, 3, 3)).value); };
-    test("contains itself") { expect_true(r.contains(r).value); };
-    test("does not contain an overlapping rect") { expect_false(r.contains(new rect(8, 3, 5, 5)).value); };
+    test("contains an inner point") { expect_true(r.contains(3, 4)); };
+    test("contains a border point") { expect_true(r.contains(10, 5)); };
+    test("does not contain an outer point") { expect_false(r.contains(11, 2)); };
+    test("does not contain a point below") { expect_false(r.contains(3, 0 - 0.1)); };
+    test("contains a vector2") { expect_true(r.contains(new vector2(1, 1))); };
+    test("contains an inner rect") { expect_true(r.contains(new rect(2, 1, 3, 3))); };
+    test("contains itself") { expect_true(r.contains(r)); };
+    test("does not contain an overlapping rect") { expect_false(r.contains(new rect(8, 3, 5, 5))); };
 
-    test("intersects an overlapping rect") { expect_true(r.intersects(new rect(8, 3, 5, 5)).value); };
-    test("intersects a touching rect") { expect_true(r.intersects(new rect(10, 0, 2, 2)).value); };
-    test("does not intersect a distant rect") { expect_false(r.intersects(new rect(11, 0, 2, 2)).value); };
-    test("does not intersect a rect above") { expect_false(r.intersects(new rect(0, 6, 2, 2)).value); };
+    test("intersects an overlapping rect") { expect_true(r.intersects(new rect(8, 3, 5, 5))); };
+    test("intersects a touching rect") { expect_true(r.intersects(new rect(10, 0, 2, 2))); };
+    test("does not intersect a distant rect") { expect_false(r.intersects(new rect(11, 0, 2, 2))); };
+    test("does not intersect a rect above") { expect_false(r.intersects(new rect(0, 6, 2, 2))); };
     common := r.intersection(new rect(8, 3, 5, 5));
     test("intersection x") { expect(common.x).should_be(8); };
     test("intersection y") { expect(common.y).should_be(3); };
@@ -190,8 +190,8 @@ def check_rect() {
     test("from_center x") { expect(centered.x).should_be(0 - 2); };
     test("from_center y") { expect(centered.y).should_be(0 - 1); };
 
-    test("==") { expect_true((r == new rect(0, 0, 10, 5)).value); };
-    test("!=") { expect_true((r != moved).value); };
+    test("==") { expect_true((r == new rect(0, 0, 10, 5))); };
+    test("!=") { expect_true((r != moved)); };
     test("to_string") { expect(r.to_string()!!).should_be("rect(0, 0, 10 x 5)"); };
 
     caught : decimal = 0;
@@ -210,20 +210,20 @@ def check_circle() {
     test("from a vector2") { expect(new circle(new vector2(1, 2), 3).y).should_be(2); };
     test("copy") { expect(new circle(c).radius).should_be(5); };
 
-    test("contains an inner point") { expect_true(c.contains(1, 1).value); };
-    test("contains a border point") { expect_true(c.contains(3, 4).value); };
-    test("does not contain an outer point") { expect_false(c.contains(4, 4).value); };
-    test("contains a vector2") { expect_true(c.contains(new vector2(0, 5)).value); };
-    test("contains an inner circle") { expect_true(c.contains(new circle(1, 0, 2)).value); };
-    test("does not contain a crossing circle") { expect_false(c.contains(new circle(4, 0, 2)).value); };
+    test("contains an inner point") { expect_true(c.contains(1, 1)); };
+    test("contains a border point") { expect_true(c.contains(3, 4)); };
+    test("does not contain an outer point") { expect_false(c.contains(4, 4)); };
+    test("contains a vector2") { expect_true(c.contains(new vector2(0, 5))); };
+    test("contains an inner circle") { expect_true(c.contains(new circle(1, 0, 2))); };
+    test("does not contain a crossing circle") { expect_false(c.contains(new circle(4, 0, 2))); };
 
-    test("intersects an overlapping circle") { expect_true(c.intersects(new circle(6, 0, 3)).value); };
-    test("intersects a touching circle") { expect_true(c.intersects(new circle(8, 0, 3)).value); };
-    test("does not intersect a distant circle") { expect_false(c.intersects(new circle(9, 0, 3)).value); };
-    test("intersects a rect it overlaps") { expect_true(c.intersects(new rect(4, 0 - 1, 5, 2)).value); };
-    test("intersects a rect around it") { expect_true(c.intersects(new rect(0 - 10, 0 - 10, 20, 20)).value); };
-    test("does not intersect a rect past the corner") { expect_false(c.intersects(new rect(4, 4, 2, 2)).value); };
-    test("intersects a rect at the corner") { expect_true(c.intersects(new rect(3, 4, 2, 2)).value); };
+    test("intersects an overlapping circle") { expect_true(c.intersects(new circle(6, 0, 3))); };
+    test("intersects a touching circle") { expect_true(c.intersects(new circle(8, 0, 3))); };
+    test("does not intersect a distant circle") { expect_false(c.intersects(new circle(9, 0, 3))); };
+    test("intersects a rect it overlaps") { expect_true(c.intersects(new rect(4, 0 - 1, 5, 2))); };
+    test("intersects a rect around it") { expect_true(c.intersects(new rect(0 - 10, 0 - 10, 20, 20))); };
+    test("does not intersect a rect past the corner") { expect_false(c.intersects(new rect(4, 4, 2, 2))); };
+    test("intersects a rect at the corner") { expect_true(c.intersects(new rect(3, 4, 2, 2))); };
 
     test("distance_to") { expect(c.distance_to(6, 8)).should_be(10); };
     box := c.bounding_rect();
@@ -235,8 +235,8 @@ def check_circle() {
     moved := c.translated(2, 3);
     test("translated") { expect(moved.x * 10 + moved.y).should_be(23); };
     test("scaled") { expect(c.scaled(2).radius).should_be(10); };
-    test("==") { expect_true((c == new circle(0, 0, 5)).value); };
-    test("!=") { expect_true((c != moved).value); };
+    test("==") { expect_true((c == new circle(0, 0, 5))); };
+    test("!=") { expect_true((c != moved)); };
     test("to_string") { expect(c.to_string()!!).should_be("circle(0, 0, r=5)"); };
 
     caught : decimal = 0;

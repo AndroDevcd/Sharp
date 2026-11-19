@@ -15,7 +15,7 @@ mod std.util;
  *     }
  *
  *     answer := parse_port("x");
- *     if(answer.is_right().value) use(answer.right_value());
+ *     if(answer.is_right()) use(answer.right_value());
  *     else println(answer.left_value());
  *
  * An either never changes after it is made.

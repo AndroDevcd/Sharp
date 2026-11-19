@@ -9,6 +9,8 @@
 //      slow_safepoint  a signal is pending at the bottom of a loop
 //      slow_call       a direct call cannot be made (opcode/direct_calls.cpp):
 //                      call through the runtime instead
+//      slow_barrier    POPOBJ stored a young object into an old one that is not
+//                      remembered yet (opcode/objects.cpp): remember it
 //
 // All of them are entered in REGISTER MODE and call into C++, so each starts
 // with save_vm_registers(); the ones that come back end with load_vm_registers().
@@ -77,6 +79,16 @@ void X64Generator::emit_slow_paths() {
                 call_runtime(reinterpret_cast<void*>(jit_rt_call));
                 check_after_runtime_call(true);
                 a.jmp(path.back);   // the instruction after the CALL
+                break;
+
+            case slow_barrier:
+                // gc_remember_store(task->ptrOwner, ptr). sp / fp / ptr are in registers
+                // a C++ function leaves alone, and it does not read them from the fiber.
+                a.mov(rdi, fiber_field(offsetof(fiber, ptrOwner)));
+                a.mov(rsi, PTR);
+                call_runtime(reinterpret_cast<void*>(jit_rt_remember));
+                load_vm_registers();
+                a.jmp(path.back);
                 break;
         }
     }

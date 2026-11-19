@@ -39,7 +39,7 @@ def main(args: string[]) {
     expect("explicit value", mixed.first.ordinal, 5);
     expect("the member after it is one higher", mixed.second.ordinal, 6);
     expect("...and the next one higher again", mixed.third.ordinal, 7);
-    expect("first and second are different members", (mixed.first == mixed.second).value, 0);
+    expect("first and second are different members", (mixed.first == mixed.second), 0);
 
     expect("after 10", gaps.low_next.ordinal, 11);
     expect("a second explicit value", gaps.high.ordinal, 100);

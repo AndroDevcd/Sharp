@@ -36,7 +36,7 @@ def main(args: string[]) {
     zc := 'c';
     expect("zc := 'c' is a char box", zc.value, 99);
     zb := true;
-    expect("zb := true is a bool box", zb.value, 1);
+    expect("zb := true is a bool box", zb, 1);
     zd := 1.5;
     expect("zd := 1.5 keeps the fraction", zd.value, 1.5);
     plain : decimal = b.value;
@@ -72,14 +72,14 @@ def main(args: string[]) {
     expect(".value in native arithmetic", a.value + 1, 6);
 
     // ---- comparisons give a bool box
-    expect_true("5 < 7", (a < b).value);
-    expect_false("5 > 7", (a > b).value);
-    expect_true("5 <= 5", (a <= 5).value);
-    expect_false("5 >= 7", (a >= b).value);
-    expect_true("5 == 5", (a == 5).value);
-    expect_true("5 != 7", (a != b).value);
+    expect_true("5 < 7", (a < b));
+    expect_false("5 > 7", (a > b));
+    expect_true("5 <= 5", (a <= 5));
+    expect_false("5 >= 7", (a >= b));
+    expect_true("5 == 5", (a == 5));
+    expect_true("5 != 7", (a != b));
     same_value := new int(5);
-    expect_true("two different boxes with the same value are ==", (a == same_value).value);
+    expect_true("two different boxes with the same value are ==", (a == same_value));
 
     // ...and can be used directly as a condition
     taken : decimal = 0;
@@ -163,7 +163,7 @@ def main(args: string[]) {
     expect("new char(300)", big_char.value, 44);
     letter : char = 'z';
     expect("char from a character", letter.value, 122);
-    expect_true("char == character", (letter == 'z').value);
+    expect_true("char == character", (letter == 'z'));
 
     // ---- uchar and byte: 0 .. 255
     uc : uchar = 255;
@@ -227,27 +227,23 @@ def main(args: string[]) {
     expect("int + double is an int", (five + half).value, 7);
     expect("long + int is a long", (two_33 + five).value, 8589934597);
     expect("int + long wraps to an int", (five + two_33).value, 5);
-    expect_true("int == long", (five == new long(5)).value);
-    expect_false("int 5 < double 2.5", (five < half).value);
+    expect_true("int == long", (five == new long(5)));
+    expect_false("int 5 < double 2.5", (five < half));
 
     // ---- bool
     t : bool = true;
     f : bool = false;
-    expect("true is 1", t.value, 1);
-    expect("false is 0", f.value, 0);
-    expect_false("!true", (!t).value);
-    expect_true("true == true", (t == true).value);
-    expect_true("true != false", (t != f).value);
+    expect("true is 1", t, 1);
+    expect("false is 0", f, 0);
+    expect_false("!true", (!t));
+    expect_true("true == true", (t == true));
+    expect_true("true != false", (t != f));
     taken = 0;
     if(t) { taken = 1; }
     expect("if(bool box)", taken, 1);
     taken = 0;
     if(!f) { taken = 1; }
     expect("if(!bool box)", taken, 1);
-    from_five := new bool(5);
-    expect("new bool(5) is true", from_five.value, 1);
-    from_half := new bool(0.5);
-    expect("new bool(0.5) is false (true means >= 1)", from_half.value, 0);
 
     // ---- conversions between the classes
     pi_ish := new double(3.7);
@@ -257,7 +253,7 @@ def main(args: string[]) {
     expect("int 5 to_double / 2", five.to_double().value / 2, 2.5);
     expect("to_long", five.to_long().value, 5);
     expect("to_short", five.to_short().value, 5);
-    expect("to_bool", five.to_bool().value, 1);
+    expect("to_bool", five.to_bool(), 1);
 
     // ---- to_string and string interpolation
     expect_str("int to_string", five.to_string()!!, "5");
@@ -269,8 +265,8 @@ def main(args: string[]) {
     expect_str("double to_string is the short form", half.to_string()!!, "2.5");
     expect_str("a whole double has no fraction", new double(3).to_string()!!, "3");
     expect_str("a tenth is a tenth", new double(0.1).to_string()!!, "0.1");
-    expect_str("bool to_string", t.to_string(), "true");
-    expect_str("false to_string", f.to_string(), "false");
+    expect_str("bool in text", "" + t, "true");
+    expect_str("false in text", "" + f, "false");
     expect_str("char to_string is the character", letter.to_string()!!, "z");
     upper_a := new uchar(65);
     expect_str("uchar to_string is the character", upper_a.to_string()!!, "A");
@@ -284,9 +280,9 @@ def main(args: string[]) {
     expect("hash", b.hash().value, 7);
 
     // ---- helpers of char
-    expect_true("is_digit('5')", char.is_digit('5').value);
-    expect_false("is_digit('x')", char.is_digit('x').value);
-    expect_true("is_alpha('x')", char.is_alpha('x').value);
+    expect_true("is_digit('5')", char.is_digit('5'));
+    expect_false("is_digit('x')", char.is_digit('x'));
+    expect_true("is_alpha('x')", char.is_alpha('x'));
     expect("to_upper('b') is 'B'", char.to_upper('b').value, 66);
     expect("to_lower('Q') is 'q'", char.to_lower('Q').value, 113);
 

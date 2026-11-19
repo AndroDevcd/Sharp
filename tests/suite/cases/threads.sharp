@@ -47,7 +47,7 @@ unguarded := new slot();        // written by exactly one thread at a time
 hits := new atomic<int>(0);     // the std counter that locks by itself
 
 def wait_for(t: thread) {
-    while(t.is_exited().value == 0) {
+    while(!t.is_exited()) {
         thread.yield();
     }
 }
@@ -170,14 +170,14 @@ def main(args: string[]) {
     // ================= one thread
     result := new slot();
     worker := new thread("worker", sum_to_thousand);
-    expect_false("a new thread has not started", worker.is_started().value);
-    expect_false("a new thread has not exited", worker.is_exited().value);
+    expect_false("a new thread has not started", worker.is_started());
+    expect_false("a new thread has not exited", worker.is_exited());
     expect("nothing has run yet", result.value, 0);
 
     worker.start(one_argument(result));
     wait_for(worker);
-    expect_true("after waiting: the thread has exited", worker.is_exited().value);
-    expect_false("a finished thread is not active", worker.is_active().value);
+    expect_true("after waiting: the thread has exited", worker.is_exited());
+    expect_false("a finished thread is not active", worker.is_active());
     expect("the result the thread left behind: 1 + ... + 1000", result.value, 500500);
 
     // ---- the main thread goes on as usual afterwards
@@ -340,7 +340,7 @@ def main(args: string[]) {
     wait_for(failing);
     expect("the exception handler of the thread was called once", handler.calls, 1);
     expect_str("...with the exception the thread threw", handler.message, "thread failed on purpose");
-    expect_true("the failed thread has exited", failing.is_exited().value);
+    expect_true("the failed thread has exited", failing.is_exited());
 
     // ---- and the program carries on, other threads still work
     after := new slot();
@@ -351,8 +351,8 @@ def main(args: string[]) {
 
     // ================= the main thread itself
     expect_not_null("thread.current() in main", thread.current());
-    expect_true("the main thread is started", thread.current().is_started().value);
-    expect_false("the main thread has not exited", thread.current().is_exited().value);
+    expect_true("the main thread is started", thread.current().is_started());
+    expect_false("the main thread has not exited", thread.current().is_exited());
 
     // ================= the values start() and join() give back
     answer := new slot();
@@ -361,7 +361,7 @@ def main(args: string[]) {
     expect("start() returns result_ok (0)", started.ordinal, 0);
     waited := joined.join();
     expect("join() returns result_ok (0)", waited.ordinal, 0);
-    expect_true("after join() the thread has exited", joined.is_exited().value);
+    expect_true("after join() the thread has exited", joined.is_exited());
     wait_for(joined);
 
     finish("threads");

@@ -134,7 +134,7 @@ class template {
      * value. false (the default): see set_missing_value.
      */
     def set_strict(on: bool): template {
-        strict = on.value;
+        strict = on;
         return self;
     }
 

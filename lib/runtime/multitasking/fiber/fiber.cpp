@@ -103,6 +103,7 @@ void init_struct(fiber *fib) {
     fib->heldCapacity = 0;
     fib->current = NULL;
     fib->ptr = NULL;
+    fib->ptrOwner = NULL;
     fib->readyNext = NULL;
     fib->queued = false;
     fib->lockWaiting = false;

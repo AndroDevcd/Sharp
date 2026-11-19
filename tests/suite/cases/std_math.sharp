@@ -184,12 +184,12 @@ def main(args: string[]) {
         test("ldexp(5, 0)") { expect(ldexp(5, 0).value).should_be(5); };
 
         // ---- is_nan and is_infinite (is_nan(NaN) and NEGATIVE_INFINITY: std_math_fixes.sharp)
-        test("is_nan(1)") { expect_false(is_nan(1).value); };
-        test("is_nan(0)") { expect_false(is_nan(0).value); };
-        test("is_nan(POSITIVE_INFINITY)") { expect_false(is_nan(POSITIVE_INFINITY).value); };
-        test("is_infinite(POSITIVE_INFINITY)") { expect_true(is_infinite(POSITIVE_INFINITY).value); };
-        test("is_infinite(1000000)") { expect_false(is_infinite(1000000).value); };
-        test("is_infinite(0)") { expect_false(is_infinite(0).value); };
+        test("is_nan(1)") { expect_false(is_nan(1)); };
+        test("is_nan(0)") { expect_false(is_nan(0)); };
+        test("is_nan(POSITIVE_INFINITY)") { expect_false(is_nan(POSITIVE_INFINITY)); };
+        test("is_infinite(POSITIVE_INFINITY)") { expect_true(is_infinite(POSITIVE_INFINITY)); };
+        test("is_infinite(1000000)") { expect_false(is_infinite(1000000)); };
+        test("is_infinite(0)") { expect_false(is_infinite(0)); };
 
         // ---- arguments can be variables and expressions, results can be combined
         side_a : decimal = 3;

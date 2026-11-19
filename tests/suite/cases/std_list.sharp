@@ -51,7 +51,7 @@ def main(args: string[]) {
         // ---- a new list is empty
         planets := new list<planet>();
         test("new list: size 0") { expect(planets.size().value).should_be(0); };
-        test("new list: empty()") { expect_true(planets.empty().value); };
+        test("new list: empty()") { expect_true(planets.empty()); };
 
         // ---- add, size, at
         mercury := new planet("mercury", 0);
@@ -59,7 +59,7 @@ def main(args: string[]) {
         mars := new planet("mars", 2);
         planets.add(mercury);
         test("size after one add") { expect(planets.size().value).should_be(1); };
-        test("not empty after an add") { expect_false(planets.empty().value); };
+        test("not empty after an add") { expect_false(planets.empty()); };
         planets.add(earth);
         planets.add(mars);
         test("size after three adds") { expect(planets.size().value).should_be(3); };
@@ -157,7 +157,7 @@ def main(args: string[]) {
         // ---- clear
         planets.clear();
         test("clear: size 0") { expect(planets.size().value).should_be(0); };
-        test("clear: empty()") { expect_true(planets.empty().value); };
+        test("clear: empty()") { expect_true(planets.empty()); };
         planets.add(mars);
         test("add after clear") { expect(planets.size().value).should_be(1); };
         test("element added after clear") { expect(planets.at(0).name).should_be("mars"); };

@@ -58,7 +58,7 @@ class comparators {
     }
 
     /** bool objects: false before true */
-    static def bools(): comparator<bool> {
-        return comparator<bool>.by_key({ b: bool -> (decimal) return b.value; });
+    static def bools(): comparator<boolean> {
+        return comparator<boolean>.by_key({ b: boolean -> (decimal) return b.to_var(); });
     }
 }

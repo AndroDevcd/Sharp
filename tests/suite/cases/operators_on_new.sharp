@@ -35,7 +35,7 @@ def main(args: string[]) {
 
     total := new money(5, 0) + a;                   // the compiler stops here
     expect("new on the left of +", total.amount, 6);
-    expect_true("new on the left of >", (new money(5, 0) > a).value);
+    expect_true("new on the left of >", (new money(5, 0) > a));
 
     finish("lib_math_new_operand");
 }

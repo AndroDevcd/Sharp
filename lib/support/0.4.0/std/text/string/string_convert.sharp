@@ -90,7 +90,7 @@ mutate string {
     }
 
     /** to_bool() that returns null instead of throwing. */
-    def to_bool_or_null(): bool? {
+    def to_bool_or_null(): boolean? {
         return number_parser.parse_bool_or_null(self);
     }
 

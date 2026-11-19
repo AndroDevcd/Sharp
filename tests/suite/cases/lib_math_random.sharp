@@ -84,11 +84,11 @@ def check_derived() {
     rng.seed(9);
     flips : decimal = 0;
     for(i : decimal = 0; i < 8; i++) {
-        flips = flips * 2 + rng.next_bool().value;
+        flips = flips * 2 + (rng.next_bool() as _int32);
     }
     test("eight coin flips") { expect(flips).should_be(228); };          // 11100100
-    test("next_bool(0) is never true") { expect_false(rng.next_bool(0).value); };
-    test("next_bool(1) is always true") { expect_true(rng.next_bool(1).value); };
+    test("next_bool(0) is never true") { expect_false(rng.next_bool(0)); };
+    test("next_bool(1) is always true") { expect_true(rng.next_bool(1)); };
 
     rng.seed(5);
     test("gaussian 1") { expect(rng.next_gaussian()).should_be_near(0.4200093757662467, 0.000000000001); };
@@ -246,10 +246,10 @@ def check_runtime_generator() {
     test("rand_index(7) is in 0 .. 6") { expect_true(in_range); };
     test("rand_index(1)") { expect(rand_index(1)).should_be(0); };
 
-    flip : decimal = rand_bool().value;
+    flip : decimal = rand_bool();
     test("rand_bool is 0 or 1") { expect_true(flip == 0 || flip == 1); };
-    test("rand_bool(0) is never true") { expect_false(rand_bool(0).value); };
-    test("rand_bool(1) is always true") { expect_true(rand_bool(1).value); };
+    test("rand_bool(0) is never true") { expect_false(rand_bool(0)); };
+    test("rand_bool(1) is always true") { expect_true(rand_bool(1)); };
 
     g : decimal = rand_gaussian();
     test("rand_gaussian is a finite number") { expect_true((g - g) == 0); };
@@ -286,7 +286,7 @@ def check_runtime_generator() {
     rand_shuffle_objects(words);
     joined : string = words[0] + words[1] + words[2];
     test("rand_shuffle_objects keeps the elements") { expect(joined.size().value).should_be(3); };
-    test("...all three of them") { expect_true(joined.find("a").value && joined.find("b").value && joined.find("c").value); };
+    test("...all three of them") { expect_true(joined.find("a") && joined.find("b") && joined.find("c")); };
 
     order := rand_permutation(10);
     sum = 0;
@@ -298,7 +298,7 @@ def check_runtime_generator() {
     test("rand_string length") { expect(token.size().value).should_be(24); };
     alphanumeric : decimal = 1;
     for(i : decimal = 0; i < 24; i++) {
-        if(!char.is_alpha_num(token.at(i)).value) alphanumeric = 0;
+        if(!char.is_alpha_num(token.at(i))) alphanumeric = 0;
     }
     test("rand_string is alphanumeric") { expect_true(alphanumeric); };
     test("rand_string with one possible character") { expect(rand_string(5, "x")).should_be("xxxxx"); };

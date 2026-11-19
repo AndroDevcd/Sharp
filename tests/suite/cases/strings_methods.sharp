@@ -33,12 +33,12 @@ def main(args: string[]) {
     expect("size of \"abc\"", abc.size().value, 3);
     nothing := "";
     expect("size of \"\"", nothing.size().value, 0);
-    expect_true("\"\" is empty", nothing.empty().value);
-    expect_false("\"\" is not not_empty", nothing.not_empty().value);
-    expect_false("\"hello world\" is not empty", hello.empty().value);
-    expect_true("\"hello world\" is not_empty", hello.not_empty().value);
+    expect_true("\"\" is empty", nothing.empty());
+    expect_false("\"\" is not not_empty", nothing.not_empty());
+    expect_false("\"hello world\" is not empty", hello.empty());
+    expect_true("\"hello world\" is not_empty", hello.not_empty());
     fresh := new string();
-    expect_true("new string() is empty", fresh.empty().value);
+    expect_true("new string() is empty", fresh.empty());
     expect("new string() has size 0", fresh.size().value, 0);
 
     // ---- at and [] give the character as a char object
@@ -47,9 +47,9 @@ def main(args: string[]) {
     expect("at(5) is the space", hello.at(5).value, 32);
     expect("at(10) is the last character 'd'", hello.at(10).value, 100);
     expect("[0] is the same as at(0)", hello[0].value, 104);
-    expect_true("at(0) == 'h'", (hello.at(0) == 'h').value);
-    expect_false("'h' < 'e'", (hello.at(0) < hello.at(1)).value);
-    expect_true("the two l's are equal", (hello.at(2) == hello.at(3)).value);
+    expect_true("at(0) == 'h'", (hello.at(0) == 'h'));
+    expect_false("'h' < 'e'", (hello.at(0) < hello.at(1)));
+    expect_true("the two l's are equal", (hello.at(2) == hello.at(3)));
 
     // ---- substring(start, end): end is NOT included
     expect_str("substring(0, 4)", hello.substring(0, 4), "hell");
@@ -61,30 +61,30 @@ def main(args: string[]) {
     expect_str("substring leaves the original alone", hello, "hello world");
 
     // ---- find: is the text somewhere inside?
-    expect_true("find \"world\"", hello.find("world").value);
-    expect_true("find \"o w\"", hello.find("o w").value);
-    expect_true("find the first character", hello.find("h").value);
-    expect_true("find the last character", hello.find("d").value);
-    expect_true("find itself", hello.find("hello world").value);
-    expect_true("find the empty string", hello.find("").value);
-    expect_false("find \"xyz\"", hello.find("xyz").value);
-    expect_false("find \"worlds\"", hello.find("worlds").value);
-    expect_false("find is case sensitive", hello.find("World").value);
-    expect_false("find something longer than the string", abc.find("abcd").value);
+    expect_true("find \"world\"", hello.find("world"));
+    expect_true("find \"o w\"", hello.find("o w"));
+    expect_true("find the first character", hello.find("h"));
+    expect_true("find the last character", hello.find("d"));
+    expect_true("find itself", hello.find("hello world"));
+    expect_true("find the empty string", hello.find(""));
+    expect_false("find \"xyz\"", hello.find("xyz"));
+    expect_false("find \"worlds\"", hello.find("worlds"));
+    expect_false("find is case sensitive", hello.find("World"));
+    expect_false("find something longer than the string", abc.find("abcd"));
 
     // ---- starts_with
-    expect_true("starts_with \"hello\"", hello.starts_with("hello").value);
-    expect_true("starts_with \"h\"", hello.starts_with("h").value);
-    expect_true("starts_with itself", hello.starts_with("hello world").value);
-    expect_false("starts_with \"world\"", hello.starts_with("world").value);
-    expect_false("starts_with \"Hello\"", hello.starts_with("Hello").value);
-    expect_false("starts_with something longer", abc.starts_with("abcd").value);
+    expect_true("starts_with \"hello\"", hello.starts_with("hello"));
+    expect_true("starts_with \"h\"", hello.starts_with("h"));
+    expect_true("starts_with itself", hello.starts_with("hello world"));
+    expect_false("starts_with \"world\"", hello.starts_with("world"));
+    expect_false("starts_with \"Hello\"", hello.starts_with("Hello"));
+    expect_false("starts_with something longer", abc.starts_with("abcd"));
 
     // ---- ends_with
-    expect_true("ends_with \"world\"", hello.ends_with("world").value);
-    expect_true("ends_with \"d\"", hello.ends_with("d").value);
-    expect_false("ends_with \"hello\"", hello.ends_with("hello").value);
-    expect_false("ends_with \"World\"", hello.ends_with("World").value);
+    expect_true("ends_with \"world\"", hello.ends_with("world"));
+    expect_true("ends_with \"d\"", hello.ends_with("d"));
+    expect_false("ends_with \"hello\"", hello.ends_with("hello"));
+    expect_false("ends_with \"World\"", hello.ends_with("World"));
 
     // ---- to_lower makes a new string
     mixed := "MiXed 12 Z";
@@ -93,15 +93,15 @@ def main(args: string[]) {
     expect_str("to_lower of lower case", hello.to_lower(), "hello world");
 
     // ---- comparing
-    expect_true("string == literal", (abc == "abc").value);
-    expect_false("string != the same literal", (abc != "abc").value);
-    expect_false("one character differs", (abc == "abd").value);
-    expect_false("a shorter literal", (abc == "ab").value);
-    expect_false("a longer literal", (abc == "abcd").value);
-    expect_false("upper and lower case differ", (abc == "ABC").value);
-    expect_true("two objects with the same characters are ==", (abc == also_abc).value);
-    expect_false("different strings", (abc == hello).value);
-    expect_true("different strings are !=", (abc != hello).value);
+    expect_true("string == literal", (abc == "abc"));
+    expect_false("string != the same literal", (abc != "abc"));
+    expect_false("one character differs", (abc == "abd"));
+    expect_false("a shorter literal", (abc == "ab"));
+    expect_false("a longer literal", (abc == "abcd"));
+    expect_false("upper and lower case differ", (abc == "ABC"));
+    expect_true("two objects with the same characters are ==", (abc == also_abc));
+    expect_false("different strings", (abc == hello));
+    expect_true("different strings are !=", (abc != hello));
     taken : decimal = 0;
     if(abc == also_abc) { taken = 1; }
     expect("if(a == b)", taken, 1);
@@ -174,7 +174,7 @@ def main(args: string[]) {
         grown += "ab";
     }
     expect("100 times \"ab\"", grown.size().value, 200);
-    expect_true("...starts with abab", grown.starts_with("abab").value);
+    expect_true("...starts with abab", grown.starts_with("abab"));
     expect("...last character is 'b'", grown.at(199).value, 98);
 
     // ---- escapes inside a literal are one character each
@@ -229,10 +229,10 @@ def main(args: string[]) {
     expect("nothing to walk in \"\"", count_char(nothing, 'a'), 0);
 
     // ---- hash: the same characters always give the same number
-    expect_true("equal strings have equal hashes", (abc.hash() == also_abc.hash()).value);
-    expect_false("different strings (here) have different hashes", (abc.hash() == hello.hash()).value);
+    expect_true("equal strings have equal hashes", (abc.hash() == also_abc.hash()));
+    expect_false("different strings (here) have different hashes", (abc.hash() == hello.hash()));
     again := hello.hash();
-    expect_true("asking twice gives the same hash", (again == hello.hash()).value);
+    expect_true("asking twice gives the same hash", (again == hello.hash()));
     // 'a' counts 1, 'b' 2, 'c' 3; each position is worth 31 times the one before: 1 + 2 * 31 + 3 * 961
     expect("hash of \"abc\"", abc.hash().value, 2946);
 

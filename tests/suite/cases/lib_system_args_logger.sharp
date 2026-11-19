@@ -46,39 +46,39 @@ def expect_args_error(name: string, parser: args_parser, text: string, message: 
 def test_args() {
     p := new_parser();
     p.parse_list(line("-o|out|file.txt"));
-    test("flag off by default") { expect_false(p.flag("verbose").value); };
+    test("flag off by default") { expect_false(p.flag("verbose")); };
     test("default value") { expect(p.value("jobs")).should_be("4"); };
     test("default as number") { expect(p.number("jobs")).should_be(4); };
-    test("has is false for a default") { expect_false(p.has("jobs").value); };
+    test("has is false for a default") { expect_false(p.has("jobs")); };
     test("short option with separate value") { expect(p.value("output")).should_be("out"); };
-    test("has") { expect_true(p.has("output").value); };
+    test("has") { expect_true(p.has("output")); };
     test("positional") { expect(p.value("source")).should_be("file.txt"); };
-    test("optional positional missing") { expect_false(p.has("target").value); };
+    test("optional positional missing") { expect_false(p.has("target")); };
     test("missing optional positional is empty") { expect(p.value("target")).should_be(""); };
     test("value_or") { expect(p.value_or("target", "same")).should_be("same"); };
-    test("optional option missing") { expect_false(p.has("include").value); };
+    test("optional option missing") { expect_false(p.has("include")); };
     test("values of a missing option") { expect(p.values("include").size().value).should_be(0); };
     test("no extra arguments") { expect(p.rest().size().value).should_be(0); };
-    test("help not requested") { expect_false(p.help_requested().value); };
+    test("help not requested") { expect_false(p.help_requested()); };
 
     p.parse_list(line("--verbose|--jobs|8|--output=dir with space|src|dst|--dry-run"));
-    test("long flag") { expect_true(p.flag("verbose").value); };
-    test("flag after positionals") { expect_true(p.flag("dry-run").value); };
-    test("other flag still off") { expect_false(p.flag("all").value); };
+    test("long flag") { expect_true(p.flag("verbose")); };
+    test("flag after positionals") { expect_true(p.flag("dry-run")); };
+    test("other flag still off") { expect_false(p.flag("all")); };
     test("long option with separate value") { expect(p.whole_number("jobs")).should_be(8); };
     test("long option with =") { expect(p.value("output")).should_be("dir with space"); };
     test("first positional") { expect(p.value("source")).should_be("src"); };
     test("second positional") { expect(p.value("target")).should_be("dst"); };
 
     p.parse_list(line("-va|-j16|-oX|s"));
-    test("combined flags: v") { expect_true(p.flag("verbose").value); };
-    test("combined flags: a") { expect_true(p.flag("all").value); };
+    test("combined flags: v") { expect_true(p.flag("verbose")); };
+    test("combined flags: a") { expect_true(p.flag("all")); };
     test("value attached to the letter") { expect(p.number("jobs")).should_be(16); };
     test("value attached to -o") { expect(p.value("output")).should_be("X"); };
     p.parse_list(line("-vao|out|s"));
     test("flags then an option in one group") { expect(p.value("output")).should_be("out"); };
-    test("...with its flags") { expect_true(p.flag("all").value); };
-    test("a new parse starts fresh") { expect_false(p.flag("dry-run").value); };
+    test("...with its flags") { expect_true(p.flag("all")); };
+    test("a new parse starts fresh") { expect_false(p.flag("dry-run")); };
 
     p.parse_list(line("-vvv|-I|a|--include|b|-Ic|-o|1|-o|2|s"));
     test("count of a repeated flag") { expect(p.count("verbose")).should_be(3); };
@@ -90,12 +90,12 @@ def test_args() {
     test("an option takes the next argument whatever it is") { expect(p.number("jobs")).should_be(0 - 5); };
     test("after --: positional starting with a dash") { expect(p.value("source")).should_be("-not-an-option"); };
     test("after --: even --verbose") { expect(p.value("target")).should_be("--verbose"); };
-    test("...so the flag is off") { expect_false(p.flag("verbose").value); };
+    test("...so the flag is off") { expect_false(p.flag("verbose")); };
     p.parse_list(line("-o|out|-"));
     test("a single dash is a positional") { expect(p.value("source")).should_be("-"); };
     p.parse_list(line("--output=|s"));
     test("empty value with =") { expect(p.value("output")).should_be(""); };
-    test("...still counts as given") { expect_true(p.has("output").value); };
+    test("...still counts as given") { expect_true(p.has("output")); };
     p.parse_list(line("--output=a=b|s"));
     test("value containing =") { expect(p.value("output")).should_be("a=b"); };
 
@@ -120,11 +120,11 @@ def test_args() {
 
     // help
     p.parse_list(line("--help"));
-    test("--help") { expect_true(p.help_requested().value); };
+    test("--help") { expect_true(p.help_requested()); };
     p.parse_list(line("-h"));
-    test("-h, and nothing is missing") { expect_true(p.help_requested().value); };
+    test("-h, and nothing is missing") { expect_true(p.help_requested()); };
     p.parse_list(line("-o|x|s"));
-    test("help flag is reset") { expect_false(p.help_requested().value); };
+    test("help flag is reset") { expect_false(p.help_requested()); };
     test("usage") { expect(p.usage()).should_be("usage: copytool [options] --output DIR <source> [target]"); };
     test("help") { expect(p.help()).should_be("usage: copytool [options] --output DIR <source> [target]\n"
         + "\n"
@@ -149,8 +149,8 @@ def test_args() {
     more.add_positional("dir", "where to look", false);
     more.allow_extra("patterns", "names to look for");
     more.parse_list(line("-h|src|*.a|*.b|--|-c"));
-    test("own -h is a flag") { expect_true(more.flag("human").value); };
-    test("...and not help") { expect_false(more.help_requested().value); };
+    test("own -h is a flag") { expect_true(more.flag("human")); };
+    test("...and not help") { expect_false(more.help_requested()); };
     test("rest") { expect(io_strings.join(more.rest(), ",")).should_be("*.a,*.b,-c"); };
     test("usage with extras") { expect(more.usage()).should_be("usage: list [options] [dir] [patterns...]"); };
     test("help with extras and own -h") { expect(more.help()).should_be("usage: list [options] [dir] [patterns...]\n"
@@ -163,9 +163,9 @@ def test_args() {
         + "  -h, --human  sizes for people\n"
         + "      --help   show this help\n"); };
     more.parse_list(line("--help"));
-    test("--help still works") { expect_true(more.help_requested().value); };
+    test("--help still works") { expect_true(more.help_requested()); };
     more.parse_list(new list<string>());
-    test("nothing given") { expect_false(more.has("dir").value); };
+    test("nothing given") { expect_false(more.has("dir")); };
     bare := new args_parser("bare", "");
     test("usage without options") { expect(bare.usage()).should_be("usage: bare"); };
     bare.parse_list(new list<string>());
@@ -225,15 +225,15 @@ def test_logger() {
     log.trace("t");
     log.debug("d");
     test("no time stamps, all levels") { expect(sink.to_string()!!).should_be("TRACE [server] t\nDEBUG [server] d\n"); };
-    test("is_enabled") { expect_true(log.is_enabled(logger.level_trace).value); };
+    test("is_enabled") { expect_true(log.is_enabled(logger.level_trace)); };
     log.set_level(logger.level_error);
-    test("is_enabled below") { expect_false(log.is_enabled(logger.level_warn).value); };
-    test("is_enabled at") { expect_true(log.is_enabled(logger.level_error).value); };
+    test("is_enabled below") { expect_false(log.is_enabled(logger.level_warn)); };
+    test("is_enabled at") { expect_true(log.is_enabled(logger.level_error)); };
     log.set_level(logger.level_off);
     sink.clear();
     log.error("even this");
     test("off writes nothing") { expect(sink.length()).should_be(0); };
-    test("is_enabled when off") { expect_false(log.is_enabled(logger.level_error).value); };
+    test("is_enabled when off") { expect_false(log.is_enabled(logger.level_error)); };
 
     sink.clear();
     log.set_level(logger.level_info).set_timestamps(true);
@@ -292,7 +292,7 @@ def test_logger() {
     test("second target") { expect(second.to_string()!!).should_be("INFO : both\n"); };
     log.close();
     log.close();
-    test("close closes the targets") { expect_true(sink.is_closed().value); };
+    test("close closes the targets") { expect_true(sink.is_closed()); };
     try { log.info("late"); test("log after close") { fail_test("no exception"); }; }
     catch(e: illegal_state_exception) { test("log after close") { }; }
 
@@ -341,12 +341,12 @@ def main(args: string[]) {
     tests("lib_system_args_logger") {
         start := new file(base_dir);
         start.delete_recursively();
-        test("test directory created") { expect_true(start.mkdirs().value); };
+        test("test directory created") { expect_true(start.mkdirs()); };
 
         test_args();
         test_logger();
 
-        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("cleanup") { expect_true(start.delete_recursively()); };
     };
     finish_tests("lib_system_args_logger");
 }

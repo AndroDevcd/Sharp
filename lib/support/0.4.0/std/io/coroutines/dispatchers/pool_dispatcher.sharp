@@ -90,7 +90,7 @@ class pool_dispatcher : coroutine_dispatcher {
                 changed = 1;
             }
         }
-        return changed;
+        return changed != 0;
     }
 
     /** true once the worker threads were started */

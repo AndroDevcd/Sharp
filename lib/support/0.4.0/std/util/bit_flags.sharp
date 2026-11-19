@@ -14,7 +14,7 @@ mod std.util;
  *     access.add(WRITE);
  *     access.has(WRITE).value         // true
  *     access.has(READ + EXECUTE).value    // false: not ALL of them are set
- *     access.has_any(READ + EXECUTE).value    // true: one of them is
+ *     access.has_any(READ + EXECUTE)    // true: one of them is
  *     access.value                    // 3, e.g. to store in a file
  *
  * A "mask" is any combination of flags (their sum, as long as each flag
@@ -85,7 +85,7 @@ class bit_flags {
 
     /** switch the flags of `mask` on (enabled true) or off (enabled false) */
     def assign(mask: decimal, enabled: bool): bit_flags {
-        if(enabled.value) return add(mask);
+        if(enabled) return add(mask);
         return remove(mask);
     }
 

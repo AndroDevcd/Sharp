@@ -73,10 +73,10 @@ def test_launch_and_join() {
     j := launch({ -> hits.increment(); });
     j.join();
     test("launch ran the block") { expect(hits.read()).should_be(1); };
-    test("joined job is completed") { expect_true(j.is_completed().value); };
-    test("joined job is not active") { expect_false(j.is_active().value); };
-    test("joined job is not cancelled") { expect_false(j.is_cancelled().value); };
-    test("joined job has not failed") { expect_false(j.is_failed().value); };
+    test("joined job is completed") { expect_true(j.is_completed()); };
+    test("joined job is not active") { expect_false(j.is_active()); };
+    test("joined job is not cancelled") { expect_false(j.is_cancelled()); };
+    test("joined job has not failed") { expect_false(j.is_failed()); };
     test("final state is COMPLETED") { expect(j.get_state()).should_be(job.COMPLETED); };
     test("no failure on a normal job") { expect_null(j.get_failure()); };
     j.join();
@@ -95,7 +95,7 @@ def test_launch_and_join() {
     test("coroutine_body object ran") { expect(hits.read()).should_be(5); };
 
     test("no current job outside a coroutine") { expect_null(current_job()); };
-    test("is_active() outside a coroutine") { expect_true(is_active().value); };
+    test("is_active() outside a coroutine") { expect_true(is_active()); };
 }
 
 def test_run_blocking() {
@@ -157,7 +157,7 @@ def test_scale() {
         }
     });
     test("2,000 sleeping coroutines all came back") { expect(hits.read()).should_be(2000); };
-    test("the default pool was started") { expect_true(dispatchers.shared_pool().is_started().value); };
+    test("the default pool was started") { expect_true(dispatchers.shared_pool().is_started()); };
     test("the pool has at least one worker") { expect_true(dispatchers.shared_pool().get_parallelism() >= 1); };
 }
 
@@ -168,7 +168,7 @@ def test_async() {
         test("await of a quick async") { expect(a.await().value).should_be(42); };
         test("await of a sleeping async") { expect(b.await().value).should_be(58); };
         test("await twice gives the same value") { expect(b.await().value).should_be(58); };
-        test("awaited deferred is completed") { expect_true(b.is_completed().value); };
+        test("awaited deferred is completed") { expect_true(b.is_completed()); };
         test("get_completed after completion") { expect(b.get_completed()!!.value).should_be(58); };
 
         box := new flag();
@@ -218,8 +218,8 @@ def test_async() {
         } catch(e: illegal_state_exception) {
             test("supervisor: await threw") { expect(e.get_message()).should_be("kept"); };
         }
-        test("failed deferred is cancelled") { expect_true(d.is_cancelled().value); };
-        test("failed deferred has failed") { expect_true(d.is_failed().value); };
+        test("failed deferred is cancelled") { expect_true(d.is_cancelled()); };
+        test("failed deferred has failed") { expect_true(d.is_failed()); };
         test("no result from a failed deferred") { expect_null(d.get_completed()); };
     });
     test("a failed async is never reported as uncaught") { expect(handler.seen.read()).should_be(before); };
@@ -244,13 +244,13 @@ def test_cancellation() {
     // delay is a cancellation point
     j := launch({ -> sleeper(); });
     delay(10);
-    test("sleeping job is active") { expect_true(j.is_active().value); };
+    test("sleeping job is active") { expect_true(j.is_active()); };
     j.cancel();
-    test("is_cancelled right after cancel") { expect_true(j.is_cancelled().value); };
+    test("is_cancelled right after cancel") { expect_true(j.is_cancelled()); };
     j.join();
-    test("cancelled job is completed after join") { expect_true(j.is_completed().value); };
+    test("cancelled job is completed after join") { expect_true(j.is_completed()); };
     test("cancelled job ended in CANCELLED") { expect(j.get_state()).should_be(job.CANCELLED); };
-    test("cancellation is not a failure") { expect_false(j.is_failed().value); };
+    test("cancellation is not a failure") { expect_false(j.is_failed()); };
     test("cancelled job has a cause") { expect_not_null(j.get_failure()); };
     j.cancel();
     test("cancel twice is harmless") { };
@@ -259,21 +259,21 @@ def test_cancellation() {
     y := launch({ -> spinner(); });
     delay(5);
     y.cancel_and_join();
-    test("yielding job was cancelled") { expect_true(y.is_cancelled().value); };
+    test("yielding job was cancelled") { expect_true(y.is_cancelled()); };
 
     // ensure_active is a cancellation point
     c := launch({ -> checker(); });
     delay(5);
     c.cancel_and_join();
-    test("checking job was cancelled") { expect_true(c.is_cancelled().value); };
+    test("checking job was cancelled") { expect_true(c.is_cancelled()); };
 
     // join is a cancellation point for the caller
     target := launch({ -> sleeper(); });
     joiner := launch(target, { s: object -> t := s as job; t.join(); never_reached.increment(); });
     delay(5);
     joiner.cancel_and_join();
-    test("a coroutine blocked in join was cancelled") { expect_true(joiner.is_cancelled().value); };
-    test("the job it waited for is untouched") { expect_true(target.is_active().value); };
+    test("a coroutine blocked in join was cancelled") { expect_true(joiner.is_cancelled()); };
+    test("the job it waited for is untouched") { expect_true(target.is_active()); };
     target.cancel_and_join();
 
     // cancelling a parent cancels its children
@@ -287,9 +287,9 @@ def test_cancellation() {
     kids := parent_job.children();
     test("children() lists both") { expect(sizeof(kids)).should_be(2); };
     parent_job.cancel_and_join();
-    test("child 0 cancelled with its parent") { expect_true(kids[0].is_cancelled().value); };
-    test("child 1 cancelled with its parent") { expect_true(kids[1].is_cancelled().value); };
-    test("child 0 finished before the parent's join returned") { expect_true(kids[0].is_completed().value); };
+    test("child 0 cancelled with its parent") { expect_true(kids[0].is_cancelled()); };
+    test("child 1 cancelled with its parent") { expect_true(kids[1].is_cancelled()); };
+    test("child 0 finished before the parent's join returned") { expect_true(kids[0].is_completed()); };
     test("no children left") { expect(parent_job.child_count()).should_be(0); };
 
     // a coroutine that catches the cancellation can clean up
@@ -305,7 +305,7 @@ def test_cancellation() {
     delay(5);
     cleaner.cancel_and_join();
     test("cancellation_exception was catchable for clean up") { expect(shared.value).should_be(99); };
-    test("...and the job still ended cancelled") { expect_true(cleaner.is_cancelled().value); };
+    test("...and the job still ended cancelled") { expect_true(cleaner.is_cancelled()); };
 
     // cancel with a reason
     r := launch({ -> sleeper(); });
@@ -402,7 +402,7 @@ def test_scopes() {
         } catch(e: illegal_state_exception) {
             hits.add(1);
         }
-        test("outer scope still active after catching the inner failure") { expect_true(is_active().value); };
+        test("outer scope still active after catching the inner failure") { expect_true(is_active()); };
         launch({ -> hits.add(10); });
     });
     test("outer scope went on") { expect(hits.read()).should_be(11); };
@@ -458,16 +458,16 @@ def test_scopes() {
     a := scope.launch({ -> sleeper(); });
     b := scope.launch({ -> sleeper(); });
     d := async<int>.start_in(scope, { -> (int) delay(1000000); return 1; });
-    test("scope object is active") { expect_true(scope.is_active().value); };
+    test("scope object is active") { expect_true(scope.is_active()); };
     test("scope object has three coroutines") { expect(scope.active_count()).should_be(3); };
     scope.cancel_and_join();
-    test("scope cancel reached coroutine a") { expect_true(a.is_cancelled().value); };
-    test("scope cancel reached coroutine b") { expect_true(b.is_completed().value); };
-    test("scope cancel reached the async") { expect_true(d.is_cancelled().value); };
-    test("cancelled scope is not active") { expect_false(scope.is_active().value); };
+    test("scope cancel reached coroutine a") { expect_true(a.is_cancelled()); };
+    test("scope cancel reached coroutine b") { expect_true(b.is_completed()); };
+    test("scope cancel reached the async") { expect_true(d.is_cancelled()); };
+    test("cancelled scope is not active") { expect_false(scope.is_active()); };
     late := scope.launch({ -> never_reached.increment(); });
-    test("launch in a cancelled scope gives a cancelled job") { expect_true(late.is_cancelled().value); };
-    test("...that is already finished") { expect_true(late.is_completed().value); };
+    test("launch in a cancelled scope gives a cancelled job") { expect_true(late.is_cancelled()); };
+    test("...that is already finished") { expect_true(late.is_completed()); };
 
     hits.write(0);
     open := new coroutine_scope();
@@ -476,20 +476,20 @@ def test_scopes() {
     }
     open.join_children();
     test("join_children waited for all") { expect(hits.read()).should_be(50); };
-    test("the scope is still open") { expect_true(open.is_active().value); };
+    test("the scope is still open") { expect_true(open.is_active()); };
     open.launch({ -> hits.increment(); });
     open.complete_and_join();
     test("complete_and_join waited for the last one") { expect(hits.read()).should_be(51); };
-    test("completed scope job") { expect_true(open.get_job().is_completed().value); };
-    test("completed scope was not cancelled") { expect_false(open.get_job().is_cancelled().value); };
+    test("completed scope job") { expect_true(open.get_job().is_completed()); };
+    test("completed scope was not cancelled") { expect_false(open.get_job().is_cancelled()); };
 
     // a failing coroutine cancels a normal scope object, not a supervisor one
     failing := new coroutine_scope();
     survivor := failing.launch({ -> sleeper(); });
     failing.launch({ -> throw new illegal_state_exception("scope object failure"); });
     survivor.join();
-    test("a failure cancelled the other coroutine of the scope") { expect_true(survivor.is_cancelled().value); };
-    test("the scope job has failed") { expect_true(failing.get_job().is_failed().value); };
+    test("a failure cancelled the other coroutine of the scope") { expect_true(survivor.is_cancelled()); };
+    test("the scope job has failed") { expect_true(failing.get_job().is_failed()); };
 
     before = handler.seen.read();
     careful := coroutine_scope.supervisor();
@@ -497,8 +497,8 @@ def test_scopes() {
     broken := careful.launch({ -> throw new illegal_state_exception("supervised failure"); });
     broken.join();
     steady.join();
-    test("supervisor scope: the other coroutine was not cancelled") { expect_false(steady.is_cancelled().value); };
-    test("supervisor scope is still active") { expect_true(careful.is_active().value); };
+    test("supervisor scope: the other coroutine was not cancelled") { expect_false(steady.is_cancelled()); };
+    test("supervisor scope is still active") { expect_true(careful.is_active()); };
     test("supervisor scope reported the failure") { expect(handler.seen.read()).should_be(before + 1); };
     careful.cancel();
 
@@ -595,7 +595,7 @@ def test_timeouts() {
     waiting := launch({ -> with_timeout(1000000, { -> delay(1000000); }); never_reached.increment(); });
     delay(10);
     waiting.cancel_and_join();
-    test("a coroutine inside with_timeout can be cancelled") { expect_true(waiting.is_cancelled().value); };
+    test("a coroutine inside with_timeout can be cancelled") { expect_true(waiting.is_cancelled()); };
 
     hits.write(0);
     run_blocking({ ->
@@ -658,7 +658,7 @@ def test_dispatchers() {
     }
 
     solo_thread.close();
-    test("dispatcher closed") { expect_true(solo_thread.is_closed().value); };
+    test("dispatcher closed") { expect_true(solo_thread.is_closed()); };
 
     // current thread
     thread_names.name = "";
@@ -686,8 +686,8 @@ def test_uncaught() {
     before : decimal = handler.seen.read();
     j := launch({ -> throw new illegal_state_exception("top level failure"); });
     j.join();
-    test("a failed top level job is cancelled") { expect_true(j.is_cancelled().value); };
-    test("...and failed") { expect_true(j.is_failed().value); };
+    test("a failed top level job is cancelled") { expect_true(j.is_cancelled()); };
+    test("...and failed") { expect_true(j.is_failed()); };
     test("its failure is kept") { expect(j.get_failure()!!.get_message()).should_be("top level failure"); };
     for(i : decimal = 0; i < 1000 && handler.seen.read() == before; i++) { delay(1); }
     test("the handler was called once") { expect(handler.seen.read()).should_be(before + 1); };

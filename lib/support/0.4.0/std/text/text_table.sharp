@@ -89,7 +89,7 @@ class text_table {
 
     /** true (the default) draws the frame of + - | characters; false gives the plain layout. */
     def set_border(on: bool): text_table {
-        bordered = on.value;
+        bordered = on;
         return self;
     }
 

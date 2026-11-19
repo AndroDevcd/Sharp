@@ -41,9 +41,9 @@ def main(args: string[]) {
         empty : string = "";
         sb.append(empty);
         test("appending \"\" changes nothing") { expect(sb.length()).should_be(10); };
-        test("== with a literal") { expect_true((sb == "abcdefghi!").value); };
-        test("== with other text") { expect_false((sb == "abcdefghi").value); };
-        test("!= with other text") { expect_true((sb != "abc").value); };
+        test("== with a literal") { expect_true((sb == "abcdefghi!")); };
+        test("== with other text") { expect_false((sb == "abcdefghi")); };
+        test("!= with other text") { expect_true((sb != "abc")); };
         test("at") { expect(sb.at(0).value).should_be('a'); };
         test("[] ") { expect(sb[9].value).should_be('!'); };
         test("char_at") { expect(sb.char_at(1)).should_be('b'); };
@@ -80,16 +80,16 @@ def main(args: string[]) {
 
         // ---- searching
         words := new string_builder("one two one");
-        test("starts_with") { expect_true(words.starts_with("one").value); };
-        test("starts_with other text") { expect_false(words.starts_with("two").value); };
-        test("ends_with") { expect_true(words.ends_with("one").value); };
-        test("ends_with the whole text") { expect_true(words.ends_with("one two one").value); };
-        test("ends_with other text") { expect_false(words.ends_with("two").value); };
+        test("starts_with") { expect_true(words.starts_with("one")); };
+        test("starts_with other text") { expect_false(words.starts_with("two")); };
+        test("ends_with") { expect_true(words.ends_with("one")); };
+        test("ends_with the whole text") { expect_true(words.ends_with("one two one")); };
+        test("ends_with other text") { expect_false(words.ends_with("two")); };
         // (find(...) with a literal is ambiguous between find(string) and find(string_builder))
         two : string = "two";
         three : string = "three";
-        test("find") { expect_true(words.find(two).value); };
-        test("find, not there") { expect_false(words.find(three).value); };
+        test("find") { expect_true(words.find(two)); };
+        test("find, not there") { expect_false(words.find(three)); };
         test("index_of") { expect(words.index_of("one")).should_be(0); };
         test("index_of with a start") { expect(words.index_of("one", 1)).should_be(8); };
         test("index_of, not found") { expect(words.index_of("x")).should_be(0 - 1); };

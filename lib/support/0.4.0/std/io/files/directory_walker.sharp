@@ -193,13 +193,13 @@ class directory_walker {
         while(upcoming == null && pending_count() > 0) {
             entry := take();
             depth : decimal = last_taken_depth;
-            is_dir : decimal = entry.is_directory().value;
+            is_dir : decimal = entry.is_directory();
 
             // put the content of a directory on the list
             if(is_dir && depth < max_depth) {
                 enter : decimal = 1;
                 if(has_enter_filter && depth > 0) {
-                    enter = enter_filter(entry).value;
+                    enter = enter_filter(entry);
                 }
                 if(enter) {
                     names := directory_listing.names(entry.get_path());
@@ -228,7 +228,7 @@ class directory_walker {
             } else if(!is_dir && !want_files) {
                 report = 0;
             } else if(has_filter) {
-                report = filter(entry).value;
+                report = filter(entry);
             }
 
             if(report) {

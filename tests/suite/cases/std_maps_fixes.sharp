@@ -30,7 +30,7 @@ def main(args: string[]) {
         cities := new hash_map<string, city>();
         cities.put("fr", new city("paris"));
         cities.put("it", new city("rome"));
-        test("remove of an existing key returns true") { expect_true(cities.remove("fr").value); };
+        test("remove of an existing key returns true") { expect_true(cities.remove("fr")); };
         test("remove makes the map smaller") { expect(cities.size).should_be(1); };
         test("a removed key is gone") { expect_null(cities.at("fr")); };
         test("the other key is still there") { expect_not_null(cities.at("it")); };

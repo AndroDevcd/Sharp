@@ -221,7 +221,7 @@ class version {
                 if(i == start)
                     throw new parse_exception("version: an empty identifier: " + whole);
 
-                if(numeric_rule.value && i - start > 1 && text.at(start).value == '0' && all_digits(text, start, i).value)
+                if(numeric_rule && i - start > 1 && text.at(start).value == '0' && all_digits(text, start, i))
                     throw new parse_exception("version: a numeric identifier has a leading zero: " + whole);
                 start = i + 1;
             } else {
@@ -340,8 +340,8 @@ class version {
     }
 
     private static def compare_identifier(a: string, from_a: decimal, to_a: decimal, b: string, from_b: decimal, to_b: decimal): decimal {
-        numeric_a : decimal = all_digits(a, from_a, to_a).value;
-        numeric_b : decimal = all_digits(b, from_b, to_b).value;
+        numeric_a : decimal = all_digits(a, from_a, to_a);
+        numeric_b : decimal = all_digits(b, from_b, to_b);
 
         if(numeric_a && numeric_b) {
             // no leading zeros, so the longer number is the larger; equal lengths compare digit by digit below

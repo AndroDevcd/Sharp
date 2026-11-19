@@ -123,6 +123,12 @@ def is_blank(text: string) : _int64 {
 // the setting that is being looked at: for the messages of require_type()
 current_setting : string = "";
 
+/** a true / false setting as 1 / 0 */
+def setting_is_on(member: json_value) : _int64 {
+    if(member.as_bool()) { return 1; }
+    return 0;
+}
+
 /** the value of one setting, or null when settings.json does not have it */
 def setting(settings: json_value, name: string) : json_value? {
    current_setting = name;
@@ -146,7 +152,7 @@ def process_settings() {
 
          if((member = setting(obj, "compile_only")) != null) {
             require_type(member!!, json_value.kind_bool);
-            enable_compile_only(member!!.as_bool().value);
+            enable_compile_only(setting_is_on(member!!));
          }
 
          if((member = setting(obj, "name")) != null) {
@@ -156,7 +162,7 @@ def process_settings() {
 
          if((member = setting(obj, "show_all_errors")) != null) {
             require_type(member!!, json_value.kind_bool);
-            enable_show_all_errors(member!!.as_bool().value);
+            enable_show_all_errors(setting_is_on(member!!));
          }
 
          if((member = setting(obj, "output")) != null || (member = setting(obj, "output_file")) != null) {
@@ -184,7 +190,7 @@ def process_settings() {
 
          if((member = setting(obj, "release_build")) != null || (member = setting(obj, "release")) != null) {
             require_type(member!!, json_value.kind_bool);
-            if(member!!.as_bool().value) {
+            if(member!!.as_bool()) {
                // (C++: enable_code_obfuscation(true); enable_app_debugging(false);)
                enable_release_mode();
                options.obfuscate_names = true;
@@ -193,27 +199,27 @@ def process_settings() {
 
          if((member = setting(obj, "debug")) != null) {
             require_type(member!!, json_value.kind_bool);
-            options.debug_file = member!!.as_bool().value;
+            options.debug_file = setting_is_on(member!!);
          }
 
          if((member = setting(obj, "obfuscate")) != null) {
             require_type(member!!, json_value.kind_bool);
-            options.obfuscate_names = member!!.as_bool().value;
+            options.obfuscate_names = setting_is_on(member!!);
          }
 
          if((member = setting(obj, "cache_files")) != null) {
             require_type(member!!, json_value.kind_bool);
-            options.file_caching = member!!.as_bool().value;
+            options.file_caching = setting_is_on(member!!);
          }
 
          if((member = setting(obj, "magic_mode")) != null) {
             require_type(member!!, json_value.kind_bool);
-            enable_magic_mode(member!!.as_bool().value);
+            enable_magic_mode(setting_is_on(member!!));
          }
 
          if((member = setting(obj, "compiler_debug_mode")) != null) {
             require_type(member!!, json_value.kind_bool);
-            enable_debug_mode(member!!.as_bool().value);
+            enable_debug_mode(setting_is_on(member!!));
          }
 
          if((member = setting(obj, "target")) != null) {
@@ -223,7 +229,7 @@ def process_settings() {
 
          if((member = setting(obj, "warnings")) != null) {
             require_type(member!!, json_value.kind_bool);
-            enable_warnings(member!!.as_bool().value);
+            enable_warnings(setting_is_on(member!!));
          }
 
          if((member = setting(obj, "enable_warnings")) != null) {
@@ -254,7 +260,7 @@ def process_settings() {
 
          if((member = setting(obj, "green_mode")) != null) {
             require_type(member!!, json_value.kind_bool);
-            enable_green_mode(member!!.as_bool().value);
+            enable_green_mode(setting_is_on(member!!));
          }
 
          if((member = setting(obj, "ignore_files")) != null) {
@@ -324,7 +330,7 @@ def process_settings() {
 
          if((member = setting(obj, "warnings_as_errors")) != null) {
             require_type(member!!, json_value.kind_bool);
-            if(member!!.as_bool().value) {
+            if(member!!.as_bool()) {
                enable_warnings_as_errors();
             }
          }

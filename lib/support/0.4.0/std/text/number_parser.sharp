@@ -370,16 +370,16 @@ class number_parser {
     }
 
     /** parse_bool(text) that returns null instead of throwing. */
-    static def parse_bool_or_null(text: string): bool? {
+    static def parse_bool_or_null(text: string): boolean? {
         value : decimal = check_bool(text.data);
         if(value < 0) return null;
-        return new bool(value);
+        return new boolean(value != 0);
     }
 
     /** parse_bool(text) that returns `fallback` instead of throwing. */
     static def parse_bool_or(text: string, fallback: bool): decimal {
         value : decimal = check_bool(text.data);
-        if(value < 0) return fallback.value;
+        if(value < 0) return fallback;
         return value;
     }
 }

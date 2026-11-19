@@ -5,7 +5,7 @@ Three scripts do everything:
 | To | Run | Where | Time |
 |---|---|---|---|
 | build Sharp | `bash build-scripts/build.sh` | Linux / WSL | minutes the first time, then seconds |
-| test it | `bash build-scripts/test.sh` | Linux / WSL | 5 minutes |
+| test it | `bash build-scripts/test.sh` | Linux / WSL | 1 to 2 minutes |
 | make a release | `bash build-scripts/release.sh 0.7.1` | Git Bash on Windows | 25 minutes |
 
 Each script starts with a comment that says what it does, its options, and what it prints.
@@ -38,7 +38,7 @@ build-scripts/
 
 In Linux / WSL: `sudo apt install g++ rsync python3 libsdl2-dev`
 
-On Windows, only for a release: Git Bash, a MinGW g++ (the one inside CLion is found by itself),
+On Windows, only for a release: Git Bash, a MinGW g++ (the one inside CLion is found by itself, see `windows/mingw.sh`),
 and SDL2's MinGW files in `build/deps/` (`windows/build_gui_library.sh` says where to get them).
 
 On a Windows PC, "Linux / WSL" means:
@@ -84,6 +84,9 @@ reports failures names the cases.
 | the standard library | also `test.sh only 8` (the suite: every case of `tests/suite` compiled and run) |
 | code generation or the optimizer | also `test.sh only 7 8 11 13` |
 | the VM, or before a big release | `test.sh full` |
+
+Tests run side by side: `TEST_GROUPS=<n>` says how many tests at once (default 4, `1` = one after the other) and
+`TEST_JOBS=<n>` how many compiles and programs inside each (default: one per core).
 
 `test.sh list` shows every test with its number. The tests themselves are in `tests/suite/`
 (the language and the library, one program per case) and `lib/compiler/tests/` (the compiler).

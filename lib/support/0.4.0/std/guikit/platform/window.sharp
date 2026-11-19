@@ -32,6 +32,25 @@ import (
  * height() each frame (or watch for EVENT_RESIZE) rather than remembering the
  * size you opened it with.
  */
+
+/**
+ * How a window sits on the screen.
+ *
+ *      windowed     an ordinary window of the size it was opened with
+ *      maximized    fills the desktop; the title bar and the taskbar stay
+ *      fullscreen   the whole screen and nothing else, at the resolution the
+ *                   screen already has (a game, a kiosk on a Raspberry Pi)
+ *
+ * Open in a mode with gui.run("App", window_mode.fullscreen, ...), change it
+ * while the program runs with gui.set_mode(...) or gui.fullscreen(true / false).
+ * (The numbers are the ones the native side uses: MODE_* in sharpgui.cpp.)
+ */
+enum window_mode {
+    windowed = 0,
+    maximized = 1,
+    fullscreen = 2
+}
+
 stable class window {
     // The native backend's id for this window (0 = not open). Private: the
     // outside world speaks to a window through its methods, never its handle.
@@ -42,11 +61,62 @@ stable class window {
     private current : event;
     private brush : painter;
 
+    // the mode to go back to when fullscreen(0) ends a fullscreen(1)
+    private before_fullscreen : window_mode = window_mode.windowed;
+
     window(title: string, w: _int32, h: _int32) {
         surface.ensure_loaded();                       // first window loads the native lib
         current = new event();
         brush = new painter();
         handle = surface_open(title, w, h);
+    }
+
+    /**
+     * The same, opened in a mode. w and h are still the size of the window
+     * itself: what it has when it is, or goes back to being, windowed.
+     */
+    window(title: string, w: _int32, h: _int32, opened_as: window_mode) {
+        surface.ensure_loaded();
+        current = new event();
+        brush = new painter();
+        code : _int64 = opened_as.ordinal;
+        surface_mode(code);                            // before the window exists: the mode it opens in
+        handle = surface_open(title, w, h);
+    }
+
+    /** change how the window sits on the screen, while it is open */
+    def set_mode(next: window_mode) {
+        if(handle == 0) {
+            return;
+        }
+        code : _int64 = next.ordinal;
+        surface_mode(code);
+    }
+
+    /** how the window sits on the screen right now (the user's own maximize button counts) */
+    def mode() : window_mode {
+        code : _int64 = surface_mode(0 - 1);           // a number that is no mode: only asks
+        if(code == 2) { return window_mode.fullscreen; }
+        if(code == 1) { return window_mode.maximized; }
+        return window_mode.windowed;
+    }
+
+    /** true: take the whole screen. false: go back to what the window was before. */
+    def fullscreen(on: bool) {
+        if(on) {
+            was : window_mode = mode();
+            if(was != window_mode.fullscreen) {
+                before_fullscreen = was;
+            }
+            set_mode(window_mode.fullscreen);
+        } else if(mode() == window_mode.fullscreen) {
+            set_mode(before_fullscreen);
+        }
+    }
+
+    /** does the window have the whole screen? */
+    def is_fullscreen() : bool {
+        return mode() == window_mode.fullscreen;
     }
 
     /** is the window still open? (false if it never opened, or was closed) */

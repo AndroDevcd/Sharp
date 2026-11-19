@@ -32,8 +32,10 @@ void get_original_console_settings() {
 }
 
 void reset_original_console_settings() {
-    // (tcsetattr is one of the functions a signal handler may call)
-    if(have_original) tcsetattr(0, TCSANOW, &original);
+    // Only a program the console belongs to right now may set it. Any other - one started by `timeout`,
+    // or with & - is STOPPED by the system for trying (SIGTTOU), and then never ends; there is also
+    // nothing of its own to put back. (tcsetattr, tcgetpgrp and getpgrp may all be called from a signal handler.)
+    if(have_original && tcgetpgrp(0) == getpgrp()) tcsetattr(0, TCSANOW, &original);
 }
 
 /* Initialize new terminal i/o settings */

@@ -59,7 +59,7 @@ def logical_operation(context: analysis_context, node: _int64, operation: _int64
         folded := fold_literals(context, node, operation, left_number!!, right_number!!);
         if(folded != null) { return folded!!; }
     }
-    made := new bound_logical(context.unit, node, operation == P_OROR, left_number!!, right_number!!, context.session.types.int32);
+    made := new bound_logical(context.unit, node, operation == P_OROR, left_number!!, right_number!!, context.session.types.bool_type);
     made.constant = folded_constant(operation, left_number!!, right_number!!, OPERANDS_INTEGER);
     return made;
 }
@@ -71,7 +71,7 @@ def report_not_a_truth_value(context: analysis_context, node: _int64, side: boun
     d := problem_over(context, "E0511", "`" + text + "` needs a number on both sides, but `" + written + "` is "
                       + described_value(side), side.node);
     d.with_label("not a truth value");
-    d.with_note("Sharp has no truth type of its own: a condition is a number (0 is false) or a number object such as `bool`");
+    d.with_note("a truth value is a `bool`, a `boolean` object, or a number (0 is false)");
     if(side.type.can_be_null() && side.type.is_number() == 0) {
         d.with_help("to ask \"is there one?\" write `" + written + " != null`");
     }

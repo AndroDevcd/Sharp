@@ -81,6 +81,7 @@ void jit_rt_grow_stack(sharp_thread *thread);
 // ---- objects ----------------------------------------------------------------------
 // The new object is returned (null with the exception flag set on failure);
 // compiled code pushes it.
+void jit_rt_remember(sharp_object *owner, object *slot);    // POPOBJ's write barrier, the rare part
 sharp_object* jit_rt_new_class(Int classAddress);
 sharp_object* jit_rt_new_number_array(Int size, Int type);
 sharp_object* jit_rt_new_object_array(Int size);

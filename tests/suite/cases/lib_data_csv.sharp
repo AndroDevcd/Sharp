@@ -103,7 +103,7 @@ def test_reader() {
 
     // row by row, with a header
     r := new csv_reader("name,age,city\nAda,36,London\nBob,41\n");
-    test("has_next") { expect_true(r.has_next().value); };
+    test("has_next") { expect_true(r.has_next()); };
     header := r.read_header();
     test("header size") { expect(header.size().value).should_be(3); };
     test("column_index") { expect(r.column_index("age")).should_be(1); };
@@ -112,12 +112,12 @@ def test_reader() {
     test("field by name") { expect(first.field("city")).should_be("London"); };
     test("field by position") { expect(first.at(0)).should_be("Ada"); };
     test("row size") { expect(first.size()).should_be(3); };
-    test("has_field") { expect_true(first.has_field("age").value); };
-    test("has_field unknown") { expect_false(first.has_field("zip").value); };
+    test("has_field") { expect_true(first.has_field("age")); };
+    test("has_field unknown") { expect_false(first.has_field("zip")); };
     test("to_string") { expect(first.to_string()!!).should_be("Ada, 36, London"); };
     second := r.next_row();
     test("short row size") { expect(second.size()).should_be(2); };
-    test("has_field on short row") { expect_false(second.has_field("city").value); };
+    test("has_field on short row") { expect_false(second.has_field("city")); };
     test("at_or") { expect(second.at_or(2, "?")).should_be("?"); };
     test("at_or present") { expect(second.at_or(1, "?")).should_be("41"); };
     try { second.field("city"); test("field missing in short row") { fail_test("no exception"); }; }
@@ -126,7 +126,7 @@ def test_reader() {
     catch(e: csv_exception) { test("unknown column") { }; }
     try { second.at(5); test("at outside") { fail_test("no exception"); }; }
     catch(e: out_of_bounds_exception) { test("at outside") { }; }
-    test("no more rows") { expect_false(r.has_next().value); };
+    test("no more rows") { expect_false(r.has_next()); };
     test("rows read") { expect(r.get_rows_read()).should_be(3); };
     try { r.next_row(); test("next_row at end") { fail_test("no exception"); }; }
     catch(e: illegal_state_exception) { test("next_row at end") { }; }
@@ -253,13 +253,13 @@ def main(args: string[]) {
     tests("lib_data_csv") {
         start := new file(base_dir);
         start.delete_recursively();
-        test("test directory created") { expect_true(start.mkdirs().value); };
+        test("test directory created") { expect_true(start.mkdirs()); };
 
         test_reader();
         test_writer();
         test_round_trip();
 
-        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("cleanup") { expect_true(start.delete_recursively()); };
     };
     finish_tests("lib_data_csv");
 }

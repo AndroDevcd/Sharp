@@ -259,7 +259,7 @@ def hand_offs() {
     b : _int64 = 7;
     c : _int64 = 2;
     show(a + b * c - a);
-    show((a < b) + (b < a) * 10);
+    show(((a < b) as _int64) + ((b < a) as _int64) * 10);
     d : decimal = 1.5;
     show_decimal(d * d + d);
     count : _int64 = 0;

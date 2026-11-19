@@ -289,9 +289,9 @@ class parse_state {
     }
 }
 
-/** is this the kind of a keyword that names a built-in type? (decimal, object, _int8 ...) */
+/** is this the kind of a keyword that names a built-in type? (decimal, object, bool, _int8 ...) */
 def is_native_type(kind: _int64) : _int64 {
-    return kind == K_DECIMAL || kind == K_OBJECT || (kind >= K_INT8 && kind <= K_UINT64);
+    return kind == K_DECIMAL || kind == K_OBJECT || kind == K_BOOL || (kind >= K_INT8 && kind <= K_UINT64);
 }
 
 /** public, private, static, ... : the words that may stand in front of a declaration */

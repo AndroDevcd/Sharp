@@ -34,29 +34,29 @@ def main(args: string[]) {
 
         // ================= a folder
         folder := new file(FOLDER);
-        test("the folder does not exist yet") { expect_false(folder.exists().value); };
-        test("something that does not exist is not a directory") { expect_false(folder.is_directory().value); };
-        test("something that does not exist is not a file") { expect_false(folder.is_file().value); };
+        test("the folder does not exist yet") { expect_false(folder.exists()); };
+        test("something that does not exist is not a directory") { expect_false(folder.is_directory()); };
+        test("something that does not exist is not a file") { expect_false(folder.is_file()); };
 
         test("mkdir returns 0") { expect(folder.mkdir().value).should_be(0); };
-        test("the folder exists after mkdir") { expect_true(folder.exists().value); };
-        test("it is a directory") { expect_true(folder.is_directory().value); };
-        test("it is not a file") { expect_false(folder.is_file().value); };
+        test("the folder exists after mkdir") { expect_true(folder.exists()); };
+        test("it is a directory") { expect_true(folder.is_directory()); };
+        test("it is not a file") { expect_false(folder.is_file()); };
         test("a new folder lists no entries") { expect(folder.list().size().value).should_be(0); };
         test("mkdir of a folder that exists does not return 0") { expect_true(folder.mkdir().value != 0); };
 
         // ================= a new file
         notes := new file(FOLDER + "/notes.txt");
-        test("the file does not exist before create()") { expect_false(notes.exists().value); };
-        test("create() returns true when it made the file") { expect_true(notes.create().value); };
-        test("it exists after create()") { expect_true(notes.exists().value); };
-        test("it is a file") { expect_true(notes.is_file().value); };
-        test("it is not a directory") { expect_false(notes.is_directory().value); };
+        test("the file does not exist before create()") { expect_false(notes.exists()); };
+        test("create() returns true when it made the file") { expect_true(notes.create()); };
+        test("it exists after create()") { expect_true(notes.exists()); };
+        test("it is a file") { expect_true(notes.is_file()); };
+        test("it is not a directory") { expect_false(notes.is_directory()); };
         test("a new file has length 0") { expect(notes.length().value).should_be(0); };
-        test("a new file is_empty()") { expect_true(notes.is_empty().value); };
-        test("a new file is readable") { expect_true(notes.is_readable().value); };
-        test("a new file is writeable") { expect_true(notes.is_writeable().value); };
-        test("a file whose name does not start with a dot is not hidden") { expect_false(notes.is_hidden().value); };
+        test("a new file is_empty()") { expect_true(notes.is_empty()); };
+        test("a new file is readable") { expect_true(notes.is_readable()); };
+        test("a new file is writeable") { expect_true(notes.is_writeable()); };
+        test("a file whose name does not start with a dot is not hidden") { expect_false(notes.is_hidden()); };
         test("read() of an empty file gives null") { expect_null(notes.read()); };
 
         // ---- names and paths
@@ -70,7 +70,7 @@ def main(args: string[]) {
         // ================= write and read back
         test("write returns 0") { expect(notes.write("hello file").value).should_be(0); };
         test("length after writing 10 characters") { expect(notes.length().value).should_be(10); };
-        test("not empty any more") { expect_false(notes.is_empty().value); };
+        test("not empty any more") { expect_false(notes.is_empty()); };
         test("read gives back what was written") { expect(notes.read()!!).should_be("hello file"); };
         test("reading twice gives the same") { expect(notes.read()!!).should_be("hello file"); };
 
@@ -94,7 +94,7 @@ def main(args: string[]) {
         test("length of a 10000 character file") { expect(notes.length().value).should_be(10000); };
         read_back := notes.read()!!;
         test("10000 characters read back") { expect(read_back.size().value).should_be(10000); };
-        test("...and they are the same characters") { expect_true((read_back == long_text).value); };
+        test("...and they are the same characters") { expect_true((read_back == long_text)); };
         test("character 9999 of what was read") { expect(read_back.at(9999).value).should_be('9'); };
 
         // ---- text built at run time, with punctuation
@@ -104,34 +104,34 @@ def main(args: string[]) {
 
         // ---- a second file object for the same path sees the same file
         same_file := new file(FOLDER + "/notes.txt");
-        test("another object for the same path: exists") { expect_true(same_file.exists().value); };
+        test("another object for the same path: exists") { expect_true(same_file.exists()); };
         test("another object for the same path: content") { expect(same_file.read()!!).should_be("total = 42; done."); };
         same_file.write("written through the other object");
         test("written through one object, read through the other") { expect(notes.read()!!).should_be("written through the other object"); };
 
         // ---- create() on a file that exists leaves it alone
-        test("create() returns false when the file is already there") { expect_false(notes.create().value); };
+        test("create() returns false when the file is already there") { expect_false(notes.create()); };
         test("...and the content is kept") { expect(notes.read()!!).should_be("written through the other object"); };
 
         // ================= a file that does not exist
         ghost := new file(FOLDER + "/ghost.txt");
-        test("exists() is false") { expect_false(ghost.exists().value); };
-        test("is_file() is false") { expect_false(ghost.is_file().value); };
-        test("is_hidden() is false") { expect_false(ghost.is_hidden().value); };
+        test("exists() is false") { expect_false(ghost.exists()); };
+        test("is_file() is false") { expect_false(ghost.is_file()); };
+        test("is_hidden() is false") { expect_false(ghost.is_hidden()); };
         test("read() gives null") { expect_null(ghost.read()); };
         test("delete() does not return 0") { expect_true(ghost.delete().value != 0); };
-        test("asking about it did not create it") { expect_false(ghost.exists().value); };
+        test("asking about it did not create it") { expect_false(ghost.exists()); };
 
         // ---- write() makes the file when it is not there
         test("write to a file that was never created returns 0") { expect(ghost.write("now I exist").value).should_be(0); };
-        test("...and the file is there") { expect_true(ghost.exists().value); };
+        test("...and the file is there") { expect_true(ghost.exists()); };
         test("...with the text") { expect(ghost.read()!!).should_be("now I exist"); };
         test("delete of it") { expect(ghost.delete().value).should_be(0); };
 
         // ---- a file in a folder that does not exist cannot be made
         lost := new file(FOLDER + "/no_such_folder/lost.txt");
-        test("create() in a missing folder returns false") { expect_false(lost.create().value); };
-        test("...and nothing exists") { expect_false(lost.exists().value); };
+        test("create() in a missing folder returns false") { expect_false(lost.create()); };
+        test("...and nothing exists") { expect_false(lost.exists()); };
 
         // ---- an empty path is refused
         threw : decimal = 0;
@@ -148,7 +148,7 @@ def main(args: string[]) {
         data.write("abc");
         hidden := new file(FOLDER + "/.hidden");
         hidden.create();
-        test("a name that starts with a dot is hidden") { expect_true(hidden.is_hidden().value); };
+        test("a name that starts with a dot is hidden") { expect_true(hidden.is_hidden()); };
 
         names := folder.list();
         test("three entries in the folder") { expect(names.size().value).should_be(3); };
@@ -172,7 +172,7 @@ def main(args: string[]) {
         // ---- a folder inside the folder
         inner := new file(FOLDER + "/inner");
         test("mkdir of a folder in the folder") { expect(inner.mkdir().value).should_be(0); };
-        test("the inner folder is a directory") { expect_true(inner.is_directory().value); };
+        test("the inner folder is a directory") { expect_true(inner.is_directory()); };
         deep := new file(FOLDER + "/inner/deep.txt");
         deep.create();
         deep.write("deep");
@@ -186,14 +186,14 @@ def main(args: string[]) {
 
         // ---- a folder that is not empty cannot be deleted
         test("delete of a folder with a file in it does not return 0") { expect_true(inner.delete().value != 0); };
-        test("...the folder is still there") { expect_true(inner.exists().value); };
-        test("...and so is the file") { expect_true(deep.exists().value); };
+        test("...the folder is still there") { expect_true(inner.exists()); };
+        test("...and so is the file") { expect_true(deep.exists()); };
 
         // ================= rename
         renamed := new file(FOLDER + "/renamed.txt");
         test("rename returns 0") { expect(notes.rename(renamed).value).should_be(0); };
-        test("the new name exists") { expect_true(renamed.exists().value); };
-        test("the old name is gone") { expect_false(new file(FOLDER + "/notes.txt").exists().value); };
+        test("the new name exists") { expect_true(renamed.exists()); };
+        test("the old name is gone") { expect_false(new file(FOLDER + "/notes.txt").exists()); };
         test("the content moved with the file") { expect(renamed.read()!!).should_be("written through the other object"); };
         test("the file object that was renamed now has the new path") { expect(notes.get_path()).should_be("/tmp/sharp_suite_std_files/renamed.txt"); };
         test("...and reads the same file") { expect(notes.read()!!).should_be("written through the other object"); };
@@ -204,20 +204,20 @@ def main(args: string[]) {
         // ---- rename into another folder moves the file
         moved := new file(FOLDER + "/inner/moved.bin");
         test("rename into the inner folder") { expect(data.rename(moved).value).should_be(0); };
-        test("it is in the inner folder now") { expect_true(moved.exists().value); };
+        test("it is in the inner folder now") { expect_true(moved.exists()); };
         test("with its content") { expect(moved.read()!!).should_be("abc"); };
         test("the inner folder lists two entries") { expect(inner.list().size().value).should_be(2); };
         test("the outer folder lists three") { expect(folder.list().size().value).should_be(3); };
 
         // ================= delete
         test("delete of a file returns 0") { expect(hidden.delete().value).should_be(0); };
-        test("a deleted file does not exist") { expect_false(hidden.exists().value); };
+        test("a deleted file does not exist") { expect_false(hidden.exists()); };
         test("two entries left in the outer folder") { expect(folder.list().size().value).should_be(2); };
         test("delete of the renamed file") { expect(renamed.delete().value).should_be(0); };
-        test("it is gone") { expect_false(renamed.exists().value); };
+        test("it is gone") { expect_false(renamed.exists()); };
 
         // a deleted file can be created again, empty
-        test("created again after delete") { expect_true(renamed.create().value); };
+        test("created again after delete") { expect_true(renamed.create()); };
         test("...and empty") { expect(renamed.length().value).should_be(0); };
         renamed.delete();
 
@@ -226,10 +226,10 @@ def main(args: string[]) {
         test("delete moved.bin") { expect(moved.delete().value).should_be(0); };
         test("the inner folder is empty") { expect(inner.list().size().value).should_be(0); };
         test("delete of the empty inner folder") { expect(inner.delete().value).should_be(0); };
-        test("the inner folder is gone") { expect_false(inner.exists().value); };
+        test("the inner folder is gone") { expect_false(inner.exists()); };
         test("the outer folder is empty") { expect(folder.list().size().value).should_be(0); };
         test("delete of the empty outer folder") { expect(folder.delete().value).should_be(0); };
-        test("the outer folder is gone") { expect_false(folder.exists().value); };
+        test("the outer folder is gone") { expect_false(folder.exists()); };
     };
     finish_tests("std_files");
 }

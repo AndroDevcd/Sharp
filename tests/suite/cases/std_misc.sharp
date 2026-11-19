@@ -139,19 +139,19 @@ def main(args: string[]) {
 
         // ================= result
         good := checked_divide(10, 4);
-        test("result without an error: is_success") { expect_true(good.is_success.value); };
+        test("result without an error: is_success") { expect_true(good.is_success); };
         test("result without an error: data") { expect(good.data.value).should_be(2.5); };
         test("result without an error: error is null") { expect_null(good.error); };
 
         failed := checked_divide(1, 0);
-        test("result with an error: is_success") { expect_false(failed.is_success.value); };
+        test("result with an error: is_success") { expect_false(failed.is_success); };
         test("result with an error: error") { expect_not_null(failed.error); };
         test("result with an error: its message") { expect(failed.error!!.get_message()).should_be("division by zero"); };
         test("result with an error: the data that was given") { expect(failed.data.value).should_be(0); };
 
         // a result with other types: text as data, text as error
         parsed := new result<string, string>("parsed", "unexpected end");
-        test("result<string, string> with an error") { expect_false(parsed.is_success.value); };
+        test("result<string, string> with an error") { expect_false(parsed.is_success); };
         test("its data") { expect(parsed.data).should_be("parsed"); };
         test("its error") { expect(parsed.error!!).should_be("unexpected end"); };
 

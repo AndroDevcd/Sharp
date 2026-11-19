@@ -50,7 +50,7 @@ obfuscate -keep_inclusive {
     char_array,
     int,
     char,
-    bool,
+    boolean,
     short,
     long,
     uint,

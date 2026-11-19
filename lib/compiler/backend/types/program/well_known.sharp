@@ -64,6 +64,7 @@ class well_known_classes {
         if(type.is_array == 1) { return null; }
         if(type.kind == RT_DECIMAL) { return double_class; }
         if(type.kind != RT_INTEGER) { return null; }
+        if(type.is_bool_type == 1) { return bool_class; }
         if(type.is_signed == 1) {
             if(type.bits == 8) { return char_class; }
             if(type.bits == 16) { return short_class; }
@@ -76,7 +77,7 @@ class well_known_classes {
         return ulong_class;
     }
 
-    /** is this one of the classes that hold a single number (int, bool, double ...)? */
+    /** is this one of the classes that hold a single number (int, boolean, double ...)? */
     def is_box(declared: sharp_class) : _int64 {
         return declared == int_class || declared == long_class || declared == double_class || declared == bool_class
             || declared == char_class || declared == byte_class || declared == short_class || declared == uchar_class
@@ -99,7 +100,7 @@ def find_well_known_classes(prog: sharp_program, problems: list<diagnostic>) : w
     known.pair_class = library_class(prog, library, "pair", problems);
     known.dictionary_class = library_class(prog, library, "dictionary", problems);
 
-    known.bool_class = library_class(prog, library, "bool", problems);
+    known.bool_class = library_class(prog, library, "boolean", problems);
     known.char_class = library_class(prog, library, "char", problems);
     known.uchar_class = library_class(prog, library, "uchar", problems);
     known.byte_class = library_class(prog, library, "byte", problems);

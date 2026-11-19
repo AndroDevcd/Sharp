@@ -55,7 +55,10 @@ fi
 
 # ---- the compiler
 if [ ! -f "$SEED" ]; then
-    ZIP=$(ls "$REPO"/releases/sharp-*.zip 2>/dev/null | sort -V | tail -1)
+    # the release of the version the sources say - not simply the highest number: an abandoned higher
+    # number (0.7.0, when the sources went back to the 0.4 line) must not win over the current one
+    ZIP="$REPO/releases/sharp-$LANGUAGE_VERSION.zip"
+    [ -f "$ZIP" ] || ZIP=$(ls "$REPO"/releases/sharp-*.zip 2>/dev/null | sort -V | tail -1)
     [ -n "$ZIP" ] || fail "no seed compiler at $SEED and no release in releases/ to take one from"
     mkdir -p "$(dirname "$SEED")"
     python3 - "$ZIP" "$SEED" <<'EOF' || fail "could not take the compiler out of the release (python3 is needed)"

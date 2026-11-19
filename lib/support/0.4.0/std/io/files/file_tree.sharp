@@ -257,7 +257,7 @@ mutate file {
                 continue;
             }
             top_file := new file(top);
-            is_dir : decimal = top_file.is_directory().value;
+            is_dir : decimal = top_file.is_directory();
             if(was_opened || !is_dir) {
                 // cannot be deleted (or is not there): give up on this one
                 pending.pop_back();

@@ -16,7 +16,7 @@ def plain(a: decimal) : decimal { return a + 1; }
 
 def main(args: string[]) {
     two : decimal = 2;
-    expect("(two < 3) + (4 > two)", (two < 3) + (4 > two), 2);
-    expect("with calls", (plain(1) < 3) + (4 > plain(1)), 2);
+    expect("(two < 3) + (4 > two)", ((two < 3) as _int32) + ((4 > two) as _int32), 2);
+    expect("with calls", ((plain(1) < 3) as _int32) + ((4 > plain(1)) as _int32), 2);
     finish("comparison_sum");
 }

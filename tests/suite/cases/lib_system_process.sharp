@@ -26,20 +26,20 @@ def esc(): string {
 def test_process() {
     r := process.run("echo hello");
     test("exit code 0") { expect(r.exit_code()).should_be(0); };
-    test("succeeded") { expect_true(r.succeeded().value); };
+    test("succeeded") { expect_true(r.succeeded()); };
     test("output") { expect(r.output()).should_be("hello\n"); };
     test("output_trimmed") { expect(r.output_trimmed()).should_be("hello"); };
     test("no error output") { expect(r.error_output()).should_be(""); };
     test("command") { expect(r.command()).should_be("echo hello"); };
-    test("check returns the result") { expect_true(r.check().succeeded().value); };
+    test("check returns the result") { expect_true(r.check().succeeded()); };
 
     r = process.run("exit 3");
     test("exit code 3") { expect(r.exit_code()).should_be(3); };
-    test("not succeeded") { expect_false(r.succeeded().value); };
+    test("not succeeded") { expect_false(r.succeeded()); };
     test("no output") { expect(r.output()).should_be(""); };
     test("no output lines") { expect(r.output_lines().size().value).should_be(0); };
     try { r.check(); test("check on failure") { fail_test("no exception"); }; }
-    catch(e: io_exception) { test("check message names the code") { expect_true(io_strings.contains(e.get_message(), "exit code 3").value); }; }
+    catch(e: io_exception) { test("check message names the code") { expect_true(io_strings.contains(e.get_message(), "exit code 3")); }; }
     test("exit code 255") { expect(process.run("exit 255").exit_code()).should_be(255); };
     test("false is 1") { expect(process.run("false").exit_code()).should_be(1); };
 
@@ -105,15 +105,15 @@ def test_process() {
     catch(e: illegal_argument_exception) { test("empty variable name") { }; }
     r = process.run("SHARP_SUITE_VAR='some value' sh -c 'printf %s " + io_strings.from_char(34) + dollar() + "SHARP_SUITE_VAR" + io_strings.from_char(34) + "'");
     test("variables reach child commands") { expect(r.output()).should_be("some value"); };
-    test("command_exists sh") { expect_true(process.command_exists("sh").value); };
-    test("command_exists nonsense") { expect_false(process.command_exists("this_command_does_not_exist_12345").value); };
+    test("command_exists sh") { expect_true(process.command_exists("sh")); };
+    test("command_exists nonsense") { expect_false(process.command_exists("this_command_does_not_exist_12345")); };
 
     // nothing is left behind in the temporary directory
     left : decimal = 0;
     temp_dir := new file(temp_files.directory());
     temp_names := temp_dir.list_names();
     foreach(name in temp_names) {
-        if(io_strings.starts_with(name, "sharp_proc_").value) {
+        if(io_strings.starts_with(name, "sharp_proc_")) {
             left++;
         }
     }
@@ -121,8 +121,8 @@ def test_process() {
 }
 
 def test_platform() {
-    test("is_windows") { expect_false(platform_info.is_windows().value); };
-    test("is_unix") { expect_true(platform_info.is_unix().value); };
+    test("is_windows") { expect_false(platform_info.is_windows()); };
+    test("is_unix") { expect_true(platform_info.is_unix()); };
     test("os_name") { expect(platform_info.os_name()).should_be("unix"); };
     test("os_id") { expect(platform_info.os_id()).should_be("posix"); };
     test("processor_count") { expect_true(platform_info.processor_count() >= 1); };
@@ -130,7 +130,7 @@ def test_platform() {
     test("path_list_separator") { expect(platform_info.path_list_separator()).should_be(':'); };
     test("line_separator") { expect(platform_info.line_separator()).should_be("\n"); };
     test("current_directory is absolute") { expect_true(platform_info.current_directory().data[0] == '/'); };
-    test("temp_directory exists") { expect_true(new file(platform_info.temp_directory()).is_directory().value); };
+    test("temp_directory exists") { expect_true(new file(platform_info.temp_directory()).is_directory()); };
     test("app_name") { expect_true(io_strings.length(platform_info.app_name()) > 0); };
     test("app_version") { expect_true(io_strings.length(platform_info.app_version()) > 0); };
     test("platform_version") { expect_true(io_strings.length(platform_info.platform_version()) > 0); };
@@ -143,12 +143,12 @@ def test_platform() {
     test("user_name is USER or LOGNAME") { expect(platform_info.user_name()).should_be(platform_info.environment_or("USER", platform_info.environment_or("LOGNAME", ""))); };
     test("free_disk_space") { expect_true(platform_info.free_disk_space() > 0); };
     test("total_disk_space is at least the free space") { expect_true(platform_info.total_disk_space() >= platform_info.free_disk_space()); };
-    test("summary") { expect_true(io_strings.starts_with(platform_info.summary(), "unix, ").value); };
+    test("summary") { expect_true(io_strings.starts_with(platform_info.summary(), "unix, ")); };
 }
 
 def test_ansi_console() {
     e := esc();
-    test("enabled by default") { expect_true(ansi.is_enabled().value); };
+    test("enabled by default") { expect_true(ansi.is_enabled()); };
     test("foreground") { expect(ansi.foreground(ansi.red)).should_be(e + "[31m"); };
     test("foreground bright") { expect(ansi.foreground(ansi.bright_blue)).should_be(e + "[94m"); };
     test("foreground black") { expect(ansi.foreground(ansi.black)).should_be(e + "[30m"); };
@@ -177,7 +177,7 @@ def test_ansi_console() {
     catch(e4: illegal_argument_exception) { test("row 0") { }; }
 
     ansi.set_enabled(false);
-    test("disabled") { expect_false(ansi.is_enabled().value); };
+    test("disabled") { expect_false(ansi.is_enabled()); };
     test("colored when disabled") { expect(ansi.colored("hi", ansi.red)).should_be("hi"); };
     test("colored on background when disabled") { expect(ansi.colored("hi", ansi.red, ansi.blue)).should_be("hi"); };
     test("styled when disabled") { expect(ansi.styled("hi", ansi.bold)).should_be("hi"); };
@@ -196,7 +196,7 @@ def test_ansi_console() {
     console.print_colored("", ansi.red);
     test("console helpers print nothing visible when there is nothing to print") { };
     ansi.set_enabled(true);
-    test("enabled again") { expect_true(ansi.is_enabled().value); };
+    test("enabled again") { expect_true(ansi.is_enabled()); };
 }
 
 def main(args: string[]) {
@@ -204,13 +204,13 @@ def main(args: string[]) {
     tests("lib_system_process") {
         start := new file(base_dir);
         start.delete_recursively();
-        test("test directory created") { expect_true(start.mkdirs().value); };
+        test("test directory created") { expect_true(start.mkdirs()); };
 
         test_process();
         test_platform();
         test_ansi_console();
 
-        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("cleanup") { expect_true(start.delete_recursively()); };
     };
     finish_tests("lib_system_process");
 }

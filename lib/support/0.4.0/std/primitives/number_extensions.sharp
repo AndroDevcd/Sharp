@@ -11,7 +11,7 @@ mod std;
  * returns an int when called on an int and a double when called on a double.
  *
  *     n : int = 15;
- *     n.is_odd().value                // true
+ *     n.is_odd()                // true
  *     n.coerce_in(0, 10).value        // 10
  *     n.compare_to(20)                // -1
  *     n.to_hex_string()               // "f"
@@ -261,7 +261,7 @@ mutate number {
      * fractions).
      */
     static def parse_or_null(text: string): NT? {
-        if(!is_parsable(text).value) return null;
+        if(!is_parsable(text)) return null;
         return parse_radix(text, 10);
     }
 
@@ -288,7 +288,7 @@ mutate number {
      * not one: int.parse_or("x", 0) is 0.
      */
     static def parse_or(text: string, fallback: NT): NT {
-        if(!is_parsable(text).value) return fallback;
+        if(!is_parsable(text)) return fallback;
         return parse_radix(text, 10);
     }
 }

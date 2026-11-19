@@ -38,7 +38,7 @@ def main(args: string[]) {
         zero : decimal = 0;
         nan : double = zero / zero;
         different : bool = nan != nan;
-        test("NaN != NaN on double objects") { expect_true(different.value); };                               // actual: false
+        test("NaN != NaN on double objects") { expect_true(different); };                               // actual: false
 
         // ---- BUG 4: string_builder keeps a stray trailing character: "ab" then 'c'
         // gives "abc" plus one more character. (The library builds text with

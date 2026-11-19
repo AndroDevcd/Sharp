@@ -112,13 +112,13 @@ def analyse_converted(context: analysis_context, node: _int64, wanted: resolved_
  * array, text, null - is E0411.
  *
  * @param only_bool  1: the condition of a STATEMENT (if, while, do, for,
- *        when): of the number classes only a `bool` object is accepted
+ *        when): of the number classes only a `boolean` object is accepted
  *        there (`if(an_int)` is an error in the C++ compiler too).
  *        0: the condition of `? :`, which takes any number object.
  *
- * A `bool?` (a bool object that may be null) is accepted as the condition
+ * A `boolean?` (a boolean object that may be null) is accepted as the condition
  * of a statement, as in the C++ compiler, which asks only for the class
- * `std#bool`: the object is read as if `flag!!` were written - null throws
+ * `std#boolean`: the object is read as if `flag!!` were written - null throws
  * when the program runs - and W1028 says so.
  */
 def analyse_condition(context: analysis_context, node: _int64, only_bool: _int64) : bound_expression {
@@ -161,18 +161,18 @@ def warn_assignment_as_condition(context: analysis_context, node: _int64) {
     report(context, d);
 }
 
-/** is the type `bool?`: one bool object, or null? */
+/** is the type `boolean?`: one boolean object, or null? */
 def is_nullable_bool(context: analysis_context, type: resolved_type) : _int64 {
     if(type.kind != RT_CLASS || type.is_array == 1 || type.is_nullable == 0) { return 0; }
     return type.class_of == context.session.known.bool_class;
 }
 
-/** W1028: `if(flag)` with `flag : bool?` - the object is read without asking whether there is one */
+/** W1028: `if(flag)` with `flag : boolean?` - the object is read without asking whether there is one */
 def warn_condition_may_be_null(context: analysis_context, value: bound_expression, node: _int64) {
     written := as_operand_text(context, node);
-    d := problem_over(context, "W1028", "this condition is a `bool?`: when it is null the program throws here", node);
+    d := problem_over(context, "W1028", "this condition is a `boolean?`: when it is null the program throws here", node);
     d.with_label("may be null");
-    d.with_note("a `bool` object is a condition through the number it holds; a `bool?` may hold no object at all, and reading it then raises the null-pointer exception");
+    d.with_note("a `boolean` object is a condition through the value it holds; a `boolean?` may hold no object at all, and reading it then raises the null-pointer exception");
     d.with_help("to say it is never null here write `" + written + "!!`; to take null as false write `" + written + " != null && " + written + "!!`");
     report(context, d);
 }
@@ -183,9 +183,9 @@ def report_not_a_condition(context: analysis_context, value: bound_expression, n
     written := source_text_of(context, node);
     what := described_type(type);
     if(value.literal == LIT_TEXT) { what = "text in quotes"; }
-    d := problem_over(context, "E0411", "a condition must be a number, but this is " + what, node);
+    d := problem_over(context, "E0411", "a condition must be a `bool`, but this is " + what, node);
     d.with_label("cannot be tested for true or false");
-    d.with_note("Sharp has no truth value of its own: a condition is a number, and 0 means false");
+    d.with_note("a condition is a `bool`, a `boolean` object, or a number (0 means false)");
 
     if(type.kind == RT_FUNCTION && type.is_array == 0 && value.kind == BX_FUNCTION_REFERENCE) {
         // `if(is_ready)` - the `()` is missing
@@ -202,7 +202,7 @@ def report_not_a_condition(context: analysis_context, value: bound_expression, n
         if(type.is_nullable == 1) { d.with_help("to ask \"is there an array?\" write `" + written + " != null`"); }
         else { d.with_help("to ask \"has it items?\" write `sizeof(" + written + ") > 0`"); }
     } else if(is_box_value(context.session, type)) {
-        d.with_note("of the number classes only a `bool` object is a condition by itself");
+        d.with_note("of the number classes only a `boolean` object is a condition by itself");
         d.with_help("compare its number: `" + as_operand_text(context, node) + ".value != 0`");
     } else if(type.can_be_null()) {
         d.with_help("to ask \"is there an object?\" write `" + written + " != null`");

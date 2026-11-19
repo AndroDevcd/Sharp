@@ -107,7 +107,7 @@ class mutex {
                 got = 1;
             }
         }
-        return got;
+        return got != 0;
     }
 
     /**
@@ -192,7 +192,7 @@ class mutex {
                 }
             }
         }
-        return mine;
+        return mine != 0;
     }
 
     /** number of coroutines waiting for the mutex right now */

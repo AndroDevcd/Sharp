@@ -75,6 +75,13 @@ def fold_literals(context: analysis_context, node: _int64, operation: _int64, le
     b : constant_value = right.constant!!;
     any_decimal : _int64 = left.literal == LIT_DECIMAL || right.literal == LIT_DECIMAL;
 
+    // the answer is true or false: a comparison, && and ||, and & | ^ of two bools
+    if(is_comparison(operation) || operation == P_ANDAND || operation == P_OROR || left.type.is_boolean()) {
+        if(any_decimal == 1 && is_comparison(operation)) {
+            return bool_literal(context, node, decimal_result(operation, decimal_of(a), decimal_of(b)) != 0);
+        }
+        return bool_literal(context, node, whole_result(operation, whole_of(a), whole_of(b)));
+    }
     if((operation == P_PLUS || operation == P_MINUS || operation == P_STAR) && any_decimal == 0) {
         return whole_literal(context, node, whole_result(operation, whole_of(a), whole_of(b)));
     }
@@ -87,6 +94,13 @@ def fold_literals(context: analysis_context, node: _int64, operation: _int64, le
     }
     return new bound_literal(context.unit, node, types.decimal_type,
                              decimal_constant(decimal_result(operation, decimal_of(a), decimal_of(b))), LIT_DECIMAL);
+}
+
+/** a `bool` literal made by folding: false for 0, true for anything else */
+def bool_literal(context: analysis_context, node: _int64, value: _int64) : bound_expression {
+    truth : _int64 = 0;
+    if(value != 0) { truth = 1; }
+    return new bound_literal(context.unit, node, context.session.types.bool_type, integer_constant(truth), LIT_BOOL);
 }
 
 /** a whole-number literal made by folding: _int32 when it fits, _int64 otherwise */

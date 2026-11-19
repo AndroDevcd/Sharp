@@ -12,7 +12,7 @@ import ( std.math )
  *     foreach(i in new range(1, 5)) { ... }            // 1 2 3 4 5
  *     foreach(i in new range(10, 1, 0 - 3)) { ... }    // 10 7 4 1
  *     foreach(i in range.until(0, 4)) { ... }          // 0 1 2 3
- *     new range(1, 10).contains(7).value               // true
+ *     new range(1, 10).contains(7)               // true
  *     new range(1, 10).stepped(2).to_array()           // { 1, 3, 5, 7, 9 }
  *
  * A range is a VALUE: it cannot be changed after it is made; reversed()
@@ -126,7 +126,7 @@ class range : loopable<decimal> {
      * when the range does not contain it.
      */
     def index_of(value: decimal): decimal {
-        if(!contains(value).value) return 0 - 1;
+        if(!contains(value)) return 0 - 1;
         return (value - first) / step;
     }
 
@@ -188,7 +188,7 @@ class range : loopable<decimal> {
 
     /** true when the ranges produce different values */
     def operator!=(other: range): bool {
-        return !operator==(other).value;
+        return !operator==(other);
     }
 
     /** "1..10", "1..9 step 2", "10..1 step -3" */

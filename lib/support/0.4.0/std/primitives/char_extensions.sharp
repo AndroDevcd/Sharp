@@ -9,9 +9,9 @@ mod std;
  * methods, called on the character itself, plus a few that were missing:
  *
  *     c : char = 'G';
- *     c.is_upper_case().value         // true
+ *     c.is_upper_case()         // true
  *     c.lower_case().value            // 'g'
- *     c.is_hex_digit().value          // false
+ *     c.is_hex_digit()          // false
  *     digit : char = '7';
  *     digit.digit_value()             // 7
  *     char.from_digit(11).value       // 'b'

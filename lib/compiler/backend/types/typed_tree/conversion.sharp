@@ -54,6 +54,7 @@ const WHY_OBJECT_TO_NUMBER : _int64 = 7;    // an object where a plain number is
 const WHY_NEEDS_CAST       : _int64 = 8;    // possible, but only when written with `as`
 const WHY_FUNCTION_SHAPE   : _int64 = 9;    // two function types that differ
 const WHY_NOT_CASTABLE     : _int64 = 10;   // `as` to or from something that cannot be cast at all
+const WHY_NUMBER_TO_BOOL   : _int64 = 11;   // a number where a `bool` is wanted: write the test (`n != 0`)
 
 class conversion {
     kind : _int64;                  // CONV_...

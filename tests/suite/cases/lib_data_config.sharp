@@ -40,12 +40,12 @@ def test_ini_reading() {
     test("keys of a section") { expect(io_strings.join(config.keys("server"), "|")).should_be("host|port|debug|url"); };
     test("keys of empty section") { expect(config.keys("empty section").size().value).should_be(0); };
     test("keys of missing section") { expect(config.keys("nope").size().value).should_be(0); };
-    test("has_section") { expect_true(config.has_section("paths").value); };
-    test("has_section empty") { expect_true(config.has_section("empty section").value); };
-    test("has_section missing") { expect_false(config.has_section("Server").value); };
-    test("has") { expect_true(config.has("server", "host").value); };
-    test("has missing key") { expect_false(config.has("server", "Host").value); };
-    test("has missing section") { expect_false(config.has("nope", "host").value); };
+    test("has_section") { expect_true(config.has_section("paths")); };
+    test("has_section empty") { expect_true(config.has_section("empty section")); };
+    test("has_section missing") { expect_false(config.has_section("Server")); };
+    test("has") { expect_true(config.has("server", "host")); };
+    test("has missing key") { expect_false(config.has("server", "Host")); };
+    test("has missing section") { expect_false(config.has("nope", "host")); };
     test("find missing key is null") { expect_true(io_strings.is_null(config.find("server", "nope"))); };
     test("find missing section is null") { expect_true(io_strings.is_null(config.find("nope", "host"))); };
     test("value_or fallback") { expect(config.value_or("server", "nope", "dflt")).should_be("dflt"); };
@@ -55,18 +55,18 @@ def test_ini_reading() {
     test("number_or fallback") { expect(config.number_or("server", "timeout", 30)).should_be(30); };
     try { config.number_or("server", "host", 0); test("number_or on text") { fail_test("no exception"); }; }
     catch(e: number_format_exception) { test("number_or on text") { }; }
-    test("bool_or yes") { expect_true(config.bool_or("server", "debug", false).value); };
-    test("bool_or fallback") { expect_true(config.bool_or("server", "nope", true).value); };
+    test("bool_or yes") { expect_true(config.bool_or("server", "debug", false)); };
+    test("bool_or fallback") { expect_true(config.bool_or("server", "nope", true)); };
     try { config.bool_or("server", "host", false); test("bool_or on text") { fail_test("no exception"); }; }
     catch(e: parse_exception) { test("bool_or on text") { }; }
     words := ini_file.parse("a = TRUE\nb = On\nc = 1\nd = false\ne = No\nf = OFF\ng = 0\n");
-    test("TRUE") { expect_true(words.bool_or("", "a", false).value); };
-    test("On") { expect_true(words.bool_or("", "b", false).value); };
-    test("1") { expect_true(words.bool_or("", "c", false).value); };
-    test("false") { expect_false(words.bool_or("", "d", true).value); };
-    test("No") { expect_false(words.bool_or("", "e", true).value); };
-    test("OFF") { expect_false(words.bool_or("", "f", true).value); };
-    test("0") { expect_false(words.bool_or("", "g", true).value); };
+    test("TRUE") { expect_true(words.bool_or("", "a", false)); };
+    test("On") { expect_true(words.bool_or("", "b", false)); };
+    test("1") { expect_true(words.bool_or("", "c", false)); };
+    test("false") { expect_false(words.bool_or("", "d", true)); };
+    test("No") { expect_false(words.bool_or("", "e", true)); };
+    test("OFF") { expect_false(words.bool_or("", "f", true)); };
+    test("0") { expect_false(words.bool_or("", "g", true)); };
 
     section := config.section("server")!!;
     test("section name") { expect(section.name()).should_be("server"); };
@@ -93,7 +93,7 @@ def test_ini_reading() {
         ini_file.parse("a=1\nb=2\noops\n");
         test("message") { fail_test("no exception"); };
     } catch(e: parse_exception) {
-        test("message names the line") { expect_true(io_strings.contains(e.get_message(), "line 3").value); };
+        test("message names the line") { expect_true(io_strings.contains(e.get_message(), "line 3")); };
     }
 }
 
@@ -110,17 +110,17 @@ def test_ini_writing() {
     test("round trip padded") { expect(back.find("paths", "home")!!).should_be("  padded  "); };
     test("round trip multi line") { expect(back.find("paths", "multi")!!).should_be("two\nlines\t" + q + "x" + q + " \\ end"); };
     test("round trip number") { expect(back.number_or("server", "port", 0)).should_be(8080); };
-    test("round trip bool") { expect_true(back.bool_or("server", "debug", false).value); };
+    test("round trip bool") { expect_true(back.bool_or("server", "debug", false)); };
     test("written again the same") { expect(back.to_string()!!).should_be(config.to_string()!!); };
 
     config.put("server", "port", "9090");
     test("put replaces") { expect(config.find("server", "port")!!).should_be("9090"); };
     test("...and keeps its place") { expect(config.keys("server").at(1)).should_be("port"); };
-    test("remove") { expect_true(config.remove("server", "debug").value); };
-    test("remove again") { expect_false(config.remove("server", "debug").value); };
-    test("remove from missing section") { expect_false(config.remove("nope", "x").value); };
-    test("remove_section") { expect_true(config.remove_section("paths").value); };
-    test("remove_section again") { expect_false(config.remove_section("paths").value); };
+    test("remove") { expect_true(config.remove("server", "debug")); };
+    test("remove again") { expect_false(config.remove("server", "debug")); };
+    test("remove from missing section") { expect_false(config.remove("nope", "x")); };
+    test("remove_section") { expect_true(config.remove_section("paths")); };
+    test("remove_section again") { expect_false(config.remove_section("paths")); };
     test("after removals") { expect(config.to_string()!!).should_be("name = demo\nversion = 1.5\n\n[server]\nhost = localhost\nport = 9090\n"); };
 
     only := new ini_file();
@@ -288,13 +288,13 @@ def main(args: string[]) {
     tests("lib_data_config") {
         start := new file(base_dir);
         start.delete_recursively();
-        test("test directory created") { expect_true(start.mkdirs().value); };
+        test("test directory created") { expect_true(start.mkdirs()); };
 
         test_ini_reading();
         test_ini_writing();
         test_xml();
 
-        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("cleanup") { expect_true(start.delete_recursively()); };
     };
     finish_tests("lib_data_config");
 }

@@ -101,6 +101,10 @@ Int jit_rt_catch(sharp_thread *thread) {
     }
 }
 
+void jit_rt_remember(sharp_object *owner, object *slot) {
+    gc_remember_store(owner, slot);
+}
+
 void jit_rt_null_pointer(sharp_thread *thread) {
     vm_exception err(vm.nullptr_except, "");
     enable_exception_flag(thread, true);

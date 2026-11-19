@@ -182,7 +182,7 @@ def main(args: string[]) {
     expect("out_of_range", out_of_range, 0);
     expect("in_range && !out_of_range", in_range && !out_of_range, 1);
     answer : bool = t && !f;
-    expect("in a bool object", answer.value, 1);
+    expect("in a bool object", answer, 1);
 
     // ---- through functions
     expect("both(1, 1)", both(1, 1), 1);

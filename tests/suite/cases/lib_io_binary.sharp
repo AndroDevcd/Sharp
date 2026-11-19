@@ -34,9 +34,9 @@ def through_buffer(value: decimal, little: decimal): decimal {
 def test_bytes() {
     buf := new byte_buffer();
     test("new buffer size") { expect(buf.size()).should_be(0); };
-    test("is_empty") { expect_true(buf.is_empty().value); };
-    test("big endian by default") { expect_true(buf.is_big_endian().value); };
-    test("nothing remaining") { expect_false(buf.has_remaining().value); };
+    test("is_empty") { expect_true(buf.is_empty()); };
+    test("big endian by default") { expect_true(buf.is_big_endian()); };
+    test("nothing remaining") { expect_false(buf.has_remaining()); };
     test("to_array of empty") { expect_null(buf.to_array()); };
     test("to_string of empty") { expect(buf.to_string()!!).should_be(""); };
 
@@ -51,7 +51,7 @@ def test_bytes() {
     test("peek_uint8") { expect(buf.peek_uint8()).should_be(44); };
     test("300 wrapped to 44") { expect(buf.get_uint8()).should_be(44); };
     test("128 as signed") { expect(buf.get_int8()).should_be(0 - 128); };
-    test("at the end") { expect_false(buf.has_remaining().value); };
+    test("at the end") { expect_false(buf.has_remaining()); };
     try { buf.get_int8(); test("read past end") { fail_test("no exception"); }; }
     catch(e: out_of_bounds_exception) { test("read past end") { }; }
     try { buf.peek_uint8(); test("peek past end") { fail_test("no exception"); }; }
@@ -96,7 +96,7 @@ def test_numbers() {
     test("get_int64") { expect(big.get_int64()).should_be(0x1122334455); };
 
     little := new byte_buffer().little_endian();
-    test("is_big_endian after switch") { expect_false(little.is_big_endian().value); };
+    test("is_big_endian after switch") { expect_false(little.is_big_endian()); };
     little.put_int16(0x1234).put_int32(0x12345678).put_int64(0x1122334455);
     test("little endian layout") { expect(hex_of(little)).should_be("3412785634125544332211000000"); };
     test("little get_int16") { expect(little.get_int16()).should_be(0x1234); };
@@ -245,8 +245,8 @@ def test_strings() {
     b := new byte_buffer();
     b.put_bytes(null).put_buffer(a).put_buffer(a);
     test("put_buffer") { expect(b.to_string()!!).should_be("xyzxyz"); };
-    test("same_bytes") { expect_true(a.same_bytes(byte_buffer.from_string("xyz")).value); };
-    test("same_bytes different") { expect_false(a.same_bytes(b).value); };
+    test("same_bytes") { expect_true(a.same_bytes(byte_buffer.from_string("xyz"))); };
+    test("same_bytes different") { expect_false(a.same_bytes(b)); };
     test("to_array") { expect(sizeof(b.to_array())).should_be(6); };
 
     // to a file and back
@@ -259,7 +259,7 @@ def test_strings() {
     all.write_to(target);
     test("file length") { expect(target.size()).should_be(272); };
     loaded := byte_buffer.from_file(target);
-    test("file round trip") { expect_true(loaded.same_bytes(all).value); };
+    test("file round trip") { expect_true(loaded.same_bytes(all)); };
     loaded.skip(256);
     test("double from file") { expect(loaded.get_float64()).should_be(2.5); };
     test("string from file") { expect(loaded.get_string_prefixed()).should_be("tail"); };
@@ -283,9 +283,9 @@ def test_writer_reader() {
     test("size") { expect(out.size()).should_be(50); };
 
     input := new binary_reader(out.to_array());
-    test("has_more") { expect_true(input.has_more().value); };
-    test("bool true") { expect_true(input.read_bool().value); };
-    test("bool false") { expect_false(input.read_bool().value); };
+    test("has_more") { expect_true(input.has_more()); };
+    test("bool true") { expect_true(input.read_bool()); };
+    test("bool false") { expect_false(input.read_bool()); };
     test("unsigned byte") { expect(input.read_unsigned_byte()).should_be(200); };
     test("short") { expect(input.read_short()).should_be(0 - 2); };
     test("int") { expect(input.read_int()).should_be(123456789); };
@@ -304,7 +304,7 @@ def test_writer_reader() {
     test("bytes content") { expect(bytes[1]).should_be(8); };
     test("null bytes") { expect_null(input.read_bytes()); };
     test("remaining") { expect(input.remaining()).should_be(0); };
-    test("has_more at end") { expect_false(input.has_more().value); };
+    test("has_more at end") { expect_false(input.has_more()); };
     try { input.read_int(); test("read past end") { fail_test("no exception"); }; }
     catch(e: out_of_bounds_exception) { test("read past end") { }; }
 
@@ -389,7 +389,7 @@ def main(args: string[]) {
     tests("lib_io_binary") {
         start := new file(base_dir);
         start.delete_recursively();
-        test("test directory created") { expect_true(start.mkdirs().value); };
+        test("test directory created") { expect_true(start.mkdirs()); };
 
         test_bytes();
         test_numbers();
@@ -397,7 +397,7 @@ def main(args: string[]) {
         test_strings();
         test_writer_reader();
 
-        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("cleanup") { expect_true(start.delete_recursively()); };
     };
     finish_tests("lib_io_binary");
 }

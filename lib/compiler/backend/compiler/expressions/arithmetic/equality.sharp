@@ -38,7 +38,7 @@ import (
 
 /** `left == null` / `left != null` */
 def null_test(context: analysis_context, node: _int64, operation: _int64, left: bound_expression, right: bound_expression) : bound_expression {
-    return new bound_binary(context.unit, node, operation, left, right, OPERANDS_NULL_TEST, context.session.types.int8);
+    return new bound_binary(context.unit, node, operation, left, right, OPERANDS_NULL_TEST, context.session.types.bool_type);
 }
 
 /**
@@ -53,7 +53,7 @@ def same_object_test(context: analysis_context, node: _int64, operation: _int64,
     is_object_either : _int64 = (left.type.kind == RT_OBJECT && left.type.is_array == 0)
                                || (right.type.kind == RT_OBJECT && right.type.is_array == 0);
     if(left.type.is_array != right.type.is_array && is_object_either == 0) { return null; }
-    return new bound_binary(context.unit, node, operation, left, right, OPERANDS_REFERENCE, context.session.types.int8);
+    return new bound_binary(context.unit, node, operation, left, right, OPERANDS_REFERENCE, context.session.types.bool_type);
 }
 
 /**

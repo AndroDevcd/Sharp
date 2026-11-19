@@ -143,6 +143,7 @@ class sharp_type {
 def native_name(kind: _int64) : string {
     if(kind == K_DECIMAL) { return "decimal"; }
     if(kind == K_OBJECT) { return "object"; }
+    if(kind == K_BOOL) { return "bool"; }
     if(kind == K_INT8) { return "_int8"; }
     if(kind == K_INT16) { return "_int16"; }
     if(kind == K_INT32) { return "_int32"; }

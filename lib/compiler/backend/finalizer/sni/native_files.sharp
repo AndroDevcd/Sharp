@@ -40,6 +40,7 @@ def cpp_type_of(type: resolved_type?) : string {
     text := signature_type_text(type);
     if(text == "nil") { return "void"; }
     if(text == "decimal") { return "double"; }
+    if(text == "bool") { return "bool"; }
     if(text == "_int8") { return "int8_t"; }
     if(text == "_int16") { return "int16_t"; }
     if(text == "_int32") { return "int32_t"; }

@@ -40,7 +40,7 @@ xcopy /e /i /q /y "%SHARED%\examples" "%DEST%\examples" >nul
 if not exist "%DEST%\bin\sharp.exe" goto nocopy
 
 rem ---- the PATH of this user: add %DEST%\bin once (PowerShell: no length limit, and running programs are told)
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$bin = Join-Path $env:LOCALAPPDATA 'Sharp\bin'; $path = [Environment]::GetEnvironmentVariable('Path', 'User'); $parts = @(); if ($path) { $parts = $path.Split(';') | Where-Object { $_ -and ($_.TrimEnd('\') -ne $bin) } }; $parts += $bin; [Environment]::SetEnvironmentVariable('Path', ($parts -join ';'), 'User')"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bin = Join-Path $env:LOCALAPPDATA 'Sharp\bin'; $path = [Environment]::GetEnvironmentVariable('Path', 'User'); $parts = @(); if ($path) { $parts = @($path.Split(';') | Where-Object { $_ -and ($_.TrimEnd('\') -ne $bin) }) }; $parts += $bin; [Environment]::SetEnvironmentVariable('Path', ($parts -join ';'), 'User')"
 if errorlevel 1 echo (the PATH could not be changed: add %DEST%\bin to your PATH by hand)
 
 rem ---- the proof: compile and run the example

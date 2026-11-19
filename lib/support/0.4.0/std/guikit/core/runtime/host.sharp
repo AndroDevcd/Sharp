@@ -29,6 +29,20 @@ import (
  * a repaint later (a blinking text cursor) with wake_in(seconds).
  * (A game's canvas simply asks for a frame every frame.)
  *
+ * THE FRAME RATE (gui.frame_rate, 60 unless the program says otherwise)
+ *
+ *   Step 4 paints at most that many times a second. While something moves,
+ *   the loop SLEEPS between two frames instead of painting the next one at
+ *   once - so 30 does about half the work of 60, and 10 is visibly jerky and
+ *   costs very little. Events are still read the moment they arrive; only
+ *   what they change on the screen waits for the next frame. With 0 there is
+ *   no limit at all: frames are painted and shown as fast as the machine can.
+ *
+ *   The loop times the frames itself for every limit. The screen's refresh
+ *   cannot be trusted to do it: not every system really waits for it, and
+ *   where nothing waits (the software renderer of an older Pi) the limit is
+ *   the only thing that stops an animation from painting flat out.
+ *
  * INPUT ROUTING
  *
  *   mouse   The view under the mouse is found from the tree (view.find_at);
@@ -64,6 +78,12 @@ stable class ui_host {
      * (view.measure); a new pass makes every view measure afresh.
      */
     static pass : _int64 = 0;
+
+    /** the most frames painted in a second (gui.frame_rate); 0: no limit */
+    static frame_limit : _int64 = 60;
+
+    /** is the frames-per-second box painted in the top right corner? (gui.show_fps) */
+    static fps_shown : bool = false;
 
     win : window;
     look : theme;
@@ -109,6 +129,18 @@ stable class ui_host {
     private wake_at : decimal = 0;      // the time (win.time()) a repaint is needed anyway (0: none)
     private ring_shown : _int64 = 0;    // 1 once the keyboard moved the focus: show where it is
 
+    // ---- the frame rate (see THE FRAME RATE above)
+    private limit_in_force : _int64 = 0 - 1;    // the frame_limit the two numbers below were worked out for (-1: none yet)
+    private frame_gap : decimal = 0;            // seconds between two frames the loop itself keeps (0: it keeps none)
+    private next_frame_at : decimal = 0;        // the time (win.time()) the next frame may be painted
+
+    // ---- the frames-per-second box
+    private fps_frames : _int64 = 0;            // frames painted since fps_since
+    private fps_since : decimal = 0;
+    private fps_value : _int64 = 0 - 1;         // what the box says (-1: nothing measured yet)
+    private fps_ms : decimal = 0;               // how long the last frame took to paint, in milliseconds
+    private fps_own_frame : bool = false;       // the next frame is only painted to update the box: it is not counted
+
     // fonts by size, so widgets do not make a font object per frame
     private font_sizes : list<font> = new list<font>();
     private bold_sizes : list<font> = new list<font>();
@@ -127,6 +159,16 @@ stable class ui_host {
         }
         look = chosen_theme!!;
         win = new window(title, width, height);
+        title_given = new string(title);
+    }
+
+    /** the same, with the window opened maximized or fullscreen (window_mode in window.sharp) */
+    ui_host(title: string, width: _int32, height: _int32, opened_as: window_mode) {
+        if(chosen_theme == null) {
+            chosen_theme = theme.dark();
+        }
+        look = chosen_theme!!;
+        win = new window(title, width, height, opened_as);
         title_given = new string(title);
     }
 
@@ -170,6 +212,9 @@ stable class ui_host {
             }
             main_queue.run_waiting();             // what background threads handed over with on_main (main_queue.sharp)
             timer.run_due(now);                   // gui.after / gui.every (timer.sharp)
+            if(!win.is_open()) {
+                break;                            // what just ran closed the window: nothing left to paint on
+            }
             if(animated.step_all(now) == 1) {     // numbers that are gliding (animated.sharp)
                 frame_wanted = 1;
             }
@@ -177,6 +222,9 @@ stable class ui_host {
                 frame_wanted = 1;
             }
             watch_the_clock();                    // long presses, tooltips and toasts are about time passing
+            if(fps_shown) {
+                count_frames();                   // once a second: what the frames-per-second box says
+            }
 
             rebuild_stale();
 
@@ -196,17 +244,49 @@ stable class ui_host {
             }
 
             if(paint_due == 1 || frame_wanted == 1) {
-                paint_due = 0;
-                frame_wanted = 0;
-                wake_at = 0;                      // widgets that still need waking ask again while painting
-                p.reset();
-                win.clear(look.background);
-                top!!.paint(p);
-                paint_overlays(p, width, height);
-                paint_focus_ring(p);
-                paint_tip(p, width, height);
-                paint_toasts(p, width, height);
-                win.show();                       // waits for the screen's refresh
+                follow_frame_limit();             // gui.frame_rate(...) may have changed since the last frame
+                started : decimal = win.time();
+
+                if(frame_gap > 0 && started < next_frame_at) {
+                    // There is something to paint, but the frame rate says not
+                    // yet: sleep until it is time. This sleep is what the limit
+                    // saves. (An event ends it early; the event is read, and the
+                    // loop comes back here to sleep out the rest.)
+                    wait_for_frame(next_frame_at - started);
+                } else {
+                    paint_due = 0;
+                    frame_wanted = 0;
+                    wake_at = 0;                  // widgets that still need waking ask again while painting
+                    p.reset();
+                    win.clear(look.background);
+                    top!!.paint(p);
+                    paint_overlays(p, width, height);
+                    paint_focus_ring(p);
+                    paint_tip(p, width, height);
+                    paint_toasts(p, width, height);
+                    if(fps_shown) {
+                        paint_frames_box(p, width);    // last: on top of everything
+                    }
+
+                    if(fps_own_frame) {
+                        fps_own_frame = false;        // painted only to update the box: not a frame of the app
+                    } else {
+                        fps_frames += 1;
+                        fps_ms = (win.time() - started) * 1000;
+                    }
+                    win.show();                   // waits for the screen's refresh, where the screen sets the pace
+
+                    // when the next frame may come: one gap after this one was DUE
+                    // (not after it was painted, which would let the rate drift
+                    // down) - unless the loop was resting, then one gap from now
+                    if(frame_gap > 0) {
+                        if(next_frame_at + frame_gap < started) {
+                            next_frame_at = started + frame_gap;
+                        } else {
+                            next_frame_at = next_frame_at + frame_gap;
+                        }
+                    }
+                }
             } else {
                 rest();
             }
@@ -315,6 +395,89 @@ stable class ui_host {
             if(nap_ms < 1) { nap_ms = 1; }
         }
         surface_wait(nap_ms);
+    }
+
+    // ------------------------------------------------------------ the frame rate
+
+    /**
+     * Work out how the frame_limit is kept, when it has changed:
+     *
+     *   0           no limit: showing a frame does not wait for the screen either
+     *               (where the system allows that)
+     *   any other   the loop keeps it: frame_gap seconds between two frames
+     */
+    private def follow_frame_limit() {
+        if(limit_in_force == frame_limit) {
+            return;
+        }
+        limit_in_force = frame_limit;
+
+        if(frame_limit <= 0) {
+            surface_pace(0);
+            frame_gap = 0;
+            return;
+        }
+
+        surface_pace(1);
+        frame_gap = 1.0 / frame_limit;
+        next_frame_at = 0;
+    }
+
+    /** a frame is due in `seconds`: sleep until then, or until an event or a timer needs the loop */
+    private def wait_for_frame(seconds: decimal) {
+        nap_ms : _int64 = seconds * 1000;
+        if(nap_ms < 1) { nap_ms = 1; }
+
+        timer_in : decimal = timer.next_due_in(win.time());
+        if(timer_in >= 0 && timer_in * 1000 < nap_ms) {
+            nap_ms = timer_in * 1000;
+            if(nap_ms < 1) { nap_ms = 1; }
+        }
+        surface_wait(nap_ms);
+    }
+
+    // ------------------------------------------------------------ the frames-per-second box (gui.show_fps)
+
+    /**
+     * Once a second: how many frames were painted in it. When the number is
+     * not the one in the box, the box is painted again - by a frame of its
+     * own if the app has none coming, and that frame is not counted. So an
+     * app that is standing still shows 0 and stays asleep: the box never
+     * keeps the screen busy to measure it.
+     */
+    private def count_frames() {
+        passed : decimal = now - fps_since;
+        if(passed < 1) {
+            return;
+        }
+        painted : _int64 = fps_frames / passed + 0.5;
+        fps_frames = 0;
+        fps_since = now;
+
+        if(painted != fps_value) {
+            fps_value = painted;
+            if(paint_due == 0 && frame_wanted == 0) {
+                fps_own_frame = true;
+                paint_due = 1;
+            }
+        }
+    }
+
+    /** the box itself: "60 fps  3.2 ms", in the top right corner, over everything */
+    private def paint_frames_box(p: painter, width: decimal) {
+        shown : _int64 = fps_value;
+        if(shown < 0) { shown = 0; }
+        whole : _int64 = fps_ms;
+        tenth : _int64 = (fps_ms - whole) * 10;
+        words : string = "" + shown + " fps  " + whole + "." + tenth + " ms";
+
+        f : font = font_of(look.text_size);
+        box_w : decimal = f.width_of(words) + 16;
+        box_h : decimal = f.line_height + 8;
+        left : decimal = width - box_w - 8;
+
+        p.rect(left, 8, box_w, box_h, 6, look.text);
+        p.text(words, left + 8, 12, f, look.background);
     }
 
     // ------------------------------------------------------------ what widgets ask the host for

@@ -193,10 +193,10 @@ public class thread {
     public def get_native_handle() : int = native_handle;
     public def get_stack_size() := stack_size;
     public def get_name() := name;
-    public def is_exited() : bool = exited;
-    public def is_daemon() : bool = daemon;
-    public def is_started() : bool = started;
-    public def is_suspended() : bool = suspended;
+    public def is_exited() : bool = exited != 0;
+    public def is_daemon() : bool = daemon != 0;
+    public def is_started() : bool = started != 0;
+    public def is_suspended() : bool = suspended != 0;
 	public def set_main(main: (object[])(int)) := self->main = main;
 	public def is_active() : bool = started && !exited;
 	public def get_exit_code() : int = exit_code;

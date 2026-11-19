@@ -136,7 +136,7 @@ def next_prime(n: decimal): decimal {
     candidate : decimal = floor_of(n) + 1;
     if(candidate < 2) candidate = 2;
 
-    while(!is_prime(candidate).value) {
+    while(!is_prime(candidate)) {
         candidate++;
     }
     return candidate;

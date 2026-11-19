@@ -141,7 +141,7 @@ class semaphore {
                 got = 1;
             }
         }
-        return got;
+        return got != 0;
     }
 
     /**

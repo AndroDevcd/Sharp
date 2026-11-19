@@ -16,6 +16,23 @@ sharp_object* create_description_object() {
     return create_object(vm.reflect_description);
 }
 
+/**
+ * A true / false field of a reflection object. It is a plain `bool`; in a program
+ * built before `bool` was a type of the language it is an object of the library's
+ * old wrapper class, and such programs (an older compiler among them) still run.
+ */
+static void assign_truth_field(string &name, sharp_object *o, bool value) {
+    sharp_class *owner = &vm.classes[CLASS(o->info)];
+    for(Int i = 0; i < owner->totalFieldCount; i++) {
+        sharp_field &field = owner->fields[i];
+        if(field.name != name) continue;
+
+        if(field.type->type <= type_var) set_number_field(o, name, value ? 1 : 0);
+        else assign_numeric_class_field(instantiate_class_field(name, o, field.type->sc)->o, value ? 1 : 0);
+        return;
+    }
+}
+
 sharp_object* describe_object(sharp_object *o) {
     if(o == nullptr || o->type > type_class) {
         return nullptr;
@@ -34,10 +51,7 @@ sharp_object* describe_object(sharp_object *o) {
 
     // is_array: bool
     field_name = "is_array";
-    assign_numeric_class_field(
-            instantiate_class_field(field_name, description, vm.bool_class)->o,
-            o->arrayFlag ? 1 : 0
-    );
+    assign_truth_field(field_name, description, o->arrayFlag ? 1 : 0);
 
     // type: data_type;
     field_name = "type";
@@ -160,19 +174,13 @@ sharp_object* build_reflect_function(sharp_function *fun) {
         );
     }
 
-    // array_return: boolean;
+    // array_return: bool;
     field_name = "array_return";
-    assign_numeric_class_field(
-            instantiate_class_field(field_name, reflect, vm.bool_class)->o,
-            fun->arrayReturn ? 1 : 0
-    );
+    assign_truth_field(field_name, reflect, fun->arrayReturn ? 1 : 0);
 
-    // is_delegate: boolean;
+    // is_delegate: bool;
     field_name = "is_delegate";
-    assign_numeric_class_field(
-            instantiate_class_field(field_name, reflect, vm.bool_class)->o,
-            fun->delegateAddress != -1 ? 1 : 0
-    );
+    assign_truth_field(field_name, reflect, fun->delegateAddress != -1 ? 1 : 0);
 
     // params: _function_param_[]?;
     field_name = "params";
@@ -226,10 +234,7 @@ sharp_object* build_reflect_function(sharp_function *fun) {
 
                 // is_array: bool;
                 field_name = "is_array";
-                assign_numeric_class_field(
-                        instantiate_class_field(field_name, param->o, vm.bool_class)->o,
-                        paramField->isArray ? 1 : 0
-                );
+                assign_truth_field(field_name, param->o, paramField->isArray ? 1 : 0);
             }
         }
     }
@@ -292,10 +297,7 @@ void build_reflect_fields(sharp_field *class_fields, Int count, string reflect_f
 
             // is_array: boolean
             field_name = "is_array";
-            assign_numeric_class_field(
-                    instantiate_class_field(field_name, field->o, vm.bool_class)->o,
-                    classField.isArray ? 1 : 0
-            );
+            assign_truth_field(field_name, field->o, classField.isArray ? 1 : 0);
 
             // type: data_type;
             field_name = "type";

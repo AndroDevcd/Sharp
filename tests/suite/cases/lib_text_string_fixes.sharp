@@ -36,10 +36,10 @@ def main(args: string[]) {
         test("a null string still prints as null") { expect("is " + nothing).should_be("is null"); };
 
         // ---- std/string.sharp: ends_with with a postfix as long as the string
-        test("ends_with the whole string") { expect_true(hello.ends_with("hello").value); };
-        test("ends_with a real postfix") { expect_true(hello.ends_with("llo").value); };
-        test("ends_with something longer") { expect_false(hello.ends_with("xhello").value); };
-        test("ends_with a different postfix") { expect_false(hello.ends_with("lla").value); };
+        test("ends_with the whole string") { expect_true(hello.ends_with("hello")); };
+        test("ends_with a real postfix") { expect_true(hello.ends_with("llo")); };
+        test("ends_with something longer") { expect_false(hello.ends_with("xhello")); };
+        test("ends_with a different postfix") { expect_false(hello.ends_with("lla")); };
 
         // ---- std/string.sharp: at() with a negative position
         try {
@@ -57,8 +57,8 @@ def main(args: string[]) {
         joined = joined + empty;
         test("several empty strings in a row") { expect(joined).should_be("x"); };
         test("size after adding empty strings") { expect(joined.size().value).should_be(1); };
-        test("an empty string still equals \"\"") { expect_true((empty == "").value); };
-        test("ends_with \"\"") { expect_true(hello.ends_with("").value); };
+        test("an empty string still equals \"\"") { expect_true((empty == "")); };
+        test("ends_with \"\"") { expect_true(hello.ends_with("")); };
         test("at(4) still works") { expect(hello.at(4).value).should_be('o'); };
         try {
             hello.at(5);

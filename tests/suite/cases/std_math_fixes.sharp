@@ -14,14 +14,14 @@ def main(args: string[]) {
         // ---- fixed, used to be wrong (1): NEGATIVE_INFINITY is -2147483648, not minus infinity
         // (it is declared as `-1.0 / 0.0`; POSITIVE_INFINITY, `1.0 / 0.0`, is right)
         test("NEGATIVE_INFINITY is smaller than any number") { expect_true(NEGATIVE_INFINITY.value < 0 - 1000000000000); };
-        test("log(0) is NEGATIVE_INFINITY") { expect_true(is_infinite(log(0)).value); };
+        test("log(0) is NEGATIVE_INFINITY") { expect_true(is_infinite(log(0))); };
 
         // ---- fixed, used to be wrong (2): is_nan() is false for NaN. It is written `v != v` on double
         // OBJECTS, and != between two double objects does not give true for NaN
         // (on native numbers `x != x` is true for NaN, as it should be).
-        test("is_nan(NaN)") { expect_true(is_nan(NaN).value); };
-        test("is_nan(sqrt(-1))") { expect_true(is_nan(sqrt(0 - 1)).value); };
-        test("is_nan(log(-1))") { expect_true(is_nan(log(0 - 1)).value); };
+        test("is_nan(NaN)") { expect_true(is_nan(NaN)); };
+        test("is_nan(sqrt(-1))") { expect_true(is_nan(sqrt(0 - 1))); };
+        test("is_nan(log(-1))") { expect_true(is_nan(log(0 - 1))); };
 
         // ---- fixed, used to be wrong (3): round() rounds negative numbers towards zero
         // (it cuts off the fraction and only looks for a fraction >= 0.5)

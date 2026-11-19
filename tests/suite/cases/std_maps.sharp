@@ -37,9 +37,9 @@ def main(args: string[]) {
         test("a new map has size 0") { expect(ages.size).should_be(0); };
 
         // ---- put says whether the key is new
-        test("put of a new key returns true") { expect_true(ages.put("ann", 31).value); };
-        test("put of a second key returns true") { expect_true(ages.put("bob", 45).value); };
-        test("put of a third key returns true") { expect_true(ages.put("cy", 8).value); };
+        test("put of a new key returns true") { expect_true(ages.put("ann", 31)); };
+        test("put of a second key returns true") { expect_true(ages.put("bob", 45)); };
+        test("put of a third key returns true") { expect_true(ages.put("cy", 8)); };
         test("size after three puts") { expect(ages.size).should_be(3); };
 
         // ---- at
@@ -52,7 +52,7 @@ def main(args: string[]) {
         test("a key built at run time finds the entry") { expect(ages.at(built)!!.value).should_be(31); };
 
         // ---- overwrite
-        test("put of an existing key returns false") { expect_false(ages.put("bob", 46).value); };
+        test("put of an existing key returns false") { expect_false(ages.put("bob", 46)); };
         test("the value was replaced") { expect(ages.at("bob")!!.value).should_be(46); };
         test("overwriting does not change the size") { expect(ages.size).should_be(3); };
         test("the other entries are untouched (ann)") { expect(ages.at("ann")!!.value).should_be(31); };
@@ -74,7 +74,7 @@ def main(args: string[]) {
         // ---- clear
         ages.clear();
         test("clear: size 0") { expect(ages.size).should_be(0); };
-        test("after clear a key is new again") { expect_true(ages.put("ann", 1).value); };
+        test("after clear a key is new again") { expect_true(ages.put("ann", 1)); };
         test("value put after clear") { expect(ages.at("ann")!!.value).should_be(1); };
         test("size after clear and one put") { expect(ages.size).should_be(1); };
 
@@ -119,7 +119,7 @@ def main(args: string[]) {
         two : int = 2;
         test("an int variable as the key") { expect(names.at(two)!!).should_be("two"); };
         test("a computed key") { expect(names.at(15 * 2)!!).should_be("thirty"); };
-        test("overwrite with an int key") { expect_false(names.put(1, "ONE").value); };
+        test("overwrite with an int key") { expect_false(names.put(1, "ONE")); };
         test("overwritten int key") { expect(names.at(1)!!).should_be("ONE"); };
 
         // ---- zero and negative keys
@@ -136,7 +136,7 @@ def main(args: string[]) {
         test("first key of the bucket") { expect(names.at(1)!!).should_be("ONE"); };
         test("second key of the bucket") { expect(names.at(129)!!).should_be("one hundred twenty nine"); };
         test("third key of the bucket") { expect(names.at(257)!!).should_be("two hundred fifty seven"); };
-        test("overwriting the middle key of a bucket") { expect_false(names.put(129, "129").value); };
+        test("overwriting the middle key of a bucket") { expect_false(names.put(129, "129")); };
         test("...changes that key") { expect(names.at(129)!!).should_be("129"); };
         test("...and not the one before it") { expect(names.at(1)!!).should_be("ONE"); };
         test("...or the one after it") { expect(names.at(257)!!).should_be("two hundred fifty seven"); };
@@ -146,7 +146,7 @@ def main(args: string[]) {
         squares := new hash_map<int, int>();
         new_keys : decimal = 0;
         for(i : decimal = 0; i < 500; i++) {
-            if(squares.put(i, i * i).value) new_keys++;
+            if(squares.put(i, i * i)) new_keys++;
         }
         test("500 puts: every key was new") { expect(new_keys).should_be(500); };
         test("500 puts: size") { expect(squares.size).should_be(500); };
@@ -166,7 +166,7 @@ def main(args: string[]) {
         // overwrite every second key
         replaced : decimal = 0;
         for(i : decimal = 0; i < 500; i += 2) {
-            if(squares.put(i, 1).value == 0) replaced++;
+            if(!squares.put(i, 1)) replaced++;
         }
         test("250 overwrites: none was a new key") { expect(replaced).should_be(250); };
         test("250 overwrites: size unchanged") { expect(squares.size).should_be(500); };

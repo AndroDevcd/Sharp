@@ -14,7 +14,7 @@ mod std.util;
  *
  *     name := find_user(7).or_else("nobody");
  *     found := find_user(1);
- *     if(found.is_present().value) println(found.value());
+ *     if(found.is_present()) println(found.value());
  *
  * An optional never changes after it is made; map() and filter() return new
  * optionals.
@@ -127,7 +127,7 @@ class optional<T> {
      */
     def filter(predicate: (T)(bool)): optional<T> {
         if((item as object) == null) return self;
-        if(predicate(item!!).value) return self;
+        if(predicate(item!!)) return self;
         return new optional<T>(null);
     }
 

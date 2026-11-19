@@ -17,7 +17,7 @@ import (std.io)
 // rex
 // len 3
 // m 2
-// char q bool  dec 1.25 neg -3
+// char q bool true dec 1.25 neg -3
 // 1
 // 2
 // 3

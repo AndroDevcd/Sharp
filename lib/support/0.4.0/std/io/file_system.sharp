@@ -171,8 +171,8 @@ protected class file_system {
         // native code here
         path := f.path.data;
         _access : _int64 = access.value;
-        _enable : _int64 = enable.value;
-        _owneronly : _int64 = owneronly.value;
+        _enable : _int64 = enable;
+        _owneronly : _int64 = owneronly;
         result : _int64 = 0;
 
         if(build.is_windows() && access == access_execute)

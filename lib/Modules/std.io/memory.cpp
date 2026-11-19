@@ -99,7 +99,18 @@ void memcopy() {
             throw vm_exception(vm.invalid_operation_except, ss.str());
         }
 
-        if(from->type <= type_var) { // var[]
+        // the usual case - both arrays hold the same kind of element -
+        // is one block copy. Only a copy within ONE array to a HIGHER position
+        // keeps the loop below: it reads elements it has already overwritten,
+        // and that result is left exactly as it was.
+        bool forwardOverlap = from == to && destStart > srcStart && destStart < srcEnd;
+        if(from->type <= type_var && to->type == from->type && !forwardOverlap) {
+            size_t width = (size_t)element_size(from->type);
+            memmove((char*)to->data + (size_t)destStart * width, (char*)from->data + (size_t)srcStart * width, (size_t)copyLen * width);
+        } else if(from->type > type_var && to->type > type_var && !forwardOverlap) {
+            memmove(to->node + destStart, from->node + srcStart, (size_t)copyLen * sizeof(object));
+            write_barrier_range(to, destStart, copyLen);    // references were stored into `to` (memory/sharp_object.h)
+        } else if(from->type <= type_var) { // var[]
             // element by element through the accessors: the two arrays may hold
             // different number types (an _int8[] copied into an _int32[])
             for (Int i = srcStart; i < srcEnd; i++) {

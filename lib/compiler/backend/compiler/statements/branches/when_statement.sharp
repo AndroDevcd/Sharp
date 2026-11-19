@@ -120,7 +120,7 @@ def first_token_node(context: analysis_context, clause: _int64) : _int64 {
     return clause;
 }
 
-/** the subject of `when(subject)`: a value; a `bool` object gives its number, a text literal becomes a `string` */
+/** the subject of `when(subject)`: a value; a `boolean` object gives its value, a text literal becomes a `string` */
 def subject_of(context: analysis_context, node: _int64) : bound_expression {
     subject := analyse_value(context, node, null);
     if(subject.literal == LIT_TEXT) { return convert(context, subject, context.session.string_type(), "the subject of `when`"); }

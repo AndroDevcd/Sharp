@@ -38,6 +38,11 @@ native "sharpgui" {
     def surface_time() : decimal;                                              // seconds since the window opened
     def surface_fill(color: _int64);                                           // paint the whole surface one colour
     def surface_present();                                                     // show the painted frame
+    def surface_mode(mode: _int64) : _int64;                                   // 0 windowed, 1 maximized, 2 fullscreen; else: only ask
+    def surface_screen_width() : _int32;                                       // the whole screen, in units
+    def surface_screen_height() : _int32;
+    def surface_paced() : _int64;                                              // frames a second surface_present holds to, 0 = none
+    def surface_pace(on: _int64) : _int64;                                     // wait for the screen's refresh (1) or not (0)
 
     // --- events (native/sharpgui.cpp; what a, b, c, d mean per kind: event.sharp) ---
     def surface_poll() : _int64;                                               // the kind of the next event, 0 when none

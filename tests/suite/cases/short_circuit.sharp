@@ -56,9 +56,9 @@ def main(args: string[]) {
 
     both : bool = yes && no;
     either : bool = yes || no;
-    expect_false("a bool variable from &&", both.value);
-    expect_true("a bool variable from ||", either.value);
-    expect("&& of two objects as a number", (yes && yes) + (yes && no), 1);
-    expect("mixed object and native", (yes && 1) + (0 || no) + (boxed(5) && yes), 2);
+    expect_false("a bool variable from &&", both);
+    expect_true("a bool variable from ||", either);
+    expect("&& of two objects as a number", ((yes && yes) as _int32) + ((yes && no) as _int32), 1);
+    expect("mixed object and native", ((yes && 1) as _int32) + ((0 || no) as _int32) + ((boxed(5) && yes) as _int32), 2);
     finish("short_circuit");
 }

@@ -112,6 +112,14 @@ def println(data: _uint64[]) {
     print_char('\n');
 }
 
+def print(flag: bool) {
+    print(flag ? "true" : "false");
+}
+
+def println(flag: bool) {
+    println(flag ? "true" : "false");
+}
+
 def print(data: decimal) {
     print_num(data);
 }

@@ -38,10 +38,14 @@ def analyse_unary(context: analysis_context, node: _int64) : bound_expression {
     type : resolved_type = operand.type;
     if(type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
 
+    if(type.is_boolean() && operation != P_NOT) {
+        report_unary_does_not_apply(context, node, operand);
+        return new bound_error(context.unit, node, error_type);
+    }
     if(type.is_number()) {
         if(is_number_literal(operand)) { return fold_unary(context, node, operation, operand); }
         result_type : resolved_type = type;
-        if(operation == P_NOT) { result_type = context.session.types.int8; }
+        if(operation == P_NOT) { result_type = context.session.types.bool_type; }
         operands : _int64 = OPERANDS_INTEGER;
         if(type.kind == RT_DECIMAL) { operands = OPERANDS_DECIMAL; }
         made := new bound_unary(context.unit, node, operation, operand, operands, result_type);
@@ -79,7 +83,10 @@ def analyse_unary(context: analysis_context, node: _int64) : bound_expression {
 /** `-5`, `!0`, `-2.5`: a literal again, of the same kind */
 def fold_unary(context: analysis_context, node: _int64, operation: _int64, operand: bound_expression) : bound_expression {
     value : constant_value = unary_constant(operation, operand.constant!!);
-    if(operation == P_NOT) { warn_not_on_literal(context, node, whole_of(value)); }
+    if(operation == P_NOT) {
+        warn_not_on_literal(context, node, whole_of(value));
+        return bool_literal(context, node, whole_of(value));
+    }
     if(value.kind == CONST_DECIMAL) {
         return new bound_literal(context.unit, node, context.session.types.decimal_type, value, LIT_DECIMAL);
     }

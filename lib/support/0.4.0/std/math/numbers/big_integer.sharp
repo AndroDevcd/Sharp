@@ -433,7 +433,7 @@ class big_integer {
      * Throws division_by_zero_exception when `other` is zero.
      */
     def operator/(other: big_integer): big_integer {
-        if(other.is_zero().value)
+        if(other.is_zero())
             throw new division_by_zero_exception("big_integer: division by zero");
 
         parts := divide_magnitude(limbs, other.limbs);
@@ -451,7 +451,7 @@ class big_integer {
      * Throws division_by_zero_exception when `other` is zero.
      */
     def operator%(other: big_integer): big_integer {
-        if(other.is_zero().value)
+        if(other.is_zero())
             throw new division_by_zero_exception("big_integer: division by zero");
 
         parts := divide_magnitude(limbs, other.limbs);
@@ -469,7 +469,7 @@ class big_integer {
      * Throws division_by_zero_exception when `other` is zero.
      */
     def divide_and_remainder(other: big_integer): big_integer[] {
-        if(other.is_zero().value)
+        if(other.is_zero())
             throw new division_by_zero_exception("big_integer: division by zero");
 
         parts := divide_magnitude(limbs, other.limbs);
@@ -485,7 +485,7 @@ class big_integer {
      * Throws illegal_argument_exception when modulus is not positive.
      */
     def modulo(modulus: big_integer): big_integer {
-        if(modulus.negative || modulus.is_zero().value)
+        if(modulus.negative || modulus.is_zero())
             throw new illegal_argument_exception("big_integer: the modulus must be positive");
 
         result := operator%(modulus);
@@ -529,7 +529,7 @@ class big_integer {
         a := abs();
         b := other.abs();
 
-        while(!b.is_zero().value) {
+        while(!b.is_zero()) {
             rest := a % b;
             a = b;
             b = rest;
@@ -549,7 +549,7 @@ class big_integer {
     def sqrt(): big_integer {
         if(negative)
             throw new arithmetic_exception("big_integer: square root of a negative number");
-        if(is_zero().value) return of(0);
+        if(is_zero()) return of(0);
 
         guess := of(10).pow(floor_of(digit_count() / 2) + 1);
         while(true) {
@@ -686,7 +686,7 @@ class big_integer {
      * digits. Throws overflow_exception when !fits_in_var().
      */
     def to_var_exact(): decimal {
-        if(!fits_in_var().value)
+        if(!fits_in_var())
             throw new overflow_exception("big_integer: the value does not fit in a native number");
         return to_var();
     }

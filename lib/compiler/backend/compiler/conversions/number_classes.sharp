@@ -16,11 +16,11 @@ import (
 /**
  * THE NUMBER CLASSES ("boxes") USED AS THEIR NUMBER
  *
- * `int`, `long`, `bool`, `char`, `double` ... are CLASSES of the library:
+ * `int`, `long`, `boolean`, `char`, `double` ... are CLASSES of the library:
  * objects that hold a plain number in a field called `value`. In a few
  * places the language uses such an object as its number without being asked:
  *
- *      if(a_bool) { }          the condition of a statement - a `bool` object ONLY:
+ *      if(a_boolean) { }       the condition of a statement - a `boolean` object ONLY:
  *                              `if(an_int)` is an error (write `an_int != 0`)
  *      an_int ? a : b          the condition of `? :` - any number object
  *      numbers[an_int]         an array index
@@ -48,7 +48,7 @@ def is_box_value(session: analysis_session, type: resolved_type) : _int64 {
  * box, and null when it is neither (the caller reports what it needed the
  * number for). The error type passes through.
  *
- * @param only_bool  1: of the number classes, accept only `bool`
+ * @param only_bool  1: of the number classes, accept only `boolean`
  */
 def as_plain_number(context: analysis_context, value: bound_expression, only_bool: _int64) : bound_expression? {
     type : resolved_type = value.type;

@@ -215,7 +215,7 @@ def main(args: string[]) {
     no : bool = false;
     if(yes) { r += 1; }
     if(no) { r += 10; }
-    if(yes.value) { r += 100; }
+    if(yes) { r += 100; }
     count : int = 3;
     if(count == 3) { r += 1000; }
     if(count > 3) { r += 10000; }

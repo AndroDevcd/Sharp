@@ -49,7 +49,7 @@ class string_tokenizer {
     string_tokenizer(text: string, delimiters: string, return_delimiters: bool) {
         self->text = text;
         self->delimiters = delimiters;
-        self->return_delimiters = return_delimiters.value;
+        self->return_delimiters = return_delimiters;
     }
 
     /** 1 if the character `c` is one of the delimiters. */

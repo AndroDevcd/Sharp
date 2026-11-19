@@ -31,7 +31,10 @@ import (
  *                                                              number (_uint64 when both are
  *                                                              unsigned); else _int32
  *      % & | ^ << >>        whole numbers                      _int64 / _uint64 as above, else _int32
- *      == != < > <= >=      decimals when either is one        _int32 (1 or 0)
+ *      == != < > <= >=      decimals when either is one        bool
+ *
+ *      A `bool` is not a number here: two bools take == != & | ^ (the answer is a bool), and
+ *      nothing else. `flag == 1` and `flag + 1` are E0511.
  *
  * The "_int64 when an operand is 64 bits" rule is the one deliberate
  * difference from the C++ compiler, which calls every whole-number result an
@@ -53,6 +56,10 @@ def number_operation(context: analysis_context, node: _int64, operation: _int64,
     }
     right_number : bound_expression = number!!;
     if(right_number.type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+    if((left.type.is_boolean() || right_number.type.is_boolean()) && !bools_may_do(operation, left.type, right_number.type)) {
+        report_bool_operands(context, node, left, right_number);
+        return new bound_error(context.unit, node, error_type);
+    }
 
     if(operation == P_SLASH && is_whole_zero(right_number)) {
         // W1044 is the one message: the division is left as it is written and not worked out
@@ -79,6 +86,31 @@ def number_operation(context: analysis_context, node: _int64, operation: _int64,
     return made;
 }
 
+/** may this operator be used on these operands, one of which is a `bool`? Two bools: == != & | ^ */
+def bools_may_do(operation: _int64, left: resolved_type, right: resolved_type) : _int64 {
+    if(!left.is_boolean() || !right.is_boolean()) { return 0; }
+    return operation == P_EQEQ || operation == P_NOTEQ || operation == P_AND || operation == P_OR || operation == P_XOR;
+}
+
+/** E0511: `flag == 1`, `flag + 1`, `a < b` on bools */
+def report_bool_operands(context: analysis_context, node: _int64, left: bound_expression, right: bound_expression) {
+    text := name_at(context, node);
+    help := "";
+    flag : bound_expression = left;
+    other : bound_expression = right;
+    if(left.type.is_boolean() == 0) { flag = right; other = left; }
+    if((text == "==" || text == "!=") && other.constant != null && other.constant!!.kind != CONST_TEXT) {
+        // `flag == 1` and `flag != 0` ask "is it true?"; `flag == 0` and `flag != 1` ask "is it false?"
+        is_zero : _int64 = whole_of(other.constant!!) == 0;
+        asks_true : _int64 = is_zero == 0;
+        if(text == "!=") { asks_true = is_zero; }
+        wanted := source_text_of(context, flag.node);
+        if(asks_true == 0) { wanted = "!" + wanted; }
+        help = "a `bool` is a condition by itself: write `" + wanted + "`";
+    }
+    report_operands_do_not_fit(context, node, left, right, "a `bool` is true or false, not a number: two bools take `==`, `!=`, `&`, `|` and `^`", help);
+}
+
 /** how the VM works it out: OPERANDS_DECIMAL or OPERANDS_INTEGER */
 def operands_of(operation: _int64, left: resolved_type, right: resolved_type) : _int64 {
     if(operation == P_SLASH || operation == P_EXPONENT) { return OPERANDS_DECIMAL; }
@@ -89,7 +121,7 @@ def operands_of(operation: _int64, left: resolved_type, right: resolved_type) : 
 
 /** the type of `left op right` for two plain numbers (the table above) */
 def number_result_type(types: type_table, operation: _int64, left: resolved_type, right: resolved_type) : resolved_type {
-    if(is_comparison(operation) || operation == P_ANDAND || operation == P_OROR) { return types.int32; }
+    if(is_comparison(operation) || operation == P_ANDAND || operation == P_OROR || left.is_boolean()) { return types.bool_type; }
     if(operation == P_SLASH) { return types.decimal_type; }
     is_arithmetic : _int64 = operation == P_PLUS || operation == P_MINUS || operation == P_STAR || operation == P_EXPONENT;
     if(is_arithmetic == 1 && (left.kind == RT_DECIMAL || right.kind == RT_DECIMAL)) { return types.decimal_type; }

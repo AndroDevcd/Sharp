@@ -61,7 +61,7 @@ def sign(n: _int64) : _int64 {
 }
 
 def conditions(flag: bool, ratio: decimal) {
-    if(flag) { total_seen++; }                  // a bool object is a condition
+    if(flag) { total_seen++; }                  // a bool is a condition
     if(ratio) { total_seen++; }                 // a decimal: compared with 0
     while(false) { }
 }
@@ -195,7 +195,7 @@ def main() {
     words.add("ab");
     print("" + locals() + sign(5) + loops(new _int64[2]) + when_forms(2, "a", light.red, new square()) + handlers(3)
           + foreach_forms(new _int64[] { 1, 2 }, words, null, new object[0]) + locks(new _int64[0]) + inferred());
-    conditions(new bool(true), 0.5);
+    conditions(true, 0.5);
     returns_nothing();
     early(1);
     print("" + widened() + boxed().value);

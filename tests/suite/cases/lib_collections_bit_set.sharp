@@ -234,7 +234,7 @@ def test_sieve() {
     test("thirds: to_list") { expect(thirds.to_list().size().value).should_be(2000); };
     wrong : decimal = 0;
     for(i : decimal = 0; i < 6000; i++) {
-        if(thirds.test(i) != (i % 3 == 0)) wrong++;
+        if((thirds.test(i) != 0) != (i % 3 == 0)) wrong++;
     }
     test("thirds: every bit is as expected") { expect(wrong).should_be(0); };
 }

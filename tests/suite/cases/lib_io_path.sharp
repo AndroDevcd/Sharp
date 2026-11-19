@@ -24,12 +24,12 @@ def main(args: string[]) {
         test("root of empty") { expect(path.root("")).should_be(""); };
         test("root of drive") { expect(u(path.root("C:/dir"))).should_be("C:/"); };
         test("root of drive relative") { expect(path.root("C:dir")).should_be("C:"); };
-        test("is_absolute") { expect_true(path.is_absolute("/a").value); };
-        test("is_absolute back slash") { expect_true(path.is_absolute("\\a").value); };
-        test("is_absolute drive") { expect_true(path.is_absolute("C:\\a").value); };
-        test("is_absolute relative") { expect_false(path.is_absolute("a/b").value); };
-        test("is_absolute drive relative") { expect_false(path.is_absolute("C:a").value); };
-        test("is_absolute empty") { expect_false(path.is_absolute("").value); };
+        test("is_absolute") { expect_true(path.is_absolute("/a")); };
+        test("is_absolute back slash") { expect_true(path.is_absolute("\\a")); };
+        test("is_absolute drive") { expect_true(path.is_absolute("C:\\a")); };
+        test("is_absolute relative") { expect_false(path.is_absolute("a/b")); };
+        test("is_absolute drive relative") { expect_false(path.is_absolute("C:a")); };
+        test("is_absolute empty") { expect_false(path.is_absolute("")); };
 
         // ---- split
         parts := path.split("/usr//lib/x.so");
@@ -98,12 +98,12 @@ def main(args: string[]) {
         catch(e: illegal_argument_exception) { test("with_extension root") { }; }
 
         // ---- starts_with and relative_to
-        test("starts_with") { expect_true(path.starts_with("/a/b/c", "/a/b").value); };
-        test("starts_with itself") { expect_true(path.starts_with("/a/b", "/a/b/").value); };
-        test("starts_with partial name") { expect_false(path.starts_with("/a/bc", "/a/b").value); };
-        test("starts_with other root") { expect_false(path.starts_with("a/b", "/a").value); };
-        test("starts_with after normalize") { expect_true(path.starts_with("a/x/../b/c", "a/b").value); };
-        test("starts_with dot") { expect_true(path.starts_with("a/b", ".").value); };
+        test("starts_with") { expect_true(path.starts_with("/a/b/c", "/a/b")); };
+        test("starts_with itself") { expect_true(path.starts_with("/a/b", "/a/b/")); };
+        test("starts_with partial name") { expect_false(path.starts_with("/a/bc", "/a/b")); };
+        test("starts_with other root") { expect_false(path.starts_with("a/b", "/a")); };
+        test("starts_with after normalize") { expect_true(path.starts_with("a/x/../b/c", "a/b")); };
+        test("starts_with dot") { expect_true(path.starts_with("a/b", ".")); };
         test("relative_to below") { expect(u(path.relative_to("/a/b/c", "/a"))).should_be("b/c"); };
         test("relative_to sideways") { expect(u(path.relative_to("/a/b", "/a/x/y"))).should_be("../../b"); };
         test("relative_to same") { expect(path.relative_to("/a/b", "/a/b/")).should_be("."); };

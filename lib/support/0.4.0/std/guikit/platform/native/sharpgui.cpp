@@ -25,6 +25,14 @@ SDL_Renderer* g_renderer = nullptr;
 float         g_scale    = 1;           // real pixels per unit (gui_internal.h)
 static float  g_scale_wanted = 0;       // what the program asked for with surface_scale (0: follow the screen)
 
+// How the window sits on the screen (surface_mode). These MUST match the
+// window_mode enum in gui/platform/window.sharp.
+enum { MODE_WINDOWED = 0, MODE_MAXIMIZED = 1, MODE_FULLSCREEN = 2 };
+static int64_t g_mode = MODE_WINDOWED;  // the mode now - or, while no window is open, the one the next window opens in
+
+// Does showing a frame wait for the screen's refresh (surface_paced, surface_pace)?
+static bool g_waits_for_refresh = false;
+
 //
 // surface_scale(factor): how many real pixels one unit is - 1.5 on a screen at
 // 150 %. Call it BEFORE the window opens; 0 means "ask the screen". Returns
@@ -99,11 +107,29 @@ int64_t sharpgui_surface_open(sni_env* env, sni_ref title, int32_t width, int32_
     // the size was given in units: the window is that many units, whatever a unit is in pixels here
     g_scale = g_scale_wanted > 0 ? g_scale_wanted : screen_scale();
 
+    // The size asked for, in real pixels - but never more than the screen has
+    // room for: a window larger than a small screen (a Pi's 800 x 480 panel)
+    // opens maximized instead of hanging off its edges.
+    int pixels_wide = (int) (width * g_scale), pixels_high = (int) (height * g_scale);
+    Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE;
+    SDL_Rect room;
+    if(SDL_GetDisplayUsableBounds(0, &room) == 0 && room.w > 0 && room.h > 0
+       && (pixels_wide > room.w || pixels_high > room.h)) {
+        if(pixels_wide > room.w) pixels_wide = room.w;
+        if(pixels_high > room.h) pixels_high = room.h;
+        if(g_mode == MODE_WINDOWED) g_mode = MODE_MAXIMIZED;
+    }
+
+    // the mode chosen before the window opened (surface_mode). FULLSCREEN is the
+    // whole screen at the resolution it already has: the screen is not switched
+    // to another one, which is slow and unreliable on small machines.
+    if(g_mode == MODE_MAXIMIZED) flags |= SDL_WINDOW_MAXIMIZED;
+    if(g_mode == MODE_FULLSCREEN) flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+
     std::string name = env->text(title);
     g_window = SDL_CreateWindow(name.c_str(),
                                 SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                (int) (width * g_scale), (int) (height * g_scale),
-                                SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+                                pixels_wide, pixels_high, flags);
     if(g_window == nullptr) {
         env->raise("std#illegal_state_exception", std::string("the window would not open: ") + SDL_GetError());
         SDL_Quit();
@@ -122,6 +148,10 @@ int64_t sharpgui_surface_open(sni_env* env, sni_ref title, int32_t width, int32_
         SDL_Quit();
         return 0;
     }
+
+    // which of the two did we get? (only the first waits for the screen)
+    SDL_RendererInfo made;
+    g_waits_for_refresh = SDL_GetRendererInfo(g_renderer, &made) == 0 && (made.flags & SDL_RENDERER_PRESENTVSYNC) != 0;
 
     // See-through colours mix with what is already painted.
     SDL_SetRenderDrawBlendMode(g_renderer, SDL_BLENDMODE_BLEND);
@@ -144,7 +174,88 @@ void sharpgui_surface_close(sni_env* env, int64_t handle) {
     gui_forget_layers();
     if(g_renderer != nullptr) { SDL_DestroyRenderer(g_renderer); g_renderer = nullptr; }
     if(g_window   != nullptr) { SDL_DestroyWindow(g_window);     g_window   = nullptr; }
+    g_mode = MODE_WINDOWED;                 // the next window starts as an ordinary one again
+    g_waits_for_refresh = false;
     SDL_Quit();
+}
+
+//
+// surface_mode(mode): how the window sits on the screen.
+//
+//      0   windowed     an ordinary window of the size it was opened with
+//      1   maximized    fills the desktop; title bar and taskbar stay
+//      2   fullscreen   the whole screen, no borders, at the screen's own resolution
+//
+// BEFORE a window is open it chooses the mode the next one opens in; with one
+// open it switches on the spot (a game going fullscreen and back). Any other
+// number changes nothing. Returns the mode in use.
+//
+int64_t sharpgui_surface_mode(sni_env* env, int64_t mode) {
+    if(mode < MODE_WINDOWED || mode > MODE_FULLSCREEN) return g_mode;
+    if(g_window == nullptr || mode == g_mode) { g_mode = mode; return g_mode; }
+
+    if(mode == MODE_FULLSCREEN) {
+        SDL_SetWindowFullscreen(g_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+    } else {
+        if(g_mode == MODE_FULLSCREEN) SDL_SetWindowFullscreen(g_window, 0);
+        if(mode == MODE_MAXIMIZED) SDL_MaximizeWindow(g_window);
+        else SDL_RestoreWindow(g_window);
+    }
+    g_mode = mode;
+    return g_mode;
+}
+
+//
+// surface_screen_width() / surface_screen_height(): the size of the whole
+// screen, in units - what a fullscreen window gets. Works before a window is
+// open (SDL's video part is started for the question and stopped again).
+//
+static void screen_size(int* w, int* h) {
+    *w = *h = 0;
+    bool started_here = SDL_WasInit(SDL_INIT_VIDEO) == 0;
+    if(started_here && SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) return;
+
+    SDL_DisplayMode mode;
+    int screen = g_window != nullptr ? SDL_GetWindowDisplayIndex(g_window) : 0;
+    if(SDL_GetDesktopDisplayMode(screen < 0 ? 0 : screen, &mode) == 0) {
+        float scale = g_window != nullptr ? g_scale : (g_scale_wanted > 0 ? g_scale_wanted : screen_scale());
+        *w = (int) (mode.w / scale);
+        *h = (int) (mode.h / scale);
+    }
+    if(started_here) SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
+
+int32_t sharpgui_surface_screen_width(sni_env* env)  { int w, h; screen_size(&w, &h); return w; }
+int32_t sharpgui_surface_screen_height(sni_env* env) { int w, h; screen_size(&w, &h); return h; }
+
+//
+// surface_paced(): how many frames a second surface_present() itself holds the
+// program to - the screen's refresh rate when the renderer waits for it, and 0
+// when nothing does (the software renderer, or after surface_pace(0)). The
+// framework's frame limit reads it: a limit at or above this needs no timing of
+// its own, and with 0 the limit is the ONLY thing that paces the frames.
+//
+int64_t sharpgui_surface_paced(sni_env* env) {
+    if(g_window == nullptr || !g_waits_for_refresh) return 0;
+    SDL_DisplayMode mode;
+    int screen = SDL_GetWindowDisplayIndex(g_window);
+    if(SDL_GetCurrentDisplayMode(screen < 0 ? 0 : screen, &mode) != 0 || mode.refresh_rate <= 0) return 60;
+    return mode.refresh_rate;
+}
+
+//
+// surface_pace(on): should showing a frame wait for the screen's refresh?
+// 1 is how a window starts (when its renderer can); 0 lets frames be shown as
+// fast as they are painted. Returns what is in force afterwards - a renderer
+// that cannot wait (software) stays at 0, an old SDL cannot switch.
+//
+int64_t sharpgui_surface_pace(sni_env* env, int64_t on) {
+    if(g_renderer == nullptr) return 0;
+#if SDL_VERSION_ATLEAST(2, 0, 18)
+    if(SDL_RenderSetVSync(g_renderer, on != 0 ? 1 : 0) == 0)
+        g_waits_for_refresh = on != 0;
+#endif
+    return g_waits_for_refresh ? 1 : 0;
 }
 
 // surface_width() / surface_height(): the size of the drawing area right now
@@ -264,6 +375,9 @@ int64_t sharpgui_surface_poll(sni_env* env) {
                     g_event_b = (int64_t) (e.window.data2 / g_scale);
                     return EVT_RESIZE;
                 }
+                // the user maximized or restored the window with its own buttons: surface_mode() must say so
+                if(e.window.event == SDL_WINDOWEVENT_MAXIMIZED && g_mode != MODE_FULLSCREEN) g_mode = MODE_MAXIMIZED;
+                if(e.window.event == SDL_WINDOWEVENT_RESTORED && g_mode == MODE_MAXIMIZED) g_mode = MODE_WINDOWED;
                 break;                              // other window news: skip
 
             default:

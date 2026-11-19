@@ -23,11 +23,15 @@
 #
 # Four configurations, as suite.sh's four: `plain` (the JIT), `plain-nojit`, and the same two
 # with every case compiled with -O (the optimizer, doc/codegen.md 13.6: `O`, `O-nojit`; the
-# runner hands -O to every compile, after `-j 1 -L <library>`). One after the other, NOT side
-# by side: several cases work in fixed folders of their own under /tmp (lib_io_tree in
-# /tmp/sharp_suite_io_tree, lib_data_json in /tmp/sharp_suite_io_json ...), and two runs of one
-# case at once delete each other's files - tried, and two cases failed that way.
-# CONFIGURATIONS="plain O" runs only those.
+# runner hands -O to every compile, after `-j 1 -L <library>`). CONFIGURATIONS="plain O" runs only
+# those.
+#
+# SIDE BY SIDE: TEST_JOBS cases run at once (default: one per core). ONE CASE never runs twice at
+# the same moment - its configurations run one after the other - because several cases work in
+# fixed folders of their own under /tmp (lib_io_tree in /tmp/sharp_suite_io_tree, lib_data_json in
+# /tmp/sharp_suite_io_json ...), and two runs of one case at once delete each other's files. For
+# the same reason no other test that RUNS the suite's cases (test.sh: 7) may run beside this one.
+# The runner itself is unchanged: for each case it is handed a folder that holds only that case.
 #
 # VM CRASHES are counted on their own: a case whose program died on a signal (SIGSEGV in its
 # output), and a compile whose compiler - the bootstrap, itself a program on the VM - died
@@ -65,19 +69,43 @@ rm -f "$OUT/run_tests"
 [ -f "$OUT/run_tests" ] || { echo "the suite runner did not compile:"; grep -m5 -A3 error "$OUT/runner_compile.txt"; exit 1; }
 
 CONFIGURATIONS=${CONFIGURATIONS:-plain plain-nojit O O-nojit}
-run_configuration() {   # $1 = name, $2 = the runtime command the runner runs each case with, $3 = compiler options
-    work="$OUT/$1"
-    rm -rf "$work"; mkdir -p "$work"
-    "$SHARP" "$OUT/run_tests" "$WRAPPER" "$2" "$SUITE" "$work" -j 1 -L "$LIBRARY" $3 > "$work/run.log" 2>&1
-}
 for name in $CONFIGURATIONS; do
     case "$name" in
-        plain)       run_configuration plain "$SHARP -mem 1gb" "" ;;
-        plain-nojit) run_configuration plain-nojit "$SHARP -mem 1gb -nojit" "" ;;
-        O)           run_configuration O "$SHARP -mem 1gb" "-O" ;;
-        O-nojit)     run_configuration O-nojit "$SHARP -mem 1gb -nojit" "-O" ;;
-        *)           echo "unknown configuration $name"; exit 1 ;;
+        plain|plain-nojit|O|O-nojit) rm -rf "$OUT/$name"; mkdir -p "$OUT/$name" ;;
+        *) echo "unknown configuration $name"; exit 1 ;;
     esac
+done
+
+# one case, every configuration, one after the other
+ONE="$OUT/one_case"; LOGS="$OUT/case_logs"
+rm -rf "$ONE" "$LOGS"; mkdir -p "$ONE" "$LOGS"
+run_case() {    # $1 = the case's file
+    case_name=$(basename "$1" .sharp)
+    folder="$ONE/$case_name"
+    mkdir -p "$folder/cases"
+    ln -s "$1" "$folder/cases/$case_name.sharp"
+    ln -s "$SUITE/testing.sharp" "$folder/testing.sharp"
+    for name in $CONFIGURATIONS; do
+        runtime="$SHARP -mem 1gb"; options=""
+        case "$name" in *nojit) runtime="$SHARP -mem 1gb -nojit" ;; esac
+        case "$name" in O*) options="-O" ;; esac
+        "$SHARP" "$OUT/run_tests" "$WRAPPER" "$runtime" "$folder" "$OUT/$name" -j 1 -L "$LIBRARY" $options > "$LOGS/$case_name.$name.log" 2>&1
+    done
+}
+export -f run_case
+export SHARP WRAPPER LIBRARY SUITE OUT ONE LOGS CONFIGURATIONS
+ls "$SUITE"/cases/*.sharp | xargs -P "${TEST_JOBS:-$(nproc)}" -I{} bash -c 'run_case {}'
+
+# the cases' reports, as one report per configuration (run.log: what the runner would have printed)
+for name in $CONFIGURATIONS; do
+    total=0; bad=0
+    for f in "$SUITE"/cases/*.sharp; do
+        case_name=$(basename "$f" .sharp); total=$((total+1))
+        grep -v -e '^Sharp test suite' -e '^  compiler:' -e '^  runtime :' -e 'TESTS PASSED' -e 'TESTS FAILED' -e '^$' "$LOGS/$case_name.$name.log"
+        grep -q "^ALL 1 TESTS PASSED" "$LOGS/$case_name.$name.log" || { bad=$((bad+1)); grep -q "^FAIL" "$LOGS/$case_name.$name.log" || echo "FAIL  $case_name   (the runner did not finish, see $LOGS/$case_name.$name.log)"; }
+    done > "$OUT/$name/run.log"
+    if [ "$bad" = 0 ]; then echo "ALL $total TESTS PASSED" >> "$OUT/$name/run.log"
+    else echo "$bad OF $total TESTS FAILED   ($((total-bad)) passed)" >> "$OUT/$name/run.log"; fi
 done
 
 ok=1

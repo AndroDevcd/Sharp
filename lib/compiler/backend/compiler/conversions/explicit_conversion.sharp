@@ -50,6 +50,7 @@ def find_cast(session: analysis_session, from: resolved_type, to: resolved_type)
     if(to.kind == RT_NIL || to.kind == RT_NULL || (to.kind == RT_FUNCTION && to.is_array == 0)) { return refused(from, to, WHY_NOT_CASTABLE); }
 
     if(from.is_number() || to.is_number()) {
+        if(to.is_boolean() && from.is_number() && !from.is_boolean()) { return refused(from, to, WHY_NUMBER_TO_BOOL); }
         if(from.is_number() && to.is_number()) { return accepted(CONV_NUMERIC, from, to, 1); }
         if(from.is_number()) { return refused(from, to, WHY_NUMBER_TO_OBJECT); }
         if(from.kind == RT_NULL) { return refused(from, to, WHY_NULL); }

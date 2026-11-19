@@ -106,8 +106,8 @@ def test_base64() {
     catch(e: parse_exception) { test("only padding") { }; }
     try { base64.decode("Zh=="); test("stray bits") { fail_test("no exception"); }; }
     catch(e: parse_exception) { test("stray bits") { }; }
-    test("is_valid") { expect_true(base64.is_valid("Zm9vYmFy").value); };
-    test("is_valid bad") { expect_false(base64.is_valid("Zm9v*mFy").value); };
+    test("is_valid") { expect_true(base64.is_valid("Zm9vYmFy")); };
+    test("is_valid bad") { expect_false(base64.is_valid("Zm9v*mFy")); };
 }
 
 def test_hex() {
@@ -142,8 +142,8 @@ def test_hex() {
     catch(e: parse_exception) { test("illegal digit") { }; }
     try { hex.decode("4 8"); test("byte cut in two") { fail_test("no exception"); }; }
     catch(e: parse_exception) { test("byte cut in two") { }; }
-    test("is_valid") { expect_true(hex.is_valid("00ff").value); };
-    test("is_valid bad") { expect_false(hex.is_valid("0g").value); };
+    test("is_valid") { expect_true(hex.is_valid("00ff")); };
+    test("is_valid bad") { expect_false(hex.is_valid("0g")); };
 
     test("from_number") { expect(hex.from_number(255, 0)).should_be("ff"); };
     test("from_number padded") { expect(hex.from_number(255, 4)).should_be("00ff"); };

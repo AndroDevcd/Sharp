@@ -42,6 +42,12 @@ void remove_mutex(sharp_object *o);
 static Int stressEvery = 0;         // > 0: ask for a collection every N allocated objects
 static bool logging = false;        // one line per collection on stderr
 
+// The two numbers that decide WHEN (tracing_collector.h, GENERATIONS). Bytes, not objects:
+// a count would treat a 32 byte object and a 10 MB array as the same thing.
+static uInt youngBudget = MB_TO_BYTES(8);   // new objects between two collections
+static uInt fullPercent = 300;              // full collection: old bytes >= this much of what the last full one left
+static const uInt FULL_MIN_GROWTH = MB_TO_BYTES(16);    // ... and at least this much more than it left
+
 void tgc_set_logging(bool on) { logging = on; }
 
 void tgc_set_stress(Int everyNAllocations) {
@@ -49,7 +55,7 @@ void tgc_set_stress(Int everyNAllocations) {
 }
 
 /**
- * SHARP_GC is a comma separated list:  stress=<n>   log
+ * SHARP_GC is a comma separated list:  stress=<n>   log   young=<mb>   full=<percent>
  * It exists so a whole test run can be switched over without touching the
  * command line of every test:   SHARP_GC=stress=1 bash suite.sh
  */
@@ -61,6 +67,14 @@ void tgc_configure_from_environment() {
     stringstream words(text);
     while(std::getline(words, word, ',')) {
         if(word == "log") tgc_set_logging(true);
+        else if(word.rfind("young=", 0) == 0) {
+            Int mb = (Int)atoll(word.c_str() + 6);
+            if(mb >= 1) youngBudget = MB_TO_BYTES(mb);
+        }
+        else if(word.rfind("full=", 0) == 0) {
+            Int percent = (Int)atoll(word.c_str() + 5);
+            if(percent > 100) fullPercent = (uInt)percent;
+        }
         else if(word.rfind("stress", 0) == 0) {
             Int n = 1;
             if(word.size() > 7 && word[6] == '=') n = (Int)atoll(word.c_str() + 7);
@@ -142,19 +156,16 @@ static void set_gc_signal(sharp_thread *thread, bool on) {
 // 3. Asking for a collection
 // ---------------------------------------------------------------------------------
 //
-// WHEN: after `trigger` bytes have been allocated since the last collection.
-// The trigger is the amount of memory that survived the last collection, but
-// at least MIN_TRIGGER. So the heap is allowed to roughly double between
-// collections: little live data -> small, frequent, cheap collections; a lot of
-// live data -> rare collections. The total work stays proportional to what the
-// program allocates.
-
-static const uInt MIN_TRIGGER = MB_TO_BYTES(8);
+// WHEN: after `trigger` bytes have been allocated since the last collection -
+// the young budget, or less when the memory limit is near. Whether that
+// collection is a minor or a full one is decided when it runs (collect_now).
+// The total work stays proportional to what the program allocates.
 
 static std::atomic<bool> requested(false);
+static std::atomic<bool> fullRequested(false);     // the next collection must be a full one
 static std::atomic<uInt> bytesSinceCollection(0);
 static std::atomic<uInt> objectsSinceCollection(0);
-static std::atomic<uInt> trigger(MIN_TRIGGER);
+static std::atomic<uInt> trigger(MB_TO_BYTES(8));
 static std::atomic<bool> lastCollectionLeftHeapFull(false);
 static uInt collections = 0;
 
@@ -165,6 +176,7 @@ void tgc_request(bool force) {
         return;
 
     requested.store(true);
+    if(force) fullRequested.store(true);    // the program asked, or the memory limit is reached: look at everything
 
     // make the calling thread look at the request at its next safe point
     sharp_thread *self = thread_self;
@@ -189,6 +201,7 @@ void tgc_nudge() {
 }
 
 void tgc_note_object() {
+    if(stressEvery <= 0) return;        // the count is only used by -gcstress
     uInt count = ++objectsSinceCollection;
     if(stressEvery > 0 && (count % (uInt)stressEvery) == 0)
         tgc_request();
@@ -250,8 +263,14 @@ void tgc_make_permanent(sharp_object *o) {
     if(o == nullptr || GENERATION(o->info) == gc_perm) return;
 
     SET_GENERATION(o->info, gc_perm);
-    std::lock_guard<std::mutex> guard(pin_mut);
-    permanentObjects.push_back(o);
+    {
+        std::lock_guard<std::mutex> guard(pin_mut);
+        permanentObjects.push_back(o);
+    }
+
+    // It counts as old from now on, so a minor collection does not follow it -
+    // but what it refers to today may be young: have the next one look.
+    gc_remember(o);
 }
 
 // ---------------------------------------------------------------------------------
@@ -303,9 +322,16 @@ static bool stop_the_world(sharp_thread *self) {
 
 static std::vector<sharp_object*> pending;     // marked, fields not followed yet
 static std::vector<object*> interiorPointers;  // task->ptr values that point into some object
+static bool minorCollection = false;           // this collection looks at young objects only
 
 static inline void mark(sharp_object *o) {
-    if(o != nullptr && !MARKED(o->info)) {
+    if(o == nullptr) return;
+
+    // an old (or permanent) object is alive by definition in a minor collection,
+    // and what it refers to is found through the remembered set instead
+    if(minorCollection && GENERATION(o->info) != gc_normal) return;
+
+    if(!MARKED(o->info)) {
         MARK(o->info, 1);
 
         // numbers have nothing to follow (type <= type_var: HEAD is an array
@@ -315,25 +341,189 @@ static inline void mark(sharp_object *o) {
     }
 }
 
+/** mark what the slots of `o` refer to */
+static inline void mark_slots_of(sharp_object *o) {
+    if(o->type <= type_var || o->node == nullptr) return;
+
+    // A class instance has number fields in some of its slots: those are
+    // not references and must not be followed (their bits are an integer
+    // or a decimal, not an address).
+    const bool *numbers = number_slots_of(o);
+    object *slot = o->node;
+    if(numbers == nullptr) {
+        for(uInt i = 0; i < o->size; i++, slot++)
+            mark(slot->o);
+    } else {
+        for(uInt i = 0; i < o->size; i++, slot++) {
+            if(!numbers[i]) mark(slot->o);
+        }
+    }
+}
+
 static void mark_everything_reachable() {
     while(!pending.empty()) {
         sharp_object *o = pending.back();
         pending.pop_back();
+        mark_slots_of(o);
+    }
+}
 
-        // A class instance has number fields in some of its slots: those are
-        // not references and must not be followed (their bits are an integer
-        // or a decimal, not an address).
-        const bool *numbers = number_slots_of(o);
-        object *slot = o->node;
-        if(numbers == nullptr) {
-            for(uInt i = 0; i < o->size; i++, slot++)
-                mark(slot->o);
-        } else {
-            for(uInt i = 0; i < o->size; i++, slot++) {
-                if(!numbers[i]) mark(slot->o);
-            }
+// ---------------------------------------------------------------------------------
+// The remembered set (the write barrier's side of a minor collection)
+// ---------------------------------------------------------------------------------
+//
+// rememberedSet    OLD objects a young object was stored into since the last
+//                  collection (write_barrier in memory/sharp_object.h): all of
+//                  their slots are looked at
+// rememberedRanges the same for LARGE ARRAYS, where only the elements that were
+//                  stored into are looked at: (array, first element, how many).
+//                  By index and not by address: an array that grows gets new
+//                  memory for its elements (realloc_object).
+// keptYoung        YOUNG objects that C++ code stored into a slot it could not
+//                  name the owner of (copy_object): kept alive once, as roots
+//
+// Both are only added to between collections and emptied by every collection.
+// A young object is never freed between collections and an old one only by a
+// full collection (which empties the lists first), so no entry can dangle.
+
+static std::mutex remembered_mut;
+struct remembered_range { sharp_object *owner; uInt first; uInt count; };
+
+static std::vector<sharp_object*> rememberedSet;
+static std::vector<sharp_object*> keptYoung;
+
+/*
+ * The ranges of ONE thread. A program that fills a large array stores into it
+ * millions of times, so this path takes no lock: every thread writes to its
+ * own buffer, and the collector reads them all while the threads are stopped.
+ * A thread that ends leaves what it had in `orphanRanges`.
+ */
+struct range_buffer {
+    std::vector<remembered_range> ranges;
+    range_buffer();
+    ~range_buffer();
+};
+
+static std::vector<range_buffer*> rangeBuffers;         // guarded by remembered_mut
+static std::vector<remembered_range> orphanRanges;      // guarded by remembered_mut
+
+range_buffer::range_buffer() {
+    std::lock_guard<std::mutex> guard(remembered_mut);
+    rangeBuffers.push_back(this);
+}
+
+range_buffer::~range_buffer() {
+    std::lock_guard<std::mutex> guard(remembered_mut);
+    orphanRanges.insert(orphanRanges.end(), ranges.begin(), ranges.end());
+    rangeBuffers.erase(std::remove(rangeBuffers.begin(), rangeBuffers.end(), this), rangeBuffers.end());
+}
+
+static thread_local range_buffer rangesOfThread;
+static uInt rememberedSlots;        // slots a minor collection read because of the two lists above (for the log)
+
+static inline bool remembered_by_range(const sharp_object *o) {
+    return o->arrayFlag && o->type > type_var && o->size > LARGE_ARRAY_SLOTS;
+}
+
+void gc_remember_range(sharp_object *owner, Int first, Int count) {
+    if(count <= 0 || first < 0) return;
+    if(!remembered_by_range(owner)) { gc_remember(owner); return; }
+
+    std::vector<remembered_range> &ranges = rangesOfThread.ranges;
+    // the usual case is a list that is appended to: one range that grows
+    if(!ranges.empty()) {
+        remembered_range &last = ranges.back();
+        if(last.owner == owner && (uInt)first >= last.first && (uInt)first <= last.first + last.count) {
+            uInt end = (uInt)first + (uInt)count;
+            if(end > last.first + last.count) last.count = end - last.first;
+            return;
         }
     }
+    ranges.push_back({ owner, (uInt)first, (uInt)count });
+}
+
+/** minor collection: the elements of large arrays that were stored into */
+static void mark_ranges(std::vector<remembered_range> &ranges) {
+    for(remembered_range &range : ranges) {
+        sharp_object *o = range.owner;
+        if(o->type <= type_var || o->node == nullptr) continue;
+        uInt end = range.first + range.count;
+        if(end > o->size) end = o->size;        // the array was made shorter since
+        for(uInt i = range.first; i < end; i++)
+            mark(o->node[i].o);
+        if(end > range.first) rememberedSlots += end - range.first;
+    }
+    ranges.clear();
+}
+
+void gc_remember_store(sharp_object *owner, object *slot) {
+    // Is `slot` one of owner's slots at all? task->ptrOwner is not cleared when
+    // ptr moves on to a local or a static (multitasking/fiber/fiber.h), so the
+    // store may have had nothing to do with this object. Then there is nothing
+    // to remember - and the fiber forgets the owner, so that the next store
+    // through the same ptr does not come here again.
+    if(owner->type <= type_var || owner->node == nullptr
+       || slot < owner->node || slot >= owner->node + owner->size) {
+        sharp_thread *self = thread_self;
+        if(self != nullptr && self->task != nullptr && self->task->ptrOwner == owner)
+            self->task->ptrOwner = nullptr;
+        return;
+    }
+
+    if(remembered_by_range(owner)) gc_remember_range(owner, (Int)(slot - owner->node), 1);
+    else gc_remember(owner);
+}
+
+void gc_remember(sharp_object *owner) {
+    std::lock_guard<std::mutex> guard(remembered_mut);
+    if(owner->remembered) return;       // another thread was first
+    owner->remembered = 1;
+    rememberedSet.push_back(owner);
+}
+
+void gc_keep_young(object *slot, sharp_object *value) {
+    // a slot of the running fiber's stack is a root already
+    sharp_thread *self = thread_self;
+    if(self != nullptr && self->task != nullptr && self->task->stack != nullptr) {
+        fiber *task = self->task;
+        if(slot >= &task->stack->obj && slot <= &(task->stack + (task->stackSize - 1))->obj)
+            return;
+    }
+
+    std::lock_guard<std::mutex> guard(remembered_mut);
+    if(keptYoung.empty() || keptYoung.back() != value)
+        keptYoung.push_back(value);
+}
+
+/** minor collection: what the write barrier collected is looked at like a root */
+static void mark_from_remembered_set() {
+    std::lock_guard<std::mutex> guard(remembered_mut);
+    rememberedSlots = 0;
+    for(sharp_object *o : rememberedSet) {
+        o->remembered = 0;
+        mark_slots_of(o);
+        if(o->type > type_var) rememberedSlots += o->size;
+    }
+    for(range_buffer *buffer : rangeBuffers)
+        mark_ranges(buffer->ranges);
+    mark_ranges(orphanRanges);
+    for(sharp_object *o : keptYoung)
+        mark(o);
+    rememberedSet.clear();
+    keptYoung.clear();
+}
+
+/** full collection: everything is followed anyway, the lists only have to be emptied */
+static void forget_remembered_set() {
+    std::lock_guard<std::mutex> guard(remembered_mut);
+    for(sharp_object *o : rememberedSet)
+        o->remembered = 0;
+    rememberedSet.clear();
+    for(range_buffer *buffer : rangeBuffers)
+        buffer->ranges.clear();
+    orphanRanges.clear();
+    keptYoung.clear();
+    rememberedSlots = 0;
 }
 
 /**
@@ -344,6 +534,7 @@ static void mark_everything_reachable() {
 static void mark_fiber(fiber *fib, void *) {
     mark(fib->exceptionObject.o);
     mark(fib->fiberObject.o);
+    mark(fib->ptrOwner);        // the write barrier reads it (multitasking/fiber/fiber.h)
 
     // the object it is waiting to lock and the objects it has locked: a lock
     // is found again through the object's address, so the object must stay
@@ -393,18 +584,28 @@ static void mark_fiber(fiber *fib, void *) {
  *      o->node <= slot < o->node + o->size
  *
  * The pointers are sorted once so each object needs one binary search.
+ *
+ * A minor collection walks the young list only: an old object is not freed by
+ * it, so a slot inside one stays valid whoever owns it.
  */
-static void mark_owners_of_interior_pointers() {
-    if(interiorPointers.empty()) return;
+static inline void mark_if_owner_of_interior_pointer(sharp_object *o) {
+    if(o->type <= type_var || o->node == nullptr) return;
 
+    auto first = std::lower_bound(interiorPointers.begin(), interiorPointers.end(), o->node);
+    if(first != interiorPointers.end() && *first < o->node + o->size)
+        mark(o);
+}
+
+static void mark_owners_of_interior_pointers(bool oldObjectsToo) {
+    if(interiorPointers.empty()) return;
     std::sort(interiorPointers.begin(), interiorPointers.end());
 
-    for(sharp_object *o = gc.objects; o != nullptr; o = o->next) {
-        if(o->type <= type_var || o->node == nullptr) continue;
+    for(sharp_object *o = gc.objects.load(); o != nullptr; o = o->next)
+        mark_if_owner_of_interior_pointer(o);
 
-        auto first = std::lower_bound(interiorPointers.begin(), interiorPointers.end(), o->node);
-        if(first != interiorPointers.end() && *first < o->node + o->size)
-            mark(o);
+    if(oldObjectsToo) {
+        for(sharp_object *o : gc.oldObjects)
+            mark_if_owner_of_interior_pointer(o);
     }
 
     interiorPointers.clear();
@@ -455,38 +656,82 @@ static void mark_roots() {
 // 6. Sweeping
 // ---------------------------------------------------------------------------------
 
-static uInt sweptObjects, sweptBytes, liveObjects;
+static uInt sweptObjects, sweptBytes, liveObjects, promotedObjects;
 
-static void sweep_list(sharp_object **head) {
-    sharp_object **link = head;     // the pointer that points at the object we look at
+/** an object nothing can reach any more: give its memory back */
+static inline void free_dead_object(sharp_object *o) {
+    if(o->type <= type_var) {
+        sweptBytes += (size_t)element_size(o->type) * o->size;
+        if(!o->inlineData) std::free(o->data);       // an inline payload goes with the header
+    } else if(o->node != nullptr) {
+        sweptBytes += sizeof(object) * o->size;
+        if(!o->inlineData) std::free(o->node);
+    }
 
-    while(*link != nullptr) {
-        sharp_object *o = *link;
+    if(HAS_LOCK(o->info))
+        remove_mutex(o);
+
+    sweptBytes += sizeof(sharp_object);
+    sweptObjects++;
+    pool_free_swept(o);     // back to the object pool, or free() for a large one
+}
+
+/**
+ * Full collection: the old objects. What was not marked is freed and the array
+ * is closed up over the gaps. The objects are scattered all over memory, so the
+ * loop asks for the ones it will reach in a moment (a prefetch) while it works
+ * on the current one; without that it waits for memory once per object.
+ */
+static void sweep_old_objects() {
+    std::vector<sharp_object*> &old = gc.oldObjects;
+    size_t kept = 0, count = old.size();
+
+    for(size_t i = 0; i < count; i++) {
+        if(i + 12 < count) __builtin_prefetch(old[i + 12]);
+        sharp_object *o = old[i];
 
         if(MARKED(o->info)) {
             MARK(o->info, 0);       // ready for the next collection
+            old[kept++] = o;
             liveObjects++;
-            link = &o->next;
-            continue;
+        } else {
+            free_dead_object(o);    // not reached from any root: nothing can ever use it again
+        }
+    }
+
+    old.resize(kept);
+}
+
+/**
+ * Every collection: the young list. What was not marked is freed; what was
+ * reached has survived a collection and becomes OLD - it leaves the young list
+ * and its address is added to the old objects (the object stays where it is).
+ *
+ * The list is pushed to without a lock (push_object), so the sweep takes the
+ * whole list for itself first; anything pushed meanwhile stays young.
+ */
+static void sweep_young_list() {
+    sharp_object *o = gc.objects.exchange(nullptr);
+
+    while(o != nullptr) {
+        sharp_object *next = o->next;
+        if(next != nullptr) __builtin_prefetch(next);
+
+        // (a permanent object is never marked by a minor collection and never freed)
+        if(MARKED(o->info) || GENERATION(o->info) != gc_normal) {
+            MARK(o->info, 0);
+            if(GENERATION(o->info) == gc_normal)
+                SET_GENERATION(o->info, gc_old);
+
+            o->next = nullptr;
+            gc.oldObjects.push_back(o);
+            liveObjects++;
+            promotedObjects++;
+        } else {
+            free_dead_object(o);
         }
 
-        // not reached from any root: nothing can ever use it again
-        *link = o->next;
-
-        if(o->type <= type_var) {
-            sweptBytes += (size_t)element_size(o->type) * o->size;
-            std::free(o->data);
-        } else if(o->node != nullptr) {
-            sweptBytes += sizeof(object) * o->size;
-            std::free(o->node);
-        }
-
-        if(HAS_LOCK(o->info))
-            remove_mutex(o);
-
-        sweptBytes += sizeof(sharp_object);
-        sweptObjects++;
-        std::free(o);
+        o = next;
     }
 }
 
@@ -494,55 +739,104 @@ static void sweep_list(sharp_object **head) {
 // 7. The safe point
 // ---------------------------------------------------------------------------------
 
-/** Runs with world_mut held and every other thread stopped. */
-static void collect() {
+static uInt liveAfterLastFull = 0;      // bytes the last full collection left
+static uInt liveAfterLast = 0;          // bytes the last collection of any kind left: the old objects of today
+
+/** one collection, minor or full. Runs with world_mut held and every other thread stopped. */
+static void collect(bool full) {
     auto started = std::chrono::steady_clock::now();
     uInt bytesBefore = gc.managedBytes;
+    minorCollection = !full;
 
     {
         // task_mutex: no fiber is created or freed while we look at fibers.
-        // gc_lock: nothing else changes the object lists or the lock table
-        // (the scheduler's monitor thread frees dead fibers and their locks).
+        // gc_lock: nothing else changes the lock table (the scheduler's monitor
+        // thread frees dead fibers and their locks).
         // In this order: freeing a fiber takes task_mutex, then gc_lock.
         std::lock_guard<recursive_mutex> noFiberChanges(task_mutex);
         std::lock_guard<recursive_mutex> noHeapChanges(gc_lock);
 
         pending.clear();
         interiorPointers.clear();
-        sweptObjects = sweptBytes = liveObjects = 0;
+        sweptObjects = sweptBytes = liveObjects = promotedObjects = 0;
 
         mark_roots();
-        mark_owners_of_interior_pointers();
+
+        if(full) {
+            forget_remembered_set();
+        } else {
+            mark_from_remembered_set();
+        }
+
+        mark_owners_of_interior_pointers(full);
+
         mark_everything_reachable();
 
-        sweep_list(&gc.objects);
+        if(full) sweep_old_objects();
+        sweep_young_list();
+        pool_sweep_done();
     }
 
     release_bytes(sweptBytes);
     collections++;
+    minorCollection = false;
+
+    // what is alive now is all old: that is what the next decision looks at
+    uInt live = gc.managedBytes;
+    liveAfterLast = live;
+    if(full) liveAfterLastFull = live;
+
+    if(logging) {
+        auto micros = std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - started).count();
+        fprintf(stderr, "[gc %llu %s] freed %llu objects (%llu kb), %llu %s, heap %llu kb -> %llu kb, pause %lld us",
+                (unsigned long long)collections, full ? "full" : "minor", (unsigned long long)sweptObjects,
+                (unsigned long long)(sweptBytes / 1024),
+                (unsigned long long)(full ? liveObjects : promotedObjects), full ? "objects live" : "objects became old",
+                (unsigned long long)(bytesBefore / 1024), (unsigned long long)(live / 1024),
+                (long long)micros);
+        if(!full) fprintf(stderr, ", %llu remembered slots", (unsigned long long)rememberedSlots);
+        fprintf(stderr, "\n");
+    }
+}
+
+/** is it time to look at the old objects too? (tracing_collector.h, GENERATIONS) */
+static bool full_collection_is_due() {
+    if(fullRequested.exchange(false)) return true;
+
+    // under -gcstress: three minor collections, then a full one
+    if(stressEvery > 0 && collections % 4 == 3) return true;
+
+    // the old objects have grown to fullPercent of what the last full collection left
+    uInt due = liveAfterLastFull / 100 * fullPercent;
+    if(due < liveAfterLastFull + FULL_MIN_GROWTH) due = liveAfterLastFull + FULL_MIN_GROWTH;
+    if(liveAfterLast >= due) return true;
+
+    // the memory limit is near: a minor collection cannot give back what old garbage holds
+    return gc.managedBytes + youngBudget >= gc.memoryLimit;
+}
+
+/** Runs with world_mut held and every other thread stopped. */
+static void collect_now() {
+    bool full = full_collection_is_due();
+    collect(full);
+
+    // "full" heap = the collection left less than 1/32 of the limit free
+    uInt live = gc.managedBytes;
+    if(!full && live + gc.memoryLimit / 32 >= gc.memoryLimit) {
+        collect(true);      // the minor one was not enough: look at everything before giving up
+        live = gc.managedBytes;
+    }
+    lastCollectionLeftHeapFull.store(live + gc.memoryLimit / 32 >= gc.memoryLimit);
 
     // when to collect next (see section 3)
-    uInt live = gc.managedBytes;
-    uInt next = live > MIN_TRIGGER ? live : MIN_TRIGGER;
+    uInt next = youngBudget;
     if(live < gc.memoryLimit && next > gc.memoryLimit - live)
         next = gc.memoryLimit - live;       // do not plan to run past the limit
     if(next < MB_TO_BYTES(1)) next = MB_TO_BYTES(1);
     trigger.store(next);
     bytesSinceCollection.store(0);
     objectsSinceCollection.store(0);
-
-    // "full" = the collection left less than 1/32 of the limit free
-    lastCollectionLeftHeapFull.store(live + gc.memoryLimit / 32 >= gc.memoryLimit);
-
-    if(logging) {
-        auto micros = std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::steady_clock::now() - started).count();
-        fprintf(stderr, "[gc %llu] freed %llu objects (%llu kb), %llu objects live, heap %llu kb -> %llu kb, pause %lld us\n",
-                (unsigned long long)collections, (unsigned long long)sweptObjects,
-                (unsigned long long)(sweptBytes / 1024), (unsigned long long)liveObjects,
-                (unsigned long long)(bytesBefore / 1024), (unsigned long long)(live / 1024),
-                (long long)micros);
-    }
 }
 
 /**
@@ -565,7 +859,7 @@ void tgc_safepoint() {
     if(!requested.load()) return;
 
     if(stop_the_world(self))
-        collect();
+        collect_now();
 
     requested.store(false);
 }

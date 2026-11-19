@@ -140,12 +140,12 @@ def main(args: string[]) {
         test("string_builder(string variable)") { expect(text_of(from_variable, 4)).should_be("left"); };
 
         // ---- starts_with
-        test("starts_with: the first characters") { expect_true(from_text.starts_with("hello").value); };
-        test("starts_with: one character") { expect_true(from_text.starts_with("h").value); };
-        test("starts_with: the whole text") { expect_true(from_text.starts_with("hello world").value); };
-        test("starts_with: other text") { expect_false(from_text.starts_with("world").value); };
-        test("starts_with: a difference in the last character") { expect_false(from_text.starts_with("hellp").value); };
-        test("starts_with: longer than the text") { expect_false(from_text.starts_with("hello world and more").value); };
+        test("starts_with: the first characters") { expect_true(from_text.starts_with("hello")); };
+        test("starts_with: one character") { expect_true(from_text.starts_with("h")); };
+        test("starts_with: the whole text") { expect_true(from_text.starts_with("hello world")); };
+        test("starts_with: other text") { expect_false(from_text.starts_with("world")); };
+        test("starts_with: a difference in the last character") { expect_false(from_text.starts_with("hellp")); };
+        test("starts_with: longer than the text") { expect_false(from_text.starts_with("hello world and more")); };
 
         // ---- replace one character
         from_text.replace(0, 'J');
@@ -221,7 +221,7 @@ def main(args: string[]) {
         test("long pieces: first character") { expect(story.at(0).value).should_be('T'); };
         test("long pieces: start of the last piece (199 * 45)") { expect(story.at(8955).value).should_be('T'); };
         test("long pieces: the last full stop (9000 - 2)") { expect(story.at(8998).value).should_be('.'); };
-        test("long pieces: starts_with") { expect_true(story.starts_with("The quick brown fox").value); };
+        test("long pieces: starts_with") { expect_true(story.starts_with("The quick brown fox")); };
 
         // ---- many builders
         made : decimal = 0;

@@ -215,7 +215,7 @@ class channel<t> : send_channel<t>, receive_channel<t> {
         if(taker != null) {
             taker!!.unpark();
         }
-        return accepted;
+        return accepted != 0;
     }
 
     // ------------------------------------------------------------------------------
@@ -483,6 +483,6 @@ class channel<t> : send_channel<t>, receive_channel<t> {
                 done = 1;
             }
         }
-        return done;
+        return done != 0;
     }
 }

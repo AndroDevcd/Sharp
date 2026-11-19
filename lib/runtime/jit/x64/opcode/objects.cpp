@@ -5,8 +5,10 @@
 // static), not the object itself: MOVL / MOVG / MOVN point it somewhere, the
 // other instructions read or write the reference in that slot.
 //
-// Storing a reference is a plain 8-byte store: the tracing collector needs no
-// bookkeeping on assignment.
+// Storing a reference into a local or a static is a plain 8-byte store. A store
+// through ptr (POPOBJ) may change an OLD object, which the generational
+// collector has to hear about: the write barrier (memory/sharp_object.h). MOVN
+// and MOVND note which object ptr points into (task->ptrOwner) for it.
 //
 
 #include "../x64_generator.h"
@@ -32,11 +34,13 @@ emit_result X64Generator::emit_objects() {
             return emitted;
         case Opcode::MOVN:      // ptr = ptr->o->node + b
             load_object_or_throw();
+            a.mov(fiber_field(offsetof(fiber, ptrOwner)), rax);
             a.mov(rax, x86::qword_ptr(rax, offsetof(sharp_object, node)));
             a.lea(PTR, x86::qword_ptr(rax, (int32_t)(raw * 8)));
             return emitted;
         case Opcode::MOVND:     // ptr = ptr->o->node + regs[a]
             load_object_or_throw();
+            a.mov(fiber_field(offsetof(fiber, ptrOwner)), rax);
             a.mov(rax, x86::qword_ptr(rax, offsetof(sharp_object, node)));
             load_vm_register(rcx, single);
             a.lea(PTR, x86::qword_ptr(rax, rcx, 3));
@@ -81,6 +85,23 @@ emit_result X64Generator::emit_objects() {
             a.mov(rax, stack_object());
             pop_stack_slot();
             a.mov(x86::qword_ptr(PTR), rax);
+
+            // write_barrier(task->ptrOwner, value): only a YOUNG value stored into an
+            // OLD object that is not remembered yet goes to the runtime
+            Label done = a.newLabel();
+            Label remember = request_slow_path(slow_barrier, pc, done);
+            a.test(rax, rax);
+            a.jz(done);
+            a.test(x86::dword_ptr(rax, offsetof(sharp_object, info)), 0x30000000);
+            a.jnz(done);                                // the value is not young
+            a.mov(rcx, fiber_field(offsetof(fiber, ptrOwner)));
+            a.test(rcx, rcx);
+            a.jz(done);
+            a.test(x86::dword_ptr(rcx, offsetof(sharp_object, info)), 0x30000000);
+            a.jz(done);                                 // the owner is young
+            a.cmp(x86::byte_ptr(rcx, offsetof(sharp_object, remembered)), 0);
+            a.je(remember);
+            a.bind(done);
             return emitted;
         }
         case Opcode::SMOVR_3:   // (fp+a)->obj = *ptr

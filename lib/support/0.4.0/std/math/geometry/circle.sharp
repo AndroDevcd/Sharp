@@ -7,7 +7,7 @@ mod std.math;
  *
  *     c := new circle(0, 0, 5);
  *     c.area()                         // 25 pi = 78.5398...
- *     c.contains(3, 4).value           // true (the point is on the border)
+ *     c.contains(3, 4)           // true (the point is on the border)
  *     c.intersects(new circle(8, 0, 3)).value     // true (they touch)
  *
  * The border counts as inside: contains() is true on the circle line, and

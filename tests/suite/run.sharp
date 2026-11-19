@@ -78,7 +78,7 @@ def run_one(sharpc: string, sharp: string, suite: string, work: string, options:
         + " -o " + quoted(executable) + options + " > " + quoted(compile_log) + " 2>&1");
 
     built := new file(executable);
-    if(!built.exists().value) {
+    if(!built.exists()) {
         failed_tests++;
         println("FAIL  $name   (did not compile, see $compile_log)");
         sys("grep -i -m 5 error " + quoted(compile_log));
@@ -92,12 +92,12 @@ def run_one(sharpc: string, sharp: string, suite: string, work: string, options:
     // A case ends with one of two last lines: the suite's own helper (testing.sharp) prints
     // `RESULT PASS ...`; a case written with the standard testing library (std.testing: the
     // library cases, lib_* and std_*) prints `all <n> tests passed`.
-    if(text != null && (text!!.find("RESULT PASS").value || text!!.find(" tests passed").value)) {
+    if(text != null && (text!!.find("RESULT PASS") || text!!.find(" tests passed"))) {
         passed_tests++;
         println("PASS  $name");
     } else {
         failed_tests++;
-        if(text != null && (text!!.find("RESULT FAIL").value || text!!.find(" failed, ").value)) {
+        if(text != null && (text!!.find("RESULT FAIL") || text!!.find(" failed, "))) {
             println("FAIL  $name   (checks failed, see $output)");
         } else {
             println("FAIL  $name   (crashed or timed out before finishing, see $output)");
@@ -131,7 +131,7 @@ def main(args: string[]) {
     count : decimal = cases.size().value;
     for(i : decimal = 0; i < count; i++) {
         file_name := cases.at(i);
-        if(file_name.ends_with(".sharp").value) {
+        if(file_name.ends_with(".sharp")) {
             run_one(sharpc, sharp, suite, work, options, file_name);
         }
     }

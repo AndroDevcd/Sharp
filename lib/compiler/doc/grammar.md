@@ -67,7 +67,8 @@ object decimal _int8 _int16 _int32 _int64 _uint8 _uint16 _uint32 _uint64
 Notes:
 
 - `goto` is reserved but has no statement. `nil` is only valid as a return type.
-- `int`, `string`, `var`, `bool`, `long`, `char` and so on are NOT keywords. They are library classes and aliases.
+- `bool` is a keyword: the built-in type of `true` and `false`, like `_int64` or `decimal`.
+- `int`, `string`, `var`, `boolean`, `long`, `char` and so on are NOT keywords. They are library classes and aliases.
 - `keep`, `keep_inclusive`, `inclusive` (obfuscate options) and `it` (implicit lambda parameter) are not keywords. `switch`, `case`, `default` are not keywords either (the predicates `isSwitchStatement` / `isSwitchDeclarator` exist but nothing calls them).
 - The native types are the last line of the list (`isNativeType`, line 4245).
 - The assembly mnemonics and register names (section 2.7) are only special inside `asm { }`.

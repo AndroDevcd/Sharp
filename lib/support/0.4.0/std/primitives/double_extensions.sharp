@@ -11,7 +11,7 @@ import ( std.math )
  *     d.floor().value             // 3
  *     d.to_fixed(3)               // "3.142"
  *     d.to_short_string()         // "3.14159"   (to_string() gives 16 decimals)
- *     d.is_whole().value          // false
+ *     d.is_whole()          // false
  *
  * The methods that produce a number return a new double; the object they
  * are called on is not changed.

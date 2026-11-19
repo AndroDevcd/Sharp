@@ -8,6 +8,6 @@ class holder {
 def main(args: string[]) {
     expect("static field of an inner class", holder.part.count, 7);
     x : holder.inner = holder.inner.on;
-    expect_true("inner enum as a type and value", (x == holder.inner.on).value);
+    expect_true("inner enum as a type and value", (x == holder.inner.on));
     finish("classes_nested_names");
 }

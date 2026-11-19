@@ -16,18 +16,18 @@ def check_common() {
     test("compare_to larger") { expect(n.compare_to(3)).should_be(1); };
     test("compare_to equal") { expect(n.compare_to(15)).should_be(0); };
     test("compare_to another box") { expect(m.compare_to(n)).should_be(0 - 1); };
-    test("is_odd") { expect_true(n.is_odd().value); };
-    test("is_even") { expect_false(n.is_even().value); };
-    test("is_even of a negative number") { expect_true(m.is_even().value); };
-    test("is_even(0)") { expect_true(zero.is_even().value); };
+    test("is_odd") { expect_true(n.is_odd()); };
+    test("is_even") { expect_false(n.is_even()); };
+    test("is_even of a negative number") { expect_true(m.is_even()); };
+    test("is_even(0)") { expect_true(zero.is_even()); };
     minus_three : int = 0 - 3;
-    test("is_odd of a negative number") { expect_true(minus_three.is_odd().value); };
-    test("is_zero") { expect_true(zero.is_zero().value); };
-    test("is_zero of 15") { expect_false(n.is_zero().value); };
-    test("is_positive") { expect_true(n.is_positive().value); };
-    test("is_positive of 0") { expect_false(zero.is_positive().value); };
-    test("is_negative") { expect_true(m.is_negative().value); };
-    test("is_negative of 15") { expect_false(n.is_negative().value); };
+    test("is_odd of a negative number") { expect_true(minus_three.is_odd()); };
+    test("is_zero") { expect_true(zero.is_zero()); };
+    test("is_zero of 15") { expect_false(n.is_zero()); };
+    test("is_positive") { expect_true(n.is_positive()); };
+    test("is_positive of 0") { expect_false(zero.is_positive()); };
+    test("is_negative") { expect_true(m.is_negative()); };
+    test("is_negative of 15") { expect_false(n.is_negative()); };
     test("sign positive") { expect(n.sign()).should_be(1); };
     test("sign negative") { expect(m.sign()).should_be(0 - 1); };
     test("sign zero") { expect(zero.sign()).should_be(0); };
@@ -48,9 +48,9 @@ def check_common() {
     } catch(e: illegal_argument_exception) {
         test("coerce_in(10, 0) throws") { };
     }
-    test("is_between") { expect_true(n.is_between(10, 20).value); };
-    test("is_between includes the ends") { expect_true(n.is_between(15, 15).value); };
-    test("is_between outside") { expect_false(n.is_between(16, 20).value); };
+    test("is_between") { expect_true(n.is_between(10, 20)); };
+    test("is_between includes the ends") { expect_true(n.is_between(15, 15)); };
+    test("is_between outside") { expect_false(n.is_between(16, 20)); };
     test("max_with") { expect(n.max_with(40).value).should_be(40); };
     test("max_with a smaller number") { expect(n.max_with(m).value).should_be(15); };
     test("min_with") { expect(n.min_with(m).value).should_be(0 - 4); };
@@ -58,14 +58,14 @@ def check_common() {
     // the same methods on the other number classes
     big : long = 5000000000;
     test("long.compare_to") { expect(big.compare_to(4999999999)).should_be(1); };
-    test("long.is_even") { expect_true(big.is_even().value); };
+    test("long.is_even") { expect_true(big.is_even()); };
     test("long.coerce_in") { expect(big.coerce_in(0, 1000).value).should_be(1000); };
     small : short = 0 - 300;
     test("short.abs") { expect(small.abs().value).should_be(300); };
     test("short.sign") { expect(small.sign()).should_be(0 - 1); };
     b : byte = 200;
     test("byte.coerce_at_most") { expect(b.coerce_at_most(100).value).should_be(100); };
-    test("byte.is_between") { expect_true(b.is_between(0, 255).value); };
+    test("byte.is_between") { expect_true(b.is_between(0, 255)); };
     d : double = 0 - 2.5;
     test("double.abs") { expect(d.abs().value).should_be(2.5); };
     test("double.compare_to") { expect(d.compare_to(0 - 2.25)).should_be(0 - 1); };
@@ -135,10 +135,10 @@ def check_parsing() {
     test("parse_or_null of a sign alone") { expect_null(int.parse_or_null("+")); };
     test("parse_or_null of a fraction") { expect_null(int.parse_or_null("1.5")); };
     test("long.parse_or_null") { expect(long.parse_or_null("5000000000")!!.value).should_be(5000000000); };
-    test("is_parsable") { expect_true(int.is_parsable("007").value); };
-    test("is_parsable with a sign") { expect_true(int.is_parsable("-7").value); };
-    test("is_parsable of a blank") { expect_false(int.is_parsable(" 7").value); };
-    test("is_parsable of nothing") { expect_false(int.is_parsable("").value); };
+    test("is_parsable") { expect_true(int.is_parsable("007")); };
+    test("is_parsable with a sign") { expect_true(int.is_parsable("-7")); };
+    test("is_parsable of a blank") { expect_false(int.is_parsable(" 7")); };
+    test("is_parsable of nothing") { expect_false(int.is_parsable("")); };
     test("parse_or") { expect(int.parse_or("19", 0).value).should_be(19); };
     test("parse_or falls back") { expect(int.parse_or("x", 7).value).should_be(7); };
 
@@ -195,19 +195,19 @@ def check_double() {
     infinite : double = 1;
     infinite = infinite / 0;
 
-    test("is_nan") { expect_true(nan.is_nan().value); };
-    test("is_nan of a number") { expect_false(d.is_nan().value); };
-    test("is_nan of infinity") { expect_false(infinite.is_nan().value); };
-    test("is_infinite") { expect_true(infinite.is_infinite().value); };
-    test("is_infinite of a number") { expect_false(d.is_infinite().value); };
-    test("is_infinite of NaN") { expect_false(nan.is_infinite().value); };
-    test("is_finite") { expect_true(d.is_finite().value); };
-    test("is_finite of infinity") { expect_false(infinite.is_finite().value); };
-    test("is_finite of NaN") { expect_false(nan.is_finite().value); };
+    test("is_nan") { expect_true(nan.is_nan()); };
+    test("is_nan of a number") { expect_false(d.is_nan()); };
+    test("is_nan of infinity") { expect_false(infinite.is_nan()); };
+    test("is_infinite") { expect_true(infinite.is_infinite()); };
+    test("is_infinite of a number") { expect_false(d.is_infinite()); };
+    test("is_infinite of NaN") { expect_false(nan.is_infinite()); };
+    test("is_finite") { expect_true(d.is_finite()); };
+    test("is_finite of infinity") { expect_false(infinite.is_finite()); };
+    test("is_finite of NaN") { expect_false(nan.is_finite()); };
     whole : double = 0 - 7;
-    test("is_whole") { expect_true(whole.is_whole().value); };
-    test("is_whole of a fraction") { expect_false(d.is_whole().value); };
-    test("is_whole of infinity") { expect_false(infinite.is_whole().value); };
+    test("is_whole") { expect_true(whole.is_whole()); };
+    test("is_whole of a fraction") { expect_false(d.is_whole()); };
+    test("is_whole of infinity") { expect_false(infinite.is_whole()); };
 
     low : double = 0 - 2.5;
     test("floor") { expect(d.floor().value).should_be(3); };
@@ -223,8 +223,8 @@ def check_double() {
     test("fraction_part of a negative number") { expect(low.fraction_part().value).should_be(0 - 0.5); };
     test("round_to") { expect(d.round_to(2).value).should_be_near(3.14, 0.000000000001); };
     test("the original is unchanged") { expect(d.value).should_be(3.14159); };
-    test("approx_equals") { expect_true(d.approx_equals(3.1416, 0.0001).value); };
-    test("approx_equals too far") { expect_false(d.approx_equals(3.2, 0.0001).value); };
+    test("approx_equals") { expect_true(d.approx_equals(3.1416, 0.0001)); };
+    test("approx_equals too far") { expect_false(d.approx_equals(3.2, 0.0001)); };
 
     test("to_fixed") { expect(d.to_fixed(3)).should_be("3.142"); };
     test("to_fixed pads") { expect(half.to_fixed(3)).should_be("2.500"); };
@@ -241,26 +241,26 @@ def check_char_and_bool() {
     blank : char = ' ';
     dash : char = '-';
 
-    test("is_upper_case") { expect_true(capital.is_upper_case().value); };
-    test("is_upper_case of a small letter") { expect_false(small.is_upper_case().value); };
-    test("is_lower_case") { expect_true(small.is_lower_case().value); };
-    test("is_lower_case of a digit") { expect_false(digit.is_lower_case().value); };
-    test("is_letter") { expect_true(capital.is_letter().value); };
-    test("is_letter of a digit") { expect_false(digit.is_letter().value); };
-    test("is_decimal_digit") { expect_true(digit.is_decimal_digit().value); };
-    test("is_decimal_digit of a letter") { expect_false(small.is_decimal_digit().value); };
-    test("is_letter_or_digit") { expect_true(digit.is_letter_or_digit().value); };
-    test("is_letter_or_digit of a dash") { expect_false(dash.is_letter_or_digit().value); };
-    test("is_hex_digit of 7") { expect_true(digit.is_hex_digit().value); };
+    test("is_upper_case") { expect_true(capital.is_upper_case()); };
+    test("is_upper_case of a small letter") { expect_false(small.is_upper_case()); };
+    test("is_lower_case") { expect_true(small.is_lower_case()); };
+    test("is_lower_case of a digit") { expect_false(digit.is_lower_case()); };
+    test("is_letter") { expect_true(capital.is_letter()); };
+    test("is_letter of a digit") { expect_false(digit.is_letter()); };
+    test("is_decimal_digit") { expect_true(digit.is_decimal_digit()); };
+    test("is_decimal_digit of a letter") { expect_false(small.is_decimal_digit()); };
+    test("is_letter_or_digit") { expect_true(digit.is_letter_or_digit()); };
+    test("is_letter_or_digit of a dash") { expect_false(dash.is_letter_or_digit()); };
+    test("is_hex_digit of 7") { expect_true(digit.is_hex_digit()); };
     hex_letter : char = 'F';
-    test("is_hex_digit of F") { expect_true(hex_letter.is_hex_digit().value); };
-    test("is_hex_digit of G") { expect_false(capital.is_hex_digit().value); };
-    test("is_whitespace of a blank") { expect_true(blank.is_whitespace().value); };
+    test("is_hex_digit of F") { expect_true(hex_letter.is_hex_digit()); };
+    test("is_hex_digit of G") { expect_false(capital.is_hex_digit()); };
+    test("is_whitespace of a blank") { expect_true(blank.is_whitespace()); };
     tab : char = 9;
-    test("is_whitespace of a tab") { expect_true(tab.is_whitespace().value); };
+    test("is_whitespace of a tab") { expect_true(tab.is_whitespace()); };
     newline : char = 10;
-    test("is_whitespace of a line feed") { expect_true(newline.is_whitespace().value); };
-    test("is_whitespace of a letter") { expect_false(small.is_whitespace().value); };
+    test("is_whitespace of a line feed") { expect_true(newline.is_whitespace()); };
+    test("is_whitespace of a letter") { expect_false(small.is_whitespace()); };
     test("upper_case") { expect(small.upper_case().value).should_be('G'); };
     test("upper_case of a capital") { expect(capital.upper_case().value).should_be('G'); };
     test("lower_case") { expect(capital.lower_case().value).should_be('g'); };
@@ -279,30 +279,30 @@ def check_char_and_bool() {
         test("from_digit(36) throws") { };
     }
     // the static functions that were already there still work
-    test("char.is_digit") { expect_true(char.is_digit(digit).value); };
-    test("char.is_alpha") { expect_true(char.is_alpha(small).value); };
+    test("char.is_digit") { expect_true(char.is_digit(digit)); };
+    test("char.is_alpha") { expect_true(char.is_alpha(small)); };
     test("char.to_upper") { expect(char.to_upper(small).value).should_be('G'); };
 
-    yes : bool = true;
-    no : bool = false;
-    test("negate true") { expect_false(yes.negate().value); };
-    test("negate false") { expect_true(no.negate().value); };
-    test("xor: one of them") { expect_true(yes.xor(no).value); };
-    test("xor: both") { expect_false(yes.xor(yes).value); };
-    test("xor: neither") { expect_false(no.xor(no).value); };
-    test("same_as") { expect_true(no.same_as(no).value); };
-    test("same_as differs") { expect_false(yes.same_as(no).value); };
+    yes : boolean = true;
+    no : boolean = false;
+    test("negate true") { expect_false(yes.negate()); };
+    test("negate false") { expect_true(no.negate()); };
+    test("xor: one of them") { expect_true(yes.xor(false)); };
+    test("xor: both") { expect_false(yes.xor(true)); };
+    test("xor: neither") { expect_false(no.xor(false)); };
+    test("same_as") { expect_true(no.same_as(false)); };
+    test("same_as differs") { expect_false(yes.same_as(false)); };
     test("to_var of true") { expect(yes.to_var()).should_be(1); };
     test("to_var of false") { expect(no.to_var()).should_be(0); };
-    test("from_string(true)") { expect_true(bool.from_string("true").value); };
-    test("from_string(false)") { expect_false(bool.from_string("false").value); };
-    test("from_string ignores case") { expect_true(bool.from_string("TRUE").value); };
-    test("from_string ignores case (False)") { expect_false(bool.from_string("False").value); };
-    test("from_string_or_null of other text") { expect_null(bool.from_string_or_null("maybe")); };
-    test("from_string_or_null of nothing") { expect_null(bool.from_string_or_null("")); };
-    test("from_string_or_null of true") { expect_not_null(bool.from_string_or_null("true")); };
+    test("from_string(true)") { expect_true(boolean.from_string("true")); };
+    test("from_string(false)") { expect_false(boolean.from_string("false")); };
+    test("from_string ignores case") { expect_true(boolean.from_string("TRUE")); };
+    test("from_string ignores case (False)") { expect_false(boolean.from_string("False")); };
+    test("from_string_or_null of other text") { expect_null(boolean.from_string_or_null("maybe")); };
+    test("from_string_or_null of nothing") { expect_null(boolean.from_string_or_null("")); };
+    test("from_string_or_null of true") { expect_not_null(boolean.from_string_or_null("true")); };
     try {
-        bool.from_string("yes");
+        boolean.from_string("yes");
         test("from_string(yes)") { fail_test("no exception"); };
     } catch(e: illegal_argument_exception) {
         test("from_string(yes) throws") { };

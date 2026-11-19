@@ -47,9 +47,9 @@ def inferred_type_of(session: analysis_session, value: bound_expression) : resol
     if(value.literal == LIT_INTEGER) { made = known.int_class; }
     else if(value.literal == LIT_DECIMAL) { made = known.double_class; }
     else if(value.literal == LIT_CHAR) { made = known.char_class; }
-    else if(value.literal == LIT_BOOL) { made = known.bool_class; }
     else if(value.literal == LIT_TEXT) { made = known.string_class; }
     if(made != null) { return type_of_class(made!!); }
+    if(value.literal == LIT_BOOL) { return session.types.bool_type; }      // `x := true` is a plain bool
     if(value.literal != LIT_NONE) { return session.types.error_type; }     // the library class is missing (reported by stage 5)
 
     if(value.type.kind == RT_NULL) { return session.types.object_type.as_nullable(); }
@@ -65,7 +65,8 @@ def inferred_type_of(session: analysis_session, value: bound_expression) : resol
  *      --------------------------------------  ------------------------------------------
  *      5                                       _int32     (a literal stays a plain number)
  *      1.5                                     decimal
- *      'a', true                               _int8
+ *      'a'                                     _int8
+ *      true, false, or any other bool          bool
  *      "text"                                  _int8[]
  *      null                                    object
  *      a variable or field by its name (`w`)   the variable's type: `def width() := w;`
@@ -82,7 +83,8 @@ def inferred_result_of(session: analysis_session, value: bound_expression) : res
         return types.int32;
     }
     if(value.literal == LIT_DECIMAL) { return types.decimal_type; }
-    if(value.literal == LIT_CHAR || value.literal == LIT_BOOL) { return types.int8; }
+    if(value.literal == LIT_CHAR) { return types.int8; }
+    if(value.type.is_boolean()) { return types.bool_type; }
     if(value.literal == LIT_TEXT) { return types.int8.array_of(); }
     if(value.type.kind == RT_NULL) { return types.object_type; }
 

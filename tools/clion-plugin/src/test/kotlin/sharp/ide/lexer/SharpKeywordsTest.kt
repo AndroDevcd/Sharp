@@ -24,7 +24,7 @@ class SharpKeywordsTest {
     @Test
     fun theWordsAreTheSame() {
         val compiler = compilerKeywords()
-        assertEquals("the compiler has 67 keywords today", 67, compiler.size)
+        assertEquals("the compiler has 68 keywords today", 68, compiler.size)
         assertEquals(compiler.toSet(), SharpKeywords.all)
     }
 

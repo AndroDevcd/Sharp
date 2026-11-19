@@ -381,7 +381,7 @@ public class file {
      * pathname. Returns 0 on success.
      */
     def set_writable(writable: decimal, owner_only: decimal) : int {
-        return fs.set_permission(self, file_system.access_write, writable, owner_only);
+        return fs.set_permission(self, file_system.access_write, writable != 0, owner_only != 0);
     }
 
     /**
@@ -397,7 +397,7 @@ public class file {
      * pathname. Returns 0 on success.
      */
     def set_readable(readable: decimal, owner_only: decimal) : int {
-        return fs.set_permission(self, file_system.access_read, readable, owner_only);
+        return fs.set_permission(self, file_system.access_read, readable != 0, owner_only != 0);
     }
 
     /**
@@ -414,7 +414,7 @@ public class file {
      * such permission.
      */
     def set_executable(executable: decimal, owner_only: decimal) : int {
-        return fs.set_permission(self, file_system.access_execute, executable, owner_only);
+        return fs.set_permission(self, file_system.access_execute, executable != 0, owner_only != 0);
     }
 
     /**

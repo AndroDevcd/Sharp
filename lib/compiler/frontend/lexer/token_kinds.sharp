@@ -117,3 +117,4 @@ const K_INJECT    : _int64 = 143;
 const K_COMPONENT : _int64 = 144;
 const K_SINGLE    : _int64 = 145;
 const K_FACTORY   : _int64 = 146;
+const K_BOOL      : _int64 = 147;

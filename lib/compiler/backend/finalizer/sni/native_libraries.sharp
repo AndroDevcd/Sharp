@@ -95,6 +95,7 @@ def library_name_of(function: sharp_function) : string {
 def signature_number_name(type: resolved_type) : string {
     if(type.kind == RT_DECIMAL) { return "decimal"; }
     if(type.kind != RT_INTEGER) { return ""; }
+    if(type.is_bool_type == 1) { return "bool"; }
     name : string = "_int";
     if(type.is_signed == 0) { name = "_uint"; }
     return name + type.bits;

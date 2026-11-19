@@ -19,7 +19,7 @@
 #include "tracing_collector.h"
 
 garbage_collector gc;
-recursive_mutex gc_lock;    // guards gc.managedBytes, gc.objects and gc.f_locks
+recursive_mutex gc_lock;    // guards gc.f_locks (gc.managedBytes and gc.objects are atomic: no lock per allocation)
 
 // ---------------------------------------------------------------------------------
 // Memory accounting
@@ -39,8 +39,8 @@ void reserve_bytes(size_t bytes, bool unsafe = false) {
     if(!unsafe && !tgc_note_allocation(bytes))
         throw vm_exception(vm.out_of_memory_except, "out of memory");
 
-    guard_mutex(gc_lock)
-    gc.managedBytes += bytes;
+    // one atomic add instead of taking gc_lock
+    gc.managedBytes.fetch_add(bytes, std::memory_order_relaxed);
 }
 
 void set_memory_limit(Int limit) {
@@ -77,24 +77,21 @@ uInt default_heap_size() {
 }
 
 void release_bytes(size_t bytes) {
-    guard_mutex(gc_lock)
-
     // managedBytes is unsigned: `managedBytes - bytes >= 0` (what this used to
     // test) is always true, and releasing too much wrapped around to a huge number
-    if(bytes <= gc.managedBytes) {
-        gc.managedBytes -= bytes;
-    } else {
-        gc.managedBytes = 0;
-    }
+    // a compare-and-swap loop instead of taking gc_lock
+    uInt now = gc.managedBytes.load(std::memory_order_relaxed);
+    while(!gc.managedBytes.compare_exchange_weak(now, bytes <= now ? now - bytes : 0, std::memory_order_relaxed)) { }
 }
 
 /** A new object exists: put it on the list the collector sweeps. */
 void push_object(sharp_object *o) {
-    {
-        guard_mutex(gc_lock)
-        o->next = gc.objects;
-        gc.objects = o;
-    }
+    // a lock-free push instead of taking gc_lock. The collector
+    // takes the whole list for itself while it sweeps (tracing_collector.cpp).
+    sharp_object *head = gc.objects.load(std::memory_order_relaxed);
+    do {
+        o->next = head;
+    } while(!gc.objects.compare_exchange_weak(head, o, std::memory_order_release, std::memory_order_relaxed));
 
     tgc_note_object();
 }
@@ -257,7 +254,12 @@ void print_memory_diagnostics() {
 
     {
         guard_mutex(gc_lock)
-        for(auto obj = gc.objects; obj != nullptr; obj = obj->next) {
+        for(sharp_object *obj = gc.objects.load(); obj != nullptr; obj = obj->next) {
+            types[obj->type]++;
+            total++;
+            if(GENERATION(obj->info) == gc_perm) permanent++;
+        }
+        for(sharp_object *obj : gc.oldObjects) {
             types[obj->type]++;
             total++;
             if(GENERATION(obj->info) == gc_perm) permanent++;

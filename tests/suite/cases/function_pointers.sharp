@@ -103,9 +103,9 @@ def main(args: string[]) {
 
     // ---- objects as parameters and results
     cmp : (int, int)(bool) = bigger;
-    expect_true("cmp(3, 2)", cmp(3, 2).value);
-    expect_false("cmp(2, 3)", cmp(2, 3).value);
-    expect_false("cmp(2, 2)", cmp(2, 2).value);
+    expect_true("cmp(3, 2)", cmp(3, 2));
+    expect_false("cmp(2, 3)", cmp(2, 3));
+    expect_false("cmp(2, 2)", cmp(2, 2));
     len : (string)(decimal) = length;
     expect("len(\"hello\")", len("hello"), 5);
     glue : (string, string)(string) = join;

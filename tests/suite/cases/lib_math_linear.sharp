@@ -34,9 +34,9 @@ def check_vector2() {
     test("a / 2: x") { expect(halved.x).should_be(1.5); };
     test("a / 2: y") { expect(halved.y).should_be(2); };
     test("operands are unchanged") { expect(a.x * 10 + a.y).should_be(34); };
-    test("==") { expect_true((a == new vector2(3, 4)).value); };
-    test("== different") { expect_false((a == b).value); };
-    test("!=") { expect_true((a != b).value); };
+    test("==") { expect_true((a == new vector2(3, 4))); };
+    test("== different") { expect_false((a == b)); };
+    test("!=") { expect_true((a != b)); };
     test("a[0]") { expect(a[0]).should_be(3); };
     test("a[1]") { expect(a[1]).should_be(4); };
     try {
@@ -58,8 +58,8 @@ def check_vector2() {
     test("length_squared") { expect(a.length_squared()).should_be(25); };
     test("distance_to") { expect(a.distance_to(new vector2(0, 0))).should_be(5); };
     test("distance_squared_to") { expect(a.distance_squared_to(b)).should_be(40); };
-    test("is_zero") { expect_true(vector2.zero().is_zero().value); };
-    test("is_zero of a") { expect_false(a.is_zero().value); };
+    test("is_zero") { expect_true(vector2.zero().is_zero()); };
+    test("is_zero of a") { expect_false(a.is_zero()); };
 
     unit := a.normalized();
     test("normalized x") { expect(unit.x).should_be_near(0.6, 0.000000000001); };
@@ -109,14 +109,14 @@ def check_vector2() {
     test("component_min y") { expect(a.component_min(b).y).should_be(0 - 2); };
     test("component_max x") { expect(a.component_max(b).x).should_be(3); };
     test("component_max y") { expect(a.component_max(b).y).should_be(4); };
-    test("approx_equals") { expect_true(a.approx_equals(new vector2(3.0000001, 3.9999999), 0.000001).value); };
-    test("approx_equals too far") { expect_false(a.approx_equals(new vector2(3.1, 4), 0.000001).value); };
+    test("approx_equals") { expect_true(a.approx_equals(new vector2(3.0000001, 3.9999999), 0.000001)); };
+    test("approx_equals too far") { expect_false(a.approx_equals(new vector2(3.1, 4), 0.000001)); };
     numbers := a.to_array();
     test("to_array size") { expect(sizeof(numbers)).should_be(2); };
     test("to_array content") { expect(numbers[0] * 10 + numbers[1]).should_be(34); };
     test("to_string") { expect(a.to_string()!!).should_be("(3, 4)"); };
     test("to_string with fraction") { expect(new vector2(0 - 0.5, 2.25).to_string()!!).should_be("(-0.5, 2.25)"); };
-    test("equal vectors have equal hashes") { expect_true((a.hash() == new vector2(3, 4).hash()).value); };
+    test("equal vectors have equal hashes") { expect_true((a.hash() == new vector2(3, 4).hash())); };
 }
 
 def check_vector3() {
@@ -143,8 +143,8 @@ def check_vector3() {
     halved := a / 2;
     test("a / 2: y") { expect(halved.y).should_be(1); };
     test("a / 2: z") { expect(halved.z).should_be(1.5); };
-    test("==") { expect_true((a == new vector3(1, 2, 3)).value); };
-    test("!=") { expect_true((a != b).value); };
+    test("==") { expect_true((a == new vector3(1, 2, 3))); };
+    test("!=") { expect_true((a != b)); };
     test("a[2]") { expect(a[2]).should_be(3); };
     try {
         a[3];
@@ -172,7 +172,7 @@ def check_vector3() {
     test("length_squared") { expect(a.length_squared()).should_be(14); };
     test("distance_to") { expect(new vector3(1, 1, 1).distance_to(new vector3(3, 4, 7))).should_be(7); };
     test("distance_squared_to") { expect(a.distance_squared_to(b)).should_be(67); };     // 9 + 49 + 9
-    test("is_zero") { expect_true(vector3.zero().is_zero().value); };
+    test("is_zero") { expect_true(vector3.zero().is_zero()); };
 
     unit := new vector3(0, 3, 4).normalized();
     test("normalized y") { expect(unit.y).should_be_near(0.6, 0.000000000001); };
@@ -200,7 +200,7 @@ def check_vector3() {
     test("abs") { expect(b.abs().y).should_be(5); };
     test("component_min y") { expect(a.component_min(b).y).should_be(0 - 5); };
     test("component_max y") { expect(a.component_max(b).y).should_be(2); };
-    test("approx_equals") { expect_true(a.approx_equals(new vector3(1, 2, 3.0000001), 0.000001).value); };
+    test("approx_equals") { expect_true(a.approx_equals(new vector3(1, 2, 3.0000001), 0.000001)); };
     test("to_vector2") { expect(a.to_vector2().y).should_be(2); };
     test("to_array") { expect(sizeof(a.to_array())).should_be(3); };
     test("to_string") { expect(a.to_string()!!).should_be("(1, 2, 3)"); };
@@ -213,7 +213,7 @@ def check_matrix() {
     test("at(0, 0)") { expect(m.at(0, 0)).should_be(1); };
     test("at(1, 2)") { expect(m.at(1, 2)).should_be(6); };
     test("at(1, 0)") { expect(m.at(1, 0)).should_be(4); };
-    test("2 x 3 is not square") { expect_false(m.is_square().value); };
+    test("2 x 3 is not square") { expect_false(m.is_square()); };
     test("size_text") { expect(m.size_text()).should_be("2 x 3"); };
     test("to_string") { expect(m.to_string()!!).should_be("[[1, 2, 3], [4, 5, 6]]"); };
 
@@ -268,12 +268,12 @@ def check_matrix() {
     test("(2 x 3) * (3 x 2) rows") { expect(wide.rows).should_be(2); };
     test("(2 x 3) * (3 x 2) cell") { expect(wide.at(1, 1)).should_be(77); };
     test("(2 x 3) * (3 x 2) cell 2") { expect(wide.at(0, 1)).should_be(32); };
-    test("a * identity == a") { expect_true((a * matrix.identity(2) == a).value); };
-    test("==") { expect_true((a == new matrix(2, 2, new decimal[] { 1, 2, 3, 4 })).value); };
-    test("!=") { expect_true((a != b).value); };
-    test("== with another size") { expect_false((a == m).value); };
-    test("same_size") { expect_true(a.same_size(b).value); };
-    test("same_size differs") { expect_false(a.same_size(m).value); };
+    test("a * identity == a") { expect_true((a * matrix.identity(2) == a)); };
+    test("==") { expect_true((a == new matrix(2, 2, new decimal[] { 1, 2, 3, 4 }))); };
+    test("!=") { expect_true((a != b)); };
+    test("== with another size") { expect_false((a == m)); };
+    test("same_size") { expect_true(a.same_size(b)); };
+    test("same_size differs") { expect_false(a.same_size(m)); };
 
     vector := m.multiply_vector(new decimal[] { 1, 0, 2 });
     test("multiply_vector [0]") { expect(vector[0]).should_be(7); };
@@ -294,8 +294,8 @@ def check_matrix() {
     test("inverse (0, 1)") { expect(inv.at(0, 1)).should_be_near(0 - 0.7, 0.000000000001); };
     test("inverse (1, 0)") { expect(inv.at(1, 0)).should_be_near(0 - 0.2, 0.000000000001); };
     test("inverse (1, 1)") { expect(inv.at(1, 1)).should_be_near(0.4, 0.000000000001); };
-    test("m * inverse is the identity") { expect_true((e * inv).approx_equals(matrix.identity(2), 0.000000000001).value); };
-    test("3 x 3 inverse") { expect_true((d * d.inverse()).approx_equals(matrix.identity(3), 0.000000000001).value); };
+    test("m * inverse is the identity") { expect_true((e * inv).approx_equals(matrix.identity(2), 0.000000000001)); };
+    test("3 x 3 inverse") { expect_true((d * d.inverse()).approx_equals(matrix.identity(3), 0.000000000001)); };
     try {
         c.inverse();
         test("inverse of a singular matrix") { fail_test("no exception"); };
@@ -312,7 +312,7 @@ def check_matrix() {
     test("power: F11") { expect(fib.at(0, 0)).should_be(89); };
     test("power: F10") { expect(fib.at(0, 1)).should_be(55); };
     test("power: F9") { expect(fib.at(1, 1)).should_be(34); };
-    test("power(0) is the identity") { expect_true((a.power(0) == matrix.identity(2)).value); };
+    test("power(0) is the identity") { expect_true((a.power(0) == matrix.identity(2))); };
 
     minor := d.minor(0, 0);
     test("minor size") { expect(minor.rows * 10 + minor.columns).should_be(22); };

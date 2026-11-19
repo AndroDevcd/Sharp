@@ -54,7 +54,6 @@ int initialize_virtual_machine()
     vm.string_class = locate_class("std#string");
     vm.int_class = locate_class("std#int");
     vm.char_class = locate_class("std#char");
-    vm.bool_class = locate_class("std#bool");
     vm.short_class = locate_class("std#short");
     vm.byte_class = locate_class("std#byte");
     vm.uint_class = locate_class("std#uint");

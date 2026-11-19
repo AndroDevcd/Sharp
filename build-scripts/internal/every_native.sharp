@@ -30,6 +30,11 @@ def name_every_native() {
     surface_time();
     surface_fill(0);
     surface_present();
+    surface_mode(0);
+    surface_screen_width();
+    surface_screen_height();
+    surface_paced();
+    surface_pace(1);
     surface_poll();
     surface_wait(0);
     surface_wake();

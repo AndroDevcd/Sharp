@@ -138,7 +138,7 @@ echo "        stage 2, backend tests: $(echo "$out" | tail -1)"
 
 mkdir -p refused
 export SHARP COMPILER STAGE2 LIBRARY OUT ROOMY
-ls "$HERE"/backend/fail/*.sharp "$HERE"/parse/fail/*.sharp | xargs -P 4 -I{} bash -c '
+ls "$HERE"/backend/fail/*.sharp "$HERE"/parse/fail/*.sharp | xargs -P ${TEST_JOBS:-4} -I{} bash -c '
     f="{}"; b=$(basename "$(dirname "$(dirname "$f")")")_$(basename "$f" .sharp)
     options=$(sed -n "2s|^// options: *||p" "$f")
     timeout -s KILL 300 "$ROOMY" "$COMPILER" -c "$f" $options -L "$LIBRARY" > "$OUT/refused/$b.1.txt" 2>&1
@@ -164,7 +164,7 @@ else
     if grep -q "^analysis complete" library_stage2_O.txt && [ "$(steady library_stage1.txt)" = "$(steady library_stage2_O.txt)" ]; then pass
     else fail "library (the optimized compiler)" "it does not print what stage 1 prints for the standard library:" "$(diff <(steady library_stage1.txt) <(steady library_stage2_O.txt) | head -6)"; fi
 
-    ls "$HERE"/backend/fail/*.sharp "$HERE"/parse/fail/*.sharp | xargs -P 4 -I{} bash -c '
+    ls "$HERE"/backend/fail/*.sharp "$HERE"/parse/fail/*.sharp | xargs -P ${TEST_JOBS:-4} -I{} bash -c '
         f="{}"; b=$(basename "$(dirname "$(dirname "$f")")")_$(basename "$f" .sharp)
         options=$(sed -n "2s|^// options: *||p" "$f")
         timeout -s KILL 300 "$ROOMY" "$STAGE2_O" -c "$f" $options -L "$LIBRARY" > "$OUT/refused/$b.3.txt" 2>&1'
@@ -189,7 +189,7 @@ else
         option=""; [ $configuration = O ] && option="-O"
         mkdir -p "suite_$configuration/1" "suite_$configuration/2"
         export configuration option
-        ls "$SUITE"/cases/*.sharp | xargs -P 4 -I{} bash -c '
+        ls "$SUITE"/cases/*.sharp | xargs -P ${TEST_JOBS:-4} -I{} bash -c '
             b=$(basename "{}" .sharp)
             cd "$OUT/suite_$configuration/1" && timeout -s KILL 300 "$SHARP" "$COMPILER" "{}" "$SUITE/testing.sharp" -j 1 -o $b -L "$LIBRARY" $option > $b.txt 2>&1
             cd "$OUT/suite_$configuration/2" && timeout -s KILL 300 "$SHARP" "$STAGE2" "{}" "$SUITE/testing.sharp" -j 1 -o $b -L "$LIBRARY" $option > $b.txt 2>&1

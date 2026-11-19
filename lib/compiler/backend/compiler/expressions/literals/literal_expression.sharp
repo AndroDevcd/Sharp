@@ -23,7 +23,7 @@ import (
  *      1.5  1e3            decimal                                 the number  LIT_DECIMAL
  *      (and a whole number that needs more than 64 bits)
  *      'a'  '\n'           _int8                                   its code    LIT_CHAR
- *      true  false         _int8                                   1 / 0       LIT_BOOL
+ *      true  false         bool                                    1 / 0       LIT_BOOL
  *      "text"              _int8[]  (an array of characters,       the text    LIT_TEXT
  *                          NOT a string object)
  *
@@ -69,8 +69,8 @@ def analyse_literal(context: analysis_context, node: _int64) : bound_expression 
     if(kind == T_CHAR) {
         return new bound_literal(context.unit, node, types.int8, integer_constant(character_value(p, token)), LIT_CHAR);
     }
-    if(kind == K_TRUE) { return new bound_literal(context.unit, node, types.int8, integer_constant(1), LIT_BOOL); }
-    if(kind == K_FALSE) { return new bound_literal(context.unit, node, types.int8, integer_constant(0), LIT_BOOL); }
+    if(kind == K_TRUE) { return new bound_literal(context.unit, node, types.bool_type, integer_constant(1), LIT_BOOL); }
+    if(kind == K_FALSE) { return new bound_literal(context.unit, node, types.bool_type, integer_constant(0), LIT_BOOL); }
 
     // "text", and the pieces of a string with values in it
     return new bound_literal(context.unit, node, types.int8.array_of(), text_constant(string_value(p, token)), LIT_TEXT);

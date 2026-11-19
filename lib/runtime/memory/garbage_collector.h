@@ -25,17 +25,21 @@
 #include "../../util/linked_list.h"
 #include "sharp_object.h"
 #include <atomic>
+#include <vector>
 
 struct fib_mutex;
 struct fiber;
 
 /**
  * Stored in two bits of sharp_object::info (GENERATION / SET_GENERATION).
- * Only two values are in use.
+ * See GENERATIONS in tracing_collector.h.
  */
 enum collection_generation
 {
-    gc_normal = 0, // freed when nothing refers to it any more
+    gc_normal = 0, // YOUNG: created since the last collection. Freed by the next collection
+                   // of any kind when nothing refers to it any more.
+
+    gc_old = 1,    // survived a collection. Only a full collection looks at it again.
 
     /**
      * A permanent object: it lives for the whole program and is never freed,
@@ -59,9 +63,14 @@ enum gc_state
 
 struct garbage_collector {
     gc_state state;
-    uInt managedBytes;          // bytes handed out through reserve_bytes
+    std::atomic<uInt> managedBytes;         // bytes handed out through reserve_bytes
     uInt memoryLimit;           // the program's limit (-mem)
-    sharp_object *objects;      // every object that exists, newest first (linked through ->next)
+    std::atomic<sharp_object*> objects;     // the YOUNG objects, newest first (linked through ->next)
+    // The old and the permanent objects; only the collector changes it. An array
+    // of pointers and not a list through ->next: a full collection can then ask
+    // the CPU for the objects it will look at next (a prefetch) instead of
+    // waiting for each one in turn - old objects are scattered all over memory.
+    std::vector<sharp_object*> oldObjects;
     linkedlist<fib_mutex*> f_locks;
 };
 

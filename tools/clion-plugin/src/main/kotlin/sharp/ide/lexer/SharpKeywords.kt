@@ -33,7 +33,7 @@ object SharpKeywords {
         "local", "stable", "override", "obfuscate", "single",
     )
     private val builtInTypes = listOf(
-        "decimal", "object", "_int8", "_int16", "_int32", "_int64",
+        "decimal", "object", "bool", "_int8", "_int16", "_int32", "_int64",
         "_uint8", "_uint16", "_uint32", "_uint64",
     )
     private val valueWords = listOf("true", "false", "null", "nil", "self", "base")

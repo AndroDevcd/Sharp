@@ -14,7 +14,7 @@ import (
  *
  *      utype             = type_identifier [ "[" "]" ] [ "?" ] [ "?" ] ;
  *      type_identifier   = native_type | function_ptr | reference_pointer ;
- *      native_type       = "decimal" | "object" | "_int8" | ... | "_uint64" ;
+ *      native_type       = "decimal" | "object" | "bool" | "_int8" | ... | "_uint64" ;
  *      function_ptr      = utype_arg_list_opt "(" [ "nil" | utype ] ")" ;
  *      reference_pointer = [ identifier { "." identifier } "#" ]
  *                          reference_item { "." reference_item } ;

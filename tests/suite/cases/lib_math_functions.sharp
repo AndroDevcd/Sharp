@@ -71,10 +71,10 @@ def check_native() {
     test("round(2.5)") { expect(round(2.5).value).should_be(3); };
     test("round(2.4)") { expect(round(2.4).value).should_be(2); };
     test("round(-2.7)") { expect(round(0 - 2.7).value).should_be(0 - 3); };
-    test("is_nan(NaN)") { expect_true(is_nan(NaN).value); };
-    test("is_nan(1)") { expect_false(is_nan(1).value); };
-    test("is_infinite(1 / 0)") { expect_true(is_infinite(POSITIVE_INFINITY).value); };
-    test("is_infinite(5)") { expect_false(is_infinite(5).value); };
+    test("is_nan(NaN)") { expect_true(is_nan(NaN)); };
+    test("is_nan(1)") { expect_false(is_nan(1)); };
+    test("is_infinite(1 / 0)") { expect_true(is_infinite(POSITIVE_INFINITY)); };
+    test("is_infinite(5)") { expect_false(is_infinite(5)); };
 }
 
 def check_comparison() {
@@ -88,7 +88,7 @@ def check_comparison() {
     test("max(-1, -2)") { expect(max(0 - 1, 0 - 2)).should_be(0 - 1); };
     test("min of three") { expect(min(5, 2, 9)).should_be(2); };
     test("max of three") { expect(max(5, 2, 9)).should_be(9); };
-    test("min with NaN is NaN") { expect_true(is_nan(min(1, NaN.value)).value); };
+    test("min with NaN is NaN") { expect_true(is_nan(min(1, NaN.value))); };
 
     values := new decimal[5];
     values[0] = 4; values[1] = 0 - 7; values[2] = 12; values[3] = 0; values[4] = 3.5;
@@ -117,14 +117,14 @@ def check_comparison() {
         test("clamp(low > high) throws") { };
     }
 
-    test("is_finite(1.5)") { expect_true(is_finite(1.5).value); };
-    test("is_finite(infinity)") { expect_false(is_finite(POSITIVE_INFINITY.value).value); };
-    test("is_finite(NaN)") { expect_false(is_finite(NaN.value).value); };
-    test("is_whole(-7)") { expect_true(is_whole(0 - 7).value); };
-    test("is_whole(7.25)") { expect_false(is_whole(7.25).value); };
-    test("is_whole(infinity)") { expect_false(is_whole(POSITIVE_INFINITY.value).value); };
-    test("approx_equals(0.1 + 0.2, 0.3)") { expect_true(approx_equals(0.1 + 0.2, 0.3, 0.000000001).value); };
-    test("approx_equals(1, 1.1)") { expect_false(approx_equals(1, 1.1, 0.01).value); };
+    test("is_finite(1.5)") { expect_true(is_finite(1.5)); };
+    test("is_finite(infinity)") { expect_false(is_finite(POSITIVE_INFINITY.value)); };
+    test("is_finite(NaN)") { expect_false(is_finite(NaN.value)); };
+    test("is_whole(-7)") { expect_true(is_whole(0 - 7)); };
+    test("is_whole(7.25)") { expect_false(is_whole(7.25)); };
+    test("is_whole(infinity)") { expect_false(is_whole(POSITIVE_INFINITY.value)); };
+    test("approx_equals(0.1 + 0.2, 0.3)") { expect_true(approx_equals(0.1 + 0.2, 0.3, 0.000000001)); };
+    test("approx_equals(1, 1.1)") { expect_false(approx_equals(1, 1.1, 0.01)); };
     test("copy_sign(3, -0.5)") { expect(copy_sign(3, 0 - 0.5)).should_be(0 - 3); };
     test("copy_sign(-3, 2)") { expect(copy_sign(0 - 3, 2)).should_be(3); };
     test("compare(1, 2)") { expect(compare(1, 2)).should_be(0 - 1); };
@@ -244,10 +244,10 @@ def check_powers() {
     } catch(e: illegal_argument_exception) {
         test("isqrt(-1) throws") { };
     }
-    test("is_perfect_square(144)") { expect_true(is_perfect_square(144).value); };
-    test("is_perfect_square(145)") { expect_false(is_perfect_square(145).value); };
-    test("is_perfect_square(-4)") { expect_false(is_perfect_square(0 - 4).value); };
-    test("is_perfect_square(0)") { expect_true(is_perfect_square(0).value); };
+    test("is_perfect_square(144)") { expect_true(is_perfect_square(144)); };
+    test("is_perfect_square(145)") { expect_false(is_perfect_square(145)); };
+    test("is_perfect_square(-4)") { expect_false(is_perfect_square(0 - 4)); };
+    test("is_perfect_square(0)") { expect_true(is_perfect_square(0)); };
 }
 
 def check_trigonometry() {
@@ -273,7 +273,7 @@ def check_trigonometry() {
     test("asinh(0)") { expect(asinh(0)).should_be(0); };
     test("acosh(cosh(1))") { expect(acosh(1.5430806348152437)).should_be_near(1, 0.000000000001); };
     test("acosh(1)") { expect(acosh(1)).should_be(0); };
-    test("acosh(0.5) is NaN") { expect_true(is_nan(acosh(0.5)).value); };
+    test("acosh(0.5) is NaN") { expect_true(is_nan(acosh(0.5))); };
     test("atanh(tanh(1))") { expect(atanh(0.7615941559557649)).should_be_near(1, 0.000000000001); };
     test("atanh(0)") { expect(atanh(0)).should_be(0); };
     test("normalize_radians(-pi / 2)") { expect(normalize_radians(0 - HALF_PI)).should_be_near(4.71238898038469, 0.000000000001); };

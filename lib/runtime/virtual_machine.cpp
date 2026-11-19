@@ -120,7 +120,7 @@ void main_vm_loop(sharp_function *frame)
             RET:
                 data = single_arg;
                 if(data == ERR_STATE && task->exceptionObject.o == nullptr) {
-                    copy_object(
+                    store_object(
                             &task->exceptionObject,
                             pop_stack_object.o
                     );
@@ -149,7 +149,7 @@ void main_vm_loop(sharp_function *frame)
                 TC(TC_REG_INT(dual_arg1))
                 grow_stack
                 stack_overflow_check
-                copy_object(
+                store_object(
                     &push_stack_object,
                     create_object(regs[dual_arg1].i, (data_type)dual_arg2)
                 );
@@ -250,7 +250,7 @@ void main_vm_loop(sharp_function *frame)
                 regs[single_arg].i = vm_remainder((Int)regs[single_arg].i, (Int)raw_arg2);
                 branch_for(2)
             POP:
-                copy_object(&pop_stack_object, (sharp_object*)nullptr);
+                store_object(&pop_stack_object, (sharp_object*)nullptr);
                 branch
             INC:
                 TC(TC_REG_INT(single_arg))
@@ -300,7 +300,7 @@ void main_vm_loop(sharp_function *frame)
                 task->ptr = &(task->fp+single_arg)->obj;
                 branch
             POPL:
-                copy_object(
+                store_object(
                     &(task->fp+single_arg)->obj,
                     pop_stack_object.o
                 );
@@ -353,10 +353,10 @@ void main_vm_loop(sharp_function *frame)
             PUSHOBJ:
                 grow_stack
                 stack_overflow_check
-                copy_object(&push_stack_object, task->ptr);
+                store_object(&push_stack_object, task->ptr);
                 branch
             DEL:
-                copy_object(task->ptr, (sharp_object*) nullptr);
+                store_object(task->ptr, (sharp_object*) nullptr);
                 branch
             CALL:
                 prepare_method(single_arg);
@@ -367,7 +367,7 @@ void main_vm_loop(sharp_function *frame)
             NEWCLASS:
                 grow_stack
                 stack_overflow_check
-                copy_object(&push_stack_object, create_object(&vm.classes[raw_arg2]));
+                store_object(&push_stack_object, create_object(&vm.classes[raw_arg2]));
                 check_state(2)
             MOVN:
                 require_object_with_value(
@@ -379,7 +379,8 @@ void main_vm_loop(sharp_function *frame)
                         }
                         #endif
 
-                        task->ptr = task->ptr->o->node + raw_arg2;
+                        task->ptrOwner = task->ptr->o;      // for the write barrier of POPOBJ
+                        task->ptr = task->ptrOwner->node + raw_arg2;
                 )
                 branch_for(2)
             SLEEP:
@@ -423,14 +424,15 @@ void main_vm_loop(sharp_function *frame)
                      }
                     #endif
 
-                    task->ptr = task->ptr->o->node + (Int)regs[single_arg].i;
+                    task->ptrOwner = task->ptr->o;
+                    task->ptr = task->ptrOwner->node + (Int)regs[single_arg].i;
                 )
                 branch
             NEWOBJARRAY:
                 TC(TC_REG_INT(single_arg))
                 grow_stack
                 stack_overflow_check
-                copy_object(&push_stack_object, create_object(regs[single_arg].i));
+                store_object(&push_stack_object, create_object(regs[single_arg].i));
                 check_state(1)
             NOT:
                 TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_int;)
@@ -484,7 +486,7 @@ void main_vm_loop(sharp_function *frame)
                 regs[BMR].i = (Int)regs[dual_arg1].i ^ (Int)regs[dual_arg2].i;
                 branch
             THROW:
-                copy_object(&task->exceptionObject, pop_stack_object.o);
+                store_object(&task->exceptionObject, pop_stack_object.o);
                 enable_exception_flag(thread, true);
                 check_state(0)
             CHECKNULL:
@@ -492,13 +494,13 @@ void main_vm_loop(sharp_function *frame)
                 regs[single_arg].i = task->ptr == nullptr || task->ptr->o == nullptr;
                 branch
             RETURNOBJ:
-                copy_object(&task->fp->obj, task->ptr);
+                store_object(&task->fp->obj, task->ptr);
                 branch
             NEWCLASSARRAY:
                 TC(TC_REG_INT(single_arg))
                 grow_stack
                 stack_overflow_check
-                copy_object(
+                store_object(
                         &push_stack_object,
                         create_object(vm.classes + raw_arg2, (Int)regs[single_arg].i)
                 );
@@ -507,7 +509,7 @@ void main_vm_loop(sharp_function *frame)
                 grow_stack
                 stack_overflow_check
                 data = single_arg;
-                copy_object(
+                store_object(
                     &push_stack_object,
                     create_object(
                        vm.strings[data].size(),
@@ -564,7 +566,11 @@ void main_vm_loop(sharp_function *frame)
                 branch
             POPOBJ:
                 require_object(
-                    copy_object(task->ptr, pop_stack_object.o);
+                    {
+                        sharp_object *stored = pop_stack_object.o;
+                        task->ptr->o = stored;
+                        write_barrier(task->ptrOwner, stored, task->ptr);   // memory/sharp_object.h
+                    }
                 )
                 branch
             SMOVR:
@@ -576,7 +582,7 @@ void main_vm_loop(sharp_function *frame)
                 (task->fp + dual_arg2)->var = regs[dual_arg1];
                 branch
             SMOVR_3:
-                copy_object(&(task->fp + single_arg)->obj, task->ptr);
+                store_object(&(task->fp + single_arg)->obj, task->ptr);
                 branch
             SMOVR_4:
                 TC(TC_ST(task->fp + single_arg) = TC_ST(task->fp + raw_arg2);)
@@ -619,7 +625,7 @@ void main_vm_loop(sharp_function *frame)
             PUSHNULL:
                 grow_stack
                 stack_overflow_check
-                copy_object(&push_stack_object, (sharp_object*) nullptr);
+                store_object(&push_stack_object, (sharp_object*) nullptr);
                 branch
             IPUSHL:
                 grow_stack
@@ -630,7 +636,7 @@ void main_vm_loop(sharp_function *frame)
             PUSHL:
                 grow_stack
                 stack_overflow_check
-                copy_object(&push_stack_object, (task->fp + single_arg)->obj.o);
+                store_object(&push_stack_object, (task->fp + single_arg)->obj.o);
                 branch
             ITEST:
                 TC(TC_RT(single_arg) = tk_int;)
@@ -678,7 +684,7 @@ void main_vm_loop(sharp_function *frame)
                 stack_overflow_check
                 {
                     object *top = &task->sp->obj;
-                    copy_object(&push_stack_object, top);
+                    store_object(&push_stack_object, top);
                 }
                 branch
             POPOBJ_2:
@@ -1019,7 +1025,7 @@ bool catch_exception() {
                             || is_class_or_subclass(handlingClass, caughtException.exception)
                 ) {
                     if(caughtException.exceptionFieldAddress >= 0) {
-                        copy_object(&(task->fp + caughtException.exceptionFieldAddress)->obj,
+                        store_object(&(task->fp + caughtException.exceptionFieldAddress)->obj,
                                     task->exceptionObject.o);
                     }
 
@@ -1028,7 +1034,7 @@ bool catch_exception() {
                     release_locks_left_by_exception(task, task->callFramePtr, table->blockStartPc, table->blockEndPc);
 
                     task->pc = task->rom + caughtException.handlerPc;
-                    copy_object(&task->exceptionObject, (sharp_object*) nullptr);
+                    store_object(&task->exceptionObject, (sharp_object*) nullptr);
                     enable_exception_flag(thread, false);
                     TELEMETRY_COUNT(tm_exceptions_caught)
                     return true;
@@ -1042,9 +1048,9 @@ bool catch_exception() {
             release_locks_left_by_exception(task, task->callFramePtr, table->tryStartPc, table->tryEndPc);
 
             task->pc = task->rom + table->finallyData->startPc;
-            copy_object(&(task->fp + table->finallyData->exceptionFieldAddress)->obj,
+            store_object(&(task->fp + table->finallyData->exceptionFieldAddress)->obj,
                         task->exceptionObject.o);
-            copy_object(&task->exceptionObject, (sharp_object*) nullptr);
+            store_object(&task->exceptionObject, (sharp_object*) nullptr);
             enable_exception_flag(thread, false);
             TELEMETRY_COUNT(tm_exceptions_caught)
             return true;

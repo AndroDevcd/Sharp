@@ -28,7 +28,7 @@ def main(args: string[]) {
         test("to_string() of an empty builder") { expect(empty.to_string()!!).should_be(""); };
 
         // ---- fixed, used to be wrong (3): == with the same text is false (it compares cursor + 1 with the length)
-        test("builder == \"abc\"") { expect_true((sb == "abc").value); };
+        test("builder == \"abc\"") { expect_true((sb == "abc")); };
 
         // ---- fixed, used to be wrong (4): + copies the whole 255 character buffer of the left side, so the
         // appended text lands far behind the original text, after 250 zero characters
@@ -59,7 +59,7 @@ def main(args: string[]) {
         // (it indexes the postfix with the position in the builder: `postfix[i]`)
         result : decimal = 0;
         try {
-            if(hello.ends_with("lo").value) {
+            if(hello.ends_with("lo")) {
                 result = 1;
             }
         } catch(e: out_of_bounds_exception) {

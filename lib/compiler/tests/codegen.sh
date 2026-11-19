@@ -372,7 +372,7 @@ if [ -d "$SUITE/cases" ]; then
         else echo "$b BROKEN with the JIT: [${with_jit:-no RESULT line}], with -nojit: [${without_jit:-no RESULT line}]"; fi
     }
     export -f suite_case
-    results=$(ls "$SUITE"/cases/*.sharp | xargs -P 4 -I{} bash -c 'suite_case {}' | sort)
+    results=$(ls "$SUITE"/cases/*.sharp | xargs -P ${TEST_JOBS:-4} -I{} bash -c 'suite_case {}' | sort)
     runs=$(echo "$results" | grep -c " RUNS$")
     while read -r line; do
         [ -n "$line" ] || continue

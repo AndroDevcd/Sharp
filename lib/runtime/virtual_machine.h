@@ -66,7 +66,6 @@ struct virtual_machine {
     sharp_class *string_class;
     sharp_class *int_class;
     sharp_class *char_class;
-    sharp_class *bool_class;
     sharp_class *short_class;
     sharp_class *long_class;
     sharp_class *byte_class;

@@ -110,8 +110,8 @@ def main(args: string[]) {
     expect("4 < 3 is 0", 4 < 3, 0);
     expect("a == c is 1", a == c, 1);
     expect("a == b is 0", a == b, 0);
-    expect("counting true comparisons", (a < b) + (b < a) + (a == c) + (a != c), 2);
-    expect("multiplying by a comparison", 7 * (a < b), 7);
+    expect("counting true comparisons", ((a < b) as _int32) + ((b < a) as _int32) + ((a == c) as _int32) + ((a != c) as _int32), 2);
+    expect("multiplying by a comparison", 7 * ((a < b) as _int32), 7);
 
     // ---- stored in a variable
     smaller : decimal = a < b;
@@ -121,7 +121,7 @@ def main(args: string[]) {
     smaller = b < a;
     expect("smaller, assigned again", smaller, 0);
     answer : bool = a < b;
-    expect("in a bool object", answer.value, 1);
+    expect("in a bool object", answer, 1);
 
     // ---- used in an if
     if(a < b) {
@@ -162,7 +162,7 @@ def main(args: string[]) {
     expect_true("17 % 5 == 2", 17 % 5 == 2);
 
     // ---- < and > happen before == and !=
-    expect_true("1 < 2 == 1", 1 < 2 == 1);
+    expect_true("1 < 2 == true", 1 < 2 == true);
     expect_true("a < b != b < a", a < b != b < a);
     expect_true("(a < b) == (n < m)", (a < b) == (n < m));
 
@@ -187,12 +187,12 @@ def main(args: string[]) {
     // ---- number objects (int) compare too; the answer is a bool object
     i : int = 3;
     j : int = 5;
-    expect("int < int", (i < j).value, 1);
-    expect("int > int", (i > j).value, 0);
-    expect("int == int", (i == j).value, 0);
-    expect("int != int", (i != j).value, 1);
-    expect("int <= int", (i <= j).value, 1);
-    expect("int >= int", (i >= j).value, 0);
+    expect("int < int", (i < j), 1);
+    expect("int > int", (i > j), 0);
+    expect("int == int", (i == j), 0);
+    expect("int != int", (i != j), 1);
+    expect("int <= int", (i <= j), 1);
+    expect("int >= int", (i >= j), 0);
     if(i < j) {
         pass("if(int < int)");
     } else {

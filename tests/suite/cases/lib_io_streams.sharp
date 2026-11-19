@@ -37,7 +37,7 @@ def test_string_reader() {
     test("position at start") { expect(r.position()).should_be(0); };
     test("line at start") { expect(r.line()).should_be(1); };
     test("column at start") { expect(r.column()).should_be(1); };
-    test("has_more") { expect_true(r.has_more().value); };
+    test("has_more") { expect_true(r.has_more()); };
     test("peek_char") { expect(r.peek_char()).should_be('a'); };
     test("peek does not consume") { expect(r.read_char()).should_be('a'); };
     test("peek_char_at") { expect(r.peek_char_at(1)).should_be('\n'); };
@@ -54,7 +54,7 @@ def test_string_reader() {
     test("read_line at end is null") { expect_true(io_strings.is_null(r.read_line())); };
     test("read_char at end") { expect(r.read_char()).should_be(0 - 1); };
     test("peek_char at end") { expect(r.peek_char()).should_be(0 - 1); };
-    test("has_more at end") { expect_false(r.has_more().value); };
+    test("has_more at end") { expect_false(r.has_more()); };
     test("read_all at end") { expect(r.read_all()).should_be(""); };
 
     r.seek(3);
@@ -65,10 +65,10 @@ def test_string_reader() {
     test("read(n) past end is clipped") { expect(r.read(100)).should_be("cd\r\nef\rgh"); };
     test("read(n) at end") { expect(r.read(5)).should_be(""); };
     test("skip at end") { expect(r.skip(5)).should_be(0); };
-    test("unread") { expect_true(r.unread().value); };
+    test("unread") { expect_true(r.unread()); };
     test("unread gives the char again") { expect(r.read_char()).should_be('h'); };
     r.seek(0);
-    test("unread at start") { expect_false(r.unread().value); };
+    test("unread at start") { expect_false(r.unread()); };
     try { r.seek(13); test("seek outside") { fail_test("no exception"); }; }
     catch(e: illegal_argument_exception) { test("seek outside") { }; }
     try { r.read(0 - 1); test("negative read") { fail_test("no exception"); }; }
@@ -87,7 +87,7 @@ def test_string_reader() {
     test("foreach over lines") { expect(joined.to_string()!!).should_be("x|y|z|"); };
 
     empty := new string_text_reader("");
-    test("empty has_more") { expect_false(empty.has_more().value); };
+    test("empty has_more") { expect_false(empty.has_more()); };
     test("empty read_char") { expect(empty.read_char()).should_be(0 - 1); };
     test("empty read_line") { expect_true(io_strings.is_null(empty.read_line())); };
     test("empty read_lines") { expect(empty.read_lines().size().value).should_be(0); };
@@ -102,7 +102,7 @@ def test_string_reader() {
     test("through the interface") { expect(count_chars(new string_text_reader("12345"))).should_be(5); };
 
     r.close();
-    test("is_closed") { expect_true(r.is_closed().value); };
+    test("is_closed") { expect_true(r.is_closed()); };
     r.close();
     try { r.read_char(); test("read after close") { fail_test("no exception"); }; }
     catch(e: io_exception) { test("read after close") { }; }
@@ -131,12 +131,12 @@ def test_buffered_reader() {
     test("column reset") { expect(r.column()).should_be(1); };
     test("read(n)") { expect(r.read(2)).should_be("la"); };
     test("read_all") { expect(r.read_all()).should_be("st"); };
-    test("has_more at end") { expect_false(r.has_more().value); };
+    test("has_more at end") { expect_false(r.has_more()); };
     test("read_char at end") { expect(r.read_char()).should_be(0 - 1); };
     test("read_line at end") { expect_true(io_strings.is_null(r.read_line())); };
     test("read_word at end") { expect(r.read_word()).should_be(""); };
     test("read_until at end") { expect(r.read_until(',')).should_be(""); };
-    test("skip_whitespace returns true") { expect_true(r.skip_whitespace().value); };
+    test("skip_whitespace returns true") { expect_true(r.skip_whitespace()); };
 
     lines := new buffered_reader(new string_text_reader("a\n\nb\r\n")).read_lines();
     test("read_lines") { expect(lines.size().value).should_be(3); };
@@ -171,7 +171,7 @@ def test_buffered_reader() {
     outer := new buffered_reader(inner);
     outer.close();
     outer.close();
-    test("close closes the source") { expect_true(inner.is_closed().value); };
+    test("close closes the source") { expect_true(inner.is_closed()); };
     try { outer.read_char(); test("read after close") { fail_test("no exception"); }; }
     catch(e: io_exception) { test("read after close") { }; }
     try { outer.unread('a'); test("unread after close") { fail_test("no exception"); }; }
@@ -193,7 +193,7 @@ def test_string_writer() {
     w.write("");
     test("write of nothing") { expect(w.to_string()!!).should_be(""); };
     w.close();
-    test("is_closed") { expect_true(w.is_closed().value); };
+    test("is_closed") { expect_true(w.is_closed()); };
     try { w.write("x"); test("write after close") { fail_test("no exception"); }; }
     catch(e: io_exception) { test("write after close") { }; }
     try { w.write_line("x"); test("write_line after close") { fail_test("no exception"); }; }
@@ -215,7 +215,7 @@ def test_file_streams() {
     test("not on disk before the next flush") { expect(target.read_text()).should_be("total: 42\n\nend"); };
     test("length counts everything") { expect(w.length()).should_be(20); };
     w.close();
-    test("is_closed") { expect_true(w.is_closed().value); };
+    test("is_closed") { expect_true(w.is_closed()); };
     test("close wrote the rest") { expect(target.read_text()).should_be("total: 42\n\nend\n121.5"); };
     w.close();
     try { w.write("x"); test("write after close") { fail_test("no exception"); }; }
@@ -250,7 +250,7 @@ def test_file_streams() {
     catch(e: io_exception) { test("flush without directory") { }; }
     try { nowhere.close(); test("close without directory") { fail_test("no exception"); }; }
     catch(e: io_exception) { test("close without directory") { }; }
-    test("closed all the same") { expect_true(nowhere.is_closed().value); };
+    test("closed all the same") { expect_true(nowhere.is_closed()); };
 
     // file_reader
     target.write_text("first\nsecond\nthird\n");
@@ -272,7 +272,7 @@ def test_file_streams() {
     }
     test("foreach over a file") { expect(lines).should_be(3); };
     target.write_text("");
-    test("reader of an empty file") { expect_false(new file_reader(target).has_more().value); };
+    test("reader of an empty file") { expect_false(new file_reader(target).has_more()); };
     try { new file_reader(base_dir + "/missing.txt"); test("reader of a missing file") { fail_test("no exception"); }; }
     catch(e: io_exception) { test("reader of a missing file") { }; }
     try { new file_reader(new file(base_dir)); test("reader of a directory") { fail_test("no exception"); }; }
@@ -307,7 +307,7 @@ def test_buffered_writer() {
     test("lines written") { expect(w.get_lines_written()).should_be(2); };
     w.close();
     test("close flushes") { expect(sink.to_string()!!).should_be("abcdefghi\n50.25\n"); };
-    test("close closes the target") { expect_true(sink.is_closed().value); };
+    test("close closes the target") { expect_true(sink.is_closed()); };
     w.close();
     try { w.write("x"); test("write after close") { fail_test("no exception"); }; }
     catch(e: io_exception) { test("write after close") { }; }
@@ -353,7 +353,7 @@ def main(args: string[]) {
     tests("lib_io_streams") {
         start := new file(base_dir);
         start.delete_recursively();
-        test("test directory created") { expect_true(start.mkdirs().value); };
+        test("test directory created") { expect_true(start.mkdirs()); };
 
         test_string_reader();
         test_buffered_reader();
@@ -361,7 +361,7 @@ def main(args: string[]) {
         test_file_streams();
         test_buffered_writer();
 
-        test("cleanup") { expect_true(start.delete_recursively().value); };
+        test("cleanup") { expect_true(start.delete_recursively()); };
     };
     finish_tests("lib_io_streams");
 }

@@ -173,6 +173,11 @@ class string_builder : loopable<_int8> {
     /** Appends one character. Returns this builder. */
     def append(c: char) := append(c.value);
 
+    /** the word `true` or `false` */
+    def append(flag: bool) : string_builder {
+        return append(flag ? "true" : "false");
+    }
+
     /** Appends the text of `s` (nothing if it is empty). Returns this builder. */
     def append(s: string) : string_builder {
         append_raw(s.data, sizeof(s.data));
@@ -333,7 +338,7 @@ class string_builder : loopable<_int8> {
 
     /** true if the text starts with `prefix` (every text starts with ""). */
     def starts_with(prefix: string) : bool {
-        return matches_at(0, prefix.data, sizeof(prefix.data));
+        return matches_at(0, prefix.data, sizeof(prefix.data)) != 0;
     }
 
     /** true if `str` occurs anywhere in the text. */
@@ -348,7 +353,7 @@ class string_builder : loopable<_int8> {
 
     /** true if the text ends with `postfix` (every text ends with ""). */
     def ends_with(postfix: string) : bool {
-        return matches_at(cursor - sizeof(postfix.data), postfix.data, sizeof(postfix.data));
+        return matches_at(cursor - sizeof(postfix.data), postfix.data, sizeof(postfix.data)) != 0;
     }
 
     /** The number of characters in the text, as an `int` object (see length() for a native number). */
@@ -370,6 +375,11 @@ class string_builder : loopable<_int8> {
     {
         append_builder(str);
         return self;
+    }
+
+    def operator+=( flag: bool ) : string_builder
+    {
+        return append(flag);
     }
 
     def operator+=( str: _int8[] ) : string_builder

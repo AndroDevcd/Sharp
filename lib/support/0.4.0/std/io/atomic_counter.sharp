@@ -118,7 +118,7 @@ class atomic_counter {
                 changed = 1;
             }
         }
-        return changed;
+        return changed != 0;
     }
 
     /** make the value at least `candidate`; returns the value afterwards */

@@ -62,7 +62,7 @@ def analyse_is(context: analysis_context, node: _int64) : bound_expression {
 
     value := analyse_value(context, value_node, null);
     tested := resolve_type_at(context, type_node);
-    result := new bound_is(context.unit, node, value, tested, types.int8);
+    result := new bound_is(context.unit, node, value, tested, types.bool_type);
 
     from : resolved_type = value.type;
     if(from.kind == RT_CLASS && tested.kind == RT_CLASS && from.is_array == tested.is_array && from.is_nullable == 0
