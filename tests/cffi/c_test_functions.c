@@ -3,6 +3,7 @@
 #include "c_test_functions.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -185,3 +186,49 @@ int32_t read_null(const int32_t *p) { return *p; }
 double changes_its_copy_of(big24 g) { double before = take_big24(g); g.a = -1; g.b = -1; g.c = -1; return before; }
 double read_rect_or(const rect16 *from, double otherwise) { return from == NULL ? otherwise : read_rect(from); }
 rect16 *same_rect(rect16 *r) { return r; }
+
+/* variable arguments: each weighted by its place, so one that arrives in the wrong place shows */
+int64_t va_ints(int32_t count, ...) {
+    va_list list;
+    int64_t sum = 0;
+    va_start(list, count);
+    for(int32_t i = 0; i < count; i++) sum += (int64_t) (i + 1) * va_arg(list, int32_t);
+    va_end(list);
+    return sum;
+}
+
+double va_doubles(int32_t count, ...) {
+    va_list list;
+    double sum = 0;
+    va_start(list, count);
+    for(int32_t i = 0; i < count; i++) sum += (i + 1) * va_arg(list, double);
+    va_end(list);
+    return sum;
+}
+
+/* kinds: one letter per argument - i an int, l a 64-bit whole number, d a double, s a text (its length counts) */
+double va_mixed(const char *kinds, ...) {
+    va_list list;
+    double sum = 0;
+    va_start(list, kinds);
+    for(int i = 0; kinds[i] != 0; i++) {
+        double value = 0;
+        if(kinds[i] == 'i') value = va_arg(list, int32_t);
+        else if(kinds[i] == 'l') value = (double) va_arg(list, int64_t);
+        else if(kinds[i] == 'd') value = va_arg(list, double);
+        else if(kinds[i] == 's') value = (double) strlen(va_arg(list, const char*));
+        sum += (i + 1) * value;
+    }
+    va_end(list);
+    return sum;
+}
+
+/* a float in front of the variable arguments, and a double result */
+double va_after_float(float first, double second, int32_t count, ...) {
+    va_list list;
+    double sum = first + 2 * second;
+    va_start(list, count);
+    for(int32_t i = 0; i < count; i++) sum += (i + 3) * va_arg(list, double);
+    va_end(list);
+    return sum;
+}

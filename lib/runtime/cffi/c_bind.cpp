@@ -234,6 +234,8 @@ struct c_shape_field {
     c_kind kind;
     uint32_t offset;
     int inner;                              // a struct inside the struct: its shape (an index into the binding's shapes); else -1
+    uint32_t count = 0;                     // an array member: how many items (0: not an array) ...
+    uint32_t item_size = 0;                 // ... and how many bytes each
 };
 
 struct c_shape {
@@ -266,15 +268,28 @@ static int parse_shape(const char *&p, std::deque<c_shape> &shapes, std::string 
         } else {
             while(*p != 0 && *p != ' ' && *p != ',' && *p != '}') p++;
         }
+        std::string written(start, p);
+        // name:i8[32] - an array member
+        size_t bracket = field.inner < 0 ? written.find('[') : std::string::npos;
+        if(bracket != std::string::npos) {
+            field.count = (uint32_t) atoi(written.c_str() + bracket + 1);
+            written = written.substr(0, bracket);
+            if(field.count == 0) { why = "an array member has a count of 1 or more"; return -1; }
+        }
         c_type member;
-        if(!c_parse_type(std::string(start, p), member, why)) return -1;
+        if(!c_parse_type(written, member, why)) return -1;
         field.kind = member.kind;
+        field.item_size = member.size;
         field.offset = rounded(size, member.align);
-        size = field.offset + member.size;
+        size = field.offset + member.size * (field.count > 0 ? field.count : 1);
         if(member.align > align) align = member.align;
         shapes[(size_t) index].fields.push_back(field);
     }
     shapes[(size_t) index].size = rounded(size, align);
+    if(*p == '=') {                         // =16: the declared size (c_call.cpp checks it)
+        p++;
+        while(*p >= '0' && *p <= '9') p++;
+    }
     return index;
 }
 
@@ -297,6 +312,40 @@ static sharp_field *member_field(sharp_object *o, const c_shape_field &member) {
     return field;
 }
 
+/** One number, written as C has it. */
+static void put_number(c_kind kind, uint8_t *to, int64_t whole, double fraction) {
+    switch(kind) {
+        case C_I8: case C_U8: { uint8_t v = (uint8_t) whole; memcpy(to, &v, 1); break; }
+        case C_I16: case C_U16: { uint16_t v = (uint16_t) whole; memcpy(to, &v, 2); break; }
+        case C_I32: case C_U32: { uint32_t v = (uint32_t) whole; memcpy(to, &v, 4); break; }
+        case C_I64: case C_U64: { memcpy(to, &whole, 8); break; }
+        case C_F32: { float v = (float) fraction; memcpy(to, &v, 4); break; }
+        case C_F64: { memcpy(to, &fraction, 8); break; }
+        case C_PTR: { uintptr_t v = (uintptr_t) whole; memcpy(to, &v, sizeof(v)); break; }
+        default: break;
+    }
+}
+
+/** One number, read as C has it: a whole number, or (is_fraction) a decimal. */
+static void get_number(c_kind kind, const uint8_t *from, int64_t &whole, double &fraction, bool &is_fraction) {
+    whole = 0;
+    fraction = 0;
+    is_fraction = false;
+    switch(kind) {
+        case C_I8: { int8_t v; memcpy(&v, from, 1); whole = v; break; }
+        case C_U8: { uint8_t v; memcpy(&v, from, 1); whole = v; break; }
+        case C_I16: { int16_t v; memcpy(&v, from, 2); whole = v; break; }
+        case C_U16: { uint16_t v; memcpy(&v, from, 2); whole = v; break; }
+        case C_I32: { int32_t v; memcpy(&v, from, 4); whole = v; break; }
+        case C_U32: { uint32_t v; memcpy(&v, from, 4); whole = v; break; }
+        case C_I64: case C_U64: { memcpy(&whole, from, 8); break; }
+        case C_F32: { float v; memcpy(&v, from, 4); fraction = v; is_fraction = true; break; }
+        case C_F64: { memcpy(&fraction, from, 8); is_fraction = true; break; }
+        case C_PTR: { uintptr_t v = 0; memcpy(&v, from, sizeof(v)); whole = (int64_t) v; break; }
+        default: break;
+    }
+}
+
 /** PACK: the object's fields, laid out as C's bytes. */
 static void pack(const std::deque<c_shape> &shapes, int index, sharp_object *o, uint8_t *bytes) {
     const c_shape &shape = shapes[(size_t) index];
@@ -306,6 +355,17 @@ static void pack(const std::deque<c_shape> &shapes, int index, sharp_object *o, 
         if(member.inner >= 0) {
             sharp_object *inner = o->node[field->address].o;
             if(inner != nullptr) pack(shapes, member.inner, inner, to);     // (a struct that is not there: all zero)
+            continue;
+        }
+        if(member.count > 0) {
+            // an array member: as many items as the array has, up to the member's count (the rest stays zero)
+            sharp_object *items = o->node[field->address].o;
+            if(items == nullptr || items->type > type_var) continue;
+            uint32_t have = items->size < member.count ? (uint32_t) items->size : member.count;
+            for(uint32_t k = 0; k < have; k++) {
+                if(holds_decimals(items)) put_number(member.kind, to + k * member.item_size, (int64_t) number_at(items, k), number_at(items, k));
+                else put_number(member.kind, to + k * member.item_size, integer_at(items, k), (double) integer_at(items, k));
+            }
             continue;
         }
         vm_cell cell = number_slot(o, field->address);
@@ -338,6 +398,26 @@ static void unpack(const std::deque<c_shape> &shapes, int index, const uint8_t *
                 copy_object(slot, create_object(field->type->sc));
             }
             unpack(shapes, member.inner, from, slot->o);
+            continue;
+        }
+        if(member.count > 0) {
+            // an array member: into the array the field has; one is made when it has none (an object C returned)
+            object *slot = &o->node[field->address];
+            if(slot->o == nullptr) {
+                if(field->type == nullptr) continue;
+                copy_object(slot, create_object((Int) member.count, (data_type) field->type->type));
+            }
+            sharp_object *items = slot->o;
+            if(items->type > type_var) continue;
+            uint32_t have = items->size < member.count ? (uint32_t) items->size : member.count;
+            for(uint32_t k = 0; k < have; k++) {
+                int64_t whole;
+                double fraction;
+                bool is_fraction;
+                get_number(member.kind, from + k * member.item_size, whole, fraction, is_fraction);
+                if(holds_decimals(items)) set_number_at(items, k, is_fraction ? fraction : (double) whole);
+                else set_integer_at(items, k, is_fraction ? (int64_t) fraction : whole);
+            }
             continue;
         }
         int64_t whole = 0;
@@ -437,6 +517,14 @@ static void link(c_binding &binding) {
     c_library &library = library_named(binding.library);
     open_library(library, fun->fullName);
     void *address = lib_symbol(library.handle, binding.symbol.c_str());
+#ifdef _WIN32
+    // C's own library is two files on Windows: the newer one (ucrtbase.dll) does not hand out the
+    // printf family by name - those are in the older one, which every Windows has too
+    if(address == nullptr && library.name == "c" && library.said.empty() && library.project.empty()) {
+        static void *older = (void*) LoadLibraryA("msvcrt.dll");
+        if(older != nullptr) address = lib_symbol(older, binding.symbol.c_str());
+    }
+#endif
     if(address == nullptr) {
         throw vm_exception(vm.unsatisfied_link_except,
             "the C library \"" + library.name + "\" (" + library.file + ") has no function `" + binding.symbol + "` (declared as `" + fun->fullName + "`)."

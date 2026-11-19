@@ -16,8 +16,11 @@
 //                                         what Sharp hands over - c_bind.cpp reads them)
 //      long ulong size                    C's long, unsigned long and size_t: as wide as THIS system has them
 //      void                               no result
+//      ...                                between two arguments: C's variable arguments begin here (printf).
+//                                         A float after it travels as a double, as C itself hands it over.
 //      { i32 f32 {i8 i8} u8[16] }         a struct handed over by value: its members in order
 //      { x:i32 y:i32 }                    ... each may carry its name
+//      { x:i32 y:i32 }=8                  ... and say how many bytes C has for it: refused when the layout differs
 //      *{ x:i32 y:i32 }                   a pointer to such a struct
 //      fn(i32,i32)i32                     a function handed to C: a pointer to a function with that signature
 //
@@ -72,6 +75,7 @@ struct c_signature {
     std::vector<c_type> args;
     c_type result;
     std::string text;
+    int variadic_from = -1;             // `...` in the text: how many arguments stand in front of it (-1: none)
 
     // ---- the plan (c_parse_signature)
     std::vector<c_move> moves;          // the arguments

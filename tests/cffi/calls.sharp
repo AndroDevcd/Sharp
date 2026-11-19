@@ -41,6 +41,15 @@ extern "c_test" {
     def sum_array(values: _int32[], count: c_int) : _int64;
     def no_result(into: _int32[], value: c_int);
     def fill_rect(into: _int32[], first: c_int);
+    // variable arguments: one declaration per shape that is called
+    def va_ints(count: c_int, ...) : _int64;
+    def va_ints(count: c_int, ..., a: c_int, b: c_int, c: c_int) : _int64;
+    def va_doubles(count: c_int, ..., a: c_double, b: c_float, c: c_double) : c_double;
+    def va_mixed(kinds: string, ..., a: c_int, b: c_double, c: _int64, d: string, e: c_float) : c_double;
+}
+
+extern "c" {
+    def sprintf(into: _int8[], format: string, ..., count: c_int, ratio: c_double, name: string) : c_int;
 }
 
 checks : _int64 = 0;
@@ -109,6 +118,16 @@ def main(args: string[]) {
     rect := new _int32[4];
     fill_rect(rect, 7);
     same("C filled four items", rect[0] + rect[1] + rect[2] + rect[3], 7 + 8 + 9 + 10);
+
+    // ---- variable arguments
+    same("va_ints, none", va_ints(0), 0);
+    same("va_ints", va_ints(3, 10, 0 - 20, 30), 10 - 40 + 90);
+    same("va_doubles (a float among them)", va_doubles(3, 1.5, 2.25, 0 - 3.125), 1.5 + 4.5 - 9.375);
+    same("va_mixed", va_mixed("idlsd", 0 - 7, 2.5, 9000000000, "four", 1.25), 0 - 7 + 5 + 27000000000 + 16 + 6.25);
+    line := new _int8[64];
+    written : _int64 = sprintf(line, "%d of %.2f for %s", 7, 2.5, "sharp");
+    same("sprintf's count", written, 19);
+    same_text("sprintf's text", new string(line, 0, written), "7 of 2.50 for sharp");
 
     block : pointer = malloc(64);
     checks++;

@@ -248,6 +248,7 @@ def parse_parameters(p: parse_state, parent: _int64) : _int64 {
         parse_parameter(p, parameters);
         for( ;; ) {
             if(p.accept(P_COMMA) == 1) {
+                if(p.at(P_RPAREN)) { break; }          // (format: string, ...,)  is not written, but  (a, ...)  ends here
                 parse_parameter(p, parameters);
             } else if(p.at(T_IDENTIFIER) && p.peek(1) == P_COLON) {
                 // (a: int b: int): another parameter starts, only the comma is missing
@@ -263,8 +264,20 @@ def parse_parameters(p: parse_state, parent: _int64) : _int64 {
     return parameters;
 }
 
-/** utype_arg:  name: type */
+/**
+ * utype_arg:  name: type
+ *
+ * or `...`: where the variable arguments of a C function begin (an extern
+ * function only - backend/finalizer/sni/extern_functions.sharp):
+ *
+ *      def printf(format: string, ..., count: c_int, ratio: c_double) : c_int;
+ */
 def parse_parameter(p: parse_state, parent: _int64) {
+    if(p.at(P_DOT) && p.peek(1) == P_DOT && p.peek(2) == P_DOT) {
+        mark : _int64 = p.child(parent, N_VARIADIC);
+        p.advance(); p.advance(); p.advance();
+        return;
+    }
     parameter : _int64 = p.child(parent, N_PARAMETER);
     if(p.expect(T_IDENTIFIER, "the name of a parameter") == 0) { return; }
     if(p.expect(P_COLON, "`:` and the type of the parameter") == 1) {

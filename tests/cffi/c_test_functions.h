@@ -149,6 +149,12 @@ C_TEST void keep_callback(int_callback f);
 C_TEST int32_t call_kept(int32_t a, int32_t b);
 C_TEST int32_t call_on_other_thread(int_callback f, int32_t a, int32_t b);
 
+/* variable arguments */
+C_TEST int64_t va_ints(int32_t count, ...);
+C_TEST double va_doubles(int32_t count, ...);
+C_TEST double va_mixed(const char *kinds, ...);
+C_TEST double va_after_float(float first, double second, int32_t count, ...);
+
 /* mistakes on purpose (the protections' tests) */
 C_TEST void write_past_end(uint8_t *bytes, int32_t size, int32_t extra);
 C_TEST int32_t read_null(const int32_t *p);

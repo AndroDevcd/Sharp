@@ -58,6 +58,11 @@ if [ -z "$ONLY" ]; then
     cp "$WORK"/c_test.dll "$WORK"/libc_test.so "$WORK/project/libs/" 2>/dev/null
     "$VM" "$COMPILER" -P "$WORK/project" -L "$LIBRARY" > "$WORK/project.compile.txt" 2>&1
     ( cd "$WORK/project/libs" && timeout 120 "$VM" "$WORK/project/build/outputs/c_project" > "$WORK/project.txt" 2>&1 )
+    # ... and the build copied the libraries beside the program: the output folder alone, moved away, still runs
+    rm -rf "$WORK/moved"; mkdir -p "$WORK/moved"; cp -r "$WORK/project/build/outputs/." "$WORK/moved/"; mv "$WORK/project/libs" "$WORK/project/libs_gone"
+    ( cd "$WORK" && timeout 120 "$VM" "$WORK/moved/c_project" > "$WORK/moved.txt" 2>&1 )
+    if grep -q ": PASS" "$WORK/moved.txt"; then echo "$(tail -1 "$WORK/moved.txt")   [the output folder alone, with the libraries the build copied]"
+    else echo "FAIL  the project's output folder on its own:"; ls -R "$WORK/moved" | head -12; tail -12 "$WORK/moved.txt" | cut -c1-220; bad=1; fi
     if grep -q ": PASS" "$WORK/project.txt"; then echo "$(tail -1 "$WORK/project.txt")   [a project's settings.json]"
     else echo "FAIL  the project:"; grep -A8 "^error" "$WORK/project.compile.txt" | head -20; tail -12 "$WORK/project.txt" | cut -c1-220; bad=1; fi
 fi

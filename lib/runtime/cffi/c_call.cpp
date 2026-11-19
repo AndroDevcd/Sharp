@@ -146,6 +146,19 @@ static bool parse_one(const char *&p, c_type &type, std::string &why, int depth)
         }
         if(type.fields.empty()) { why = "a struct with no members"; return false; }
         type.size = round_up(type.size, type.align);
+        // {...}=16: how many bytes the program says C has for this struct. A difference means the fields
+        // are not the C struct's members: one is missing, of another type, or in another place.
+        if(*p == '=') {
+            p++;
+            uint32_t said = 0;
+            while(*p >= '0' && *p <= '9') { said = said * 10 + (uint32_t) (*p - '0'); p++; }
+            if(said != type.size) {
+                why = "the struct " + std::string(start, p) + " is " + std::to_string(type.size) + " bytes the way its fields are laid out on this system ("
+                      + c_convention() + "), and it is declared to be " + std::to_string(said)
+                      + " (c_bytes): a field is missing, has another type than the C member, or stands in another place";
+                return false;
+            }
+        }
     } else {
         std::string name;
         while((*p >= 'a' && *p <= 'z') || (*p >= '0' && *p <= '9') || *p == '_') name += *p++;
@@ -253,7 +266,10 @@ static bool plan(c_signature &s, std::string &why) {
         const c_type &t = s.args[a];
         int source = C_FROM_VALUE;
         uint32_t from = 0, bytes = 8;
-        bool fp = is_float(t.kind);
+        // One of the variable arguments of a function is read by it from the WHOLE-NUMBER register of
+        // its place (or the stack), a float too: there it travels as the 8 bytes of a double.
+        bool variable = s.variadic_from >= 0 && (int) a >= s.variadic_from;
+        bool fp = is_float(t.kind) && !variable;
         if(t.kind == C_STRUCT) {
             if(t.size == 1 || t.size == 2 || t.size == 4 || t.size == 8) {
                 bytes = t.size;                             // as the whole number its bytes make, floats in it or not
@@ -455,9 +471,12 @@ static bool plan(c_signature &s, std::string &why) {
     uint32_t ints = 0, count = 0, member = 0, at = 0;
     bool singles[16] = { false };
     bool fp_on_stack = false;
+    // a function with variable arguments: every argument, and the result, as if there were no
+    // floating point registers (a double is two words in the whole-number registers or on the stack)
+    bool no_fp = s.variadic_from >= 0;
     const c_type &r = s.result;
     if(r.kind == C_STRUCT) {
-        if(equal_floats(r, count, member)) {
+        if(!no_fp && equal_floats(r, count, member)) {
             s.shape = 1;
             for(uint32_t k = 0; k < count; k++) add_piece(s, C_IN_FP, k * member, k * member, member);
         } else if(r.size <= 4) {
@@ -467,7 +486,7 @@ static bool plan(c_signature &s, std::string &why) {
             add_move(s, 0, C_FROM_RESULT_ADDRESS, C_IN_INT, 0, 0, 4);
             ints = 1;
         }
-    } else if(is_float(r.kind)) {
+    } else if(is_float(r.kind) && !no_fp) {
         s.shape = 1;
         add_piece(s, C_IN_FP, 0, 0, r.size);
     } else if(r.kind != C_VOID) {
@@ -476,7 +495,7 @@ static bool plan(c_signature &s, std::string &why) {
 
     for(size_t a = 0; a < s.args.size(); a++) {
         const c_type &t = s.args[a];
-        bool floats = is_float(t.kind) || (t.kind == C_STRUCT && equal_floats(t, count, member));
+        bool floats = !no_fp && (is_float(t.kind) || (t.kind == C_STRUCT && equal_floats(t, count, member)));
         if(floats) {
             if(t.kind != C_STRUCT) { count = 1; member = t.size; }
             int found = fp_on_stack ? -1 : free_singles(singles, count * (member / 4), member / 4);
@@ -533,6 +552,11 @@ bool c_parse_signature(const std::string &text, c_signature &s, std::string &why
         if(*p == ')') { p++; break; }
         if(*p == ',') { p++; continue; }
         if(*p == 0) { why = "the `(` of the signature is never closed"; return false; }
+        if(p[0] == '.' && p[1] == '.' && p[2] == '.') {
+            p += 3;
+            if(s.variadic_from < 0) s.variadic_from = (int) s.args.size();
+            continue;
+        }
         c_type type;
         if(!parse_one(p, type, why, 0)) return false;
         if(type.kind == C_VOID) {
@@ -540,6 +564,8 @@ bool c_parse_signature(const std::string &text, c_signature &s, std::string &why
             why = "`void` cannot be an argument";
             return false;
         }
+        // one of the variable arguments: C hands a float over as a double there (and so must we)
+        if(s.variadic_from >= 0 && type.kind == C_F32) { type.kind = C_F64; type.size = 8; type.align = 8; }
         s.args.push_back(type);
         if(s.args.size() > (size_t) C_MAX_ARGUMENTS) { why = "more than " + std::to_string(C_MAX_ARGUMENTS) + " arguments"; return false; }
     }
@@ -633,11 +659,22 @@ static void call(const c_signature &sig, void *fn, const uint8_t *ints, const ui
 #define INT_COUNT 4
 #endif
 
+// Linux x64: a function with variable arguments is told, in a register of its own, how many floating
+// point registers carry arguments. A call through a function type that has variable arguments sets
+// it - so every call is made that way there: a function without them never looks.
+#if defined(C_ABI_SYSV64)
+#define STACK_TYPES(list) ...
+#define NO_STACK_TYPES , ...
+#else
+#define STACK_TYPES(list) list
+#define NO_STACK_TYPES
+#endif
+
 template<class R> static R go(void *fn, const word_t *r, const double *f, const word_t *s, uint32_t words) {
-    if(words == 0) return ((R (*)(INT_TYPES, TYPE8(double))) fn)(INT_VALUES, LIST8(f, 0));
-    if(words <= 8) return ((R (*)(INT_TYPES, TYPE8(double), TYPE8(word_t))) fn)(INT_VALUES, LIST8(f, 0), LIST8(s, 0));
-    if(words <= 32) return ((R (*)(INT_TYPES, TYPE8(double), TYPE32(word_t))) fn)(INT_VALUES, LIST8(f, 0), LIST32(s, 0));
-    return ((R (*)(INT_TYPES, TYPE8(double), TYPE128(word_t))) fn)(INT_VALUES, LIST8(f, 0), LIST128(s));
+    if(words == 0) return ((R (*)(INT_TYPES, TYPE8(double) NO_STACK_TYPES)) fn)(INT_VALUES, LIST8(f, 0));
+    if(words <= 8) return ((R (*)(INT_TYPES, TYPE8(double), STACK_TYPES(TYPE8(word_t)))) fn)(INT_VALUES, LIST8(f, 0), LIST8(s, 0));
+    if(words <= 32) return ((R (*)(INT_TYPES, TYPE8(double), STACK_TYPES(TYPE32(word_t)))) fn)(INT_VALUES, LIST8(f, 0), LIST32(s, 0));
+    return ((R (*)(INT_TYPES, TYPE8(double), STACK_TYPES(TYPE128(word_t)))) fn)(INT_VALUES, LIST8(f, 0), LIST128(s));
 }
 
 struct ret_ii { word_t a, b; };

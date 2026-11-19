@@ -53,6 +53,13 @@ def check_function_forms(prog: sharp_program, problems: list<diagnostic>) {
 
 /** E0365 */
 def report_native_with_body(function: sharp_function, problems: list<diagnostic>) {
+    // `...` among the parameters is C's: only a function of an extern block has it
+    if(function.variadic_from >= 0 && sizeof(function.extern_library.data) == 0) {
+        problems.add(error_at_node("E0365", "`...` among the parameters of `" + function.name + "`, which is not a C function", function.unit, function.node)
+            .with_label("only a function of an `extern` block can have `...`")
+            .with_note("`...` says where the variable arguments of a C function begin: `def printf(format: string, ..., count: c_int) : c_int;`")
+            .with_help("a Sharp function that takes any number of values takes an array or a list"));
+    }
     if(!function.has(FLAG_NATIVE) || !function.has_body()) { return; }
 
     start : _int64 = function.body;

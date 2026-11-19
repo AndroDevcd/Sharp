@@ -244,6 +244,35 @@ int main() {
         same_d("named nested", call_d("take_nested12", "({at:{x:f32 y:f32} tint:{r:u8 g:u8 b:u8 a:u8}})f64", FN(take_nested12), { P(&n) }), take_nested12(n));
     }
 
+    // ---- a struct that says its size: accepted when it is right, refused with both sizes when it is not
+    {
+        c_signature s; std::string why;
+        checks += 3;
+        if(!c_parse_signature("({x:i32 y:i32 w:i32 h:i32}=16)f64", s, why)) failed("declared size", why.c_str());
+        if(c_parse_signature("({x:i32 y:i32 w:i32}=16)f64", s, why)) failed("declared size", "a struct of 12 bytes declared as 16 was accepted");
+        else if(why.find("12 bytes") == std::string::npos || why.find("16") == std::string::npos) failed("declared size", ("the reason does not name both sizes: " + why).c_str());
+        record32 rec = make_record32(4);
+        same_d("an array member with its name", call_d("take_record32", "({name:i8[20] n:i32 v:f64}=32)f64", FN(take_record32), { P(&rec) }), take_record32(rec));
+    }
+
+    // ---- variable arguments (printf's kind of function)
+    same_i("va_ints, none", call_i("va_ints", "(i32,...)i64", FN(va_ints), { I(0) }), va_ints(0));
+    same_i("va_ints", call_i("va_ints", "(i32,...,i32,i32,i32)i64", FN(va_ints), { I(3), I(10), I(-20), I(30) }), va_ints(3, 10, -20, 30));
+    same_i("va_ints, twelve", call_i("va_ints", "(i32,...,i32,i32,i32,i32,i32,i32,i32,i32,i32,i32,i32,i32)i64", FN(va_ints),
+               { I(12), I(1), I(-2), I(3), I(-4), I(5), I(-6), I(7), I(-8), I(9), I(-10), I(11), I(-12) }),
+           va_ints(12, 1, -2, 3, -4, 5, -6, 7, -8, 9, -10, 11, -12));
+    same_d("va_doubles", call_d("va_doubles", "(i32,...,f64,f64,f64)f64", FN(va_doubles), { I(3), D(1.5), D(-2.25), D(3.125) }), va_doubles(3, 1.5, -2.25, 3.125));
+    same_d("va_doubles, twelve", call_d("va_doubles", "(i32,...,f64,f64,f64,f64,f64,f64,f64,f64,f64,f64,f64,f64)f64", FN(va_doubles),
+               { I(12), D(1.5), D(2.5), D(3.5), D(4.5), D(5.5), D(6.5), D(7.5), D(8.5), D(9.5), D(10.5), D(11.5), D(12.5) }),
+           va_doubles(12, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5));
+    // (a float among them is handed over as a double, as C does)
+    same_d("va_doubles, floats", call_d("va_doubles", "(i32,...,f32,f32)f64", FN(va_doubles), { I(2), D(1.5), D(2.25) }), va_doubles(2, 1.5f, 2.25f));
+    same_d("va_mixed", call_d("va_mixed", "(cstr,...,i32,f64,i64,cstr,f64,i32,i64,f64)f64", FN(va_mixed),
+               { P("idlsdild"), I(-7), D(2.5), I(9000000000LL), P("four"), D(-1.25), I(11), I(-12000000000LL), D(8.5) }),
+           va_mixed("idlsdild", -7, 2.5, 9000000000LL, "four", -1.25, 11, -12000000000LL, 8.5));
+    same_d("va_after_float", call_d("va_after_float", "(f32,f64,i32,...,f64,f64)f64", FN(va_after_float), { D(1.5), D(2.25), I(2), D(3.5), D(4.75) }),
+           va_after_float(1.5f, 2.25, 2, 3.5, 4.75));
+
     // ---- what is refused, and that it says why
     {
         const char *wrong[] = { "", "i32", "(i32", "(i33)void", "(void,i32)void", "(i32)", "({})void", "(i32)void extra", "({i32)void", "(i8[4])void", "({i8[0]})void", "(*i32)void", "({x:})void" };

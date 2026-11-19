@@ -28,6 +28,19 @@ class odd8 base c_struct { a : c_int; b : c_char; }
 class nested12 base c_struct { at : vec2; tint : color4; }
 class if8 base c_struct { a : c_int; b : c_float; }
 class fid16 base c_struct { a : c_float; b : c_int; c : c_double; }
+// an array member, and the size C has for the struct (checked when a function that uses it is linked)
+class record32 base c_struct {
+    static const c_bytes : _int64 = 32;
+    name : c_char[] = new c_char[20];
+    n : c_int;
+    v : c_double;
+}
+class block160 base c_struct { values : c_int[] = new c_int[40]; }
+// declared a size it does not have: every function that takes it is refused
+class wrong_size base c_struct {
+    static const c_bytes : _int64 = 24;
+    x : c_int; y : c_int; w : c_int; h : c_int;
+}
 
 extern "c_test" {
     // by value
@@ -75,6 +88,11 @@ extern "c_test" {
     def read_rect(from: rect16?) : c_double;
     def read_rect_or(from: rect16?, otherwise: c_double) : c_double;
     def same_rect(r: rect16?) : rect16?;
+    def take_record32(v: record32) : c_double;
+    def make_record32(seed: c_int) : record32;
+    def take_block160(v: block160) : c_double;
+    def make_block160(seed: c_int) : block160;
+    def take_rect16(v: wrong_size) : c_double;
 }
 
 checks : _int64 = 0;
@@ -92,7 +110,7 @@ def main(args: string[]) {
     folder : string = ".";
     if(sizeof(args) > 0) { folder = args[0]; }
     c_library("c_test", folder + "/c_test");
-    c_check_libraries();
+    // (no c_check_libraries() here: one struct below is declared with a wrong size on purpose)
 
     // ---- each struct: C makes one, Sharp reads its fields; Sharp hands it back, C reads it
     r := make_rect16(5);
@@ -173,6 +191,38 @@ def main(args: string[]) {
     else { same("a struct through a returned pointer", back!!.x + back!!.h, 17); }
     checks++;
     if(same_rect(nothing) != null) { failures++; println("FAIL  NULL did not come back as null"); }
+
+    // ---- array members
+    rec := make_record32(3);
+    checks++;
+    if(rec.name == null || sizeof(rec.name) != 20) { failures++; println("FAIL  the array member of a struct C returned is not an array of 20"); }
+    else {
+        same("an array member C filled: its first item", rec.name[0], 'd');     // 'a' + 3
+        same("... and its second", rec.name[1], 'e');
+        same("... the rest of the struct", rec.n + rec.v, 3 + 3.125);
+    }
+    same("C reads the array member", take_record32(rec), 6 + 'd' + 6 + 9.375);
+    made := new record32();
+    made.name[0] = 'h'; made.name[1] = 'i';
+    made.n = 5; made.v = 2;
+    same("... of a struct made in Sharp", take_record32(made), 2 + 'h' + 10 + 6);
+    blocks := make_block160(2);
+    same("forty items back", blocks.values[0] + blocks.values[39], 2 + 80);
+    blocks.values[39] = 1;
+    expected : decimal = 0;
+    for(i : _int64 = 0; i < 39; i++) { expected = expected + (i + 1) * (2 * (i + 1)); }
+    same("forty items in", take_block160(blocks), expected + 40);
+
+    // ---- a struct declared with a size it does not have
+    try {
+        take_rect16(new wrong_size());
+        failures++;
+        println("FAIL  a struct declared 24 bytes that is 16 was accepted");
+    } catch(problem: unsatisfied_link_error) {
+        checks++;
+        message : string = problem.get_message();
+        if(!message.contains("16 bytes") || !message.contains("24")) { failures++; println("FAIL  the message does not name both sizes: " + message); }
+    }
 
     // ---- a struct by value cannot be null
     try {

@@ -86,7 +86,63 @@ def generate_executable(analysed: analysed_program, files: list<string>, written
             if(build_native_libraries(result.native_group_names!!, request.sni_folder) == 0) { return 0; }
         }
     }
+    if(options.compile_mode == compilation_mode.project_mode) { copy_c_libraries(written_to); }
     return 1;
+}
+
+/** is this path one that starts at a drive or at the root (so not one inside the project)? */
+def is_absolute_place(place: string) : _int64 {
+    size : _int64 = sizeof(place.data);
+    if(size == 0) { return 0; }
+    first : _int64 = place.data!![0];
+    if(first == '/' || first == '\\') { return 1; }
+    if(size > 2 && place.data!![1] == ':') { return 1; }
+    return 0;
+}
+
+/**
+ * THE PROJECT'S C LIBRARIES GO WITH THE PROGRAM. settings.json may place a
+ * library of the `extern` blocks inside the project:
+ *
+ *      "c_libraries": { "sdl": { "windows": "libs/SDL2.dll", "linux": "libs/libSDL2.so" } }
+ *
+ * Every such file that is there - of every system: the output folder is the
+ * same on all of them - is copied to the same place beside the executable
+ * (build/outputs/libs/SDL2.dll). A running program looks beside itself first,
+ * so the output folder can be copied anywhere, to another machine too, and
+ * still finds its libraries. A place that is absolute, or a bare name the
+ * system finds itself, is not a file of the project and is left alone.
+ */
+def copy_c_libraries(written_to: string) {
+    places := options.c_library_places;
+    outputs := new file(written_to).parent();
+    if(outputs == null) { return; }
+    endings : string[] = { "", ".dll", ".so", ".dylib" };
+    for(i : _int64 = 0; i + 2 < places.size(); i = i + 3) {
+        place : string = places.at(i + 2);
+        if(is_absolute_place(place) == 1) { continue; }
+        // (as written, with the system's ending, and with `lib` in front of the file's name: what the VM tries)
+        cut : _int64 = 0 - 1;
+        for(k : _int64 = 0; k < sizeof(place.data); k++) {
+            if(place.data!![k] == '/') { cut = k; }
+        }
+        with_lib : string = "lib" + place;
+        if(cut >= 0) { with_lib = new string(place.data!!, 0, cut + 1) + "lib" + new string(place.data!!, cut + 1, sizeof(place.data)); }
+        for(j : _int64 = 0; j < 2 * sizeof(endings); j++) {
+            name : string = place + endings[j % sizeof(endings)];
+            if(j >= sizeof(endings)) { name = with_lib + endings[j % sizeof(endings)]; }
+            source := new file(options.project_dir + "/" + name);
+            if(!source.is_file()) { continue; }
+            target := new file(outputs!!.get_path() + "/" + name);
+            // (again only when it is not there yet or is another file: by size and time)
+            if(target.is_file() && target.size() == source.size() && target.last_modified().value >= source.last_modified().value) { continue; }
+            if(target.parent() != null) { target.parent()!!.mkdirs(); }
+            bytes := source.read_bytes();
+            if(bytes == null) { continue; }
+            target.write_bytes(bytes!!);
+            progress("C library: " + name + " copied beside the program");
+        }
+    }
 }
 
 /**
