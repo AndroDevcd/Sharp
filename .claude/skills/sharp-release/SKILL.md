@@ -45,7 +45,7 @@ Pitfalls that have bitten before:
 
 | changed | number that moves |
 |---|---|
-| `lib/runtime/**`, `lib/core/**`, `main.cpp` | the VM revision: `rN` -> `rN+1` |
+| `lib/runtime/**`, `lib/core/**`, `main.cpp` | the VM's patch number: `4.0.1` -> `4.0.2` (`progvers`). The revision `rN` is only for major VM changes |
 | `lib/compiler/**` or `lib/support/**` | the language version: patch + 1 (`0.4.3` -> `0.4.4`) |
 | only docs, tests, build scripts, the plugin | nothing: tell the user there is nothing to release |
 
@@ -60,7 +60,8 @@ version number did not move. Do the full release when they ask for a release or 
 
 ### 2. Bump the versions
 
-- VM: `lib/runtime/main.h`, `#define rev "rN"`.
+- VM: `lib/runtime/main.h`, the patch number in `#define progvers "4.0.N" rev`. Leave `#define rev "rN"`
+  alone unless the user calls the change major.
 - Language: do NOT edit by hand - pass the new number to `release.sh` in step 3 (`release.sh 0.7.1 install`); it writes
   `program_vers` (configuration.sharp), `library_version` and `supported_versions` (options.sharp).
 - The library folder stays `lib/support/0.4.0` whatever the version (the scripts take the folder that is there).

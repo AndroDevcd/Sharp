@@ -333,14 +333,43 @@ void sharpgui_draw_unclip(sni_env* env) {
 
 
 //
-// draw_polygon(points, colour): fill a shape given by its corners, in order
-// around the shape. `points` is text - "x y x y x y ..." - because that is the
-// simplest thing to hand across from Sharp for a list of numbers of any length.
+// Fill a shape given by its corners, in order around the shape - `numbers` is
+// x y x y x y ... It is filled as a fan of triangles from the shape's middle,
+// which is right for every shape that can be "seen" whole from its middle:
+// triangles, diamonds, hexagons, stars, arrows. The edge is softened like every
+// other shape's here.
+static void fill_corners(const std::vector<float>& numbers, int64_t color);
+
 //
-// It is filled as a fan of triangles from the shape's middle, which is right
-// for every shape that can be "seen" whole from its middle: triangles,
-// diamonds, hexagons, stars, arrows. The edge is softened like every other
-// shape's here.
+// fill_polygon(xs, ys, count, shift_x, shift_y, colour): the shape whose first
+// `count` corners are (xs[i] + shift_x, ys[i] + shift_y). The two arrays are
+// read where they are - nothing is copied across or turned into text - which is
+// what makes a scene of many shapes cheap. The shift is the painter's origin.
+//
+void sharpgui_fill_polygon(sni_env* env, sni_ref xs_ref, sni_ref ys_ref, int64_t count,
+                           double shift_x, double shift_y, int64_t color) {
+    if(!gui_ready(env)) return;
+    sni_array xs = env->array(xs_ref);
+    sni_array ys = env->array(ys_ref);
+    if(xs.kind != SNI_DECIMAL || ys.kind != SNI_DECIMAL || xs.data == nullptr || ys.data == nullptr) return;
+    if(count > xs.count) count = xs.count;
+    if(count > ys.count) count = ys.count;
+    if(count < 3) return;
+
+    const double* x = (const double*) xs.data;
+    const double* y = (const double*) ys.data;
+    std::vector<float> numbers((size_t) count * 2);
+    for(int64_t i = 0; i < count; i++) {
+        numbers[i * 2] = (float) (x[i] + shift_x);
+        numbers[i * 2 + 1] = (float) (y[i] + shift_y);
+    }
+    fill_corners(numbers, color);
+}
+
+//
+// draw_polygon(points, colour): the same, with the corners as text -
+// "x y x y x y ...". Kept for programs written against it; fill_polygon is the
+// fast one (turning numbers into text and back costs far more than the drawing).
 //
 void sharpgui_draw_polygon(sni_env* env, sni_ref points_ref, int64_t color) {
     if(!gui_ready(env)) return;
@@ -355,6 +384,10 @@ void sharpgui_draw_polygon(sni_env* env, sni_ref points_ref, int64_t color) {
         numbers.push_back(value);
         at = end;
     }
+    fill_corners(numbers, color);
+}
+
+static void fill_corners(const std::vector<float>& numbers, int64_t color) {
     size_t count = numbers.size() / 2;
     if(count < 3) return;
 

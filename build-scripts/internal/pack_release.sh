@@ -59,6 +59,9 @@ cp "$COMPILERS/debug/sharpc" "$D/shared/compiler/sharpc-debug-v$V"
 said=$("$D/linux/sharp" "$D/shared/compiler/sharpc-v$V" -V 2>&1 | head -1)
 [ "$said" = "sharpc $V" ] || { echo "the packed compiler says '$said', not 'sharpc $V': rebuild the release compilers"; exit 1; }
 cp -r "$LIB_SRC" "$D/shared/lib"
+# Unix line endings in the library: a Windows checkout has Windows ones, and on Linux a line then ends in an
+# invisible \r that every `sed` or `grep ...$` of the installed files trips over (the compiler reads both)
+find "$D/shared/lib" -type f \( -name '*.sharp' -o -name '*.cpp' -o -name '*.h' \) -exec sed -i 's/\r$//' {} +
 
 # ---- the scripts and texts: the version filled in; Windows files with Windows line ends, Unix files with Unix ones
 fill() {   # fill <template> <target> <crlf|lf>

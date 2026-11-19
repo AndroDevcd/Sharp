@@ -13,7 +13,7 @@ void error(string message);
 
 #define progname "sharp"
 #define rev "r19"
-#define progvers "4.0.1" rev
+#define progvers "4.0.2" rev
 
 struct options {
     bool debugMode = true;

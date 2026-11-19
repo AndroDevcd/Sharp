@@ -162,28 +162,22 @@ class string : loopable<_int8> {
     }
 
     def operator+(obj : printable?) : string {
-        s := new string(data);
         objstr := obj?.to_string();
         // `objstr == null` would call operator==(_int8[]?) and be true for every EMPTY
         // string (an empty string and null both have size 0), which made "" print as
         // "null". Comparing the reference itself asks the real question.
         if((objstr as object) == null) {
-            return s.append("null");
-        } else if(objstr?.data == null) {
-            return s;
-        } else 
-            return s.append(objstr?.data);
+            return new string(data).append("null");
+        }
+        return joined(objstr?.data);
     }
 
    def operator+(str : string?) : string {
-       s := new string(data);
         // reference comparison: an empty string is not null (see operator+(printable?))
         if((str as object) == null) {
-            return s.append("null");
-        } else if(str?.data == null) {
-            return s;
-        } else 
-            return s.append(str?.data);
+            return new string(data).append("null");
+        }
+        return joined(str?.data);
    }
 
     override def to_string() : string? = new string(data);
@@ -302,20 +296,25 @@ class string : loopable<_int8> {
         return s.append(num);
     }
 
+    // Adding a number goes straight from the number to its digits and copies each
+    // side once. ("" + x used to make a number object for x and two more for the
+    // formatter's arguments, a string of the digits, a copy of the left side, and
+    // then a copy of both.)
+
     def operator+(num : decimal) : string {
-        return operator+(new double(num).to_string());
+        return joined(digits_of('n', num));
     }
 
     def operator+(num : _int16) : string {
-        return operator+(new short(num).to_string());
+        return joined(digits_of('l', num));
     }
 
     def operator+(num : _int32) : string {
-        return operator+(new int(num).to_string());
+        return joined(digits_of('l', num));
     }
 
     def operator+(num : _int64) : string {
-        return operator+(new long(num).to_string());
+        return joined(digits_of('l', num));
     }
 
     def operator+(num : _uint8) : string {
@@ -323,15 +322,47 @@ class string : loopable<_int8> {
     }
 
     def operator+(num : _uint16) : string {
-        return operator+(new ushort(num).to_string());
+        return joined(digits_of('l', num));
     }
 
     def operator+(num : _uint32) : string {
-        return operator+(new uint(num).to_string());
+        return joined(digits_of('l', num));
     }
 
     def operator+(num : _uint64) : string {
-        return operator+(new ulong(num).to_string());
+        return joined(digits_of('L', num));
+    }
+
+    /** the digits of a number, from the VM's formatter (snprintf): 'l' whole, 'L' unsigned whole, 'n' decimal */
+    private def digits_of(kind: _int64, num: decimal) : _int8[]? {
+        result : _int8[]? = null;
+        _kind : _int64 = kind;
+        _num : decimal = num;
+        _precision : _int64 = 0;
+        asm {
+            loadl egx, [_kind]
+            loadl ebx, [_num]
+            loadl ecx, [_precision]
+            int 0x1
+            movl [result]
+            popObj
+        }
+        return result;
+    }
+
+    /** a new string: this one followed by `tail`, made with one allocation and one copy of each */
+    private def joined(tail: _int8[]?) : string {
+        s := new string();
+        here : _int64 = sizeof(data);
+        more : _int64 = sizeof(tail);
+        if(here + more == 0) {
+            return s;
+        }
+        both := new _int8[here + more];
+        if(here > 0) { memcopy(data!!, both, 0, 0, here); }
+        if(more > 0) { memcopy(tail!!, both, here, 0, more); }
+        s.data = both;
+        return s;
     }
 
     def size() := sizeof(data);

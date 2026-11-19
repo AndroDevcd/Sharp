@@ -38,10 +38,8 @@ import (
  *   what they change on the screen waits for the next frame. With 0 there is
  *   no limit at all: frames are painted and shown as fast as the machine can.
  *
- *   The loop times the frames itself for every limit. The screen's refresh
- *   cannot be trusted to do it: not every system really waits for it, and
- *   where nothing waits (the software renderer of an older Pi) the limit is
- *   the only thing that stops an animation from painting flat out.
+ *   The loop times the frames itself for every limit, and showing a frame
+ *   never waits for the screen's refresh (follow_frame_limit says why).
  *
  * INPUT ROUTING
  *
@@ -84,6 +82,20 @@ stable class ui_host {
 
     /** is the frames-per-second box painted in the top right corner? (gui.show_fps) */
     static fps_shown : bool = false;
+
+    /** does showing a frame wait for the screen's refresh? (gui.vsync; off unless the program turns it on) */
+    static vsync_wanted : bool = false;
+
+    /**
+     * Set the open window's vsync to vsync_wanted. Off by default because the loop keeps
+     * the frame rate itself, and where showing a frame does wait for the refresh - a
+     * Raspberry Pi has no compositor - a frame that misses one waits for the next: a limit
+     * of 30 or 60 came out at 24 frames a second on a Pi that paints 100 without vsync.
+     */
+    static def apply_vsync() {
+        if(vsync_wanted) { surface_pace(1); }
+        else { surface_pace(0); }
+    }
 
     win : window;
     look : theme;
@@ -197,6 +209,7 @@ stable class ui_host {
         saved_store.open(title_given);              // saved states take their values from their files (saved.sharp)
         top = root.node();
         reconciler.settle(top!!, null);          // builds every composable in the tree
+        apply_vsync();                           // a window opens waiting for the refresh; this is what the program chose
 
         p := win.painter();
         last : decimal = win.time();
@@ -274,7 +287,7 @@ stable class ui_host {
                         fps_frames += 1;
                         fps_ms = (win.time() - started) * 1000;
                     }
-                    win.show();                   // waits for the screen's refresh, where the screen sets the pace
+                    win.show();
 
                     // when the next frame may come: one gap after this one was DUE
                     // (not after it was painted, which would let the rate drift
@@ -402,8 +415,7 @@ stable class ui_host {
     /**
      * Work out how the frame_limit is kept, when it has changed:
      *
-     *   0           no limit: showing a frame does not wait for the screen either
-     *               (where the system allows that)
+     *   0           no limit
      *   any other   the loop keeps it: frame_gap seconds between two frames
      */
     private def follow_frame_limit() {
@@ -413,12 +425,10 @@ stable class ui_host {
         limit_in_force = frame_limit;
 
         if(frame_limit <= 0) {
-            surface_pace(0);
             frame_gap = 0;
             return;
         }
 
-        surface_pace(1);
         frame_gap = 1.0 / frame_limit;
         next_frame_at = 0;
     }

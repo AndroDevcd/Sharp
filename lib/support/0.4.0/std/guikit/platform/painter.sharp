@@ -101,7 +101,25 @@ stable class painter {
         draw_circle_line(ox + cx, oy + cy, radius, thickness, ink(c));
     }
 
-    /** any outline, filled: `points` is "x y x y x y ..." in the painter's own coordinates (shape.sharp builds it) */
+    /**
+     * any outline, filled: corner i is (xs[i], ys[i]), in order around the shape.
+     *
+     *      p.polygon(new decimal[] { 10, 60, 35 }, new decimal[] { 50, 50, 10 }, red);     // a triangle
+     */
+    def polygon(xs: decimal[], ys: decimal[], c: color) {
+        fill_polygon(xs, ys, sizeof(xs), ox, oy, ink(c));
+    }
+
+    /** the same from only the first `count` corners - so one pair of arrays can be filled again every frame */
+    def polygon(xs: decimal[], ys: decimal[], count: _int64, c: color) {
+        fill_polygon(xs, ys, count, ox, oy, ink(c));
+    }
+
+    /**
+     * the same with the corners as text, "x y x y x y ...", already moved by the
+     * painter's origin (at_x, at_y). Much slower than the arrays: every number is
+     * turned into text here and read back on the other side.
+     */
     def polygon(points: string, c: color) {
         draw_polygon(points, ink(c));
     }

@@ -73,9 +73,10 @@ set_version() {
     # 2. the library version programs get    options.sharp:        static library_version : string = "X";
     sed -i "s/static library_version : string = \"[^\"]*\";/static library_version : string = \"$VERSION\";/" "$OPTIONS"
     # 3. the versions the compiler accepts   options.sharp:        supported_versions := new string[] { ..., "X" };
-    #    (the new number goes after the last one of the list, which gets a comma)
+    #    (the new number goes after the last one of the list - the one line without a comma, whatever
+    #    number it holds: the list is not in order - and that line gets a comma)
     if ! sed -n '/^supported_versions/,/^};/p' "$OPTIONS" | grep -q "\"$VERSION\""; then
-        sed -i "/^supported_versions/,/^};/ { /\"$CURRENT\"\r\{0,1\}\$/ s/\"$CURRENT\"/\"$CURRENT\",\n    \"$VERSION\"/ }" "$OPTIONS"
+        sed -i "/^supported_versions/,/^};/ { s/^\( *\"[^\"]*\"\)\(\r\{0,1\}\)\$/\1,\2\n    \"$VERSION\"\2/ }" "$OPTIONS"
     fi
     grep -q "^program_vers : string = \"$VERSION\";" "$CONFIGURATION" \
         && grep -q "static library_version : string = \"$VERSION\";" "$OPTIONS" \
@@ -83,7 +84,9 @@ set_version() {
         || { echo "the version could not be written into the sources: set it by hand (build-scripts/README.md says where)"; exit 1; }
     echo "the sources now say $VERSION   (configuration.sharp, options.sharp - part of what you commit)"
 }
-[ "$VERSION" = "$CURRENT" ] || set_version
+# every time, also when the number is the one there: a run that stopped half-way through set_version
+# leaves program_vers new and the list without it, and a compiler built from that refuses its own library
+set_version
 # the same folder as WSL sees it:  C:\Users\me\Sharp\build-scripts  ->  /mnt/c/Users/me/Sharp/build-scripts
 IN_WSL=$(MSYS_NO_PATHCONV=1 wsl wslpath -a "$(cygpath -m "$HERE")" 2>/dev/null | tr -d '\r')
 [ -n "$IN_WSL" ] || { echo "WSL did not answer: this script needs WSL (wsl --install), with g++, rsync, python3 and libsdl2-dev in it"; exit 1; }

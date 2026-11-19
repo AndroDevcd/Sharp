@@ -51,6 +51,7 @@ def name_every_native() {
     draw_circle(0, 0, 1, 0);
     draw_circle_line(0, 0, 1, 1, 0);
     draw_polygon("", 0);
+    fill_polygon(new decimal[3], new decimal[3], 3, 0, 0, 0);
     draw_clip(0, 0, 1, 1);
     draw_unclip();
 

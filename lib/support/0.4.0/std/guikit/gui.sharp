@@ -242,6 +242,29 @@ stable class gui {
     }
 
     /**
+     * true: a frame is shown only when the screen starts its next refresh (vsync), so
+     * nothing moving on the screen ever tears. false, the default: frames are shown as
+     * soon as they are painted, and the frame rate alone keeps the pace.
+     *
+     * Before gui.run or while the app runs. Where the system has no compositor (a
+     * Raspberry Pi), a frame that misses a refresh waits for the next one: with vsync on
+     * a 60 Hz screen shows 60, 30, 20, 15 ... frames a second and nothing in between, so
+     * a limit of 30 can come out lower. Turn it on when tearing shows, and check the
+     * rate with gui.show_fps(true).
+     */
+    static def vsync(on: bool) {
+        ui_host.vsync_wanted = on;
+        if(ui_host.current != null) {
+            ui_host.apply_vsync();              // the window is open: now (before gui.run, run applies it)
+        }
+    }
+
+    /** is vsync on? (gui.vsync) */
+    static def vsync() : bool {
+        return ui_host.vsync_wanted;
+    }
+
+    /**
      * true: a small box in the top right corner, over everything the app paints,
      * says how many frames were painted in the last second and how long the
      * last one took ("60 fps  3.2 ms"). false: gone. An app that stands still

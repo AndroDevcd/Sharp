@@ -8,6 +8,17 @@
 #include "multitasking/thread/sharp_thread.h"
 #include "multitasking/fiber/fiber.h"
 #include "reflect/reflect_helpers.h"
+#include <cstdint>
+#if __has_include(<charconv>)
+#include <charconv>
+#endif
+
+// std::to_chars for a double (GCC 11 and later): the shortest digits in one go
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
+#define SHORTEST_DIGITS_IN_ONE_GO 1
+#else
+#define SHORTEST_DIGITS_IN_ONE_GO 0
+#endif
 
 //
 // natural_number(value): a decimal as text, the way a person would write it.
@@ -36,12 +47,24 @@ std::string natural_number(double value) {
     if(value > 1.7976931348623157e308) return "infinity";
     if(value < -1.7976931348623157e308) return "-infinity";
 
+    // a whole number (a count, a pixel, an index - most numbers a program prints): its digits
+    // straight away. Below 1e15 every whole number is exact, and comes out the same as below.
+    if(value > -1e15 && value < 1e15 && value == (double) (int64_t) value) {
+        return std::to_string((int64_t) value);
+    }
+
     // the shortest "d.ddddde+XX" that reads back as the same number
     char text[64];
+#if SHORTEST_DIGITS_IN_ONE_GO
+    auto made = std::to_chars(text, text + sizeof(text) - 1, value, std::chars_format::scientific);
+    *made.ptr = '\0';
+#else
+    // (an older compiler: try 1 digit, then 2 ... - up to 17 rounds of printing and reading back)
     for(int digits = 1; digits <= 17; digits++) {
         snprintf(text, sizeof(text), "%.*e", digits - 1, value);
         if(strtod(text, nullptr) == value) break;
     }
+#endif
 
     // take it apart: the sign, the digits (without the point), the power of ten
     std::string out;

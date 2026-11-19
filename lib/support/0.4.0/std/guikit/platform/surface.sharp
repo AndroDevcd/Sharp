@@ -66,7 +66,9 @@ native "sharpgui" {
     def draw_circle_line(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, color: _int64);
     def draw_clip(x: decimal, y: decimal, w: decimal, h: decimal);             // paint only inside this area ...
     def draw_unclip();                                                         // ... until this
-    def draw_polygon(points: string, color: _int64);                           // any outline, filled: "x y x y x y ..."
+    def draw_polygon(points: string, color: _int64);                           // any outline, filled: "x y x y x y ..." (slow: text)
+    def fill_polygon(xs: decimal[], ys: decimal[], count: _int64,
+                     shift_x: decimal, shift_y: decimal, color: _int64);       // the same from the first `count` corners, each shifted
 
     // --- layers (native/layers.cpp): paint to one side, then put it on the screen turned, scaled, blurred, cut ---
     def layer_begin() : _int64;                                                // 1: painting now goes into a new layer

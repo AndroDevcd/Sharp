@@ -140,14 +140,16 @@ stable class shape {
             p.rect(left_on(x, w, h), top_on(y, w, h), wide_on(w, h), tall_on(w, h), radius_on(w, h), c);
             return;
         }
-        // the corners, from fractions of the box to places on the screen, as the text the graphics side reads
-        places : string = "";
+        // the corners, from fractions of the box to places in the painter
         count : _int64 = points.size().value;
+        xs := new decimal[count];
+        ys := new decimal[count];
         for(i : _int64 = 0; i < count; i++) {
             corner : shape_point = points.at(i);
-            places = places + p.at_x(x + corner.x * w) + " " + p.at_y(y + corner.y * h) + " ";
+            xs[i] = x + corner.x * w;
+            ys[i] = y + corner.y * h;
         }
-        p.polygon(places, c);
+        p.polygon(xs, ys, c);
     }
 
     /** the border of the shape (shapes with corners of their own have none yet) */
