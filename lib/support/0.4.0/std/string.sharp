@@ -67,6 +67,17 @@ class string : loopable<_int8> {
         }
     }
 
+    /**
+     * The characters str[start .. end - 1], for positions that are plain
+     * numbers (a loop counter, a field): no `int` object is made for them.
+     */
+    string(str : _int8[], start: _int64, end: _int64) {
+        if((end - start) > 0) {
+            data = new _int8[end - start];
+            memcopy(str, data!!, 0, start, end);
+        }
+    }
+
     def replace(pos : int, ch: char) : string {
         if(pos.value >= sizeof(data)) {
             throw bounds_error(pos);
@@ -76,6 +87,12 @@ class string : loopable<_int8> {
         return self;
     }
 
+    /**
+     * Add one character at the end; returns this string.
+     *
+     * KNOWN TO THE COMPILER BY NAME, like append(_int8[]?) below: `ch` is
+     * only read.
+     */
     def append(ch: char) : string
     {
         if(data == null)
@@ -91,6 +108,30 @@ class string : loopable<_int8> {
 
     def not_empty() : bool = !empty();
 
+    /**
+     * Add the characters of `immstr` at the end (nothing for null); returns
+     * this string. The characters are COPIED: `immstr` is not kept.
+     *
+     * KNOWN TO THE COMPILER BY NAME. With -O the compiler shares a text
+     * literal that is only ever read, and replaces the copy a new string
+     * makes of its literal (lib/compiler/backend/optimizer/passes/calls/
+     * shared_literals.sharp). For that it relies on three things here,
+     * without reading this body:
+     *
+     *   - `immstr` is only READ: never changed, never stored in a field or
+     *     anywhere else, never returned. (The identity test below is the one
+     *     exception it knows about: it can only be true for this string's own
+     *     array, which is being changed and so is never a shared literal.)
+     *   - On a string that was just made (`data` is null) the result is a
+     *     string whose `data` holds exactly the characters of `immstr` - so
+     *     the compiler may store a fresh literal array into `data` directly
+     *     instead of calling this. The same goes for the constructor
+     *     string(_int8[]?) and for init(_int8[]) above, which call it.
+     *   - The field is called `data`.
+     *
+     * Keep all three true, or change `find_read_only_arguments` and
+     * `string_shape` in that file with it.
+     */
     def append(immstr: _int8[]?) : string
     {
         if(immstr == null) return self;

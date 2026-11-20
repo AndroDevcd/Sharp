@@ -19,8 +19,8 @@ import (
  * `-n<name>` takes the C++ compiler's names, so a command line written for
  * one compiler works with the other. Some of those passes are not in this
  * optimizer (doc/codegen.md 13.6 says which and why); their names are
- * accepted and leave nothing out. This optimizer has four passes the C++
- * one does not, with names of their own.
+ * accepted and leave nothing out. This optimizer has passes the C++ one
+ * does not, with names of their own.
  *
  *      C++ comparison: `optimization_names`, `pass_enabled` in
  *      backend/optimizer/bytecode_optimizer.cpp.
@@ -80,6 +80,7 @@ def optimization_names() : list<string> {
     names.add("closure-elimination");
     names.add("escape-analysis");
     names.add("string-concatenation");
+    names.add("shared-literals");
     return names;
 }
 

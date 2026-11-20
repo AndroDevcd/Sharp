@@ -359,10 +359,6 @@ Int disk_space(long request) {
 
 void read_file(string &path, string &outStr) {
     guard_mutex(fileMutex);
-    File::buffer buf;
-    File::read_alltext(path.c_str(), buf);
-
-    outStr = buf.to_str();
-    buf.end();
+    File::read_alltext(path.c_str(), outStr);
 }
 

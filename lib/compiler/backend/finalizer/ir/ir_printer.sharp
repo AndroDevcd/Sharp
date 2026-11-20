@@ -61,7 +61,12 @@ def instruction_text(made: ir_instruction) : string {
         return "dec_constant  " + slot_text(made.target) + ", " + made.real;
     }
     if(kind == IR_NULL) { return "null          " + slot_text(made.target); }
-    if(kind == IR_TEXT) { return "text          " + slot_text(made.target) + ", string " + made.number; }
+    if(kind == IR_TEXT) {
+        shown := "text          " + slot_text(made.target) + ", string " + made.number;
+        if(made.detail == TEXT_SHARED_ARRAY) { return shown + " (shared)"; }
+        if(made.detail == TEXT_SHARED_STRING) { return shown + " (shared string)"; }
+        return shown;
+    }
     if(kind == IR_COPY) { return "copy          " + slot_text(made.target) + ", " + slot_text(made.first) + narrow_text(made.number); }
     if(kind == IR_CONVERT) {
         return "convert " + convert_name(made.number) + " " + slot_text(made.target) + ", " + slot_text(made.first)

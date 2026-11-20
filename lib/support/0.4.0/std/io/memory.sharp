@@ -81,6 +81,19 @@ def realloc(data: _uint64[]?, size: _int32) {
     }
 }
 
+/*
+* memcopy(src, dest, destStart, srcStart, srcEnd): the elements src[srcStart .. srcEnd - 1]
+* are copied to dest, from dest[destStart] on. One version per kind of array.
+*
+* KNOWN TO THE COMPILER BY NAME. With -O the compiler shares a text literal
+* that is only ever read (lib/compiler/backend/optimizer/passes/calls/
+* shared_literals.sharp). It cannot read an `asm` body, so it is TOLD that
+* every `memcopy` of this module only reads its FIRST argument, `src`.
+* Keep that true: a memcopy that writes into `src`, keeps a reference to it
+* or hands it to something that does would change shared literals under the
+* program's feet. (`dest` is written, and the compiler knows that.) If this
+* ever has to change, change `find_read_only_arguments` in that file too.
+*/
 def memcopy(src: object[], dest: object[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
     asm {
         pushl [dest]

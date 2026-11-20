@@ -61,6 +61,7 @@ const IR_INT_CONSTANT     : _int64 = 1;     // d = number
 const IR_DECIMAL_CONSTANT : _int64 = 2;     // d = real (text: the literal's digits, when it is one)
 const IR_NULL             : _int64 = 3;     // d = null
 const IR_TEXT             : _int64 = 4;     // d = a new _int8[] holding string number `number` of the string table
+                                            // (`detail`: TEXT_..., which object - only the optimizer asks for a shared one)
 const IR_COPY             : _int64 = 5;     // d = a (same kind; `number`: the narrowing, NARROW_...)
 const IR_CONVERT          : _int64 = 6;     // d = a converted (`number`: CONVERT_...; `detail`: the narrowing after it)
 const IR_INT_BINARY       : _int64 = 7;     // d = a op b on integers (`number`: ARITH_...)
@@ -107,6 +108,11 @@ const IR_INT_IMMEDIATE    : _int64 = 41;    // d = a op `detail` on integers, `d
 
 // A `try` statement adds no instruction of its own: its ranges are LABELS (ir_try in
 // ir_function.sharp), and the bytecode step turns them into the pcs of its try record.
+
+// ---- which object a `text` gives (IR_TEXT; backend/optimizer, passes/calls/shared_literals.sharp)
+const TEXT_FRESH         : _int64 = 0;      // a new _int8[], every time
+const TEXT_SHARED_ARRAY  : _int64 = 1;      // the one shared _int8[] of that text: for a value that is only read
+const TEXT_SHARED_STRING : _int64 = 2;      // the one shared `string` object whose data is that array
 
 // ---- arithmetic (IR_INT_BINARY, IR_DECIMAL_BINARY)
 const ARITH_ADD : _int64 = 1;

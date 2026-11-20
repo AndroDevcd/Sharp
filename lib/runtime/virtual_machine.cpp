@@ -509,6 +509,11 @@ void main_vm_loop(sharp_function *frame)
                 grow_stack
                 stack_overflow_check
                 data = single_arg;
+                if(data < 0) {
+                    // the shared object of a text the compiler proved is only read (memory/sharp_object.cpp)
+                    store_object(&push_stack_object, shared_text(data));
+                    check_state(1)
+                }
                 store_object(
                     &push_stack_object,
                     create_object(

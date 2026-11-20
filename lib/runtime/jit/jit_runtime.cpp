@@ -185,6 +185,7 @@ sharp_object* jit_rt_new_class_array(Int classAddress, Int size) {
 
 sharp_object* jit_rt_new_string(Int stringIndex) {
     GUARDED(
+        if(stringIndex < 0) return shared_text(stringIndex);      // a text that is only read: the one shared object
         string &text = vm.strings[stringIndex];
         sharp_object *o = create_object(text.size(), type_int8);
         if(text.size() > 0)

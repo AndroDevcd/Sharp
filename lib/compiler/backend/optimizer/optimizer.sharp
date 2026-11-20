@@ -50,6 +50,8 @@ import (
  *     nothing else goes, and so does an object that is only ever filled;
  *  4. values: common subexpressions (what was computed already is not
  *     computed again), then null tests whose answer is known;
+ *     then text literals: a literal's array is taken, not copied, by the
+ *     string made of it, and a literal that is only read is one shared object;
  *  5. loops: invariants moved in front of their loop, bounds checks proved
  *     unnecessary, a loop of a small known count unrolled, a loop that only
  *     adds up replaced by its formula; then rotation, the last pass that
@@ -271,6 +273,27 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
             if(folded > 0) {
                 report.count("null-checks", folded, 0);
                 show_trace(passes, chosen.at(i).ir!!, "null-checks");
+                run_local_passes(kept.at(i), passes, report);
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- text literals: the new string takes the literal's array instead of copying it, and a
+    // literal that is only read is the one shared object (after inlining and the passes that take
+    // objects apart: what is left of a literal's uses is then plain to see)
+    if(settings.runs("shared-literals")) {
+        started : _int64 = now();
+        read_only := find_read_only_arguments(layout);
+        shape := new string_shape(layout);
+        report.took("shared-literals", started);
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            started = now();
+            shared : _int64 = share_literals(kept.at(i), shape, read_only);
+            report.took("shared-literals", started);
+            if(shared > 0) {
+                report.count("shared-literals", shared, 0);
+                show_trace(passes, chosen.at(i).ir!!, "shared-literals");
                 run_local_passes(kept.at(i), passes, report);
                 changed.replace(i, 1);
             }

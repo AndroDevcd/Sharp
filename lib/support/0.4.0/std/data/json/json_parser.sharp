@@ -38,10 +38,37 @@ import ( std.io )
 class json_parser {
     private max_depth : _int64 = 1000;
 
+    /* the three words of JSON, made once (a literal where it is used is a new string every time) */
+    private static const word_true : string = "true";
+    private static const word_false : string = "false";
+    private static const word_null : string = "null";
+
     /* the text being parsed and the place in it */
     private chars : _int8[]?;
     private count : _int64 = 0;
     private pos : _int64 = 0;
+
+    /*
+    * Instead of a function that calls itself for every nested value, the
+    * arrays and objects that are still open are kept here, the innermost
+    * last: open_values[0 .. depth - 1]. For an open object, open_names holds
+    * (at the same index) the name of the member whose value is being read.
+    */
+    private open_values : json_value[]?;
+    private open_names : string[]?;
+    private depth : _int64 = 0;
+
+    /*
+    * The member names this parse has made, found by a hash of their
+    * characters: a document that is a list of records names the same few
+    * members over and over, and each name is made ONCE and shared by all
+    * the objects. (json_value hands out copies, so sharing cannot be seen
+    * from outside.) Only short names without escapes are kept, and a name
+    * that finds its few places taken is simply made again.
+    */
+    private seen_names : string[]?;
+    private static const name_slots : _int64 = 64;
+    private static const longest_shared_name : _int64 = 32;
 
     /** parse `text` with the default settings. Throws json_exception when it is not valid JSON. */
     static def parse(text: string) : json_value {
@@ -96,14 +123,9 @@ class json_parser {
         count = sizeof(text.data);
         pos = 0;
 
-        /*
-        * Instead of a function that calls itself for every nested value,
-        * the arrays and objects that are still open are kept in `open`
-        * (the innermost last). For every open object `pending_names` holds
-        * the name of the member whose value is being read.
-        */
-        open := new list<json_value>();
-        pending_names := new list<string>();
+        open_values = new json_value[16];
+        open_names = new string[16];
+        depth = 0;
         result : json_value? = null;
 
         while(result == null) {
@@ -116,7 +138,7 @@ class json_parser {
             value : json_value? = null;
 
             if(ch == '{' || ch == '[') {
-                if(open.size().value >= max_depth) {
+                if(depth >= max_depth) {
                     fail("nested deeper than " + io_strings.int_to_string(max_depth) + " levels");
                 }
                 pos++;
@@ -127,8 +149,8 @@ class json_parser {
                         pos++;
                         value = container;
                     } else {
-                        open.add(container);
-                        pending_names.add(read_member_name());
+                        push_open(container);
+                        open_names[depth - 1] = read_member_name();
                         continue; // the value of the first member starts
                     }
                 } else {
@@ -137,7 +159,7 @@ class json_parser {
                         pos++;
                         value = container;
                     } else {
-                        open.add(container);
+                        push_open(container);
                         continue; // the first element starts
                     }
                 }
@@ -146,13 +168,13 @@ class json_parser {
             } else if(ch == '-' || (ch >= '0' && ch <= '9')) {
                 value = json_value.of_number(read_number());
             } else if(ch == 't') {
-                read_word("true");
+                read_word(word_true);
                 value = json_value.of_bool(true);
             } else if(ch == 'f') {
-                read_word("false");
+                read_word(word_false);
                 value = json_value.of_bool(false);
             } else if(ch == 'n') {
-                read_word("null");
+                read_word(word_null);
                 value = json_value.of_null();
             } else {
                 fail("expected a value but found " + describe(ch));
@@ -160,12 +182,12 @@ class json_parser {
 
             // ---- a value is complete: put it where it belongs, and close every container that ends here
             while(value != null) {
-                if(open.size() == 0) {
+                if(depth == 0) {
                     result = value;
                     break;
                 }
 
-                container := open.last();
+                container := open_values[depth - 1];
                 skip_space();
                 if(container.is_array()) {
                     container.add(value!!);
@@ -177,23 +199,25 @@ class json_parser {
                         value = null; // the next element starts
                     } else if(chars[pos] == ']') {
                         pos++;
-                        value = open.pop_last();
+                        depth--;
+                        value = open_values[depth];
                     } else {
                         fail("expected ',' or ']' but found " + describe(chars[pos]));
                     }
                 } else {
-                    container.put(pending_names.pop_last(), value!!);
+                    container.put(open_names[depth - 1], value!!);
                     if(pos >= count) {
                         fail("expected ',' or '}' but the text ends");
                     }
                     if(chars[pos] == ',') {
                         pos++;
                         skip_space();
-                        pending_names.add(read_member_name());
+                        open_names[depth - 1] = read_member_name();
                         value = null; // the value of the next member starts
                     } else if(chars[pos] == '}') {
                         pos++;
-                        value = open.pop_last();
+                        depth--;
+                        value = open_values[depth];
                     } else {
                         fail("expected ',' or '}' but found " + describe(chars[pos]));
                     }
@@ -206,7 +230,26 @@ class json_parser {
             fail("expected the end of the text but found " + describe(chars[pos]));
         }
         chars = null;
+        open_values = null;
+        open_names = null;
+        seen_names = null;
         return result!!;
+    }
+
+    /** one more array or object is open */
+    private def push_open(container: json_value) {
+        if(depth >= sizeof(open_values)) {
+            more_values := new json_value[depth * 2];
+            more_names := new string[depth * 2];
+            for(i : _int64 = 0; i < depth; i++) {
+                more_values[i] = open_values[i];
+                more_names[i] = open_names[i];
+            }
+            open_values = more_values;
+            open_names = more_names;
+        }
+        open_values[depth] = container;
+        depth++;
     }
 
     /* ------------------------------------------------------------------ */
@@ -232,7 +275,7 @@ class json_parser {
         if(chars[pos] != '"') {
             fail("expected a member name in double quotes but found " + describe(chars[pos]));
         }
-        name := read_string();
+        name := read_name();
         skip_space();
         if(pos >= count) {
             fail("expected ':' but the text ends");
@@ -242,6 +285,54 @@ class json_parser {
         }
         pos++;
         return name;
+    }
+
+    /**
+     * Read the member name in double quotes at the current place: what
+     * read_string() does, but a name this parse has read before is not made
+     * again (see seen_names).
+     */
+    private def read_name() : string {
+        first : _int64 = pos + 1;
+        limit : _int64 = first + longest_shared_name;
+        scan : _int64 = first;
+        hash : _int64 = 7;
+        while(scan < count && scan < limit && chars[scan] != '"' && chars[scan] != 92 && (chars[scan] & 0xff) >= 32) {
+            hash = (hash * 31 + (chars[scan] & 0xff)) & 0xffffff;
+            scan++;
+        }
+        if(scan >= count || chars[scan] != '"' || scan == first) {
+            return read_string(); // long, with an escape, empty or malformed: the general way
+        }
+
+        length : _int64 = scan - first;
+        pos = scan + 1;
+        if(seen_names == null) {
+            seen_names = new string[name_slots];
+        }
+        slot : _int64 = hash & (name_slots - 1);
+        for(tries : _int64 = 0; tries < 4; tries++) {
+            known := seen_names[slot];
+            if(io_strings.is_null(known)) {
+                name := new string(chars!!, first, scan);
+                seen_names[slot] = name;
+                return name;
+            }
+            if(sizeof(known.data) == length) {
+                same : bool = true;
+                for(i : _int64 = 0; i < length; i++) {
+                    if(known.data[i] != chars[first + i]) {
+                        same = false;
+                        break;
+                    }
+                }
+                if(same) {
+                    return known;
+                }
+            }
+            slot = (slot + 1) & (name_slots - 1);
+        }
+        return new string(chars!!, first, scan);
     }
 
     /** read the literal `word` (true, false, null) at the current place */
@@ -259,12 +350,28 @@ class json_parser {
         pos += n;
     }
 
-    /** read a number at the current place, checking the form JSON prescribes */
+    /**
+     * Read a number at the current place, checking the form JSON prescribes.
+     *
+     * Most numbers are worked out right here, without making an object: when
+     * the digits fit a whole number below 2^53 and the power of ten is at
+     * most 22, both are exact as decimals and ONE multiplication or division
+     * gives the correctly rounded result - the same value strtod gives.
+     * (1.5 is 15 / 10; 2.5e3 is 25 * 100.) The others - more digits, larger
+     * exponents, -0 - are handed to the runtime's strtod as before.
+     */
     private def read_number() : decimal {
         start : _int64 = pos;
+        negative : bool = false;
         if(chars[pos] == '-') {
+            negative = true;
             pos++;
         }
+
+        /* the digits as a whole number, as long as they fit; how many of them are behind the point */
+        digits : _int64 = 0;
+        fits : bool = true;
+        behind_point : _int64 = 0;
 
         // the whole part: a single 0, or digits that do not start with 0
         if(pos >= count || !io_strings.is_digit(chars[pos])) {
@@ -277,6 +384,11 @@ class json_parser {
             }
         } else {
             while(pos < count && io_strings.is_digit(chars[pos])) {
+                if(digits < 900719925474099) {
+                    digits = digits * 10 + (chars[pos] - '0');
+                } else {
+                    fits = false;
+                }
                 pos++;
             }
         }
@@ -288,25 +400,64 @@ class json_parser {
                 fail("expected a digit after the decimal point");
             }
             while(pos < count && io_strings.is_digit(chars[pos])) {
+                if(digits < 900719925474099) {
+                    digits = digits * 10 + (chars[pos] - '0');
+                    behind_point++;
+                } else {
+                    fits = false;
+                }
                 pos++;
             }
         }
 
         // the exponent
+        exponent : _int64 = 0;
         if(pos < count && (chars[pos] == 'e' || chars[pos] == 'E')) {
             pos++;
+            exponent_negative : bool = false;
             if(pos < count && (chars[pos] == '+' || chars[pos] == '-')) {
+                exponent_negative = chars[pos] == '-';
                 pos++;
             }
             if(pos >= count || !io_strings.is_digit(chars[pos])) {
                 fail("expected a digit in the exponent");
             }
             while(pos < count && io_strings.is_digit(chars[pos])) {
+                if(exponent < 1000) {
+                    exponent = exponent * 10 + (chars[pos] - '0');
+                }
                 pos++;
+            }
+            if(exponent_negative) {
+                exponent = 0 - exponent;
             }
         }
 
-        return strtod(new string(chars!!, start, pos)).value;
+        power : _int64 = exponent - behind_point;
+        if(fits && (digits != 0 || !negative) && power >= 0 - 22 && power <= 22) {
+            result : decimal = digits;
+            scale : decimal = 1;
+            steps : _int64 = power;
+            if(steps < 0) {
+                steps = 0 - steps;
+            }
+            for(i : _int64 = 0; i < steps; i++) {
+                scale = scale * 10;
+            }
+            if(power < 0) {
+                result = result / scale;
+            } else {
+                result = result * scale;
+            }
+            if(negative) {
+                result = 0 - result;
+            }
+            return result;
+        }
+
+        text := new _int8[pos - start];
+        memcopy(chars!!, text, 0, start, pos);
+        return chars_to_decimal(text);
     }
 
     /** read a string in double quotes at the current place and return its content with the escapes resolved */
@@ -320,12 +471,12 @@ class json_parser {
             scan++;
         }
         if(scan < count && chars[scan] == '"') {
-            text : string = "";
-            if(scan > pos) {
-                text = new string(chars!!, pos, scan);
-            }
+            first : _int64 = pos;
             pos = scan + 1;
-            return text;
+            if(scan > first) {
+                return new string(chars!!, first, scan);
+            }
+            return "";
         }
 
         buf := new char_buffer(scan - pos + 32);
@@ -455,6 +606,9 @@ class json_parser {
         message := what + " at line " + io_strings.int_to_string(line) + ", column " + io_strings.int_to_string(column);
         at : _int64 = pos;
         chars = null;
+        open_values = null;
+        open_names = null;
+        seen_names = null;
         throw new json_exception(message, at, line, column);
     }
 }

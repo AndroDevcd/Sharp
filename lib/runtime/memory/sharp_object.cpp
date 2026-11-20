@@ -16,6 +16,11 @@
 #include "../../core/access_flag.h"
 #include "../telemetry/telemetry.h"
 #include "../multitasking/scheduler/scheduler.h"
+#include "../reflect/reflect_helpers.h"
+#include "../virtual_machine.h"
+#include "tracing_collector.h"
+#include <atomic>
+#include <mutex>
 
 std::recursive_mutex lock_mut;
 
@@ -372,6 +377,72 @@ sharp_object* create_empty_array(data_type type) {
 
     push_object(o);
     return o;
+}
+
+/*
+ * SHARED TEXT: one object for a text literal, however often its line runs.
+ *
+ * `newstring s` makes a new _int8[] every time, because an array can be changed
+ * and the next run of the line must see the text as written. Where the compiler
+ * has proved that the text is only ever READ (never changed, never kept
+ * anywhere, never compared by identity) it writes a NEGATIVE operand, and the
+ * instruction gives the same object every time:
+ *
+ *      operand = -(2 * s + 1)      the shared _int8[] of string s
+ *      operand = -(2 * s + 2)      the shared `string` object whose data is that array
+ *
+ *      if(name == "brian")         one array for the life of the program, not one per test
+ *
+ * The objects are made the first time they are asked for and are permanent
+ * (never freed, and roots for the collector). An empty text has no array, as
+ * with the plain instruction: null, or a string whose data is null.
+ *
+ *      C++ comparison: a string literal in C++ is one `const char[]` in the
+ *      program's read-only data; Java keeps one String per literal (the pool).
+ */
+static std::mutex sharedTextMut;
+static std::atomic<sharp_object*> *sharedArrays = nullptr, *sharedStrings = nullptr;   // per string of vm.strings
+static std::atomic<bool> sharedTextReady{false};
+
+sharp_object* shared_text(Int operand) {
+    Int code = -operand - 1, index = code >> 1;
+    bool wantsString = (code & 1) != 0;
+    if(index < 0 || index >= (Int) vm.mf.strings)
+        throw vm_exception("newstring: no string " + to_string((long long) index) + " in the string table");
+
+    if(sharedTextReady.load(std::memory_order_acquire)) {
+        sharp_object *made = (wantsString ? sharedStrings : sharedArrays)[index].load(std::memory_order_acquire);
+        if(made != nullptr) return made;
+    }
+
+    std::lock_guard<std::mutex> guard(sharedTextMut);
+    if(!sharedTextReady.load(std::memory_order_acquire)) {
+        size_t count = (size_t) vm.mf.strings + 1;
+        sharedArrays = new std::atomic<sharp_object*>[count];
+        sharedStrings = new std::atomic<sharp_object*>[count];
+        for(size_t i = 0; i < count; i++) { sharedArrays[i] = nullptr; sharedStrings[i] = nullptr; }
+        sharedTextReady.store(true, std::memory_order_release);
+    }
+
+    string &text = vm.strings[index];
+    sharp_object *array = sharedArrays[index].load(std::memory_order_acquire);
+    if(array == nullptr && text.size() > 0) {
+        array = create_object(text.size(), type_int8);
+        assign_string_field(array, text);
+        tgc_make_permanent(array);
+        sharedArrays[index].store(array, std::memory_order_release);
+    }
+    if(!wantsString) return array;
+
+    sharp_object *whole = sharedStrings[index].load(std::memory_order_acquire);
+    if(whole == nullptr) {
+        whole = create_object(vm.string_class);
+        object *data = resolve_field("data", whole);
+        if(data != nullptr) store_object(data, array);
+        tgc_make_permanent(whole);
+        sharedStrings[index].store(whole, std::memory_order_release);
+    }
+    return whole;
 }
 
 void cast_object(object *from, Int toClass) {

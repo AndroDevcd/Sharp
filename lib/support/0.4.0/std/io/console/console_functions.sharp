@@ -17,6 +17,23 @@ def strtod(str: string) : double {
     return result;
 }
 
+/**
+ * The number written in `digits`, read the way strtod() reads it, for a
+ * caller that has the characters and wants the plain number: no string and
+ * no `double` object is made.
+ */
+def chars_to_decimal(digits: _int8[]) : decimal {
+    result : decimal;
+
+    asm {
+        pushl [digits]
+        int 0x43
+        smovr2 [result], ebx
+    }
+
+    return result;
+}
+
 def strtol(str: string, base_num: int) : long {
     data := str.data;
     result : _int64 = base_num.value;

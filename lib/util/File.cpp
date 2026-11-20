@@ -169,22 +169,15 @@ void File::read_alltext(const char *f, string& _out)
             return;  // could not open file
 
 
-        stringstream ss;
+        // the whole file in one block (it used to be one getc and one stream put per character)
         len = file_size(fp);
-        if(len == -1) 1;
-        char c;
-
-        do {
-            c = getc(fp);
-            if(len > 0) {
-                ss << c;
-            } else {
-                break;
-            }
-        }while(len--);
+        _out.clear();
+        if(len > 0) {
+            _out.resize((size_t) len);
+            size_t got = fread(&_out[0], 1, (size_t) len, fp);
+            _out.resize(got);
+        }
         fclose(fp);
-
-        _out = ss.str();
     }
     catch(std::bad_alloc& ba){
         return;

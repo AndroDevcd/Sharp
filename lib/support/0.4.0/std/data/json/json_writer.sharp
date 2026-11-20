@@ -166,7 +166,7 @@ class json_writer {
 
             position : decimal = orders.last().position_of(done);
             if(container.is_object()) {
-                write_string(buf, container.key_at(position));
+                write_string(buf, container.shared_key_at(position));
                 buf.append_char(':');
                 if(indent > 0) {
                     buf.append_char(' ');

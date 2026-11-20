@@ -27,6 +27,15 @@ def expect_error(name: string, text: string, line: decimal, column: decimal) {
     }
 }
 
+/**
+ * The parser works most numbers out itself and hands the rest to the
+ * runtime's strtod: either way the number must be exactly the one strtod
+ * reads from the same text.
+ */
+def expect_as_strtod(text: string) {
+    test("number as strtod reads it: " + text) { expect(json_parser.parse(text).as_number()).should_be(strtod(text).value); };
+}
+
 /** the text must be rejected (position not checked) */
 def expect_invalid(name: string, text: string) {
     test(name) { expect_false(json_parser.is_valid(text)); };
@@ -229,6 +238,61 @@ def test_parser_good() {
     test("exponent with sign") { expect(json_parser.parse("25E-2").as_number()).should_be(0.25); };
     test("exponent with plus") { expect(json_parser.parse("-1.5e+2").as_number()).should_be(0 - 150); };
     test("negative zero") { expect(json_parser.parse("-0").as_number()).should_be(0); };
+    expect_as_strtod("0.1");
+    expect_as_strtod("0.3");
+    expect_as_strtod("0.0");
+    expect_as_strtod("0e5");
+    expect_as_strtod("-0.0");
+    expect_as_strtod("0.000001");
+    expect_as_strtod("1e22");
+    expect_as_strtod("1e23");
+    expect_as_strtod("1.5e-22");
+    expect_as_strtod("123e-25");
+    expect_as_strtod("25e-23");
+    expect_as_strtod("9007199254740991");
+    expect_as_strtod("9007199254740993");
+    expect_as_strtod("900719925474099.1");
+    expect_as_strtod("123456789.123456789");
+    expect_as_strtod("0.8545932140076324");
+    expect_as_strtod("0.24073952877406524");
+    expect_as_strtod("-8.722880357844552e-30");
+    expect_as_strtod("9.345700658094924e+30");
+    expect_as_strtod("5e-324");
+    expect_as_strtod("1.7976931348623157e308");
+    expect_as_strtod("4.35");
+    expect_as_strtod("-1234.5678e10");
+    expect_as_strtod("100000000000000000000");
+
+    // ---- member names: the parser makes a name once and the objects share it; what is handed out is a copy
+    records := json_parser.parse("[{" + q + "id" + q + ":1," + q + "name" + q + ":" + q + "a" + q + "},{"
+        + q + "id" + q + ":2," + q + "name" + q + ":" + q + "b" + q + "}]");
+    records.at(0).key_at(0).append("_changed");
+    test("key_at gives a copy") { expect(records.at(0).key_at(0)).should_be("id"); };
+    test("the other object keeps its name") { expect(records.at(1).member("id").as_number()).should_be(2); };
+    handed_out := records.at(0).keys();
+    handed_out.at(1).append("_changed");
+    test("keys gives copies") { expect_true(records.at(0).has("name") && records.at(1).has("name")); };
+    test("written with the names as they were") { expect(records.to_string()!!).should_be("[{" + q + "id" + q + ":1," + q + "name" + q + ":"
+        + q + "a" + q + "},{" + q + "id" + q + ":2," + q + "name" + q + ":" + q + "b" + q + "}]"); };
+
+    // more names than the parser keeps, a name longer than it keeps, a name with an escape - each twice
+    record_text : string = "{" + q + "a_name_that_is_longer_than_the_parser_keeps_for_sharing" + q + ":-1," + q + "tab\\there" + q + ":-2";
+    for(i : _int64 = 0; i < 300; i++) {
+        record_text = record_text + "," + q + "member_" + io_strings.int_to_string(i) + q + ":" + io_strings.int_to_string(i);
+    }
+    record_text = record_text + "}";
+    twice := json_parser.parse("[" + record_text + "," + record_text + "]");
+    wrong_members : _int64 = 0;
+    for(i : _int64 = 0; i < 300; i++) {
+        if(twice.at(0).member("member_" + io_strings.int_to_string(i)).as_number() != i
+           || twice.at(1).member("member_" + io_strings.int_to_string(i)).as_number() != i) {
+            wrong_members++;
+        }
+    }
+    test("300 names, twice") { expect(wrong_members).should_be(0); };
+    test("302 members each") { expect(twice.at(1).size()).should_be(302); };
+    test("a long name, twice") { expect(twice.at(1).member("a_name_that_is_longer_than_the_parser_keeps_for_sharing").as_number()).should_be(0 - 1); };
+    test("a name with an escape, twice") { expect(twice.at(1).member("tab\there").as_number()).should_be(0 - 2); };
     test("zero point") { expect(json_parser.parse("0.5").as_number()).should_be(0.5); };
     test("large") { expect(json_parser.parse("9007199254740992").as_number()).should_be(9007199254740992); };
     test("white space around") { expect(json_parser.parse(" \t\r\n 7 \n").as_number()).should_be(7); };

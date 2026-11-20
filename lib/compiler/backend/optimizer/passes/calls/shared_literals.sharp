@@ -1,0 +1,440 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * SHARED LITERALS: a text literal that is only read is made once
+ *
+ * A text literal is an array (`text %a, string n`: a NEW _int8[] each time
+ * the line runs), and where a `string` is wanted the library builds one
+ * around a copy of it:
+ *
+ *      total += length_of("brian");
+ *
+ *      text        %1, string 4                    the array                    (object 1)
+ *      new_object  %2, std#string                  the string                   (object 2)
+ *      call        -, std#string.append(%2, %1)    ... which copies the array   (object 3)
+ *      call        %3, length_of(%2)
+ *
+ * Three objects for five letters, every time. They have to be new when the
+ * program may change them (`name := "brian"; name.append("!")` must not
+ * change what the line gives the next time it runs). Most literals are only
+ * looked at - compared, searched for, printed - and for those this pass does
+ * two things.
+ *
+ * 1. ADOPTION (every literal). The array the literal made is nobody else's,
+ *    so the new string takes it as it is instead of copying it:
+ *
+ *      text        %1, string 4
+ *      new_object  %2, std#string
+ *      set_field   %2.std#string.data, %1          two objects
+ *
+ *    The pattern is exact: a `new_object std#string` and a `text`, then -
+ *    with nothing in between that touches either, except the test for null
+ *    the constructor makes - a call of `string.append`, a constructor or an
+ *    `init(x)` of string with the two of them, whose result nobody takes;
+ *    and the array is not read again afterwards.
+ *
+ * 2. SHARING (a literal that is only READ). Its value is followed forward
+ *    through the function, slot by slot, on every path. It is only read when
+ *    every instruction that uses it, or anything reached through it (the
+ *    string's array), is one of
+ *
+ *      a field or element READ through it, its length, a test for null, `is`,
+ *      a cast, a copy to another slot (which is followed too);
+ *      or a direct call that hands it to an argument the callee only reads.
+ *
+ *    Then the instruction asks the VM for the ONE shared object of that text
+ *    (`text %a, string n (shared)`: `newstring` with a negative operand,
+ *    codegen.md 4.10) - no object at all after the first time:
+ *
+ *      text        %2, string 4 (shared string)
+ *      call        %3, length_of(%2)
+ *
+ *    Everything else keeps the literal fresh: stored into a field, a static
+ *    or an element, written through, returned, thrown, locked, handed to a
+ *    virtual or native call or to a function value - and compared by
+ *    IDENTITY (`same_object`): two runs of one line give two objects today,
+ *    and a program that asks whether they are the same one must go on
+ *    hearing "no".
+ *
+ * WHICH ARGUMENTS A FUNCTION ONLY READS is worked out for the whole program
+ * first, the way escape analysis does it (escape_analysis.sharp): the same
+ * walk, started at the function's first instruction with the argument's
+ * slot; every argument starts out "only read" and loses that when a reason
+ * is found, round after round, so functions that hand a value back and forth
+ * can both have it. Two library functions are known by name, because their
+ * bodies cannot be read that way:
+ *
+ *      std.io memcopy(src, ...)        its source: an `asm` body that copies out of it
+ *      std#string.append(x)            what is appended: it is copied, and the one
+ *                                      identity test in it (`s += s`) can only be true
+ *                                      for the array of the string appended TO, which
+ *                                      is being changed and so is never a shared one
+ *
+ * A function with a `try` is left alone (the walks do not follow the edges
+ * into handlers), and its arguments count as "not only read".
+ *
+ *      C++ comparison: the C++ optimizer has nothing like it. A C++ literal
+ *      is one `const char[]` in read-only memory and the TYPE says it cannot
+ *      be changed; Java interns its String literals for the same reason, and
+ *      can because a String is immutable. Here the proof is made per use.
+ */
+
+/** how many arguments have a bit (as in escape_analysis.sharp) */
+const MAX_READ_ONLY_ARGUMENTS : _int64 = 60;
+
+/**
+ * One value followed forward through one function: the slots that may hold
+ * it (or something reached through it) at the start of every block, and the
+ * verdict.
+ */
+class value_walk {
+    code : ir_function;
+    graph : flow_graph;
+    state : slot_set;                   // the slots that hold it, at the instruction being looked at
+    width : _int64;
+    at_start : _int64[];                // per block: the slots that hold it when the block is entered (a row each)
+    reached : _int64[];                 // per block: 1 when a path with the value gets there
+    waiting : number_list;
+    callees : number_list;              // the direct calls it is handed to: the address of the function ...
+    positions : number_list;            // ... and which argument it is there
+
+    value_walk(code: ir_function, graph: flow_graph) {
+        self->code = code;
+        self->graph = graph;
+        state = new slot_set(code.slot_count());
+        width = state.width();
+        at_start = new _int64[(graph.blocks + 1) * width];
+        reached = new _int64[graph.blocks + 1];
+        waiting = new number_list();
+        callees = new number_list();
+        positions = new number_list();
+    }
+
+    /**
+     * Follow the value that is in `slot` just before instruction `from`.
+     * 1 when every use of it only reads it (the header says what that is);
+     * the direct calls it goes to are then in `callees` / `positions`, to be
+     * asked about by the caller.
+     *
+     *      born_at     the instruction that makes it (it may run again in a loop), -1 for an argument
+     *      adopted_at  a `set_field` that stores it into a new string (adoption): the string holds
+     *                  it from there on and is followed with it; -1 for none
+     */
+    def only_read(from: _int64, slot: _int64, born_at: _int64, adopted_at: _int64) : _int64 {
+        callees.count = 0;
+        positions.count = 0;
+        waiting.count = 0;
+        for(b : _int64 = 0; b < graph.blocks; b++) { reached[b] = 0; }
+        total : _int64 = code.instructions.size().value as _int64;
+        if(from >= total) { return 1; }
+        state.clear();
+        state.add(slot);
+        block : _int64 = graph.block_of[from];
+        if(!through_block(block, from, born_at, adopted_at)) { return 0; }
+        hand_on(block);
+        while(waiting.count > 0) {
+            block = waiting.pop_last();
+            state.load(at_start, block * width);
+            if(!through_block(block, graph.starts[block], born_at, adopted_at)) { return 0; }
+            hand_on(block);
+        }
+        return 1;
+    }
+
+    /** the state at the end of `block` joins what its successors start with */
+    def hand_on(block: _int64) {
+        for(k : _int64 = 0; k < 2; k++) {
+            next : _int64 = graph.successor(block, k);
+            if(next < 0) { continue; }
+            if(reached[next] == 0) {
+                reached[next] = 1;
+                state.store(at_start, next * width);
+                waiting.add(next);
+            } else if(state.add_into_row(at_start, next * width)) {
+                waiting.add(next);
+            }
+        }
+    }
+
+    /** the instructions of `block` from `from` on, with `state`; 0 at the first use that is more than a read */
+    def through_block(block: _int64, from: _int64, born_at: _int64, adopted_at: _int64) : _int64 {
+        for(i : _int64 = from; i < graph.ends[block]; i++) {
+            made := code.instructions.at(i);
+            if(i == born_at) {
+                state.add(made.target);
+                continue;
+            }
+            kind : _int64 = made.kind;
+            if(kind == IR_CALL) {
+                count : _int64 = 0;
+                if(made.arguments != null) { count = made.arguments!!.count; }
+                for(k : _int64 = 0; k < count; k++) {
+                    if(state.has(made.arguments!!.at(k)) == 0) { continue; }
+                    if(made.number != CALL_HOW_DIRECT || made.declaration == null || k >= MAX_READ_ONLY_ARGUMENTS) { return 0; }
+                    callees.add(made.declaration!!.address);
+                    positions.add(k);
+                }
+                state.remove(made.target);
+                continue;
+            }
+            goes_on : _int64 = 0;           // 1: what it writes is the value again, or something reached through it
+            adopted : _int64 = 0;
+            k : _int64 = 0;
+            read : _int64 = slot_read(made, 0);
+            while(read >= 0) {
+                if(state.has(read) == 1) {
+                    if((kind == IR_GET_FIELD || kind == IR_GET_ELEMENT || kind == IR_COPY) && k == 0) {
+                        goes_on = 1;
+                    } else if(kind == IR_SET_FIELD && i == adopted_at && k == 1) {
+                        adopted = 1;
+                    } else if(kind != IR_LENGTH && kind != IR_IS_NULL && kind != IR_IS && kind != IR_CAST) {
+                        return 0;
+                    }
+                }
+                k++;
+                read = slot_read(made, k);
+            }
+            written : _int64 = slot_written(made);
+            if(written >= 0) {
+                if(goes_on == 1 && code.slot_kinds.at(written) == SLOT_REF) { state.add(written); }
+                else { state.remove(written); }
+            }
+            if(adopted == 1) { state.add(made.first); }
+        }
+        return 1;
+    }
+}
+
+/**
+ * Which arguments every function only reads: per function address, bit k
+ * set for argument k (`self` is argument 0 of a function that has one).
+ */
+def find_read_only_arguments(layout: program_layout) : _int64[] {
+    count : _int64 = layout.functions.size().value as _int64;
+    read_only := new _int64[count + 1];
+    one : _int64 = 1;
+
+    // ---- each function alone: the arguments its own instructions only read, and the calls they go to
+    site_function := new number_list();
+    site_bit := new number_list();
+    site_callee := new number_list();
+    site_position := new number_list();
+    for(f : _int64 = 0; f < count; f++) {
+        made := layout.functions.at(f);
+        if(made.name == "memcopy" && made.owner.full_name == "std.io#__srt_global" && made.is_static == 1) {
+            read_only[f] = 1;
+            continue;
+        }
+        if(made.name == "append" && made.owner.full_name == "std#string" && made.is_static == 0 && made.parameter_count() == 1) {
+            read_only[f] = 2;
+            continue;
+        }
+        if(made.ir == null) { continue; }
+        code : ir_function = made.ir!!;
+        if(code.tries.size() > 0 || !can_be_optimized(code)) { continue; }
+        arguments : _int64 = (1 - made.is_static) + made.parameter_count();
+        if(arguments > MAX_READ_ONLY_ARGUMENTS) { arguments = MAX_READ_ONLY_ARGUMENTS; }
+        if(arguments > code.slot_count()) { arguments = code.slot_count(); }
+        walk : value_walk? = null;
+        for(k : _int64 = 0; k < arguments; k++) {
+            if(code.slot_kinds.at(k) != SLOT_REF) { continue; }
+            if(walk == null) { walk = new value_walk(code, build_flow_graph(code)); }
+            if(!walk!!.only_read(0, k, 0 - 1, 0 - 1)) { continue; }
+            read_only[f] = read_only[f] | (one << k);
+            for(s : _int64 = 0; s < walk!!.callees.count; s++) {
+                site_function.add(f);
+                site_bit.add(one << k);
+                site_callee.add(walk!!.callees.at(s));
+                site_position.add(walk!!.positions.at(s));
+            }
+        }
+    }
+
+    // ---- all together: an argument handed to a function that does more than read it is not only read
+    changed : _int64 = 1;
+    while(changed == 1) {
+        changed = 0;
+        for(s : _int64 = 0; s < site_function.count; s++) {
+            f : _int64 = site_function.at(s);
+            if((read_only[f] & site_bit.at(s)) == 0) { continue; }
+            callee : _int64 = site_callee.at(s);
+            theirs : _int64 = 0;
+            if(callee >= 0 && callee < count) { theirs = read_only[callee]; }
+            if((theirs & (one << site_position.at(s))) == 0) {
+                read_only[f] = read_only[f] - site_bit.at(s);
+                changed = 1;
+            }
+        }
+    }
+    return read_only;
+}
+
+/** what the pass needs to know about the library's string class, looked up once */
+class string_shape {
+    layout : program_layout;
+    data_field : sharp_declaration?;        // std#string.data; null when the program has no string class
+    string_address : _int64 = 0 - 1;
+
+    string_shape(layout: program_layout) {
+        self->layout = layout;
+        classes : _int64 = layout.classes.size().value as _int64;
+        for(c : _int64 = 0; c < classes && string_address < 0; c++) {
+            made := layout.classes.at(c);
+            if(made.full_name != "std#string") { continue; }
+            string_address = c;
+            fields : _int64 = made.instance_fields.size().value as _int64;
+            for(i : _int64 = 0; i < fields; i++) {
+                if(made.instance_fields.at(i).name == "data") { data_field = made.instance_fields.at(i); }
+            }
+        }
+    }
+
+    /** is this the `new_object` of a string? */
+    def makes_a_string(made: ir_instruction) : _int64 {
+        return made.kind == IR_NEW_OBJECT && made.target >= 0 && made.declaration != null && made.declaration!!.address == string_address;
+    }
+
+    /**
+     * Is this a call that fills a new string from an array and nothing else:
+     * `append(x)`, a constructor or an `init(x)` of string, with the string
+     * and one more argument, its result not taken?
+     */
+    def fills_a_string(made: ir_instruction) : _int64 {
+        if(made.kind != IR_CALL || made.number != CALL_HOW_DIRECT || made.target >= 0 || made.declaration == null
+           || made.arguments == null || made.arguments!!.count != 2) {
+            return 0;
+        }
+        address : _int64 = made.declaration!!.address;
+        if(address < 0 || address >= layout.functions.size()) { return 0; }
+        function := layout.functions.at(address);
+        if(function.owner.full_name != "std#string" || function.is_static == 1 || function.parameter_count() != 1) { return 0; }
+        return function.name == "append" || function.kind == FUNCTION_CONSTRUCTOR || function.kind == FUNCTION_INITIALIZER;
+    }
+}
+
+/**
+ * The two steps of the header on one function: returns how many literals
+ * it changed (adopted or shared).
+ */
+def share_literals(analyses: function_analyses, shape: string_shape, read_only: _int64[]) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0 || shape.data_field == null) { return 0; }
+    total : _int64 = code.instructions.size().value as _int64;
+    texts : _int64 = 0;
+    for(i : _int64 = 0; i < total; i++) {
+        at := code.instructions.at(i);
+        if(at.kind == IR_TEXT && at.detail == TEXT_FRESH && at.target >= 0) { texts++; }
+    }
+    if(texts == 0) { return 0; }
+    graph := analyses.graph();
+    live := analyses.live();
+    done : _int64 = 0;
+
+    // ---- 1. adoption: the new string takes the literal's array
+    label_at := new _int64[code.label_count + 1];
+    for(i : _int64 = 0; i < total; i++) {
+        at := code.instructions.at(i);
+        if(at.kind == IR_LABEL && at.number >= 0 && at.number < sizeof(label_at)) { label_at[at.number] = i; }
+    }
+    store_of := new _int64[total + 1];          // per `text`: the set_field that hands its array to a string, or -1
+    string_of := new _int64[total + 1];         // ... and the `new_object` of that string
+    for(i : _int64 = 0; i < total; i++) { store_of[i] = 0 - 1; }
+    found := new number_list();
+    for(c : _int64 = 0; c < total; c++) {
+        call := code.instructions.at(c);
+        if(!shape.fills_a_string(call)) { continue; }
+        whole : _int64 = call.arguments!!.at(0);
+        array : _int64 = call.arguments!!.at(1);
+        if(whole == array) { continue; }
+        found.count = 0;
+        if(!reaching_definitions(code, graph, c, array, found) || found.count != 1) { continue; }
+        text_at : _int64 = found.at(0);
+        text := code.instructions.at(text_at);
+        if(text.kind != IR_TEXT || text.detail != TEXT_FRESH || store_of[text_at] >= 0) { continue; }
+        found.count = 0;
+        if(!reaching_definitions(code, graph, c, whole, found) || found.count != 1) { continue; }
+        string_at : _int64 = found.at(0);
+        if(!shape.makes_a_string(code.instructions.at(string_at))) { continue; }
+        if(text_at > c || string_at > c || !nothing_between(code, label_at, text_at, string_at, c, whole, array)) { continue; }
+        if(read_afterwards(code, graph, live, c, array)) { continue; }
+        call.kind = IR_SET_FIELD;
+        call.first = whole;
+        call.second = array;
+        call.target = 0 - 1;
+        call.number = NARROW_NONE;
+        call.detail = 0;
+        call.arguments = null;
+        call.declaration = shape.data_field;
+        store_of[text_at] = c;
+        string_of[text_at] = string_at;
+        done++;
+    }
+
+    // ---- 2. sharing: a literal every use of which only reads it
+    walk := new value_walk(code, graph);
+    one : _int64 = 1;
+    removed := new number_list();
+    gone := new _int64[total + 1];
+    for(i : _int64 = 0; i < total; i++) {
+        text := code.instructions.at(i);
+        if(text.kind != IR_TEXT || text.detail != TEXT_FRESH || text.target < 0 || gone[i] == 1) { continue; }
+        if(!walk.only_read(i + 1, text.target, i, store_of[i])) { continue; }
+        all : _int64 = 1;
+        for(s : _int64 = 0; s < walk.callees.count && all == 1; s++) {
+            callee : _int64 = walk.callees.at(s);
+            if(callee < 0 || callee >= sizeof(read_only) || (read_only[callee] & (one << walk.positions.at(s))) == 0) { all = 0; }
+        }
+        if(all == 0) { continue; }
+        text.detail = TEXT_SHARED_ARRAY;
+        if(store_of[i] >= 0) {
+            // the string around it is only read too: the shared string, in place of the new one and its store
+            whole := code.instructions.at(string_of[i]);
+            whole.kind = IR_TEXT;
+            whole.number = text.number;
+            whole.detail = TEXT_SHARED_STRING;
+            whole.declaration = null;
+            gone[store_of[i]] = 1;
+        } else {
+            done++;
+        }
+    }
+    for(i : _int64 = 0; i < total; i++) {
+        if(gone[i] == 1) { removed.add(i); }
+    }
+    remove_instructions(code, removed);
+    if(done > 0) { analyses.changed(); }
+    return done;
+}
+
+/**
+ * Between the `text`, the `new_object` and the call (the last of the three)
+ * nothing touches the array or the string, and control cannot leave the
+ * straight line except forwards, past the call: only the constructor's own
+ * test (`is_null` of the array, a jump over the call) may be there.
+ */
+def nothing_between(code: ir_function, label_at: _int64[], text_at: _int64, string_at: _int64, call_at: _int64,
+                    whole: _int64, array: _int64) : _int64 {
+    first : _int64 = text_at;
+    if(string_at < first) { first = string_at; }
+    for(i : _int64 = first + 1; i < call_at; i++) {
+        if(i == text_at || i == string_at) { continue; }
+        made := code.instructions.at(i);
+        kind : _int64 = made.kind;
+        if(kind == IR_LABEL || ends_the_way(made)) { return 0; }
+        if(kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS) {
+            if(made.number < 0 || made.number >= sizeof(label_at) || label_at[made.number] <= call_at) { return 0; }
+        }
+        written : _int64 = slot_written(made);
+        if(written == whole || written == array || reads_slot(made, whole)) { return 0; }
+        if(reads_slot(made, array) && kind != IR_IS_NULL) { return 0; }
+    }
+    return 1;
+}

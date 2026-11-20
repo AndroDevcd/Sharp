@@ -31,6 +31,10 @@ import ( std.io, std.math )
  * Objects keep their members in the order they were added, and a name
  * occurs only once: putting a name again replaces its value.
  *
+ * The names an object hands out (key_at(), keys()) are COPIES: strings can
+ * be changed in place, and the stored name may be shared with other objects
+ * of the same document (the parser makes each name once).
+ *
  * Numbers are native numbers (decimal): whole numbers are exact up to 2^53.
  *
  * Arrays and objects are changed in place and are shared, not copied, when
@@ -54,12 +58,20 @@ class json_value {
     private value_kind : _int64 = 0;
     /** the number of a number, and 1 / 0 for a boolean */
     private number : decimal = 0;
-    /** the text of a string */
-    private text : string = "";
-    /** the elements of an array, or the member values of an object (in the order of `names`) */
-    private items : list<json_value>?;
-    /** the member names of an object */
-    private names : list<string>?;
+    /** the text of a string; null for the other kinds */
+    private text : string?;
+    /*
+    * The elements of an array, or the member values of an object (in the
+    * order of `names`): items[0 .. count - 1]. The arrays are made when the
+    * first element arrives and are usually longer than `count`, so that
+    * adding has room. (They used to be two list objects for every array and
+    * object, each with an array of its own.)
+    */
+    private items : json_value[]?;
+    /** the member names of an object: names[0 .. count - 1] */
+    private names : string[]?;
+    private count : _int64 = 0;
+    private static const first_capacity : _int64 = 6;
 
     /*
     * Looking a name up by comparing it with every member is fine for small
@@ -108,23 +120,20 @@ class json_value {
         v := new json_value(kind_string);
         if(!io_strings.is_null(value)) {
             v.text = value;
+        } else {
+            v.text = "";
         }
         return v;
     }
 
     /** a new, empty array */
     static def new_array() : json_value {
-        v := new json_value(kind_array);
-        v.items = new list<json_value>();
-        return v;
+        return new json_value(kind_array);
     }
 
     /** a new, empty object */
     static def new_object() : json_value {
-        v := new json_value(kind_object);
-        v.items = new list<json_value>();
-        v.names = new list<string>();
-        return v;
+        return new json_value(kind_object);
     }
 
     /* ------------------------------------------------------------------ */
@@ -197,7 +206,7 @@ class json_value {
     /** the text of a string. Throws json_exception when this is not a string. */
     def as_string() : string {
         expect_kind(kind_string);
-        return text;
+        return text!!;
     }
 
     /* ------------------------------------------------------------------ */
@@ -212,7 +221,7 @@ class json_value {
         if(value_kind != kind_array && value_kind != kind_object) {
             throw new json_exception("expected a JSON array or object but this value is a " + name_of_kind(value_kind));
         }
-        return items!!.size().value;
+        return count;
     }
 
     /** true for an array without elements or an object without members. Throws json_exception for the other kinds. */
@@ -226,11 +235,10 @@ class json_value {
      */
     def clear() {
         size();
-        items = new list<json_value>();
-        if(value_kind == kind_object) {
-            names = new list<string>();
-            slots = null;
-        }
+        items = null;
+        names = null;
+        slots = null;
+        count = 0;
     }
 
     /* ---- arrays ---- */
@@ -242,11 +250,13 @@ class json_value {
      */
     def add(value: json_value?) : json_value {
         expect_kind(kind_array);
+        make_room();
         if(value == null) {
-            items!!.add(of_null());
+            items[count] = of_null();
         } else {
-            items!!.add(value!!);
+            items[count] = value!!;
         }
+        count++;
         return self;
     }
 
@@ -278,7 +288,7 @@ class json_value {
     def at(index: decimal) : json_value {
         expect_kind(kind_array);
         check_index(index);
-        return items!!.at(index);
+        return items[index];
     }
 
     /**
@@ -290,10 +300,13 @@ class json_value {
     def put_at(index: decimal, value: json_value?) : json_value {
         expect_kind(kind_array);
         check_index(index);
+        old := items[index];
         if(value == null) {
-            return items!!.put(index, of_null());
+            items[index] = of_null();
+        } else {
+            items[index] = value!!;
         }
-        return items!!.put(index, value!!);
+        return old;
     }
 
     /**
@@ -304,15 +317,16 @@ class json_value {
      */
     def insert_at(index: decimal, value: json_value) : json_value {
         expect_kind(kind_array);
-        if(index < 0 || index > items!!.size().value || floor(index).value != index) {
+        if(index < 0 || index > count || floor(index).value != index) {
             throw new json_exception("index " + io_strings.number_to_string(index) + " is outside an array of "
-                + io_strings.int_to_string(items!!.size().value) + " elements");
+                + io_strings.int_to_string(count) + " elements");
         }
-        if(index == items!!.size().value) {
-            items!!.add(value);
-        } else {
-            items!!.insert(index, value);
+        make_room();
+        for(i : _int64 = count; i > index; i--) {
+            items[i] = items[i - 1];
         }
+        items[index] = value;
+        count++;
         return self;
     }
 
@@ -325,15 +339,57 @@ class json_value {
     def remove_at(index: decimal) : json_value {
         expect_kind(kind_array);
         check_index(index);
-        removed := items!!.at(index);
-        items!!.remove_at(index);
+        removed := items[index];
+        close_gap(index);
         return removed;
     }
 
+    /** make sure one more element fits (and one more name, for an object) */
+    private def make_room() {
+        capacity : _int64 = sizeof(items);
+        if(count < capacity) {
+            return;
+        }
+
+        bigger : _int64 = first_capacity;
+        if(capacity > 0) {
+            bigger = capacity * 2;
+        }
+        grown := new json_value[bigger];
+        for(i : _int64 = 0; i < count; i++) {
+            grown[i] = items[i];
+        }
+        items = grown;
+        if(value_kind == kind_object) {
+            grown_names := new string[bigger];
+            for(k : _int64 = 0; k < count; k++) {
+                grown_names[k] = names[k];
+            }
+            names = grown_names;
+        }
+    }
+
+    /** take the element at `position` out: those behind it move up (the names too, for an object) */
+    private def close_gap(position: _int64) {
+        count--;
+        for(i : _int64 = position; i < count; i++) {
+            items[i] = items[i + 1];
+        }
+        excuse no_value : json_value;
+        items[count] = no_value;
+        if(value_kind == kind_object) {
+            for(k : _int64 = position; k < count; k++) {
+                names[k] = names[k + 1];
+            }
+            excuse no_name : string;
+            names[count] = no_name;
+        }
+    }
+
     private def check_index(index: decimal) {
-        if(index < 0 || index >= items!!.size().value || floor(index).value != index) {
+        if(index < 0 || index >= count || floor(index).value != index) {
             throw new json_exception("index " + io_strings.number_to_string(index) + " is outside an array of "
-                + io_strings.int_to_string(items!!.size().value) + " elements");
+                + io_strings.int_to_string(count) + " elements");
         }
     }
 
@@ -351,14 +407,13 @@ class json_value {
 
     /** (re)build the hash table over all members */
     private def build_index() {
-        count : _int64 = names!!.size().value;
         capacity : _int64 = 32;
         while(capacity < count * 2 + 2) {
             capacity = capacity * 2;
         }
         table := new _int32[capacity];
         for(i : _int64 = 0; i < count; i++) {
-            slot : _int64 = hash_name(names!!.at(i)) % capacity;
+            slot : _int64 = hash_name(names[i]) % capacity;
             while(table[slot] != 0) {
                 slot++;
                 if(slot >= capacity) {
@@ -372,10 +427,9 @@ class json_value {
 
     /** the position of the member `name`, or -1 when this object has no such member */
     private def index_of_name(name: string) : _int64 {
-        count : _int64 = names!!.size().value;
         if(count < index_threshold) {
             for(i : _int64 = 0; i < count; i++) {
-                if(io_strings.equals(names!!.at(i), name)) {
+                if(io_strings.equals(names[i], name)) {
                     return i;
                 }
             }
@@ -389,7 +443,7 @@ class json_value {
         slot : _int64 = hash_name(name) % capacity;
         while(slots[slot] != 0) {
             position : _int64 = slots[slot] - 1;
-            if(io_strings.equals(names!!.at(position), name)) {
+            if(io_strings.equals(names[position], name)) {
                 return position;
             }
             slot++;
@@ -408,22 +462,22 @@ class json_value {
      */
     def put(name: string, value: json_value?) : json_value {
         expect_kind(kind_object);
-        stored : json_value = of_null();
-        if(value != null) {
-            stored = value!!;
-        }
-
         position : _int64 = index_of_name(name);
-        if(position >= 0) {
-            items!!.put(position, stored);
-            return self;
+        added : bool = position < 0;
+        if(added) {
+            make_room();
+            position = count;
+            names[position] = name;
+            count++;
+        }
+        if(value == null) {
+            items[position] = of_null();
+        } else {
+            items[position] = value!!;
         }
 
-        names!!.add(name);
-        items!!.add(stored);
-        if(slots != null) {
+        if(added && slots != null) {
             // keep the hash table in step, or start over when it gets full
-            count : _int64 = names!!.size().value;
             capacity : _int64 = sizeof(slots);
             if(count * 2 + 2 > capacity) {
                 slots = null;
@@ -479,7 +533,7 @@ class json_value {
         if(position < 0) {
             return null;
         }
-        return items!!.at(position);
+        return items[position];
     }
 
     /**
@@ -493,7 +547,7 @@ class json_value {
         if(position < 0) {
             throw new json_exception("the object has no member \"" + name + "\"");
         }
-        return items!!.at(position);
+        return items[position];
     }
 
     /**
@@ -506,7 +560,7 @@ class json_value {
         if(found == null || found!!.value_kind != kind_string) {
             return fallback;
         }
-        return found!!.text;
+        return found!!.text!!;
     }
 
     /**
@@ -545,8 +599,7 @@ class json_value {
         if(position < 0) {
             return false;
         }
-        names!!.remove_at(position);
-        items!!.remove_at(position);
+        close_gap(position);
         slots = null; // the positions behind the removed member changed
         return true;
     }
@@ -559,9 +612,8 @@ class json_value {
     def keys() : list<string> {
         expect_kind(kind_object);
         result := new list<string>();
-        count : _int64 = names!!.size().value;
         for(i : _int64 = 0; i < count; i++) {
-            result.add(names!!.at(i));
+            result.add(new string(names[i]));
         }
         return result;
     }
@@ -569,14 +621,27 @@ class json_value {
     /**
      * The name of the member at position `index` (0 is the first that was
      * added). Together with value_at() this walks an object without making
-     * a list.
+     * a list. The name is a copy: changing it does not change the object.
      * Throws json_exception when this is not an object or the index is not
      * in 0 .. size() - 1.
      */
     def key_at(index: decimal) : string {
         expect_kind(kind_object);
         check_index(index);
-        return names!!.at(index);
+        return new string(names[index]);
+    }
+
+    /**
+     * The name of the member at position `index` WITHOUT a copy, for code
+     * that only reads it (json_writer). The string is the stored one and
+     * may be shared with other objects: never change it.
+     * Throws json_exception when this is not an object or the index is not
+     * in 0 .. size() - 1.
+     */
+    def shared_key_at(index: decimal) : string {
+        expect_kind(kind_object);
+        check_index(index);
+        return names[index];
     }
 
     /**
@@ -588,7 +653,7 @@ class json_value {
     def value_at(index: decimal) : json_value {
         size();
         check_index(index);
-        return items!!.at(index);
+        return items[index];
     }
 
     /**
@@ -622,10 +687,10 @@ class json_value {
                 index : _int64 = io_strings.parse_int(digits);
                 i = close + 1;
                 if(current != null) {
-                    if(current!!.value_kind != kind_array || index >= current!!.items!!.size().value) {
+                    if(current!!.value_kind != kind_array || index >= current!!.count) {
                         current = null;
                     } else {
-                        current = current!!.items!!.at(index);
+                        current = current!!.items[index];
                     }
                 }
             } else {
@@ -691,30 +756,30 @@ class json_value {
                     return false;
                 }
             } else if(a.value_kind == kind_string) {
-                if(!io_strings.equals(a.text, b.text)) {
+                if(!io_strings.equals(a.text!!, b.text!!)) {
                     return false;
                 }
             } else if(a.value_kind == kind_array) {
-                count : _int64 = a.items!!.size().value;
-                if(count != b.items!!.size().value) {
+                n : _int64 = a.count;
+                if(n != b.count) {
                     return false;
                 }
-                for(i : _int64 = 0; i < count; i++) {
-                    left.add(a.items!!.at(i));
-                    right.add(b.items!!.at(i));
+                for(i : _int64 = 0; i < n; i++) {
+                    left.add(a.items[i]);
+                    right.add(b.items[i]);
                 }
             } else if(a.value_kind == kind_object) {
-                count : _int64 = a.items!!.size().value;
-                if(count != b.items!!.size().value) {
+                n : _int64 = a.count;
+                if(n != b.count) {
                     return false;
                 }
-                for(i : _int64 = 0; i < count; i++) {
-                    position : _int64 = b.index_of_name(a.names!!.at(i));
+                for(i : _int64 = 0; i < n; i++) {
+                    position : _int64 = b.index_of_name(a.names[i]);
                     if(position < 0) {
                         return false;
                     }
-                    left.add(a.items!!.at(i));
-                    right.add(b.items!!.at(position));
+                    left.add(a.items[i]);
+                    right.add(b.items[position]);
                 }
             }
         }
@@ -738,14 +803,16 @@ class json_value {
         while(originals.size() > 0) {
             original := originals.pop_last();
             target := copies.pop_last();
-            count : _int64 = original.items!!.size().value;
-            for(i : _int64 = 0; i < count; i++) {
-                child := original.items!!.at(i);
+            n : _int64 = original.count;
+            for(i : _int64 = 0; i < n; i++) {
+                child := original.items[i];
                 child_copy := child.shallow_copy();
+                target.make_room();
                 if(original.value_kind == kind_object) {
-                    target.names!!.add(original.names!!.at(i));
+                    target.names[i] = original.names[i];
                 }
-                target.items!!.add(child_copy);
+                target.items[i] = child_copy;
+                target.count = i + 1;
                 if(child.value_kind == kind_array || child.value_kind == kind_object) {
                     originals.add(child);
                     copies.add(child_copy);
@@ -760,12 +827,6 @@ class json_value {
         v := new json_value(value_kind);
         v.number = number;
         v.text = text;
-        if(value_kind == kind_array || value_kind == kind_object) {
-            v.items = new list<json_value>();
-        }
-        if(value_kind == kind_object) {
-            v.names = new list<string>();
-        }
         return v;
     }
 

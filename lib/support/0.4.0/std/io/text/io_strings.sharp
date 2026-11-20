@@ -157,14 +157,18 @@ class io_strings {
 
     /** true when the two strings have the same characters (null equals only null; "" equals "") */
     static def equals(a: string, b: string) : bool {
-        if((a as object) == null || (b as object) == null) {
-            return (a as object) == (b as object);
+        // (two tests for null instead of "are they the same object": equal when both are null)
+        if((a as object) == null) {
+            return (b as object) == null;
         }
-        n : decimal = sizeof(a.data);
+        if((b as object) == null) {
+            return false;
+        }
+        n : _int64 = sizeof(a.data);
         if(n != sizeof(b.data)) {
             return false;
         }
-        for(i : decimal = 0; i < n; i++) {
+        for(i : _int64 = 0; i < n; i++) {
             if(a.data[i] != b.data[i]) {
                 return false;
             }

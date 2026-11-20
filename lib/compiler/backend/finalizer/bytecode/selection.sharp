@@ -87,7 +87,11 @@ def select_instruction(out: code_emitter, made: ir_instruction, context: selecti
         return;
     }
     if(kind == IR_TEXT) {
-        out.class_d(OP_NEWSTRING, made.number);
+        // a shared text is the same instruction with a negative operand: -(2 * string + 1) for the shared
+        // array, -(2 * string + 2) for the shared string object (codegen.md 4.10)
+        operand : _int64 = made.number;
+        if(made.detail != TEXT_FRESH) { operand = 0 - (made.number * 2 + made.detail); }
+        out.class_d(OP_NEWSTRING, operand);
         out.class_d(OP_POPL, made.target);
         return;
     }

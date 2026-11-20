@@ -864,6 +864,12 @@ object alive until the slot is overwritten or the frame is gone - harmless.
   null: it does NOT raise).
 - **Text**: `newstring k` pushes a new `_int8[]` holding string k. A `string`
   object is made from it by calling the `string(_int8[])` constructor.
+  With a NEGATIVE operand it pushes the one SHARED object of the text instead,
+  made the first time and permanent: `-(2k + 1)` the shared `_int8[]` of
+  string k, `-(2k + 2)` the shared `string` object whose `data` is that array
+  (an empty text: null, or a string whose data is null). Only the optimizer
+  writes it, for a literal it proved is never changed, kept or compared by
+  identity (7.2, shared-literals); the VM: `shared_text`, memory/sharp_object.cpp.
 - `cast C` checks the object in `ptr` is of class C or below (or implements
   C), else raises `class_cast_exception`; `varcast t, 1` the same for a number
   array of element type t. `is r, x` sets `r` to 1 or 0: x is a class address
@@ -1055,7 +1061,7 @@ optimizer may use more).
 | 46 | checknull | D | r | `regs[r] = ptr == null \|\| *ptr == null` | yes |
 | 47 | returnobj | E | | `fp[0].obj = *ptr` | yes |
 | 48 | newclassarray | D+k | r, class | push a new array of class references | yes |
-| 49 | newstring | D | string | push a new `_int8[]` of that text | yes |
+| 49 | newstring | D | string | push a new `_int8[]` of that text; a negative operand: the shared array or `string` of it (4.5) | yes |
 | 4a-4e | addl subl mull ddivl modl | C | r, n | `fp[n].var op= regs[r]` (ddivl decimal) | optimizer |
 | 4f-53 | iaddl isubl imull didivl imodl | D+k | n, k | `fp[n].var op= k` | optimizer |
 | 54 | loadl | C | r, n | `regs[r] = fp[n].var` | yes |
@@ -1565,7 +1571,7 @@ stand for its value").
 | any expression with `constant != null` (a number or a text) | the constant instead of the computation - but only when the operand parts have no effect (no call, `new`, assignment, increment); otherwise they are evaluated and dropped first | |
 | `bound_literal` integer, char, bool | `int_constant %d, k` | `istorel d, k` (k fits 32 bits), else the wide sequence of 4.3 then `smovr_2` |
 | `bound_literal` decimal | `decimal_constant %d, x` | `distorel d, k` (whole, fits 32 bits), else `ldc ebx, index; smovr_2 ebx, d` |
-| `bound_literal` text (type `_int8[]`) | `text %d, s` | `newstring s; popl d` |
+| `bound_literal` text (type `_int8[]`) | `text %d, s` | `newstring s; popl d` (`text %d, s (shared)` / `(shared string)`, made by the optimizer: `newstring -(2s + 1)` / `-(2s + 2)`) |
 | text as a `string` | a `CONV_CONSTRUCT` of the text (6.3) | |
 | `bound_null` | `null %d` | `pushnull; popl d` |
 | `bound_local`, own and not captured | the variable's slot itself (no instruction) | |
@@ -2313,6 +2319,7 @@ the program, the function each call goes to, the kind of every slot.
 | stack-forwarding | - | not here: the IR has no operand stack to forward (the register hand-off is its counterpart) | stack forwarding |
 | native-returns | passes/calls/native_returns.sharp, analysis/object_paths.sharp | a function whose every `return` gives an object made in it by `new_object` that goes nowhere else gets a TWIN, `name$field`, an ordinary function of the executable that returns the number of that field; a direct call whose result is only read for that one field goes to the twin. Run once, after inlining; the twins and the rewritten callers get the local passes again (in the twin box elimination then removes the object). Not for functions with a `try`, lambdas and closures | native returns |
 | string-concatenation | passes/calls/string_concatenation.sharp | in `a + b + c` (and a string template) every `string.operator+` whose left side is a temporary of the same expression goes to a twin, `operator+$append`, cut from the code of that overload, which appends to its own object instead of to a copy of it: one string and one copy however long the chain. Runs first, on the code as generated | - |
+| shared-literals | passes/calls/shared_literals.sharp | text literals. ADOPTION: `text %a; new_object %s, std#string; call string.append(%s, %a)` (what a literal used as a `string` is, after inlining: three objects) becomes `set_field %s.data, %a` - the new string takes the literal's array instead of copying it. SHARING: a literal whose value is only READ on every path - field and element reads through it, length, null tests, `is`, casts, copies, and direct calls that hand it to an argument the callee only reads (worked out for the whole program like escape analysis; `memcopy`'s source and what `string.append` appends are known by name) - is `text (shared)`: the VM's one object for that text, no allocation. Stored, written through, returned, thrown, locked, handed to a virtual / native call or a function value, or compared by identity: it stays fresh. Functions with a `try` are left alone | - |
 | devirtualization | passes/calls/devirtualization.sharp | a virtual call (`invoke_delegate`, a search through the class's methods at run time) becomes a `call` when the one body that can run is known: only one kept class implements the function, or the object was made here and its class is known. Where the object may be null the direct call sits behind a null test with the virtual call as the other branch, so null raises exactly as before | - |
 | closure-elimination | passes/calls/closure_calls.sharp | `call_value` of a function value that can only be the one made in this function becomes a `call` of the lambda's code with the captured record as its last argument; inlining then copies the body in, and box elimination removes the function value and the record | - |
 | pure-functions | passes/calls/pure_functions.sharp | for every function: does it change anything, read anything, can it raise, does it come back (worked out together for the whole program; `sharp_declaration.optimizer_facts`). A call of a function that does none of it and whose result is unused is removed by the removal passes; the passes below ask the facts | - |
