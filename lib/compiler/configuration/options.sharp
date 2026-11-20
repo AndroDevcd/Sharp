@@ -243,7 +243,7 @@ class options {
      * installed one of that number is added to the sources when it is there
      * ("target_api" in settings.json; main.sharp, add_library_files).
      */
-    static library_version : string = "0.5.1";
+    static library_version : string = "0.5.2";
 
     /*
      * List of user defined library paths
@@ -297,7 +297,8 @@ supported_versions := new string[] {
     "0.6.0",
     "0.7.0",
     "0.4.9",
-    "0.5.1"
+    "0.5.1",
+    "0.5.2"
 };
 
 // WARNING SWITCHES
