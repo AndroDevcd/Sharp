@@ -301,27 +301,31 @@ const int SPACE_USABLE = 2;
 
 #ifdef POSIX_
 
-long GetAvailableSpace(const char* path, int request)
+// (64-bit numbers all the way: on a 32-bit machine - a Raspberry Pi - `long` holds 2 GB, and the
+//  plain statvfs fails outright on a disk with more blocks than 32 bits count)
+long long GetAvailableSpace(const char* path, int request)
 {
+#ifdef __linux__
+  struct statvfs64 st;
+  if (statvfs64(path, &st) != 0) {
+#else
   struct statvfs st;
-  
   if (statvfs(path, &st) != 0) {
+#endif
     // error happens, just quits here
     return -1;
   }
-  
+
   switch (request) {
         case SPACE_TOTAL:
-            return st.f_bsize * st.f_blocks;
+            return (long long) st.f_bsize * (long long) st.f_blocks;
         case SPACE_FREE:
-            return st.f_bsize * st.f_bavail;
+            return (long long) st.f_bsize * (long long) st.f_bavail;
         case SPACE_USABLE:
-            return st.f_bsize * st.f_bavail;
+            return (long long) st.f_bsize * (long long) st.f_bavail;
         default:
             return 0;
    }
-
-  return st.f_bsize * st.f_bavail;
 }
 
 #endif

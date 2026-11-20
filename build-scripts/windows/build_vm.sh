@@ -24,7 +24,6 @@ echo "$FLAGS" > "$OUT/flags.new"
 if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/flags.new" "$OUT/flags.txt"; fi
 ls main.cpp lib/runtime/error/*.cpp lib/runtime/interrupts/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
    lib/runtime/sni/*.cpp lib/runtime/cffi/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
-   lib/runtime/jit/arm/*.cpp lib/runtime/jit/arm/opcode/*.cpp lib/runtime/jit/arm/sections/*.cpp \
    lib/runtime/jit/x64/*.cpp lib/runtime/jit/x64/opcode/*.cpp lib/runtime/jit/x64/sections/*.cpp \
    lib/runtime/*.cpp lib/runtime/telemetry/*.cpp lib/core/*.cpp lib/core/opcode/*.cpp lib/util/*.cpp lib/util/zip/*.cpp \
    lib/Modules/math/*.cpp lib/Modules/std/*.cpp lib/Modules/std.io/*.cpp \

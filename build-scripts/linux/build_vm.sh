@@ -15,9 +15,12 @@
 # Needs: g++ with C++17 (g++ 8 or newer). On a Raspberry Pi:  sudo apt install g++
 #
 # WHAT DEPENDS ON THE CPU
-#   The machine-code compiler (the JIT, lib/runtime/jit/x64 and the AsmJit library it uses) exists for
-#   64-bit x86 only. On every other CPU - 32-bit ARM, 64-bit ARM, 32-bit x86 - those files are left out
-#   and the interpreter runs everything. Nothing else in the VM is tied to a CPU.
+#   The machine-code compiler (the JIT) and calls to C (lib/runtime/cffi). The JIT exists for
+#       64-bit x86          lib/runtime/jit/x64             with the AsmJit library
+#       64-bit ARM          lib/runtime/jit/arm, arm64/     with the AsmJit library
+#       32-bit ARM          lib/runtime/jit/arm, arm32/     (hard float, a Raspberry Pi's system; no library)
+#   On every other CPU those files are left out and the interpreter runs everything.
+#   Testing the ARM builds on a PC, under qemu: tests/cffi/arm.sh.
 #
 # HUNTING A MEMORY BUG (a crash in a place that makes no sense): build a second VM with the address
 # sanitizer, which stops at the first write outside a block and says where it was allocated -
@@ -38,15 +41,17 @@ command -v "$CXX" > /dev/null || { echo "no C++ compiler \`$CXX\`:  sudo apt ins
 
 MACHINE=$("$CXX" -dumpmachine 2>/dev/null)          # what the compiler builds FOR: x86_64-linux-gnu, arm-linux-gnueabihf ...
 case "$MACHINE" in
-  x86_64*) JIT=1 ;;
-  *)       JIT=0 ;;
+  x86_64*)        JIT=1; JIT_FOLDER=x64; ASMJIT=1 ;;
+  aarch64*)       JIT=1; JIT_FOLDER=arm; ASMJIT=1 ;;       # 64-bit ARM: lib/runtime/jit/arm
+  arm*gnueabihf*) JIT=1; JIT_FOLDER=arm; ASMJIT=0 ;;       # 32-bit ARM (a Raspberry Pi): the same folder, its own assembler
+  *)              JIT=0 ;;
 esac
 [ -n "$SHARP_NO_JIT" ] && JIT=0
 
 FLAGS="-std=c++17 -O2 -w -pthread $*"
 LINK="-pthread -ldl -lrt -lm $LDFLAGS"
 if [ $JIT = 1 ]; then
-  FLAGS="$FLAGS -DASMJIT_STATIC"
+  [ $ASMJIT = 1 ] && FLAGS="$FLAGS -DASMJIT_STATIC"
 else
   FLAGS="$FLAGS -DSHARP_NO_JIT"
 fi
@@ -72,8 +77,8 @@ if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/f
      lib/runtime/telemetry/*.cpp lib/core/*.cpp lib/core/opcode/*.cpp lib/util/*.cpp lib/util/zip/*.cpp \
      lib/Modules/math/*.cpp lib/Modules/std/*.cpp lib/Modules/std.io/*.cpp
   if [ $JIT = 1 ]; then
-    ls lib/runtime/jit/x64/*.cpp lib/runtime/jit/x64/opcode/*.cpp lib/runtime/jit/x64/sections/*.cpp \
-       lib/util/jit/asmjit/src/asmjit/core/*.cpp lib/util/jit/asmjit/src/asmjit/arm/*.cpp lib/util/jit/asmjit/src/asmjit/x86/*.cpp
+    ls lib/runtime/jit/$JIT_FOLDER/*.cpp lib/runtime/jit/$JIT_FOLDER/*/*.cpp
+    [ $ASMJIT = 1 ] && ls lib/util/jit/asmjit/src/asmjit/core/*.cpp lib/util/jit/asmjit/src/asmjit/arm/*.cpp lib/util/jit/asmjit/src/asmjit/x86/*.cpp
   fi
 } 2>/dev/null > "$OUT/files.txt"
 

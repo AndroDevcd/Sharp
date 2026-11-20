@@ -1,18 +1,12 @@
 //
 // The interface between the virtual machine and a JIT compiler.
 //
-// THERE IS NO COMPILER BEHIND IT RIGHT NOW
-// ----------------------------------------
-// The compiler that used to live here (jit/x64 and jit/arm) translated one
-// bytecode instruction at a time and did every number operation on the x87
-// unit as a double. It could not work with typed numbers (an integer or a
-// decimal in a vm_cell, stdimports.h), was barely faster than the interpreter
-// (2.3 ns against 2.5 ns per instruction, measured on bench.b), and has been
-// removed. It is in the git history up to commit c6869deb.
-//
-// Its replacement works on the typed bytecode and keeps values in CPU
-// registers. Until it exists `jitCompiler` is null, c_options.jit is false and
-// the interpreter runs everything.
+// THE COMPILERS BEHIND IT (jit_compiler.cpp picks the one for the CPU the VM was built for)
+// ----------------------------------------------------------------------------------------
+//      jit/x64     64-bit x86: Linux, macOS on Intel, Windows
+//      jit/arm     ARM: 64-bit (arm/arm64) and 32-bit (arm/arm32) - one generator, two machines
+// On a CPU with none, `jitCompiler` is null, c_options.jit is false and the interpreter runs
+// everything - as it does with -nojit.
 //
 // WHAT THE VM NEEDS FROM A COMPILER (virtual_machine.cpp)
 // -------------------------------------------------------
@@ -39,12 +33,25 @@
 
 #include "../../../stdimports.h"
 #include "../types/sharp_function.h"
-// WHICH MACHINES HAVE THE ASSEMBLER LIBRARY (AsmJit) IN THE BUILD: 64-bit x86. On every other CPU
-// (32-bit and 64-bit ARM, 32-bit x86: build-scripts/build_linux_vm.sh) the library and jit/x64 are
-// left out of the build, the VM is compiled with -DSHARP_NO_JIT, and the interpreter runs everything.
-#if defined(__x86_64__) && !defined(SHARP_NO_JIT)
+// WHICH MACHINES HAVE A COMPILER, AND WHICH OF THEM THE ASSEMBLER LIBRARY (AsmJit) IN THE BUILD:
+//      64-bit x86      SHARP_JIT_X64       jit/x64             AsmJit
+//      64-bit ARM      SHARP_JIT_ARM64     jit/arm, arm64/     AsmJit
+//      32-bit ARM      SHARP_JIT_ARM32     jit/arm, arm32/     (the library does not know it: arm32/ has its own)
+// On every other CPU (32-bit x86 ...: build-scripts/linux/build_vm.sh) the VM is compiled with
+// -DSHARP_NO_JIT, the compilers are left out of the build, and the interpreter runs everything.
+// A runtime built with -DSHARP_TYPE_CHECK has no compiler either (jit_compiler.cpp).
+#if !defined(SHARP_NO_JIT) && (defined(__x86_64__) || defined(__aarch64__))
 #define SHARP_HAS_ASMJIT
 #include "../../util/jit/asmjit/src/asmjit/core.h"
+#endif
+#if !defined(SHARP_NO_JIT) && !defined(SHARP_TYPE_CHECK)
+#if defined(__x86_64__)
+#define SHARP_JIT_X64
+#elif defined(__aarch64__)
+#define SHARP_JIT_ARM64
+#elif defined(__arm__) && defined(__ARM_PCS_VFP) && defined(__linux__)
+#define SHARP_JIT_ARM32
+#endif
 #endif
 
 struct sharp_thread;

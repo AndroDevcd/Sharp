@@ -3,6 +3,7 @@
 // CPU the runtime was built for:
 //
 //      x86-64 (Linux, macOS on Intel, Windows)     jit/x64/x64_compiler.cpp
+//      ARM, 64-bit and 32-bit (Linux)              jit/arm/arm_compiler.cpp
 //      anything else                               none: everything is interpreted
 //
 // (Windows passes arguments to C++ in other registers than Linux does: the two
@@ -19,9 +20,10 @@
 #include "jit_compiler.h"
 #include "../main.h"
 
-#if defined(SHARP_HAS_ASMJIT) && !defined(SHARP_TYPE_CHECK)
-#define SHARP_JIT_X64
+#if defined(SHARP_JIT_X64)
 #include "x64/x64_compiler.h"
+#elif defined(SHARP_JIT_ARM64) || defined(SHARP_JIT_ARM32)
+#include "arm/arm_compiler.h"
 #endif
 
 JitCompiler* jitCompiler = nullptr;
@@ -31,8 +33,10 @@ void init_jit_compiler() {
     if(!c_options.jit)          // -nojit
         return;
 
-#ifdef SHARP_JIT_X64
+#if defined(SHARP_JIT_X64)
     jitCompiler = new X64Compiler();
+#elif defined(SHARP_JIT_ARM64) || defined(SHARP_JIT_ARM32)
+    jitCompiler = new ArmCompiler();
 #else
     // no compiler for this CPU: the interpreter runs everything
     c_options.jit = false;
