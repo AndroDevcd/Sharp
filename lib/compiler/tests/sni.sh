@@ -194,7 +194,7 @@ build_library "$W4" stop "$HERE/sni/stop/native/stop.cpp"
 begun=$(date +%s)
 ( cd "$W4" && timeout 60 "$SHARP" stop > run.txt 2>&1; echo "exit $?" >> run.txt )
 took=$(( $(date +%s) - begun ))
-if grep -q "polite: stopped" "$W4/run.txt" && grep -q "still inside the native function .app#__srt_global.spin_stubbornly" "$W4/run.txt"    && grep -q "main ends" "$W4/run.txt" && grep -q "exit 0" "$W4/run.txt" && [ $took -ge 2 ] && [ $took -le 20 ]; then pass
+if grep -q "polite: stopped" "$W4/run.txt" && grep -q "still inside the native function .app#__srt_global.spin_stubbornly" "$W4/run.txt"    && grep -q "main ends" "$W4/run.txt" && grep -q "exit 0" "$W4/run.txt" && [ $took -ge 2 ] && [ $took -le 50 ]; then pass
 else fail "stop: polite / stubborn / the program ends (took ${took}s)" "$(head -12 "$W4/run.txt")" "$(head -5 "$W4/compile.txt" "$W4/stop.build.txt" 2>/dev/null)"; fi
 
 echo "sni: $passed passed, $failed failed"

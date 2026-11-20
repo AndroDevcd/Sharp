@@ -50,11 +50,11 @@ object SharpBuiltInWords {
     )
 
     /** every word of the groups (for tests, and for the colour settings page) */
-    val all: Set<String> get() = builtInCalls + testingWords + cTypes + setOf("pointer", "extern")
+    val all: Set<String> get() = builtInCalls + testingWords + cTypes + setOf("pointer", "extern", "c_bytes")
 
     /** `extern`, `pointer` and the C types, where they mean what std.c means by them; else null */
     private fun cWordAt(word: String, buffer: CharSequence, start: Int, end: Int, bufferEnd: Int): IElementType? {
-        if (word != "extern" && word != "pointer" && word !in cTypes) return null
+        if (word != "extern" && word != "pointer" && word != "c_bytes" && word !in cTypes) return null
         var after = end
         while (after < bufferEnd && (buffer[after] == ' ' || buffer[after] == '\t')) after++
         val next = if (after < bufferEnd) buffer[after] else '\u0000'
@@ -64,6 +64,8 @@ object SharpBuiltInWords {
 
         if (word == "extern") return if (next == '"') SharpTokenKinds.CONTEXT_KEYWORD else null
         if (previous == '.') return null
+        // `static const c_bytes : _int64 = 16;` in a struct class: the size C has for it (std/c/struct.sharp)
+        if (word == "c_bytes") return if (next == ':') SharpTokenKinds.CONTEXT_KEYWORD else null
         if (word in cTypes) return SharpTokenKinds.C_TYPE
 
         // `pointer`: only where a type stands

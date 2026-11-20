@@ -156,6 +156,19 @@ vm_thread_entry(void *arg)
                 }
             }
 
+            // THE THREAD WAS TOLD TO STOP (thread.exit(): the HLT instruction; an interrupt from
+            // another thread) and the interpreter came back for that. Its fiber is not finished and
+            // nothing asked for a context switch, so without this the loop went round, ran the same
+            // HLT again, and again: thread.exit() spun for ever and the program never ended.
+            if(hasSignal(thread->signal, tsig_kill) || thread->state == THREAD_KILLED) {
+                thread->state = THREAD_KILLED;
+                if(thread->queue != nullptr) {
+                    invalidate_queue(thread);
+                }
+
+                goto end;
+            }
+
             if(all_tasks_finished(thread)) {
                 enable_context_switch(thread, false);
                 goto end;

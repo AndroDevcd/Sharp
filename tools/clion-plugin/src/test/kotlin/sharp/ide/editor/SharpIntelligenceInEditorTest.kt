@@ -259,7 +259,8 @@ class SharpIntelligenceInEditorTest : BasePlatformTestCase() {
         val library = tempDir.resolve("stdlib")
         Files.createDirectories(library.resolve("std"))
         val real = File(sharp.ide.lexer.repoRoot(), "lib/support/0.4.0/std/list.sharp")
-        Files.copy(real.toPath(), library.resolve("std/list.sharp"))
+        // (with Unix line endings, as the compiler that wrote the fixture read it: a Windows checkout has the library with CRLF)
+        Files.write(library.resolve("std/list.sharp"), real.readText(Charsets.UTF_8).replace("\r\n", "\n").toByteArray(Charsets.UTF_8))
         open(saved.replaceFirst("names.size()", "names.<caret>size()"), libraryRoot = library.toRealPath().toString().replace('\\', '/'))
         val offset = myFixture.editor.caretModel.offset
         val place = SharpGotoDeclarationHandler.targetFor(project, myFixture.file.virtualFile, myFixture.editor.document.text, offset)!!

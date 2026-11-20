@@ -10,3 +10,7 @@ tests/suite/**                              text eol=lf
 # ... and what only Windows runs keeps Windows line endings
 *.cmd                                       text eol=crlf
 *.bat                                       text eol=crlf
+
+# the plugin's test fixtures are compiler output with the hash of each source file inside: the bytes must not change
+tools/clion-plugin/src/test/resources/**    text eol=lf
+tools/clion-plugin/src/test/resources/compiler-output/wide/source.sharp -text

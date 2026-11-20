@@ -225,6 +225,9 @@ class SharpLexer : LexerBase() {
         var kind: IElementType = single(c)
         if (next == '=') {
             if (c in "<>=+-*/&|^%!:") { kind = SharpTokenKinds.OPERATOR; position++ }
+        } else if (c == '.' && next == '.' && position + 1 < bufferEnd && buffer[position + 1] == '.') {
+            // `...`: "and whatever else C takes" in an extern function, `def printf(format: string, ...) : c_int;`
+            kind = SharpTokenKinds.CONTEXT_KEYWORD; position += 2
         } else if (next == c) {
             if (c in "+-&|<>*") {
                 kind = SharpTokenKinds.OPERATOR
