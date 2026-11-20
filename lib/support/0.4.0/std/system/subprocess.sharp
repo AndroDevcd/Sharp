@@ -1,0 +1,551 @@
+mod std.system;
+
+import ( std.c, std.io, platform )
+
+/**
+ * A PROGRAM THIS PROGRAM STARTS AND TALKS TO WHILE IT RUNS
+ *
+ *      child := subprocess.start("ping example.com");
+ *      while(true) {
+ *          line := child.read_line();              // each line as the program prints it
+ *          if(line == null) { break; }             // null: it has closed its output (it ended)
+ *          println("> " + line!!);
+ *      }
+ *      code := child.wait();                       // its exit code
+ *      child.close();
+ *
+ *      sorter := subprocess.start("sort");
+ *      sorter.write_text("pear\napple\n");
+ *      sorter.close_input();                       // "that was all": the program sees the end of its input
+ *      sorted := sorter.read_all_text();
+ *
+ * process.run() (process.sharp) runs a command to its end and then hands
+ * over everything it printed. A subprocess is for the rest: output read
+ * while the program still runs, input written to it as the conversation
+ * goes, a program that is stopped from here (kill), or one that is only
+ * asked now and then whether it is still running.
+ *
+ * ANOTHER SHARP PROGRAM is started with start_sharp(program, arguments), and
+ * any program by its file and arguments with start_program(file, arguments).
+ *
+ * THE COMMAND is a command line for the system's shell (/bin/sh on Linux,
+ * cmd.exe on Windows), as with process.run: pipes and && work, and anything
+ * put into it from outside is quoted with process.quote().
+ *
+ * THREE STREAMS connect the two programs: what is written here is the
+ * program's input; its output and its error output are read here, each on
+ * its own - or as one, in the order printed, with start(command, true).
+ * A read WAITS until something has arrived or the program has closed that
+ * stream. So a program that prints a lot on BOTH streams should be started
+ * merged, or have each stream read by a thread of its own: while this
+ * program waits on one, the other fills up and the program stops and waits
+ * for it to be read.
+ *
+ * close() lets go of the streams. It does not stop the program: kill() does.
+ *
+ * All of it is Sharp: posix_spawn and pipes on Linux, CreateProcess and
+ * pipes on Windows, called directly.
+ *
+ *      Java comparison: ProcessBuilder and Process; Python: subprocess.Popen.
+ */
+class subprocess {
+    extern "unix:c" {
+        static def pipe(ends: _int32[]) : c_int;
+        static def read(from: c_int, into: _int8[], count: c_size) : c_ssize;
+        static def write(to: c_int, data: _int8[], count: c_size) : c_ssize;
+        static def close(end: c_int) : c_int;
+        static def fcntl(end: c_int, command: c_int, ..., value: c_int) : c_int;
+        static def signal(number: c_int, handler: pointer) : pointer;
+        static def dlsym(library: pointer, name: string) : pointer;
+        static def posix_spawn_file_actions_init(actions: pointer) : c_int;
+        static def posix_spawn_file_actions_adddup2(actions: pointer, from: c_int, to: c_int) : c_int;
+        static def posix_spawn_file_actions_addclose(actions: pointer, end: c_int) : c_int;
+        static def posix_spawn_file_actions_destroy(actions: pointer) : c_int;
+        static def posix_spawn(id: _int32[], path: string, actions: pointer, attributes: pointer, arguments: pointer, environment: pointer) : c_int;
+        static def waitpid(id: c_int, status: _int32[], options: c_int) : c_int;
+        static def kill(id: c_int, number: c_int) : c_int;
+        static def strerror(code: c_int) : string;
+    }
+
+    extern "windows:kernel32" {
+        static def CreatePipe(read_end: _int64[], write_end: _int64[], attributes: pointer, size: c_uint) : c_int;
+        static def SetHandleInformation(handle: pointer, mask: c_uint, flags: c_uint) : c_int;
+        static def CreateProcessA(program: pointer, command: _int8[], process_attributes: pointer, thread_attributes: pointer,
+                                  inherit: c_int, flags: c_uint, environment: pointer, folder: pointer, startup: pointer, made: pointer) : c_int;
+        static def ReadFile(handle: pointer, into: _int8[], count: c_uint, got: _int32[], overlapped: pointer) : c_int;
+        static def WriteFile(handle: pointer, data: _int8[], count: c_uint, wrote: _int32[], overlapped: pointer) : c_int;
+        static def CloseHandle(handle: pointer) : c_int;
+        static def WaitForSingleObject(handle: pointer, milliseconds: c_uint) : c_uint;
+        static def GetExitCodeProcess(handle: pointer, code: _int32[]) : c_int;
+        static def TerminateProcess(handle: pointer, code: c_uint) : c_int;
+        static def GetLastError() : c_uint;
+    }
+
+    private static const NONE : _int64 = 0 - 1;
+    private static prepared : bool = false;
+
+    private command_line : string = "";
+    private process_id : _int64 = 0;
+    private process_handle : _int64 = 0;        // Windows: the handle of the process
+    private input : _int64 = NONE;              // this program's ends of the three streams (NONE: closed)
+    private output : _int64 = NONE;
+    private errors : _int64 = NONE;
+    private merged : bool = false;
+    private ended : bool = false;
+    private code : _int64 = 0 - 1;
+    private chunk := new _int8[8192];
+    private one := new _int8[1];
+
+    private subprocess(command: string) {
+        command_line = command;
+    }
+
+    /**
+     * Start `command` with its output and its error output apart.
+     * Throws io_exception when the system cannot start it. (A command the
+     * shell does not know IS started - the shell is - and ends at once with
+     * the shell's "not found" code and message.)
+     */
+    static def start(command: string) : subprocess {
+        return start(command, false);
+    }
+
+    /** ... with the error output mixed into the output, in the order printed, when `merge_errors` */
+    static def start(command: string, merge_errors: bool) : subprocess {
+        child := new subprocess(command);
+        child.merged = merge_errors;
+        if(build.is_windows()) { child.start_on_windows(); }
+        else { child.start_on_unix(); }
+        return child;
+    }
+
+    /**
+     * Start a program by its file and its arguments, each handed over as it
+     * is - quoted for the shell here, so spaces and signs in them are safe.
+     *
+     *      subprocess.start_program("git", new string[] { "commit", "-m", message });
+     */
+    static def start_program(program: string, arguments: string[]) : subprocess {
+        return start_program(program, arguments, false);
+    }
+
+    static def start_program(program: string, arguments: string[], merge_errors: bool) : subprocess {
+        line := new char_buffer(128);
+        line.append(process.quote(program));
+        for(i : _int64 = 0; i < sizeof(arguments); i++) {
+            line.append_char(' ').append(process.quote(arguments[i]));
+        }
+        return start(line.to_string()!!, merge_errors);
+    }
+
+    /**
+     * Start another SHARP program: the compiled program at `program`, run by
+     * the same `sharp` this program is run by, with these arguments (what
+     * its main(args) gets).
+     *
+     *      worker := subprocess.start_sharp(program_folder() + "/worker", new string[] { "--port", "8080" });
+     *      again := subprocess.start_sharp(program_path(), new string[] { "child" });     // this very program, once more
+     *
+     * The two programs are apart - each its own memory, its own threads - and
+     * talk through the three streams, like any two programs.
+     */
+    static def start_sharp(program: string, arguments: string[]) : subprocess {
+        return start_sharp(program, arguments, false);
+    }
+
+    static def start_sharp(program: string, arguments: string[], merge_errors: bool) : subprocess {
+        both := new string[sizeof(arguments) + 1];
+        both[0] = program;
+        for(i : _int64 = 0; i < sizeof(arguments); i++) { both[i + 1] = arguments[i]; }
+        return start_program(runtime_path(), both, merge_errors);
+    }
+
+    // ------------------------------------------------------------------ starting
+
+    private def start_on_unix() {
+        if(!prepared) {
+            prepared = true;
+            signal(13, 1);          // writing to a program that has gone is an error of that write, not the end of THIS program
+        }
+        to_child := new _int32[2];          // [0] is read from, [1] written to
+        from_child := new _int32[2];
+        errors_from_child := new _int32[2];
+        if(pipe(to_child) != 0 || pipe(from_child) != 0 || (!merged && pipe(errors_from_child) != 0)) {
+            throw new io_exception("subprocess: the system has no pipes left for: " + command_line);
+        }
+        // this program's ends are not handed on to programs started later
+        fcntl(to_child[1], 2, 1);
+        fcntl(from_child[0], 2, 1);
+        if(!merged) { fcntl(errors_from_child[0], 2, 1); }
+
+        // what the new program's three streams are, and which ends it closes
+        actions := new c_memory(512);
+        posix_spawn_file_actions_init(actions.address());
+        posix_spawn_file_actions_adddup2(actions.address(), to_child[0], 0);
+        posix_spawn_file_actions_adddup2(actions.address(), from_child[1], 1);
+        if(merged) { posix_spawn_file_actions_adddup2(actions.address(), from_child[1], 2); }
+        else { posix_spawn_file_actions_adddup2(actions.address(), errors_from_child[1], 2); }
+        posix_spawn_file_actions_addclose(actions.address(), to_child[0]);
+        posix_spawn_file_actions_addclose(actions.address(), from_child[1]);
+        if(!merged) { posix_spawn_file_actions_addclose(actions.address(), errors_from_child[1]); }
+
+        // /bin/sh -c "command": the three texts, and the list of their addresses with a 0 at its end
+        size : _int64 = c_memory.pointer_size();
+        texts := new c_memory(sizeof(command_line.data) + 32);
+        texts.put_text(0, "sh");
+        texts.put_text(4, "-c");
+        texts.put_text(8, command_line);
+        list := new c_memory(4 * size);
+        list.put_pointer(0, texts.address_at(0));
+        list.put_pointer(size, texts.address_at(4));
+        list.put_pointer(2 * size, texts.address_at(8));
+        list.put_pointer(3 * size, 0);
+        // the environment the new program gets: this program's, as it is now
+        environment : pointer = 0;
+        holder : pointer = dlsym(0, "environ");
+        if(holder != 0) { environment = c_memory.view(holder, size).pointer_at(0); }
+
+        id := new _int32[1];
+        result : _int64 = posix_spawn(id, "/bin/sh", actions.address(), 0, list.address(), environment);
+        posix_spawn_file_actions_destroy(actions.address());
+        actions.release();
+        texts.release();
+        list.release();
+        // the new program's ends are its own now
+        close(to_child[0]);
+        close(from_child[1]);
+        if(!merged) { close(errors_from_child[1]); }
+        if(result != 0) {
+            close(to_child[1]);
+            close(from_child[0]);
+            if(!merged) { close(errors_from_child[0]); }
+            throw new io_exception("subprocess: could not start `" + command_line + "`: " + strerror(result));
+        }
+        process_id = id[0];
+        input = to_child[1];
+        output = from_child[0];
+        if(!merged) { errors = errors_from_child[0]; }
+    }
+
+    private def start_on_windows() {
+        // a pipe's ends may be handed on to the new program ...
+        attributes := new c_memory(24);                 // SECURITY_ATTRIBUTES: its size, no descriptor, "hand on": yes
+        attributes.put_int32(0, 24).put_int32(16, 1);
+        child_in := new _int64[1];
+        our_in := new _int64[1];
+        our_out := new _int64[1];
+        child_out := new _int64[1];
+        our_errors := new _int64[1];
+        child_errors := new _int64[1];
+        made_pipes : bool = CreatePipe(child_in, our_in, attributes.address(), 0) != 0
+                         && CreatePipe(our_out, child_out, attributes.address(), 0) != 0;
+        if(made_pipes && !merged) { made_pipes = CreatePipe(our_errors, child_errors, attributes.address(), 0) != 0; }
+        attributes.release();
+        if(!made_pipes) { throw new io_exception("subprocess: the system has no pipes left for: " + command_line); }
+        // ... but not this program's own ends
+        SetHandleInformation(our_in[0], 1, 0);
+        SetHandleInformation(our_out[0], 1, 0);
+        if(!merged) { SetHandleInformation(our_errors[0], 1, 0); }
+
+        startup := new c_memory(104);                   // STARTUPINFOA: its size; "use these three handles"
+        startup.put_int32(0, 104).put_int32(60, 0x100);
+        startup.put_int64(80, child_in[0]).put_int64(88, child_out[0]);
+        if(merged) { startup.put_int64(96, child_out[0]); }
+        else { startup.put_int64(96, child_errors[0]); }
+        made := new c_memory(24);                       // PROCESS_INFORMATION: process, thread, their ids
+
+        // cmd /s /c "command": the outer pair of quotes is taken off and what is between them run as it is
+        line := new char_buffer(sizeof(command_line.data) + 32);
+        line.append("cmd.exe /s /c ").append_char('"').append(command_line).append_char('"');
+        text : string = line.to_string()!!;
+        writable := new _int8[sizeof(text.data) + 1];
+        for(i : _int64 = 0; i < sizeof(text.data); i++) { writable[i] = text.data!![i]; }
+
+        started : bool = CreateProcessA(0, writable, 0, 0, 1, 0x08000000, 0, 0, startup.address(), made.address()) != 0;   // 0x08000000: no console window of its own
+        problem : _int64 = started ? 0 : GetLastError();
+        if(started) {
+            process_handle = made.int64_at(0);
+            CloseHandle(made.int64_at(8));              // (its first thread: not needed)
+            process_id = made.uint32_at(16);
+        }
+        startup.release();
+        made.release();
+        // the new program's ends are its own now
+        CloseHandle(child_in[0]);
+        CloseHandle(child_out[0]);
+        if(!merged) { CloseHandle(child_errors[0]); }
+        if(!started) {
+            CloseHandle(our_in[0]);
+            CloseHandle(our_out[0]);
+            if(!merged) { CloseHandle(our_errors[0]); }
+            throw new io_exception("subprocess: could not start `" + command_line + "` (Windows error " + problem + ")");
+        }
+        input = our_in[0];
+        output = our_out[0];
+        if(!merged) { errors = our_errors[0]; }
+    }
+
+    // ------------------------------------------------------------------ what it is
+
+    /** the command line it was started with */
+    def command() : string {
+        return command_line;
+    }
+
+    /** the number the system knows the program by */
+    def id() : _int64 {
+        return process_id;
+    }
+
+    // ------------------------------------------------------------------ its input
+
+    /**
+     * Write all of `data` to the program's input.
+     * Throws io_exception when the input is closed or the program is gone.
+     */
+    def write(data: _int8[]) : subprocess {
+        if(input == NONE) { throw new io_exception("subprocess: the program's input is closed: " + command_line); }
+        count : _int64 = sizeof(data);
+        sent : _int64 = 0;
+        wrote := new _int32[1];
+        while(sent < count) {
+            rest : _int8[] = data;
+            if(sent > 0) { rest = copy(data, sent, count)!!; }
+            took : _int64 = 0;
+            if(build.is_windows()) {
+                if(WriteFile(input, rest, count - sent, wrote, 0) == 0) { took = 0 - 1; }
+                else { took = wrote[0]; }
+            } else {
+                took = write(input, rest, count - sent);
+            }
+            if(took <= 0) { throw new io_exception("subprocess: the program no longer takes input: " + command_line); }
+            sent = sent + took;
+        }
+        return self;
+    }
+
+    /** write a text to the program's input, as its bytes */
+    def write_text(text: string) : subprocess {
+        if(sizeof(text.data) == 0) { return self; }
+        return write(text.data!!);
+    }
+
+    /** "that was all": the program reads the end of its input. Nothing can be written afterwards. */
+    def close_input() {
+        if(input == NONE) { return; }
+        close_end(input);
+        input = NONE;
+    }
+
+    // ------------------------------------------------------------------ its output
+
+    private def read_from(stream: _int64, into: _int8[], most: _int64) : _int64 {
+        if(stream == NONE || most < 1) { return 0; }
+        if(build.is_windows()) {
+            got := new _int32[1];
+            while(true) {
+                if(ReadFile(stream, into, most, got, 0) == 0) { return 0; }     // the program closed that end (or is gone)
+                // (a program that writes "nothing" - Windows programs do - is read as 0 bytes: that is not the end)
+                if(got[0] > 0) { return got[0]; }
+            }
+        }
+        got : _int64 = read(stream, into, most);
+        if(got < 0) { return 0; }
+        return got;
+    }
+
+    private def bytes_from(stream: _int64, most: _int64) : _int8[] {
+        if(most > sizeof(chunk)) { most = sizeof(chunk); }
+        got : _int64 = read_from(stream, chunk, most);
+        if(got == 0) { return new _int8[0]; }
+        return copy(chunk, 0, got)!!;
+    }
+
+    private def all_from(stream: _int64) : string {
+        whole := new byte_buffer();
+        while(true) {
+            part := bytes_from(stream, sizeof(chunk));
+            if(sizeof(part) == 0) { break; }
+            whole.put_bytes(part);
+        }
+        bytes := whole.to_array();
+        if(bytes == null || sizeof(bytes!!) == 0) { return ""; }
+        return new string(bytes!!, 0, sizeof(bytes!!));
+    }
+
+    /**
+     * Wait for the program to print something and return it: at least one
+     * byte, at most `most`. An EMPTY array: it has closed its output (it
+     * ended, usually) and everything it printed has been read.
+     */
+    def read(most: _int64) : _int8[] {
+        return bytes_from(output, most);
+    }
+
+    /** read as read() does, as a text */
+    def read_text(most: _int64) : string {
+        bytes := read(most);
+        if(sizeof(bytes) == 0) { return ""; }
+        return new string(bytes, 0, sizeof(bytes));
+    }
+
+    /**
+     * The next line the program prints, without its line end ("\n" and
+     * "\r\n" both end one). Waits for it. Null when the program has closed
+     * its output and nothing is left.
+     */
+    def read_line() : string? {
+        line := new char_buffer();
+        any : bool = false;
+        while(true) {
+            if(read_from(output, one, 1) == 0) {
+                if(!any) { return null; }
+                break;
+            }
+            any = true;
+            if(one[0] == '\n') { break; }
+            if(one[0] != '\r') { line.append_char(one[0]); }
+        }
+        return line.to_string() ?: "";
+    }
+
+    /** everything the program prints from here to the end of its output (waits for it to close it) */
+    def read_all_text() : string {
+        return all_from(output);
+    }
+
+    /** as read(), of the program's error output (always empty when it was started merged) */
+    def read_error(most: _int64) : _int8[] {
+        return bytes_from(errors, most);
+    }
+
+    /** everything the program prints as errors from here to the end ("" when it was started merged) */
+    def read_all_error_text() : string {
+        return all_from(errors);
+    }
+
+    // ------------------------------------------------------------------ its life
+
+    /** what the system says a finished program's status is, as an exit code (a signal: 128 + its number) */
+    private static def decode(status: _int64) : _int64 {
+        number : _int64 = status & 0x7f;
+        if(number != 0) { return 128 + number; }
+        return (status >> 8) & 0xff;
+    }
+
+    /** has it ended? (asks the system, without waiting) */
+    private def look() : bool {
+        if(ended) { return true; }
+        if(build.is_windows()) {
+            if(WaitForSingleObject(process_handle, 0) != 0) { return false; }
+            ended_on_windows();
+            return true;
+        }
+        status := new _int32[1];
+        if(waitpid(process_id, status, 1) == process_id) {      // 1: do not wait
+            ended = true;
+            code = decode(status[0]);
+        }
+        return ended;
+    }
+
+    private def ended_on_windows() {
+        result := new _int32[1];
+        GetExitCodeProcess(process_handle, result);
+        ended = true;
+        code = result[0] & 0xFFFFFFFF;
+    }
+
+    /** is the program still running? */
+    def is_running() : bool {
+        return !look();
+    }
+
+    /**
+     * Wait until the program has ended and return its exit code (0 means
+     * success by convention; on Linux a program ended by a signal has 128 +
+     * the signal's number, as the shell says it).
+     */
+    def wait() : _int64 {
+        if(ended) { return code; }
+        if(build.is_windows()) {
+            WaitForSingleObject(process_handle, 0xFFFFFFFF);
+            ended_on_windows();
+            return code;
+        }
+        status := new _int32[1];
+        while(!ended) {
+            if(waitpid(process_id, status, 0) == process_id) {
+                ended = true;
+                code = decode(status[0]);
+            } else {
+                // (the system no longer knows it: nothing to wait for)
+                ended = true;
+            }
+        }
+        return code;
+    }
+
+    /** wait at most that long; true when the program has ended by then */
+    def wait_for(milliseconds: _int64) : bool {
+        if(ended) { return true; }
+        if(build.is_windows()) {
+            if(WaitForSingleObject(process_handle, milliseconds) != 0) { return false; }
+            ended_on_windows();
+            return true;
+        }
+        waited : _int64 = 0;
+        while(!look()) {
+            if(waited >= milliseconds) { return false; }
+            thread.sleep(10);
+            waited = waited + 10;
+        }
+        return true;
+    }
+
+    /**
+     * The exit code of a program that has ended.
+     * Throws illegal_state_exception while it still runs: wait() first.
+     */
+    def exit_code() : _int64 {
+        if(!look()) { throw new illegal_state_exception("subprocess: the program is still running: " + command_line); }
+        return code;
+    }
+
+    /**
+     * Stop the program now. It gets no chance to tidy up. (Programs IT
+     * started are not stopped with it.) Nothing happens when it has ended.
+     */
+    def kill() {
+        if(look()) { return; }
+        if(build.is_windows()) { TerminateProcess(process_handle, 1); }
+        else { kill(process_id, 9); }
+    }
+
+    private def close_end(end: _int64) {
+        if(build.is_windows()) { CloseHandle(end); }
+        else { close(end); }
+    }
+
+    /**
+     * Let go of the three streams (and, on Windows, of the system's handle
+     * of the program). The program is not stopped by this; one that still
+     * runs is not waited for either - wait() before close() when its exit
+     * code matters. Closing twice does nothing.
+     */
+    def close() {
+        close_input();
+        if(output != NONE) { close_end(output); output = NONE; }
+        if(errors != NONE) { close_end(errors); errors = NONE; }
+        if(build.is_windows()) {
+            if(process_handle != 0) {
+                look();
+                CloseHandle(process_handle);
+                process_handle = 0;
+                ended = true;
+            }
+        } else {
+            look();         // (a program that has ended is taken off the system's list)
+        }
+    }
+}

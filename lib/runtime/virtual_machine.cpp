@@ -327,7 +327,7 @@ void main_vm_loop(sharp_function *frame)
                 TC(TC_REG_INT(CMT) TC_RT(single_arg) = tk_int;)
                 {
                     gc_safe_region waitingForKey;
-                    regs[single_arg].i = (regs[CMT].i != 0) ? getche() : getch();
+                    regs[single_arg].i = vm_read_key(regs[CMT].i != 0);
                 }
                 branch
             CHECKLEN:

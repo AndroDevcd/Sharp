@@ -119,3 +119,27 @@ char getche(void)
     return getch_(1);
 }
 #endif
+//
+// ONE CHARACTER OF THE PROGRAM'S INPUT, for the GET instruction: the key pressed, or - when the
+// input is not a keyboard but a file or a pipe (another program writes it) - its next byte.
+// -1 when the input has ended. (It used to be the key 0 there, which a program could not tell from
+// a 0 byte and which made "read lines until the input ends" loop for ever; and on Windows a pipe
+// was not read at all: the console's keyboard was asked whatever the input was.)
+//
+#ifdef POSIX_
+long long vm_read_key(bool echo) {
+    unsigned char ch = 0;
+    initTermios(echo ? 1 : 0);
+    bool got = read(0, &ch, 1) == 1;
+    resetTermios();
+    return got ? (long long) ch : -1;
+}
+#else
+#include <conio.h>
+#include <io.h>
+long long vm_read_key(bool echo) {
+    if(_isatty(0)) return echo ? _getche() : _getch();
+    unsigned char ch = 0;
+    return _read(0, &ch, 1) == 1 ? (long long) ch : -1;
+}
+#endif

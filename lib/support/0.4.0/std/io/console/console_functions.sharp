@@ -143,7 +143,7 @@ def read_line() : string {
     message : string = "";
 
     ch = read_char();
-    while((ch != 13) && (ch != 10)) { // \r\n
+    while((ch != 13) && (ch != 10) && (ch != 0 - 1)) { // \r\n, or the input has ended
         message.append(ch);
         ch = read_char();
     }
@@ -157,7 +157,7 @@ def read_passwd() : string {
     message : string = "";
 
     ch = read_raw_char();
-    while((ch != 13) && (ch != 10)) { // \r\n
+    while((ch != 13) && (ch != 10) && (ch != 0 - 1)) { // \r\n, or the input has ended
         message.append(ch);
         ch = read_raw_char();
     }

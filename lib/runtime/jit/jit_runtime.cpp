@@ -267,7 +267,7 @@ void jit_rt_put_character(Int value) {
 
 Int jit_rt_get_character(Int echo) {
     gc_safe_region waitingForKey;
-    return echo != 0 ? getche() : getch();
+    return vm_read_key(echo != 0);
 }
 
 void jit_rt_sleep(Int time) {

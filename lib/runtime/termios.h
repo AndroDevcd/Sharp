@@ -22,4 +22,7 @@ void reset_original_console_settings();
 #include <conio.h>
 #endif
 
+/** One character of the program's input (a key, or the next byte of a file or pipe); -1 at its end. */
+long long vm_read_key(bool echo);
+
 #endif //SHARP_TERMIOS_H
