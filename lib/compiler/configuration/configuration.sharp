@@ -33,7 +33,7 @@ import (
  */
 
 program_name : string = "sharpc";
-program_vers : string = "0.5.2";
+program_vers : string = "0.5.3";
 
 /**
  * The compiler cannot go on: a command line it does not understand, a file

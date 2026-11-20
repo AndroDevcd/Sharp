@@ -42,6 +42,15 @@ void jit_rt_call(Int address);                              // CALL
 void jit_rt_call_dynamic(Int argumentCount);                // CALLD (the function value is under the arguments)
 void jit_rt_invoke_delegate(Int address, Int argSize, Int staticCall);
 
+// A VIRTUAL CALL'S CACHE (jit/x64/opcode/direct_calls.cpp, virtual_call). Each place in compiled
+// code that calls an overridden function has one: for the classes of the objects it has met, the
+// function that class runs. An entry is one word, written and read whole (two threads can use a
+// place at once):   [ the function's address : 32 bits | the class's address : 32 bits ]
+// An empty entry is all ones, which is no class.
+const int VIRTUAL_CALL_CACHE_ENTRIES = 4;
+uint64_t* jit_new_virtual_call_cache();         // (lives as long as the program, like the code that reads it)
+void jit_rt_invoke_virtual(Int address, Int argumentCount, uint64_t *cache);   // the slow way: look it up, remember it, call it
+
 /**
  * The function is over (JIT_OK) or an exception is leaving it (JIT_EXCEPTION):
  * pop its VM frame like the interpreter's RET. Returns `code`.

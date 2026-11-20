@@ -24,6 +24,7 @@ emit_result ArmGenerator::emit_casts_and_locks() {
         case Opcode::SWAP:      // swap the two slots on top of the stack
             prepare_runtime_call();
             call_checked(reinterpret_cast<void*>(jit_rt_swap), { Arg::pointer(THREAD) });
+            m.stack_numbers_changed();
             return emitted;
         case Opcode::LOCK:      // if(lock_object(ptr->o)) return;   (the fiber waits, and runs LOCK again)
             prepare_runtime_call();

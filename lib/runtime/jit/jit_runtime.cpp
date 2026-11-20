@@ -47,6 +47,32 @@ void jit_rt_invoke_delegate(Int address, Int argSize, Int staticCall) {
     GUARDED( invoke_delegate(address, argSize, staticCall != 0); )
 }
 
+uint64_t* jit_new_virtual_call_cache() {
+    uint64_t *cache = new uint64_t[VIRTUAL_CALL_CACHE_ENTRIES];
+    for(int i = 0; i < VIRTUAL_CALL_CACHE_ENTRIES; i++) cache[i] = ~(uint64_t)0;
+    return cache;
+}
+
+void jit_rt_invoke_virtual(Int address, Int argumentCount, uint64_t *cache) {
+    // which function the receiver's class runs for this call (the search invoke_delegate() makes):
+    // remembered, so that the next object of this class is called directly
+    sharp_object *receiver = (thread_self->task->sp - argumentCount)->obj.o;
+    if(receiver != nullptr && receiver->type == type_class) {
+        const uint64_t classAddress = CLASS(receiver->info);
+        sharp_function *found = nullptr;
+        for(sharp_class *at = vm.classes + classAddress; at != nullptr && found == nullptr; at = at->base)
+            for(Int i = at->methodCount - 1; i >= 0; i--)
+                if(at->methods[i]->delegateAddress == address) { found = at->methods[i]; break; }
+        if(found != nullptr) {
+            int entry = (int)(classAddress % VIRTUAL_CALL_CACHE_ENTRIES);      // (taken when none is empty)
+            for(int i = 0; i < VIRTUAL_CALL_CACHE_ENTRIES; i++)
+                if(cache[i] == ~(uint64_t)0) { entry = i; break; }
+            cache[entry] = classAddress | ((uint64_t)(uint32_t)found->address << 32);
+        }
+    }
+    GUARDED( invoke_delegate(address, argumentCount, false); )
+}
+
 Int jit_rt_leave(sharp_thread *thread, Int code) {
     if(code == JIT_EXCEPTION)
         enable_exception_flag(thread, true);

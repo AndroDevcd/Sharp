@@ -59,7 +59,7 @@ bool ArmCompiler::compileFunction(sharp_function* function, jit_compiled_functio
 
     output->jumpTableSize = (size_t)generator.count;
     output->compiledCode = entry;
-    output->directEntry = nullptr;      // no direct calls between compiled functions on ARM yet
+    output->directEntry = (void*)(base + holder.labelOffsetFromBase(machine.place(generator.directEntry)));
     output->codeSize = holder.codeSize();
     output->originalFunction = function;
     output->isCompiled = true;
@@ -128,7 +128,7 @@ bool ArmCompiler::compileFunction(sharp_function* function, jit_compiled_functio
 
     output->jumpTableSize = (size_t)generator.count;
     output->compiledCode = reinterpret_cast<jit_function_ptr>(const_cast<uint8_t*>(base));     // the C++ door is the first instruction
-    output->directEntry = nullptr;      // no direct calls between compiled functions on ARM yet
+    output->directEntry = (void*)(base + machine.offset_of(generator.directEntry));
     output->codeSize = machine.code_bytes();
     output->originalFunction = function;
     output->isCompiled = true;

@@ -44,9 +44,8 @@ emit_result X64Generator::emit_decimal_math() {
             Label done = a.newLabel();
             vm_register_decimal(dual2, xmm0);
             a.cvttsd2si(rax, xmm0);
-            a.mov(rcx, (uint64_t)0x8000000000000000ull);
-            a.cmp(rax, rcx);
-            a.jne(done);
+            a.cmp(rax, 1);                                  // only 0x8000000000000000 - 1 overflows
+            a.jno(done);
             save_vm_registers();                            // rare: ask the runtime (xmm0 is the argument)
             call_runtime(reinterpret_cast<void*>(jit_rt_decimal_to_integer));
             load_vm_registers();

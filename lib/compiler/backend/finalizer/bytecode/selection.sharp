@@ -28,6 +28,16 @@ import (
  * adx for array indexes, cmt for conditions (comparisons write it, je / jne
  * read it), bmr where the VM writes it (test, tne, uand, or, xor).
  *
+ * WHERE THE VM HAS A SLOT FORM (codegen.md 4.10: arithmetic, comparisons that
+ * jump, elements, fields, copies, returns) the whole of that is ONE
+ * instruction on the slots themselves, and the sequence through registers is
+ * only what is left for slots out of the slot form's reach:
+ *
+ *      int_binary add %3, %0, %1   ->  add_s 3, 0, 1
+ *      get_field %2, %0.count      ->  getf_s 2, 0, <slot of count>
+ *
+ * (selection_slots.sharp; each select_ function asks for the slot form first.)
+ *
  * The sequences are the right column of the tables in codegen.md section 6.
  * This file holds the dispatcher and the sequences of one or two words; the
  * longer ones are grouped by what they work on:
@@ -93,6 +103,7 @@ def select_instruction(out: code_emitter, made: ir_instruction, context: selecti
         return;
     }
     if(kind == IR_NOT) {
+        if(made.detail != 1 && slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_NOT_S, made.target, made.first, 0); return; }
         out.class_c(OP_LOADL, REG_EBX, made.first);
         if(made.detail == 1) { out.class_c(OP_DNOT, REG_EBX, REG_EBX); } else { out.class_c(OP_NOT, REG_EBX, REG_EBX); }
         out.class_c(OP_SMOVR_2, REG_EBX, made.target);
@@ -106,6 +117,7 @@ def select_instruction(out: code_emitter, made: ir_instruction, context: selecti
         return;
     }
     if(kind == IR_IS_NULL) {
+        if(slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_ISNULL_S, made.target, made.first, 0); return; }
         out.class_d(OP_MOVL, made.first);
         out.class_d(OP_CHECKNULL, REG_EBX);
         out.class_c(OP_SMOVR_2, REG_EBX, made.target);
@@ -122,6 +134,7 @@ def select_instruction(out: code_emitter, made: ir_instruction, context: selecti
     if(kind == IR_GET_ELEMENT) { select_get_element(out, made); return; }
     if(kind == IR_SET_ELEMENT) { select_set_element(out, made, context); return; }
     if(kind == IR_LENGTH) {
+        if(slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_SIZEOF_S, made.target, made.first, 0); return; }
         out.class_d(OP_MOVL, made.first);
         out.class_d(OP_SIZEOF, REG_EBX);
         out.class_c(OP_SMOVR_2, REG_EBX, made.target);
@@ -139,6 +152,13 @@ def select_instruction(out: code_emitter, made: ir_instruction, context: selecti
     }
     if(kind == IR_JUMP) { out.class_d(OP_JMP, out.label_pc(made.number)); return; }
     if(kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS) {
+        if(out.skip_at < 0) {
+            // the condition is in its slot: one instruction, no register
+            if(kind == IR_JUMP_IF) { out.d_and_raw(OP_JNZ_S, made.first, out.label_pc(made.number)); }
+            else { out.d_and_raw(OP_JZ_S, made.first, out.label_pc(made.number)); }
+            return;
+        }
+        // (the instruction before left the condition in cmt and did not store it: `hand_on`, bytecode.sharp)
         out.class_c(OP_LOADL, REG_CMT, made.first);
         // je jumps when cmt is NOT 0 ("if true"), jne when it IS 0 (codegen.md 4.9)
         if(kind == IR_JUMP_IF) { out.class_d(OP_JE, out.label_pc(made.number)); }
@@ -148,8 +168,9 @@ def select_instruction(out: code_emitter, made: ir_instruction, context: selecti
     if(kind == IR_RETURN) { out.class_d(OP_RET, 0); return; }
     if(kind == IR_RETURN_VALUE) {
         if(context.is_reference(made.first)) {
-            out.class_d(OP_MOVL, made.first);
-            out.class_e(OP_RETURNOBJ);
+            out.class_d(OP_RETURNOBJ_S, made.first);
+        } else if(made.number == NARROW_NONE && out.skip_at < 0) {
+            out.class_d(OP_RETURNVAL_S, made.first);
         } else {
             out.class_c(OP_LOADL, REG_EBX, made.first);
             narrow(out, REG_EBX, made.number);

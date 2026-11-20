@@ -38,7 +38,12 @@
  */
 #define INTERNAL_STACK_SIZE (MB_TO_BYTES(16) / sizeof(stack_item))
 #define INTERNAL_STACK_MIN KB_TO_BYTES(4)
-#define STACK_SIZE MB_TO_BYTES(1)
+// 2 MB (it was 1 MB until 2026-11-20): a call in compiled code takes 32 bytes
+// of the thread stack since compiled code calls compiled code directly with a
+// machine frame of its own (it was 16), and a recursion must get as deep as it
+// did - about 57,000 calls. The operating system only reserves these
+// addresses; memory is used as far as the stack really gets.
+#define STACK_SIZE MB_TO_BYTES(2)
 #define STACK_MIN KB_TO_BYTES(50)
 #define MEMORY_MIN KB_TO_BYTES(12)
 // How much of a thread's machine stack is kept back for the VM's own C++ code

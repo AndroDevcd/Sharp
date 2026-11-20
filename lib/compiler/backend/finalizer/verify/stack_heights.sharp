@@ -68,6 +68,10 @@ def check_stack_heights(words: number_list, starts: number_list, made: function_
             if(problem != null) { return problem; }
             if(opcode == OP_JMP) { continue; }
         }
+        if(is_slot_jump(opcode)) {      // the target is the second word; the instruction after it is reached too
+            problem := carry(heights, waiting, words.at(pc + 1), after, pc);
+            if(problem != null) { return problem; }
+        }
         if(next < words.count) {
             problem := carry(heights, waiting, next, after, pc);
             if(problem != null) { return problem; }

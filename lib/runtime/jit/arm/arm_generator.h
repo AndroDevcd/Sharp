@@ -24,9 +24,11 @@
 // fiber's stack and frames, the jump table with an address for every instruction, the return codes,
 // the runtime helpers (jit/jit_runtime.h) - a compiled function looks the same to the rest of the VM.
 //
-// WHAT IS NOT (yet): the VM registers stay in the fiber's register array (arm_machine.h says why),
-// and a CALL always goes through the runtime (jit_rt_call) - there is no direct call from compiled
-// code to compiled code.
+// Calls from compiled code to compiled code are direct, as on x86-64 (opcode/direct_calls.cpp).
+//
+// WHAT IS NOT: the VM registers stay in the fiber's register array (arm_machine.h says why; the
+// 64-bit machine keeps copies of them in CPU registers underneath). The local numbers a function
+// uses most are kept in CPU registers as far as the machine has them (pick_local_homes).
 //
 // Each case in opcode/ shows the interpreter's statement it stands for; when the interpreter's
 // handler changes (virtual_machine.cpp, main_vm_loop), the case here and the one in jit/x64 change.
@@ -47,19 +49,27 @@
 #include "../../../core/vm_register.h"
 #include <vector>
 
+// Direct calls do prepare_method()'s work in machine code. Builds where prepare_method() checks or
+// counts more than that keep every call on the slow way through the runtime (as jit/x64 does).
+#if !defined(SAFE_EXECUTION) && !defined(SHARP_TELEMETRY) && !defined(SHARP_TYPE_CHECK)
+#define SHARP_ARM_JIT_DIRECT_CALLS
+#endif
+
 namespace armjit {
 
 /** what an emit_<kind>() function says about the current instruction */
 enum emit_result { emitted, not_mine, cannot_compile };
 
 /** rare code that is placed after the function (sections/slow_paths.cpp) */
-enum slow_kind { slow_grow, slow_null, slow_bounds, slow_safepoint, slow_barrier };
+enum slow_kind { slow_grow, slow_null, slow_bounds, slow_safepoint, slow_barrier,
+                 slow_call, slow_virtual_call, slow_found_call, slow_function_value_call };
 
 struct slow_path_request {
     slow_kind kind;
     int entry;          // jumped to from the fast path
     int back;           // slow_grow, slow_barrier: where the fast path continues (-1: nowhere)
     Int pc;             // the instruction (slow_safepoint: the jump's target)
+    void *data;         // slow_virtual_call: the place's cache
 };
 
 /** how many words an instruction takes (1 or 2) */
@@ -79,6 +89,7 @@ public:
     std::vector<int> labels;            // the machine code of each instruction, by pc
     std::vector<bool> starts;           // is this word the start of an instruction?
     int decline = -1;                   // "this pc is not an instruction" exit
+    int directEntry = -1;               // the direct door: what other compiled code calls
     Int count;                          // number of bytecode words
     int blockedBy = -1;                 // the opcode that could not be compiled
 
@@ -100,11 +111,13 @@ private:
     std::vector<slow_path_request> slowPaths;
 
     // ---- labels of the sections
-    int directEntry = -1, resumeEntry = -1, resumeCheck = -1, dispatch = -1, exception = -1;
+    int doorEntry = -1, resumeEntry = -1, resumeCheck = -1, dispatch = -1, exception = -1;
     int exitSwitch = -1, exitKill = -1, leave = -1;
+    int callNotFinished = -1;           // after a direct call that did not return JIT_OK (sections/dispatch.cpp)
 
     void decode();
     bool emit_instruction();
+    void pick_local_homes();
 
     // ---- sections/
     void emit_entry();
@@ -124,6 +137,20 @@ private:
     emit_result emit_control_flow();
     emit_result emit_calls();
     emit_result emit_console();
+    emit_result emit_slot_forms();                              // opcode/slot_forms.cpp
+    void slot_object_or_throw(Int slot, PReg to);               // ptr on the slot; to = its object
+    void slot_element_or_throw(Int array, Int index, PReg to);  // ... and V1 = the index, inside the array
+
+    // ---- opcode/direct_calls.cpp: compiled code calls compiled code
+    void direct_call(Int address);                              // CALL
+    void virtual_call(Int argumentCount);                       // INVOKE_DELEGATE, not static
+    void function_value_call(Int argumentCount);                // CALLD
+    void direct_return();                                       // RET without an exception
+    void call_found_function(Int instructionWords, int slowCall, int afterCall);
+    void jump_unless_room_for_a_frame(int slowCall);
+    void record_the_way_back(Int lastWord);
+    void run_the_callee();
+    void continue_after_call(Int continueAt, int afterCall);
 
     // ---- where things are (arm_generator.cpp)
     static int32_t vm_register(Int n) { return (int32_t) (n * 8); }            // offset from REGS
@@ -148,6 +175,7 @@ private:
     void load_object_or_throw(PReg to);             // to = ptr->o, or nullptr_exception
     void load_object_or_null(PReg to);              // to = ptr ? ptr->o : null
     bool jump_to_instruction(Int target);           // (a loop safe point when backwards)
+    bool before_conditional_jump(Int target);       // the safe point of a jump backwards, BEFORE its comparison; false: no such instruction
     void check_after_runtime_call(bool continuesHere);
 
     // ---- arithmetic on VM registers

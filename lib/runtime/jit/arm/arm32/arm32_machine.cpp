@@ -9,20 +9,32 @@
 //
 // THE REGISTERS (there are 14 to give out; a 64-bit VM number takes two)
 //      r4 regs   r5 fp   r6 sp   r7 ptr   r8 task        reserved: C++ gives them back
-//      thread                                            reserved too, but it lives in the door's frame
-//                                                        on the stack: it is only asked for a signal,
-//                                                        or handed to C++
+//      thread                                            reserved too, but it lives on the stack, in
+//                                                        the frame of the door and of every body: it is
+//                                                        only asked for a signal, or handed to C++
 //      r9 r10 r2                                         pointer scratch (PA PB PC)
 //      r11:r12   lr:r3                                   value scratch (V0, V1): low half : high half
 //      d4 d5                                             decimal scratch (D0 D1)
+//      d8 d9 d10 d11                                     the four locals the function uses most as decimals
 //      r0 r1                                             this file's own - and where C++ returns things
 //      r0 .. r3, d0, d1, the stack                       arguments of C++
 //
 // A VM number in memory is its low half, then its high half (ARM here is little-endian).
 //
+// LOCAL DECIMALS THAT LIVE IN REGISTERS ("homes"). The floating point unit has registers to spare
+// (and C++ hands d8 .. d15 back), the processor has none: so the locals a function uses most as
+// DECIMALS get a register each, and whole numbers stay in memory. A home is a COPY that saves the
+// reads: every write goes to the home and to memory, and the homes are read again whenever FP is
+// loaded or the generator says a local may have changed (arm_machine.h, home_locals).
+// Decimal arithmetic and jumps on locals work in the homes directly (slot_decimal_...()).
+// SHARP_ARM_HOMES=0 or 1 in the environment: none (to compare).
+//
 // THE STACK (it must be at a multiple of 8 whenever C++ is called)
-//      the door     push r4-r11, lr (36 bytes) and 12 more:   [sp] = thread
-//      the body     push lr (4 bytes) and 12 more:            [sp] = the kept pointer,  [sp+16] = thread
+//      the door     push r4-r11, lr (36 bytes), d8-d11 (32 bytes) and 12 more:   [sp] = thread
+//      the body     push lr (4 bytes) and 20 more:            [sp], [sp+4], [sp+8] = the three slots of
+//                                                             frame_store(),  [sp+12] = thread
+// A body gets the thread in r0 from whoever calls it - the door, or the body of another compiled
+// function (call_label, call_compiled) - and keeps it in its own frame.
 //
 // A CALL INTO C++: every argument is first written to a block on the stack laid out as C++ expects
 // (the first 16 bytes are what goes in r0..r3), then the 16 bytes are popped into r0..r3 and the
@@ -225,9 +237,11 @@ void Arm32Machine::v_load(VReg to, PReg base, int32_t offset) {
 }
 
 void Arm32Machine::v_store(VReg from, PReg base, int32_t offset) {
+    int home = decimal_home(base, offset);
     int reg = base_for(base, offset, 4091, false, T1);
     memory(false, false, lo(from), reg, offset);
     memory(false, false, hi(from), reg, offset + 4);
+    if(home >= 0) word(ALWAYS, 0x0C400B10u | ((uint32_t) hi(from) << 16) | ((uint32_t) lo(from) << 12) | (uint32_t) home);     // vmov home, low, high
 }
 
 void Arm32Machine::v_operation(VOp op, VReg to, VReg left, VReg right) {
@@ -335,6 +349,22 @@ void Arm32Machine::v_compare(VReg to, VReg left, VReg right, Cond how) {
     one_or_zero(how == LT || how == GT ? C_LT : C_GE, to);
 }
 
+void Arm32Machine::v_jump_if(VReg left, VReg right, Cond how, bool holds, int which) {
+    if(how == EQ || how == NE) {
+        data(ALWAYS, O_EOR, false, T0, lo(left), lo(right));
+        data(ALWAYS, O_EOR, false, T1, hi(left), hi(right));
+        data(ALWAYS, O_ORR, true, T0, T0, T1);
+        branch_to((how == EQ) == holds ? C_EQ : C_NE, which);
+        return;
+    }
+    // (as v_compare: left - right for its flags; "greater" is "less" the other way round)
+    VReg a = how == LT || how == GE ? left : right, b = how == LT || how == GE ? right : left;
+    data(ALWAYS, O_CMP, true, 0, lo(a), lo(b));
+    data(ALWAYS, O_SBC, true, T0, hi(a), hi(b));
+    bool less = how == LT || how == GT;
+    branch_to(less == holds ? C_LT : C_GE, which);
+}
+
 void Arm32Machine::v_not_zero(VReg r) {
     data(ALWAYS, O_ORR, true, lo(r), lo(r), hi(r));
     data_constant(C_NE, O_MOV, false, lo(r), 0, 1);
@@ -378,25 +408,53 @@ void Arm32Machine::d_constant(DReg to, double value) {
 }
 
 void Arm32Machine::d_load(DReg to, PReg base, int32_t offset) {
+    int home = decimal_home(base, offset);
+    if(home >= 0) { decimal_move(d(to), home); return; }
     int reg = base_for(base, offset, 1020, true, T1);
     memory_decimal(true, d(to), reg, offset);
 }
 
 void Arm32Machine::d_store(DReg from, PReg base, int32_t offset) {
+    int home = decimal_home(base, offset);
+    if(home >= 0) decimal_move(home, d(from));
     int reg = base_for(base, offset, 1020, true, T1);
     memory_decimal(false, d(from), reg, offset);
 }
 
-void Arm32Machine::d_operation(DOp op, DReg to, DReg left, DReg right) {
-    uint32_t bits = op == D_ADD ? 0x0E300B00u : op == D_SUB ? 0x0E300B40u : op == D_MUL ? 0x0E200B00u : 0x0E800B00u;
-    word(ALWAYS, bits | ((uint32_t) d(left) << 16) | ((uint32_t) d(to) << 12) | (uint32_t) d(right));
+void Arm32Machine::decimal_move(int to, int from) {
+    if(to != from) word(ALWAYS, 0x0EB00B40u | ((uint32_t) to << 12) | (uint32_t) from);     // vmov to, from
 }
+
+void Arm32Machine::decimal_operation(DOp op, int to, int left, int right) {
+    uint32_t bits = op == D_ADD ? 0x0E300B00u : op == D_SUB ? 0x0E300B40u : op == D_MUL ? 0x0E200B00u : 0x0E800B00u;
+    word(ALWAYS, bits | ((uint32_t) left << 16) | ((uint32_t) to << 12) | (uint32_t) right);
+}
+
+void Arm32Machine::d_operation(DOp op, DReg to, DReg left, DReg right) { decimal_operation(op, d(to), d(left), d(right)); }
 
 /** (the conditions are those of arm64: with "not a number" every comparison is false but !=) */
 void Arm32Machine::d_compare(VReg to, DReg left, DReg right, Cond how) {
     word(ALWAYS, 0x0EB40B40u | ((uint32_t) d(left) << 12) | (uint32_t) d(right));      // vcmp
     word(ALWAYS, 0x0EF1FA10u);                                                         // its flags to the processor's
     one_or_zero(how == LT ? C_MI : how == GT ? C_GT : how == LE ? C_LS : how == GE ? C_GE : how == EQ ? C_EQ : C_NE, to);
+}
+
+/** (the conditions of d_compare; each "does not hold" is the exact opposite, so it is taken when one is not a number) */
+void Arm32Machine::d_jump_if(DReg left, DReg right, Cond how, bool holds, int which) { decimal_jump_if(d(left), d(right), how, holds, which); }
+
+void Arm32Machine::decimal_jump_if(int left, int right, Cond how, bool holds, int which) {
+    word(ALWAYS, 0x0EB40B40u | ((uint32_t) left << 12) | (uint32_t) right);            // vcmp
+    word(ALWAYS, 0x0EF1FA10u);                                                         // its flags to the processor's
+    int condition;
+    switch(how) {
+        case LT: condition = holds ? C_MI : C_PL; break;
+        case GT: condition = holds ? C_GT : C_LE; break;
+        case LE: condition = holds ? C_LS : C_HI; break;
+        case GE: condition = holds ? C_GE : C_LT; break;
+        case EQ: condition = holds ? C_EQ : C_NE; break;
+        default: condition = holds ? C_NE : C_EQ; break;
+    }
+    branch_to(condition, which);
 }
 
 /** (the processor converts 32-bit whole numbers only: C++ does it) */
@@ -411,6 +469,69 @@ void Arm32Machine::d_from_whole(DReg to, VReg from) {
 }
 
 // ---------------------------------------------------------------------------------
+// Local decimals that live in registers (the top of this file)
+// ---------------------------------------------------------------------------------
+
+static const int DECIMAL_HOME[4] = { 8, 9, 10, 11 };
+
+/** (a local far up the frame is left out: reading it again would need a register to build its address in) */
+void Arm32Machine::home_locals(const std::vector<int32_t> &, const std::vector<int32_t> &decimal) {
+    const char *text = getenv("SHARP_ARM_HOMES");
+    if(text != nullptr && (text[0] == '0' || text[0] == '1')) return;
+    for(int32_t offset : decimal)
+        if(offset >= 0 && offset <= 1020 && decimal_homes.size() < 4) decimal_homes.push_back(offset);
+}
+
+int Arm32Machine::decimal_home(PReg base, int32_t offset) {
+    if(base != FP) return -1;
+    for(size_t i = 0; i < decimal_homes.size(); i++)
+        if(decimal_homes[i] == offset) return DECIMAL_HOME[i];
+    return -1;
+}
+
+void Arm32Machine::reload_decimal_homes() {
+    for(size_t i = 0; i < decimal_homes.size(); i++)
+        memory_decimal(true, DECIMAL_HOME[i], p(FP), decimal_homes[i]);
+}
+
+void Arm32Machine::stack_numbers_changed() { reload_decimal_homes(); }
+
+/** the register a local decimal is read from: its home, or `scratch` after loading it there */
+int Arm32Machine::decimal_local(int32_t offset, int scratch) {
+    int home = decimal_home(FP, offset);
+    if(home >= 0) return home;
+    int reg = base_for(FP, offset, 1020, true, T1);
+    memory_decimal(true, scratch, reg, offset);
+    return scratch;
+}
+
+/** a local's new decimal is in `from`: memory gets it, and its home when it was not computed there */
+void Arm32Machine::decimal_local_written(int32_t offset, int from) {
+    int home = decimal_home(FP, offset);
+    if(home >= 0) decimal_move(home, from);
+    int reg = base_for(FP, offset, 1020, true, T1);
+    memory_decimal(false, from, reg, offset);
+}
+
+void Arm32Machine::slot_decimal_operation(DOp op, int32_t to, int32_t left, int32_t right) {
+    int l = decimal_local(left, d(D0)), r = decimal_local(right, d(D1));
+    int home = decimal_home(FP, to), result = home >= 0 ? home : d(D0);
+    decimal_operation(op, result, l, r);
+    decimal_local_written(to, result);
+}
+
+void Arm32Machine::slot_decimal_jump_if(int32_t left, int32_t right, Cond how, bool holds, int which) {
+    int l = decimal_local(left, d(D0)), r = decimal_local(right, d(D1));
+    decimal_jump_if(l, r, how, holds, which);
+}
+
+void Arm32Machine::slot_decimal_jump_if_constant(int32_t left, double right, Cond how, bool holds, int which) {
+    int l = decimal_local(left, d(D0));
+    d_constant(D1, right);
+    decimal_jump_if(l, d(D1), how, holds, which);
+}
+
+// ---------------------------------------------------------------------------------
 // Pointers
 // ---------------------------------------------------------------------------------
 
@@ -419,6 +540,7 @@ void Arm32Machine::p_constant(PReg to, uintptr_t value) { constant(p(to), (uint3
 void Arm32Machine::p_load(PReg to, PReg base, int32_t offset) {
     int reg = base_for(base, offset, 4095, false, p(to));
     memory(true, false, p(to), reg, offset);
+    if(to == FP) reload_decimal_homes();        // a new frame pointer: the stack moved, or other code ran
 }
 
 void Arm32Machine::p_store(PReg from, PReg base, int32_t offset) {
@@ -439,6 +561,29 @@ void Arm32Machine::p_load_32(PReg to, PReg base, int32_t offset) { p_load(to, ba
 void Arm32Machine::p_load_8(PReg to, PReg base, int32_t offset) {
     int reg = base_for(base, offset, 4095, false, p(to));
     memory(true, true, p(to), reg, offset);
+}
+
+void Arm32Machine::p_load_int(PReg to, PReg base, int32_t offset) { p_load(to, base, offset); }
+void Arm32Machine::p_store_32(PReg from, PReg base, int32_t offset) { p_store(from, base, offset); }
+
+void Arm32Machine::p_store_8(PReg from, PReg base, int32_t offset) {
+    int reg = base_for(base, offset, 4095, false, T1);
+    memory(false, true, p(from), reg, offset);
+}
+
+void Arm32Machine::p_multiply(PReg r, uint32_t by) {
+    constant(T1, by);
+    word(ALWAYS, 0x00000090u | ((uint32_t) p(r) << 16) | ((uint32_t) p(r) << 8) | (uint32_t) T1);    // mul r, r1, r
+}
+
+void Arm32Machine::p_and(PReg r, uint32_t mask) {
+    constant(T1, mask);
+    data(ALWAYS, O_AND, false, p(r), p(r), T1);
+}
+
+void Arm32Machine::p_jump_if_machine_stack_below(PReg limit, int which) {
+    data(ALWAYS, O_CMP, true, 0, STACK, p(limit));
+    branch_to(C_LO, which);
 }
 
 void Arm32Machine::p_move(PReg to, PReg from) {
@@ -595,6 +740,7 @@ void Arm32Machine::result_to_decimal(DReg to) { word(ALWAYS, 0x0EB00B40u | ((uin
 void Arm32Machine::door_enter() {
     in_body = false;
     word(ALWAYS, 0x092D4FF0u);                  // push r4-r11, lr
+    word(ALWAYS, 0x0D2D8B08u);                  // push d8-d11 (the homes of the local decimals)
     add_constant(STACK, STACK, -12);
     memory(false, false, R0, STACK, 0);         // thread
     move(4, R2);                                // registers
@@ -602,23 +748,34 @@ void Arm32Machine::door_enter() {
 
 void Arm32Machine::door_leave() {
     add_constant(STACK, STACK, 12);
+    word(ALWAYS, 0x0CBD8B08u);                  // pop d8-d11
     word(ALWAYS, 0x08BD8FF0u);                  // pop r4-r11, and the return address into the program counter
 }
 
 void Arm32Machine::body_enter() {
     in_body = true;                             // (everything written from here on is the body)
     word(ALWAYS, 0x092D4000u);                  // push lr
-    add_constant(STACK, STACK, -12);
+    add_constant(STACK, STACK, -20);
+    memory(false, false, R0, STACK, 12);        // the thread, from whoever called
 }
 
 void Arm32Machine::body_return() {
-    add_constant(STACK, STACK, 12);
+    add_constant(STACK, STACK, 20);
     word(ALWAYS, 0x08BD8000u);                  // pop the return address into the program counter
 }
 
-void Arm32Machine::call_label(int which) { branch_to(ALWAYS, which, true); }
-void Arm32Machine::keep_pointer(PReg from) { memory(false, false, p(from), STACK, 0); }
-void Arm32Machine::kept_pointer(PReg to) { memory(true, false, p(to), STACK, 0); }
+void Arm32Machine::call_label(int which) {
+    memory(true, false, R0, STACK, thread_offset());            // the body is handed the thread in r0
+    branch_to(ALWAYS, which, true);
+}
+
+void Arm32Machine::frame_store(int slot, PReg from) { memory(false, false, p(from), STACK, slot * 4); }
+void Arm32Machine::frame_load(PReg to, int slot) { memory(true, false, p(to), STACK, slot * 4); }
+
+void Arm32Machine::call_compiled(PReg target) {
+    memory(true, false, R0, STACK, thread_offset());
+    word(ALWAYS, 0x012FFF30u | (uint32_t) p(target));           // blx target
+}
 void Arm32Machine::return_code(int code) { constant(R0, (uint32_t) code); }
 
 void Arm32Machine::jump_through_table(PReg table, PReg index) {

@@ -45,7 +45,7 @@ void X64Generator::emit_exits() {
     a.mov(x86::eax, JIT_CONTEXT_SWITCH);
 
     a.bind(leave);
-    load_vm_registers();                                  // mov does not touch eax
+    load_vm_registers_only();                             // mov does not touch eax (our frame is gone: no slot homes)
 
     a.bind(epilogue);
     a.add(x86::rsp, FRAME_SIZE);                // the mirror image of the two body doors

@@ -102,9 +102,24 @@ def lower_function(made: function_layout, constants: text_table) : function_code
  */
 def select_every_instruction(out: code_emitter, ir: ir_function, context: selection_context, labels: number_list?) {
     count : _int64 = ir.instructions.size().value as _int64;
+    joined_jump : _int64 = 0 - 1;       // the jump a comparison before it has already done (selection_slots.sharp)
+    joined_compare : _int64 = 0 - 1;    // ... and the comparison a constant before it has already done
     for(i : _int64 = 0; i < count; i++) {
         instruction := ir.instructions.at(i);
         if(instruction.kind == IR_LABEL && labels != null) { labels!!.replace(instruction.number, out.pc()); }
+        if(i == joined_jump) { joined_jump = 0 - 1; continue; }
+        if(i == joined_compare) { joined_compare = 0 - 1; continue; }
+        if(instruction.kind == IR_INT_CONSTANT || instruction.kind == IR_DECIMAL_CONSTANT) {
+            joined_compare = compare_joined_by_constant(ir, i);
+            if(joined_compare >= 0) {
+                joined_jump = constant_compare_and_jump(out, ir, i, joined_compare);
+                continue;
+            }
+        }
+        if(jump_joined_by(ir, i) >= 0) {
+            joined_jump = compare_and_jump(out, ir, i);
+            if(joined_jump >= 0) { continue; }
+        }
         started : _int64 = out.pc();
         select_instruction(out, instruction, context);
         if(out.skip_at >= 0 && out.skip_at < out.pc()) {
@@ -127,6 +142,7 @@ def hand_on(out: code_emitter, ir: ir_function, context: selection_context, inde
     next : _int64 = index + 1;
     while(next < ir.instructions.size() && ir.instructions.at(next).kind == IR_LINE) { next++; }
     if(next >= ir.instructions.size() || ir.instructions.at(next).kind == IR_LABEL) { return; }
+    if(jump_joined_by(ir, next) >= 0) { return; }       // it reads its operands from their slots (selection_slots.sharp)
     trial := context.trial_emitter(out.label_pcs);
     select_instruction(trial, ir.instructions.at(next), context);
     load : _int64 = class_c_word(OP_LOADL, register, instruction.target);

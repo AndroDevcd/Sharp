@@ -1117,6 +1117,63 @@ Note on `je` / `jne`: `je pc` jumps when `cmt` is NOT zero ("if true"), `jne`
 when it IS zero ("if false"). Every "used" instruction must have its JIT
 code; the stage that first emits one checks `lib/runtime/jit/x64/opcode`.
 
+### 4.10 The slot forms (a4 - f0)
+
+Added 2026-11-20. The instructions of 4.9 move every value through a register:
+an IR instruction `d = a op b` became a load per operand, the operation and a
+store - four instructions, and a comparison with a constant followed by a jump
+was seven. The slot forms work on the frame slots themselves, so one IR
+instruction is one VM instruction. Operands are frame slots (`fp + n`), three
+of 7 bits each (layout B), so every slot must be 0 .. 127; a function with
+more slots than that keeps the forms of 4.9 for the slots out of reach, and so
+does everything that has no slot form (remainder, `**`, static and fiber-local
+fields, a narrowing field store). Both are always right; the slot form is only
+shorter - in the interpreter one dispatch instead of four, in machine code no
+register traffic (and the slot may live in a CPU register: 7.3).
+
+"d" is the slot written, "a" / "b" slots read, "k" a constant, "L" an absolute
+pc in the second word. Selection: `bytecode/selection_slots.sharp`; handlers:
+the end of `main_vm_loop`; machine code: `jit/x64/opcode/slot_forms.cpp`,
+`jit/arm/opcode/slot_forms.cpp`.
+
+| op | name | layout | operands | effect |
+|---|---|---|---|---|
+| a4-ab | add_s sub_s mul_s and_s or_s xor_s shl_s shr_s | B | d, a, b | `fp[d] = fp[a] op fp[b]` (whole numbers) |
+| ac-af | dadd_s dsub_s dmul_s ddiv_s | B | d, a, b | the same for decimals |
+| b0 b1 | i2d_s d2i_s | B | d, a | 4.3, slot to slot |
+| b2-b7 | jlt_s jgt_s jle_s jge_s jeq_s jne_s | B+L | a, b, sense | `if((fp[a] ? fp[b]) == sense) goto L` |
+| b8-bd | djlt_s ... djne_s | B+L | a, b, sense | the same for decimals (with "not a number" every comparison is false but `!=`) |
+| be-c4 | aload8_s aloadu8_s aload16_s aloadu16_s aload32_s aloadu32_s aload64_s | B | d, array, index | `fp[d] = array[index]`; null and position checked by the instruction |
+| c5-c8 | astore8_s astore16_s astore32_s astore64_s | B | array, index, value | store (cut to the width) |
+| c9 ca | getf_s putf_s | B | d, object, field / object, field, value | number field of the object in a slot |
+| cb | sizeof_s | B | d, array | its length, 0 for null |
+| cc | agetobj_s | B | d, array, index | `fp[d].obj` = element of an array of references |
+| cd | getobj_s | B | d, object, field | `fp[d].obj` = a reference field |
+| ce cf | jnz_s jz_s | D+L | a | `if(fp[a] != 0)` / `if(fp[a] == 0) goto L` |
+| d0 | jnull_s | B+L | a, 0, sense | `if((fp[a].obj is null) == sense) goto L` |
+| d1 d2 | isnull_s not_s | B | d, a | `fp[d] = fp[a].obj is null` / `!fp[a]` |
+| d3-d8 | mov8_s mov16_s mov32_s movu8_s movu16_s movu32_s | B | d, a | `fp[d] = fp[a]` cut to that width |
+| d9 da | returnval_s returnobj_s | D | a | the function's result = `fp[a]` / `fp[a].obj` |
+| db-dd | iadd_s isub_s imul_s | B+k | d, a | `fp[d] = fp[a] op k` |
+| de | putobj_s | B | object, field, value | a reference into a field, with the write barrier (what `movl`, `movn`, `popobj` do together) |
+| df | movobj_s | B | d, a | `fp[d].obj = fp[a].obj` |
+| e0-e4 | iand_s ior_s ixor_s ishl_s ishr_s | B+k | d, a | `fp[d] = fp[a] op k` (a shift count is 0 .. 63) |
+| e5-ea | jlt_k jgt_k jle_k jge_k jeq_k jne_k | B+L | a, k, sense | `if((fp[a] ? k) == sense) goto L`, k = -127 .. 127 |
+| eb-f0 | djlt_k ... djne_k | B+L | a, k, sense | the same for a decimal `fp[a]` |
+
+Three things the bytecode step joins into one of these (all need the
+optimizer's hand-off marks, 7.2, which say a value is read once by the very
+next instruction):
+
+- a comparison and the jump on it (`jlt_s` ...; `is_null` + jump is `jnull_s`);
+- a small constant, the comparison with it, and the jump (`jlt_k` ...);
+- with `int_immediate` (the optimizer's, now also for `&`, `|`, `^`, `<<`,
+  `>>`): the operation with its constant (`iadd_s` ... `ishr_s`).
+
+The forms that look at an object set the object pointer as `movl` would
+(nothing relies on what it was before); in machine code only on the way to an
+exception.
+
 ---
 
 ## 5. The design of the generator
@@ -2340,6 +2397,16 @@ And **slot packing** (7.2), which does for the frame what register allocation
 does for registers: the same liveness, the same colouring, with frame slots as
 the colours. It does not make a value faster to reach, but it makes the frame
 small, and that is what this VM is short of.
+
+**Since 2026-11-20 the slots do live in registers - in machine code.** The
+slot forms (4.10) took the registers out of the picture for the compiler: an
+IR instruction works on its slots directly. The x86-64 JIT then gives the
+slots a function uses most a CPU register each (four whole numbers, four
+decimals; `lib/runtime/jit/x64/x64_generator.cpp`, "LOCAL NUMBERS IN CPU
+REGISTERS"; the 64-bit ARM JIT does the same for four). Every write still
+goes to memory as well, so the interpreter, the collector and exceptions see
+the frame exactly as before - which is why this could be done in the JIT
+alone, without the compiler knowing.
 
 ---
 

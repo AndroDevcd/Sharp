@@ -250,14 +250,14 @@ static void run_here(c_slot &slot, const c_arrival &arrival, c_returned &out, bo
 
             // the function value, then its arguments
             (++task->sp)->obj.o = slot.function;
-            TC(TC_ST(task->sp) = tk_obj;)
+            TC(TC_ST(task->sp) = tk_any;)      // (the slot holds an object: its number part is nothing in particular)
             std::string why;
             for(size_t a = 0; a < count; a++) {
                 stack_item *item = ++task->sp;
                 const uint8_t *raw = (const uint8_t*) &bits[a];
                 if(sig.args[a].kind == C_STRUCT) {
                     item->obj.o = nullptr;
-                    TC(TC_ST(item) = tk_obj;)
+                    TC(TC_ST(item) = tk_any;)
                     if(!c_struct_to_object(sig.args[a].text, structs[a].data(), &item->obj, why)) throw vm_exception(vm.runtime_except, why);
                     continue;
                 }

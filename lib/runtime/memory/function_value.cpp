@@ -32,6 +32,9 @@ void setup_function_values() {
     }
 }
 
+Int function_value_address_slot() { return addressSlot; }
+Int function_value_captured_slot() { return capturedSlot; }
+
 Int function_value_address(sharp_object *functionValue) {
     if(functionValue == nullptr)
         throw vm_exception(vm.nullptr_except, "attempting to call a function value that is null");

@@ -55,22 +55,19 @@ emit_result X64Generator::emit_stack_and_locals() {
 
         // ---- locals
         case Opcode::LOADL:     // regs[a] = (fp+b)->var
-            if(has_cpu_register(dual1)) a.mov(cpu_register_of(dual1), local_number(dual2));
-            else { a.mov(rax, local_number(dual2)); store_vm_register(dual1, rax); }
+            store_vm_register(dual1, slot_in_register(dual2, rax));
             return emitted;
         case Opcode::SMOVR_2:   // (fp+b)->var = regs[a]
-            a.mov(local_number(dual2), vm_register_value(dual1, rax));
+            store_slot(dual2, vm_register_value(dual1, rax));
             return emitted;
         case Opcode::SMOVR_4:   // (fp+a)->var = (fp+b)->var
-            a.mov(rax, local_number(raw));
-            a.mov(local_number(single), rax);
+            store_slot(single, slot_in_register(raw, rax));
             return emitted;
         case Opcode::ISTOREL:   // (fp+a)->var = b
-            a.mov(local_number(single), raw);
+            store_slot_constant(single, (uint64_t)(int64_t)raw);
             return emitted;
         case Opcode::DISTOREL:  // (fp+a)->var = (double)b
-            a.mov(rax, bits_of((double)raw));
-            a.mov(local_number(single), rax);
+            store_slot_constant(single, bits_of((double)raw));
             return emitted;
         case Opcode::IPUSHL:    // push (fp+a)->var
             push_stack_slot();
@@ -80,10 +77,10 @@ emit_result X64Generator::emit_stack_and_locals() {
         case Opcode::IPOPL:     // (fp+a)->var = pop
             a.mov(rax, stack_number());
             pop_stack_slot();
-            a.mov(local_number(single), rax);
+            a.mov(local_number(single), rax); sync_slot_home(single);
             return emitted;
         case Opcode::RETURNVAL: // fp->var = regs[a]
-            a.mov(local_number(0), vm_register_value(single, rax));
+            a.mov(local_number(0), vm_register_value(single, rax)); sync_slot_home(0);
             return emitted;
 
         // ---- thread locals: slots at the bottom of the fiber's stack
@@ -99,15 +96,15 @@ emit_result X64Generator::emit_stack_and_locals() {
 
         // ---- integer arithmetic straight on a local
         case Opcode::ADDL:      // (fp+b)->var += regs[a]
-            a.add(local_number(dual2), vm_register_value(dual1, rax));
+            a.add(local_number(dual2), vm_register_value(dual1, rax)); sync_slot_home(dual2);
             return emitted;
         case Opcode::SUBL:
-            a.sub(local_number(dual2), vm_register_value(dual1, rax));
+            a.sub(local_number(dual2), vm_register_value(dual1, rax)); sync_slot_home(dual2);
             return emitted;
         case Opcode::MULL:
             a.mov(rax, local_number(dual2));
             a.emit(x86::Inst::kIdImul, rax, vm_register(dual1));
-            a.mov(local_number(dual2), rax);
+            a.mov(local_number(dual2), rax); sync_slot_home(dual2);
             return emitted;
         case Opcode::MODL:      // (fp+b)->var = vm_remainder(local, regs[a])
             prepare_runtime_call();
@@ -115,27 +112,33 @@ emit_result X64Generator::emit_stack_and_locals() {
             a.mov(rsi, vm_register_in_memory(dual1));
             call_runtime_checked(reinterpret_cast<void*>(jit_rt_remainder));
             load_vm_registers();
-            a.mov(local_number(dual2), rax);
+            a.mov(local_number(dual2), rax); sync_slot_home(dual2);
             return emitted;
         case Opcode::ANDL:
-            a.and_(local_number(dual2), vm_register_value(dual1, rax));
+            a.and_(local_number(dual2), vm_register_value(dual1, rax)); sync_slot_home(dual2);
             return emitted;
         case Opcode::ORL:
-            a.or_(local_number(dual2), vm_register_value(dual1, rax));
+            a.or_(local_number(dual2), vm_register_value(dual1, rax)); sync_slot_home(dual2);
             return emitted;
         case Opcode::XORL:
-            a.xor_(local_number(dual2), vm_register_value(dual1, rax));
+            a.xor_(local_number(dual2), vm_register_value(dual1, rax)); sync_slot_home(dual2);
             return emitted;
         case Opcode::IADDL:     // (fp+a)->var += b
-            a.add(local_number(single), raw);
+            if(whole_home(single) >= 0) {       // `i++` with i at home
+                a.add(whole_home_register(whole_home(single)), raw);
+                a.mov(local_number(single), whole_home_register(whole_home(single)));
+            } else { a.add(local_number(single), raw); sync_slot_home(single); }
             return emitted;
         case Opcode::ISUBL:
-            a.sub(local_number(single), raw);
+            if(whole_home(single) >= 0) {
+                a.sub(whole_home_register(whole_home(single)), raw);
+                a.mov(local_number(single), whole_home_register(whole_home(single)));
+            } else { a.sub(local_number(single), raw); sync_slot_home(single); }
             return emitted;
         case Opcode::IMULL:
             a.mov(rax, local_number(single));
             a.imul(rax, rax, raw);
-            a.mov(local_number(single), rax);
+            a.mov(local_number(single), rax); sync_slot_home(single);
             return emitted;
         case Opcode::IMODL:
             prepare_runtime_call();
@@ -143,37 +146,37 @@ emit_result X64Generator::emit_stack_and_locals() {
             a.mov(rsi, (int64_t)raw);
             call_runtime_checked(reinterpret_cast<void*>(jit_rt_remainder));
             load_vm_registers();
-            a.mov(local_number(single), rax);
+            a.mov(local_number(single), rax); sync_slot_home(single);
             return emitted;
 
         // ---- decimal arithmetic straight on a local
         case Opcode::DADDL:     // (fp+b)->var.d += regs[a].d
-            a.movsd(xmm0, local_number(dual2)); a.addsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0);
+            a.movsd(xmm0, local_number(dual2)); a.addsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0); sync_slot_home(dual2);
             return emitted;
         case Opcode::DSUBL:
-            a.movsd(xmm0, local_number(dual2)); a.subsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0);
+            a.movsd(xmm0, local_number(dual2)); a.subsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0); sync_slot_home(dual2);
             return emitted;
         case Opcode::DMULL:
-            a.movsd(xmm0, local_number(dual2)); a.mulsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0);
+            a.movsd(xmm0, local_number(dual2)); a.mulsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0); sync_slot_home(dual2);
             return emitted;
         case Opcode::DDIVL:
-            a.movsd(xmm0, local_number(dual2)); a.divsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0);
+            a.movsd(xmm0, local_number(dual2)); a.divsd(xmm0, vm_register_decimal(dual1, xmm1)); a.movsd(local_number(dual2), xmm0); sync_slot_home(dual2);
             return emitted;
         case Opcode::DIADDL:    // (fp+a)->var.d += (double)b
             load_decimal_constant((double)raw);
-            a.movsd(xmm0, local_number(single)); a.addsd(xmm0, xmm1); a.movsd(local_number(single), xmm0);
+            a.movsd(xmm0, local_number(single)); a.addsd(xmm0, xmm1); a.movsd(local_number(single), xmm0); sync_slot_home(single);
             return emitted;
         case Opcode::DISUBL:
             load_decimal_constant((double)raw);
-            a.movsd(xmm0, local_number(single)); a.subsd(xmm0, xmm1); a.movsd(local_number(single), xmm0);
+            a.movsd(xmm0, local_number(single)); a.subsd(xmm0, xmm1); a.movsd(local_number(single), xmm0); sync_slot_home(single);
             return emitted;
         case Opcode::DIMULL:
             load_decimal_constant((double)raw);
-            a.movsd(xmm0, local_number(single)); a.mulsd(xmm0, xmm1); a.movsd(local_number(single), xmm0);
+            a.movsd(xmm0, local_number(single)); a.mulsd(xmm0, xmm1); a.movsd(local_number(single), xmm0); sync_slot_home(single);
             return emitted;
         case Opcode::DIDIVL:
             load_decimal_constant((double)raw);
-            a.movsd(xmm0, local_number(single)); a.divsd(xmm0, xmm1); a.movsd(local_number(single), xmm0);
+            a.movsd(xmm0, local_number(single)); a.divsd(xmm0, xmm1); a.movsd(local_number(single), xmm0); sync_slot_home(single);
             return emitted;
 
         default:

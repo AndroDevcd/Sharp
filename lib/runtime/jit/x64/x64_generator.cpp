@@ -26,6 +26,18 @@ int instruction_length(int op) {
         case Opcode::DIADD: case Opcode::DISUB: case Opcode::DIMUL: case Opcode::DIADDL: case Opcode::DISUBL:
         case Opcode::DIMULL: case Opcode::DISADD: case Opcode::DISTORE: case Opcode::DISTOREL:
         case Opcode::DMOVI: case Opcode::DCMP:
+        // the slot forms that jump: the target is the second word
+        case Opcode::JLT_S: case Opcode::JGT_S: case Opcode::JLE_S: case Opcode::JGE_S:
+        case Opcode::JEQ_S: case Opcode::JNE_S:
+        case Opcode::DJLT_S: case Opcode::DJGT_S: case Opcode::DJLE_S: case Opcode::DJGE_S:
+        case Opcode::DJEQ_S: case Opcode::DJNE_S:
+        case Opcode::JNZ_S: case Opcode::JZ_S: case Opcode::JNULL_S:
+        case Opcode::IADD_S: case Opcode::ISUB_S: case Opcode::IMUL_S:
+        case Opcode::IAND_S: case Opcode::IOR_S: case Opcode::IXOR_S: case Opcode::ISHL_S: case Opcode::ISHR_S:
+        case Opcode::JLT_K: case Opcode::JGT_K: case Opcode::JLE_K: case Opcode::JGE_K:
+        case Opcode::JEQ_K: case Opcode::JNE_K:
+        case Opcode::DJLT_K: case Opcode::DJGT_K: case Opcode::DJLE_K: case Opcode::DJGE_K:
+        case Opcode::DJEQ_K: case Opcode::DJNE_K:
             return 2;
         default:
             return 1;
@@ -68,6 +80,7 @@ bool X64Generator::generate() {
         labels[at] = a.newLabel();
 
     directEntry = a.newLabel();
+    doorEntry = a.newLabel();
     resumeEntry = a.newLabel();
     resumeCheck = a.newLabel();
     dispatch = a.newLabel();
@@ -81,6 +94,7 @@ bool X64Generator::generate() {
     declineFromRegisters = a.newLabel();
     callNotFinished = a.newLabel();
 
+    pick_slot_homes();
     emit_entry();
 
     for(pc = 0; pc < count; pc = next) {
@@ -127,7 +141,8 @@ bool X64Generator::emit_instruction() {
         &X64Generator::emit_casts_and_locks,
         &X64Generator::emit_control_flow,
         &X64Generator::emit_calls,
-        &X64Generator::emit_console
+        &X64Generator::emit_console,
+        &X64Generator::emit_slot_forms
     };
 
     for(auto kind : kinds) {
@@ -220,8 +235,288 @@ void X64Generator::save_vm_registers() {
 }
 
 void X64Generator::load_vm_registers() {
+    load_vm_registers_only();
+    load_slot_homes();          // C++ ran: it is free to use their registers
+}
+
+void X64Generator::load_vm_registers_only() {
     for(int i = 0; i < HOME_COUNT; i++)
         a.mov(HOME_CPU_REGISTER[i], vm_register_in_memory(HOME_VM_REGISTER[i]));
+}
+
+// ---------------------------------------------------------------------------------
+// LOCAL NUMBERS IN CPU REGISTERS: the slot homes
+//
+// The numbers of a function live in its frame slots, (fp+n)->var. The slots it uses most - found
+// by pick_slot_homes(), inner loops first - get a CPU register each for as long as the function's
+// machine code runs:
+//
+//      r8 r9 r10 r11           four slots used as whole numbers
+//      xmm2 xmm3 xmm4 xmm5     four slots used as decimals
+//
+// A home is a COPY that saves the reads. Every write goes to memory AND to the home (store_slot,
+// store_slot_decimal, store_slot_constant; sync_slot_home after a write that went to memory only),
+// so the slot in memory is right at every moment: the interpreter can take over at any
+// instruction, the collector and C++ see what they expect, and there is no second "mode". What a
+// loop gains is that `i`, `total` and the like no longer go through memory to reach the next
+// instruction - the adds and compares are register to register.
+//
+// The homes are read again (load_slot_homes) whenever memory may have changed behind them or the
+// registers were given away:
+//      - after C++ ran: load_vm_registers(), which every return to register mode goes through
+//      - when fp is loaded: load_stack_registers() (the stack moved, another frame ran)
+//      - at the direct door, and after a direct call comes back (the callee has homes of its own
+//        in the same registers)
+//
+// A slot is 64 bits that are a whole number or a decimal; a home holds the bits either way, the
+// kind only decides which register is the cheaper one. A function with an instruction that writes
+// a slot's number through sp or the fiber's stack (smovr, isadd, disadd, mov_abs: asm blocks) has
+// no homes at all: such a write could be to one of its own slots.
+//
+// SHARP_X64_SLOT_HOMES=0 in the environment: no homes (to compare).
+// ---------------------------------------------------------------------------------
+
+static const x86::Gp WHOLE_HOME[SLOT_HOME_COUNT] = { x86::r8, x86::r9, x86::r10, x86::r11 };
+static const x86::Xmm DECIMAL_HOME[SLOT_HOME_COUNT] = { x86::xmm2, x86::xmm3, x86::xmm4, x86::xmm5 };
+
+int X64Generator::whole_home(Int slot) {
+    for(int i = 0; i < wholeHomeCount; i++) if(wholeHomes[i] == slot) return i;
+    return -1;
+}
+
+int X64Generator::decimal_home(Int slot) {
+    for(int i = 0; i < decimalHomeCount; i++) if(decimalHomes[i] == slot) return i;
+    return -1;
+}
+
+x86::Gp X64Generator::whole_home_register(int home) { return WHOLE_HOME[home]; }
+x86::Xmm X64Generator::decimal_home_register(int home) { return DECIMAL_HOME[home]; }
+
+void X64Generator::load_slot_homes() {
+    for(int i = 0; i < wholeHomeCount; i++) a.mov(WHOLE_HOME[i], local_number(wholeHomes[i]));
+    for(int i = 0; i < decimalHomeCount; i++) a.movsd(DECIMAL_HOME[i], local_number(decimalHomes[i]));
+}
+
+void X64Generator::sync_slot_home(Int slot) {
+    int home = whole_home(slot);
+    if(home >= 0) a.mov(WHOLE_HOME[home], local_number(slot));
+    home = decimal_home(slot);
+    if(home >= 0) a.movsd(DECIMAL_HOME[home], local_number(slot));
+}
+
+x86::Gp X64Generator::slot_in_register(Int slot, const x86::Gp &scratch) {
+    int home = whole_home(slot);
+    if(home >= 0) return WHOLE_HOME[home];
+    a.mov(scratch, local_number(slot));         // (memory is right also for a slot with a decimal home)
+    return scratch;
+}
+
+Operand X64Generator::slot_operand(Int slot) {
+    int home = whole_home(slot);
+    if(home >= 0) return WHOLE_HOME[home];
+    return local_number(slot);
+}
+
+x86::Xmm X64Generator::slot_in_decimal_register(Int slot, const x86::Xmm &scratch) {
+    int home = decimal_home(slot);
+    if(home >= 0) return DECIMAL_HOME[home];
+    a.movsd(scratch, local_number(slot));
+    return scratch;
+}
+
+Operand X64Generator::slot_decimal_operand(Int slot) {
+    int home = decimal_home(slot);
+    if(home >= 0) return DECIMAL_HOME[home];
+    return local_number(slot);
+}
+
+/**
+ * The register to compute the result for `slot` in: the slot's own home, so that it is not
+ * computed in rax and moved - or rax when the slot has none. `unlessSlot`: an operand that is
+ * still to be read AFTER the result register is first written (the right side of `d = a op b`);
+ * when that is the same slot, its home cannot be written yet, and rax it is.
+ */
+x86::Gp X64Generator::whole_result_register(Int slot, Int unlessSlot) {
+    int home = whole_home(slot);
+    return home >= 0 && slot != unlessSlot ? WHOLE_HOME[home] : rax;
+}
+
+x86::Xmm X64Generator::decimal_result_register(Int slot, Int unlessSlot) {
+    int home = decimal_home(slot);
+    return home >= 0 && slot != unlessSlot ? DECIMAL_HOME[home] : xmm0;
+}
+
+void X64Generator::store_slot(Int slot, const x86::Gp &from) {
+    a.mov(local_number(slot), from);
+    int home = whole_home(slot);
+    if(home >= 0 && WHOLE_HOME[home].id() != from.id()) a.mov(WHOLE_HOME[home], from);
+    home = decimal_home(slot);
+    if(home >= 0) a.movq(DECIMAL_HOME[home], from);
+}
+
+void X64Generator::store_slot_decimal(Int slot, const x86::Xmm &from) {
+    a.movsd(local_number(slot), from);
+    int home = decimal_home(slot);
+    if(home >= 0 && DECIMAL_HOME[home].id() != from.id()) a.movaps(DECIMAL_HOME[home], from);
+    home = whole_home(slot);
+    if(home >= 0) a.movq(WHOLE_HOME[home], from);
+}
+
+void X64Generator::store_slot_constant(Int slot, uint64_t bits) {
+    int whole = whole_home(slot), decimal = decimal_home(slot);
+    if((int64_t)bits == (int64_t)(int32_t)bits && decimal < 0) {
+        a.mov(local_number(slot), (int32_t)bits);       // sign-extended to 64 bits
+        if(whole >= 0) {
+            if(bits == 0) a.xor_(WHOLE_HOME[whole].r32(), WHOLE_HOME[whole].r32());
+            else a.mov(WHOLE_HOME[whole], bits);
+        }
+        return;
+    }
+    a.mov(rax, bits);
+    a.mov(local_number(slot), rax);
+    if(whole >= 0) a.mov(WHOLE_HOME[whole], rax);
+    if(decimal >= 0) a.movq(DECIMAL_HOME[decimal], rax);
+}
+
+/**
+ * Which slots get a home: every use of a slot as a number is counted, a use inside a loop eight
+ * times, inside two loops sixty-four times (a loop is what a backward jump encloses); the four
+ * heaviest that are mostly whole numbers and the four heaviest that are mostly decimals win.
+ */
+void X64Generator::pick_slot_homes() {
+    wholeHomeCount = decimalHomeCount = 0;
+    static const bool wanted = [] {
+        const char *text = getenv("SHARP_X64_SLOT_HOMES");
+        return text == nullptr || text[0] != '0';
+    }();
+    if(!wanted) return;
+
+    // how deep in loops each instruction is
+    std::vector<uint8_t> depth((size_t)count, 0);
+    for(Int at = 0; at < count; at += instruction_length(GET_OP(code[at]))) {
+        const uint32_t word = code[at];
+        const int o = GET_OP(word);
+        Int target = -1;
+        if(o == Opcode::JMP || o == Opcode::JE || o == Opcode::JNE) target = GET_Da(word);
+        else if(((o >= Opcode::JLT_S && o <= Opcode::DJNE_S) || o == Opcode::JNZ_S || o == Opcode::JZ_S || o == Opcode::JNULL_S
+                 || (o >= Opcode::JLT_K && o <= Opcode::DJNE_K))
+                && at + 1 < count) target = (int32_t)code[at + 1];
+        if(target >= 0 && target <= at)
+            for(Int q = target; q <= at; q++) if(depth[(size_t)q] < 3) depth[(size_t)q]++;
+    }
+
+    struct weight { double whole = 0, decimal = 0, either = 0; };
+    std::vector<weight> weights;
+    double now = 1;
+    double reloads = 0;         // how often the homes are read again: once per call into the function, and after every call out of it
+    auto use = [&](Int slot, int kind) {         // kind 0: either, 1: whole, 2: decimal
+        if(slot < 0 || slot > 1000) return;
+        if((size_t)slot >= weights.size()) weights.resize((size_t)slot + 1);
+        if(kind == 1) weights[(size_t)slot].whole += now;
+        else if(kind == 2) weights[(size_t)slot].decimal += now;
+        else weights[(size_t)slot].either += now;
+    };
+    for(Int at = 0; at < count; at += instruction_length(GET_OP(code[at]))) {
+        const uint32_t word = code[at];
+        const int o = GET_OP(word);
+        now = (double)(1 << (3 * depth[(size_t)at]));
+        switch(o) {
+            // (after each of these the homes are loaded again: C++ ran, or another function)
+            case Opcode::CALL: case Opcode::CALLD: case Opcode::INVOKE_DELEGATE: case Opcode::INT:
+            case Opcode::NEWCLASS: case Opcode::NEWARRAY: case Opcode::NEWOBJARRAY: case Opcode::NEWCLASSARRAY:
+            case Opcode::NEWSTRING: case Opcode::CAST: case Opcode::VARCAST: case Opcode::IS:
+            case Opcode::MOD: case Opcode::IMOD:
+                reloads += now;
+                break;
+            // a number written through sp or the fiber's stack could be one of our slots: no homes
+            case Opcode::SMOVR: case Opcode::ISADD: case Opcode::DISADD: case Opcode::MOV_ABS:
+                return;
+            case Opcode::ADD_S: case Opcode::SUB_S: case Opcode::MUL_S: case Opcode::AND_S:
+            case Opcode::OR_S: case Opcode::XOR_S: case Opcode::SHL_S: case Opcode::SHR_S:
+                use(GET_Ba(word), 1); use(GET_Bb(word), 1); use(GET_Bc(word), 1);
+                break;
+            case Opcode::DADD_S: case Opcode::DSUB_S: case Opcode::DMUL_S: case Opcode::DDIV_S:
+                use(GET_Ba(word), 2); use(GET_Bb(word), 2); use(GET_Bc(word), 2);
+                break;
+            case Opcode::I2D_S: use(GET_Ba(word), 2); use(GET_Bb(word), 1); break;
+            case Opcode::D2I_S: use(GET_Ba(word), 1); use(GET_Bb(word), 2); break;
+            case Opcode::JLT_S: case Opcode::JGT_S: case Opcode::JLE_S: case Opcode::JGE_S:
+            case Opcode::JEQ_S: case Opcode::JNE_S:
+                use(GET_Ba(word), 1); use(GET_Bb(word), 1);
+                break;
+            case Opcode::DJLT_S: case Opcode::DJGT_S: case Opcode::DJLE_S: case Opcode::DJGE_S:
+            case Opcode::DJEQ_S: case Opcode::DJNE_S:
+                use(GET_Ba(word), 2); use(GET_Bb(word), 2);
+                break;
+            case Opcode::ALOAD8_S: case Opcode::ALOADU8_S: case Opcode::ALOAD16_S: case Opcode::ALOADU16_S:
+            case Opcode::ALOAD32_S: case Opcode::ALOADU32_S: case Opcode::ALOAD64_S:
+                use(GET_Ba(word), 0); use(GET_Bc(word), 1);
+                break;
+            case Opcode::ASTORE8_S: case Opcode::ASTORE16_S: case Opcode::ASTORE32_S: case Opcode::ASTORE64_S:
+                use(GET_Bb(word), 1); use(GET_Bc(word), 0);
+                break;
+            case Opcode::GETF_S: use(GET_Ba(word), 0); break;
+            case Opcode::PUTF_S: use(GET_Bc(word), 0); break;
+            case Opcode::SIZEOF_S: use(GET_Ba(word), 1); break;
+            case Opcode::AGETOBJ_S: use(GET_Bc(word), 1); break;
+            case Opcode::JNZ_S: case Opcode::JZ_S: use(GET_Da(word), 1); break;
+            case Opcode::IAND_S: case Opcode::IOR_S: case Opcode::IXOR_S: case Opcode::ISHL_S: case Opcode::ISHR_S:
+                use(GET_Ba(word), 1); use(GET_Bb(word), 1);
+                break;
+            case Opcode::JLT_K: case Opcode::JGT_K: case Opcode::JLE_K: case Opcode::JGE_K:
+            case Opcode::JEQ_K: case Opcode::JNE_K:
+                use(GET_Ba(word), 1);
+                break;
+            case Opcode::DJLT_K: case Opcode::DJGT_K: case Opcode::DJLE_K: case Opcode::DJGE_K:
+            case Opcode::DJEQ_K: case Opcode::DJNE_K:
+                use(GET_Ba(word), 2);
+                break;
+            case Opcode::ISNULL_S: use(GET_Ba(word), 1); break;
+            case Opcode::NOT_S: case Opcode::MOV8_S: case Opcode::MOV16_S: case Opcode::MOV32_S:
+            case Opcode::MOVU8_S: case Opcode::MOVU16_S: case Opcode::MOVU32_S:
+            case Opcode::IADD_S: case Opcode::ISUB_S: case Opcode::IMUL_S:
+                use(GET_Ba(word), 1); use(GET_Bb(word), 1);
+                break;
+            case Opcode::RETURNVAL_S: use(GET_Da(word), 0); break;
+            case Opcode::LOADL: case Opcode::SMOVR_2: use(GET_Cb(word), 0); break;
+            case Opcode::SMOVR_4: use(GET_Da(word), 0); if(at + 1 < count) use((int32_t)code[at + 1], 0); break;
+            case Opcode::IPUSHL: case Opcode::IPOPL: use(GET_Da(word), 0); break;
+            case Opcode::ISTOREL: case Opcode::IADDL: case Opcode::ISUBL: case Opcode::IMULL: case Opcode::IMODL:
+                use(GET_Da(word), 1);
+                break;
+            case Opcode::DISTOREL: case Opcode::DIADDL: case Opcode::DISUBL: case Opcode::DIMULL: case Opcode::DIDIVL:
+                use(GET_Da(word), 2);
+                break;
+            case Opcode::ADDL: case Opcode::SUBL: case Opcode::MULL: case Opcode::MODL:
+            case Opcode::ANDL: case Opcode::ORL: case Opcode::XORL:
+                use(GET_Cb(word), 1);
+                break;
+            case Opcode::DADDL: case Opcode::DSUBL: case Opcode::DMULL: case Opcode::DDIVL:
+                use(GET_Cb(word), 2);
+                break;
+            default:
+                break;
+        }
+    }
+
+    for(int round = 0; round < 2 * SLOT_HOME_COUNT; round++) {
+        int best = -1;
+        // a home saves a read per use and costs one per reload: it must be used clearly more often than
+        // it is reloaded (and a slot named once gains nothing)
+        double bestTotal = 1.5 + 0.5 * reloads;
+        for(size_t slot = 0; slot < weights.size(); slot++) {
+            const weight &w = weights[slot];
+            double total = w.whole + w.decimal + w.either;
+            bool asDecimal = w.decimal > w.whole;
+            if(asDecimal ? decimalHomeCount >= SLOT_HOME_COUNT : wholeHomeCount >= SLOT_HOME_COUNT) continue;
+            if(total > bestTotal) { bestTotal = total; best = (int)slot; }
+        }
+        if(best < 0) break;
+        weight &w = weights[(size_t)best];
+        if(w.decimal > w.whole) decimalHomes[decimalHomeCount++] = best;
+        else wholeHomes[wholeHomeCount++] = best;
+        w.whole = w.decimal = w.either = 0;
+    }
 }
 
 // ---------------------------------------------------------------------------------
@@ -249,6 +544,7 @@ void X64Generator::load_stack_registers() {
     a.mov(FP, fiber_field(offsetof(fiber, fp)));
     a.mov(SP, fiber_field(offsetof(fiber, sp)));
     a.mov(PTR, fiber_field(offsetof(fiber, ptr)));
+    load_slot_homes();          // a new fp: the frame moved, or other code ran on this stack
 }
 
 void X64Generator::set_current_instruction(Int at) {
@@ -278,7 +574,8 @@ void X64Generator::set_current_instruction(Int at) {
 // Windows this is the ONE place that knows the difference: the four registers
 // are moved over (in an order that reads each before it is written), the 32
 // bytes are made, and they are given back after the call. r8 and r9 are homes
-// of VM registers, and free here: a call into C++ is only made in memory mode.
+// of frame slots (x64_generator.cpp, LOCAL NUMBERS IN CPU REGISTERS), and free
+// here: memory is always right for those, and they are read again after the call.
 //
 // (Decimals need nothing: a helper takes either whole numbers or decimals, and
 // the first two decimals are in xmm0 and xmm1 on both systems.)
@@ -372,10 +669,12 @@ void X64Generator::load_object_or_null() {
 /**
  * result = left op right, for add / sub / imul / and / or / xor.
  *
- * With all three in homes and result == left this is ONE instruction:
- *      add ecx, ebx -> ecx         add r9, rsi
+ * With the result in a home and result == left this is ONE instruction:
+ *      add ebx, ecx -> ebx         add rsi, [r14 + ecx*8]
  * otherwise it goes through rax:
- *      add ecx, ebx -> bmr         mov rax, r9 / add rax, rsi / mov r11, rax
+ *      add ecx, ebx -> bmr         mov rax, [r14 + ecx*8] / add rax, rsi / mov [r14 + bmr*8], rax
+ * (These are the register forms. What the compiler writes for `d = a + b` today is the slot
+ *  form add_s: opcode/slot_forms.cpp.)
  */
 void X64Generator::integer_operation(InstId inst, Int left, Int right, Int result) {
     if(has_cpu_register(result) && result == left) {
@@ -459,6 +758,23 @@ bool X64Generator::jump_to_instruction(Int target) {
         a.jne(request_slow_path(slow_safepoint, target));
     }
     a.jmp(labels[target]);
+    return true;
+}
+
+/**
+ * A jump that compares and jumps in one (the slot forms) calls this first, then compares, then
+ * jumps straight to labels[target]. For a jump BACKWARDS - the bottom of a loop - it is the safe
+ * point: the thread looks at its signals here, before the comparison (afterwards it would spoil
+ * the comparison's flags), and comes back to THIS instruction when it has dealt with them. So
+ * the loop's own path is: one test of the signal word, the comparison, one jump taken.
+ * false: `target` is not an instruction.
+ */
+bool X64Generator::before_conditional_jump(Int target) {
+    if(target < 0 || target >= count || !starts[target]) return false;
+    if(target <= pc) {
+        a.cmp(thread_signal(), 0);
+        a.jne(request_slow_path(slow_safepoint, pc));
+    }
     return true;
 }
 

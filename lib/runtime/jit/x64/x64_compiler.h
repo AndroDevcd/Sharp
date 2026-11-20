@@ -22,36 +22,37 @@
 //      load_stack_registers()    reads fp, sp and ptr from the fiber    after a call that may
 //                                                                       have changed them
 //
-// Six more CPU registers hold the VM registers programs use most (their
-// "homes"; the other four VM registers stay in the fiber's register array):
+// Two more CPU registers hold the VM registers compiled programs still use
+// most (their "homes"; the other eight stay in the fiber's register array):
 //
-//      r8    egx         r9    ecx         r10   cx
-//      r11   bmr         rsi   ebx         rdi   cmt
+//      rsi   ebx         rdi   cmt
 //
 // These are NOT preserved by C++, so they are written to the register array
 // before a call into C++ and read back after it - save_vm_registers() and
 // load_vm_registers(); x64_generator.h explains the two states this gives
 // ("register mode" and "memory mode").
 //
+// And the numbers a function itself uses most - its frame slots - have homes
+// too, picked per function (x64_generator.cpp, "LOCAL NUMBERS IN CPU
+// REGISTERS"): four whole numbers in r8 .. r11, four decimals in xmm2 .. xmm5.
+//
 // A bytecode instruction becomes a few machine instructions, with no dispatch
-// and no decoding (the operands are constants in the machine code):
+// and no decoding (the operands are constants in the machine code). With slot
+// 4 (a counter) in r8 and slot 6 (a decimal sum) in xmm2:
 //
-//      add ecx, ebx -> ecx          add r9, rsi
+//      iaddl 4, 1                   add r8, 1
+//                                   mov [r15 + 4*16], r8               ; memory is kept right
 //
-//      add ecx, ebx -> bmr          mov rax, r9
-//                                   add rax, rsi
-//                                   mov r11, rax
+//      dadd_s 6, 6, 7               addsd xmm2, [r15 + 7*16]
+//                                   movsd [r15 + 6*16], xmm2
 //
-//      dadd ecx, ebx -> bmr         movq xmm0, r9
-//                                   movq xmm1, rsi
-//                                   addsd xmm0, xmm1
-//                                   movq r11, xmm0
+//      jlt_s 4, 3 is 1 -> L         cmp r8, [r15 + 3*16]
+//                                   jl L                               ; (and the loop's safe point)
 //
-//      loadl ebx, fp+2              mov rsi, [r15 + 2*16]
-//
-//      getf ebx, slot 1             (null checks)  mov rax, [rbp]      ; the object
-//                                   mov rcx, [rax]                     ; its slots
-//                                   mov rsi, [rcx + 1*8]
+//      getf_s 5, 2, 1               mov rax, [r15 + 2*16 + 8]  /  null?  ; the object in slot 2
+//                                   mov rcx, [rax + node]                ; its slots
+//                                   mov rax, [rcx + 1*8]
+//                                   mov [r15 + 5*16], rax
 //
 // WHERE THE CODE IS
 // -----------------

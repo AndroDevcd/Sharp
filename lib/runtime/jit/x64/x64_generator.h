@@ -84,12 +84,16 @@ const asmjit::x86::Xmm xmm0 = asmjit::x86::xmm0, xmm1 = asmjit::x86::xmm1;
 const asmjit::x86::Gp rdi = asmjit::x86::rdi, rsi = asmjit::x86::rsi;
 
 // ---- THE VM REGISTERS THAT LIVE IN CPU REGISTERS ("homes") ----
-// The six VM registers compiled programs use most are kept in a CPU register
-// for as long as machine code runs; the other four (adx, ecf, edf, ehf) stay in
-// the fiber's register array.
+// The two VM registers compiled programs still use most are kept in a CPU
+// register for as long as machine code runs; the other eight stay in the
+// fiber's register array.
 //
-//      egx  r8        ecx  r9        cx   r10
-//      bmr  r11       ebx  rsi       cmt  rdi
+//      ebx  rsi       cmt  rdi
+//
+// (There were six, with egx, ecx, cx and bmr in r8 .. r11. Since the compiler
+// writes the slot forms - opcode/slot_forms.cpp - a function's numbers live in
+// its frame slots and hardly pass through VM registers; r8 .. r11 now hold the
+// slots a function uses most: "LOCAL NUMBERS IN CPU REGISTERS" in x64_generator.cpp.)
 //
 // EVERY compiled function uses the same assignment. The VM registers are
 // shared by all functions of a fiber (arguments and results travel in them), so
@@ -112,15 +116,21 @@ const asmjit::x86::Gp rdi = asmjit::x86::rdi, rsi = asmjit::x86::rsi;
 // A VM register holds 64 bits that are an integer or a decimal. The homes are
 // general purpose registers, so integer instructions use them directly and
 // decimal instructions move the bits to an XMM register and back (movq).
-const int HOME_COUNT = 6;
-const int HOME_VM_REGISTER[HOME_COUNT] = { EGX, ECX, CX, BMR, EBX, CMT };
-const asmjit::x86::Gp HOME_CPU_REGISTER[HOME_COUNT] = {
-    asmjit::x86::r8, asmjit::x86::r9, asmjit::x86::r10, asmjit::x86::r11, asmjit::x86::rsi, asmjit::x86::rdi
-};
+const int HOME_COUNT = 2;
+const int HOME_VM_REGISTER[HOME_COUNT] = { EBX, CMT };
+const asmjit::x86::Gp HOME_CPU_REGISTER[HOME_COUNT] = { asmjit::x86::rsi, asmjit::x86::rdi };
+
+// ---- the homes of a function's own numbers (frame slots): four whole numbers, four decimals ----
+const int SLOT_HOME_COUNT = 4;
 
 // ---- our slot in the machine frame (sections/entry.cpp) ----
-const int FRAME_SCRATCH = 0;        // a value kept across a helper call
-const int FRAME_SIZE = 8;           // keeps rsp a multiple of 16 at our calls
+// (Three slots: with the return address a direct call takes 32 bytes of the thread's machine
+//  stack, and rsp stays a multiple of 16 at our calls. Every slot more costs recursion depth.)
+const int FRAME_SCRATCH = 0;        // a value kept across a helper call (opcode/allocation.cpp) ...
+const int FRAME_CALLEE = 0;         // ... or the function a virtual or function-value call found, while it runs: never both at once
+const int FRAME_DIRECT = 8;         // 1: entered by a direct call - the caller puts its own state back (opcode/direct_calls.cpp)
+const int FRAME_FP_BELOW_SP = 16;   // how far our fp is below sp, while a function we called directly runs
+const int FRAME_SIZE = 24;
 
 /** what an emit_<kind>() function says about the current instruction */
 enum emit_result {
@@ -130,13 +140,16 @@ enum emit_result {
 };
 
 /** rare code that is placed after the function (sections/slow_paths.cpp) */
-enum slow_kind { slow_grow, slow_null, slow_bounds, slow_safepoint, slow_call, slow_barrier };
+enum slow_kind { slow_grow, slow_null, slow_bounds, slow_safepoint, slow_call, slow_virtual_call, slow_found_call,
+                 slow_function_value_call, slow_barrier };
 
 struct slow_path_request {
     slow_kind kind;
     asmjit::Label entry;    // jumped to from the fast path
     asmjit::Label back;     // slow_grow, slow_call: where the fast path continues
     Int pc;                 // the instruction (slow_safepoint: the jump's target)
+    void *data = nullptr;   // slow_virtual_call: the place's cache
+    Int objectSlot = -1;    // slow_null, slow_bounds of a slot form: the frame slot whose object it was
 };
 
 /** how many words an instruction takes (1 or 2) */
@@ -157,6 +170,7 @@ public:
     std::vector<bool> starts;           // is this word the start of an instruction?
     asmjit::Label decline;              // "this pc is not an instruction" exit
     asmjit::Label directEntry;          // where compiled code calls this function
+    asmjit::Label doorEntry;            // the same door for the C++ door: the function then returns the long way
     asmjit::Label declineFromRegisters; // what the jump table holds for a word that is no instruction
     Int count;                          // number of bytecode words
     int blockedBy = -1;                 // the opcode that could not be compiled
@@ -209,8 +223,20 @@ private:
     emit_result emit_control_flow();
     emit_result emit_calls();
     void direct_call(Int address);      // opcode/direct_calls.cpp
+    void virtual_call(Int argumentCount);
+    void function_value_call(Int argumentCount);
+    void call_function_in_rax(Int instructionWords, const asmjit::Label &slowCall, const asmjit::Label &afterCall);
     void direct_return();
     emit_result emit_console();
+    emit_result emit_slot_forms();      // opcode/slot_forms.cpp
+    void slot_jump_integers(int how, Int left, Int right, bool when, const asmjit::Label &to);
+    void slot_jump_decimals(int how, Int left, Int right, bool when, const asmjit::Label &to);
+    void slot_jump_integer_constant(int how, Int slot, Int constant, bool when, const asmjit::Label &to);
+    void slot_jump_decimal_constant(int how, Int slot, Int constant, bool when, const asmjit::Label &to);
+    void jump_after_integer_compare(int how, bool when, const asmjit::Label &to);   // after `cmp left, right`
+    void jump_after_decimal_compare(int how, bool when, const asmjit::Label &to);   // after `ucomisd`, see slot_jump_decimals
+    void slot_object_or_throw(Int slot);                // ptr on the slot, rax = its object
+    void slot_element_or_throw(Int array, Int index);   // ... and rcx = the index, inside the array
 
     // ---- VM registers (x64_generator.cpp) ----
     bool has_cpu_register(Int vmRegister);
@@ -224,7 +250,30 @@ private:
     asmjit::x86::Xmm vm_register_decimal(Int vmRegister, const asmjit::x86::Xmm &scratch);  // the decimal, in scratch
     void store_vm_register_decimal(Int vmRegister, const asmjit::x86::Xmm &from);   // regs[n].d = from
     void save_vm_registers();                                                       // register mode -> memory mode
-    void load_vm_registers();                                                     // memory mode -> register mode
+    void load_vm_registers();                                                     // memory mode -> register mode (and the slot homes)
+    void load_vm_registers_only();                                                // ... when the frame is no longer ours (leaving)
+
+    // ---- LOCAL NUMBERS IN CPU REGISTERS: the slot homes (x64_generator.cpp) ----
+    Int wholeHomes[SLOT_HOME_COUNT];        // the slots in r8 .. r11
+    int wholeHomeCount = 0;
+    Int decimalHomes[SLOT_HOME_COUNT];      // the slots in xmm2 .. xmm5
+    int decimalHomeCount = 0;
+    void pick_slot_homes();                 // which slots, from the bytecode
+    int whole_home(Int slot);               // which home (0 .. 3), -1: none
+    int decimal_home(Int slot);
+    asmjit::x86::Gp whole_home_register(int home);
+    asmjit::x86::Xmm decimal_home_register(int home);
+    void load_slot_homes();                 // every home = its slot (after C++ ran, or with a new fp)
+    void sync_slot_home(Int slot);          // one home = its slot (after a write that went to memory only)
+    asmjit::x86::Gp slot_in_register(Int slot, const asmjit::x86::Gp &scratch);            // to READ: its home, or loaded into scratch
+    asmjit::Operand slot_operand(Int slot);                                                // its whole-number home, or memory
+    asmjit::x86::Xmm slot_in_decimal_register(Int slot, const asmjit::x86::Xmm &scratch);
+    asmjit::Operand slot_decimal_operand(Int slot);                                        // its decimal home, or memory
+    asmjit::x86::Gp whole_result_register(Int slot, Int unlessSlot = -1);                  // where to compute a result for `slot`: its home, or rax
+    asmjit::x86::Xmm decimal_result_register(Int slot, Int unlessSlot = -1);              // ... its decimal home, or xmm0
+    void store_slot(Int slot, const asmjit::x86::Gp &from);                                // memory and home
+    void store_slot_decimal(Int slot, const asmjit::x86::Xmm &from);
+    void store_slot_constant(Int slot, uint64_t bits);                                     // (uses rax)
 
     // ---- other operands ----
     asmjit::x86::Mem local_number(Int n);              // (fp+n)->var
@@ -249,6 +298,7 @@ private:
     void load_object_or_null();   // rax = ptr ? ptr->o : null
     void load_decimal_constant(double value);
     bool jump_to_instruction(Int target);       // jmp to an instruction (loop safe point when backwards)
+    bool before_conditional_jump(Int target);   // the safe point of a jump backwards, BEFORE its comparison; false: no such instruction
     void jump_to_computed_instruction();             // goto the instruction whose pc is in rax
     void check_after_runtime_call(bool continuesHere);     // after jit_rt_call & co (memory mode)
 

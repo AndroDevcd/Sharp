@@ -85,6 +85,7 @@ emit_result ArmGenerator::emit_stack_and_locals() {
             m.p_load(PA, TASK, (int32_t) offsetof(fiber, stack));
             load_register(V0, EBX);
             m.v_store(V0, PA, slot_number(single));
+            m.stack_numbers_changed();          // (that slot may be one of this function's locals)
             return emitted;
         case Opcode::LOAD_ABS:  // regs[EBX] = (task->stack+a)->var
             m.p_load(PA, TASK, (int32_t) offsetof(fiber, stack));

@@ -1,5 +1,5 @@
 //
-// Entry: how a compiled function is entered. Three doors, as on x86-64 (jit/x64/sections/entry.cpp):
+// Entry: how a compiled function is entered. The doors of x86-64 (jit/x64/sections/entry.cpp):
 //
 //      THE C++ DOOR    int function(sharp_thread *thread, jit_compiled_function *fun, vm_cell *registers)
 //          what the VM calls. It saves what C++ wants back, loads thread, task, regs, fp, sp, ptr,
@@ -9,8 +9,13 @@
 //              if(task->pc == task->rom and no signal is pending)      the direct door
 //              else                                                    the resume door
 //
-//      THE DIRECT DOOR     "from the first instruction": the instructions follow it
+//      THE DIRECT DOOR     "from the first instruction": the instructions follow it. What other
+//                          compiled code calls (opcode/direct_calls.cpp); the C++ door has a twin of
+//                          it, which notes in the body's frame that C++ is the caller
 //      THE RESUME DOOR     "continue at task->pc": leads to the resume check (sections/dispatch.cpp)
+//
+// FRAME_DIRECT in the body's frame says who called: RET leaves the short way for compiled code,
+// which puts its own state back, and the whole way (jit_rt_leave) for C++.
 //
 // The body returns to the C++ door with the return code set (sections/exits.cpp).
 //
@@ -50,7 +55,7 @@ void ArmGenerator::emit_entry() {
     // is a CALL is continued THERE when the callee threw. With a signal pending take the resume
     // door, which looks at it before anything runs.
     jump_if_signal(inTheMiddle);
-    m.call_label(directEntry);
+    m.call_label(doorEntry);
     m.jump(bodyReturned);
 
     m.bind(inTheMiddle);                    // e.g. a hot loop taken over from the interpreter
@@ -62,12 +67,24 @@ void ArmGenerator::emit_entry() {
     // ---------------------------------------------------------------- the resume door
     m.bind(resumeEntry);
     m.body_enter();
+    m.p_constant(PA, 0);
+    m.frame_store(FRAME_DIRECT, PA);        // C++ is the caller: return the whole way
     m.jump(resumeCheck);
+
+    // ---------------------------------------------------------------- the direct door, for the C++ door above
+    m.bind(doorEntry);
+    m.body_enter();
+    m.p_constant(PA, 0);
+    m.frame_store(FRAME_DIRECT, PA);
+    m.jump(labels[0]);
 
     // ---------------------------------------------------------------- the direct door
     // (must stay last: the first instruction of the function follows)
     m.bind(directEntry);
     m.body_enter();
+    m.p_constant(PA, 1);
+    m.frame_store(FRAME_DIRECT, PA);        // compiled code is the caller: it puts its own state back
+    m.stack_numbers_changed();              // (the caller had its own locals in the registers of ours)
 }
 
 } // namespace armjit

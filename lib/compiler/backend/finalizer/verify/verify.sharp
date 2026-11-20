@@ -139,6 +139,12 @@ def check_instruction(words: number_list, pc: _int64, starts: number_list, code:
             return "`" + name + "` at " + pc + " jumps to " + target + ", which is not the start of an instruction";
         }
     }
+    if(is_slot_jump(opcode)) {
+        target : _int64 = words.at(pc + 1);
+        if(target < 0 || target >= words.count || starts.at(target) == 0) {
+            return "`" + name + "` at " + pc + " jumps to " + target + ", which is not the start of an instruction";
+        }
+    }
     slot : _int64 = 0 - 1;
     if(opcode == OP_MOVL || opcode == OP_POPL || opcode == OP_IPUSHL || opcode == OP_PUSHL || opcode == OP_IPOPL
        || opcode == OP_SMOVR_3 || opcode == OP_ISTOREL || opcode == OP_DISTOREL) {

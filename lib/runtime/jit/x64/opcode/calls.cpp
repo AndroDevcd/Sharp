@@ -27,6 +27,10 @@ emit_result X64Generator::emit_calls() {
 #endif
             return emitted;
         case Opcode::CALLD:     // call_function_value(a): a = how many arguments were pushed
+#ifdef SHARP_JIT_DIRECT_CALLS
+            function_value_call(single);
+            return emitted;
+#endif
             prepare_runtime_call();
             a.mov(rdi, (int64_t)single);
             call_runtime(reinterpret_cast<void*>(jit_rt_call_dynamic));
@@ -34,6 +38,12 @@ emit_result X64Generator::emit_calls() {
             return emitted;
         case Opcode::INVOKE_DELEGATE: { // invoke_delegate(a, argument count, is static)
             const uint32_t second = code[pc + 1];
+#ifdef SHARP_JIT_DIRECT_CALLS
+            if(GET_Ca(second) == 0) {           // not static: the object's class decides
+                virtual_call(GET_Cb(second));
+                return emitted;
+            }
+#endif
             prepare_runtime_call();
             a.mov(rdi, (int64_t)single);
             a.mov(rsi, (int64_t)GET_Cb(second));

@@ -94,7 +94,7 @@ void X64Generator::emit_entry() {
     a.cmp(thread_signal(), 0);
     a.jne(inTheMiddle);
     load_vm_registers();                              // -> register mode
-    a.call(directEntry);
+    a.call(doorEntry);
     a.jmp(bodyReturned);
 
     a.bind(inTheMiddle);                    // e.g. a hot loop taken over from the interpreter
@@ -120,12 +120,22 @@ void X64Generator::emit_entry() {
     // ---------------------------------------------------------------- the resume door
     a.bind(resumeEntry);
     a.sub(x86::rsp, FRAME_SIZE);
+    a.mov(machine_frame_slot(FRAME_DIRECT), 0);         // C++ is the caller: return the long way
     a.jmp(resumeCheck);
+
+    // ---------------------------------------------------------------- the direct door, for the C++ door above
+    a.bind(doorEntry);
+    a.sub(x86::rsp, FRAME_SIZE);
+    a.mov(machine_frame_slot(FRAME_DIRECT), 0);
+    load_slot_homes();
+    a.jmp(labels[0]);
 
     // ---------------------------------------------------------------- the direct door
     // (must stay last: the first instruction of the function follows)
     a.bind(directEntry);
     a.sub(x86::rsp, FRAME_SIZE);
+    a.mov(machine_frame_slot(FRAME_DIRECT), 1);         // compiled code is the caller: it puts its own state back
+    load_slot_homes();                  // (a direct call arrives with the caller's slots in these registers)
 }
 
 } // namespace x64jit

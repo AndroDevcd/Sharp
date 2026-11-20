@@ -70,7 +70,7 @@ def main(args: string[]) {
         failing.close();
 
         // ---- a conversation with another Sharp program: this one, started again
-        talker := subprocess.start_sharp(program_path(), new string[] { "child" });
+        talker := subprocess.run(program_path(), new string[] { "child" });
         test("a Sharp program started: its first line") { expect(io_strings.trim(talker.read_line()!!)).should_be("child ready"); };
         test("running while it waits for input") { expect_true(talker.is_running()); };
         still_running : decimal = 0;
@@ -98,7 +98,7 @@ def main(args: string[]) {
         copier.close();
 
         // ---- a program by its file and arguments: each argument arrives as one
-        spaced := subprocess.start_sharp(program_path(), new string[] { "child" });
+        spaced := subprocess.run(program_path(), new string[] { "child" });
         spaced.read_line();
         spaced.write_text("an argument with spaces & signs\n");
         test("text with spaces and signs") { expect(io_strings.trim(spaced.read_line()!!)).should_be("child got: an argument with spaces & signs"); };

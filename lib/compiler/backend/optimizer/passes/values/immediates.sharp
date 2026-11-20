@@ -39,6 +39,10 @@ import (
  */
 def use_immediate(made: ir_instruction, state: constant_state) : _int64 {
     operation : _int64 = made.number;
+    if(operation == ARITH_AND || operation == ARITH_OR || operation == ARITH_XOR || operation == ARITH_SHL
+       || operation == ARITH_SHR) {
+        return use_bits_immediate(made, state);
+    }
     if(operation != ARITH_ADD && operation != ARITH_SUB && operation != ARITH_MUL) { return 0; }
     if(state.knows(made.second) && fits_32_bits(state.whole_of(made.second))) {
         become_immediate(made, made.first, state.whole_of(made.second));
@@ -46,6 +50,35 @@ def use_immediate(made: ir_instruction, state: constant_state) : _int64 {
     }
     if(operation != ARITH_SUB && state.knows(made.first) && fits_32_bits(state.whole_of(made.first))) {
         become_immediate(made, made.second, state.whole_of(made.first));
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * The bit operations and the shifts with one operand known: `x & 0xff`,
+ * `x >> 2`. The VM's slot forms take the constant in the instruction
+ * (`iand_s d, a; k`: selection_numbers.sharp). `&`, `|` and `^` take the known
+ * number on either side; a shift only as its count, and only a count of
+ * 0 .. 63 (the VM takes a count modulo 64: a known one outside is left alone).
+ */
+def use_bits_immediate(made: ir_instruction, state: constant_state) : _int64 {
+    operation : _int64 = made.number;
+    shift : _int64 = operation == ARITH_SHL || operation == ARITH_SHR;
+    if(state.knows(made.second) && fits_32_bits(state.whole_of(made.second))) {
+        constant : _int64 = state.whole_of(made.second);
+        if(shift == 1 && (constant < 0 || constant > 63)) { return 0; }
+        made.kind = IR_INT_IMMEDIATE;
+        made.second = 0 - 1;
+        made.detail = constant;
+        return 1;
+    }
+    if(shift == 0 && state.knows(made.first) && fits_32_bits(state.whole_of(made.first))) {
+        constant : _int64 = state.whole_of(made.first);
+        made.kind = IR_INT_IMMEDIATE;
+        made.first = made.second;
+        made.second = 0 - 1;
+        made.detail = constant;
         return 1;
     }
     return 0;

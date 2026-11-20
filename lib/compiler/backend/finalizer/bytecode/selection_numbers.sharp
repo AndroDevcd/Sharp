@@ -72,12 +72,17 @@ def select_decimal_constant(out: code_emitter, made: ir_instruction, context: se
 /** a copy between slots of one kind; a number can be narrowed on the way */
 def select_copy(out: code_emitter, made: ir_instruction, context: selection_context) {
     if(context.is_reference(made.first)) {
+        if(slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_MOVOBJ_S, made.target, made.first, 0); return; }
         out.class_d(OP_PUSHL, made.first);
         out.class_d(OP_POPL, made.target);
         return;
     }
     if(made.number == NARROW_NONE) {
         out.d_and_raw(OP_SMOVR_4, made.target, made.first);
+        return;
+    }
+    if(slots_in_reach(made.target, made.first, 0) && out.skip_at < 0) {
+        out.class_b(OP_MOV8_S + (made.number - NARROW_I8), made.target, made.first, 0);
         return;
     }
     out.class_c(OP_LOADL, REG_EBX, made.first);
@@ -97,8 +102,12 @@ def narrow(out: code_emitter, register: _int64, narrowing: _int64) {
 
 /** a conversion between number kinds, then the cut to a narrower integer when one is asked for */
 def select_convert(out: code_emitter, made: ir_instruction) {
-    out.class_c(OP_LOADL, REG_EBX, made.first);
     how : _int64 = made.number;
+    if(made.detail == NARROW_NONE && slots_in_reach(made.target, made.first, 0)) {
+        if(how == CONVERT_INT_TO_DECIMAL) { out.class_b(OP_I2D_S, made.target, made.first, 0); return; }
+        if(how == CONVERT_DECIMAL_TO_INT) { out.class_b(OP_D2I_S, made.target, made.first, 0); return; }
+    }
+    out.class_c(OP_LOADL, REG_EBX, made.first);
     if(how == CONVERT_INT_TO_DECIMAL) { out.class_c(OP_I2D, REG_EBX, REG_EBX); }
     else if(how == CONVERT_DECIMAL_TO_INT) { out.class_c(OP_D2I, REG_EBX, REG_EBX); }
     else if(how == CONVERT_TRUTH) {
@@ -112,6 +121,11 @@ def select_convert(out: code_emitter, made: ir_instruction) {
 
 /** d = a op b: both operands into registers, the operation, the result into its slot */
 def select_binary(out: code_emitter, made: ir_instruction) {
+    on_slots : _int64 = slot_form_of_binary(made);
+    if(on_slots >= 0 && slots_in_reach(made.target, made.first, made.second)) {
+        out.class_b(on_slots, made.target, made.first, made.second);
+        return;
+    }
     out.class_c(OP_LOADL, REG_EBX, made.first);
     out.class_c(OP_LOADL, REG_ECX, made.second);
     operation : _int64 = made.number;
@@ -156,6 +170,11 @@ def select_binary(out: code_emitter, made: ir_instruction) {
  */
 def select_int_immediate(out: code_emitter, made: ir_instruction) {
     operation : _int64 = made.number;
+    if(operation == ARITH_AND || operation == ARITH_OR || operation == ARITH_XOR || operation == ARITH_SHL
+       || operation == ARITH_SHR) {
+        select_bits_immediate(out, made);
+        return;
+    }
     on_slot : _int64 = 0 - 1;
     in_register : _int64 = 0 - 1;
     if(operation == ARITH_ADD) { on_slot = OP_IADDL; in_register = OP_IADD; }
@@ -166,8 +185,45 @@ def select_int_immediate(out: code_emitter, made: ir_instruction) {
         out.d_and_raw(on_slot, made.target, made.detail);
         return;
     }
+    if(slots_in_reach(made.target, made.first, 0) && out.skip_at < 0) {
+        out.class_b(OP_IADD_S + (on_slot - OP_IADDL), made.target, made.first, 0);
+        out.raw(made.detail);
+        return;
+    }
     out.class_c(OP_LOADL, REG_EBX, made.first);
     out.d_and_raw(in_register, REG_EBX, made.detail);
+    out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+}
+
+/**
+ * d = a op k for the bit operations and the shifts (the optimizer's int_immediate):
+ * the slot form with the constant in its second word, `iand_s d, a; k`. Slots out
+ * of its reach take the constant through a register, as `int_binary` would.
+ */
+def select_bits_immediate(out: code_emitter, made: ir_instruction) {
+    operation : _int64 = made.number;
+    if(slots_in_reach(made.target, made.first, 0) && out.skip_at < 0) {
+        opcode : _int64 = OP_IAND_S;
+        if(operation == ARITH_OR) { opcode = OP_IAND_S + 1; }
+        else if(operation == ARITH_XOR) { opcode = OP_IAND_S + 2; }
+        else if(operation == ARITH_SHL) { opcode = OP_IAND_S + 3; }
+        else if(operation == ARITH_SHR) { opcode = OP_IAND_S + 4; }
+        out.class_b(opcode, made.target, made.first, 0);
+        out.raw(made.detail);
+        return;
+    }
+    out.class_c(OP_LOADL, REG_EBX, made.first);
+    out.d_and_raw(OP_MOVI, REG_ECX, made.detail);
+    if(operation == ARITH_AND || operation == ARITH_OR || operation == ARITH_XOR) {
+        // these write bmr
+        if(operation == ARITH_AND) { out.class_c(OP_UAND, REG_EBX, REG_ECX); }
+        else if(operation == ARITH_OR) { out.class_c(OP_OR, REG_EBX, REG_ECX); }
+        else { out.class_c(OP_XOR, REG_EBX, REG_ECX); }
+        out.class_c(OP_SMOVR_2, REG_BMR, made.target);
+        return;
+    }
+    if(operation == ARITH_SHL) { out.class_b(OP_SHL, REG_EBX, REG_ECX, REG_EBX); }
+    else { out.class_b(OP_SHR, REG_EBX, REG_ECX, REG_EBX); }
     out.class_c(OP_SMOVR_2, REG_EBX, made.target);
 }
 

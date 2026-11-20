@@ -25,7 +25,7 @@ import ( std.c, std.io, platform )
  * goes, a program that is stopped from here (kill), or one that is only
  * asked now and then whether it is still running.
  *
- * ANOTHER SHARP PROGRAM is started with start_sharp(program, arguments), and
+ * ANOTHER SHARP PROGRAM is started with run(program, arguments), and
  * any program by its file and arguments with start_program(file, arguments).
  *
  * THE COMMAND is a command line for the system's shell (/bin/sh on Linux,
@@ -143,17 +143,17 @@ class subprocess {
      * the same `sharp` this program is run by, with these arguments (what
      * its main(args) gets).
      *
-     *      worker := subprocess.start_sharp(program_folder() + "/worker", new string[] { "--port", "8080" });
-     *      again := subprocess.start_sharp(program_path(), new string[] { "child" });     // this very program, once more
+     *      worker := subprocess.run(program_folder() + "/worker", new string[] { "--port", "8080" });
+     *      again := subprocess.run(program_path(), new string[] { "child" });     // this very program, once more
      *
      * The two programs are apart - each its own memory, its own threads - and
      * talk through the three streams, like any two programs.
      */
-    static def start_sharp(program: string, arguments: string[]) : subprocess {
-        return start_sharp(program, arguments, false);
+    static def run(program: string, arguments: string[]) : subprocess {
+        return run(program, arguments, false);
     }
 
-    static def start_sharp(program: string, arguments: string[], merge_errors: bool) : subprocess {
+    static def run(program: string, arguments: string[], merge_errors: bool) : subprocess {
         both := new string[sizeof(arguments) + 1];
         both[0] = program;
         for(i : _int64 = 0; i < sizeof(arguments); i++) { both[i + 1] = arguments[i]; }

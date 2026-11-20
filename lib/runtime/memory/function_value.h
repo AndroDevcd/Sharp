@@ -49,6 +49,10 @@ struct sharp_object;
 /** find the class and its two slots; called once the classes are loaded */
 void setup_function_values();
 
+/** which slots of a function value hold its function's address and what it captured (for compiled code) */
+Int function_value_address_slot();
+Int function_value_captured_slot();
+
 /** the method index a function value holds (throws on null or a bad index) */
 Int function_value_address(sharp_object *functionValue);
 

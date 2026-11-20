@@ -29,7 +29,8 @@ import (
  * (only `line` marks between, no label: a jump could arrive in between):
  *
  *  - j reads %t exactly once;
- *  - %t is not live after j (analysis/liveness.sharp);
+ *  - %t is not live after j (analysis/liveness.sharp) - or j itself writes %t, so that
+ *    what is live after j is j's own value, not the one handed on;
  *  - if j may raise inside a `try`, no handler reads %t.
  *
  * This is the smallest form of what the textbook calls register allocation
@@ -61,7 +62,7 @@ def mark_hand_offs(analyses: function_analyses) : _int64 {
                 before := code.instructions.at(i);
                 value : _int64 = slot_written(before);
                 if(value >= 0 && code.slot_kinds.at(value) != SLOT_REF && times_read(next, value) == 1
-                   && !walking.has(value)
+                   && (!walking.has(value) || slot_written(next) == value)
                    && !(into_handlers != null && may_raise(next) && into_handlers!!.has(value))) {
                     before.handed_on = 1;
                     put_first(next, value);

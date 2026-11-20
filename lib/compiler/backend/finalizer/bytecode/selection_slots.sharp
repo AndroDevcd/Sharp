@@ -1,0 +1,190 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * SELECTION: THE SLOT FORMS - one VM instruction for one IR instruction
+ *
+ * An IR instruction reads slots and writes a slot. The older sequences move
+ * everything through registers - a load per operand, the operation, a store:
+ *
+ *      int_binary add %5, %1, %2     ->  loadl ebx, 1;  loadl ecx, 2;  add ebx, ecx -> ebx;  smovr_2 ebx, 5
+ *
+ * The VM's slot forms (lib/core/opcode/opcode.h, a4 .. f0) work on the frame
+ * slots themselves, so the same IR instruction is ONE word:
+ *
+ *      int_binary add %5, %1, %2     ->  add_s 5, 1, 2
+ *      get_element %3, %1[%2]        ->  aload64_s 3, 1, 2        (null and bounds checked by the instruction)
+ *      get_field %2, %0.count        ->  getf_s 2, 0, <slot of count>
+ *
+ * and a comparison whose only reader is the jump after it becomes one instruction
+ * of two words with it (`compare_and_jump`, called by the bytecode step):
+ *
+ *      int_compare lt %5, %1, %2
+ *      jump_unless %5, L2            ->  jlt_s 1, 2 is 0 -> L2      "if (%1 < %2) is false, go to L2"
+ *
+ * Their three operands are 7 bits each, so every slot (and a field's position)
+ * must be 0 .. 127: `slots_in_reach`. What is out of reach, and everything the
+ * VM has no slot form for (remainder, `**`, narrowing stores, static and
+ * fiber-local fields), keeps its older sequence - both are always right, the
+ * slot form is only shorter and faster, in the interpreter and in machine code.
+ */
+
+/** can these three operands of a slot form be written (each 0 .. 127)? */
+def slots_in_reach(a: _int64, b: _int64, c: _int64) : _int64 {
+    return a >= 0 && a <= 127 && b >= 0 && b <= 127 && c >= 0 && c <= 127;
+}
+
+/** the slot form of an arithmetic instruction; -1 when the VM has none for it */
+def slot_form_of_binary(made: ir_instruction) : _int64 {
+    operation : _int64 = made.number;
+    if(made.kind == IR_INT_BINARY) {
+        if(operation == ARITH_ADD) { return OP_ADD_S; }
+        if(operation == ARITH_SUB) { return OP_ADD_S + 1; }
+        if(operation == ARITH_MUL) { return OP_ADD_S + 2; }
+        if(operation == ARITH_AND) { return OP_ADD_S + 3; }
+        if(operation == ARITH_OR) { return OP_ADD_S + 4; }
+        if(operation == ARITH_XOR) { return OP_ADD_S + 5; }
+        if(operation == ARITH_SHL) { return OP_ADD_S + 6; }
+        if(operation == ARITH_SHR) { return OP_ADD_S + 7; }
+        return 0 - 1;
+    }
+    if(operation == ARITH_ADD) { return OP_DADD_S; }
+    if(operation == ARITH_SUB) { return OP_DADD_S + 1; }
+    if(operation == ARITH_MUL) { return OP_DADD_S + 2; }
+    if(operation == ARITH_DIV) { return OP_DADD_S + 3; }
+    return 0 - 1;
+}
+
+/**
+ * The comparison at `index` and the conditional jump that reads its result, as
+ * one instruction. Returns the index of that jump (the bytecode step then
+ * leaves it out), or -1 when the two do not go together: the comparison is
+ * then selected as always.
+ *
+ * It is asked only for a comparison the optimizer marked `handed_on`
+ * (passes/registers/register_hand_off.sharp): its result is read once, by the
+ * very next instruction, and by nothing after it - so the result slot need
+ * not be written at all.
+ */
+def compare_and_jump(out: code_emitter, ir: ir_function, index: _int64) : _int64 {
+    compared := ir.instructions.at(index);
+    next : _int64 = jump_joined_by(ir, index);
+    if(next < 0) { return 0 - 1; }
+    jump := ir.instructions.at(next);
+    sense : _int64 = 1;
+    if(jump.kind == IR_JUMP_UNLESS) { sense = 0; }
+    if(compared.kind == IR_IS_NULL) {
+        // `if(x == null)`: the null test and the jump on it
+        out.class_b(OP_JNULL_S, compared.first, 0, sense);
+        out.raw(out.label_pc(jump.number));
+        return next;
+    }
+    opcode : _int64 = OP_JLT_S + (compared.number - CMP_LT);
+    if(compared.kind == IR_DECIMAL_COMPARE) { opcode = OP_DJLT_S + (compared.number - CMP_LT); }
+    // (the `line` marks between the two are still to come in the caller's walk: nothing is lost)
+    out.class_b(opcode, compared.first, compared.second, sense);
+    out.raw(out.label_pc(jump.number));
+    return next;
+}
+
+/**
+ * Does the instruction at `index` join the jump after it (`compare_and_jump`)?
+ * The index of that jump, or -1. (Also asked by `hand_on`, bytecode.sharp: a
+ * comparison that joins its jump reads its operands from their slots, so the
+ * instruction before it must not keep one of them in a register only.)
+ */
+def jump_joined_by(ir: ir_function, index: _int64) : _int64 {
+    compared := ir.instructions.at(index);
+    if(compared.handed_on != 1) { return 0 - 1; }
+    if(compared.kind != IR_INT_COMPARE && compared.kind != IR_DECIMAL_COMPARE && compared.kind != IR_IS_NULL) { return 0 - 1; }
+    next : _int64 = index + 1;
+    while(next < ir.instructions.size() && ir.instructions.at(next).kind == IR_LINE) { next++; }
+    if(next >= ir.instructions.size()) { return 0 - 1; }
+    jump := ir.instructions.at(next);
+    if(jump.kind != IR_JUMP_IF && jump.kind != IR_JUMP_UNLESS) { return 0 - 1; }
+    if(jump.first != compared.target) { return 0 - 1; }
+    if(compared.kind == IR_IS_NULL) {
+        if(!slots_in_reach(compared.first, 0, 0)) { return 0 - 1; }
+        return next;
+    }
+    if(!slots_in_reach(compared.first, compared.second, 0)) { return 0 - 1; }
+    return next;
+}
+
+/**
+ * A CONSTANT, THE COMPARISON WITH IT, AND THE JUMP ON THAT - `if(i < 10)`,
+ * `while(kind == 1)` - as one instruction with the constant inside it:
+ *
+ *      int_constant %7, 10
+ *      int_compare lt %6, %4, %7
+ *      jump_unless %6, L2            ->  jlt_k 4, 10 is 0 -> L2
+ *
+ * Asked at the constant. The index of the comparison, or -1 when the three do
+ * not go together: the constant must be small (-127 .. 127, a whole number),
+ * handed on to the comparison (read by it alone: register_hand_off.sharp),
+ * and the comparison must join its jump (`jump_joined_by`).
+ */
+def compare_joined_by_constant(ir: ir_function, index: _int64) : _int64 {
+    constant := ir.instructions.at(index);
+    if(constant.handed_on != 1) { return 0 - 1; }
+    if(!small_whole_constant(constant)) { return 0 - 1; }
+    next : _int64 = index + 1;
+    while(next < ir.instructions.size() && ir.instructions.at(next).kind == IR_LINE) { next++; }
+    if(next >= ir.instructions.size()) { return 0 - 1; }
+    compared := ir.instructions.at(next);
+    if(compared.kind != IR_INT_COMPARE && compared.kind != IR_DECIMAL_COMPARE) { return 0 - 1; }
+    if((constant.kind == IR_DECIMAL_CONSTANT) != (compared.kind == IR_DECIMAL_COMPARE)) { return 0 - 1; }
+    if(jump_joined_by(ir, next) < 0) { return 0 - 1; }
+    // the constant is one operand, a slot the other
+    if(compared.first == constant.target && compared.second == constant.target) { return 0 - 1; }
+    if(compared.first != constant.target && compared.second != constant.target) { return 0 - 1; }
+    return next;
+}
+
+/** is it a whole number of -127 .. 127 (what fits an operand of a slot form)? */
+def small_whole_constant(constant: ir_instruction) : _int64 {
+    if(constant.kind == IR_INT_CONSTANT) { return constant.number >= 0 - 127 && constant.number <= 127; }
+    value : decimal = constant.real;
+    if(!(value >= 0 - 127 && value <= 127)) { return 0; }
+    whole : _int64 = value as _int64;
+    if(whole != value) { return 0; }
+    if(whole == 0 && is_negative_zero(value)) { return 0; }
+    return 1;
+}
+
+/**
+ * Write the one instruction for the constant at `index`, the comparison at
+ * `compare_index` and its jump; returns the index of the jump. `k < x` asks
+ * the same as `x > k`, so a constant on the left turns the comparison round.
+ */
+def constant_compare_and_jump(out: code_emitter, ir: ir_function, index: _int64, compare_index: _int64) : _int64 {
+    constant := ir.instructions.at(index);
+    compared := ir.instructions.at(compare_index);
+    jump_index : _int64 = jump_joined_by(ir, compare_index);
+    jump := ir.instructions.at(jump_index);
+    value : _int64 = constant.number;
+    if(constant.kind == IR_DECIMAL_CONSTANT) { value = constant.real as _int64; }
+    operation : _int64 = compared.number;
+    other : _int64 = compared.first;
+    if(compared.first == constant.target) {
+        other = compared.second;
+        if(operation == CMP_LT) { operation = CMP_GT; }
+        else if(operation == CMP_GT) { operation = CMP_LT; }
+        else if(operation == CMP_LE) { operation = CMP_GE; }
+        else if(operation == CMP_GE) { operation = CMP_LE; }
+    }
+    opcode : _int64 = OP_JLT_K + (operation - CMP_LT);
+    if(compared.kind == IR_DECIMAL_COMPARE) { opcode = OP_DJLT_K + (operation - CMP_LT); }
+    sense : _int64 = 1;
+    if(jump.kind == IR_JUMP_UNLESS) { sense = 0; }
+    out.class_b(opcode, other, value, sense);
+    out.raw(out.label_pc(jump.number));
+    return jump_index;
+}

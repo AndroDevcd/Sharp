@@ -40,6 +40,7 @@ void X64Generator::emit_slow_paths() {
                 break;
 
             case slow_null:
+                if(path.objectSlot >= 0) a.lea(PTR, local_object(path.objectSlot));      // (as `movl` would have)
                 save_stack_registers();
                 a.mov(rdi, THREAD);
                 call_runtime(reinterpret_cast<void*>(jit_rt_null_pointer));
@@ -47,6 +48,7 @@ void X64Generator::emit_slow_paths() {
                 break;
 
             case slow_bounds:       // the index is in rcx
+                if(path.objectSlot >= 0) a.lea(PTR, local_object(path.objectSlot));      // (the message names its size)
                 save_stack_registers();
                 a.mov(rdi, THREAD);
                 a.mov(rsi, rcx);
@@ -55,8 +57,8 @@ void X64Generator::emit_slow_paths() {
                 break;
 
             case slow_safepoint:
-                // the thread's signal word is set at the bottom of a loop;
-                // path.pc is the top of the loop, where it continues
+                // the thread's signal word is set at the bottom of a loop; path.pc is where it
+                // continues: the top of the loop, or the jump itself (before_conditional_jump)
                 save_stack_registers();
                 a.mov(rdi, THREAD);
                 call_runtime(reinterpret_cast<void*>(jit_rt_safepoint));
@@ -79,6 +81,39 @@ void X64Generator::emit_slow_paths() {
                 call_runtime(reinterpret_cast<void*>(jit_rt_call));
                 check_after_runtime_call(true);
                 a.jmp(path.back);   // the instruction after the CALL
+                break;
+
+            case slow_virtual_call: {
+                // the class is not in the place's cache, or its function cannot be called directly:
+                // jit_rt_invoke_virtual looks it up, remembers it and calls it
+                const uint32_t second = code[path.pc + 1];
+                save_stack_registers();
+                a.mov(rdi, (int64_t)GET_Da(code[path.pc]));
+                a.mov(rsi, (int64_t)GET_Cb(second));
+                a.mov(rdx, (uint64_t)path.data);
+                call_runtime(reinterpret_cast<void*>(jit_rt_invoke_virtual));
+                check_after_runtime_call(false);    // invoke_delegate moved task->pc: go where it points
+                break;
+            }
+
+            case slow_found_call:
+                // a function found while the code ran (a function value's) that cannot be called
+                // directly: prepare_method(its address), as slow_call does for a known one
+                save_stack_registers();
+                a.mov(rax, machine_frame_slot(FRAME_CALLEE));
+                a.movsxd(rdi, x86::dword_ptr(rax, offsetof(sharp_function, address)));
+                call_runtime(reinterpret_cast<void*>(jit_rt_call));
+                check_after_runtime_call(true);
+                a.jmp(path.back);
+                break;
+
+            case slow_function_value_call:
+                // a null function value or one with a bad address: the runtime raises
+                save_stack_registers();
+                a.mov(rdi, (int64_t)GET_Da(code[path.pc]));
+                call_runtime(reinterpret_cast<void*>(jit_rt_call_dynamic));
+                check_after_runtime_call(true);
+                a.jmp(path.back);
                 break;
 
             case slow_barrier:

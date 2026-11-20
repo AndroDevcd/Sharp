@@ -35,6 +35,7 @@ public:
     void v_jump_if_not_below(VReg index, PReg size, int label) override;
     void v_jump_if_zero(VReg r, int label) override;
     void v_jump_if_not_zero(VReg r, int label) override;
+    void v_jump_if(VReg left, VReg right, Cond how, bool holds, int label) override;
     void v_from_pointer(VReg to, PReg from) override;
     void v_to_pointer(PReg to, VReg from) override;
 
@@ -43,6 +44,7 @@ public:
     void d_store(DReg from, PReg base, int32_t offset) override;
     void d_operation(DOp op, DReg to, DReg left, DReg right) override;
     void d_compare(VReg to, DReg left, DReg right, Cond how) override;
+    void d_jump_if(DReg left, DReg right, Cond how, bool holds, int label) override;
     void d_from_whole(DReg to, VReg from) override;
 
     void p_constant(PReg to, uintptr_t value) override;
@@ -51,6 +53,11 @@ public:
     void p_store_object(PReg from, PReg base, int32_t offset) override;
     void p_load_32(PReg to, PReg base, int32_t offset) override;
     void p_load_8(PReg to, PReg base, int32_t offset) override;
+    void p_load_int(PReg to, PReg base, int32_t offset) override;
+    void p_store_32(PReg from, PReg base, int32_t offset) override;
+    void p_store_8(PReg from, PReg base, int32_t offset) override;
+    void p_multiply(PReg r, uint32_t by) override;
+    void p_and(PReg r, uint32_t mask) override;
     void p_move(PReg to, PReg from) override;
     void p_add(PReg to, PReg from, int32_t amount) override;
     void p_add_scaled(PReg to, PReg base, PReg index, int shift) override;
@@ -61,6 +68,7 @@ public:
     void p_jump_if(PReg left, PReg right, PCond how, int label) override;
     void p_jump_if_equals(PReg r, int32_t value, int label) override;
     void p_jump_if_bits(PReg r, uint32_t mask, bool any_set, int label) override;
+    void p_jump_if_machine_stack_below(PReg limit, int label) override;
 
     void item_load(VReg to, PReg base, PReg index, int bytes, bool is_signed) override;
     void item_store(VReg from, PReg base, PReg index, int bytes) override;
@@ -75,10 +83,23 @@ public:
     void body_enter() override;
     void body_return() override;
     void call_label(int label) override;
-    void keep_pointer(PReg from) override;
-    void kept_pointer(PReg to) override;
+    void frame_store(int slot, PReg from) override;
+    void frame_load(PReg to, int slot) override;
+    void call_compiled(PReg target) override;
     void return_code(int code) override;
     void jump_through_table(PReg table, PReg index) override;
+
+    void home_locals(const std::vector<int32_t> &whole, const std::vector<int32_t> &decimal) override;
+    void stack_numbers_changed() override;
+    void slot_operation(VOp op, int32_t to, int32_t left, int32_t right) override;
+    void slot_operation_constant(VOp op, int32_t to, int32_t left, int64_t right) override;
+    void slot_jump_if(int32_t left, int32_t right, Cond how, bool holds, int label) override;
+    void slot_jump_if_constant(int32_t left, int64_t right, Cond how, bool holds, int label) override;
+    void slot_jump_if_zero(int32_t slot, bool is_zero, int label) override;
+    void slot_decimal_operation(DOp op, int32_t to, int32_t left, int32_t right) override;
+    void slot_decimal_jump_if(int32_t left, int32_t right, Cond how, bool holds, int label) override;
+    void slot_decimal_jump_if_constant(int32_t left, double right, Cond how, bool holds, int label) override;
+    void slot_whole_to_decimal(int32_t to, int32_t from) override;
 
     bool failed() override;
 
@@ -92,6 +113,27 @@ private:
     asmjit::a64::Vec d(DReg r);
     void constant(const asmjit::a64::Gp &to, uint64_t value);
     asmjit::a64::Mem at(PReg base, int32_t offset, int size);
+
+    // ---- homes (arm64_machine.cpp, "NUMBERS THAT LIVE IN CPU REGISTERS")
+    int homes;                              // 0: none, 1: the VM registers, 2: and local numbers
+    std::vector<int32_t> whole_homes;       // the FP offsets of the locals in x25 .. x28
+    std::vector<int32_t> decimal_homes;     // the FP offsets of the locals in d8 .. d11
+    int vm_home(PReg base, int32_t offset);         // which home, -1: none
+    int whole_home(PReg base, int32_t offset);
+    int decimal_home(PReg base, int32_t offset);
+    void reload_vm_homes();
+    void reload_local_homes();
+
+    // ---- a local number where it can be worked on (arm64_machine.cpp, "WORKING IN THE HOMES")
+    asmjit::a64::Gp whole_local(int32_t offset, const asmjit::a64::Gp &scratch);
+    asmjit::a64::Gp whole_result(int32_t offset, const asmjit::a64::Gp &scratch);
+    void whole_local_written(int32_t offset, const asmjit::a64::Gp &from);
+    asmjit::a64::Vec decimal_local(int32_t offset, const asmjit::a64::Vec &scratch);
+    asmjit::a64::Vec decimal_result(int32_t offset, const asmjit::a64::Vec &scratch);
+    void decimal_local_written(int32_t offset, const asmjit::a64::Vec &from);
+    void whole_operation(VOp op, const asmjit::a64::Gp &to, const asmjit::a64::Gp &left, const asmjit::a64::Gp &right);
+    void jump_if_whole(Cond how, bool holds, int label);        // (after a cmp)
+    void jump_if_decimal(Cond how, bool holds, int label);      // (after an fcmp)
 };
 
 } // namespace armjit

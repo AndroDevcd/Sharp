@@ -133,6 +133,14 @@ def instruction_text_at(words: number_list, pc: _int64) : string {
         text.append("" + signed_field(word, 11, 0x7f, 8) + ", " + signed_field(word, 18, 0x7f, 9) + " -> "
                     + signed_field(word, 25, 0x7f, 10));
     }
+    else if(form == 'I') {
+        text.append("" + signed_field(word, 11, 0x7f, 8) + ", " + signed_field(word, 18, 0x7f, 9) + ", "
+                    + raw_number(words.at(pc + 1)));
+    }
+    else if(form == 'J') {
+        text.append("" + signed_field(word, 11, 0x7f, 8) + ", " + signed_field(word, 18, 0x7f, 9) + " is "
+                    + signed_field(word, 25, 0x7f, 10) + " -> " + raw_number(words.at(pc + 1)));
+    }
     else if(form == 'K') { text.append("" + signed_field(word, 9, 0x7fffff, 8) + ", " + raw_number(words.at(pc + 1))); }
     else if(form == 'X') { text.append(raw_number(words.at(pc + 1))); }
     else if(form == 'G') {

@@ -200,6 +200,112 @@ public:
     static const uint8_t ASTORE32     = 0xa2;
     static const uint8_t ASTORE64     = 0xa3;
 
+    // ---- THE SLOT FORMS (0xa4 .. 0xf0, in three groups): one instruction that reads its operands from the function's
+    // frame slots and writes its result into one, where the forms above need a load per operand,
+    // the operation, and a store (the compiler's IR is exactly this shape: lib/compiler, bytecode step).
+    // Operands are frame slots (fp + n), three of 7 bits each (class B), so n <= 127; a function
+    // with more slots than that uses the older forms for the slots out of reach.
+    //
+    //      ADD_S d, a, b               fp[d] = fp[a] + fp[b]            (SUB MUL AND OR XOR SHL SHR; D...: decimals)
+    //      I2D_S d, a   D2I_S d, a     fp[d] = (double) fp[a] / decimal_to_integer(fp[a])
+    //      JLT_S a, b, sense; target   if((fp[a] < fp[b]) == sense) goto target     (two words; DJ...: decimals)
+    //      ALOAD8_S d, array, index    fp[d] = array[index], null and bounds checked  (the array is fp[array].obj)
+    //      ASTORE8_S array, index, v   array[index] = fp[v]
+    //      GETF_S d, object, field     fp[d] = the number field of the object         PUTF_S object, field, v
+    //      SIZEOF_S d, array           fp[d] = its length, 0 for null
+    //      AGETOBJ_S d, array, index   fp[d].obj = array[index] (an array of references)
+    //      GETOBJ_S d, object, field   fp[d].obj = the reference field of the object
+    static const uint8_t ADD_S        = 0xa4;
+    static const uint8_t SUB_S        = 0xa5;
+    static const uint8_t MUL_S        = 0xa6;
+    static const uint8_t AND_S        = 0xa7;
+    static const uint8_t OR_S         = 0xa8;
+    static const uint8_t XOR_S        = 0xa9;
+    static const uint8_t SHL_S        = 0xaa;
+    static const uint8_t SHR_S        = 0xab;
+    static const uint8_t DADD_S       = 0xac;
+    static const uint8_t DSUB_S       = 0xad;
+    static const uint8_t DMUL_S       = 0xae;
+    static const uint8_t DDIV_S       = 0xaf;
+    static const uint8_t I2D_S        = 0xb0;
+    static const uint8_t D2I_S        = 0xb1;
+    static const uint8_t JLT_S        = 0xb2;
+    static const uint8_t JGT_S        = 0xb3;
+    static const uint8_t JLE_S        = 0xb4;
+    static const uint8_t JGE_S        = 0xb5;
+    static const uint8_t JEQ_S        = 0xb6;
+    static const uint8_t JNE_S        = 0xb7;
+    static const uint8_t DJLT_S       = 0xb8;
+    static const uint8_t DJGT_S       = 0xb9;
+    static const uint8_t DJLE_S       = 0xba;
+    static const uint8_t DJGE_S       = 0xbb;
+    static const uint8_t DJEQ_S       = 0xbc;
+    static const uint8_t DJNE_S       = 0xbd;
+    static const uint8_t ALOAD8_S     = 0xbe;
+    static const uint8_t ALOADU8_S    = 0xbf;
+    static const uint8_t ALOAD16_S    = 0xc0;
+    static const uint8_t ALOADU16_S   = 0xc1;
+    static const uint8_t ALOAD32_S    = 0xc2;
+    static const uint8_t ALOADU32_S   = 0xc3;
+    static const uint8_t ALOAD64_S    = 0xc4;
+    static const uint8_t ASTORE8_S    = 0xc5;
+    static const uint8_t ASTORE16_S   = 0xc6;
+    static const uint8_t ASTORE32_S   = 0xc7;
+    static const uint8_t ASTORE64_S   = 0xc8;
+    static const uint8_t GETF_S       = 0xc9;
+    static const uint8_t PUTF_S       = 0xca;
+    static const uint8_t SIZEOF_S     = 0xcb;
+    static const uint8_t AGETOBJ_S    = 0xcc;
+    static const uint8_t GETOBJ_S     = 0xcd;
+    // the second group: what still went through registers in ordinary code
+    //      JNZ_S a; target   JZ_S a; target        if(fp[a] != 0) / if(fp[a] == 0) goto target
+    //      JNULL_S a, 0, sense; target             if((fp[a].obj is null) == sense) goto target
+    //      ISNULL_S d, a     NOT_S d, a            fp[d] = fp[a].obj is null / !fp[a]
+    //      MOV8_S d, a  ...  MOVU32_S d, a         fp[d] = fp[a] cut to that width
+    //      RETURNVAL_S a     RETURNOBJ_S a         the function's result = fp[a] / fp[a].obj
+    //      IADD_S d, a; k    ISUB_S   IMUL_S       fp[d] = fp[a] + k   (k: the second word)
+    //      PUTOBJ_S object, field, v               (fp[object].obj).<reference field> = fp[v].obj, with the write barrier
+    //      MOVOBJ_S d, a                           fp[d].obj = fp[a].obj
+    static const uint8_t JNZ_S        = 0xce;
+    static const uint8_t JZ_S         = 0xcf;
+    static const uint8_t JNULL_S      = 0xd0;
+    static const uint8_t ISNULL_S     = 0xd1;
+    static const uint8_t NOT_S        = 0xd2;
+    static const uint8_t MOV8_S       = 0xd3;
+    static const uint8_t MOV16_S      = 0xd4;
+    static const uint8_t MOV32_S      = 0xd5;
+    static const uint8_t MOVU8_S      = 0xd6;
+    static const uint8_t MOVU16_S     = 0xd7;
+    static const uint8_t MOVU32_S     = 0xd8;
+    static const uint8_t RETURNVAL_S  = 0xd9;
+    static const uint8_t RETURNOBJ_S  = 0xda;
+    static const uint8_t IADD_S       = 0xdb;
+    static const uint8_t ISUB_S       = 0xdc;
+    static const uint8_t IMUL_S       = 0xdd;
+    static const uint8_t PUTOBJ_S     = 0xde;
+    static const uint8_t MOVOBJ_S     = 0xdf;
+    // the third group: a constant in the instruction, where the second operand would be
+    //      IAND_S d, a; k    IOR_S  IXOR_S  ISHL_S  ISHR_S     fp[d] = fp[a] & k        (k: the second word)
+    //      JLT_K a, k, sense; target   ... JNE_K               if((fp[a] < k) == sense) goto target   (k: -127 .. 127)
+    //      DJLT_K a, k, sense; target  ... DJNE_K              the same for a decimal fp[a]
+    static const uint8_t IAND_S       = 0xe0;
+    static const uint8_t IOR_S        = 0xe1;
+    static const uint8_t IXOR_S       = 0xe2;
+    static const uint8_t ISHL_S       = 0xe3;
+    static const uint8_t ISHR_S       = 0xe4;
+    static const uint8_t JLT_K        = 0xe5;
+    static const uint8_t JGT_K        = 0xe6;
+    static const uint8_t JLE_K        = 0xe7;
+    static const uint8_t JGE_K        = 0xe8;
+    static const uint8_t JEQ_K        = 0xe9;
+    static const uint8_t JNE_K        = 0xea;
+    static const uint8_t DJLT_K       = 0xeb;
+    static const uint8_t DJGT_K       = 0xec;
+    static const uint8_t DJLE_K       = 0xed;
+    static const uint8_t DJGE_K       = 0xee;
+    static const uint8_t DJEQ_K       = 0xef;
+    static const uint8_t DJNE_K       = 0xf0;
+
     enum instr_class {
         E_CLASS,
         D_CLASS,

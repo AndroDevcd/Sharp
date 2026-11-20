@@ -94,7 +94,7 @@ class list<T> : loopable<T> {
      */
     def operator[](index: int): T {
         if(index.value >= n_elements || index.value < 0)
-            throw new bounds_except(out_of_bounds_msg(index));
+            fail_out_of_bounds(index);
         return data[index.value];
     }
 
@@ -105,7 +105,7 @@ class list<T> : loopable<T> {
      */
     def at(index: int): T {
         if(index.value >= n_elements || index.value < 0)
-            throw new bounds_except(out_of_bounds_msg(index));
+            fail_out_of_bounds(index);
         return data[index.value];
     }
 
@@ -121,7 +121,7 @@ class list<T> : loopable<T> {
      */
     def at(index: _int64): T {
         if(index >= n_elements || index < 0)
-            throw new bounds_except(out_of_bounds_msg(index));
+            fail_out_of_bounds(index);
         return data[index];
     }
 
@@ -151,7 +151,7 @@ class list<T> : loopable<T> {
      */
     def put(index: int, element: T) : T {
         if (index.value >= n_elements || index.value < 0)
-            throw new bounds_except(out_of_bounds_msg(index));
+            fail_out_of_bounds(index);
 
         old_val := data[index.value];
         data[index.value] = element;
@@ -274,7 +274,7 @@ class list<T> : loopable<T> {
      */
     def insert(index: int, element: T) {
        if(index.value > n_elements || index.value < 0)
-          throw new bounds_except(out_of_bounds_msg(index));
+          fail_out_of_bounds(index);
 
        if(n_elements == 0) {
            add(element);
@@ -319,7 +319,7 @@ class list<T> : loopable<T> {
      */
     def remove_at(index: int) {
        if(index.value >= n_elements || index.value < 0)
-          throw new bounds_except(out_of_bounds_msg(index));
+          fail_out_of_bounds(index);
 
        num_moved := n_elements - index.value - 1;
        if (num_moved > 0)
@@ -538,6 +538,15 @@ class list<T> : loopable<T> {
     }
 
     /** The text of the exception for a bad index. */
+    /**
+     * Raise the exception for a position outside the list. It is a function of
+     * its own so that `at` and `[]` stay a test and a read: small enough for the
+     * optimizer to put them straight into the loop that calls them.
+     */
+    private def fail_out_of_bounds(index: int) {
+        throw new bounds_except(out_of_bounds_msg(index));
+    }
+
     private def out_of_bounds_msg(index: int) : string {
         // (an int object, so the size prints as "3" and not "3.0000000000000000")
         count : int = n_elements;

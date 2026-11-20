@@ -934,6 +934,277 @@ void main_vm_loop(sharp_function *frame)
                     ((int64_t*)task->ptr->o->data)[regs[dual_arg1].i] = (int64_t)regs[dual_arg2].i;
                 )
                 branch
+            // ---- THE SLOT FORMS (lib/core/opcode/opcode.h, 0xa4 .. 0xf0), first group ---
+            // One instruction reads its operands from frame slots and writes its result
+            // into one: what the compiler's intermediate form says, without the loads
+            // into registers and the store back that the older forms need around it.
+            // The object pointer is set by the forms that look at an object (as `movl`
+            // would have): nothing relies on what it was before.
+            // (SLOT, slot_jump and slot_element: lib/core/opcode/opcode_macros.h)
+            ADD_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i + SLOT(triple_arg3).i;
+                branch
+            SUB_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i - SLOT(triple_arg3).i;
+                branch
+            MUL_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i * SLOT(triple_arg3).i;
+                branch
+            AND_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i & SLOT(triple_arg3).i;
+                branch
+            OR_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i | SLOT(triple_arg3).i;
+                branch
+            XOR_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i ^ SLOT(triple_arg3).i;
+                branch
+            SHL_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (Int)SLOT(triple_arg2).i << (Int)SLOT(triple_arg3).i;
+                branch
+            SHR_S:
+                TC(TC_SLOT_INT(task->fp + triple_arg2) TC_SLOT_INT(task->fp + triple_arg3) TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (Int)SLOT(triple_arg2).i >> (Int)SLOT(triple_arg3).i;
+                branch
+            DADD_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_dec;)
+                SLOT(triple_arg1).d = SLOT(triple_arg2).d + SLOT(triple_arg3).d;
+                branch
+            DSUB_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_dec;)
+                SLOT(triple_arg1).d = SLOT(triple_arg2).d - SLOT(triple_arg3).d;
+                branch
+            DMUL_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_dec;)
+                SLOT(triple_arg1).d = SLOT(triple_arg2).d * SLOT(triple_arg3).d;
+                branch
+            DDIV_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_dec;)
+                SLOT(triple_arg1).d = SLOT(triple_arg2).d / SLOT(triple_arg3).d;
+                branch
+            I2D_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_dec;)
+                SLOT(triple_arg1).d = (double)SLOT(triple_arg2).i;
+                branch
+            D2I_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = decimal_to_integer(SLOT(triple_arg2).d);
+                branch
+            JLT_S:  slot_jump(SLOT(triple_arg1).i <  SLOT(triple_arg2).i)
+            JGT_S:  slot_jump(SLOT(triple_arg1).i >  SLOT(triple_arg2).i)
+            JLE_S:  slot_jump(SLOT(triple_arg1).i <= SLOT(triple_arg2).i)
+            JGE_S:  slot_jump(SLOT(triple_arg1).i >= SLOT(triple_arg2).i)
+            JEQ_S:  slot_jump(SLOT(triple_arg1).i == SLOT(triple_arg2).i)
+            JNE_S:  slot_jump(SLOT(triple_arg1).i != SLOT(triple_arg2).i)
+            DJLT_S: slot_jump(SLOT(triple_arg1).d <  SLOT(triple_arg2).d)
+            DJGT_S: slot_jump(SLOT(triple_arg1).d >  SLOT(triple_arg2).d)
+            DJLE_S: slot_jump(SLOT(triple_arg1).d <= SLOT(triple_arg2).d)
+            DJGE_S: slot_jump(SLOT(triple_arg1).d >= SLOT(triple_arg2).d)
+            DJEQ_S: slot_jump(SLOT(triple_arg1).d == SLOT(triple_arg2).d)
+            DJNE_S: slot_jump(SLOT(triple_arg1).d != SLOT(triple_arg2).d)
+            ALOAD8_S:
+                slot_element(triple_arg2, triple_arg3, require_numeric_object_with_value,
+                    TC(TC_ST(task->fp + triple_arg1) = TC_PTR_KIND();)
+                    SLOT(triple_arg1).i = ((int8_t*)task->ptr->o->data)[data];)
+                branch
+            ALOADU8_S:
+                slot_element(triple_arg2, triple_arg3, require_numeric_object_with_value,
+                    TC(TC_ST(task->fp + triple_arg1) = TC_PTR_KIND();)
+                    SLOT(triple_arg1).i = ((uint8_t*)task->ptr->o->data)[data];)
+                branch
+            ALOAD16_S:
+                slot_element(triple_arg2, triple_arg3, require_numeric_object_with_value,
+                    TC(TC_ST(task->fp + triple_arg1) = TC_PTR_KIND();)
+                    SLOT(triple_arg1).i = ((int16_t*)task->ptr->o->data)[data];)
+                branch
+            ALOADU16_S:
+                slot_element(triple_arg2, triple_arg3, require_numeric_object_with_value,
+                    TC(TC_ST(task->fp + triple_arg1) = TC_PTR_KIND();)
+                    SLOT(triple_arg1).i = ((uint16_t*)task->ptr->o->data)[data];)
+                branch
+            ALOAD32_S:
+                slot_element(triple_arg2, triple_arg3, require_numeric_object_with_value,
+                    TC(TC_ST(task->fp + triple_arg1) = TC_PTR_KIND();)
+                    SLOT(triple_arg1).i = ((int32_t*)task->ptr->o->data)[data];)
+                branch
+            ALOADU32_S:
+                slot_element(triple_arg2, triple_arg3, require_numeric_object_with_value,
+                    TC(TC_ST(task->fp + triple_arg1) = TC_PTR_KIND();)
+                    SLOT(triple_arg1).i = ((uint32_t*)task->ptr->o->data)[data];)
+                branch
+            ALOAD64_S:
+                slot_element(triple_arg2, triple_arg3, require_numeric_object_with_value,
+                    TC(TC_ST(task->fp + triple_arg1) = TC_PTR_KIND();)
+                    SLOT(triple_arg1).i = ((int64_t*)task->ptr->o->data)[data];)
+                branch
+            ASTORE8_S:
+                slot_element(triple_arg1, triple_arg2, require_numeric_object_with_value,
+                    ((int8_t*)task->ptr->o->data)[data] = (int8_t)SLOT(triple_arg3).i;)
+                branch
+            ASTORE16_S:
+                slot_element(triple_arg1, triple_arg2, require_numeric_object_with_value,
+                    ((int16_t*)task->ptr->o->data)[data] = (int16_t)SLOT(triple_arg3).i;)
+                branch
+            ASTORE32_S:
+                slot_element(triple_arg1, triple_arg2, require_numeric_object_with_value,
+                    ((int32_t*)task->ptr->o->data)[data] = (int32_t)SLOT(triple_arg3).i;)
+                branch
+            ASTORE64_S:
+                slot_element(triple_arg1, triple_arg2, require_numeric_object_with_value,
+                    ((int64_t*)task->ptr->o->data)[data] = (int64_t)SLOT(triple_arg3).i;)
+                branch
+            GETF_S:     // fp[a] = (the object in fp[b]).<number field c>
+                task->ptr = &(task->fp + triple_arg2)->obj;
+                require_object_with_value(
+                    TC(TC_ST(task->fp + triple_arg1) = TC_FIELD_KIND(triple_arg3);)
+                    SLOT(triple_arg1) = number_slot(task->ptr->o, triple_arg3);
+                )
+                branch
+            PUTF_S:     // (the object in fp[a]).<number field b> = fp[c]
+                task->ptr = &(task->fp + triple_arg1)->obj;
+                require_object_with_value(
+                    number_slot(task->ptr->o, triple_arg2) = SLOT(triple_arg3);
+                )
+                branch
+            SIZEOF_S:   // fp[a] = the length of the object in fp[b], 0 for null
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (task->fp + triple_arg2)->obj.o != NULL ? (task->fp + triple_arg2)->obj.o->size : 0;
+                branch
+            AGETOBJ_S:  // fp[a].obj = (the array of references in fp[b])[fp[c]]
+                slot_element(triple_arg2, triple_arg3, require_object_with_value,
+                    store_object(&(task->fp + triple_arg1)->obj, &task->ptr->o->node[data]);)
+                branch
+            GETOBJ_S:   // fp[a].obj = (the object in fp[b]).<reference field c>
+                task->ptr = &(task->fp + triple_arg2)->obj;
+                require_object_with_value(
+                    store_object(&(task->fp + triple_arg1)->obj, &task->ptr->o->node[triple_arg3]);
+                )
+                branch
+            // ---- the slot forms, second group (0xce .. 0xdf): jumps on a slot, null tests,
+            // `!`, the narrowing copies, returns, a constant operand, references between slots
+            JNZ_S:      // if(fp[a]) goto <second word>
+                if(SLOT(single_arg).i != 0) {
+                    loop_back_edge(raw_arg2)
+                    task->pc = task->rom + raw_arg2;
+                    check_state(0)
+                } else { branch_for(2) }
+            JZ_S:       // if(!fp[a]) goto <second word>
+                if(SLOT(single_arg).i == 0) {
+                    loop_back_edge(raw_arg2)
+                    task->pc = task->rom + raw_arg2;
+                    check_state(0)
+                } else { branch_for(2) }
+            JNULL_S:    // if((fp[a].obj is null) == c) goto <second word>
+                slot_jump((task->fp + triple_arg1)->obj.o == NULL)
+            ISNULL_S:   // fp[a] = fp[b].obj is null
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (task->fp + triple_arg2)->obj.o == NULL;
+                branch
+            NOT_S:      // fp[a] = !fp[b]
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = !SLOT(triple_arg2).i;
+                branch
+            MOV8_S:     // fp[a] = fp[b] cut to 8 bits, with its sign  (and so on)
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (int8_t)SLOT(triple_arg2).i;
+                branch
+            MOV16_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (int16_t)SLOT(triple_arg2).i;
+                branch
+            MOV32_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (int32_t)SLOT(triple_arg2).i;
+                branch
+            MOVU8_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (uint8_t)SLOT(triple_arg2).i;
+                branch
+            MOVU16_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (uint16_t)SLOT(triple_arg2).i;
+                branch
+            MOVU32_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (uint32_t)SLOT(triple_arg2).i;
+                branch
+            RETURNVAL_S:    // fp->var = fp[a]: the number a function hands back
+                TC(TC_ST(task->fp) = TC_ST(task->fp + single_arg);)
+                task->fp->var = SLOT(single_arg);
+                branch
+            RETURNOBJ_S:    // fp->obj = fp[a].obj: the object it hands back
+                store_object(&task->fp->obj, &(task->fp + single_arg)->obj);
+                branch
+            IADD_S:     // fp[a] = fp[b] + <second word>
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i + raw_arg2;
+                branch_for(2)
+            ISUB_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i - raw_arg2;
+                branch_for(2)
+            IMUL_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i * raw_arg2;
+                branch_for(2)
+            PUTOBJ_S:   // (the object in fp[a]).<reference field b> = fp[c].obj   (what movl, movn, popobj do together)
+                task->ptr = &(task->fp + triple_arg1)->obj;
+                require_object_with_value(
+                    {
+                        sharp_object *owner = task->ptr->o;
+                        sharp_object *stored = (task->fp + triple_arg3)->obj.o;
+                        task->ptrOwner = owner;
+                        task->ptr = &owner->node[triple_arg2];
+                        task->ptr->o = stored;
+                        write_barrier(owner, stored, task->ptr);    // memory/sharp_object.h
+                    }
+                )
+                branch
+            MOVOBJ_S:   // fp[a].obj = fp[b].obj
+                store_object(&(task->fp + triple_arg1)->obj, &(task->fp + triple_arg2)->obj);
+                branch
+            // ---- the slot forms, third group (0xe0 .. 0xf0): a constant written in the instruction
+            // where the other operand would be - `x & 0xff`, `if(i < 10)`, `if(kind == 1)`
+            IAND_S:     // fp[a] = fp[b] & <second word>
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i & raw_arg2;
+                branch_for(2)
+            IOR_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i | raw_arg2;
+                branch_for(2)
+            IXOR_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = SLOT(triple_arg2).i ^ raw_arg2;
+                branch_for(2)
+            ISHL_S:     // (the compiler writes a count of 0 .. 63 only)
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (Int)SLOT(triple_arg2).i << raw_arg2;
+                branch_for(2)
+            ISHR_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_int;)
+                SLOT(triple_arg1).i = (Int)SLOT(triple_arg2).i >> raw_arg2;
+                branch_for(2)
+            // if((fp[a] ? b) == c) goto <second word>: b is the constant itself, -127 .. 127
+            JLT_K:  slot_jump(SLOT(triple_arg1).i <  triple_arg2)
+            JGT_K:  slot_jump(SLOT(triple_arg1).i >  triple_arg2)
+            JLE_K:  slot_jump(SLOT(triple_arg1).i <= triple_arg2)
+            JGE_K:  slot_jump(SLOT(triple_arg1).i >= triple_arg2)
+            JEQ_K:  slot_jump(SLOT(triple_arg1).i == triple_arg2)
+            JNE_K:  slot_jump(SLOT(triple_arg1).i != triple_arg2)
+            DJLT_K: slot_jump(SLOT(triple_arg1).d <  (double)triple_arg2)
+            DJGT_K: slot_jump(SLOT(triple_arg1).d >  (double)triple_arg2)
+            DJLE_K: slot_jump(SLOT(triple_arg1).d <= (double)triple_arg2)
+            DJGE_K: slot_jump(SLOT(triple_arg1).d >= (double)triple_arg2)
+            DJEQ_K: slot_jump(SLOT(triple_arg1).d == (double)triple_arg2)
+            DJNE_K: slot_jump(SLOT(triple_arg1).d != (double)triple_arg2)
         state_check:
         if(thread->signal) {
             // the garbage collector's safe point (memory/tracing_collector.h)

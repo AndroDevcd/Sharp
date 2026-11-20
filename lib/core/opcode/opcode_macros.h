@@ -115,6 +115,34 @@
         goto catch_exception;   \
     } else { code }
 
+// ---- the slot forms (opcode.h, a4 .. f0): operands are frame slots ----
+// SLOT(n)                      the number in frame slot n
+// slot_jump(condition)         the two-word jumps: go to the second word's pc when the condition is
+//                              what the instruction's third operand asks for (1: holds, 0: does not)
+// slot_element(array, index, require, code)
+//                              the array in slot `array`, the position in slot `index`: the object
+//                              pointer is put on the array (as `movl` would), null and the position
+//                              are checked, then `code` runs with the position in `data`
+#define SLOT(n) ((task->fp + (n))->var)
+#define slot_jump(condition) \
+if((condition) == (triple_arg3 != 0)) { \
+    loop_back_edge(raw_arg2) \
+    task->pc = task->rom + raw_arg2; \
+    check_state(0) \
+} else { branch_for(2) }
+// the array in slot `array`, the index in slot `index`: `code` runs with the index in `data`
+#define slot_element(array, index, require, code) \
+task->ptr = &(task->fp + (array))->obj; \
+data = (task->fp + (index))->var.i; \
+require( \
+    if(data < task->ptr->o->size && data >= 0) { code } \
+    else { \
+        stringstream ss; \
+        ss << "Access to Object at: " << data << " size is " << task->ptr->o->size; \
+        throw vm_exception(vm.bounds_except, ss.str()); \
+    } \
+)
+
 #define current_pc \
     (task->pc-task->rom)
 
@@ -283,7 +311,84 @@
             &&ASTORE8, \
             &&ASTORE16, \
             &&ASTORE32, \
-            &&ASTORE64 \
+            &&ASTORE64, \
+            &&ADD_S, \
+            &&SUB_S, \
+            &&MUL_S, \
+            &&AND_S, \
+            &&OR_S, \
+            &&XOR_S, \
+            &&SHL_S, \
+            &&SHR_S, \
+            &&DADD_S, \
+            &&DSUB_S, \
+            &&DMUL_S, \
+            &&DDIV_S, \
+            &&I2D_S, \
+            &&D2I_S, \
+            &&JLT_S, \
+            &&JGT_S, \
+            &&JLE_S, \
+            &&JGE_S, \
+            &&JEQ_S, \
+            &&JNE_S, \
+            &&DJLT_S, \
+            &&DJGT_S, \
+            &&DJLE_S, \
+            &&DJGE_S, \
+            &&DJEQ_S, \
+            &&DJNE_S, \
+            &&ALOAD8_S, \
+            &&ALOADU8_S, \
+            &&ALOAD16_S, \
+            &&ALOADU16_S, \
+            &&ALOAD32_S, \
+            &&ALOADU32_S, \
+            &&ALOAD64_S, \
+            &&ASTORE8_S, \
+            &&ASTORE16_S, \
+            &&ASTORE32_S, \
+            &&ASTORE64_S, \
+            &&GETF_S, \
+            &&PUTF_S, \
+            &&SIZEOF_S, \
+            &&AGETOBJ_S, \
+            &&GETOBJ_S, \
+            &&JNZ_S, \
+            &&JZ_S, \
+            &&JNULL_S, \
+            &&ISNULL_S, \
+            &&NOT_S, \
+            &&MOV8_S, \
+            &&MOV16_S, \
+            &&MOV32_S, \
+            &&MOVU8_S, \
+            &&MOVU16_S, \
+            &&MOVU32_S, \
+            &&RETURNVAL_S, \
+            &&RETURNOBJ_S, \
+            &&IADD_S, \
+            &&ISUB_S, \
+            &&IMUL_S, \
+            &&PUTOBJ_S, \
+            &&MOVOBJ_S, \
+            &&IAND_S, \
+            &&IOR_S, \
+            &&IXOR_S, \
+            &&ISHL_S, \
+            &&ISHR_S, \
+            &&JLT_K, \
+            &&JGT_K, \
+            &&JLE_K, \
+            &&JGE_K, \
+            &&JEQ_K, \
+            &&JNE_K, \
+            &&DJLT_K, \
+            &&DJGT_K, \
+            &&DJLE_K, \
+            &&DJGE_K, \
+            &&DJEQ_K, \
+            &&DJNE_K \
         };
 
 #endif //SHARP_OPCODE_MACROS_H

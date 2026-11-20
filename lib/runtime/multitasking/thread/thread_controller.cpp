@@ -55,6 +55,33 @@ bool all_tasks_finished(sharp_thread *thread) {
        || (thread->boundFibers == 1 && thread->task && thread->task->finished && thread->task->boundThread == thread);
 }
 
+/**
+ * The lowest address of the running thread's machine stack, `here` being an
+ * address inside it; 0 when the operating system will not say. A stack that
+ * may grow without limit (`ulimit -s unlimited`) is taken to be 64 MB.
+ */
+static uintptr_t machine_stack_end(uintptr_t here) {
+    const uintptr_t most = MB_TO_BYTES(64);
+    uintptr_t end = 0;
+#ifdef WIN32_
+    MEMORY_BASIC_INFORMATION region;
+    if(VirtualQuery((void*) here, &region, sizeof(region)) != 0)
+        end = (uintptr_t) region.AllocationBase;        // a thread's stack is one reservation
+#elif defined(__linux__)
+    pthread_attr_t attributes;
+    if(pthread_getattr_np(pthread_self(), &attributes) == 0) {
+        void *lowest = nullptr;
+        size_t size = 0;
+        if(pthread_attr_getstack(&attributes, &lowest, &size) == 0)
+            end = (uintptr_t) lowest;
+        pthread_attr_destroy(&attributes);
+    }
+#endif
+    if(end == 0 || end >= here) return 0;
+    if(here - end > most) end = here - most;
+    return end;
+}
+
 #ifdef WIN32_
 DWORD WINAPI
 #endif
@@ -68,14 +95,22 @@ vm_thread_entry(void *arg)
     thread_self = thread;
 
     // Where this thread's machine stack ends. The stack grows DOWN from about
-    // here (the address of a local of the thread's first function) and is
-    // thread->stackSize bytes long, so its last byte is that far below. The
-    // floor is NATIVE_STACK_RESERVE above the end - a quarter of the stack when
-    // the stack is small - and compiled code stops nesting calls when it gets
+    // here (the address of a local of the thread's first function). The floor
+    // is NATIVE_STACK_RESERVE above its end - a quarter of the stack when the
+    // stack is small - and compiled code stops nesting calls when it gets
     // there, with a stack_overflow_exception instead of a crash.
+    //
+    // The end is asked of the operating system (machine_stack_end), so that a
+    // recursion in compiled code may use what is really there: a thread the
+    // VM starts is thread->stackSize long (`-stack`), a thread the system
+    // made before the VM ran is as long as the system made it. Where the
+    // system will not say, the stack is taken to be thread->stackSize bytes
+    // long, as before.
     {
         char here;
         uintptr_t size = (uintptr_t) thread->stackSize;
+        uintptr_t end = machine_stack_end((uintptr_t) &here);
+        if(end != 0) size = (uintptr_t) &here - end;
         uintptr_t reserve = NATIVE_STACK_RESERVE;
         if(reserve > size / 4) reserve = size / 4;
         thread->nativeStackFloor = size != 0 && (uintptr_t) &here > size

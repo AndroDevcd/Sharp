@@ -34,8 +34,13 @@
 // THE VM REGISTERS STAY IN MEMORY. The x64 JIT keeps six of the ten VM registers in CPU
 // registers ("homes") and has two modes around that. Here every VM register is read from and
 // written to the fiber's register array - one mode, and far less to get wrong on two processors.
-// (What the JIT saves is the interpreter's fetch, decode and dispatch of every instruction; homes
-// are an optimisation that can come later, inside a machine, without touching the generator.)
+//
+// LOCAL NUMBERS IN CPU REGISTERS ("homes"). The generator names the local numbers a function uses
+// most (home_locals) and a machine keeps as many of them as it has registers for: a COPY, written
+// together with memory, so memory is right at every moment. Arithmetic and jumps on locals are
+// asked for in one piece (slot_operation, slot_jump_if ...), so that a machine works in the homes
+// directly. arm64: four whole numbers and four decimals. arm32: four decimals (a whole number
+// takes two registers there, and none are left).
 //
 #pragma once
 
@@ -58,6 +63,15 @@ enum DOp { D_ADD, D_SUB, D_MUL, D_DIV };
 enum Cond { LT, GT, LE, GE, EQ, NE };
 /** comparisons of pointers (and of unsigned numbers of that width) */
 enum PCond { P_EQ, P_NE, P_HIGHER_OR_SAME };
+
+/**
+ * The slots of the body's frame (ArmMachine::frame_store / frame_load).
+ *      FRAME_KEPT          a pointer kept across a call inside one instruction; during a call of a
+ *                          function found while the code runs, that function's record
+ *      FRAME_FP_BELOW_SP   during a direct call: how far our fp was below sp when we called
+ *      FRAME_DIRECT        1: this body was entered by a direct call from compiled code, 0: by C++
+ */
+enum FrameSlot { FRAME_KEPT = 0, FRAME_FP_BELOW_SP = 1, FRAME_DIRECT = 2 };
 
 /** One argument of a C++ function. */
 struct Arg {
@@ -94,6 +108,7 @@ public:
     virtual void v_jump_if_not_below(VReg index, PReg size, int label) = 0;    // unsigned: also when index < 0
     virtual void v_jump_if_zero(VReg r, int label) = 0;
     virtual void v_jump_if_not_zero(VReg r, int label) = 0;
+    virtual void v_jump_if(VReg left, VReg right, Cond how, bool holds, int label) = 0;    // if((left how right) == holds) goto label
     virtual void v_from_pointer(VReg to, PReg from) = 0;                // widened with zeros
     virtual void v_to_pointer(PReg to, VReg from) = 0;                  // its low part (an index, an address)
 
@@ -103,6 +118,7 @@ public:
     virtual void d_store(DReg from, PReg base, int32_t offset) = 0;
     virtual void d_operation(DOp op, DReg to, DReg left, DReg right) = 0;
     virtual void d_compare(VReg to, DReg left, DReg right, Cond how) = 0;
+    virtual void d_jump_if(DReg left, DReg right, Cond how, bool holds, int label) = 0;    // (not a number: "holds" only for NE)
     virtual void d_from_whole(DReg to, VReg from) = 0;                  // (double) of a 64-bit whole number
                                                                         // (may destroy every other scratch register)
 
@@ -113,6 +129,11 @@ public:
     virtual void p_store_object(PReg from, PReg base, int32_t offset) = 0;  // into an 8-byte object slot
     virtual void p_load_32(PReg to, PReg base, int32_t offset) = 0;     // an unsigned 32-bit number
     virtual void p_load_8(PReg to, PReg base, int32_t offset) = 0;      // an unsigned byte
+    virtual void p_load_int(PReg to, PReg base, int32_t offset) = 0;    // a signed 32-bit number (a C++ `int`)
+    virtual void p_store_32(PReg from, PReg base, int32_t offset) = 0;  // the low 32 bits
+    virtual void p_store_8(PReg from, PReg base, int32_t offset) = 0;   // the low byte
+    virtual void p_multiply(PReg r, uint32_t by) = 0;                   // r = r * by
+    virtual void p_and(PReg r, uint32_t mask) = 0;                      // r = r & mask
     virtual void p_move(PReg to, PReg from) = 0;
     virtual void p_add(PReg to, PReg from, int32_t amount) = 0;
     virtual void p_add_scaled(PReg to, PReg base, PReg index, int shift) = 0;   // base + (index << shift)
@@ -123,6 +144,7 @@ public:
     virtual void p_jump_if(PReg left, PReg right, PCond how, int label) = 0;
     virtual void p_jump_if_equals(PReg r, int32_t value, int label) = 0;
     virtual void p_jump_if_bits(PReg r, uint32_t mask, bool any_set, int label) = 0;    // of its low 32 bits
+    virtual void p_jump_if_machine_stack_below(PReg limit, int label) = 0;  // the processor's own stack pointer < limit
 
     // ---- the items of a number array: base + index * bytes
     virtual void item_load(VReg to, PReg base, PReg index, int bytes, bool is_signed) = 0;
@@ -144,10 +166,89 @@ public:
     virtual void body_enter() = 0;
     virtual void body_return() = 0;
     virtual void call_label(int label) = 0;
-    virtual void keep_pointer(PReg from) = 0;       // into the body's slot
-    virtual void kept_pointer(PReg to) = 0;
+    // The body's frame has three slots of a pointer each (FrameSlot). They are the body's own: a
+    // function called from here has its own three.
+    virtual void frame_store(int slot, PReg from) = 0;
+    virtual void frame_load(PReg to, int slot) = 0;
+    void keep_pointer(PReg from) { frame_store(FRAME_KEPT, from); }     // across a call into C++, inside one instruction
+    void kept_pointer(PReg to) { frame_load(to, FRAME_KEPT); }
+    // Call the body of another compiled function through its direct door (the address is in
+    // `target`). It returns here with its return code, read like the result of a C++ function.
+    // Scratch registers of every kind are lost; the six reserved ones are SHARED with the callee
+    // (it leaves in them what it made of them).
+    virtual void call_compiled(PReg target) = 0;
     virtual void return_code(int code) = 0;         // what the function returns to C++
     virtual void jump_through_table(PReg table, PReg index) = 0;       // goto table[index]
+
+    // ---- numbers kept in CPU registers ("homes") - a machine that has registers to spare overrides these
+    // The generator says which of the function's local numbers it reads and writes most (their
+    // offsets from FP; the ones used as whole numbers, the ones used as decimals; the most used
+    // first), before anything is written; the machine may keep those in registers of its own.
+    // What the generator promises for a function it names homes for:
+    //      - a local's number is written through FP only (v_store, d_store, the slot_...() below).
+    //        A store through SP is to a slot above the locals: one just pushed, or an argument.
+    //      - when FP is loaded (p_load), the homes are read again: another frame ran, or the stack moved
+    //      - stack_numbers_changed() is called after anything else that can have changed a local
+    virtual void home_locals(const std::vector<int32_t> &, const std::vector<int32_t> &) {}
+    virtual void stack_numbers_changed() {}
+
+    // ---- arithmetic and jumps on local numbers: `to`, `left`, `right` are offsets from FP
+    // Each is what its first comment line says, in one piece. The spelling here uses the scratch
+    // registers; a machine with homes computes in them. (V0, V1, D0, D1 are lost either way.)
+    /** fp[to] = fp[left] op fp[right] */
+    virtual void slot_operation(VOp op, int32_t to, int32_t left, int32_t right) {
+        v_load(V0, FP, left);
+        v_load(V1, FP, right);
+        v_operation(op, V0, V0, V1);
+        v_store(V0, FP, to);
+    }
+    /** fp[to] = fp[left] op right */
+    virtual void slot_operation_constant(VOp op, int32_t to, int32_t left, int64_t right) {
+        v_load(V0, FP, left);
+        v_constant(V1, right);
+        v_operation(op, V0, V0, V1);
+        v_store(V0, FP, to);
+    }
+    /** if((fp[left] how fp[right]) == holds) goto label */
+    virtual void slot_jump_if(int32_t left, int32_t right, Cond how, bool holds, int label) {
+        v_load(V0, FP, left);
+        v_load(V1, FP, right);
+        v_jump_if(V0, V1, how, holds, label);
+    }
+    /** if((fp[left] how right) == holds) goto label */
+    virtual void slot_jump_if_constant(int32_t left, int64_t right, Cond how, bool holds, int label) {
+        v_load(V0, FP, left);
+        v_constant(V1, right);
+        v_jump_if(V0, V1, how, holds, label);
+    }
+    /** if((fp[slot] == 0) == is_zero) goto label */
+    virtual void slot_jump_if_zero(int32_t slot, bool is_zero, int label) {
+        v_load(V0, FP, slot);
+        if(is_zero) v_jump_if_zero(V0, label); else v_jump_if_not_zero(V0, label);
+    }
+    /** the same, of decimals */
+    virtual void slot_decimal_operation(DOp op, int32_t to, int32_t left, int32_t right) {
+        d_load(D0, FP, left);
+        d_load(D1, FP, right);
+        d_operation(op, D0, D0, D1);
+        d_store(D0, FP, to);
+    }
+    virtual void slot_decimal_jump_if(int32_t left, int32_t right, Cond how, bool holds, int label) {
+        d_load(D0, FP, left);
+        d_load(D1, FP, right);
+        d_jump_if(D0, D1, how, holds, label);
+    }
+    virtual void slot_decimal_jump_if_constant(int32_t left, double right, Cond how, bool holds, int label) {
+        d_load(D0, FP, left);
+        d_constant(D1, right);
+        d_jump_if(D0, D1, how, holds, label);
+    }
+    /** fp[to] = (double) fp[from]   (from: a whole number) */
+    virtual void slot_whole_to_decimal(int32_t to, int32_t from) {
+        v_load(V0, FP, from);
+        d_from_whole(D0, V0);
+        d_store(D0, FP, to);
+    }
 
     // ---- when everything is written
     virtual bool failed() = 0;

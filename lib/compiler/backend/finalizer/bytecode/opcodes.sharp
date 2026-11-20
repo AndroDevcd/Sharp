@@ -125,7 +125,38 @@ const OP_ASTORE8         : _int64 = 0xa0;
 const OP_ASTORE16        : _int64 = 0xa1;
 const OP_ASTORE32        : _int64 = 0xa2;
 const OP_ASTORE64        : _int64 = 0xa3;
-const OP_LAST            : _int64 = 0xa3;
+// ---- the slot forms (lib/core/opcode/opcode.h): one instruction on frame slots, three operands of 7 bits
+// (selection_slots.sharp). The members of each group follow each other in the order given.
+const OP_ADD_S           : _int64 = 0xa4;      // add sub mul and or xor shl shr       d, a, b
+const OP_DADD_S          : _int64 = 0xac;      // dadd dsub dmul ddiv                  d, a, b
+const OP_I2D_S           : _int64 = 0xb0;      //                                      d, a
+const OP_D2I_S           : _int64 = 0xb1;
+const OP_JLT_S           : _int64 = 0xb2;      // jlt jgt jle jge jeq jne              a, b, sense; then the target
+const OP_DJLT_S          : _int64 = 0xb8;      // the same six for decimals
+const OP_ALOAD8_S        : _int64 = 0xbe;      // aload8 u8 16 u16 32 u32 64           d, array, index
+const OP_ASTORE8_S       : _int64 = 0xc5;      // astore8 16 32 64                     array, index, value
+const OP_GETF_S          : _int64 = 0xc9;      //                                      d, object, field
+const OP_PUTF_S          : _int64 = 0xca;      //                                      object, field, value
+const OP_SIZEOF_S        : _int64 = 0xcb;      //                                      d, array
+const OP_AGETOBJ_S       : _int64 = 0xcc;      //                                      d, array, index
+const OP_GETOBJ_S        : _int64 = 0xcd;      //                                      d, object, field
+// the second group
+const OP_JNZ_S           : _int64 = 0xce;      //                                      a; then the target
+const OP_JZ_S            : _int64 = 0xcf;
+const OP_JNULL_S         : _int64 = 0xd0;      //                                      a, 0, sense; then the target
+const OP_ISNULL_S        : _int64 = 0xd1;      //                                      d, a
+const OP_NOT_S           : _int64 = 0xd2;      //                                      d, a
+const OP_MOV8_S          : _int64 = 0xd3;      // mov8 16 32 u8 u16 u32                d, a
+const OP_RETURNVAL_S     : _int64 = 0xd9;      //                                      a
+const OP_RETURNOBJ_S     : _int64 = 0xda;      //                                      a
+const OP_IADD_S          : _int64 = 0xdb;      // iadd isub imul                       d, a; then the constant
+const OP_PUTOBJ_S        : _int64 = 0xde;      //                                      object, field, value
+const OP_MOVOBJ_S        : _int64 = 0xdf;      //                                      d, a
+// the third group: a constant in the instruction
+const OP_IAND_S          : _int64 = 0xe0;      // iand ior ixor ishl ishr              d, a; then the constant
+const OP_JLT_K           : _int64 = 0xe5;      // jlt jgt jle jge jeq jne              a, constant, sense; then the target
+const OP_DJLT_K          : _int64 = 0xeb;      // the same six for a decimal a
+const OP_LAST            : _int64 = 0xf0;
 const OP_ILL             : _int64 = 0xff;      // only as the opcode of invoke_delegate's second word
 
 // ---- the registers
@@ -154,7 +185,15 @@ def opcode_name(opcode: _int64) : string {
             + "get isadd je jne ipopl cmp calld varcast tls_movl dup popobj_2 swap ldc smovr_3 neg dexp is mov_abs "
             + "load_abs smovr_4 dadd dsub dmul dneg dinc ddec dlt dgt dlte dgte dtest dtne dnot dcmp diadd disub "
             + "dimul daddl dsubl dmull diaddl disubl dimull disadd distore distorel dmovi dput i2d d2i getf putf "
-            + "aload8 aloadu8 aload16 aloadu16 aload32 aloadu32 aload64 astore8 astore16 astore32 astore64");
+            + "aload8 aloadu8 aload16 aloadu16 aload32 aloadu32 aload64 astore8 astore16 astore32 astore64 "
+            + "add_s sub_s mul_s and_s or_s xor_s shl_s shr_s dadd_s dsub_s dmul_s ddiv_s i2d_s d2i_s "
+            + "jlt_s jgt_s jle_s jge_s jeq_s jne_s djlt_s djgt_s djle_s djge_s djeq_s djne_s "
+            + "aload8_s aloadu8_s aload16_s aloadu16_s aload32_s aloadu32_s aload64_s "
+            + "astore8_s astore16_s astore32_s astore64_s getf_s putf_s sizeof_s agetobj_s getobj_s "
+            + "jnz_s jz_s jnull_s isnull_s not_s mov8_s mov16_s mov32_s movu8_s movu16_s movu32_s "
+            + "returnval_s returnobj_s iadd_s isub_s imul_s putobj_s movobj_s "
+            + "iand_s ior_s ixor_s ishl_s ishr_s jlt_k jgt_k jle_k jge_k jeq_k jne_k "
+            + "djlt_k djgt_k djle_k djge_k djeq_k djne_k");
     }
     if(opcode < 0 || opcode >= sizeof(opcode_names)) { return "ill"; }
     return opcode_names!![opcode];
@@ -183,7 +222,14 @@ def is_two_words(opcode: _int64) : _int64 {
     return opcode == OP_MOVI || (opcode >= 0x15 && opcode <= 0x19) || opcode == OP_NEWCLASS || opcode == OP_MOVN
         || opcode == OP_NEWCLASSARRAY || (opcode >= 0x4f && opcode <= 0x53) || opcode == 0x5c || opcode == OP_ISTOREL
         || opcode == OP_INVOKE_DELEGATE || opcode == 0x66 || opcode == 0x6a || opcode == 0x75 || opcode == OP_SMOVR_4
-        || (opcode >= 0x86 && opcode <= 0x89) || (opcode >= 0x8d && opcode <= 0x93);
+        || (opcode >= 0x86 && opcode <= 0x89) || (opcode >= 0x8d && opcode <= 0x93) || is_slot_jump(opcode)
+        || (opcode >= OP_IADD_S && opcode < OP_PUTOBJ_S) || (opcode >= OP_IAND_S && opcode <= OP_LAST);
+}
+
+/** is it one of the slot forms that compare and jump (its second word is the target)? */
+def is_slot_jump(opcode: _int64) : _int64 {
+    return (opcode >= OP_JLT_S && opcode < OP_ALOAD8_S) || opcode == OP_JNZ_S || opcode == OP_JZ_S || opcode == OP_JNULL_S
+        || (opcode >= OP_JLT_K && opcode <= OP_LAST);
 }
 
 /** is it one of the instructions that call a function (the exception rules R1, R2 of codegen.md 4.7 are about them)? */
@@ -208,10 +254,12 @@ def register_number(name: string) : _int64 {
 
 /**
  * How the operands of an instruction are encoded, one letter per opcode
- * 00 .. a3 (codegen.md 4.9): E none, D one, C two, B three, K class D and a
- * raw second word, X class E and a raw second word, G invoke_delegate.
+ * 00 .. cd (codegen.md 4.9): E none, D one, C two, B three, K class D and a
+ * raw second word, X class E and a raw second word, G invoke_delegate, J class
+ * B and the target of a jump in the second word (the slot forms that jump),
+ * I class B and a constant in the second word.
  */
-opcode_forms : string = "EDKDECDCCCCCCCCDBBBBBKKKKKEDDCEEECCCCDDDDDDDDEEDXXDCCEEDDDCDDBBCCCCCCEDEKDCCCCCKKKKKCECCCCCDXCKDEDDDGDKDDDKDCDEEECDCBKDDKBBBCDDCCCCCCCKKKKCCCKKKKXKKDCCCCCCCCCCCCCCC";
+opcode_forms : string = "EDKDECDCCCCCCCCDBBBBBKKKKKEDDCEEECCCCDDDDDDDDEEDXXDCCEEDDDCDDBBCCCCCCEDEKDCCCCCKKKKKCECCCCCDXCKDEDDDGDKDDDKDCDEEECDCBKDDKBBBCDDCCCCCCCKKKKCCCKKKKXKKDCCCCCCCCCCCCCCCBBBBBBBBBBBBBBJJJJJJJJJJJJBBBBBBBBBBBBBBBBKKJBBBBBBBBDDIIIBBIIIIIJJJJJJJJJJJJ";
 
 /** the form letter of an opcode ('?' for one the VM does not have) */
 def opcode_form(opcode: _int64) : _int64 {

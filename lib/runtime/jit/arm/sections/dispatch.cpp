@@ -10,6 +10,15 @@
 namespace armjit {
 
 void ArmGenerator::emit_dispatch() {
+    // ---- a direct call came back with something other than JIT_OK (opcode/direct_calls.cpp)
+    //      if(task->current != this function) return JIT_CONTEXT_SWITCH;   // the callee is still on the stack
+    //      it is gone (an exception): look at the signal
+    m.bind(callNotFinished);
+    m.p_load(PA, TASK, (int32_t) offsetof(fiber, current));
+    m.p_constant(PB, (uintptr_t) function);
+    m.p_jump_if(PA, PB, P_NE, exitSwitch);
+    load_stack_registers();
+
     // ---- the resume check
     m.bind(resumeCheck);
     {

@@ -1,6 +1,7 @@
 //
-// Calls, returns, throw and interrupts (jit/x64/opcode/calls.cpp). Every CALL goes through the
-// runtime here (jit_rt_call): there is no direct call from compiled code to compiled code yet.
+// Calls, returns, throw and interrupts (jit/x64/opcode/calls.cpp). CALL, CALLD, a call of an
+// overridden function and the normal RET stay in machine code (opcode/direct_calls.cpp); the
+// rest goes through the runtime.
 //
 #include "../arm_generator.h"
 
@@ -9,17 +10,31 @@ namespace armjit {
 emit_result ArmGenerator::emit_calls() {
     switch(op) {
         case Opcode::CALL:      // prepare_method(a)
+#ifdef SHARP_ARM_JIT_DIRECT_CALLS
+            direct_call(single);
+#else
             prepare_runtime_call();
             m.call(reinterpret_cast<void*>(jit_rt_call), { Arg::constant(single) });
             check_after_runtime_call(true);
+#endif
             return emitted;
         case Opcode::CALLD:     // call_function_value(a): a = how many arguments were pushed
+#ifdef SHARP_ARM_JIT_DIRECT_CALLS
+            function_value_call(single);
+#else
             prepare_runtime_call();
             m.call(reinterpret_cast<void*>(jit_rt_call_dynamic), { Arg::constant(single) });
             check_after_runtime_call(true);
+#endif
             return emitted;
         case Opcode::INVOKE_DELEGATE: { // invoke_delegate(a, argument count, is static)
             const uint32_t second = code[pc + 1];
+#ifdef SHARP_ARM_JIT_DIRECT_CALLS
+            if(GET_Ca(second) == 0) {           // not static: the object's class decides
+                virtual_call(GET_Cb(second));
+                return emitted;
+            }
+#endif
             prepare_runtime_call();
             m.call(reinterpret_cast<void*>(jit_rt_invoke_delegate),
                    { Arg::constant(single), Arg::constant(GET_Cb(second)), Arg::constant(GET_Ca(second)) });
@@ -27,6 +42,12 @@ emit_result ArmGenerator::emit_calls() {
             return emitted;
         }
         case Opcode::RET: {     // leave the function (a == 1: with the exception on the stack)
+#ifdef SHARP_ARM_JIT_DIRECT_CALLS
+            if(single != ERR_STATE) {
+                direct_return();
+                return emitted;
+            }
+#endif
             if(single == ERR_STATE) {
                 // if(task->exceptionObject.o == nullptr) task->exceptionObject = pop
                 int hasException = m.label();
