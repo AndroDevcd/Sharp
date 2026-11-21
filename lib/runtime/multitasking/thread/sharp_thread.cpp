@@ -8,10 +8,12 @@
 #include "thread_controller.h"
 #include "../../memory/garbage_collector.h"
 #include "../../memory/tracing_collector.h"
+#include "../../memory/sharp_object.h"
 
 
 void free_struct(sharp_thread *thread) {
     tgc_unregister_thread(thread); // the collector must not look at it any more
+    pool_give_back(thread->pool);  // its free blocks are for the other threads now
     sni_free_thread_state(thread);
     release_bytes(sizeof(sharp_thread));
     copy_object(&thread->currentThread, (sharp_object*) nullptr);
@@ -37,6 +39,9 @@ void init_struct(sharp_thread *thread) {
     thread->exited = false;
     thread->marked = false;
     thread->users = 0;
+    thread->youngObjects = nullptr;
+    thread->uncountedBytes = 0;
+    for(int c = 0; c < SHARP_POOL_LISTS; c++) thread->pool[c] = nullptr;
     new (&thread->name) string();
     init_struct(&thread->currentThread);
     init_struct(&thread->args);

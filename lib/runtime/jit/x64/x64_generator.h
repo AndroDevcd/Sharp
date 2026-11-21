@@ -211,6 +211,7 @@ private:
     void emit_exception();
     void emit_exits();
     void emit_slow_paths();
+    bool emit_new_class_inline(Int classAddress, asmjit::Label slow, asmjit::Label done);     // opcode/allocation.cpp
 
     // ---- opcode/ ----
     emit_result emit_integer_math();

@@ -43,6 +43,7 @@ void op_memory_limit(Int interrupt) {
 
 // memory(): how many managed bytes are in use now, into CMT.
 void op_memory(Int interrupt) {
+    if(thread_self != nullptr) count_uncounted_bytes(thread_self);
     registers[CMT].i = gc.managedBytes;
 }
 

@@ -49,6 +49,7 @@ static uInt fullPercent = 300;              // full collection: old bytes >= thi
 static const uInt FULL_MIN_GROWTH = MB_TO_BYTES(16);    // ... and at least this much more than it left
 
 void tgc_set_logging(bool on) { logging = on; }
+bool tgc_stress_is_on() { return stressEvery > 0; }
 
 void tgc_set_stress(Int everyNAllocations) {
     stressEvery = everyNAllocations > 0 ? everyNAllocations : 1;
@@ -117,6 +118,17 @@ void tgc_register_thread(sharp_thread *thread) {
 void tgc_unregister_thread(sharp_thread *thread) {
     std::lock_guard<std::mutex> guard(registry_mut);
     threads.erase(std::remove(threads.begin(), threads.end(), thread), threads.end());
+
+    // what it kept to itself goes to the shared list and counters (garbage_collector.cpp,
+    // ALLOCATING WITHOUT SHARED MEMORY): the thread is gone, its objects may not be
+    count_uncounted_bytes(thread);
+    sharp_object *o = thread->youngObjects;
+    thread->youngObjects = nullptr;
+    while(o != nullptr) {
+        sharp_object *next = o->next;
+        push_shared_object(o);
+        o = next;
+    }
 }
 
 void tgc_enter_safe(sharp_thread *thread) {
@@ -602,6 +614,14 @@ static void mark_owners_of_interior_pointers(bool oldObjectsToo) {
 
     for(sharp_object *o = gc.objects.load(); o != nullptr; o = o->next)
         mark_if_owner_of_interior_pointer(o);
+    {
+        // ... and the young objects every thread keeps on its own list
+        std::lock_guard<std::mutex> guard(registry_mut);
+        for(sharp_thread *thread : threads) {
+            for(sharp_object *o = thread->youngObjects; o != nullptr; o = o->next)
+                mark_if_owner_of_interior_pointer(o);
+        }
+    }
 
     if(oldObjectsToo) {
         for(sharp_object *o : gc.oldObjects)
@@ -707,12 +727,26 @@ static void sweep_old_objects() {
  * reached has survived a collection and becomes OLD - it leaves the young list
  * and its address is added to the old objects (the object stays where it is).
  *
- * The list is pushed to without a lock (push_object), so the sweep takes the
- * whole list for itself first; anything pushed meanwhile stays young.
+ * There is one shared list and one per thread that runs Sharp code
+ * (garbage_collector.cpp, ALLOCATING WITHOUT SHARED MEMORY). The shared one is
+ * pushed to without a lock, so the sweep takes the whole of it for itself
+ * first; anything pushed meanwhile stays young. The threads' own lists are
+ * simply taken: their threads are stopped.
  */
-static void sweep_young_list() {
-    sharp_object *o = gc.objects.exchange(nullptr);
+static void sweep_young_objects(sharp_object *o);
 
+static void sweep_young_list() {
+    sweep_young_objects(gc.objects.exchange(nullptr));
+
+    std::lock_guard<std::mutex> guard(registry_mut);
+    for(sharp_thread *thread : threads) {
+        sharp_object *own = thread->youngObjects;
+        thread->youngObjects = nullptr;
+        sweep_young_objects(own);
+    }
+}
+
+static void sweep_young_objects(sharp_object *o) {
     while(o != nullptr) {
         sharp_object *next = o->next;
         if(next != nullptr) __builtin_prefetch(next);
@@ -848,6 +882,7 @@ void tgc_safepoint() {
     if(self == nullptr) return;
 
     set_gc_signal(self, false);
+    count_uncounted_bytes(self);    // what this thread allocated is in the counters the collection reads
 
     // Safe first, lock second (rule b): if another thread is collecting it is
     // waiting for exactly this flag while holding world_mut.

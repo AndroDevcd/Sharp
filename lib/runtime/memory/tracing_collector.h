@@ -161,6 +161,7 @@ struct sharp_thread;
 void tgc_configure_from_environment();
 void tgc_set_stress(Int everyNAllocations);
 void tgc_set_logging(bool on);
+bool tgc_stress_is_on();        // -gcstress: every new object must go through tgc_note_object (no inline allocation)
 
 /** A thread struct was created / is about to be freed. */
 void tgc_register_thread(sharp_thread *thread);

@@ -28,6 +28,8 @@
 
 extern thread_local sharp_thread* thread_self;
 
+#define SHARP_POOL_LISTS 18     // POOL_CLASSES + 1 of memory/sharp_object.h (which checks it)
+
 struct sharp_thread {
     atomic<fiber*> queue;
     notification queueNotification;
@@ -60,6 +62,15 @@ struct sharp_thread {
     // collector may work without waiting for it. Changed only through
     // tgc_enter_safe / tgc_leave_safe (memory/tracing_collector.h).
     int gcSafe;
+    // THE THREAD'S OWN NEW OBJECTS AND BYTES (memory/garbage_collector.cpp, "ALLOCATING WITHOUT
+    // SHARED MEMORY"). Only this thread touches them while it runs (gcSafe == 0); the collector
+    // reads them when the thread is stopped.
+    struct sharp_object *youngObjects;      // the objects it made since the last collection, newest first
+    uInt uncountedBytes;                    // bytes it allocated that the shared counters have not been told yet
+    // Its free blocks of the object pool, by size class (OBJECT POOL in memory/sharp_object.cpp;
+    // each a `pool_block*`). Here, and not in a C++ thread_local, so that compiled code can take a
+    // block itself (jit/x64/opcode/allocation.cpp).
+    void *pool[SHARP_POOL_LISTS];
     // How many callers are using this struct right now through hold_thread()
     // (starting or joining the thread). The scheduler's monitor frees the struct
     // of a finished thread, and a short thread finishes while its starter is

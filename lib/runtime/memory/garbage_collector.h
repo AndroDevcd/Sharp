@@ -65,7 +65,8 @@ struct garbage_collector {
     gc_state state;
     std::atomic<uInt> managedBytes;         // bytes handed out through reserve_bytes
     uInt memoryLimit;           // the program's limit (-mem)
-    std::atomic<sharp_object*> objects;     // the YOUNG objects, newest first (linked through ->next)
+    std::atomic<sharp_object*> objects;     // YOUNG objects, newest first (linked through ->next): those made by
+                                            // threads that do not keep a list of their own (sharp_thread::youngObjects)
     // The old and the permanent objects; only the collector changes it. An array
     // of pointers and not a list through ->next: a full collection can then ask
     // the CPU for the objects it will look at next (a prefetch) instead of
@@ -80,6 +81,10 @@ void reserve_bytes(size_t bytes, bool unsafe);
 void release_bytes(size_t bytes);
 void set_memory_limit(Int limit);
 void push_object(sharp_object*);
+void push_shared_object(sharp_object*);
+struct sharp_thread;
+void count_uncounted_bytes(sharp_thread *thread);   // a thread's own byte count handed to the shared counters
+#define COUNT_BYTES_EVERY (64 * 1024)               // ... which reserve_bytes does every this many bytes
 fib_mutex* create_mutex(sharp_object*);
 void remove_mutex(sharp_object*);
 void release_all_mutexes(fiber *task);

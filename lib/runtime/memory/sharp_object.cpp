@@ -84,7 +84,6 @@ static_assert(sizeof(sharp_object) % 8 == 0, "what is stored right behind the he
  * list (pool_thread_lists, below). Chunks are never returned to the system:
  * a program's small objects are reused for its whole run.
  */
-#define POOL_CLASSES 17
 #define POOL_BATCH 256
 #define POOL_CHUNK_BYTES (256 * 1024)
 
@@ -93,26 +92,41 @@ struct pool_block { pool_block *next; };
 static std::mutex pool_mut;
 static pool_block *poolShared[POOL_CLASSES + 1];             // guarded by pool_mut
 
-/** the free blocks of one thread, by size class; handed back when the thread ends */
-struct pool_thread_lists {
-    pool_block *list[POOL_CLASSES + 1] = {};
+static_assert(SHARP_POOL_LISTS == POOL_CLASSES + 1, "sharp_thread::pool has one list per size class");
 
-    ~pool_thread_lists() {
-        std::lock_guard<std::mutex> guard(pool_mut);
-        for(int c = 1; c <= POOL_CLASSES; c++) {
-            if(list[c] == nullptr) continue;
-            pool_block *last = list[c];
-            while(last->next != nullptr) last = last->next;
-            last->next = poolShared[c];
-            poolShared[c] = list[c];
-            list[c] = nullptr;
-        }
+/** a thread ends: the free blocks it has left go to the shared lists */
+void pool_give_back(void **lists) {
+    std::lock_guard<std::mutex> guard(pool_mut);
+    for(int c = 1; c <= POOL_CLASSES; c++) {
+        pool_block *first = (pool_block*) lists[c];
+        if(first == nullptr) continue;
+        pool_block *last = first;
+        while(last->next != nullptr) last = last->next;
+        last->next = poolShared[c];
+        poolShared[c] = first;
+        lists[c] = nullptr;
     }
+}
+
+/**
+ * The free blocks of the calling thread, by size class. A thread that runs
+ * Sharp code keeps them in its sharp_thread (compiled code takes blocks from
+ * there too: jit/x64/opcode/allocation.cpp); any other thread in a C++
+ * thread_local, handed back when the thread ends.
+ */
+struct pool_thread_lists {
+    void *list[POOL_CLASSES + 1] = {};
+    ~pool_thread_lists() { pool_give_back(list); }
 };
 static thread_local pool_thread_lists poolOfThread;
-#define poolLocal (poolOfThread.list)
 
-static inline size_t pool_block_bytes(int c) { return 16 + 16 * (size_t)c; }
+static inline pool_block** pool_lists() {
+    sharp_thread *self = thread_self;
+    return (pool_block**)(self != nullptr ? self->pool : poolOfThread.list);
+}
+#define poolLocal (pool_lists())
+
+static inline size_t pool_block_bytes(int c) { return POOL_BLOCK_BYTES(c); }
 
 static void pool_refill(int c) {
     std::lock_guard<std::mutex> guard(pool_mut);

@@ -36,10 +36,62 @@ recursive_mutex gc_lock;    // guards gc.f_locks (gc.managedBytes and gc.objects
  *                 fails with "out of memory" when the limit is really reached.
  */
 void reserve_bytes(size_t bytes, bool unsafe = false) {
-    if(!unsafe && !tgc_note_allocation(bytes))
-        throw vm_exception(vm.out_of_memory_except, "out of memory");
+    if(unsafe) {
+        gc.managedBytes.fetch_add(bytes, std::memory_order_relaxed);
+        return;
+    }
 
-    // one atomic add instead of taking gc_lock
+    // a thread that runs Sharp code counts for itself and tells the shared counters in batches
+    // (ALLOCATING WITHOUT SHARED MEMORY, below)
+    sharp_thread *self = thread_self;
+    if(self != nullptr && self->gcSafe == 0) {
+        self->uncountedBytes += bytes;
+        if(self->uncountedBytes < COUNT_BYTES_EVERY) return;
+        bytes = self->uncountedBytes;
+        self->uncountedBytes = 0;
+    }
+
+    bool fits = tgc_note_allocation(bytes);
+    gc.managedBytes.fetch_add(bytes, std::memory_order_relaxed);
+    if(!fits)
+        throw vm_exception(vm.out_of_memory_except, "out of memory");
+}
+
+/*
+ * ALLOCATING WITHOUT SHARED MEMORY
+ *
+ * Every new object used to cost three atomic operations on memory all threads
+ * share: an add to the bytes since the last collection, an add to the managed
+ * bytes, and a compare-and-swap that put it on the one list of young objects.
+ * Each is about 5 ns even when nobody else is running - three quarters of
+ * what a small `new` took.
+ *
+ * A thread that runs Sharp code (thread_self is set and gcSafe is 0) now keeps
+ * both to itself:
+ *
+ *      thread->youngObjects    its new objects, a plain list (push_object)
+ *      thread->uncountedBytes  its bytes, handed to the shared counters every
+ *                              COUNT_BYTES_EVERY bytes (reserve_bytes)
+ *
+ * The collector only looks while every such thread is stopped at a safe point
+ * or inside a safe region, so it reads the lists without a lock: it sweeps the
+ * shared list and then every thread's (tgc_... in tracing_collector.cpp). Any
+ * other thread - one that has not started, one inside a safe region, one that
+ * is not a Sharp thread at all - still uses the shared list and counters, as
+ * before. A thread that ends hands what it has over (tgc_unregister_thread).
+ *
+ * What the batches cost: a collection may be asked for, and the memory limit
+ * noticed, up to COUNT_BYTES_EVERY bytes per thread late. The young budget is
+ * 8 MB.
+ *
+ *      C++ comparison: tcmalloc and jemalloc keep a cache per thread for the
+ *      same reason; a Java "TLAB" is the same idea for the objects themselves.
+ */
+void count_uncounted_bytes(sharp_thread *thread) {
+    uInt bytes = thread->uncountedBytes;
+    if(bytes == 0) return;
+    thread->uncountedBytes = 0;
+    tgc_note_allocation(bytes);
     gc.managedBytes.fetch_add(bytes, std::memory_order_relaxed);
 }
 
@@ -86,14 +138,24 @@ void release_bytes(size_t bytes) {
 
 /** A new object exists: put it on the list the collector sweeps. */
 void push_object(sharp_object *o) {
-    // a lock-free push instead of taking gc_lock. The collector
-    // takes the whole list for itself while it sweeps (tracing_collector.cpp).
+    // a thread that runs Sharp code: its own list, two plain stores (ALLOCATING WITHOUT SHARED MEMORY)
+    sharp_thread *self = thread_self;
+    if(self != nullptr && self->gcSafe == 0) {
+        o->next = self->youngObjects;
+        self->youngObjects = o;
+        tgc_note_object();
+        return;
+    }
+    push_shared_object(o);
+    tgc_note_object();
+}
+
+/** onto the shared list of young objects, from any thread (the collector takes the whole list when it sweeps) */
+void push_shared_object(sharp_object *o) {
     sharp_object *head = gc.objects.load(std::memory_order_relaxed);
     do {
         o->next = head;
     } while(!gc.objects.compare_exchange_weak(head, o, std::memory_order_release, std::memory_order_relaxed));
-
-    tgc_note_object();
 }
 
 // ---------------------------------------------------------------------------------
@@ -259,6 +321,7 @@ void print_memory_diagnostics() {
             total++;
             if(GENERATION(obj->info) == gc_perm) permanent++;
         }
+        // (the young objects still on the running threads' own lists are not counted: they cannot be read from here)
         for(sharp_object *obj : gc.oldObjects) {
             types[obj->type]++;
             total++;

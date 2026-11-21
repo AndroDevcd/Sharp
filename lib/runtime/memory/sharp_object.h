@@ -273,6 +273,9 @@ inline void copy_object(object *to, sharp_object *from) {
 inline void copy_object(object *to, object *from) {
     copy_object(to, from ? from->o : (sharp_object*) nullptr);
 }
+#define POOL_CLASSES 17                    // the size classes of the object pool (OBJECT POOL in sharp_object.cpp)
+#define POOL_BLOCK_BYTES(c) (16 + 16 * (size_t)(c))
+void pool_give_back(void **lists);         // a thread ends: its free blocks go to the shared lists
 void pool_free_swept(sharp_object *o);     // called by the sweep for every dead object
 void pool_sweep_done();                    // ... and once when the sweep is over
 sharp_object* create_object(sharp_class* sc, bool unsafe = false);
