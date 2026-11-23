@@ -337,6 +337,13 @@ void Arm64Machine::d_from_whole(DReg to, VReg from) { a.scvtf(d(to), v(from)); }
 
 void Arm64Machine::d_square_root(DReg to, DReg from) { a.fsqrt(d(to), d(from)); }
 
+void Arm64Machine::d_absolute(DReg to, DReg from) { a.fabs(d(to), d(from)); }
+
+bool Arm64Machine::d_round(DReg to, DReg from, bool up) {
+    if(up) a.frintp(d(to), d(from)); else a.frintm(d(to), d(from));
+    return true;
+}
+
 // ---- working in the homes
 
 /** the register a local whole number is read from: its home, or `scratch` after loading it there */

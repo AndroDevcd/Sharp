@@ -61,7 +61,10 @@ emit_result X64Generator::emit_stack_and_locals() {
             store_slot(dual2, vm_register_value(dual1, rax));
             return emitted;
         case Opcode::SMOVR_4:   // (fp+a)->var = (fp+b)->var
-            store_slot(single, slot_in_register(raw, rax));
+            // (a decimal that is at home in a register goes from register to register: through a general
+            //  purpose register it would cross over twice, and a copy in a loop is on the way of everything after it)
+            if(decimal_home(single) >= 0 || decimal_home(raw) >= 0) store_slot_decimal(single, slot_in_decimal_register(raw, xmm0));
+            else store_slot(single, slot_in_register(raw, rax));
             return emitted;
         case Opcode::ISTOREL:   // (fp+a)->var = b
             store_slot_constant(single, (uint64_t)(int64_t)raw);
@@ -106,14 +109,23 @@ emit_result X64Generator::emit_stack_and_locals() {
             a.emit(x86::Inst::kIdImul, rax, vm_register(dual1));
             a.mov(local_number(dual2), rax); sync_slot_home(dual2);
             return emitted;
-        case Opcode::MODL:      // (fp+b)->var = vm_remainder(local, regs[a])
+        case Opcode::MODL: {    // (fp+b)->var = vm_remainder(local, regs[a])
+            Label zero = a.newLabel(), done = a.newLabel();
+            a.emit(x86::Inst::kIdMov, rcx, vm_register(dual1));
+            a.mov(rax, local_number(dual2));
+            divide_for_remainder(zero);
+            a.mov(local_number(dual2), rdx); sync_slot_home(dual2);
+            a.jmp(done);
+            a.bind(zero);                       // a divisor of 0: the runtime raises
             prepare_runtime_call();
             a.mov(rdi, local_number(dual2));
             a.mov(rsi, vm_register_in_memory(dual1));
             call_runtime_checked(reinterpret_cast<void*>(jit_rt_remainder));
             load_vm_registers();
             a.mov(local_number(dual2), rax); sync_slot_home(dual2);
+            a.bind(done);
             return emitted;
+        }
         case Opcode::ANDL:
             a.and_(local_number(dual2), vm_register_value(dual1, rax)); sync_slot_home(dual2);
             return emitted;
@@ -141,6 +153,12 @@ emit_result X64Generator::emit_stack_and_locals() {
             a.mov(local_number(single), rax); sync_slot_home(single);
             return emitted;
         case Opcode::IMODL:
+            if(raw != 0) {                      // (0: the runtime raises, below)
+                a.mov(rax, local_number(single));
+                constant_remainder((int64_t)raw);
+                a.mov(local_number(single), rdx); sync_slot_home(single);
+                return emitted;
+            }
             prepare_runtime_call();
             a.mov(rdi, local_number(single));
             a.mov(rsi, (int64_t)raw);

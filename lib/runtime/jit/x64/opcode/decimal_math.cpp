@@ -79,6 +79,37 @@ emit_result X64Generator::emit_decimal_math() {
             a.sqrtsd(xmm0, vm_register_decimal(dual2, xmm0));
             store_vm_register_decimal(dual1, xmm0);
             return emitted;
+        case Opcode::DFLOOR: case Opcode::DCEIL: {      // regs[a] = floor / ceil of regs[b]
+            // `roundsd` rounds the way its last operand says: 9 down, 10 up (and no "inexact" flag).
+            // It came with SSE4.1 (2008); a processor without it asks the C library.
+            static const bool rounds = CpuInfo::host().hasFeature(CpuFeatures::X86::kSSE4_1);
+            if(rounds) {
+                a.roundsd(xmm0, vm_register_decimal(dual2, xmm0), op == Opcode::DFLOOR ? 9 : 10);
+            } else {
+                vm_register_decimal(dual2, xmm0);
+                save_vm_registers();
+                call_runtime(op == Opcode::DFLOOR ? reinterpret_cast<void*>(jit_rt_floor) : reinterpret_cast<void*>(jit_rt_ceil));
+                load_vm_registers();
+            }
+            store_vm_register_decimal(dual1, xmm0);
+            return emitted;
+        }
+        case Opcode::DABS:      // regs[a] = regs[b] without its sign: the top bit cleared
+            load_vm_register(rax, dual2);
+            a.btr(rax, 63);
+            store_vm_register(dual1, rax);
+            return emitted;
+        case Opcode::DMATH:     // regs[a] = function c of regs[b] (and regs[EGX])
+            vm_register_decimal(triple2, xmm0);
+            vm_register_decimal(EGX, xmm1);
+            save_vm_registers();
+            // (the function's number travels as a decimal too: call_runtime's own words say why)
+            a.mov(rax, bits_of((double)triple3));
+            a.movq(x86::xmm2, rax);
+            call_runtime(reinterpret_cast<void*>(jit_rt_math));
+            load_vm_registers();
+            store_vm_register_decimal(triple1, xmm0);
+            return emitted;
         case Opcode::DNEG:      // regs[a] = -regs[b]: flip the sign bit
             load_vm_register(rax, dual2);
             a.btc(rax, 63);

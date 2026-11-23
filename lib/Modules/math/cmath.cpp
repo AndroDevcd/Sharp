@@ -56,3 +56,8 @@ double __cmath(double n, double n2, int proc) {
         }
     }
 }
+
+double math_function(int proc, double n, double n2) {
+    if(proc < 0 || proc > 0x13) return NAN;
+    return __cmath(n, n2, proc);
+}

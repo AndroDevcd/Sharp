@@ -61,7 +61,7 @@ static const char* tm_opcode_names[] = {
     "ADD_S", "SUB_S", "MUL_S", "AND_S", "OR_S", "XOR_S", "SHL_S", "SHR_S", "DADD_S", "DSUB_S", "DMUL_S", "DDIV_S", "I2D_S", "D2I_S", "JLT_S", "JGT_S", "JLE_S", "JGE_S", "JEQ_S", "JNE_S", "DJLT_S", "DJGT_S", "DJLE_S", "DJGE_S", "DJEQ_S", "DJNE_S", "ALOAD8_S", "ALOADU8_S", "ALOAD16_S", "ALOADU16_S", "ALOAD32_S", "ALOADU32_S", "ALOAD64_S", "ASTORE8_S", "ASTORE16_S", "ASTORE32_S", "ASTORE64_S", "GETF_S", "PUTF_S", "SIZEOF_S", "AGETOBJ_S", "GETOBJ_S",
     "JNZ_S", "JZ_S", "JNULL_S", "ISNULL_S", "NOT_S", "MOV8_S", "MOV16_S", "MOV32_S", "MOVU8_S", "MOVU16_S", "MOVU32_S", "RETURNVAL_S", "RETURNOBJ_S", "IADD_S", "ISUB_S", "IMUL_S", "PUTOBJ_S", "MOVOBJ_S",
     "IAND_S", "IOR_S", "IXOR_S", "ISHL_S", "ISHR_S", "JLT_K", "JGT_K", "JLE_K", "JGE_K", "JEQ_K", "JNE_K", "DJLT_K", "DJGT_K", "DJLE_K", "DJGE_K", "DJEQ_K", "DJNE_K",
-    "DSQRT"
+    "DSQRT", "DFLOOR", "DCEIL", "DABS", "DMATH", "DMATH_S"
 };
 
 static std::string opcode_name(int op) {

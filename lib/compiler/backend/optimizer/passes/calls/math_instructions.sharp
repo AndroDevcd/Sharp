@@ -9,37 +9,49 @@ import (
 )
 
 /**
- * MATH INSTRUCTIONS: `sqrt(x)` is one instruction, not a call
+ * MATH INSTRUCTIONS: `sqrt(x)`, `floor(x)`, `sin(x)` ... are one instruction, not a call
  *
- *      call %5, std.math#__srt_global.sqrt(%4)     ->      square_root %5, %4
+ *      call %5, std.math#__srt_global.sqrt(%4)         ->      math sqrt %5, %4
+ *      call %6, std.math#__srt_global.pow(%4, %7)      ->      math pow %6, %4, %7
  *
- * The VM has an instruction for the square root (`dsqrt`, lib/core/opcode/
- * opcode.h) and its JITs give it the processor's own. std.math's `sqrt` is
- * that instruction in an `asm` block - and a function with an `asm` block is
- * never inlined and is taken to do anything at all, so a loop that calls it
- * pays for a call each round and keeps none of its field reads in front of
- * it (loop_invariants.sharp). Here the call becomes the IR's `square_root`,
- * which only computes: it can move, be shared, and go when nobody reads it.
+ * The VM has instructions for the math functions (lib/core/opcode/opcode.h):
+ * `dsqrt`, `dfloor`, `dceil` and `dabs`, which its JITs give the processor's
+ * own, and `dmath` for every other one, which calls the C library's function
+ * straight away. std.math's functions are those instructions in `asm` blocks -
+ * and a function with an `asm` block is never inlined and is taken to do
+ * anything at all, so a loop that calls one pays for a call each round and
+ * keeps none of its field reads in front of it (loop_invariants.sharp). Here
+ * the call becomes the IR's `math`, which only computes: it can move, be
+ * shared, and go when nobody reads it.
  *
- * WHICH CALLS. A direct call of the function `sqrt` of the module std.math
- * that takes one plain decimal and gives one - told by its name and by the
- * kinds of the two slots. (The `sqrt` of the number objects is another
- * function: it takes an object, and stays a call.)
+ * WHICH CALLS. A direct call of one of these functions of the module
+ * std.math, taking plain decimals and giving one - told by its name, by how
+ * many numbers it takes, and by the kinds of the slots:
+ *
+ *      sin cos tan sinh cosh tanh asin acos atan exp log log10 sqrt ceil floor abs      one number
+ *      atan2 pow ldexp fmod                                                             two
+ *
+ * (The functions of the same names for the number objects - `abs(int)` - are
+ * others: they take an object, and stay calls.)
  *
  * Runs first, on the code as generated, so every pass after it sees the
  * instruction. Without -O the call stays a call, which is just as right.
  *
- *      C++ comparison: none (the C++ compiler has no such instruction).
+ *      C++ comparison: none (the C++ compiler has no such instructions).
  */
 def use_math_instructions(layout: program_layout, chosen: list<function_layout>) : _int64 {
     known : _int64 = layout.functions.size();
-    is_root := new _int64[known + 1];
+    which_of := new _int64[known + 1];              // per function address: its math number + 1, 0 for none
+    prefix := "std.math#__srt_global.";
     any : _int64 = 0;
     for(f : _int64 = 0; f < known; f++) {
         function := layout.functions.at(f);
-        if(function.full_name == "std.math#__srt_global.sqrt" && function.is_static == 1 && function.parameter_count() == 1) {
-            is_root[f] = 1;
-            any = 1;
+        if(function.is_static == 0 || !function.full_name.starts_with(prefix)) { continue; }
+        for(which : _int64 = 0; which <= MATH_LAST; which++) {
+            if(function.name == math_name(which) && function.parameter_count() == 1 + math_takes_two(which)) {
+                which_of[f] = which + 1;
+                any = 1;
+            }
         }
     }
     if(any == 0) { return 0; }
@@ -51,15 +63,20 @@ def use_math_instructions(layout: program_layout, chosen: list<function_layout>)
             made := code.instructions.at(at);
             if(made.kind != IR_CALL || made.number != CALL_HOW_DIRECT || made.declaration == null || made.arguments == null) { continue; }
             address : _int64 = made.declaration!!.address;
-            if(address < 0 || address >= known || is_root[address] == 0) { continue; }
-            if(made.target < 0 || made.arguments!!.count != 1) { continue; }
+            if(address < 0 || address >= known || which_of[address] == 0) { continue; }
+            which : _int64 = which_of[address] - 1;
+            two : _int64 = math_takes_two(which);
+            if(made.target < 0 || made.arguments!!.count != 1 + two) { continue; }
             from : _int64 = made.arguments!!.at(0);
+            other : _int64 = 0 - 1;
+            if(two == 1) { other = made.arguments!!.at(1); }
             if(code.slot_kinds.at(from) != SLOT_DEC || code.slot_kinds.at(made.target) != SLOT_DEC) { continue; }
+            if(other >= 0 && code.slot_kinds.at(other) != SLOT_DEC) { continue; }
 
-            made.kind = IR_SQUARE_ROOT;
+            made.kind = IR_MATH;
+            made.number = which;
             made.first = from;
-            made.number = 0;
-            made.second = 0 - 1;
+            made.second = other;
             made.detail = 0;
             made.declaration = null;
             made.arguments = null;

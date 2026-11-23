@@ -108,6 +108,13 @@ void jit_rt_swap(sharp_thread *thread);                     // SWAP
 Int jit_rt_remainder(Int left, Int right);                  // % : raises on a zero divisor
 Int jit_rt_decimal_to_integer(double value);                // D2I for the values the CPU instruction cannot convert
 double jit_rt_power(double base, double exponent);          // **
+double jit_rt_floor(double value);                          // dfloor, where the processor has no instruction for it
+double jit_rt_ceil(double value);                           // dceil, the same
+// dmath: function number `which` (lib/Modules/math/cmath.cpp) of a - and of b, for the functions of two
+// numbers. Twice, for how arguments travel: x64 code hands over decimals only (the number as one too),
+// ARM code and the interpreter the number as a whole number.
+double jit_rt_math(double a, double b, double which);
+double jit_rt_math_numbered(Int which, double a, double b);
 
 // ---- everything else --------------------------------------------------------------
 Int  jit_rt_interrupt(Int flag);                            // INT: 1 = the vm terminated

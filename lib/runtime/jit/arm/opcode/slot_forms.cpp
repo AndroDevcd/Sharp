@@ -46,6 +46,18 @@ emit_result ArmGenerator::emit_slot_forms() {
             m.slot_decimal_operation(operations[op - Opcode::DADD_S], slot_number(triple1), slot_number(triple2), slot_number(triple3));
             return emitted;
         }
+        case Opcode::DMATH_S:   // fp[a] = math function c of fp[b]
+            m.d_load(D0, FP, slot_number(triple2));
+            if(triple3 == 0xe) m.d_square_root(D0, D0);
+            else if(triple3 == 0x11) m.d_absolute(D0, D0);
+            else if((triple3 == 0x10 || triple3 == 0xf) && m.d_round(D0, D0, triple3 == 0xf)) { }
+            else {
+                m.d_constant(D1, 0);
+                m.call(reinterpret_cast<void*>(jit_rt_math_numbered), { Arg::constant((int64_t) triple3), Arg::decimal(D0), Arg::decimal(D1) });
+                m.result_to_decimal(D0);
+            }
+            m.d_store(D0, FP, slot_number(triple1));
+            return emitted;
         case Opcode::I2D_S:
             m.slot_whole_to_decimal(slot_number(triple1), slot_number(triple2));
             return emitted;

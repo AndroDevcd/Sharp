@@ -22,13 +22,37 @@ def to_degrees(radians: decimal): decimal {
 }
 
 /** arc sine as a native number, in -pi/2 .. pi/2; NaN outside -1 .. 1 */
-def asin(v: decimal): decimal { return math_call(v, 0, 0x6); }
+def asin(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0x6
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** arc cosine as a native number, in 0 .. pi; NaN outside -1 .. 1 */
-def acos(v: decimal): decimal { return math_call(v, 0, 0x7); }
+def acos(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0x7
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** arc tangent as a native number, in -pi/2 .. pi/2 */
-def atan(v: decimal): decimal { return math_call(v, 0, 0x8); }
+def atan(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0x8
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /**
  * The angle of the point (x, y) seen from the origin, in -pi .. pi. Unlike
@@ -36,16 +60,49 @@ def atan(v: decimal): decimal { return math_call(v, 0, 0x8); }
  * atan2(1, 1) == pi/4, atan2(1, -1) == 3pi/4, atan2(-1, 0) == -pi/2.
  * Note the argument order: y first (the same as C, Java and Kotlin).
  */
-def atan2(y: decimal, x: decimal): decimal { return math_call(y, x, 0x9); }
+def atan2(y: decimal, x: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [y]
+        loadl egx, [x]
+        dmath ebx, ebx, 0x9
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** hyperbolic sine as a native number: (e^v - e^-v) / 2 */
-def sinh(v: decimal): decimal { return math_call(v, 0, 0x3); }
+def sinh(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0x3
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** hyperbolic cosine as a native number: (e^v + e^-v) / 2 */
-def cosh(v: decimal): decimal { return math_call(v, 0, 0x4); }
+def cosh(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0x4
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** hyperbolic tangent as a native number: sinh / cosh, always in -1 .. 1 */
-def tanh(v: decimal): decimal { return math_call(v, 0, 0x5); }
+def tanh(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0x5
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** secant: 1 / cos. Infinite where the cosine is 0. */
 def sec(radians: decimal): decimal {

@@ -45,14 +45,23 @@ emit_result X64Generator::emit_integer_math() {
         case Opcode::MUL:
             integer_operation(x86::Inst::kIdImul, triple1, triple2, triple3);
             return emitted;
-        case Opcode::MOD:       // regs[c] = vm_remainder(regs[a], regs[b])   (raises on 0)
+        case Opcode::MOD: {     // regs[c] = vm_remainder(regs[a], regs[b])   (raises on 0)
+            Label zero = a.newLabel(), done = a.newLabel();
+            a.emit(x86::Inst::kIdMov, rcx, vm_register(triple2));
+            a.emit(x86::Inst::kIdMov, rax, vm_register(triple1));
+            divide_for_remainder(zero);
+            store_vm_register(triple3, rdx);
+            a.jmp(done);
+            a.bind(zero);                       // a divisor of 0: the runtime raises
             prepare_runtime_call();
             a.mov(rdi, vm_register_in_memory(triple1));
             a.mov(rsi, vm_register_in_memory(triple2));
             call_runtime_checked(reinterpret_cast<void*>(jit_rt_remainder));
             load_vm_registers();
             store_vm_register(triple3, rax);
+            a.bind(done);
             return emitted;
+        }
 
         case Opcode::IADD:      // regs[a] += b
             a.emit(x86::Inst::kIdAdd, vm_register(single), Imm(raw));
@@ -65,6 +74,12 @@ emit_result X64Generator::emit_integer_math() {
             store_vm_register(single, rax);
             return emitted;
         case Opcode::IMOD:
+            if(raw != 0) {                      // (0: the runtime raises, below)
+                a.emit(x86::Inst::kIdMov, rax, vm_register(single));
+                constant_remainder((int64_t)raw);
+                store_vm_register(single, rdx);
+                return emitted;
+            }
             prepare_runtime_call();
             a.mov(rdi, vm_register_in_memory(single));
             a.mov(rsi, (int64_t)raw);

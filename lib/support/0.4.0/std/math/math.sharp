@@ -59,8 +59,11 @@ public def is_infinite(v: decimal): bool {
 
 /**
  * Run math procedure `proc` of the runtime on `a` (and `b` for the
- * procedures that take two; 0 otherwise). Every function of the module
- * that the runtime works out comes here.
+ * procedures that take two; 0 otherwise): for code that only knows WHICH
+ * function when it runs. The functions of this module do not come here:
+ * each is an instruction of the runtime with its number written in it
+ * (`dmath`; sqrt, ceil, floor and abs have instructions of their own), and
+ * with -O a call of one becomes that instruction where it is written.
  *
  *     0x00 sin    0x01 cos    0x02 tan    0x03 sinh   0x04 cosh   0x05 tanh
  *     0x06 asin   0x07 acos   0x08 atan   0x09 atan2(a, b)        0x0a exp
@@ -83,29 +86,86 @@ def math_call(a: decimal, b: decimal, proc: _int64): decimal {
 }
 
 /** sine of an angle in radians */
-def sin(radians: decimal): decimal { return math_call(radians, 0, 0x0); }
+def sin(radians: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [radians]
+        dmath ebx, ebx, 0x0
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** cosine of an angle in radians */
-def cos(radians: decimal): decimal { return math_call(radians, 0, 0x1); }
+def cos(radians: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [radians]
+        dmath ebx, ebx, 0x1
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** tangent of an angle in radians */
-def tan(radians: decimal): decimal { return math_call(radians, 0, 0x2); }
+def tan(radians: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [radians]
+        dmath ebx, ebx, 0x2
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** e raised to the power v */
-def exp(v: decimal): decimal { return math_call(v, 0, 0xa); }
+def exp(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0xa
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** the natural logarithm of v (base e); log(0) is negative infinity, of a negative number NaN */
-def log(v: decimal): decimal { return math_call(v, 0, 0xb); }
+def log(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0xb
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** the logarithm of v to the base 10: log10(1000) is 3 */
-def log10(v: decimal): decimal { return math_call(v, 0, 0xc); }
+def log10(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0xc
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /**
  * `base_value` raised to the power `exponent`: pow(2, 10) is 1024,
  * pow(2, 0.5) is sqrt(2), pow(x, 0) is 1. A negative base with a
  * fractional exponent gives NaN.
  */
-def pow(base_value: decimal, exponent: decimal): decimal { return math_call(base_value, exponent, 0xd); }
+def pow(base_value: decimal, exponent: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [base_value]
+        loadl egx, [exponent]
+        dmath ebx, ebx, 0xd
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /**
  * The square root; NaN for a negative number. It is one instruction of the
@@ -123,10 +183,26 @@ def sqrt(v: decimal): decimal {
 }
 
 /** the smallest whole number that is >= v: ceil(2.1) is 3, ceil(-2.5) is -2 */
-def ceil(v: decimal): decimal { return math_call(v, 0, 0xf); }
+def ceil(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dceil ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** the largest whole number that is <= v: floor(2.9) is 2, floor(-2.5) is -3 */
-def floor(v: decimal): decimal { return math_call(v, 0, 0x10); }
+def floor(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dfloor ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /**
  * Round to the nearest whole number; a tie (x.5) goes away from zero:
@@ -138,15 +214,38 @@ def round(v: decimal): decimal {
 }
 
 /** v * 2 to the power `exponent` */
-def ldexp(v: decimal, exponent: decimal): decimal { return math_call(v, exponent, 0x12); }
+def ldexp(v: decimal, exponent: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        loadl egx, [exponent]
+        dmath ebx, ebx, 0x12
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** what is left of a / b, with the sign of a (the `%` of plain numbers, for fractions too): fmod(7.5, 2) is 1.5 */
-def fmod(a: decimal, b: decimal): decimal { return math_call(a, b, 0x13); }
+def fmod(a: decimal, b: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [a]
+        loadl egx, [b]
+        dmath ebx, ebx, 0x13
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** the distance of v from zero: abs(-3) is 3 */
 def abs(v: decimal) : decimal {
-    if(v < 0) return 0 - v;
-    return v;
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dabs ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
 }
 
 // the same for the number objects: an object in, an object of its kind out

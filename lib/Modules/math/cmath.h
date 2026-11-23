@@ -9,4 +9,7 @@
 
 double __cmath(double n, double n2, int proc);
 
+/** the same for an instruction, which cannot raise: a number that is no function gives "not a number" */
+double math_function(int proc, double n, double n2);
+
 #endif //SHARP_MATCH_H

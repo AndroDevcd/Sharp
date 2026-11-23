@@ -305,11 +305,28 @@ public:
     static const uint8_t DJGE_K       = 0xee;
     static const uint8_t DJEQ_K       = 0xef;
     static const uint8_t DJNE_K       = 0xf0;
-    // ---- the square root -------------------------------------------------------
+    // ---- the math instructions ---------------------------------------------------
+    // What std.math's functions are made of. The first four the processor does itself, and
+    // the JITs use its instruction where there is one; DMATH calls the C library's function.
     //      DSQRT a, b          regs[a] = sqrt(regs[b]), both decimals (not a number for a negative one)
-    // std.math's sqrt() is this one instruction: the processor has a square root of its
-    // own, and the JITs use it. (The other math functions go through `int 0x18`.)
+    //      DFLOOR a, b         regs[a] = the largest whole number that is <= regs[b]
+    //      DCEIL a, b          regs[a] = the smallest whole number that is >= regs[b]
+    //      DABS a, b           regs[a] = regs[b] without its sign
+    //      DMATH a, b, c       regs[a] = function number c of regs[b] - and of regs[EGX], for the
+    //                          functions of two numbers. c is one of the numbers of __cmath
+    //                          (lib/Modules/math/cmath.cpp): 0 sin, 1 cos ... 0xd pow ... 0x13 fmod.
+    //                          A number that is no function gives "not a number".
+    // (`int 0x18` does the same as DMATH with the function number in a register: for code that
+    //  only knows which function at run time.)
     static const uint8_t DSQRT        = 0xf1;
+    static const uint8_t DFLOOR       = 0xf2;
+    static const uint8_t DCEIL        = 0xf3;
+    static const uint8_t DABS         = 0xf4;
+    static const uint8_t DMATH        = 0xf5;
+    //      DMATH_S a, b, c     the slot form: fp[a] = function number c of fp[b], for the functions of ONE
+    //                          number (sqrt, floor, ceil and abs are numbers too: 0xe, 0x10, 0xf, 0x11).
+    //                          The compiler writes this one; the four above are for `asm` blocks.
+    static const uint8_t DMATH_S      = 0xf6;
 
     enum instr_class {
         E_CLASS,

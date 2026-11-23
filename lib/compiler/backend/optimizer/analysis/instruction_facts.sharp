@@ -68,7 +68,8 @@ def slot_read(made: ir_instruction, k: _int64) : _int64 {
         return made.arguments!!.at(k - 1);
     }
     if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE
-       || kind == IR_SAME_OBJECT || kind == IR_GET_ELEMENT) {
+       || kind == IR_SAME_OBJECT || kind == IR_GET_ELEMENT || kind == IR_MATH) {
+        // (math of one number: its second is -1, which ends the list)
         if(k == 0) { return made.first; }
         if(k == 1) { return made.second; }
         return 0 - 1;
@@ -96,7 +97,7 @@ def slot_read(made: ir_instruction, k: _int64) : _int64 {
     if(kind == IR_COPY || kind == IR_CONVERT || kind == IR_NEGATE || kind == IR_NOT || kind == IR_IS_NULL
        || kind == IR_LENGTH || kind == IR_IS || kind == IR_CAST || kind == IR_THROW || kind == IR_LOCK
        || kind == IR_UNLOCK || kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS || kind == IR_RETURN_VALUE
-       || kind == IR_GET_FIELD || kind == IR_NEW_ARRAY || kind == IR_INT_IMMEDIATE || kind == IR_SQUARE_ROOT) {
+       || kind == IR_GET_FIELD || kind == IR_NEW_ARRAY || kind == IR_INT_IMMEDIATE) {
         if(k == 0) { return made.first; }
         return 0 - 1;
     }
@@ -145,7 +146,7 @@ def slot_written(made: ir_instruction) : _int64 {
        || kind == IR_DECIMAL_COMPARE || kind == IR_NEGATE || kind == IR_NOT || kind == IR_SAME_OBJECT
        || kind == IR_IS_NULL || kind == IR_GET_FIELD || kind == IR_GET_STATIC || kind == IR_NEW_OBJECT
        || kind == IR_NEW_ARRAY || kind == IR_GET_ELEMENT || kind == IR_LENGTH || kind == IR_CALL || kind == IR_IS
-       || kind == IR_CALL_VALUE || kind == IR_INT_IMMEDIATE || kind == IR_SQUARE_ROOT) {
+       || kind == IR_CALL_VALUE || kind == IR_INT_IMMEDIATE || kind == IR_MATH) {
         return made.target;
     }
     return 0 - 1;

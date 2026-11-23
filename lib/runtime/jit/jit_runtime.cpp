@@ -19,6 +19,7 @@
 #include "../multitasking/fiber/fiber.h"
 #include "../reflect/reflect_helpers.h"
 #include "../termios.h"
+#include "../../Modules/math/cmath.h"
 #include "../../core/opcode/opcode_macros.h"
 #include "../../core/thread_state.h"
 #include "../telemetry/telemetry.h"
@@ -262,6 +263,22 @@ Int jit_rt_decimal_to_integer(double value) {
 
 double jit_rt_power(double base, double exponent) {
     return pow(base, exponent);
+}
+
+double jit_rt_floor(double value) {
+    return floor(value);
+}
+
+double jit_rt_ceil(double value) {
+    return ceil(value);
+}
+
+double jit_rt_math_numbered(Int which, double a, double b) {
+    return math_function((int)which, a, b);
+}
+
+double jit_rt_math(double a, double b, double which) {
+    return jit_rt_math_numbered((Int)which, a, b);
 }
 
 // ---------------------------------------------------------------------------------

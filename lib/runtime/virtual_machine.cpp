@@ -852,6 +852,26 @@ void main_vm_loop(sharp_function *frame)
                 TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
                 regs[dual_arg1].d = sqrt(regs[dual_arg2].d);
                 branch
+            DFLOOR:
+                TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
+                regs[dual_arg1].d = floor(regs[dual_arg2].d);
+                branch
+            DCEIL:
+                TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
+                regs[dual_arg1].d = ceil(regs[dual_arg2].d);
+                branch
+            DABS:
+                TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
+                regs[dual_arg1].d = fabs(regs[dual_arg2].d);
+                branch
+            DMATH_S:
+                TC(TC_ST(task->fp + triple_arg1) = tk_dec;)
+                SLOT(triple_arg1).d = math_function((int)triple_arg3, SLOT(triple_arg2).d, 0);
+                branch
+            DMATH:  // one of the C library's math functions (Modules/math/cmath.cpp)
+                TC(TC_REG_DEC(triple_arg2) TC_RT(triple_arg1) = tk_dec;)
+                regs[triple_arg1].d = math_function((int)triple_arg3, regs[triple_arg2].d, regs[EGX].d);
+                branch
             D2I:    // decimal -> integer: the fraction is dropped (2.9 -> 2, -2.9 -> -2)
                 TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_int;)
                 regs[dual_arg1].i = decimal_to_integer(regs[dual_arg2].d);

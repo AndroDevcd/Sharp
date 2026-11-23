@@ -457,14 +457,26 @@ class string : loopable<_int8> {
         return new out_of_bounds_exception("Index out of bounds exception at: $pos with size of: ${sizeof(data)}");
     }
 
+    /**
+     * A number for the text, the same for equal texts: each character
+     * (counted from 'a' = 1) times a power of 31, added up, modulo
+     * 1000000009. Worked out in whole numbers, a character at a time,
+     * straight from the array - a hash map asks for it on every call.
+     *
+     * (The sum is cut to 32 bits before the remainder is taken: that is what
+     * the first version of this function did - it added in an `int` - and
+     * the numbers must stay the ones they were, or every map of texts would
+     * list its entries in another order.)
+     */
     override def hash() : int {
-        const p := 31;
-        const m := 1e9 + 9;
-        hash_value := 0;
-        p_pow : decimal = 1;
-        foreach(c in data) {
-            hash_value = (hash_value + (c - 'a' + 1) * p_pow) % m;
-            p_pow = (p_pow * p) % m;
+        text := data;
+        length : _int64 = sizeof(text);
+        hash_value : _int64 = 0;
+        power : _int64 = 1;
+        for(i : _int64 = 0; i < length; i++) {
+            sum : _int32 = hash_value + (text[i] - 'a' + 1) * power;
+            hash_value = sum % 1000000009;
+            power = (power * 31) % 1000000009;
         }
 
         return hash_value;

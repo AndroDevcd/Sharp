@@ -205,6 +205,10 @@ def build_asm_table() : hash_map<string, string> {
     table.put("neg", "RR");
     table.put("dneg", "RR");
     table.put("dsqrt", "RR");
+    table.put("dfloor", "RR");
+    table.put("dceil", "RR");
+    table.put("dabs", "RR");
+    table.put("dmath", "RRL");
     table.put(".", "");
     return table;
 }

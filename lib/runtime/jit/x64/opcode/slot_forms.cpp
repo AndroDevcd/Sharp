@@ -164,6 +164,33 @@ emit_result X64Generator::emit_slot_forms() {
             store_slot_decimal(triple1, result);
             return emitted;
         }
+        case Opcode::DMATH_S: {     // fp[a] = math function c of fp[b]
+            x86::Xmm result = decimal_result_register(triple1);
+            static const bool rounds = CpuInfo::host().hasFeature(CpuFeatures::X86::kSSE4_1);
+            if(triple3 == 0xe) {                                        // sqrt: the processor's own
+                a.sqrtsd(result, slot_in_decimal_register(triple2, xmm0));
+            } else if((triple3 == 0x10 || triple3 == 0xf) && rounds) {  // floor, ceil: roundsd down (9) or up (10)
+                a.roundsd(result, slot_in_decimal_register(triple2, xmm0), triple3 == 0x10 ? 9 : 10);
+            } else if(triple3 == 0x11) {                                // abs: the sign bit cleared
+                a.mov(rax, 0x7fffffffffffffffull);
+                a.movq(xmm1, rax);
+                x86::Xmm from = slot_in_decimal_register(triple2, xmm0);
+                if(result.id() != from.id()) a.movaps(result, from);
+                a.andpd(result, xmm1);
+            } else {                                                    // the C library's function
+                x86::Xmm from = slot_in_decimal_register(triple2, xmm0);
+                if(from.id() != xmm0.id()) a.movaps(xmm0, from);
+                a.xorps(xmm1, xmm1);
+                save_vm_registers();
+                a.mov(rax, bits_of((double)triple3));
+                a.movq(x86::xmm2, rax);
+                call_runtime(reinterpret_cast<void*>(jit_rt_math));
+                load_vm_registers();
+                result = xmm0;
+            }
+            store_slot_decimal(triple1, result);
+            return emitted;
+        }
         case Opcode::I2D_S: {
             x86::Xmm result = decimal_result_register(triple1);
             a.xorps(result, result);                // (cvtsi2sd keeps the upper half: do not wait for it)

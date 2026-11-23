@@ -53,6 +53,28 @@ emit_result ArmGenerator::emit_decimal_math() {
             m.d_square_root(D0, D0);
             store_decimal(dual1, D0);
             return emitted;
+        case Opcode::DFLOOR: case Opcode::DCEIL:    // regs[a] = floor / ceil of regs[b]
+            load_decimal(D0, dual2);
+            if(!m.d_round(D0, D0, op == Opcode::DCEIL)) {
+                // (a processor without the instruction - 32-bit ARM before ARMv8: the C library's)
+                m.call(op == Opcode::DFLOOR ? reinterpret_cast<void*>(jit_rt_floor) : reinterpret_cast<void*>(jit_rt_ceil),
+                       { Arg::decimal(D0) });
+                m.result_to_decimal(D0);
+            }
+            store_decimal(dual1, D0);
+            return emitted;
+        case Opcode::DABS:      // regs[a] = regs[b] without its sign
+            load_decimal(D0, dual2);
+            m.d_absolute(D0, D0);
+            store_decimal(dual1, D0);
+            return emitted;
+        case Opcode::DMATH:     // regs[a] = function c of regs[b] (and regs[EGX])
+            load_decimal(D0, triple2);
+            load_decimal(D1, EGX);
+            m.call(reinterpret_cast<void*>(jit_rt_math_numbered), { Arg::constant((int64_t) triple3), Arg::decimal(D0), Arg::decimal(D1) });
+            m.result_to_decimal(D0);
+            store_decimal(triple1, D0);
+            return emitted;
         case Opcode::DNEG:      // regs[a] = -regs[b]: flip the sign bit
             load_register(V0, dual2);
             m.v_flip_sign(V0);

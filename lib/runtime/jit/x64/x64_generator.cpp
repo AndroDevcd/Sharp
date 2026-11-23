@@ -432,7 +432,6 @@ void X64Generator::pick_slot_homes() {
             case Opcode::CALL: case Opcode::CALLD: case Opcode::INVOKE_DELEGATE: case Opcode::INT:
             case Opcode::NEWCLASS: case Opcode::NEWARRAY: case Opcode::NEWOBJARRAY: case Opcode::NEWCLASSARRAY:
             case Opcode::NEWSTRING: case Opcode::CAST: case Opcode::VARCAST: case Opcode::IS:
-            case Opcode::MOD: case Opcode::IMOD:
                 reloads += now;
                 break;
             // a number written through sp or the fiber's stack could be one of our slots: no homes
@@ -446,6 +445,12 @@ void X64Generator::pick_slot_homes() {
                 use(GET_Ba(word), 2); use(GET_Bb(word), 2); use(GET_Bc(word), 2);
                 break;
             case Opcode::I2D_S: use(GET_Ba(word), 2); use(GET_Bb(word), 1); break;
+            case Opcode::DMATH_S: {
+                const int which = GET_Bc(word);     // (all but sqrt, ceil, floor and abs call the C library)
+                if(which < 0xe || which > 0x11) reloads += now;
+                use(GET_Ba(word), 2); use(GET_Bb(word), 2);
+                break;
+            }
             case Opcode::D2I_S: use(GET_Ba(word), 1); use(GET_Bb(word), 2); break;
             case Opcode::JLT_S: case Opcode::JGT_S: case Opcode::JLE_S: case Opcode::JGE_S:
             case Opcode::JEQ_S: case Opcode::JNE_S:
@@ -607,6 +612,34 @@ void X64Generator::call_runtime_checked(void *target) {
     call_runtime(target);
     a.test(thread_signal(), 1 << tsig_except);
     a.jnz(exception);                       // memory mode, as the exception section expects
+}
+
+// THE REMAINDER, `%` on whole numbers, in machine code. vm_remainder (virtual_machine.h) says what
+// it is: an exception for a divisor of 0 - that case goes to the runtime, which raises it - and 0
+// for a divisor of -1 (the processor's division faults on the smallest number divided by -1).
+// Every other case is the processor's own signed division: its remainder is left in rdx.
+void X64Generator::divide_for_remainder(const Label &zero) {
+    Label minus_one = a.newLabel(), done = a.newLabel();
+    a.test(rcx, rcx);
+    a.jz(zero);
+    a.cmp(rcx, -1);
+    a.je(minus_one);
+    a.cqo();
+    a.idiv(rcx);
+    a.jmp(done);
+    a.bind(minus_one);
+    a.xor_(x86::edx, x86::edx);
+    a.bind(done);
+}
+
+/** ... for a divisor written in the instruction */
+bool X64Generator::constant_remainder(int64_t divisor) {
+    if(divisor == 0) return false;
+    if(divisor == -1) { a.xor_(x86::edx, x86::edx); return true; }
+    a.mov(rcx, divisor);
+    a.cqo();
+    a.idiv(rcx);
+    return true;
 }
 
 void X64Generator::prepare_runtime_call() {       // jit_runtime.h, rule 2

@@ -47,12 +47,12 @@
     {
       "id": "sharp_O",
       "name": "Sharp -O",
-      "version": "sharp 4.0.9r19 build-3"
+      "version": "sharp 4.0.10r19 build-3"
     },
     {
       "id": "sharp",
       "name": "Sharp",
-      "version": "sharp 4.0.9r19 build-3"
+      "version": "sharp 4.0.10r19 build-3"
     },
     {
       "id": "php",
@@ -566,8 +566,8 @@
       "language": "sharp_O",
       "n": 50000000,
       "status": "ok",
-      "seconds": 6.49,
-      "cpu_seconds": 6.64,
+      "seconds": 6.09,
+      "cpu_seconds": 6.23,
       "memory_mb": 7
     },
     {
@@ -575,8 +575,8 @@
       "language": "sharp",
       "n": 50000000,
       "status": "ok",
-      "seconds": 12.06,
-      "cpu_seconds": 12.32,
+      "seconds": 11.93,
+      "cpu_seconds": 11.83,
       "memory_mb": 7
     },
     {
@@ -584,8 +584,8 @@
       "language": "c",
       "n": 5500,
       "status": "ok",
-      "seconds": 0.89,
-      "cpu_seconds": 0.89,
+      "seconds": 0.94,
+      "cpu_seconds": 0.9,
       "memory_mb": 2
     },
     {
@@ -593,8 +593,8 @@
       "language": "sharp_O",
       "n": 5500,
       "status": "ok",
-      "seconds": 2.15,
-      "cpu_seconds": 2.19,
+      "seconds": 2.19,
+      "cpu_seconds": 2.21,
       "memory_mb": 7
     },
     {
@@ -602,8 +602,8 @@
       "language": "sharp",
       "n": 5500,
       "status": "ok",
-      "seconds": 8.68,
-      "cpu_seconds": 8.87,
+      "seconds": 8.08,
+      "cpu_seconds": 8.71,
       "memory_mb": 7
     },
     {
@@ -611,7 +611,7 @@
       "language": "c",
       "n": 12,
       "status": "ok",
-      "seconds": 25.83,
+      "seconds": 25.1,
       "cpu_seconds": 25.16,
       "memory_mb": 1
     },
@@ -620,8 +620,8 @@
       "language": "sharp_O",
       "n": 12,
       "status": "ok",
-      "seconds": 32.68,
-      "cpu_seconds": 34.09,
+      "seconds": 33.13,
+      "cpu_seconds": 33.91,
       "memory_mb": 7
     },
     {
@@ -629,8 +629,8 @@
       "language": "sharp",
       "n": 12,
       "status": "ok",
-      "seconds": 50.56,
-      "cpu_seconds": 51.34,
+      "seconds": 49.99,
+      "cpu_seconds": 50.82,
       "memory_mb": 7
     },
     {
@@ -638,8 +638,8 @@
       "language": "c",
       "n": 21,
       "status": "ok",
-      "seconds": 7.06,
-      "cpu_seconds": 6.97,
+      "seconds": 7.35,
+      "cpu_seconds": 7.22,
       "memory_mb": 257
     },
     {
@@ -647,26 +647,26 @@
       "language": "sharp_O",
       "n": 21,
       "status": "ok",
-      "seconds": 13.9,
-      "cpu_seconds": 14.56,
-      "memory_mb": 1148
+      "seconds": 14.03,
+      "cpu_seconds": 14.68,
+      "memory_mb": 1132
     },
     {
       "test": "binarytrees",
       "language": "sharp",
       "n": 21,
       "status": "ok",
-      "seconds": 18.64,
-      "cpu_seconds": 19.22,
-      "memory_mb": 1259
+      "seconds": 18.71,
+      "cpu_seconds": 19.34,
+      "memory_mb": 1344
     },
     {
       "test": "mandelbrot",
       "language": "c",
       "n": 16000,
       "status": "ok",
-      "seconds": 9.82,
-      "cpu_seconds": 9.67,
+      "seconds": 9.86,
+      "cpu_seconds": 9.63,
       "memory_mb": 1
     },
     {
@@ -674,8 +674,8 @@
       "language": "sharp_O",
       "n": 16000,
       "status": "ok",
-      "seconds": 17.16,
-      "cpu_seconds": 17.43,
+      "seconds": 12.13,
+      "cpu_seconds": 12.21,
       "memory_mb": 7
     },
     {
@@ -683,8 +683,8 @@
       "language": "sharp",
       "n": 16000,
       "status": "ok",
-      "seconds": 34.07,
-      "cpu_seconds": 34.96,
+      "seconds": 15.74,
+      "cpu_seconds": 16.44,
       "memory_mb": 7
     },
     {
@@ -692,8 +692,8 @@
       "language": "c",
       "n": 25000000,
       "status": "ok",
-      "seconds": 2.31,
-      "cpu_seconds": 2.28,
+      "seconds": 2.28,
+      "cpu_seconds": 2.26,
       "memory_mb": 1
     },
     {
@@ -701,17 +701,17 @@
       "language": "sharp_O",
       "n": 25000000,
       "status": "ok",
-      "seconds": 2.84,
-      "cpu_seconds": 2.89,
-      "memory_mb": 7
+      "seconds": 2.85,
+      "cpu_seconds": 2.83,
+      "memory_mb": 8
     },
     {
       "test": "fasta",
       "language": "sharp",
       "n": 25000000,
       "status": "ok",
-      "seconds": 5.21,
-      "cpu_seconds": 5.28,
+      "seconds": 4.9,
+      "cpu_seconds": 5.0,
       "memory_mb": 8
     }
   ],

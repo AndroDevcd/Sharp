@@ -24,6 +24,13 @@ import ( std.math )
 * map holds more than `threshold` (0.75) entries per bucket the bucket array
 * grows and every entry is moved to its new bucket.
 *
+* What keeps it quick: a key is hashed once per call; every entry keeps its
+* key's hash, so growing the table hashes nothing again and a chain is
+* searched by comparing numbers first, keys (`==`) only when the numbers
+* agree; and the bucket of a hash is found with `&` when the number of
+* buckets is a power of two - which it is unless a map is made with another
+* number - and with `%` otherwise. Both ways give the same bucket.
+*
 * Keys: the key type must give equal keys the same hash() - int, string and
 * the other std value types do.
 *
@@ -43,6 +50,8 @@ class hash_map<k base _object_, v base _object_> {
     private max_size : _int64 = 12;
     /** the number of entries */
     private count : _int64;
+    /** (number of buckets) - 1 when that number is a power of two: `hash & mask` is then the bucket; -1 otherwise */
+    private mask : _int64 = 0 - 1;
 
     // Small on purpose: programs that build trees keep one map per node, and
     // most of those hold a handful of entries. The table doubles when it
@@ -54,12 +63,21 @@ class hash_map<k base _object_, v base _object_> {
         buckets : _int64 = capacity.value;
         if(buckets < 1) { buckets = 1; }
         data = new entry<k,v?>[buckets];
-        max_size = (sizeof(data) * threshold);
+        table_made();
     }
 
     /** Create an empty map with 16 buckets (it grows when needed). */
     public hash_map() {
         data = new entry<k,v?>[default_capacity];
+        table_made();
+    }
+
+    /** After `data` was given a new array: when the map grows next, and how a bucket is found. */
+    private def table_made() {
+        buckets : _int64 = sizeof(data);
+        max_size = (buckets * threshold);
+        if((buckets & (buckets - 1)) == 0) { mask = buckets - 1; }
+        else { mask = 0 - 1; }
     }
 
     /**
@@ -72,14 +90,18 @@ class hash_map<k base _object_, v base _object_> {
             throw new illegal_argument_exception("hash_map: the threshold has to be above 0: " + threshold);
         }
         self->threshold = threshold;
-        max_size = (sizeof(data) * threshold);
+        table_made();
     }
 
-    /** The bucket a key belongs to: its hash, made non-negative, modulo the number of buckets. */
-    private def hash(key: k) : _int64 {
-        // a plain number, worked out here: no object is created for it and
-        // the math library is not called
-        index : _int64 = key.hash().value % sizeof(data);
+    /**
+     * The bucket of a hash: the hash modulo the number of buckets, without
+     * its sign. For a hash that is not negative and a number of buckets that
+     * is a power of two that is `code & mask` - the same number, without a
+     * division.
+     */
+    private def bucket_of(code: _int64) : _int64 {
+        if(mask >= 0 && code >= 0) { return code & mask; }
+        index : _int64 = code % sizeof(data);
         if(index < 0) {
             index = 0 - index;
         }
@@ -95,7 +117,7 @@ class hash_map<k base _object_, v base _object_> {
     /** Remove every entry; the map goes back to its first number of buckets (16). O(1). */
     def clear() {
         data = new entry<k,v?>[default_capacity];
-        max_size = (sizeof(data) * threshold);
+        table_made();
         count = 0;
     }
 
@@ -103,13 +125,13 @@ class hash_map<k base _object_, v base _object_> {
     private def resize() {
         old_data := data;
         data = new entry<k,v?>[sizeof(old_data) * 2];
-        max_size = sizeof(data) * threshold;
+        table_made();
 
         for(i : _int64 = 0; i < sizeof(old_data); i++) {
             item := old_data[i];
             while(item != null) {
                 following := item.next;
-                index : _int64 = hash(item.key);
+                index : _int64 = bucket_of(item.code);      // (the hash it was put in with: nothing is hashed again)
                 item.next = data[index];
                 data[index] = item;
                 item = following;
@@ -119,9 +141,14 @@ class hash_map<k base _object_, v base _object_> {
 
     /** The entry that holds `key`, or null when the map does not have the key. */
     private def find_entry(key: k) : entry<k, v?> {
-        item := data[hash(key)];
+        return find_entry(key, key.hash().value);
+    }
+
+    /** ... for a caller that has the key's hash already. Equal keys have equal hashes, so an entry with another hash is another key. */
+    private def find_entry(key: k, code: _int64) : entry<k, v?> {
+        item := data[bucket_of(code)];
         while(item != null) {
-            if(same_key(item.key, key)) return item;
+            if(item.code == code && same_key(item.key, key)) return item;
             item = item.next;
         }
         return item;
@@ -178,7 +205,8 @@ class hash_map<k base _object_, v base _object_> {
      * @return true when the key is new, false when an existing value was replaced
      */
     public def put(key: k, value: v?) : bool {
-        item := find_entry(key);
+        code : _int64 = key.hash().value;
+        item := find_entry(key, code);
         if(item != null) {
             item.value = value;
             return false;
@@ -186,8 +214,9 @@ class hash_map<k base _object_, v base _object_> {
 
         if(count >= max_size) resize();
 
-        index : _int64 = hash(key);
+        index : _int64 = bucket_of(code);
         added := new entry<k,v?>(key, value);
+        added.code = code;
         added.next = data[index];
         data[index] = added;
         count++;
@@ -217,11 +246,12 @@ class hash_map<k base _object_, v base _object_> {
      * @return true when the key was removed, false when the map did not have it
      */
     public def remove(key: k) : bool {
-        index : _int64 = hash(key);
+        code : _int64 = key.hash().value;
+        index : _int64 = bucket_of(code);
         previous : entry<k,v?>? = null;
         item := data[index];
         while(item != null) {
-            if(same_key(item.key, key)) {
+            if(item.code == code && same_key(item.key, key)) {
                 if(previous == null) data[index] = item.next;
                 else previous!!.next = item.next;
                 count--;
@@ -293,6 +323,8 @@ class hash_map<k base _object_, v base _object_> {
         protected key: k;
         protected value: v?;
         protected next: entry<k, v?>;
+        /** key.hash(), kept so growing the table does not hash again and a search compares numbers first */
+        protected code : _int64 = 0;
 
         public entry(key: k, value: v?) {
             self->key = key;

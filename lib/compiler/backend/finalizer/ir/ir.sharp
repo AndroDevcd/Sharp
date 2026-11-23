@@ -105,9 +105,10 @@ const IR_INT_IMMEDIATE    : _int64 = 41;    // d = a op `detail` on integers, `d
                                             // ARITH_SUB or ARITH_MUL). Only the optimizer makes it (backend/optimizer,
                                             // passes/values/immediates.sharp): the VM's iadd / iaddl take the constant in
                                             // the instruction itself, so `i = i + 1` is one instruction
-const IR_SQUARE_ROOT      : _int64 = 42;    // d = the square root of a, both decimals. Only the optimizer makes it
-                                            // (passes/calls/math_instructions.sharp) from a call of std.math's sqrt:
-                                            // the VM's `dsqrt`
+const IR_MATH             : _int64 = 42;    // d = math function `number` (MATH_...) of a - and of b, for a function of
+                                            // two numbers (b is -1 otherwise); all decimals. Only the optimizer makes
+                                            // it (passes/calls/math_instructions.sharp) from a call of a function of
+                                            // std.math: the VM's dsqrt, dfloor, dceil, dabs, or dmath
 
 // A `try` statement adds no instruction of its own: its ranges are LABELS (ir_try in
 // ir_function.sharp), and the bytecode step turns them into the pcs of its try record.
@@ -116,6 +117,27 @@ const IR_SQUARE_ROOT      : _int64 = 42;    // d = the square root of a, both de
 const TEXT_FRESH         : _int64 = 0;      // a new _int8[], every time
 const TEXT_SHARED_ARRAY  : _int64 = 1;      // the one shared _int8[] of that text: for a value that is only read
 const TEXT_SHARED_STRING : _int64 = 2;      // the one shared `string` object whose data is that array
+
+// ---- the math functions (IR_MATH): the numbers the VM knows them by (lib/Modules/math/cmath.cpp)
+const MATH_POW   : _int64 = 0xd;
+const MATH_SQRT  : _int64 = 0xe;
+const MATH_CEIL  : _int64 = 0xf;
+const MATH_FLOOR : _int64 = 0x10;
+const MATH_ABS   : _int64 = 0x11;
+const MATH_LAST  : _int64 = 0x13;
+
+/** the name of a math function, as std.math calls it ("" for a number that is none) */
+def math_name(which: _int64) : string {
+    names := new string[] { "sin", "cos", "tan", "sinh", "cosh", "tanh", "asin", "acos", "atan", "atan2", "exp", "log",
+                            "log10", "pow", "sqrt", "ceil", "floor", "abs", "ldexp", "fmod" };
+    if(which < 0 || which >= sizeof(names)) { return ""; }
+    return names[which];
+}
+
+/** does the math function take two numbers? */
+def math_takes_two(which: _int64) : _int64 {
+    return which == 0x9 || which == MATH_POW || which == 0x12 || which == 0x13;      // atan2, pow, ldexp, fmod
+}
 
 // ---- arithmetic (IR_INT_BINARY, IR_DECIMAL_BINARY)
 const ARITH_ADD : _int64 = 1;

@@ -460,6 +460,13 @@ void Arm32Machine::decimal_jump_if(int left, int right, Cond how, bool holds, in
 /** (the processor converts 32-bit whole numbers only: C++ does it) */
 static double whole_to_decimal(int64_t value) { return (double) value; }
 
+void Arm32Machine::d_absolute(DReg to, DReg from) {
+    word(ALWAYS, 0x0EB00BC0u | ((uint32_t) d(to) << 12) | (uint32_t) d(from));         // vabs
+}
+
+/** (rounding to a whole number came with ARMv8; this encoder writes for ARMv6 with VFP) */
+bool Arm32Machine::d_round(DReg to, DReg from, bool up) { return false; }
+
 void Arm32Machine::d_square_root(DReg to, DReg from) {
     word(ALWAYS, 0x0EB10BC0u | ((uint32_t) d(to) << 12) | (uint32_t) d(from));         // vsqrt
 }

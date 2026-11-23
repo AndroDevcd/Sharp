@@ -158,7 +158,12 @@ const OP_JLT_K           : _int64 = 0xe5;      // jlt jgt jle jge jeq jne       
 const OP_DJLT_K          : _int64 = 0xeb;      // the same six for a decimal a
 const OP_DJNE_K          : _int64 = 0xf0;
 const OP_DSQRT           : _int64 = 0xf1;      // the square root of a decimal            r1 = sqrt(r2)
-const OP_LAST            : _int64 = 0xf1;
+const OP_DFLOOR          : _int64 = 0xf2;      // down to a whole number                  r1 = floor(r2)
+const OP_DCEIL           : _int64 = 0xf3;      // up to a whole number                    r1 = ceil(r2)
+const OP_DABS            : _int64 = 0xf4;      // without its sign                        r1 = abs(r2)
+const OP_DMATH           : _int64 = 0xf5;      // a math function by its number           r1 = function c of r2 (and egx)
+const OP_DMATH_S         : _int64 = 0xf6;      // the slot form, for a function of one number      d = function c of a
+const OP_LAST            : _int64 = 0xf6;
 const OP_ILL             : _int64 = 0xff;      // only as the opcode of invoke_delegate's second word
 
 // ---- the registers
@@ -195,7 +200,7 @@ def opcode_name(opcode: _int64) : string {
             + "jnz_s jz_s jnull_s isnull_s not_s mov8_s mov16_s mov32_s movu8_s movu16_s movu32_s "
             + "returnval_s returnobj_s iadd_s isub_s imul_s putobj_s movobj_s "
             + "iand_s ior_s ixor_s ishl_s ishr_s jlt_k jgt_k jle_k jge_k jeq_k jne_k "
-            + "djlt_k djgt_k djle_k djge_k djeq_k djne_k dsqrt");
+            + "djlt_k djgt_k djle_k djge_k djeq_k djne_k dsqrt dfloor dceil dabs dmath dmath_s");
     }
     if(opcode < 0 || opcode >= sizeof(opcode_names)) { return "ill"; }
     return opcode_names!![opcode];
@@ -261,7 +266,7 @@ def register_number(name: string) : _int64 {
  * B and the target of a jump in the second word (the slot forms that jump),
  * I class B and a constant in the second word.
  */
-opcode_forms : string = "EDKDECDCCCCCCCCDBBBBBKKKKKEDDCEEECCCCDDDDDDDDEEDXXDCCEEDDDCDDBBCCCCCCEDEKDCCCCCKKKKKCECCCCCDXCKDEDDDGDKDDDKDCDEEECDCBKDDKBBBCDDCCCCCCCKKKKCCCKKKKXKKDCCCCCCCCCCCCCCCBBBBBBBBBBBBBBJJJJJJJJJJJJBBBBBBBBBBBBBBBBKKJBBBBBBBBDDIIIBBIIIIIJJJJJJJJJJJJC";
+opcode_forms : string = "EDKDECDCCCCCCCCDBBBBBKKKKKEDDCEEECCCCDDDDDDDDEEDXXDCCEEDDDCDDBBCCCCCCEDEKDCCCCCKKKKKCECCCCCDXCKDEDDDGDKDDDKDCDEEECDCBKDDKBBBCDDCCCCCCCKKKKCCCKKKKXKKDCCCCCCCCCCCCCCCBBBBBBBBBBBBBBJJJJJJJJJJJJBBBBBBBBBBBBBBBBKKJBBBBBBBBDDIIIBBIIIIIJJJJJJJJJJJJCCCCBB";
 
 /** the form letter of an opcode ('?' for one the VM does not have) */
 def opcode_form(opcode: _int64) : _int64 {

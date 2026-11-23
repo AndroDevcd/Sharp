@@ -165,6 +165,7 @@ void ArmGenerator::pick_local_homes() {
                 use(GET_Ba(word), 2); use(GET_Bb(word), 2); use(GET_Bc(word), 2);
                 break;
             case Opcode::I2D_S: use(GET_Ba(word), 2); use(GET_Bb(word), 1); break;
+            case Opcode::DMATH_S: use(GET_Ba(word), 2); use(GET_Bb(word), 2); break;
             case Opcode::D2I_S: use(GET_Ba(word), 1); use(GET_Bb(word), 2); break;
             case Opcode::JLT_S: case Opcode::JGT_S: case Opcode::JLE_S: case Opcode::JGE_S:
             case Opcode::JEQ_S: case Opcode::JNE_S:

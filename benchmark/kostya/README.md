@@ -19,6 +19,28 @@ input, timed the same way, without a runtime. C has no base64, JSON or hash
 map of its own: the first two are plain loops written in the file, and a
 node of the primes tree keeps its children in a ten-slot array.
 
+## Results, 2026-11-23 (later): Sharp 0.5.9 (VM 4.0.10r19), and C
+
+The same machine, one run each, the same checked output everywhere.
+
+| test | 0.5.8, `-O` | 0.5.9, `-O` | 0.5.8, no `-O` | 0.5.9, no `-O` | C (gcc -O3) | Sharp `-O` / C |
+|---|---|---|---|---|---|---|
+| brainfuck `bench.b` | 3.59 s | 3.00 s | 8.53 s | 7.91 s | 0.72 s | 4.2 x |
+| brainfuck `mandel.b` | 70.88 s | 69.70 s | 100.11 s | 107.66 s | 5.08 s | 13.7 x |
+| base64 | 4.36 s | 4.52 s | 7.93 s | 8.01 s | 0.76 s | 6.0 x |
+| json | 0.36 s | 0.35 s | 0.62 s | 0.59 s | 0.12 s | 2.9 x |
+| matmul | 4.55 s | 4.56 s | 13.04 s | 7.38 s | 1.26 s | 3.6 x |
+| primes | 0.54 s | 0.57 s | 1.00 s | 0.87 s | 0.06 s | 10.1 x |
+
+Over the six, Sharp `-O` is 5.8 times C (5.9 with 0.5.8) and Sharp without
+`-O` 10.2 times (11.6). What 0.5.9 changed - floor, ceil, abs and the other
+math functions as instructions, `%` in machine code, decimals copied from
+register to register, a text's hash in whole numbers - shows where a program
+copies decimals without `-O` (matmul) and hardly anywhere else here: these six
+use none of the math functions and no text keys. With the six programs of
+benchmark/game, twelve in all, Sharp `-O` is 3.2 times C and Sharp without
+`-O` 5.6 times.
+
 ## Results, 2026-11-23: Sharp 0.5.8 (VM 4.0.9r19), and C
 
 x86-64 Linux under WSL2 (AMD Ryzen 7 9700X, 15 GB), one run each. Every

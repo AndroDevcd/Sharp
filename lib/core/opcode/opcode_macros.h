@@ -392,7 +392,12 @@ require( \
             &&DJGE_K, \
             &&DJEQ_K, \
             &&DJNE_K, \
-            &&DSQRT \
+            &&DSQRT, \
+            &&DFLOOR, \
+            &&DCEIL, \
+            &&DABS, \
+            &&DMATH, \
+            &&DMATH_S \
         };
 
 #endif //SHARP_OPCODE_MACROS_H
