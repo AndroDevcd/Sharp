@@ -127,6 +127,8 @@ static const interrupt_row interrupt_rows[] = {
     { OP_SYSTEM_EXE,            "system",               op_system },
     { OP_EXIT,                  "exit",                 op_exit },
     { OP_OS_NAME,               "os_name",              op_os_name },
+    { OP_SIGNAL_WATCH,          "signal_watch",         op_signal_watch },
+    { OP_SIGNAL_TAKE,           "signal_take",          op_signal_take },
     { OP_PROGRAM_PATH,          "program_path",         op_program_path },
     { OP_RUNTIME_PATH,          "runtime_path",         op_runtime_path },
     { OP_C_LIBRARY,             "c_library",            op_c_library },
@@ -144,8 +146,15 @@ static const interrupt_row interrupt_rows[] = {
     // ---- reflection.cpp
     { OP_GET_FRAME_INFO,        "get_frame_info",       op_get_frame_info },
     { OP_GET_STACK_TRACE,       "get_stack_trace",      op_get_stack_trace },
-    { OP_DESCRIBE_OBJECT,       "describe_object",      op_describe_object },
-    { OP_REFLECT_FIELD_VALUE,   "reflect_field_value",  op_reflect_field_value },
+    { OP_REFLECT_FACTS,         "reflect_facts",        op_reflect_facts },
+    { OP_REFLECT_TEXT,          "reflect_text",         op_reflect_text },
+    { OP_REFLECT_CLASS_OF,      "reflect_class_of",     op_reflect_class_of },
+    { OP_REFLECT_FIND,          "reflect_find",         op_reflect_find },
+    { OP_REFLECT_NEW,           "reflect_new",          op_reflect_new },
+    { OP_REFLECT_GET,           "reflect_get",          op_reflect_get },
+    { OP_REFLECT_PUT,           "reflect_put",          op_reflect_put },
+    { OP_REFLECT_SPREAD,        "reflect_spread",       op_reflect_spread },
+    { OP_REFLECT_BOX,           "reflect_box",          op_reflect_box },
 };
 
 //

@@ -113,7 +113,7 @@ def file_is_there(path: string) : _int64 {
  */
 def usual_windows_compilers() : list<string> {
     places := new list<string>();
-    local_programs := process.environment("LOCALAPPDATA");
+    local_programs := environment.value("LOCALAPPDATA");
     if(local_programs != null) {
         places.add(local_programs!! + "\\Programs\\CLion\\bin\\mingw\\bin\\g++.exe");
     }
@@ -121,7 +121,7 @@ def usual_windows_compilers() : list<string> {
     jetbrains := new file("C:\\Program Files\\JetBrains");
     if(jetbrains.exists() && jetbrains.is_directory()) {
         foreach(installed in jetbrains.list_files()) {
-            places.add(installed.get_path() + "\\bin\\mingw\\bin\\g++.exe");
+            places.add(installed.path + "\\bin\\mingw\\bin\\g++.exe");
         }
     }
     places.add("C:\\msys64\\ucrt64\\bin\\g++.exe");
@@ -156,7 +156,7 @@ def named_compiler(compiler: string, said_by: string) : cxx_choice {
 def choose_cxx() : cxx_choice {
     if(options.cxx != "") { return named_compiler(options.cxx, "the command line (-cxx)"); }
     if(options.native_compiler != "") { return named_compiler(options.native_compiler, "settings.json"); }
-    from_environment := process.environment("SHARP_CXX");
+    from_environment := environment.value("SHARP_CXX");
     if(from_environment != null) { return named_compiler(from_environment!!, "the environment variable SHARP_CXX"); }
 
     choice := new cxx_choice();
@@ -236,7 +236,7 @@ def collect_cxx_files(entries: list<string>, sources: list<string>, headers: lis
         }
         foreach(found in entry.walk()) {
             if(found.is_directory()) { continue; }
-            found_path := found.get_path();
+            found_path := found.path;
             if(is_cxx_source(found_path) == 1) { sources.add(found_path); }
             else if(is_cxx_header(found_path) == 1) { headers.add(found_path); }
         }
@@ -264,7 +264,7 @@ def build_record(command: string, inputs: list<string>) : string {
     foreach(path in inputs) {
         // (a local for the file: the C++ compiler that builds this compiler stops on `new file(x).method()`)
         watched := new file(path);
-        text.append(path + "|" + (watched.length().value as _int64) + "|" + (watched.last_modified().value as _int64) + "\n");
+        text.append(path + "|" + watched.size() + "|" + (watched.last_modified() as _int64) + "\n");
     }
     return text.build();
 }
@@ -429,7 +429,7 @@ def build_native_libraries(groups: list<string>, glue_folder: string) : _int64 {
             continue;
         }
         stamp.write_text(record);
-        println("native library: " + library + " built from " + (sources.size().value as _int64) + " C++ file(s)");
+        println("native library: " + library + " built from " + sources.size() + " C++ file(s)");
     }
     return ok;
 }

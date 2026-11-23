@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * string_joiner
  *
@@ -23,7 +25,7 @@ class string_joiner {
     private suffix : string = "";
 
     /* the pieces joined so far, without prefix and suffix */
-    private body : text_buffer = new text_buffer();
+    private body : char_buffer = new char_buffer();
 
     /* how many pieces were added */
     private pieces : decimal = 0;
@@ -92,8 +94,8 @@ class string_joiner {
         return pieces;
     }
 
-    /** 1 if nothing was added yet. */
-    def is_empty(): decimal {
+    /** true if nothing was added yet. */
+    def is_empty(): bool {
         return pieces == 0;
     }
 
@@ -120,7 +122,7 @@ class string_joiner {
     def build(): string {
         if(pieces == 0 && has_empty_value) return empty_value;
 
-        out := new text_buffer();
+        out := new char_buffer();
         out.append(prefix);
         out.append(body.build());
         out.append(suffix);

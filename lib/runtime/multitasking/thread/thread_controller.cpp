@@ -270,6 +270,14 @@ vm_thread_entry(void *arg)
             * stop them.
             */
             shutdown();
+
+            // ANOTHER THREAD MAY BE ENDING THE PROGRAM ALREADY: it called exit(), stopped this
+            // thread, and is waiting for it to say that it is done (kill_all_threads). shutdown()
+            // above then did nothing - the shutdown is not this thread's - so "I am done" must
+            // still be said here. Without it exit() on any thread but the main one waited for
+            // ever whenever the main thread was running: the program neither ran nor ended.
+            // (When this thread did the shutdown itself, destroy() has said it already.)
+            if(!thread->exited) shutdown_thread(thread);
         } else {
             shutdown_thread(thread);
         }

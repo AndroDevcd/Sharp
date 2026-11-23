@@ -154,7 +154,7 @@ class socket_system {
     }
 }
 
-class tcp_socket {
+class tcp_socket : connection {
     private handle : _int64 = 0 - 1;
     private open : bool = false;
     private other_side : string = "";
@@ -209,6 +209,11 @@ class tcp_socket {
         return other_port;
     }
 
+    /** the system's own number for this socket (for code that calls the system itself: tls_socket) */
+    def system_handle() : _int64 {
+        return handle;
+    }
+
     private def usable() {
         if(!open) { throw new socket_exception("the socket is closed"); }
     }
@@ -246,7 +251,7 @@ class tcp_socket {
     }
 
     /** send the first `count` bytes of `data` */
-    def write(data: _int8[], count: _int64) : _int64 {
+    override def write(data: _int8[], count: _int64) : _int64 {
         usable();
         if(count > sizeof(data)) { count = sizeof(data); }
         sent : _int64 = 0;
@@ -274,7 +279,7 @@ class tcp_socket {
      * `most`. An EMPTY array means the other side has closed the connection
      * and everything it sent has been read.
      */
-    def read(most: _int64) : _int8[] {
+    override def read(most: _int64) : _int8[] {
         usable();
         if(most < 1) { return new _int8[0]; }
         if(most > sizeof(chunk)) { most = sizeof(chunk); }
@@ -336,6 +341,7 @@ class tcp_socket {
     def read_line() : string? {
         line := new char_buffer();
         any : bool = false;
+        held_back : bool = false;       // a `\r` was read: it is part of the line unless a `\n` follows
         while(true) {
             one := read(1);
             if(sizeof(one) == 0) {
@@ -344,9 +350,11 @@ class tcp_socket {
             }
             any = true;
             if(one[0] == '\n') { break; }
-            if(one[0] != '\r') { line.append_char(one[0]); }
+            if(held_back) { line.append_char('\r'); }
+            held_back = one[0] == '\r';
+            if(!held_back) { line.append_char(one[0]); }
         }
-        return line.to_string()!!;
+        return line.build();
     }
 
     /** a read or write failed: as the exception that says how */
@@ -357,7 +365,7 @@ class tcp_socket {
     }
 
     /** close this end; the other side then reads "closed". Closing twice does nothing. */
-    def close() {
+    override def close() {
         if(!open) { return; }
         open = false;
         socket_system.close(handle);

@@ -59,6 +59,26 @@ import (
  *                          of it and of the classes above it - native code
  *                          writes them by name (codegen.md 3.11)
  *
+ *      reflected           the classes a program makes and fills BY NAME at run
+ *                          time: the type arguments of std.reflect's
+ *                          `reflects<T>()` (KNOWN TO THE COMPILER BY NAME;
+ *                          lib/support std/reflect/making.sharp). Reading json
+ *                          into a `user` names no field of it and calls no
+ *                          constructor of it in the text of the program, so
+ *                          none of it would be kept. Kept for such a class:
+ *                          every field of it and of the classes above it, its
+ *                          constructor without parameters - and the same for
+ *                          the class of each of those fields (`home : address?`,
+ *                          `tags : list<string>`), as far as that leads.
+ *      reflected whole     the type arguments of std.reflect's
+ *                          `reflects_whole<T>()` (what `reflect.of<T>()` says):
+ *                          the program looks at ALL of T by name - it lists
+ *                          its functions and calls them, makes objects with
+ *                          any constructor. Kept for T and the classes above
+ *                          it: every field (static ones too), every function
+ *                          and every constructor; and for its fields what
+ *                          `reflects` keeps.
+ *
  * The result is `sharp_declaration.kept = 1` on everything kept, and the
  * lists `functions`, `classes` and `fields` in the order found.
  *
@@ -72,8 +92,10 @@ class kept_walk {
     classes : list<sharp_class>;
     fields : list<sharp_field>;
     enum_values : list<sharp_enum_value>;
+    reflected : list<sharp_class>;              // the classes kept whole for std.reflect (keep_reflected)
 
     kept_walk() {
+        reflected = new list<sharp_class>();
         waiting = new list<sharp_declaration>();
         functions = new list<sharp_function>();
         classes = new list<sharp_class>();
@@ -132,6 +154,56 @@ class kept_walk {
         }
     }
 
+    /**
+     * A class whose objects are made and filled by name at run time (`reflects<T>()`,
+     * the rule at the top of this file): the class of this type and of every field
+     * under it.
+     */
+    def keep_reflected(type: resolved_type?) {
+        if(type == null || type!!.kind != RT_CLASS || type!!.class_of == null) { return; }
+        needed : sharp_class = type!!.class_of!!;
+        if(needed.is_open()) { return; }
+        for(i : _int64 = 0; i < reflected.size(); i++) {
+            if(reflected.at(i) == needed) { return; }
+        }
+        reflected.add(needed);
+        current : sharp_class? = needed;
+        for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+            keep(current);
+            keep(current!!.default_constructor);
+            fields_of := current!!.fields;
+            for(i : _int64 = 0; i < fields_of.size(); i++) {
+                field := fields_of.at(i);
+                if(field.has(FLAG_STATIC)) { continue; }
+                keep(field);
+                keep_reflected(field.value_type);
+            }
+            current = current!!.base_class;
+        }
+    }
+
+    /**
+     * A class a program looks at whole by name (`reflects_whole<T>()`, the rule at
+     * the top of this file): its fields, functions and constructors, and those of
+     * the classes above it.
+     */
+    def keep_reflected_whole(type: resolved_type?) {
+        if(type == null || type!!.kind != RT_CLASS || type!!.class_of == null) { return; }
+        if(type!!.class_of!!.is_open()) { return; }
+        keep_reflected(type);
+        current : sharp_class? = type!!.class_of;
+        for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+            keep(current);
+            fields_of := current!!.fields;
+            for(i : _int64 = 0; i < fields_of.size(); i++) { keep(fields_of.at(i)); }
+            for(i : _int64 = 0; i < current!!.functions.size(); i++) {
+                if(current!!.functions.at(i).has_body()) { keep(current!!.functions.at(i)); }
+            }
+            for(i : _int64 = 0; i < current!!.constructors.size(); i++) { keep(current!!.constructors.at(i)); }
+            current = current!!.base_class;
+        }
+    }
+
     /** follow everything waiting until nothing is left */
     def follow_until_done() {
         while(waiting.size() > 0) {
@@ -159,6 +231,14 @@ class kept_walk {
             }
             for(i : _int64 = 0; i < function.parameters.size(); i++) { keep_type(function.parameters.at(i).value_type); }
             keep_type(function.result_type);
+            // reflects<T>(): T is made and filled by name at run time
+            if(function.type_arguments != null && function.name == "reflects" && function.module.name == "std.reflect") {
+                for(i : _int64 = 0; i < function.type_arguments!!.size(); i++) { keep_reflected(function.type_arguments!!.at(i)); }
+            }
+            // reflects_whole<T>(): all of T is looked at by name at run time
+            if(function.type_arguments != null && function.name == "reflects_whole" && function.module.name == "std.reflect") {
+                for(i : _int64 = 0; i < function.type_arguments!!.size(); i++) { keep_reflected_whole(function.type_arguments!!.at(i)); }
+            }
         } else if(kind == D_FIELD) {
             field := declared as sharp_field;
             keep(field.getter);
@@ -241,7 +321,7 @@ def walk_kept(analysed: analysed_program, eager: _int64) : kept_walk {
  * (lib/runtime/vm_initializer.cpp, memory/function_value.cpp) and makes
  * objects of: the exceptions it throws, the number classes reflection boxes
  * numbers in (`std#bool`, `std#char` ... with their field `value`), the
- * thread and fiber classes, the reflection classes, function values. The
+ * thread and fiber classes, function values. The
  * analysis's `required_classes` is the C++ compiler's list, which leaves some
  * of them to the program (`std#bool`, `std#long` ...); an executable without
  * them makes the VM fail as soon as it reflects on a number.
@@ -252,10 +332,8 @@ def vm_named_classes() : name_table<numbered> {
         + "std#out_of_bounds_exception std#nullptr_exception std#class_cast_exception std#out_of_memory_exception "
         + "std#invalid_operation_exception std#unsatisfied_link_error std#illegal_state_exception "
         + "std#incompatible_class_exception std#object_import_error std#string std#int std#char std#boolean std#short "
-        + "std#byte std#uint std#uchar std#ushort std#long std#ulong platform.kernel#stack_state std.io#thread "
-        + "std#exception std#error std#char_array std.io.fiber#fiber std.reflect#_class_ std.reflect#_field_ "
-        + "std.reflect#_function_ std.reflect#data_type std.reflect#_function_param_ std.reflect#description "
-        + "platform.kernel#function_value");
+        + "std#byte std#uint std#uchar std#ushort std#long std#ulong std#double platform.kernel#stack_state std.io#thread "
+        + "std#exception std#error std#char_array std.io.fiber#fiber platform.kernel#function_value");
     for(i : _int64 = 0; i < found.size(); i++) { names.put(found.at(i), new numbered(1)); }
     return names;
 }

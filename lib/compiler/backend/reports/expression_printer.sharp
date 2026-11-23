@@ -147,7 +147,7 @@ def described_node(expression: bound_expression) : string {
     if(kind == BX_TYPE_NAME) { return "type"; }
     if(kind == BX_FUNCTIONS) {
         named := expression as bound_functions;
-        return "function name " + named.name + " (" + (named.candidates.size().value as _int64) + " candidate(s))";
+        return "function name " + named.name + " (" + named.candidates.size() + " candidate(s))";
     }
     if(kind == BX_CALL) {
         call := expression as bound_call;

@@ -17,7 +17,7 @@ mod std.math;
  *     id := m * inv;                  // the identity (up to rounding)
  *
  * Operators: + - (matrix), * (matrix or number), unary -, == !=.
- * All operators and the methods transpose(), inverse(), power() ... return
+ * All operators and the methods transpose(), inverse(), pow() ... return
  * NEW matrices; only put() and fill() change the matrix they are called on.
  *
  * Wrong sizes throw illegal_argument_exception, positions outside the
@@ -78,7 +78,7 @@ class matrix {
     }
 
     private static def check_size(rows: decimal, columns: decimal) {
-        if(rows < 1 || columns < 1 || floor_of(rows) != rows || floor_of(columns) != columns)
+        if(rows < 1 || columns < 1 || floor(rows) != rows || floor(columns) != columns)
             throw new illegal_argument_exception("matrix: rows and columns must be whole numbers >= 1");
     }
 
@@ -282,7 +282,7 @@ class matrix {
     def approx_equals(other: matrix, tolerance: decimal): bool {
         if(rows != other.rows || columns != other.columns) return false;
         for(i : decimal = 0; i < rows * columns; i++) {
-            if(absolute(cells[i] - other.cells[i]) > tolerance) return false;
+            if(abs(cells[i] - other.cells[i]) > tolerance) return false;
         }
         return true;
     }
@@ -353,7 +353,7 @@ class matrix {
             // find the pivot: the largest value in this column, at or below the diagonal
             pivot : decimal = col;
             for(r : decimal = col + 1; r < n; r++) {
-                if(absolute(work[r * n + col]) > absolute(work[pivot * n + col])) {
+                if(abs(work[r * n + col]) > abs(work[pivot * n + col])) {
                     pivot = r;
                 }
             }
@@ -403,7 +403,7 @@ class matrix {
         for(col : decimal = 0; col < n; col++) {
             pivot : decimal = col;
             for(r : decimal = col + 1; r < n; r++) {
-                if(absolute(work[r * n + col]) > absolute(work[pivot * n + col])) {
+                if(abs(work[r * n + col]) > abs(work[pivot * n + col])) {
                     pivot = r;
                 }
             }
@@ -463,14 +463,14 @@ class matrix {
 
     /**
      * The matrix multiplied by itself `exponent` times, by repeated squaring;
-     * power(0) is the identity.
+     * pow(0) is the identity.
      *
      * Throws illegal_argument_exception when the matrix is not square or
      * exponent is negative or not whole (use inverse().power(n) for A^-n).
      */
     def power(exponent: decimal): matrix {
         require_square("power");
-        if(exponent < 0 || floor_of(exponent) != exponent)
+        if(exponent < 0 || floor(exponent) != exponent)
             throw new illegal_argument_exception("matrix: the exponent must be a whole number >= 0");
 
         result := identity(rows);
@@ -481,7 +481,7 @@ class matrix {
             if((remaining % 2) == 1) {
                 result = result * factor;
             }
-            remaining = floor_of(remaining / 2);
+            remaining = floor(remaining / 2);
             if(remaining > 0) {
                 factor = factor * factor;
             }

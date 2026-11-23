@@ -141,7 +141,7 @@ def what_it_has(owner: sharp_class, only_static: _int64, wanted: string) : strin
     listed := new list<sharp_declaration>();
     distances := new list<int>();
     for(round : _int64 = 0; round < 2; round++) {
-        first_of_round : _int64 = listed.size().value as _int64;
+        first_of_round : _int64 = listed.size();
         for(i : _int64 = 0; i < ordered.size(); i++) {
             member := ordered.at(i);
             if(!can_be_named(member.kind) || seen.at(member.name) != null) { continue; }
@@ -150,7 +150,7 @@ def what_it_has(owner: sharp_class, only_static: _int64, wanted: string) : strin
             seen.put(member.name, member.name);
             distance : _int64 = 0;
             if(round == 0) { distance = name_distance(wanted, member.name, 64); }
-            place : _int64 = listed.size().value as _int64;
+            place : _int64 = listed.size();
             while(place > first_of_round && distances.at(place - 1).value > distance) { place--; }
             listed.insert(place, member);
             distances.insert(place, new int(distance));

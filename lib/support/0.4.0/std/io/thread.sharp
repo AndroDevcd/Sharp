@@ -147,12 +147,22 @@ public class thread {
 
     public static def current() := vm.current_thread();
 
-    public static def sleep(mills_time : decimal) := time.sleep(milliseconds, mills_time);
+    /** the thread does nothing for this many milliseconds */
+    public static def sleep(mills_time : decimal) {
+        sleep_micros(mills_time * 1000);
+    }
 
-    public static def suspend_for(mills_time : decimal) {
-        vm.current_thread().suspended = true;
-        time.wait(milliseconds, mills_time);
-        vm.current_thread().suspended = false;
+    /** the thread does nothing for this many microseconds (a thousand of them are a millisecond) */
+    public static def sleep_micros(micros : decimal) {
+        if(micros < 0)
+            throw new error("cannot sleep for negative time: $micros");
+
+        // (a plain number of its own for the instruction: see the kinds of number an `asm` block reads)
+        amount : _int64 = micros;
+        asm {
+            loadl ebx, [amount]
+            sleep ebx
+        }
     }
 
     public static def exit(code : decimal) {
@@ -185,10 +195,6 @@ public class thread {
         }
     }
 
-    private def remove_thread(t : thread) {
-        parent_group.remove(t.native_handle);
-    }
-
     public def get_id() : int = id;
     public def get_native_handle() : int = native_handle;
     public def get_stack_size() := stack_size;
@@ -204,7 +210,8 @@ public class thread {
 	public def get_main_fiber() := fib;
 	public def get_main_method() := main;
 
-    public def operator==(t : thread) : bool = native_handle==t.native_handle;
+    // (by id: the native handle is -1 for every thread that has not started yet)
+    public def operator==(t : thread) : bool = id==t.id;
 
     private exit_code : int;
     private native_handle : decimal;

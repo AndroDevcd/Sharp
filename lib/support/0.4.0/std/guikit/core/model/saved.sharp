@@ -69,11 +69,11 @@ stable class saved_store {
             return;
         }
         name : string = title;
-        if(name_wanted.size().value > 0) { name = name_wanted; }
+        if(name_wanted.size() > 0) { name = name_wanted; }
         folder = base_folder() + separator() + plain_name(name);
         is_open = 1;
 
-        count : _int64 = waiting.size().value;
+        count : _int64 = waiting.size();
         for(i : _int64 = 0; i < count; i++) {
             waiting.at(i).load();
         }
@@ -122,7 +122,7 @@ stable class saved_store {
     /** the text of a number file without spaces and line ends around it (someone may have edited the file by hand) */
     static def number_text(kept: string) : string {
         made : string = "";
-        for(i : _int64 = 0; i < kept.size().value; i++) {
+        for(i : _int64 = 0; i < kept.size(); i++) {
             byte : _int64 = kept.at(i).value;
             if(byte != 32 && byte != 9 && byte != 10 && byte != 13) { made = made + txt.slice(kept, i, i + 1); }
         }
@@ -137,9 +137,9 @@ stable class saved_store {
     /** where programs keep their data on this system */
     private static def base_folder() : string {
         if(platform_info.is_windows()) {
-            return platform_info.environment_or("APPDATA", platform_info.home_directory());
+            return environment.value_or("APPDATA", platform_info.home_directory());
         }
-        return platform_info.environment_or("XDG_DATA_HOME", platform_info.home_directory() + "/.local/share");
+        return environment.value_or("XDG_DATA_HOME", platform_info.home_directory() + "/.local/share");
     }
 
     /** a name that is safe as a file or folder name: small letters and digits, everything else "_" */
@@ -147,7 +147,7 @@ stable class saved_store {
         made : string = "";
         lowered : string = name.to_lower();
         last_was_gap : _int64 = 1;                  // no "_" at the front, and never two in a row
-        for(i : _int64 = 0; i < name.size().value; i++) {
+        for(i : _int64 = 0; i < name.size(); i++) {
             byte : _int64 = name.at(i).value;
             if(byte >= 65 && byte <= 90) { byte = byte + 32; }      // A-Z -> a-z
             if(byte >= 97 && byte <= 122 || byte >= 48 && byte <= 57) {
@@ -158,7 +158,7 @@ stable class saved_store {
                 last_was_gap = 1;
             }
         }
-        if(made.size().value == 0) { made = "app"; }
+        if(made.size() == 0) { made = "app"; }
         return made;
     }
 }
@@ -264,14 +264,14 @@ stable class saved_items<t> : saved_entry {
         text : string = kept!!;
         found : list<t> = new list<t>();
         start : _int64 = 0;
-        for(i : _int64 = 0; i < text.size().value; i++) {
+        for(i : _int64 = 0; i < text.size(); i++) {
             if(text.at(i).value == 10) {
                 found.add(from_text(plain(txt.slice(text, start, i))));
                 start = i + 1;
             }
         }
-        if(start < text.size().value) {
-            found.add(from_text(plain(txt.slice(text, start, text.size().value))));
+        if(start < text.size()) {
+            found.add(from_text(plain(txt.slice(text, start, text.size()))));
         }
         items.restore(found);
     }
@@ -279,7 +279,7 @@ stable class saved_items<t> : saved_entry {
     /** an item's text as one line: backslash -> two backslashes, line end -> backslash n */
     private static def guarded(words: string) : string {
         made : string = "";
-        for(i : _int64 = 0; i < words.size().value; i++) {
+        for(i : _int64 = 0; i < words.size(); i++) {
             byte : _int64 = words.at(i).value;
             if(byte == 92) { made = made + "\\\\"; }
             else if(byte == 10) { made = made + "\\n"; }
@@ -292,9 +292,9 @@ stable class saved_items<t> : saved_entry {
     private static def plain(line: string) : string {
         made : string = "";
         i : _int64 = 0;
-        while(i < line.size().value) {
+        while(i < line.size()) {
             byte : _int64 = line.at(i).value;
-            if(byte == 92 && i + 1 < line.size().value) {
+            if(byte == 92 && i + 1 < line.size()) {
                 after : _int64 = line.at(i + 1).value;
                 if(after == 110) { made = made + "\n"; }
                 else { made = made + "\\"; }

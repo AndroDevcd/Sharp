@@ -124,7 +124,7 @@ def main(args: string[]) {
     // ---- function types that use the type parameters
     expect("apply<var, var>", apply<decimal, decimal>(4, { x: decimal -> (decimal) return x * 10; }), 40);
     expect_str("apply<var, string>", apply<decimal, string>(4, { x: decimal -> (string) if(x == 4) { return "four"; } return "other"; }), "four");
-    expect("apply<string, var>", apply<string, decimal>("four", { s: string -> (decimal) return s.size().value; }), 4);
+    expect("apply<string, var>", apply<string, decimal>("four", { s: string -> (decimal) return s.size(); }), 4);
     expect("untyped lambda gets its types", apply<decimal, decimal>(5, { x -> return x + 1; }), 6);
     expect("trailing lambda", apply<decimal, decimal>(5) { it * 3 }, 15);
     expect("repeat_call", repeat_call<decimal>(1, 5, { x: decimal -> (decimal) return x * 2; }), 32);

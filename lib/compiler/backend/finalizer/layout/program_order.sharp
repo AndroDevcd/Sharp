@@ -200,7 +200,7 @@ def sort_files(files: list<sharp_file>, keys: number_list_of_modules) {
  * n log n steps for any input (a program has thousands of classes).
  */
 def sort_classes(list_of: list<class_layout>) {
-    count : _int64 = list_of.size().value as _int64;
+    count : _int64 = list_of.size();
     if(count < 2) { return; }
     items := new class_layout[count];
     scratch := new class_layout[count];
@@ -238,7 +238,7 @@ def class_after(a: class_layout, b: class_layout) : _int64 {
 
 /** sort functions by position (merge sort, stable): the order of a class's methods */
 def sort_functions(list_of: list<function_layout>) {
-    count : _int64 = list_of.size().value as _int64;
+    count : _int64 = list_of.size();
     if(count < 2) { return; }
     items := new function_layout[count];
     scratch := new function_layout[count];

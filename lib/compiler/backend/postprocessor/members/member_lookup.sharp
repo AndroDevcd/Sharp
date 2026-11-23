@@ -180,7 +180,7 @@ def count_inherited_members(prog: sharp_program, declared: sharp_class) : _int64
     current := real_base_of(prog, declared);
     for(depth : _int64 = 0; current != null && depth < 256; depth++) {
         ensure_members(prog, current!!);
-        count += (current!!.fields.size().value as _int64) + (current!!.functions.size().value as _int64);
+        count += current!!.fields.size() + current!!.functions.size();
         current = real_base_of(prog, current!!);
     }
     return count;

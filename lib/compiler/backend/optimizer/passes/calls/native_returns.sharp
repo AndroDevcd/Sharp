@@ -107,9 +107,9 @@ def make_native_returns(layout: program_layout, chosen: list<function_layout>) :
     made := new list<native_twin>();
 
     // asked once per function: -1 not asked yet, 0 no, 1 yes (by address)
-    fresh := new _int64[layout.functions.size().value as _int64 + 1];
+    fresh := new _int64[layout.functions.size() + 1];
     for(i : _int64 = 0; i < sizeof(fresh); i++) { fresh[i] = 0 - 1; }
-    known_functions : _int64 = layout.functions.size().value as _int64;     // twins are added behind these
+    known_functions : _int64 = layout.functions.size();     // twins are added behind these
 
     // ---- 1. the callers: every call that qualifies is redirected to a twin (made empty for now)
     for(c : _int64 = 0; c < chosen.size(); c++) {
@@ -120,7 +120,7 @@ def make_native_returns(layout: program_layout, chosen: list<function_layout>) :
         live : liveness? = null;
         reads := new number_list();
         changed : _int64 = 0;
-        total : _int64 = code.instructions.size().value as _int64;
+        total : _int64 = code.instructions.size();
         for(i : _int64 = 0; i < total; i++) {
             call := code.instructions.at(i);
             if(call.kind != IR_CALL || call.number != CALL_HOW_DIRECT || call.declaration == null || call.target < 0) { continue; }
@@ -175,7 +175,7 @@ def returns_fresh_boxes(callee: function_layout) : _int64 {
     if(code.tries.size() > 0 || !can_be_optimized(code)) { return 0; }
 
     // looked at first without the graph: most functions do not return a slot `new_object` ever writes
-    count : _int64 = code.instructions.size().value as _int64;
+    count : _int64 = code.instructions.size();
     news := new _int64[code.slot_count() + 1];
     for(i : _int64 = 0; i < count; i++) {
         made := code.instructions.at(i);
@@ -331,7 +331,7 @@ def code_of_twin(original: ir_function, field: sharp_declaration, name: string) 
     number_slot : _int64 = code.slot_kinds.count;
     code.slot_kinds.add(kind_of_field(field));
 
-    total : _int64 = original.instructions.size().value as _int64;
+    total : _int64 = original.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         copied := copy_of_instruction(original.instructions.at(i));
         if(copied.kind == IR_RETURN_VALUE) {

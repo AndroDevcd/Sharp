@@ -66,7 +66,7 @@ def probe(names: list<string>, owner: book) : _int64 {
     made := make_book().label();
     first := item.make("m");
     shade := color.green;
-    return count.value;
+    return count;
 }
 
 def main(args: string[]) : int {

@@ -60,7 +60,7 @@ class ide_files {
 
     /** put every file into `slots` (twice as many slots as files, so the searches stay short) */
     def index_units() {
-        count : _int64 = all.size().value as _int64;
+        count : _int64 = all.size();
         size : _int64 = count * 2 + 1;
         slots = new ide_file[size];
         for(i : _int64 = 0; i < count; i++) {
@@ -82,7 +82,7 @@ class ide_files {
     }
 
     def count() : _int64 {
-        return all.size().value as _int64;
+        return all.size();
     }
 
     def at(index: _int64) : ide_file {

@@ -74,7 +74,7 @@ stable class rich_label base widget : behavior {
 
     rich_label(content: rich_text) {
         attach(self);
-        count : _int64 = content.parts.size().value;
+        count : _int64 = content.parts.size();
         for(i : _int64 = 0; i < count; i++) {
             cut_up(content.parts.at(i));
         }
@@ -89,7 +89,7 @@ stable class rich_label base widget : behavior {
     /** one part into words: a word is its letters and the spaces after it; a line end is a piece of its own */
     private def cut_up(part: rich_part) {
         words : string = part.words;
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         at : _int64 = 0;
         while(at < length) {
             if(words.at(at).value == 10) {
@@ -120,7 +120,7 @@ stable class rich_label base widget : behavior {
         across : decimal = 0;
         widest : decimal = 0;
 
-        count : _int64 = pieces.size().value;
+        count : _int64 = pieces.size();
         for(i : _int64 = 0; i < count; i++) {
             piece : rich_piece = pieces.at(i);
             if(piece.breaks == 1) {
@@ -152,7 +152,7 @@ stable class rich_label base widget : behavior {
         t : theme = host.look;
         tall : decimal = face(0).line_height;
 
-        count : _int64 = pieces.size().value;
+        count : _int64 = pieces.size();
         for(i : _int64 = 0; i < count; i++) {
             piece : rich_piece = pieces.at(i);
             if(piece.breaks == 1) {

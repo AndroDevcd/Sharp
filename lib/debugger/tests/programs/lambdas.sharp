@@ -1,0 +1,66 @@
+mod app;
+
+import ( std.io )
+
+/**
+ * A program for sdb's tests of variables that lambdas use (they live in a
+ * closure record, not in the frame), and of bools in fields and arrays.
+ */
+class switch_board {
+    on : bool = true;
+    locked : bool = false;
+    lights : bool[] = new bool[3];
+    static any_on : bool = true;
+    name : string = "hall";
+
+    def state() : string {
+        return " " + name + " " + on + " " + locked + " " + any_on;
+    }
+
+    def flip_all() : _int64 {
+        flipped : _int64 = 0;
+        run_twice({ ->
+            lights[flipped] = true;
+            flipped++;
+        });
+        return flipped;
+    }
+}
+
+
+def run_twice(work: ()()) {
+    work();
+    work();
+}
+
+def apply(value: _int64, change: (_int64)(_int64)) : _int64 {
+    return change(value);
+}
+
+def main() {
+    total : _int64 = 10;
+    label : string = "sum";
+    untouched : _int64 = 99;
+    ready : bool = true;
+    flags := new bool[2];
+    flags[1] = true;
+
+    run_twice({ ->
+        step : _int64 = 5;
+        total += step;
+        run_twice({ ->
+            inner : _int64 = 1;
+            total += inner + step;
+            label = label + "!";
+        });
+    });
+
+    doubled : _int64 = apply(total, { n: _int64 -> (_int64)
+        factor : _int64 = 2;
+        return n * factor + untouched - untouched;
+    });
+
+    board := new switch_board();
+    flipped : _int64 = board.flip_all();
+    println(label + " " + total + " " + doubled + " " + flipped + " " + ready + board.state());
+}

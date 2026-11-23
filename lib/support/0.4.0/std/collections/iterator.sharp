@@ -25,9 +25,9 @@ interface iterator<T> {
     /**
      * Is there another element to read?
      *
-     * @return 1 when next() can be called, 0 when the iterator is finished
+     * @return true when next() can be called, false when the iterator is finished
      */
-    def has_next() : decimal;
+    def has_next() : bool;
 
     /**
      * Return the current element and move on to the one after it.

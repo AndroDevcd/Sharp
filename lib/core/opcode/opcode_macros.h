@@ -5,6 +5,8 @@
 #ifndef SHARP_OPCODE_MACROS_H
 #define SHARP_OPCODE_MACROS_H
 
+#include "../../debugger/hooks.h"     // what the debugger build (sdb) adds; empty in the plain VM
+
 /**
  * 32-Bit layout
  *
@@ -58,7 +60,8 @@
 
 // TELEMETRY_OPCODE counts the instruction about to run when SHARP_TELEMETRY is
 // defined and expands to nothing otherwise (see lib/runtime/telemetry/telemetry.h)
-#define DISPATCH() TELEMETRY_OPCODE(GET_OP(*task->pc)) goto *opcode_table[GET_OP(*task->pc)];
+// SDB_BEFORE_INSTRUCTION is the debugger hook: nothing in the plain VM (lib/debugger/hooks.h)
+#define DISPATCH() TELEMETRY_OPCODE(GET_OP(*task->pc)) SDB_BEFORE_INSTRUCTION(thread, task) goto *opcode_table[GET_OP(*task->pc)];
 #ifdef VM_DEBUG
 #define branch task->pc++; goto run;
 #define branch_for(x) task->pc+=x; goto run;

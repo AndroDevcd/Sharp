@@ -100,7 +100,7 @@ def path_through(from: bound_statement) : open_path {
     kind : _int64 = statement.kind;
     if(kind == BS_BLOCK) {
         block := statement as bound_block;
-        for(i : _int64 = block.statements.size().value as _int64 - 1; i >= 0; i--) {
+        for(i : _int64 = block.statements.size() - 1; i >= 0; i--) {
             if(block.statements.at(i).kind != BS_EMPTY) { return path_through(block.statements.at(i)); }
         }
         return new open_path(statement, "nothing in this block returns");

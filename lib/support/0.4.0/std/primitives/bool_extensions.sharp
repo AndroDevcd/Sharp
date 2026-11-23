@@ -2,7 +2,7 @@ mod std;
 
 /**
  * Extra methods for the `boolean` class, added with a `mutate` declaration;
- * std/primatives.sharp itself is unchanged.
+ * std/primitives/numbers.sharp itself is unchanged.
  *
  *     ready : boolean = true;
  *     ready.negate()                      // false
@@ -59,7 +59,7 @@ mutate boolean {
 
     /** true when `text` equals the small-letter `word`, ignoring the case of the letters in `text` */
     private static def matches(text: string, word: string): bool {
-        length : decimal = word.size().value;
+        length : decimal = word.size();
         if(text.size() != length) return false;
 
         for(i : decimal = 0; i < length; i++) {

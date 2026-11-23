@@ -11,12 +11,13 @@ mod std.io;
  * to_string().
  *
  *     buf := new char_buffer();
- *     buf.append("x = ").append_int(42).append('\n');
- *     text := buf.to_string();          // "x = 42\n"
+ *     buf.append("x = ").append_int(42).append_char('\n');
+ *     text := buf.build();              // "x = 42\n"
  *
  * Characters are 8-bit values (the same as the elements of a string, _int8).
- * All the readers, writers and data formats in std.io / std.data build their
- * output with this class.
+ * The readers, writers, data formats and text classes of the library build
+ * their output with this class. It only adds at the end (and takes back
+ * from the end); std#string_builder inserts, deletes and searches as well.
  *
  * Not thread safe: use one buffer from one thread at a time.
  */
@@ -197,14 +198,44 @@ class char_buffer {
         count = new_length;
     }
 
-    /** remove everything; the room that was allocated is kept for reuse */
-    def clear() {
-        count = 0;
+    /** the code of the last character, or -1 when the buffer is empty */
+    def last() : _int64 {
+        if(count == 0) {
+            return 0 - 1;
+        }
+        return data[count - 1];
     }
 
-    /** the appended characters as a new string; the buffer can still be appended to afterwards */
-    override def to_string() : string? {
+    /** take the last character off (nothing happens to an empty buffer); returns this buffer */
+    def drop_last() : char_buffer {
+        if(count > 0) {
+            count--;
+        }
+        return self;
+    }
+
+    /** make sure the buffer holds `capacity` characters in all without growing again; returns this buffer */
+    def ensure_capacity(capacity: _int64) : char_buffer {
+        if(capacity > count) {
+            reserve(capacity - count);
+        }
+        return self;
+    }
+
+    /** remove everything; the room that was allocated is kept for reuse. Returns this buffer. */
+    def clear() : char_buffer {
+        count = 0;
+        return self;
+    }
+
+    /** the appended characters as a new string ("" for an empty buffer); the buffer can still be appended to afterwards */
+    def build() : string {
         return new string(data, 0, count);
+    }
+
+    /** the same as build(), so that a buffer can be printed */
+    override def to_string() : string? {
+        return build();
     }
 
     /**

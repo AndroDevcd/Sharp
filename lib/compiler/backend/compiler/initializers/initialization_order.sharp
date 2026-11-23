@@ -62,7 +62,7 @@ class reading_order {
         self->session = session;
         self->fields = fields;
         self->instance = instance;
-        count : _int64 = fields.size().value as _int64;
+        count : _int64 = fields.size();
         state = new _int64[count];
         circle_of = new _int64[count];
         being_placed = new list<sharp_field>();
@@ -78,7 +78,7 @@ class reading_order {
  */
 def in_reading_order(session: analysis_session, fields: list<sharp_field>, instance: _int64) : list<sharp_field> {
     order := new reading_order(session, fields, instance);
-    count : _int64 = fields.size().value as _int64;
+    count : _int64 = fields.size();
     for(i : _int64 = 0; i < count; i++) { place_after_reads(order, i); }
     if(order.circles == 0) { return order.ordered; }
 
@@ -152,7 +152,7 @@ def note_circle(order: reading_order, i: _int64) {
 def place_with_circles(order: reading_order, i: _int64) {
     if(order.state[i] != 0) { return; }
     number : _int64 = order.circle_of[i];
-    count : _int64 = order.fields.size().value as _int64;
+    count : _int64 = order.fields.size();
 
     if(number == 0) {
         order.state[i] = 2;

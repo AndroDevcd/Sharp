@@ -15,6 +15,8 @@
  *     rebuild every time   off (default): the compiler runs only when a file, an option or the compiler
  *                          itself changed since the last good build (RunStamp.kt)
  *     unoptimized compiler use the copy of the compiler that was built without the optimizer
+ *     test program         the program is tests written with std.testing: Run shows them as a tree
+ *                          of groups and tests instead of plain output (sharp.ide.testing)
  *
  * The pieces, in the platform's terms:
  *
@@ -93,6 +95,7 @@ class SharpRunOptions : RunConfigurationOptions() {
     var buildOnly by property(false)
     var unoptimizedCompiler by property(false)
     var alwaysRebuild by property(false)
+    var testProgram by property(false)
 }
 
 class SharpRunConfiguration(project: Project, factory: ConfigurationFactory, name: String) :
@@ -134,6 +137,7 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
     private val buildOnly = JBCheckBox("Build only: compile, do not run")
     private val unoptimized = JBCheckBox("Use the compiler that was built without the optimizer (when the normal one misbehaves)")
     private val alwaysRebuild = JBCheckBox("Rebuild every time (off: compile again only when something the program is built from changed)")
+    private val testProgram = JBCheckBox("Test program (std.testing): show the groups and their tests as a tree")
 
     override fun createEditor(): JComponent {
         programFolder.addBrowseFolderListener(project, FileChooserDescriptorFactory.createSingleFolderDescriptor().withTitle("Sharp Program Folder"))
@@ -147,6 +151,7 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
             .addLabeledComponent("Compiler options:", compilerOptions)
             .addLabeledComponent("Program arguments:", programArguments)
             .addLabeledComponent("Working directory:", workingDirectory)
+            .addComponent(testProgram)
             .addComponent(buildOnly)
             .addComponent(alwaysRebuild)
             .addComponent(unoptimized)
@@ -162,6 +167,7 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
         buildOnly.isSelected = fields.buildOnly
         unoptimized.isSelected = fields.unoptimizedCompiler
         alwaysRebuild.isSelected = fields.alwaysRebuild
+        testProgram.isSelected = fields.testProgram
     }
 
     override fun applyEditorTo(configuration: SharpRunConfiguration) {
@@ -173,5 +179,6 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
         fields.buildOnly = buildOnly.isSelected
         fields.unoptimizedCompiler = unoptimized.isSelected
         fields.alwaysRebuild = alwaysRebuild.isSelected
+        fields.testProgram = testProgram.isSelected
     }
 }

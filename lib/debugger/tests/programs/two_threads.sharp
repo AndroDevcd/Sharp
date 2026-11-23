@@ -1,0 +1,35 @@
+mod app;
+
+import ( std.io )
+
+/**
+ * A program for sdb's tests of stops in more than one thread: two threads run
+ * the same function at the same time.
+ */
+def spin(turns: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < turns; i++) {
+        total += i;
+    }
+    return total;
+}
+
+def first_worker(args: object[]) : int {
+    spin(2000000);
+    return 0;
+}
+
+def second_worker(args: object[]) : int {
+    spin(2000000);
+    return 0;
+}
+
+def main() {
+    a := new thread("first", first_worker);
+    b := new thread("second", second_worker);
+    a.start();
+    b.start();
+    a.join();
+    b.join();
+    println("both done");
+}

@@ -11,8 +11,8 @@ import ( std.testing, std.math )
 
 def check_constants() {
     test("PI_VALUE") { expect(PI_VALUE).should_be_near(3.14159265358979, 0.00000000000001); };
-    test("PI_VALUE == PI") { expect(PI_VALUE).should_be(PI.value); };
-    test("E_VALUE == E") { expect(E_VALUE).should_be(E.value); };
+    test("PI_VALUE == PI") { expect(PI_VALUE).should_be(PI); };
+    test("E_VALUE == E") { expect(E_VALUE).should_be(E); };
     test("TAU") { expect(TAU).should_be_near(6.28318530717958, 0.00000000000001); };
     test("HALF_PI") { expect(HALF_PI * 2).should_be_near(PI_VALUE, 0.000000000000001); };
     test("QUARTER_PI") { expect(QUARTER_PI * 4).should_be_near(PI_VALUE, 0.000000000000001); };
@@ -44,33 +44,33 @@ def check_native() {
     test("0.5 * v") { expect(half_times(3)).should_be(1.5); };
     test("1.5 + v") { expect(one_and_half_plus(2.25)).should_be(3.75); };
 
-    test("sin_of(pi / 2)") { expect(sin_of(HALF_PI)).should_be_near(1, 0.000000000001); };
-    test("cos_of(pi)") { expect(cos_of(PI_VALUE)).should_be_near(0 - 1, 0.000000000001); };
-    test("tan_of(pi / 4)") { expect(tan_of(QUARTER_PI)).should_be_near(1, 0.000000000001); };
-    test("exp_of(1)") { expect(exp_of(1)).should_be_near(2.718281828459045, 0.000000000001); };
-    test("ln(e)") { expect(ln(E_VALUE)).should_be_near(1, 0.000000000001); };
-    test("ln(1)") { expect(ln(1)).should_be(0); };
-    test("power(2, 10)") { expect(power(2, 10)).should_be(1024); };
-    test("power(2, 0.5)") { expect(power(2, 0.5)).should_be_near(1.4142135623730951, 0.000000000001); };
-    test("square_root(144)") { expect(square_root(144)).should_be(12); };
-    test("floor_of(2.7)") { expect(floor_of(2.7)).should_be(2); };
-    test("floor_of(-2.5)") { expect(floor_of(0 - 2.5)).should_be(0 - 3); };
-    test("ceil_of(2.1)") { expect(ceil_of(2.1)).should_be(3); };
-    test("ceil_of(-2.5)") { expect(ceil_of(0 - 2.5)).should_be(0 - 2); };
-    test("absolute(-3)") { expect(absolute(0 - 3)).should_be(3); };
-    test("absolute(3)") { expect(absolute(3)).should_be(3); };
+    test("sin(pi / 2)") { expect(sin(HALF_PI)).should_be_near(1, 0.000000000001); };
+    test("cos(pi)") { expect(cos(PI_VALUE)).should_be_near(0 - 1, 0.000000000001); };
+    test("tan(pi / 4)") { expect(tan(QUARTER_PI)).should_be_near(1, 0.000000000001); };
+    test("exp(1)") { expect(exp(1)).should_be_near(2.718281828459045, 0.000000000001); };
+    test("log(e)") { expect(log(E_VALUE)).should_be_near(1, 0.000000000001); };
+    test("log(1)") { expect(log(1)).should_be(0); };
+    test("pow(2, 10)") { expect(pow(2, 10)).should_be(1024); };
+    test("pow(2, 0.5)") { expect(pow(2, 0.5)).should_be_near(1.4142135623730951, 0.000000000001); };
+    test("sqrt(144)") { expect(sqrt(144)).should_be(12); };
+    test("floor(2.7)") { expect(floor(2.7)).should_be(2); };
+    test("floor(-2.5)") { expect(floor(0 - 2.5)).should_be(0 - 3); };
+    test("ceil(2.1)") { expect(ceil(2.1)).should_be(3); };
+    test("ceil(-2.5)") { expect(ceil(0 - 2.5)).should_be(0 - 2); };
+    test("abs(-3)") { expect(abs(0 - 3)).should_be(3); };
+    test("abs(3)") { expect(abs(3)).should_be(3); };
     test("math_call fmod") { expect(math_call(7.5, 2, 0x13)).should_be(1.5); };
 
     // the functions that were already in math.sharp (double objects)
-    test("sin(0)") { expect(sin(0).value).should_be_near(0, 0.000000000001); };
-    test("sqrt(81)") { expect(sqrt(81).value).should_be(9); };
-    test("pow(3, 4)") { expect(pow(3, 4).value).should_be(81); };
-    test("floor(4.9)") { expect(floor(4.9).value).should_be(4); };
-    test("ceil(4.1)") { expect(ceil(4.1).value).should_be(5); };
-    test("fmod(7.5, 2)") { expect(fmod(7.5, 2).value).should_be(1.5); };
-    test("round(2.5)") { expect(round(2.5).value).should_be(3); };
-    test("round(2.4)") { expect(round(2.4).value).should_be(2); };
-    test("round(-2.7)") { expect(round(0 - 2.7).value).should_be(0 - 3); };
+    test("sin(0)") { expect(sin(0)).should_be_near(0, 0.000000000001); };
+    test("sqrt(81)") { expect(sqrt(81)).should_be(9); };
+    test("pow(3, 4)") { expect(pow(3, 4)).should_be(81); };
+    test("floor(4.9)") { expect(floor(4.9)).should_be(4); };
+    test("ceil(4.1)") { expect(ceil(4.1)).should_be(5); };
+    test("fmod(7.5, 2)") { expect(fmod(7.5, 2)).should_be(1.5); };
+    test("round(2.5)") { expect(round(2.5)).should_be(3); };
+    test("round(2.4)") { expect(round(2.4)).should_be(2); };
+    test("round(-2.7)") { expect(round(0 - 2.7)).should_be(0 - 3); };
     test("is_nan(NaN)") { expect_true(is_nan(NaN)); };
     test("is_nan(1)") { expect_false(is_nan(1)); };
     test("is_infinite(1 / 0)") { expect_true(is_infinite(POSITIVE_INFINITY)); };
@@ -88,7 +88,7 @@ def check_comparison() {
     test("max(-1, -2)") { expect(max(0 - 1, 0 - 2)).should_be(0 - 1); };
     test("min of three") { expect(min(5, 2, 9)).should_be(2); };
     test("max of three") { expect(max(5, 2, 9)).should_be(9); };
-    test("min with NaN is NaN") { expect_true(is_nan(min(1, NaN.value))); };
+    test("min with NaN is NaN") { expect_true(is_nan(min(1, NaN))); };
 
     values := new decimal[5];
     values[0] = 4; values[1] = 0 - 7; values[2] = 12; values[3] = 0; values[4] = 3.5;
@@ -118,11 +118,11 @@ def check_comparison() {
     }
 
     test("is_finite(1.5)") { expect_true(is_finite(1.5)); };
-    test("is_finite(infinity)") { expect_false(is_finite(POSITIVE_INFINITY.value)); };
-    test("is_finite(NaN)") { expect_false(is_finite(NaN.value)); };
+    test("is_finite(infinity)") { expect_false(is_finite(POSITIVE_INFINITY)); };
+    test("is_finite(NaN)") { expect_false(is_finite(NaN)); };
     test("is_whole(-7)") { expect_true(is_whole(0 - 7)); };
     test("is_whole(7.25)") { expect_false(is_whole(7.25)); };
-    test("is_whole(infinity)") { expect_false(is_whole(POSITIVE_INFINITY.value)); };
+    test("is_whole(infinity)") { expect_false(is_whole(POSITIVE_INFINITY)); };
     test("approx_equals(0.1 + 0.2, 0.3)") { expect_true(approx_equals(0.1 + 0.2, 0.3, 0.000000001)); };
     test("approx_equals(1, 1.1)") { expect_false(approx_equals(1, 1.1, 0.01)); };
     test("copy_sign(3, -0.5)") { expect(copy_sign(3, 0 - 0.5)).should_be(0 - 3); };
@@ -253,17 +253,17 @@ def check_powers() {
 def check_trigonometry() {
     test("to_radians(180)") { expect(to_radians(180)).should_be_near(3.141592653589793, 0.000000000001); };
     test("to_degrees(pi / 2)") { expect(to_degrees(HALF_PI)).should_be_near(90, 0.000000000001); };
-    test("asin_of(1)") { expect(asin_of(1)).should_be_near(HALF_PI, 0.000000000001); };
-    test("acos_of(1)") { expect(acos_of(1)).should_be_near(0, 0.000000000001); };
-    test("acos_of(-1)") { expect(acos_of(0 - 1)).should_be_near(PI_VALUE, 0.000000000001); };
-    test("atan_of(1)") { expect(atan_of(1)).should_be_near(QUARTER_PI, 0.000000000001); };
+    test("asin(1)") { expect(asin(1)).should_be_near(HALF_PI, 0.000000000001); };
+    test("acos(1)") { expect(acos(1)).should_be_near(0, 0.000000000001); };
+    test("acos(-1)") { expect(acos(0 - 1)).should_be_near(PI_VALUE, 0.000000000001); };
+    test("atan(1)") { expect(atan(1)).should_be_near(QUARTER_PI, 0.000000000001); };
     test("atan2(1, 1)") { expect(atan2(1, 1)).should_be_near(QUARTER_PI, 0.000000000001); };
     test("atan2(1, -1)") { expect(atan2(1, 0 - 1)).should_be_near(2.356194490192345, 0.000000000001); };
     test("atan2(-1, 0)") { expect(atan2(0 - 1, 0)).should_be_near(0 - HALF_PI, 0.000000000001); };
     test("atan2(0, -1)") { expect(atan2(0, 0 - 1)).should_be_near(PI_VALUE, 0.000000000001); };
-    test("sinh_of(1)") { expect(sinh_of(1)).should_be_near(1.1752011936438014, 0.000000000001); };
-    test("cosh_of(1)") { expect(cosh_of(1)).should_be_near(1.5430806348152437, 0.000000000001); };
-    test("tanh_of(1)") { expect(tanh_of(1)).should_be_near(0.7615941559557649, 0.000000000001); };
+    test("sinh(1)") { expect(sinh(1)).should_be_near(1.1752011936438014, 0.000000000001); };
+    test("cosh(1)") { expect(cosh(1)).should_be_near(1.5430806348152437, 0.000000000001); };
+    test("tanh(1)") { expect(tanh(1)).should_be_near(0.7615941559557649, 0.000000000001); };
     test("sec(0)") { expect(sec(0)).should_be_near(1, 0.000000000001); };
     test("sec(pi / 3)") { expect(sec(PI_VALUE / 3)).should_be_near(2, 0.000000000001); };
     test("csc(pi / 6)") { expect(csc(PI_VALUE / 6)).should_be_near(2, 0.000000000001); };
@@ -323,9 +323,9 @@ def check_text() {
     test("3.14159") { expect(number_to_string(3.14159)).should_be("3.14159"); };
     test("0.001") { expect(number_to_string(0.001)).should_be("0.001"); };
     test("large whole") { expect(number_to_string(9007199254740991)).should_be("9007199254740991"); };
-    test("NaN") { expect(number_to_string(NaN.value)).should_be("NaN"); };
-    test("Infinity") { expect(number_to_string(POSITIVE_INFINITY.value)).should_be("Infinity"); };
-    test("-Infinity") { expect(number_to_string(NEGATIVE_INFINITY.value)).should_be("-Infinity"); };
+    test("NaN") { expect(number_to_string(NaN)).should_be("NaN"); };
+    test("Infinity") { expect(number_to_string(POSITIVE_INFINITY)).should_be("Infinity"); };
+    test("-Infinity") { expect(number_to_string(NEGATIVE_INFINITY)).should_be("-Infinity"); };
     test("fixed 2") { expect(number_to_fixed(3.14159, 2)).should_be("3.14"); };
     test("fixed pads") { expect(number_to_fixed(2, 3)).should_be("2.000"); };
     test("fixed 0") { expect(number_to_fixed(2.5, 0)).should_be("3"); };

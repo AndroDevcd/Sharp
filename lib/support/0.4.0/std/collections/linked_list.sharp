@@ -51,8 +51,8 @@ class linked_list<T> : loopable<T>, iterable<T> {
         return count;
     }
 
-    /** 1 when the list has no elements, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when the list has no elements. O(1). */
+    def is_empty() : bool {
         return count == 0;
     }
 
@@ -91,7 +91,7 @@ class linked_list<T> : loopable<T>, iterable<T> {
 
     /** Append every element of a `list`, keeping their order. O(n) in the size of `other`. */
     def add_all(other: list<T>) {
-        n : decimal = other.size().value;
+        n : decimal = other.size();
         for(i : decimal = 0; i < n; i++)
             add_last(other.at(i));
     }
@@ -216,19 +216,19 @@ class linked_list<T> : loopable<T>, iterable<T> {
     /**
      * Remove the first element that equals `element`. O(n).
      *
-     * @return 1 when an element was removed, 0 when the list does not contain it
+     * @return true when an element was removed, false when the list does not contain it
      */
-    def remove(element: T) : decimal {
+    def remove(element: T) : bool {
         node := head;
         while(node != null) {
             current := node!!;
             if(current.value == element) {
                 unlink(current);
-                return 1;
+                return true;
             }
             node = current.next;
         }
-        return 0;
+        return false;
     }
 
     /**
@@ -247,8 +247,8 @@ class linked_list<T> : loopable<T>, iterable<T> {
         return -1;
     }
 
-    /** 1 when at least one element equals `element`, otherwise 0. O(n). */
-    def contains(element: T) : decimal {
+    /** true when at least one element equals `element`. O(n). */
+    def contains(element: T) : bool {
         return index_of(element) >= 0;
     }
 

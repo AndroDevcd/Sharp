@@ -57,12 +57,12 @@ stable class replacements {
 
     /** how many stand-ins are in place */
     static def count() : _int64 {
-        return given.size().value;
+        return given.size();
     }
 
     /** the newest stand-in that is a t, or null */
     static def find<t>() : t? {
-        for(i : _int64 = given.size().value - 1; i >= 0; i--) {
+        for(i : _int64 = given.size() - 1; i >= 0; i--) {
             if(given.at(i) is t) {
                 return given.at(i) as t;
             }
@@ -72,7 +72,7 @@ stable class replacements {
 
     /** the real object of type t that replaceable_single made earlier, or null */
     static def kept_one<t>() : t? {
-        for(i : _int64 = 0; i < kept.size().value; i++) {
+        for(i : _int64 = 0; i < kept.size(); i++) {
             if(kept.at(i) is t) {
                 return kept.at(i) as t;
             }

@@ -34,7 +34,7 @@ def text_length(f: (string)(decimal)) : decimal { return f("abcd"); }
 def twice(x: decimal) : decimal { return x * 2; }
 def twice(x: string) : string { return x + x; }
 def plus_one(x: decimal) : decimal { return x + 1; }
-def size_of(s: string) : decimal { return s.size().value; }
+def size_of(s: string) : decimal { return s.size(); }
 
 // ---- closures: the captured object outlives the call
 def make_counter() : ()(decimal) {
@@ -80,7 +80,7 @@ def main() {
 
     // trailing lambdas
     run { a += 1; }
-    g := apply({ x -> return x - 1; }, 5) + text_length { s -> return s.size().value; };
+    g := apply({ x -> return x - 1; }, 5) + text_length { s -> return s.size(); };
     each(new decimal[] { 1, 2, 3 }, { v -> a += v; });
 
     // function names as values

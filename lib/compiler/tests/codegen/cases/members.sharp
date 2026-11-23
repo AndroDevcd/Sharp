@@ -82,7 +82,7 @@ def main() {
     println(h.name ?: "no name");
     h.name = "rex";
     println(h.name ?: "no name");
-    println("len ${h.name?.size() ?: 0}");
+    println("len ${(h.name ?: "").size()}");
     m := { "one" : 1, "two" : 2 };
     println("m ${m.size()}");
     ch : _int8 = 'q';

@@ -58,7 +58,7 @@ class jump_path {
  */
 def passed_on_the_way(context: analysis_context, to_loop: _int64) : jump_path {
     path := new jump_path();
-    for(i : _int64 = context.jumps.size().value as _int64 - 1; i >= 0; i--) {
+    for(i : _int64 = context.jumps.size() - 1; i >= 0; i--) {
         frame := context.jumps.at(i);
         if(frame.kind == FRAME_LOOP) {
             if(to_loop == 1) {

@@ -57,7 +57,7 @@ class memory_store : note_store {
     }
 
     override def remove(note: string) : _int64 {
-        for(i : _int64 = 0; i < kept.size().value; i++) {
+        for(i : _int64 = 0; i < kept.size(); i++) {
             if(kept.at(i) == note) {
                 kept.remove_at(i);
                 return 1;
@@ -95,11 +95,11 @@ class notebook {
 
     /** add a note - but never an empty one, and never the same note twice */
     def add(note: string) : _int64 {
-        if(note.size().value == 0) {
+        if(note.size() == 0) {
             return 0;
         }
         existing : list<string> = store.load();
-        for(i : _int64 = 0; i < existing.size().value; i++) {
+        for(i : _int64 = 0; i < existing.size(); i++) {
             if(existing.at(i) == note) {
                 return 0;                       // already there: nothing to save
             }
@@ -110,7 +110,7 @@ class notebook {
 
     /** how many notes there are */
     def count() : _int64 {
-        return store.load().size().value;
+        return store.load().size();
     }
 
     /** remove a note; the words say what happened */

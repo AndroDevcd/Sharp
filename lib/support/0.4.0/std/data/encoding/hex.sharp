@@ -69,7 +69,7 @@ class hex {
             buf.append_char(digit(b >> 4, upper));
             buf.append_char(digit(b & 15, upper));
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -108,7 +108,7 @@ class hex {
                 }
                 continue;
             }
-            value : decimal = io_strings.hex_value(ch);
+            value : decimal = character.digit_value(ch, 16);
             if(value < 0) {
                 throw new parse_exception("hex: illegal character with code " + io_strings.int_to_string(ch & 0xff)
                     + " at position " + io_strings.int_to_string(i));
@@ -163,7 +163,7 @@ class hex {
         }
         value : decimal = 0;
         for(; i < n; i++) {
-            d : decimal = io_strings.hex_value(text.data[i]);
+            d : decimal = character.digit_value(text.data[i], 16);
             if(d < 0) {
                 throw new parse_exception("hex: not a hexadecimal number: \"" + text + "\"");
             }
@@ -215,6 +215,6 @@ class hex {
             }
             buf.append("|\n");
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 }

@@ -107,7 +107,7 @@ stable class state<t> : state_cell {
         if(readers == null) {
             readers = new list<composable>();
         }
-        count : _int64 = readers!!.size().value;
+        count : _int64 = readers!!.size();
         for(i : _int64 = 0; i < count; i++) {
             if(readers!!.at(i) == builder!!) {
                 return;                         // already signed up (a build often reads a state twice)
@@ -127,7 +127,7 @@ stable class state<t> : state_cell {
                 + "Everything the screen reads must be changed on the main thread: put the change inside `on_main { ... }`");
         }
         if(watchers != null) {
-            hooks : _int64 = watchers!!.size().value;
+            hooks : _int64 = watchers!!.size();
             for(i : _int64 = 0; i < hooks; i++) {
                 watchers!!.at(i).run();
             }
@@ -135,7 +135,7 @@ stable class state<t> : state_cell {
         if(readers != null) {
             waiting : list<composable> = readers!!;
             readers = null;                     // they sign up again when they rebuild and read
-            count : _int64 = waiting.size().value;
+            count : _int64 = waiting.size();
             for(i : _int64 = 0; i < count; i++) {
                 waiting.at(i).invalidate();
             }

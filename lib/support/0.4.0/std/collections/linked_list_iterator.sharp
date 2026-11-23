@@ -27,10 +27,10 @@ class linked_list_iterator<T> : iterator<T> {
         self->forward = forward;
     }
 
-    /** 1 while there are elements left, otherwise 0. O(1). */
-    override def has_next() : decimal {
-        if(current == null) return 0;
-        return 1;
+    /** 1 while there are elements left. O(1). */
+    override def has_next() : bool {
+        if(current == null) return false;
+        return true;
     }
 
     /**

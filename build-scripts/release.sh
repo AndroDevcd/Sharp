@@ -20,12 +20,15 @@
 # the Windows half here. The steps, each a script that can also be run alone:
 #
 #     1  WSL      build.sh                         the Linux VM and the compiler
-#     2  WSL      test.sh                          the short tests - must end TESTS: PASS
+#     2  WSL      test.sh                          the short tests - must end TESTS: PASS (they build the Linux sdb)
 #     3  WSL      internal/release_compilers.sh    the three compilers that ship
 #     4  WSL      linux/build_gui_library.sh       sharpgui.so, and the bridge for step 6
-#     5  Windows  windows/build_vm.sh              sharp.exe
-#     6  Windows  windows/build_gui_library.sh     sharpgui.dll
-#     7  WSL      internal/pack_release.sh         the zip
+#     5  WSL      internal/build_sdb.sh            sdb, the debugger (already built by step 2: nothing to do then)
+#     6  Windows  windows/build_vm.sh              sharp.exe
+#     7  Windows  windows/build_gui_library.sh     sharpgui.dll
+#     8  Windows  windows/build_sdb.sh             sdb.exe
+#     9  Windows  windows/build_plugin.sh          the CLion / IntelliJ plugin (its own version: tools/clion-plugin/gradle.properties)
+#    10  WSL      internal/pack_release.sh         the zip
 #
 # It stops at the first step that fails; fix the cause and run it again (every step only redoes
 # what changed, so a second run is quick up to the point of failure).
@@ -94,7 +97,7 @@ IN_WSL=$(MSYS_NO_PATHCONV=1 wsl wslpath -a "$(cygpath -m "$HERE")" 2>/dev/null |
 step() {   # step <number> <where> <script> [arguments]
     local n=$1 where=$2 script=$3; shift 3
     echo ""
-    echo "======== $n of 7: $script $*"
+    echo "======== $n of 10: $script $*"
     if [ "$where" = wsl ]; then MSYS_NO_PATHCONV=1 wsl bash "$IN_WSL/$script" "$@"
     else bash "$HERE/$script" "$@"; fi
     local code=$?
@@ -104,9 +107,12 @@ step 1 wsl     build.sh
 step 2 wsl     test.sh
 step 3 wsl     internal/release_compilers.sh
 step 4 wsl     linux/build_gui_library.sh
-step 5 windows windows/build_vm.sh
-step 6 windows windows/build_gui_library.sh
-step 7 wsl     internal/pack_release.sh
+step 5 wsl     internal/build_sdb.sh
+step 6 windows windows/build_vm.sh
+step 7 windows windows/build_gui_library.sh
+step 8 windows windows/build_sdb.sh
+step 9 windows windows/build_plugin.sh
+step 10 wsl    internal/pack_release.sh
 if [ $INSTALL = 1 ]; then
     echo ""
     echo "======== installing on this PC"

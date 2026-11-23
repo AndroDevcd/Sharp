@@ -52,7 +52,7 @@ class deadline {
     }
 
     /** 1 once the clock has reached the deadline (now >= the deadline moment) */
-    def has_passed(): decimal {
+    def has_passed(): bool {
         return source.now() >= expires;
     }
 

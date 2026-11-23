@@ -35,7 +35,7 @@ class text_table {
     def number_of(text: string) : _int64 {
         found := numbers.at(text);
         if(found != null) { return found!!.value; }
-        made := new numbered(texts.size().value as _int64);
+        made := new numbered(texts.size());
         numbers.put(text, made);
         texts.add(text);
         return made.value;
@@ -50,7 +50,7 @@ class text_table {
 
     /** how many texts the table holds */
     def count() : _int64 {
-        return texts.size().value as _int64;
+        return texts.size();
     }
 }
 

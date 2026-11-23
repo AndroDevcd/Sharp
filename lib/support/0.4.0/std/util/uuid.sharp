@@ -111,8 +111,8 @@ class uuid {
                     throw new parse_exception("uuid: expected '-' at position " + snprintf('l', position, 0) + ": " + text);
                 position++;
             } else {
-                high : decimal = hex_value(text.at(position).value);
-                low : decimal = hex_value(text.at(position + 1).value);
+                high : decimal = character.digit_value(text.at(position).value, 16);
+                low : decimal = character.digit_value(text.at(position + 1).value, 16);
                 if(high < 0 || low < 0)
                     throw new parse_exception("uuid: not a hexadecimal digit: " + text);
                 data[index++] = high * 16 + low;
@@ -135,19 +135,6 @@ class uuid {
     /** true when parse(text) would succeed */
     static def is_valid(text: string): bool {
         return (parse_or_null(text) as object) != null;
-    }
-
-    /** the value 0 .. 15 of a hexadecimal digit, or -1 for any other character */
-    private static def hex_value(ch: decimal): decimal {
-        if(ch >= '0' && ch <= '9') return ch - '0';
-        if(ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
-        if(ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
-        return 0 - 1;
-    }
-
-    private static def hex_digit(value: decimal): decimal {
-        if(value < 10) return '0' + value;
-        return 'a' + (value - 10);
     }
 
     /** the version number 0 .. 15: the top four bits of byte 6 (4 for random uuids, 0 for nil) */
@@ -227,8 +214,8 @@ class uuid {
             if(i == 4 || i == 6 || i == 8 || i == 10) {
                 text[position++] = '-';
             }
-            text[position++] = hex_digit(bytes[i] >> 4);
-            text[position++] = hex_digit(bytes[i] & 15);
+            text[position++] = character.for_digit(bytes[i] >> 4, 16);
+            text[position++] = character.for_digit(bytes[i] & 15, 16);
         }
         return new string(text);
     }

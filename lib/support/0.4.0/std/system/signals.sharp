@@ -1,0 +1,161 @@
+mod std.system;
+
+import ( std.io )
+
+/**
+ * SIGNALS: being told when someone asks the program to stop, instead of
+ * being stopped
+ *
+ *      signals.on_interrupt({ ->                   // Ctrl+C
+ *          println("saving before I go...");
+ *          save_everything();
+ *          exit(0);
+ *      });
+ *
+ *      signals.on_terminate({ -> server.stop(); });    // `kill`, the system shutting down
+ *      signals.on_hangup({ -> reload_settings(); });   // the terminal was closed (not on Windows)
+ *
+ * WITHOUT A HOOK each of the three ends the program at once, as always.
+ * WITH ONE the program is not ended: the hook runs, and what happens next is
+ * the hook's to decide - most end the program themselves with exit(), after
+ * putting things in order; a hook that returns lets the program run on.
+ *
+ * Several hooks for one signal run in the order they were added.
+ * signals.forget_hooks() takes them all away: the signals end the program again.
+ *
+ * WHERE A HOOK RUNS: on a thread of its own, started with the first hook
+ * (`signal watcher`, a daemon: it does not keep the program alive). NOT in the
+ * middle of whatever the program was doing when the key was pressed - that is
+ * what makes a hook safe to write: it is ordinary code, it may print, lock,
+ * allocate, wait. It is another thread, so what it shares with the rest of the
+ * program is shared as between any two threads (lock it).
+ * It runs within a few hundredths of a second of the signal.
+ *
+ * A PROGRAM THAT DOES NOT ANSWER CAN STILL BE STOPPED. If Ctrl+C is pressed
+ * three more times while a hook has not come back for the next one (it hangs,
+ * or it loops), the program is ended the plain way.
+ *
+ * WHAT CANNOT BE HOOKED: a crash. And under sdb, Ctrl+C belongs to the
+ * debugger: it pauses the program, and an interrupt hook is not run.
+ *
+ * An exception a hook throws ends that hook, is printed, and the hooks after
+ * it still run.
+ *
+ *      C comparison: signal() / sigaction(), whose handler runs inside the
+ *      interrupted code and may call almost nothing. Go: signal.Notify, a
+ *      channel read by a goroutine - the same idea as here.
+ */
+class signals {
+    private static const INTERRUPT : _int64 = 1;
+    private static const TERMINATE : _int64 = 2;
+    private static const HANGUP : _int64 = 3;
+
+    private static interrupt_hooks : list<signal_hook> = new list<signal_hook>();
+    private static terminate_hooks : list<signal_hook> = new list<signal_hook>();
+    private static hangup_hooks : list<signal_hook> = new list<signal_hook>();
+    private static guard : string = "signals";          // locked while the lists are read or changed
+    private static watcher : thread?;
+
+    /** run `hook` when Ctrl+C is pressed, instead of ending the program */
+    static def on_interrupt(hook: ()()) {
+        add(INTERRUPT, interrupt_hooks, hook);
+    }
+
+    /** run `hook` when the program is asked to end (`kill`, the system shutting down), instead of ending it */
+    static def on_terminate(hook: ()()) {
+        add(TERMINATE, terminate_hooks, hook);
+    }
+
+    /** run `hook` when the program's terminal is closed, instead of ending the program (never happens on Windows) */
+    static def on_hangup(hook: ()()) {
+        add(HANGUP, hangup_hooks, hook);
+    }
+
+    /** take every hook away: Ctrl+C and the others end the program again */
+    static def forget_hooks() {
+        lock(guard) {
+            interrupt_hooks.clear();
+            terminate_hooks.clear();
+            hangup_hooks.clear();
+        }
+        watch(INTERRUPT, false);
+        watch(TERMINATE, false);
+        watch(HANGUP, false);
+    }
+
+    private static def add(which: _int64, hooks: list<signal_hook>, hook: ()()) {
+        lock(guard) {
+            hooks.add(new signal_hook(hook));
+            if(watcher == null) {
+                watcher = new thread("signal watcher", 1, signals.wait_for_signals);
+                watcher!!.start();
+            }
+        }
+        watch(which, true);
+    }
+
+    /** the watcher thread: take each signal as it comes and run its hooks */
+    private static def wait_for_signals(args: object[]) : int {
+        while(true) {
+            which : _int64 = take(200);
+            if(which == INTERRUPT) { run_all(interrupt_hooks); }
+            else if(which == TERMINATE) { run_all(terminate_hooks); }
+            else if(which == HANGUP) { run_all(hangup_hooks); }
+        }
+        return 0;
+    }
+
+    private static def run_all(hooks: list<signal_hook>) {
+        // (a copy: a hook may add or forget hooks)
+        waiting := new list<signal_hook>();
+        lock(guard) {
+            for(i : _int64 = 0; i < hooks.size(); i++) { waiting.add(hooks.at(i)); }
+        }
+        for(i : _int64 = 0; i < waiting.size(); i++) {
+            try {
+                waiting.at(i).run();
+            } catch(problem: throwable) {
+                println("a signal hook threw: " + problem.get_message());
+            }
+        }
+    }
+
+    /** tell the VM to hand a signal to this program (true), or to let it end the program again (false) */
+    private static def watch(which: _int64, hear: bool) {
+        on : _int64 = 0;
+        if(hear) { on = 1; }
+
+        asm {
+            loadl ebx, [which]
+            loadl ecx, [on]
+            int 0x63
+        }
+    }
+
+    /** wait up to `millis` for a watched signal: which one came, or 0 */
+    private static def take(millis: _int64) : _int64 {
+        came : _int64 = 0;
+
+        asm {
+            loadl ebx, [millis]
+            int 0x64
+            smovr2 [came], ebx
+        }
+
+        return came;
+    }
+}
+
+/** one hook of `signals` (a function value cannot be the element of a list by itself) */
+class signal_hook {
+    private work : ()();
+
+    signal_hook(work: ()()) {
+        self->work = work;
+    }
+
+    def run() {
+        todo : ()() = work;
+        todo();
+    }
+}

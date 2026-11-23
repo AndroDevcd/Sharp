@@ -40,8 +40,14 @@ import (
  *
  * Then 0 <= i < length(a) where the element is used. That also says the
  * array is not null: a null array has length 0, and no `i` that is 0 or
- * more is below 0. (An array's length never changes, so nothing a call does
- * in between can undo this.)
+ * more is below 0.
+ *
+ *   - NOTHING THAT MAY CHANGE ANYTHING RUNS IN BETWEEN: `realloc` makes the
+ *     same array shorter, so a call of a function that is not known to
+ *     change nothing (or a function value, a lock, `asm`) between the test
+ *     and the element keeps the check; and where the length was taken
+ *     before the loop, such an instruction anywhere in the loop, or between
+ *     the length and the loop, keeps every check of the loop.
  *
  * This is the simple form only: one array, its own length, an index that
  * counts up. `i < n` with some other `n`, an index computed from `i`
@@ -59,7 +65,7 @@ import (
 def eliminate_bounds_checks(analyses: function_analyses) : _int64 {
     code := analyses.code;
     if(code.tries.size() > 0) { return 0; }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     any : _int64 = 0;
     for(i : _int64 = 0; i < total && any == 0; i++) {
         made := code.instructions.at(i);
@@ -106,6 +112,8 @@ def eliminate_bounds_checks(analyses: function_analyses) : _int64 {
 
         // ---- inside the loop: `a` is never written, `i` only increased by a constant
         fits : _int64 = 1;
+        length_outside : _int64 = 0;
+        if(!forest.has(l, graph.block_of[length_at])) { length_outside = 1; }
         for(m : _int64 = forest.first_member.at(l); m < forest.first_member.at(l + 1) && fits == 1; m++) {
             b : _int64 = forest.members.at(m);
             for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
@@ -114,11 +122,20 @@ def eliminate_bounds_checks(analyses: function_analyses) : _int64 {
                 if(written == array) { fits = 0; }
                 if(written == index && !(made.kind == IR_INT_IMMEDIATE && made.number == ARITH_ADD
                                          && made.first == index && made.detail >= 1)) { fits = 0; }
+                // (the length was taken before the loop: a `realloc` somewhere in the loop would make it an old one)
+                if(length_outside == 1 && memory_written_by(made) == WRITES_ANYTHING) { fits = 0; }
             }
         }
         if(fits == 0) { continue; }
-        // ... and where the length was taken outside the loop, `a` is not written on the way to the loop
-        if(!forest.has(l, graph.block_of[length_at]) && written_after(code, graph, length_at, array)) { continue; }
+        // ... and where the length was taken outside the loop, `a` is not written on the way to the loop,
+        // and nothing that may change anything runs between the two
+        if(length_outside == 1) {
+            if(written_after(code, graph, length_at, array)) { continue; }
+            for(i : _int64 = length_at + 1; i < graph.starts[header] && fits == 1; i++) {
+                if(memory_written_by(code.instructions.at(i)) == WRITES_ANYTHING) { fits = 0; }
+            }
+            if(fits == 0) { continue; }
+        }
 
         // ---- outside the loop `i` is only given constants that are 0 or more
         definitions.count = 0;
@@ -138,8 +155,9 @@ def eliminate_bounds_checks(analyses: function_analyses) : _int64 {
 
 /**
  * From the start of block `from` (where the test has just passed), every
- * element instruction `a[i]` that is reached before `i` or `a` is written
- * and without going through the header again is marked `in_range`.
+ * element instruction `a[i]` that is reached before `i` or `a` is written,
+ * before anything runs that may change anything, and without going through
+ * the header again is marked `in_range`.
  */
 def mark_elements(code: ir_function, graph: flow_graph, from: _int64, header: _int64, array: _int64, index: _int64) : _int64 {
     seen := new _int64[graph.blocks + 1];
@@ -160,6 +178,8 @@ def mark_elements(code: ir_function, graph: flow_graph, from: _int64, header: _i
             }
             written : _int64 = slot_written(made);
             if(written == index || written == array) { stopped = 1; }
+            // (what follows a call that may change anything may meet a shorter array)
+            if(memory_written_by(made) == WRITES_ANYTHING) { stopped = 1; }
         }
         if(stopped == 1) { continue; }
         for(k : _int64 = 0; k < 2; k++) {

@@ -341,11 +341,11 @@ class byte_buffer {
         // split into two 32-bit halves: value = high * 2^32 + low, with 0 <= low < 2^32
         whole : decimal = value;
         if(whole >= 0) {
-            whole = floor(whole).value;
+            whole = floor(whole);
         } else {
-            whole = ceil(whole).value;
+            whole = ceil(whole);
         }
-        high : decimal = floor(whole / 4294967296).value;
+        high : decimal = floor(whole / 4294967296);
         low : decimal = whole - high * 4294967296;
         if(high < 0) {
             high += 4294967296; // two's complement of the upper half
@@ -421,7 +421,7 @@ class byte_buffer {
                 exponent_bits = 2047;
             } else {
                 // value = fraction * 2^exponent with 1 <= fraction < 2
-                exponent : decimal = floor(log(value).value / log(2).value).value;
+                exponent : decimal = floor(log(value) / log(2));
                 if(exponent < 0 - 1022) {
                     exponent = 0 - 1022;
                 }
@@ -448,8 +448,8 @@ class byte_buffer {
 
                 // the 52 mantissa bits: the top 20, then the remaining 32
                 scaled : decimal = fraction * 1048576;              // * 2^20
-                mantissa_high = floor(scaled).value;
-                mantissa_low = floor((scaled - mantissa_high) * 4294967296).value; // * 2^32
+                mantissa_high = floor(scaled);
+                mantissa_low = floor((scaled - mantissa_high) * 4294967296); // * 2^32
             }
         }
 
@@ -467,12 +467,12 @@ class byte_buffer {
     /** value * 2^power, done in two steps so that the power of two itself never overflows or underflows */
     private static def scale(value: decimal, power: decimal) : decimal {
         if(power > 1000) {
-            return value * pow(2, 1000).value * pow(2, power - 1000).value;
+            return value * pow(2, 1000) * pow(2, power - 1000);
         }
         if(power < 0 - 1000) {
-            return value * pow(2, 0 - 1000).value * pow(2, power + 1000).value;
+            return value * pow(2, 0 - 1000) * pow(2, power + 1000);
         }
-        return value * pow(2, power).value;
+        return value * pow(2, power);
     }
 
     /** take 8 bytes as an IEEE 754 "double" in the current byte order (see put_float64) */
@@ -493,7 +493,7 @@ class byte_buffer {
             sign = 0 - 1;
             high -= 2147483648;
         }
-        exponent_bits : decimal = floor(high / 1048576).value;
+        exponent_bits : decimal = floor(high / 1048576);
         mantissa_high : decimal = high - exponent_bits * 1048576;
         // the mantissa as a fraction between 0 and 1
         fraction : decimal = (mantissa_high + low / 4294967296) / 1048576;

@@ -110,7 +110,7 @@ stable class label base widget : behavior {
         }
 
         widest : decimal = 0;
-        count : _int64 = lines.size().value;
+        count : _int64 = lines.size();
         for(i : _int64 = 0; i < count; i++) {
             widest = num.larger(widest, f.width_of(lines.at(i)));
         }
@@ -133,7 +133,7 @@ stable class label base widget : behavior {
         top : decimal = me.inner_y();
         room : decimal = me.inner_w();
 
-        count : _int64 = lines.size().value;
+        count : _int64 = lines.size();
         for(i : _int64 = 0; i < count; i++) {
             line : string = lines.at(i);
             start : decimal = left;
@@ -154,7 +154,7 @@ stable class label base widget : behavior {
      * the room together.
      */
     private def keep_to_most(f: font, room: decimal) {
-        count : _int64 = lines.size().value;
+        count : _int64 = lines.size();
         if(most <= 0 || count <= most) {
             return;
         }
@@ -163,7 +163,7 @@ stable class label base widget : behavior {
         }
 
         last : string = lines.at(most - 1);
-        keep : _int64 = last.size().value;
+        keep : _int64 = last.size();
         while(keep > 0 && num.is_bounded(room) == 1 && f.width_of(txt.slice(last, 0, keep) + "...") > room) {
             keep = keep - 1;
         }
@@ -177,7 +177,7 @@ stable class label base widget : behavior {
     /** fill `lines` with the text broken at line feeds, and between words where it is wider than `room` */
     private def cut_into_lines(f: font, room: decimal) {
         lines.clear();
-        total : _int64 = words.size().value;
+        total : _int64 = words.size();
         start : _int64 = 0;
         for(i : _int64 = 0; i <= total; i++) {
             at_end : _int64 = 0;
@@ -198,7 +198,7 @@ stable class label base widget : behavior {
             return;
         }
 
-        total : _int64 = paragraph.size().value;
+        total : _int64 = paragraph.size();
         line_start : _int64 = 0;        // where the line being filled begins
         fits_to : _int64 = 0 - 1;       // the last place the line could end and still fit (-1: no word fits yet)
 

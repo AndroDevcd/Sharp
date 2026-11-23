@@ -75,8 +75,8 @@ def parameter_names(declared: sharp_class) : string {
 
 /** E0350: list<int, int> */
 def report_argument_count(written: sharp_type, declared: sharp_class, problems: list<diagnostic>) {
-    wanted : _int64 = declared.type_parameters.size().value as _int64;
-    given : _int64 = written.arguments.size().value as _int64;
+    wanted : _int64 = declared.type_parameters.size();
+    given : _int64 = written.arguments.size();
 
     what : string = "" + wanted + " type arguments";
     declared_with : string = "" + wanted + " type parameters";

@@ -32,7 +32,7 @@ import (
  */
 def write_listing(layout: program_layout, path: string) : string {
     out := new string_builder("");
-    out.append("classes: " + (layout.classes.size().value as _int64) + ", functions: " + (layout.functions.size().value as _int64) + ", strings: "
+    out.append("classes: " + layout.classes.size() + ", functions: " + layout.functions.size() + ", strings: "
                + layout.strings.count() + ", constants: " + layout.constants.count() + ", fiber-local slots: "
                + layout.fiber_slots.value + "\n");
     if(layout.entry != null) { out.append("entry: " + layout.entry!!.full_name + " (" + layout.entry!!.address + ")\n"); }
@@ -41,7 +41,7 @@ def write_listing(layout: program_layout, path: string) : string {
     for(i : _int64 = 0; i < layout.functions.size(); i++) { list_function(out, layout.functions.at(i)); }
     try {
         target := new file(path);
-        target.write(out.build());
+        file_natives.write(target.path, out.build());
     } catch(e: exception) {
         return "could not write the listing `" + path + "`: " + e.get_message();
     }

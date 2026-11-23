@@ -75,7 +75,7 @@ def analyse_ternary(context: analysis_context, node: _int64, wanted: resolved_ty
 
     // and back up: each `? :` with the one below it as its second branch
     result : bound_expression = last_branch!!;
-    for(i : _int64 = starts.size().value as _int64 - 1; i >= 0; i--) {
+    for(i : _int64 = starts.size() - 1; i >= 0; i--) {
         start := starts.at(i);
         result = ternary_of(context, start.node, start.condition, start.when_true, result);
     }

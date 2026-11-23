@@ -11,8 +11,8 @@ CXX11_INLINE void init_struct(sharp_field *sf) {
     new (&sf->fullName) string();
     sf->owner = nullptr;
     sf->flags = 0;
-    sf->reflect = nullptr;
     sf->type = nullptr;
     sf->isArray = false;
     sf->threadLocal = false;
+    sf->debugKind = 0;
 }

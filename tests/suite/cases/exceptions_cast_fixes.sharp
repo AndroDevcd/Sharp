@@ -13,7 +13,7 @@ class shape { sides : decimal = 0; }
 def main(args: string[]) {
     // ---- BUG: a failing cast raises illegal_state_exception; std defines
     // class_cast_exception for this but the runtime never throws it
-    // (cast_object in lib/runtime/memory/sharp_object.cpp uses vm.ill_state_except).
+    // (cast_object in lib/runtime/memory/sharp_object.cpp uses vm.illegal_state_exception).
     where : decimal = 0;
     try {
         anything : object = new decimal[2];         // an array of numbers is not a shape

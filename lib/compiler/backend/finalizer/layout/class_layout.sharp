@@ -75,7 +75,7 @@ class class_layout {
 
     /** does the class have anything to run once (static values, enum values, static init blocks)? */
     def has_static_part() : _int64 {
-        return static_entries.size().value > 0;
+        return static_entries.size() > 0;
     }
 }
 
@@ -125,7 +125,7 @@ def lay_out_fields(made: class_layout, fiber_slots: numbered, prog: sharp_progra
     for(i : _int64 = 0; i < declared.enum_values.size(); i++) {
         value := declared.enum_values.at(i);
         if(value.kept == 0) { continue; }
-        value.address = made.static_fields.size().value as _int64;
+        value.address = made.static_fields.size();
         made.static_fields.add(value);
     }
     for(i : _int64 = 0; i < own_fields.size(); i++) {
@@ -136,11 +136,11 @@ def lay_out_fields(made: class_layout, fiber_slots: numbered, prog: sharp_progra
                 field.address = fiber_slots.value;
                 fiber_slots.value++;
             } else {
-                field.address = made.static_fields.size().value as _int64;
+                field.address = made.static_fields.size();
             }
             made.static_fields.add(field);
         } else {
-            field.address = made.instance_fields.size().value as _int64;
+            field.address = made.instance_fields.size();
             made.instance_fields.add(field);
         }
     }

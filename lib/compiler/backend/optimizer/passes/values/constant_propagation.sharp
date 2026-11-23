@@ -134,7 +134,7 @@ def propagate_constants(analyses: function_analyses, immediates: _int64) : _int6
     index := new _int64[slots + 1];
     followed : _int64 = 0;
     for(s : _int64 = 0; s <= slots; s++) { index[s] = 0 - 1; }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := code.instructions.at(i);
         if((made.kind == IR_INT_CONSTANT || made.kind == IR_DECIMAL_CONSTANT) && made.target >= 0 && index[made.target] < 0) {

@@ -161,7 +161,7 @@ def make_people(): person[] {
 def check_comparator() {
     by_age := comparator<person>.by_key({ p: person -> (decimal) return p.age; });
     by_name := comparator<person>.by_text({ p: person -> (string) return p.name; });
-    by_name_length := new comparator<person>({ a: person, b: person -> (decimal) return a.name.size().value - b.name.size().value; });
+    by_name_length := new comparator<person>({ a: person, b: person -> (decimal) return a.name.size() - b.name.size(); });
 
     young := new person("young", 10);
     old := new person("old", 90);

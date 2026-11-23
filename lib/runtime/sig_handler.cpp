@@ -9,6 +9,11 @@
 #include "error/vm_exception.h"
 #include "termios.h"
 #include "telemetry/telemetry.h"
+#include "virtual_machine.h"
+#include "memory/tracing_collector.h"
+#include <atomic>
+#include <thread>
+#include <chrono>
 #ifdef POSIX_
 #include <unistd.h>
 #endif
@@ -39,7 +44,50 @@ string signalToString(int signal) {
 // the first is being reported) ends the process at once instead of starting the report again
 static volatile std::sig_atomic_t handling_a_signal = 0;
 
+// ---- signals a program watches (sig_handler.h). Plain atomic numbers: the only thing a signal
+//      handler may touch safely.
+static std::atomic<int> watched[WATCHED_SIGNALS];
+static std::atomic<int> arrived[WATCHED_SIGNALS];
+
+/** which watched_signal an OS signal is (0: none of them) */
+static int watched_signal_of(int signal) {
+    if(signal == SIGINT) return SIGNAL_INTERRUPT;
+    if(signal == SIGTERM) return SIGNAL_TERMINATE;
+#ifdef POSIX_
+    if(signal == SIGHUP) return SIGNAL_HANGUP;
+#endif
+    return 0;
+}
+
+void watch_signal(int which, bool on) {
+    if(which <= 0 || which >= WATCHED_SIGNALS) return;
+    arrived[which] = 0;
+    watched[which] = on ? 1 : 0;
+}
+
+int take_signal(Int millis) {
+    // waiting touches no objects: the collector need not wait for this thread
+    gc_safe_region waiting;
+
+    for(Int waited = 0; ; waited += 10) {
+        for(int which = 1; which < WATCHED_SIGNALS; which++) {
+            // (the same key pressed several times before the program looked is one event)
+            if(arrived[which].exchange(0) > 0) return which;
+        }
+        if(waited >= millis || vm.state >= VM_SHUTTING_DOWN) return 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
 void os_signal(int signal) {
+    // a signal the program watches is counted and nothing else: the program takes it when it
+    // is ready (take_signal). Unless it has not answered the last few - then it is ended as always.
+    int which = watched_signal_of(signal);
+    if(which != 0 && watched[which].load() != 0) {
+        std::signal(signal, os_signal);         // (some systems forget the handler once it has run)
+        if(arrived[which].fetch_add(1) < MOST_UNANSWERED_SIGNALS) return;
+    }
+
 #ifdef POSIX_
     // FIRST, before anything that could fail: the console goes back to how the VM found it
     reset_original_console_settings();

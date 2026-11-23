@@ -58,6 +58,9 @@ class local_variable {
     // `localized` variable a fiber-local field of its own (its slot at the bottom of every
     // fiber's stack). Null for every other variable.
     storage : sharp_field?;
+    // set by obfuscation (backend/finalizer/obfuscation): the name the executable's debugger section
+    // carries instead of `name`, when the function it belongs to is renamed. Null: its own name.
+    carried_name : string?;
 
     local_variable(name: string, type: resolved_type, unit: source_unit, node: _int64) {
         self->name = name;

@@ -177,7 +177,7 @@ def glue_text(library: native_library) : string {
     }
     text.append("};\n\n");
     text.append("static const sni_library library = { SNI_VERSION, \"" + library.name + "\", "
-                + (library.functions.size().value as _int64) + ", functions };\n\n");
+                + library.functions.size() + ", functions };\n\n");
     text.append("// the one thing the library exports: the VM asks for the table when it loads the library\n");
     text.append("extern \"C\" SNI_EXPORT const sni_library* sni_library_table() { return &library; }\n");
     return text.build();
@@ -192,7 +192,7 @@ def glue_text(library: native_library) : string {
 def write_when_changed(path: string, text: string) {
     target := new file(path);
     if(target.exists() && target.read_text() == text) { return; }
-    target.write(text);
+    file_natives.write(target.path, text);
 }
 
 /**

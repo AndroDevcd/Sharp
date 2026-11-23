@@ -133,9 +133,9 @@ def copy_c_libraries(written_to: string) {
             if(j >= sizeof(endings)) { name = with_lib + endings[j % sizeof(endings)]; }
             source := new file(options.project_dir + "/" + name);
             if(!source.is_file()) { continue; }
-            target := new file(outputs!!.get_path() + "/" + name);
+            target := new file(outputs!!.path + "/" + name);
             // (again only when it is not there yet or is another file: by size and time)
-            if(target.is_file() && target.size() == source.size() && target.last_modified().value >= source.last_modified().value) { continue; }
+            if(target.is_file() && target.size() == source.size() && target.last_modified() >= source.last_modified()) { continue; }
             if(target.parent() != null) { target.parent()!!.mkdirs(); }
             bytes := source.read_bytes();
             if(bytes == null) { continue; }

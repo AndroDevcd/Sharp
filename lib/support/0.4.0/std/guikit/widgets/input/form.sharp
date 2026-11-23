@@ -55,7 +55,7 @@ stable class form {
     /** this field must not be longer than `letters` */
     def at_most(field: state<string>, letters: _int64, message: string) : form {
         rules.add(new form_rule(field, message, { v: string ->
-            if(txt.letters(v, v.size().value) <= letters) { return 1; }
+            if(txt.letters(v, v.size()) <= letters) { return 1; }
             return 0;
         }));
         return self;
@@ -64,7 +64,7 @@ stable class form {
     /** run every rule. Gives 1 when all passed, 0 when at least one field has a problem. */
     def check() : _int64 {
         fine : _int64 = 1;
-        count : _int64 = rules.size().value;
+        count : _int64 = rules.size();
         for(i : _int64 = 0; i < count; i++) {
             one : form_rule = rules.at(i);
             one.broken = 0;
@@ -80,7 +80,7 @@ stable class form {
     /** the message of the first rule this field broke at the last check(); "" when it is fine */
     def problem_of(field: state<string>) : string {
         seen : _int64 = checked.value;              // read: the screen is rebuilt after the next check()
-        count : _int64 = rules.size().value;
+        count : _int64 = rules.size();
         for(i : _int64 = 0; i < count; i++) {
             one : form_rule = rules.at(i);
             if(one.broken == 1 && one.field == field) {
@@ -92,7 +92,7 @@ stable class form {
 
     /** forget what the last check() found (when a sheet or dialog with the form is opened afresh) */
     def clear() {
-        count : _int64 = rules.size().value;
+        count : _int64 = rules.size();
         for(i : _int64 = 0; i < count; i++) {
             rules.at(i).broken = 0;
         }

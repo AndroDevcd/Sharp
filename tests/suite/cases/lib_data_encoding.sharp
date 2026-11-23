@@ -20,7 +20,7 @@ def all_bytes(): string {
     for(i : decimal = 0; i < 256; i++) {
         buf.append_char(i);
     }
-    return buf.to_string()!!;
+    return buf.build();
 }
 
 /** true when both strings hold the same bytes (compared as 0..255) */
@@ -165,7 +165,7 @@ def test_hex() {
     test("dump two lines") { expect(hex.dump("Hello, world! 123")).should_be("00000000  48 65 6c 6c 6f 2c 20 77  6f 72 6c 64 21 20 31 32  |Hello, world! 12|\n"
         + "00000010  33                                                |3|\n"); };
     test("dump unprintable") { expect(hex.dump(bytes3(0, 'A', 0xff))).should_be("00000000  00 41 ff                                          |.A.|\n"); };
-    test("dump of 256 bytes has 16 lines") { expect(io_strings.split_lines(hex.dump(all_bytes())).size().value).should_be(16); };
+    test("dump of 256 bytes has 16 lines") { expect(io_strings.split_lines(hex.dump(all_bytes())).size()).should_be(16); };
     test("dump_bytes null") { expect(hex.dump_bytes(null)).should_be(""); };
 }
 
@@ -240,6 +240,10 @@ def test_url() {
     try { url_codec.parse_query("a=%G1", k, v); test("bad escape in query") { fail_test("no exception"); }; }
     catch(e: parse_exception) { test("bad escape in query") { }; }
 
+    test("a `?` inside a value is part of the value") {
+        expect(url_codec.query_value("a=1&next=/x?y=2", "a")!! + "|" + url_codec.query_value("a=1&next=/x?y=2", "next")!!).should_be("1|/x?y=2");
+    };
+    test("a whole address: what stands behind its `?`") { expect(url_codec.query_value("http://h.example/p?a=1&b=2", "a")!!).should_be("1"); };
     test("query_value") { expect(url_codec.query_value(query, "q")!!).should_be("sharp lang"); };
     test("query_value of encoded key") { expect(url_codec.query_value(query, "a&b")!!).should_be("x=y"); };
     test("query_value empty") { expect(url_codec.query_value(query, "empty")!!).should_be(""); };

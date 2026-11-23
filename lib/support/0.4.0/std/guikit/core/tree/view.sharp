@@ -200,7 +200,7 @@ stable class view {
 
     /** take `kid` out of this view's children (nothing happens if it is not one) */
     def remove_kid(kid: view) {
-        count : _int64 = kids.size().value;
+        count : _int64 = kids.size();
         for(i : _int64 = count - 1; i >= 0; i--) {         // from the end: the usual case is the child added last
             if(kids.at(i) == kid) {
                 kids.remove_at(i);
@@ -215,7 +215,7 @@ stable class view {
     }
 
     def kid_count() : _int64 {
-        return kids.size().value;
+        return kids.size();
     }
 
     // ------------------------------------------------------------ the content box
@@ -477,7 +477,7 @@ stable class view {
         // a floater's children are not painted here, in the flow of the page:
         // the host paints them afterwards, on top of everything (popup.sharp)
         if(!(how is floater)) {
-            count : _int64 = kids.size().value;
+            count : _int64 = kids.size();
             lifted : _int64 = 0;
             for(i : _int64 = 0; i < count; i++) {
                 if(kids.at(i).raised == 1) { lifted = 1; }
@@ -560,7 +560,7 @@ stable class view {
         }
         // a floater's children are not in the flow of the page: the host asks them first, itself (popup.sharp)
         if(!(how is floater)) {
-            count : _int64 = kids.size().value;
+            count : _int64 = kids.size();
             for(i : _int64 = count - 1; i >= 0; i--) {
                 found : view? = kids.at(i).find_at(px, py);
                 if(found != null) {

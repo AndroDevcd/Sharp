@@ -185,7 +185,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
             last_y = py;
             moved_far = false;
         } else if(what == POINTER_DRAG) {
-            if(num.larger(absolute(px - press_x), absolute(py - press_y)) > 4) { moved_far = true; }
+            if(num.larger(abs(px - press_x), abs(py - press_y)) > 4) { moved_far = true; }
             if(moved_far) {
                 eye.dragged(px - last_x, py - last_y);
                 ui_host.current!!.request_frame();
@@ -219,7 +219,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
     def under(px: decimal, py: decimal) : thing? {
         if(id == 0) { return null; }
         found : _int64 = g3_scene_pick(id, px - me.inner_x(), py - me.inner_y(), me.inner_w(), me.inner_h(), hit);
-        if(found < 0 || found >= order.size().value) { return null; }
+        if(found < 0 || found >= order.size()) { return null; }
         at : thing? = order.at(found);
         while(at != null) {
             if(at!!.on_click != null || at!!.on_double_click != null || at!!.on_right_click != null) { return at; }
@@ -251,7 +251,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         info.mouse_down = host.mouse_held;
 
         // your code first: what it moves is in this frame
-        count : _int64 = every_frame.size().value;
+        count : _int64 = every_frame.size();
         for(i : _int64 = 0; i < count; i++) {
             every_frame.at(i).run(info);
         }
@@ -284,7 +284,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         order.clear();
         pack_thing(root, 0 - 1);
 
-        lamp_count : _int64 = lamps.size().value;
+        lamp_count : _int64 = lamps.size();
         if(sizeof(lamp_numbers) < lamp_count * LAMP_NUMBERS) {
             lamp_numbers = new decimal[lamp_count * LAMP_NUMBERS * 2];
         }
@@ -352,7 +352,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         nodes[at + 25] = what.own_shader;
 
         if(what.kids != null) {
-            count : _int64 = what.kids!!.size().value;
+            count : _int64 = what.kids!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 pack_thing(what.kids!!.at(i), mine);
             }
@@ -411,7 +411,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         high := new decimal[3];
         any : bool = false;
         if(root.kids != null) {
-            count : _int64 = root.kids!!.size().value;
+            count : _int64 = root.kids!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 any = widen(root.kids!!.at(i), 0, 0, 0, 1, low, high, any, true);
             }
@@ -428,10 +428,10 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         mid_x : decimal = (low[0] + high[0]) / 2;
         mid_y : decimal = (low[1] + high[1]) / 2;
         mid_z : decimal = (low[2] + high[2]) / 2;
-        across : decimal = square_root((high[0] - low[0]) * (high[0] - low[0]) + (high[1] - low[1]) * (high[1] - low[1])
+        across : decimal = sqrt((high[0] - low[0]) * (high[0] - low[0]) + (high[1] - low[1]) * (high[1] - low[1])
                                        + (high[2] - low[2]) * (high[2] - low[2]));
         if(across < 0.5) { across = 0.5; }
-        back : decimal = across * 0.5 / tan_of(eye.wide * PI_VALUE / 360) * 1.25 + across * 0.25;
+        back : decimal = across * 0.5 / tan(eye.wide * PI_VALUE / 360) * 1.25 + across * 0.25;
 
         if(!eye.round_set) {
             eye.round_x = mid_x;
@@ -463,7 +463,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
             box := new decimal[6];
             g3_model_box(what.model, box);
             // (turned things: the furthest corner in every direction, so the box holds it whichever way it faces)
-            far : decimal = num.larger(num.larger(absolute(box[0]), absolute(box[3])), num.larger(absolute(box[2]), absolute(box[5]))) * size;
+            far : decimal = num.larger(num.larger(abs(box[0]), abs(box[3])), num.larger(abs(box[2]), abs(box[5]))) * size;
             // a floor or a field under the things is not what the camera frames: the things on it are
             flat : bool = skip_flat && (box[4] - box[1]) * size < far * 0.04;
             edges := new decimal[] { px - far, py + box[1] * size, pz - far, px + far, py + box[4] * size, pz + far };
@@ -476,7 +476,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
             }
         }
         if(what.kids != null) {
-            count : _int64 = what.kids!!.size().value;
+            count : _int64 = what.kids!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 any = widen(what.kids!!.at(i), px, py, pz, size, low, high, any, skip_flat);
             }

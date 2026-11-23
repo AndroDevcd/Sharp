@@ -159,6 +159,13 @@ class BuildAndRunTest {
         assertNull(SharpConsoleFilter.placeIn("error[E0401]: `printn` is not known here"))
         assertNull(SharpConsoleFilter.placeIn("12 |     printn(1);"))
         assertNull(SharpConsoleFilter.placeIn("time: 12:30:05"))
+        // where a test of std.testing failed, said in words
+        val failed = "        at C:/work/my shapes/tests.sharp, line 12"
+        val test = SharpConsoleFilter.placeIn(failed)!!
+        assertEquals("C:/work/my shapes/tests.sharp", test.file)
+        assertEquals(12, test.line)
+        assertEquals("C:/work/my shapes/tests.sharp, line 12", failed.substring(test.start, test.end))
+        assertNull(SharpConsoleFilter.placeIn("at the end, line 3 was read"))
     }
 
     @Test
@@ -221,6 +228,39 @@ class BuildAndRunTest {
         val unix = SharpRunState.plan(toolchain, File(base, "app").path, base.path, listOf("tests", "build"), "", emptyList(), emptyList(), "", true, false, false)
         assertEquals("sh", unix.command[0])
         assertTrue(unix.scriptText.contains("echo 'Built "))
+    }
+
+    @Test
+    fun aDebugPlanBuildsWithDbgAndStartsTheDebuggerOnThePort() {
+        val base = temp.newFolder("project")
+        touch(base, "app/main.sharp")
+        val home = temp.newFolder("with debugger")
+        touch(home, "bin/sharp.exe")
+        touch(home, "bin/sdb.exe")
+        touch(home, "lib/std/list.sharp")
+        touch(home, "compiler/sharpc-v0.5.6")
+        val toolchain = SharpToolchains.at(home.path)!!
+        assertEquals("${ProgramFiles.normalise(home.path)}/bin/sdb.exe", toolchain.debugger)
+
+        // "build only" is not kept: a debug run always runs
+        val windows = SharpRunState.plan(toolchain, File(base, "app").path, base.path, emptyList(), "", listOf("-O"), listOf("one"), "", true, false, true, debugPort = 51234)
+        assertTrue(windows.scriptText, windows.scriptText.contains(" -O -dbg > "))                      // -dbg is added to what was asked for
+        assertTrue(windows.scriptText, windows.scriptText.contains("\\bin\\sdb.exe\" -machine 51234 \""))
+        assertTrue(windows.scriptText, windows.scriptText.contains("\\app\\build\\app\" one"))
+        val unix = SharpRunState.plan(toolchain, File(base, "app").path, base.path, emptyList(), "", listOf("-dbg"), emptyList(), "", false, false, false, debugPort = 9)
+        assertTrue(unix.scriptText, unix.scriptText.contains("/bin/sdb.exe' '-machine' '9' '"))
+        assertTrue(unix.scriptText, !unix.scriptText.contains("-dbg' '-dbg"))                           // ... and not twice
+
+        // a plain run of the same folder is the VM alone
+        val plain = SharpRunState.plan(toolchain, File(base, "app").path, base.path, emptyList(), "", emptyList(), emptyList(), "", false, false, true)
+        assertTrue(!plain.scriptText.contains("sdb") && !plain.scriptText.contains("-dbg"))
+
+        // an installation without sdb says so
+        val message = try {
+            SharpRunState.plan(fakeToolchain(), File(base, "app").path, base.path, emptyList(), "", emptyList(), emptyList(), "", false, false, true, debugPort = 1)
+            ""
+        } catch (e: com.intellij.execution.ExecutionException) { e.message ?: "" }
+        assertTrue(message, message.contains("has no debugger"))
     }
 
     @Test

@@ -1,16 +1,11 @@
 mod std;
 
-import ( std.math )
-
 /**
-* Created by bknun on 9/5/2022
-*
 * @class hash_table
 *
 * Description:
-* The thread safe variant of hash_map: the same map from keys to values
-* with O(1) average lookup, with every operation run inside lock(self) so
-* that several threads may use one table at the same time.
+* A hash_map that several threads may use at the same time: the same
+* functions, each run inside lock(self).
 *
 *     hits := new hash_table<string, int>();
 *     hits.put("home", 1);
@@ -19,203 +14,111 @@ import ( std.math )
 *     hits.remove("home");
 *
 * Each single call is atomic; a SEQUENCE of calls is not ("if it is not in
-* the table, put it" can still be interleaved with another thread).
+* the table, put it" can still be interleaved with another thread - that
+* one is put_if_absent, which is a single call).
 *
-* How it works: an array of buckets; `key.hash()` picks the bucket and the
-* entries of one bucket form a chain that is searched with `==`. When the
-* table holds more than `threshold` (0.75) entries per bucket the bucket
-* array is doubled.
+* keys(), values() and entries() give new lists: loop over them while other
+* threads go on changing the table.
 */
 class hash_table<k base _object_, v base _object_> {
-    /** the buckets: data[i] is the first entry of the chain of bucket i, or null */
-    data: entry<k, v>[];
-    /** the table grows when it holds more than threshold * (number of buckets) entries */
-    threshold := 0.75;
-    /** the number of entries at which the next growth happens */
-    max_size := 96;
-    /** the number of entries (read it, do not write it) */
-    size : decimal;
+    /** the map that does the work; every use of it is inside lock(self) */
+    private map : hash_map<k, v>;
 
-    private static const default_capacity := 128;
-
-    /** Create an empty table with `initialCapacity` buckets (it grows when needed). */
-    public hash_table(initialCapacity: int) {
-        data = new entry<k,v>[initialCapacity.value];
-        max_size = (sizeof(data) * threshold);
+    /** Create an empty table with `capacity` buckets (it grows when needed). */
+    public hash_table(capacity: int) {
+        map = new hash_map<k, v>(capacity);
     }
 
-    /** Create an empty table with 128 buckets. */
+    /** Create an empty table. */
     public hash_table() {
-        data = new entry<k,v>[default_capacity];
+        map = new hash_map<k, v>();
     }
 
-    /**
-     * Change how full the table may get before it grows: the next growth
-     * happens at threshold * (number of buckets) entries.
-     */
-    def set_threshold(threshold: int) {
-        lock (self) {
-            self->threshold = threshold.value;
-            max_size = (sizeof(data) * threshold.value);
-        }
+    /** See hash_map.set_threshold. */
+    def set_threshold(threshold: decimal) {
+        lock(self) { map.set_threshold(threshold); }
     }
 
-    /** The bucket a key belongs to: its hash, made non-negative, modulo the number of buckets. */
-    private def hash(key: k) : decimal {
-        return abs(key.hash() % sizeof(data)).value;
-    }
-
-    /** 1 when the two keys are equal (compared with `==`), otherwise 0. */
-    private def same_key(a: k, b: k) : decimal {
-        if(a == b) return 1;
-        return 0;
-    }
-
-    /** Double the number of buckets and move every entry to its new bucket. Called with the lock held. */
-    private def resize() {
-        old_data := data;
-        data = new entry<k,v>[sizeof(old_data) * 2];
-        max_size = sizeof(data) * threshold;
-
-        for(i : decimal = 0; i < sizeof(old_data); i++) {
-            item := old_data[i];
-            while(item != null) {
-                following := item.next;
-                index : decimal = hash(item.key);
-                item.next = data[index];
-                data[index] = item;
-                item = following;
-            }
-        }
-    }
-
-    /** The entry that holds `key`, or null. Called with the lock held. */
-    private def find_entry(key: k) : entry<k, v> {
-        item := data[hash(key)];
-        while(item != null) {
-            if(same_key(item.key, key)) return item;
-            item = item.next;
-        }
-        return item;
-    }
-
-    /** Remove every entry; the table goes back to 128 buckets. */
+    /** Remove every entry. */
     def clear() {
-        lock (self) {
-            data = new entry<k,v>[default_capacity];
-            max_size = (sizeof(data) * threshold);
-            size = 0;
-        }
+        lock(self) { map.clear(); }
     }
 
-    /** The value stored for a key, or null when the table does not have the key. O(1) on average. */
+    /** The value stored for a key, or null when the table does not have the key. */
     public def at(key: k) : v? {
-        lock (self) {
-            item := find_entry(key);
-            if(item == null) return null;
-            return item.value;
-        }
+        lock(self) { return map.at(key); }
     }
 
-    /** true when the table has the key. O(1) on average. */
+    /** The value stored for a key, or `fallback` when the table does not have the key. */
+    public def at_or_default(key: k, fallback: v) : v {
+        lock(self) { return map.at_or_default(key, fallback); }
+    }
+
+    /** true when the table has the key. */
     public def contains_key(key: k) : bool {
-        lock (self) {
-            return find_entry(key) != null;
-        }
+        lock(self) { return map.contains_key(key); }
+    }
+
+    /** true when a key has `wanted` as its value. O(n). */
+    public def contains_value(wanted: v) : bool {
+        lock(self) { return map.contains_value(wanted); }
+    }
+
+    /** The number of entries. */
+    public def size() : _int64 {
+        lock(self) { return map.size(); }
+    }
+
+    /** true when the table has no entries. */
+    public def is_empty() : bool {
+        lock(self) { return map.is_empty(); }
     }
 
     /**
      * Store a value for a key, replacing the value the key had before.
-     * O(1) on average.
      *
      * @return true when the key is new, false when an existing value was replaced
      */
     public def put(key: k, value: v) : bool {
-        lock (self) {
-            item := find_entry(key);
-            if(item != null) {
-                item.value = value;
-                return false;
-            }
-
-            if(size >= max_size.value) resize();
-
-            index : decimal = hash(key);
-            added := new entry<k,v>(key, value);
-            added.next = data[index];
-            data[index] = added;
-            size++;
-            return true;
-        }
+        lock(self) { return map.put(key, value); }
     }
 
     /**
-     * Remove a key and its value. O(1) on average.
+     * Store a value for a key only when the table does not have the key
+     * yet - the test and the put are one step, no other thread comes between.
+     *
+     * @return true when the value was stored, false when the key was there
+     */
+    public def put_if_absent(key: k, value: v) : bool {
+        lock(self) { return map.put_if_absent(key, value); }
+    }
+
+    /**
+     * Remove a key and its value.
      *
      * @return true when the key was removed, false when the table did not have it
      */
     public def remove(key: k) : bool {
-        lock (self) {
-            index : decimal = hash(key);
-            previous : entry<k,v>? = null;
-            item := data[index];
-            while(item != null) {
-                if(same_key(item.key, key)) {
-                    if(previous == null) data[index] = item.next;
-                    else previous!!.next = item.next;
-                    size--;
-                    return true;
-                }
-                previous = item;
-                item = item.next;
-            }
-            return false;
-        }
+        lock(self) { return map.remove(key); }
     }
 
-    /** A snapshot of all keys, in bucket order (which looks random). O(n). */
+    /** Remove a key and return the value it had: null when the table did not have the key. */
+    public def take(key: k) : v? {
+        lock(self) { return map.take(key); }
+    }
+
+    /** A new list with every key (in no particular order). */
     public def keys() : list<k> {
-        lock (self) {
-            result := new list<k>();
-            for(i : decimal = 0; i < sizeof(data); i++) {
-                item := data[i];
-                while(item != null) {
-                    result.add(item.key);
-                    item = item.next;
-                }
-            }
-            return result;
-        }
+        lock(self) { return map.keys(); }
     }
 
-    /** A snapshot of all values, in the same order as keys(). O(n). */
+    /** A new list with every value, in the same order as keys(). */
     public def values() : list<v> {
-        lock (self) {
-            result := new list<v>();
-            for(i : decimal = 0; i < sizeof(data); i++) {
-                item := data[i];
-                while(item != null) {
-                    result.add(item.value);
-                    item = item.next;
-                }
-            }
-            return result;
-        }
+        lock(self) { return map.values(); }
     }
 
-    /** One link of a bucket chain: a key, its value, and the next entry of the same bucket. */
-    class entry<k, v> {
-        protected key: k;
-        protected value: v;
-        protected next: entry<k, v>;
-
-        public entry(key: k, value: v) {
-            self->key = key;
-            self->value = value;
-        }
-
-        public def to_string() : string {
-            return "key " + key + " value " + value;
-        }
+    /** A new list with a map_entry (`key`, `value`) per entry: copies, safe to loop over. */
+    public def entries() : list<map_entry<k, v> > {
+        lock(self) { return map.entries(); }
     }
 }

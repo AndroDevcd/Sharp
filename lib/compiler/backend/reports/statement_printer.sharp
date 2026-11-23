@@ -73,7 +73,7 @@ def statement_line(statement: bound_statement) : string {
     if(kind == BS_LOCK) { return "lock (the object in a hidden local)"; }
     if(kind == BS_ASM) {
         block := statement as bound_asm;
-        count : _int64 = block.instructions.size().value as _int64;
+        count : _int64 = block.instructions.size();
         return "asm (" + count + " line(s))";
     }
     return statement_kind_name(kind);

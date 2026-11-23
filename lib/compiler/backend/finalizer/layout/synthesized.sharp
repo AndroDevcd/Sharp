@@ -198,9 +198,9 @@ def make_component_function(definition: type_definition, number: _int64, globals
         flag.type_state = TYPE_KNOWN;
         flag.kept = 1;
         definition.made_flag = flag;
-        storage.address = globals.static_fields.size().value as _int64;
+        storage.address = globals.static_fields.size();
         globals.static_fields.add(storage);
-        flag.address = globals.static_fields.size().value as _int64;
+        flag.address = globals.static_fields.size();
         globals.static_fields.add(flag);
     }
     return made;

@@ -20,7 +20,7 @@ mutate string {
         n : decimal = sizeof(data);
         from : decimal = start.value;
         if(from < 0 || from > n)
-            throw new bounds_except("substring: start $start is outside of a string of ${size()} characters");
+            throw new out_of_bounds_exception("substring: start $start is outside of a string of ${size()} characters");
         return string_support.slice(data, from, n);
     }
 
@@ -32,7 +32,7 @@ mutate string {
     def take(count: int): string {
         c : decimal = count.value;
         n : decimal = sizeof(data);
-        if(c < 0) throw new ill_arg_except("take: count cannot be negative: $count");
+        if(c < 0) throw new illegal_argument_exception("take: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, 0, c);
     }
@@ -45,7 +45,7 @@ mutate string {
     def take_last(count: int): string {
         c : decimal = count.value;
         n : decimal = sizeof(data);
-        if(c < 0) throw new ill_arg_except("take_last: count cannot be negative: $count");
+        if(c < 0) throw new illegal_argument_exception("take_last: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, n - c, n);
     }
@@ -58,7 +58,7 @@ mutate string {
     def drop(count: int): string {
         c : decimal = count.value;
         n : decimal = sizeof(data);
-        if(c < 0) throw new ill_arg_except("drop: count cannot be negative: $count");
+        if(c < 0) throw new illegal_argument_exception("drop: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, c, n);
     }
@@ -71,7 +71,7 @@ mutate string {
     def drop_last(count: int): string {
         c : decimal = count.value;
         n : decimal = sizeof(data);
-        if(c < 0) throw new ill_arg_except("drop_last: count cannot be negative: $count");
+        if(c < 0) throw new illegal_argument_exception("drop_last: count cannot be negative: $count");
         if(c > n) c = n;
         return string_support.slice(data, 0, n - c);
     }
@@ -199,7 +199,7 @@ mutate string {
         from : decimal = start.value;
         to : decimal = end.value;
         if(from < 0 || to > n || to < from)
-            throw new bounds_except("remove_range: range $start..$end is not inside a string of ${size()} characters");
+            throw new out_of_bounds_exception("remove_range: range $start..$end is not inside a string of ${size()} characters");
 
         kept : decimal = n - (to - from);
         if(kept == 0) return new string();
@@ -230,7 +230,7 @@ mutate string {
     def repeat(count: int): string {
         c : decimal = count.value;
         n : decimal = sizeof(data);
-        if(c < 0) throw new ill_arg_except("repeat: count cannot be negative: $count");
+        if(c < 0) throw new illegal_argument_exception("repeat: count cannot be negative: $count");
         if(c == 0 || n == 0) return new string();
 
         // one buffer of the final size, filled block by block: no growing copies

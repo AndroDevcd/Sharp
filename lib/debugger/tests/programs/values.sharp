@@ -1,0 +1,68 @@
+mod app;
+
+import ( std.io )
+
+/**
+ * A program for sdb's tests of `print`, `locals` and `frame`: one of every
+ * kind of value, and names that are declared more than once.
+ */
+visits : _int64 = 7;
+
+class point {
+    x : decimal;
+    y : decimal;
+    label : string = "";
+    static made : _int64 = 0;
+
+    point(x: decimal, y: decimal, label: string) {
+        self->x = x;
+        self->y = y;
+        self->label = label;
+        made++;
+    }
+
+    def length_squared() : decimal {
+        total : decimal = x * x + y * y;
+        return total;
+    }
+}
+
+def sum(numbers: _int64[]) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < sizeof(numbers); i++) {
+        step : _int64 = numbers[i];
+        total += step;
+    }
+    for(i : _int64 = 0; i < 2; i++) {
+        total += i;
+    }
+    return total;
+}
+
+def main() {
+    count : _int64 = 3;
+    ratio : decimal = 2.5;
+    ready : bool = true;
+    small : _int8 = 0 - 5;
+    name : string = "milk\tand bread";
+    nothing : point? = null;
+    corner := new point(3, 4, "corner");
+    numbers := new _int64[4];
+    for(i : _int64 = 0; i < sizeof(numbers); i++) { numbers[i] = (i + 1) * 10; }
+    points := new point[2];
+    points[0] = corner;
+    boxed : int = 12;
+    notes := new list<string>();
+    notes.add("milk");
+    notes.add("bread");
+    nobody := new list<point>();
+    big := new _int64[40];
+    for(i : _int64 = 0; i < sizeof(big); i++) { big[i] = i; }
+    rows := new object[2];
+    rows[0] = numbers;
+    rows[1] = notes;
+
+    total : _int64 = sum(numbers);
+    squared : decimal = corner.length_squared();
+    println("total " + total + ", squared " + squared + ", visits " + visits);
+}

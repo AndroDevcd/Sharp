@@ -129,7 +129,7 @@ stable class navigator {
     def replace(where: route) {
         kind_for(where);                                    // an unlisted route is refused before anything changes
         pile : screen_stack = front();
-        count : _int64 = pile.entries.size().value;
+        count : _int64 = pile.entries.size();
         if(count > 0) {
             pile.entries.remove_at(count - 1);
         }
@@ -144,13 +144,13 @@ stable class navigator {
      */
     def back() : _int64 {
         pile : screen_stack = front();
-        count : _int64 = pile.entries.size().value;
+        count : _int64 = pile.entries.size();
         if(count > 1) {
             pile.entries.remove_at(count - 1);
             moved(0 - 1);
             return 1;
         }
-        if(showing != 0 && stacks.at(0).entries.size().value > 0) {
+        if(showing != 0 && stacks.at(0).entries.size() > 0) {
             showing = 0;
             moved(0);
             return 1;
@@ -165,7 +165,7 @@ stable class navigator {
      */
     def back_to<t base route>() : _int64 {
         pile : screen_stack = front();
-        count : _int64 = pile.entries.size().value;
+        count : _int64 = pile.entries.size();
         for(i : _int64 = count - 2; i >= 0; i--) {
             if(pile.entries.at(i).where is t) {
                 for(drop : _int64 = count - 1; drop > i; drop--) {
@@ -181,7 +181,7 @@ stable class navigator {
     /** return to the first screen of the tab that is showing, dropping every screen above it */
     def reset() {
         pile : screen_stack = front();
-        count : _int64 = pile.entries.size().value;
+        count : _int64 = pile.entries.size();
         if(count <= 1) {
             return;
         }
@@ -204,19 +204,19 @@ stable class navigator {
 
     /** is there a screen below this one to go back to, in this tab? */
     def can_go_back() : _int64 {
-        if(front().entries.size().value > 1) { return 1; }
+        if(front().entries.size() > 1) { return 1; }
         return 0;
     }
 
     /** is a tab's own first screen showing (nothing opened on top of it)? The tab bar shows itself only then. */
     def on_tab_root() : _int64 {
-        if(front().entries.size().value <= 1) { return 1; }
+        if(front().entries.size() <= 1) { return 1; }
         return 0;
     }
 
     /** how many screens are open in the tab that is showing */
     def depth() : _int64 {
-        return front().entries.size().value;
+        return front().entries.size();
     }
 
     // ------------------------------------------------------------ tabs (for the tab bar)
@@ -224,7 +224,7 @@ stable class navigator {
     /** how many tabs the screen list has */
     def tab_count() : _int64 {
         count : _int64 = 0;
-        for(i : _int64 = 0; i < kinds.size().value; i++) {
+        for(i : _int64 = 0; i < kinds.size(); i++) {
             if(kinds.at(i).is_tab() == 1) { count = count + 1; }
         }
         return count;
@@ -255,7 +255,7 @@ stable class navigator {
         }
         // a tab that was opened before is shown as it was left; one that never
         // was gets its first screen now, from the route the tab makes for itself
-        if(stacks.size().value > index && stacks.at(index).entries.size().value > 0) {
+        if(stacks.size() > index && stacks.at(index).entries.size() > 0) {
             showing = index;
             moved(0);
             return;
@@ -283,7 +283,7 @@ stable class navigator {
 
     /** the app's first screen, once the screen list is written: only when nothing is open yet */
     def start_at(where: route) {
-        if(stacks.size().value > 0 && front().entries.size().value > 0) {
+        if(stacks.size() > 0 && front().entries.size() > 0) {
             return;
         }
         kind : screen_kind = kind_for(where);
@@ -296,7 +296,7 @@ stable class navigator {
 
     /** the line of the screen list that shows `where` - or an error that names the route nobody listed */
     def kind_for(where: route) : screen_kind {
-        for(i : _int64 = 0; i < kinds.size().value; i++) {
+        for(i : _int64 = 0; i < kinds.size(); i++) {
             if(kinds.at(i).accepts(where) == 1) {
                 return kinds.at(i);
             }
@@ -308,7 +308,7 @@ stable class navigator {
 
     /** the view of the screen on top of the stack in front (null while nothing is open) */
     def top_view() : view? {
-        if(stacks.size().value == 0) {
+        if(stacks.size() == 0) {
             return null;
         }
         top : nav_entry? = front().top();
@@ -320,9 +320,9 @@ stable class navigator {
 
     /** is this screen (its view) still open somewhere - on any tab's stack? */
     def holds(screen: view) : _int64 {
-        for(s : _int64 = 0; s < stacks.size().value; s++) {
+        for(s : _int64 = 0; s < stacks.size(); s++) {
             entries : list<nav_entry> = stacks.at(s).entries;
-            for(i : _int64 = 0; i < entries.size().value; i++) {
+            for(i : _int64 = 0; i < entries.size(); i++) {
                 if(entries.at(i).frame.node() == screen) { return 1; }
             }
         }
@@ -357,7 +357,7 @@ stable class navigator {
     }
 
     private def stack_at(index: _int64) : screen_stack {
-        while(stacks.size().value <= index) {
+        while(stacks.size() <= index) {
             stacks.add(new screen_stack());
         }
         return stacks.at(index);
@@ -366,7 +366,7 @@ stable class navigator {
     /** the tab line number `index` of the screen list (null when there are fewer tabs) */
     private def tab_kind(index: _int64) : screen_kind? {
         seen : _int64 = 0;
-        for(i : _int64 = 0; i < kinds.size().value; i++) {
+        for(i : _int64 = 0; i < kinds.size(); i++) {
             if(kinds.at(i).is_tab() == 1) {
                 if(seen == index) { return kinds.at(i); }
                 seen = seen + 1;
@@ -378,7 +378,7 @@ stable class navigator {
     /** which tab (0 is the first) this line of the screen list is */
     private def tab_number(kind: screen_kind) : _int64 {
         seen : _int64 = 0;
-        for(i : _int64 = 0; i < kinds.size().value; i++) {
+        for(i : _int64 = 0; i < kinds.size(); i++) {
             if(kinds.at(i) == kind) { return seen; }
             if(kinds.at(i).is_tab() == 1) { seen = seen + 1; }
         }
@@ -388,11 +388,11 @@ stable class navigator {
     /** bring a tab to the front; opened for the first time it gets its first screen, shown again it is as it was left */
     private def switch_to(index: _int64, where: route) {
         pile : screen_stack = stack_at(index);
-        if(index == showing && pile.entries.size().value > 0) {
+        if(index == showing && pile.entries.size() > 0) {
             reset();                                // the tab that is showing: back to its first screen
             return;
         }
-        if(pile.entries.size().value == 0) {
+        if(pile.entries.size() == 0) {
             pile.entries.add(new nav_entry(self, where));
         }
         showing = index;
@@ -411,7 +411,7 @@ local stable class screen_stack {
 
     /** the screen on top (null when the stack is empty) */
     def top() : nav_entry? {
-        count : _int64 = entries.size().value;
+        count : _int64 = entries.size();
         if(count == 0) {
             return null;
         }

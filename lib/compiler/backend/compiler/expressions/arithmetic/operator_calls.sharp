@@ -90,7 +90,7 @@ def operator_overloads_text(context: analysis_context, owner: sharp_class, name:
         if(i > 0) { text.append(", "); }
         function := functions.at(i);
         if(function.parameters.size() == 0) { text.append("nothing"); }
-        else if(function.parameters.size() > 1) { text.append("" + function.parameters.size().value + " parameters"); }
+        else if(function.parameters.size() > 1) { text.append("" + function.parameters.size() + " parameters"); }
         else if(function.parameters.at(0).value_type != null) { text.append("`" + function.parameters.at(0).value_type!!.to_text() + "`"); }
     }
     if(functions.size() > 8) { text.append(" ..."); }

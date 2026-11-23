@@ -250,7 +250,7 @@ def join_all(jobs: job[]) {
 
 /** join_all() for a list of jobs. Kotlin: jobs.joinAll() */
 def join_all(jobs: list<job>) {
-    for(i : decimal = 0; i < jobs.size().value; i++) {
+    for(i : decimal = 0; i < jobs.size(); i++) {
         jobs.at(i).join();
     }
 }

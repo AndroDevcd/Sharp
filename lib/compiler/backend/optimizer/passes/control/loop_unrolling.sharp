@@ -90,7 +90,7 @@ def unroll_loops(analyses: function_analyses) : _int64 {
 /** does any jump of the function go back (without one there is no loop)? */
 def has_a_jump_back(code: ir_function) : _int64 {
     places := places_of_labels(code);
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := code.instructions.at(i);
         if(is_jump(made) && places.at(made.number) >= 0 && places.at(made.number) <= i) { return 1; }
@@ -210,7 +210,7 @@ def unroll(code: ir_function, graph: flow_graph, forest: loop_forest, l: _int64)
         leave.number = exit_label;
         made_list.add(leave);
     }
-    total : _int64 = old.size().value as _int64;
+    total : _int64 = old.size();
     for(i : _int64 = end; i < total; i++) { made_list.add(old.at(i)); }
     code.instructions = made_list;
     return 1;

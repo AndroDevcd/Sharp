@@ -82,10 +82,10 @@ mutate string {
     }
 
     /**
-     * 1 if the string is "true", 0 if it is "false" (capital / small letters do not matter).
+     * true if the string is "true", false if it is "false" (capital / small letters do not matter).
      * Throws number_format_exception for anything else.
      */
-    def to_bool(): decimal {
+    def to_bool(): bool {
         return number_parser.parse_bool(self);
     }
 
@@ -99,13 +99,13 @@ mutate string {
         return number_parser.parse_bool_or(self, fallback);
     }
 
-    /** 1 if the string is a whole or decimal number that to_double() accepts ("12", "-1.5e3"). */
-    def is_number(): decimal {
+    /** true if the string is a whole or decimal number that to_double() accepts ("12", "-1.5e3"). */
+    def is_number(): bool {
         return number_parser.is_double(self);
     }
 
-    /** 1 if the string is a whole number that to_long() accepts ("12", "-7"; not "1.5"). */
-    def is_integer(): decimal {
+    /** true if the string is a whole number that to_long() accepts ("12", "-7"; not "1.5"). */
+    def is_integer(): bool {
         return number_parser.is_long(self);
     }
 }

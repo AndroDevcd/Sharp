@@ -35,8 +35,13 @@ import (
  * that chains to the class instance's.
  *
  *      E0358   two generic functions of one name with the same NUMBER of type
- *              parameters in one place. A call says `name<int, string>(...)`;
- *              the number of type arguments is what picks the blueprint.
+ *              parameters and the same NUMBER of parameters in one place. A
+ *              call says `name<int, string>(a, b)`: the two numbers are what
+ *              pick the blueprint, the parameter types are only known after.
+ *              (So `def fetch<T>(route: string)` and `def fetch<T>(route: string,
+ *              extras: ()())` stand side by side: every blueprint the type
+ *              arguments fit becomes an instance, and the call then chooses
+ *              among the instances as among any overloads - type_inference.sharp.)
  *      E0359   the same type parameter name twice:  class pair<T, T>   def f<A, A>()
  *      E0345   a generic function without a body, or marked `override`
  *
@@ -76,15 +81,17 @@ def register_generic_functions_of(prog: sharp_program, functions: list<sharp_fun
         for(j : _int64 = 0; j < i; j++) {
             earlier := functions.at(j);
             if(earlier.is_generic() && earlier.name == function.name && earlier.owner == function.owner
-               && earlier.type_parameters.size() == function.type_parameters.size()) {
-                count : _int64 = function.type_parameters.size().value as _int64;
+               && earlier.type_parameters.size() == function.type_parameters.size()
+               && earlier.parameters.size() == function.parameters.size()) {
+                count : _int64 = function.type_parameters.size();
+                takes : _int64 = function.parameters.size();
                 problems.add(error_at_node("E0358", "generic function `" + function.name + "` is declared twice with " + count
-                                           + " type parameter(s)", function.unit, function.node)
-                    .with_label("a second `" + function.name + "<...>` with the same number of type parameters")
+                                           + " type parameter(s) and " + takes + " parameter(s)", function.unit, function.node)
+                    .with_label("a second `" + function.name + "<...>` with the same number of type parameters and of parameters")
                     .with_related_place(place_of_node(earlier.unit, earlier.node, "the first one is here"))
                     .with_note("a call names the type arguments, `" + function.name
-                               + "<...>(...)`, and the NUMBER of them picks the generic function; the parameter types are only known after that")
-                    .with_help("give one of them another name, or another number of type parameters"));
+                               + "<...>(...)`, and the NUMBER of them and of the arguments picks the generic function; the parameter types are only known after that")
+                    .with_help("give one of them another name, another number of type parameters, or another number of parameters"));
                 break;
             }
         }

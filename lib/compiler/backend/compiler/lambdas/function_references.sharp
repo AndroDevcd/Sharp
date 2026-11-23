@@ -243,7 +243,7 @@ def comma_separated(parts: list<string>) : string {
 
 /** W1011: `f := twice;` with several `twice` and nothing that says which */
 def warn_first_overload_taken(context: analysis_context, named: bound_functions, chosen: sharp_function) {
-    d := problem_over(context, "W1011", "`" + named.name + "` has " + (named.candidates.size().value as _int64) + " overloads; `"
+    d := problem_over(context, "W1011", "`" + named.name + "` has " + named.candidates.size() + " overloads; `"
                       + signature_of(chosen) + "` is taken", named.node);
     d.with_label("nothing here says which one is meant");
     d.with_note("a function value is one function; with no function type expected the first one declared is used");

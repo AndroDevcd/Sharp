@@ -48,7 +48,7 @@ failed_tests : decimal = 0;
 
 /** "some/folder/arithmetic.sharp" -> "arithmetic"   (file.list() may give names or whole paths) */
 def test_name(file_name: string): string {
-    length : decimal = file_name.size().value;
+    length : decimal = file_name.size();
     start : decimal = 0;
     for(i : decimal = 0; i < length; i++) {
         c : decimal = file_name.at(i).value;
@@ -88,7 +88,7 @@ def run_one(sharpc: string, sharp: string, suite: string, work: string, options:
     limit : int = TIME_LIMIT;
     sys("timeout $limit " + sharp + " " + quoted(executable) + " > " + quoted(output) + " 2>&1");
 
-    text : string? = new file(output).read();
+    text : string? = file_natives.read(output);
     // A case ends with one of two last lines: the suite's own helper (testing.sharp) prints
     // `RESULT PASS ...`; a case written with the standard testing library (std.testing: the
     // library cases, lib_* and std_*) prints `all <n> tests passed`.
@@ -127,8 +127,8 @@ def main(args: string[]) {
     println("  runtime : $sharp");
     println("");
 
-    cases := new file(suite + "/cases").list();
-    count : decimal = cases.size().value;
+    cases := new file(suite + "/cases").list_names();
+    count : decimal = cases.size();
     for(i : decimal = 0; i < count; i++) {
         file_name := cases.at(i);
         if(file_name.ends_with(".sharp")) {

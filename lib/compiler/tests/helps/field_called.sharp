@@ -4,7 +4,8 @@
 mod tests.helps;
 import (std, std.io);
 
-class tally { counts := new hash_map<string, int>(); }
+class counter { size : _int64; }
+class tally { counts := new counter(); }
 
 def main() {
     x := new tally();

@@ -130,7 +130,7 @@ class time_of_day {
     }
 
     /** 1 from 12:00 on (PM), 0 before noon (AM) */
-    def is_pm(): decimal { return h >= 12; }
+    def is_pm(): bool { return h >= 12; }
 
     /** whole seconds since midnight: 0 .. 86,399 (the fraction is dropped) */
     def to_second_of_day(): decimal {
@@ -238,15 +238,15 @@ class time_of_day {
         return time_math.compare(to_nano_of_day(), other.to_nano_of_day());
     }
 
-    def is_before(other: time_of_day): decimal { return compare_to(other) < 0; }
-    def is_after(other: time_of_day): decimal { return compare_to(other) > 0; }
+    def is_before(other: time_of_day): bool { return compare_to(other) < 0; }
+    def is_after(other: time_of_day): bool { return compare_to(other) > 0; }
 
-    def operator==(other: time_of_day): decimal { return compare_to(other) == 0; }
-    def operator!=(other: time_of_day): decimal { return compare_to(other) != 0; }
-    def operator<(other: time_of_day): decimal { return compare_to(other) < 0; }
-    def operator<=(other: time_of_day): decimal { return compare_to(other) <= 0; }
-    def operator>(other: time_of_day): decimal { return compare_to(other) > 0; }
-    def operator>=(other: time_of_day): decimal { return compare_to(other) >= 0; }
+    def operator==(other: time_of_day): bool { return compare_to(other) == 0; }
+    def operator!=(other: time_of_day): bool { return compare_to(other) != 0; }
+    def operator<(other: time_of_day): bool { return compare_to(other) < 0; }
+    def operator<=(other: time_of_day): bool { return compare_to(other) <= 0; }
+    def operator>(other: time_of_day): bool { return compare_to(other) > 0; }
+    def operator>=(other: time_of_day): bool { return compare_to(other) >= 0; }
 
     /** time + duration, as `plus` (wraps around midnight) */
     def operator+(amount: duration): time_of_day { return plus(amount); }

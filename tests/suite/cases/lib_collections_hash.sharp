@@ -10,7 +10,7 @@ import ( std.testing, std.collections )
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : decimal = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size(); i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -20,7 +20,7 @@ def join(items: list<int>) : string {
 /** "a,b,c" for a list of strings */
 def join_words(items: list<string>) : string {
     text := "";
-    for(i : decimal = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size(); i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -40,7 +40,7 @@ def test_linked_hash_map() {
     test("map new is_empty") { expect(m.is_empty()).should_be(1); };
     test("map at on empty") { expect_null(m.at("a")); };
     test("map empty get_elements") { expect_null(m.get_elements()); };
-    test("map empty keys") { expect(m.keys().size().value).should_be(0); };
+    test("map empty keys") { expect(m.keys().size()).should_be(0); };
     test("map empty key_array") { expect(sizeof(m.key_array())).should_be(0); };
     test("map empty iterator") { expect(m.iterator().has_next()).should_be(0); };
     test("map remove on empty") { expect(m.remove("a")).should_be(0); };
@@ -87,7 +87,7 @@ def test_linked_hash_map() {
     test("map foreach keys") { expect(text).should_be("one;two;three;four;"); };
     test("map foreach values") { expect(total).should_be(20); };
     entries := m.entries();
-    test("map entries size") { expect(entries.size().value).should_be(4); };
+    test("map entries size") { expect(entries.size()).should_be(4); };
     test("map entries[3].key") { expect(entries.at(3).key).should_be("four"); };
     test("map entries[3].value") { expect(entries.at(3).value.value).should_be(4); };
     it := m.iterator();
@@ -269,14 +269,14 @@ def test_hash_set() {
     for(i : decimal = 0; i < 6000; i++) {
         seed = (seed * 7919 + 104729) % 1000003;
         value : decimal = seed % 1000;
-        was_new : decimal = 0;
-        if(seen[value] == 0) { seen[value] = 1; distinct++; was_new = 1; }
+        was_new : bool = false;
+        if(seen[value] == 0) { seen[value] = 1; distinct++; was_new = true; }
         if(big.add(value) != was_new) agree = 0;
     }
     test("set big add agrees with the reference") { expect(agree).should_be(1); };
     test("set big size") { expect(big.size()).should_be(distinct); };
     for(value : decimal = 0; value < 1000; value++) {
-        if(big.contains(value) != seen[value]) agree = 0;
+        if(big.contains(value) != (seen[value] != 0)) agree = 0;
     }
     test("set big contains agrees with the reference") { expect(agree).should_be(1); };
     removed : decimal = 0;
@@ -286,7 +286,7 @@ def test_hash_set() {
     }
     test("set big size after removes") { expect(big.size()).should_be(distinct); };
     for(value : decimal = 0; value < 1000; value++) {
-        if(big.contains(value) != seen[value]) agree = 0;
+        if(big.contains(value) != (seen[value] != 0)) agree = 0;
     }
     test("set big contains after removes") { expect(agree).should_be(1); };
 }

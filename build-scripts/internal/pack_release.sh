@@ -3,16 +3,19 @@
 #
 #   sharp-<version>/
 #     START-HERE.txt   VERSION.txt
-#     windows/   win-install.cmd  win-uninstall.cmd  sharp.exe  sharpc.cmd
-#     linux/     unix-install.sh  unix-uninstall.sh  sharp      sharpc
+#     windows/   win-install.cmd  win-uninstall.cmd  sharp.exe  sdb.exe  sharpc.cmd
+#     linux/     unix-install.sh  unix-uninstall.sh  sharp      sdb      sharpc
 #     shared/    compiler/sharpc-v<version>  sharpc-unoptimized-v<version>  sharpc-debug-v<version>  lib/  examples/
+#     clion-plugin/   sharp-clion-plugin-<plugin version>.zip   (installed in the IDE by hand)
 #
 # It packs what the steps of release.sh before it built, and says which one is missing:
 #   the Linux VM and the compiler   build.sh                         (-> $WORK/sharp_dev, $WORK/out/boot)
 #   the release compilers           internal/release_compilers.sh    (-> $WORK/out/release_build)
 #   the GUI library (Linux)         linux/build_gui_library.sh       (-> $WORK/out/gui_lib)
 #   the Windows VM                  windows/build_vm.sh              (-> cmake-build-windows-vm)
+#   the debugger                    internal/build_sdb.sh, windows/build_sdb.sh   (-> $WORK/sdb_dev, cmake-build-windows-sdb)
 #   the GUI library (Windows)       windows/build_gui_library.sh     (-> build/gui)
+#   the CLion plugin                windows/build_plugin.sh          (-> tools/clion-plugin/build/distributions)
 # and the installers and texts of internal/zip-contents/, with the version filled in.
 #
 # The version in the names is the LANGUAGE version (compiler + standard library), read from the
@@ -25,12 +28,14 @@ VM_V=$(grep -o '#define progvers "[^"]*"' "$REPO/lib/runtime/main.h" | cut -d'"'
 [ -n "$V" ] || { echo "the compiler's version was not found"; exit 1; }
 LINUX_OBJECTS=${LINUX_OBJECTS:-$W/sharp_dev}
 WINDOWS_VM=${WINDOWS_VM:-$REPO/cmake-build-windows-vm/sharp.exe}
+LINUX_SDB_OBJECTS=${LINUX_SDB_OBJECTS:-$W/sdb_dev}
+WINDOWS_SDB=${WINDOWS_SDB:-$REPO/cmake-build-windows-sdb/sdb.exe}
 COMPILERS=${COMPILERS:-$W/out/release_build}
 STAGE=$W/out/release; D=$STAGE/sharp-$V
 # the standard library's folder in the repository (lib/support/<number>): the newest one. Its NAME may be
 # an older number than the language version - the release ships its contents as `lib/`, without a number.
 LIB_SRC="$REPO/lib/support/$(ls "$REPO/lib/support" | sort -V | tail -1)"
-for need in "$LINUX_OBJECTS/sharp" "$WINDOWS_VM" "$COMPILERS/O/sharpc" "$COMPILERS/plain/sharpc" "$COMPILERS/debug/sharpc" "$LIB_SRC"; do
+for need in "$LINUX_OBJECTS/sharp" "$LINUX_SDB_OBJECTS/sdb" "$WINDOWS_VM" "$WINDOWS_SDB" "$COMPILERS/O/sharpc" "$COMPILERS/plain/sharpc" "$COMPILERS/debug/sharpc" "$LIB_SRC"; do
   [ -e "$need" ] || { echo "missing: $need   (run  bash build-scripts/release.sh  - it builds everything in order)"; exit 1; }
 done
 rm -rf "$STAGE"; mkdir -p "$D/windows" "$D/linux" "$D/shared/compiler" "$D/shared/examples"
@@ -41,6 +46,14 @@ g++ -static-libstdc++ -static-libgcc -o "$D/linux/sharp" "$LINUX_OBJECTS"/*.o -p
 strip "$D/linux/sharp" 2>/dev/null
 cp "$WINDOWS_VM" "$D/windows/sharp.exe"
 
+# ---- sdb, the debugger: the same VM with lib/debugger compiled in, beside each VM
+g++ -static-libstdc++ -static-libgcc -o "$D/linux/sdb" "$LINUX_SDB_OBJECTS"/*.o -pthread -ldl -lrt -lm 2>&1 | grep -v warning | head -5
+[ -x "$D/linux/sdb" ] || { echo "the Linux sdb did not link"; exit 1; }
+strip "$D/linux/sdb" 2>/dev/null
+cp "$WINDOWS_SDB" "$D/windows/sdb.exe"
+# (sdb says the VM it is built from: it must be THIS release's, or it could not load this release's programs)
+"$D/linux/sdb" -V 2>&1 | grep -q "($(basename "$D/linux/sharp") $VM_V)" || { echo "the Linux sdb is not built from VM $VM_V: rebuild it (internal/build_sdb.sh)"; exit 1; }
+
 # ---- the GUI's native library, beside each VM (std.guikit loads it from the VM's own folder).
 # Built by linux/build_gui_library.sh and windows/build_gui_library.sh. A release without one still
 # works for everything but GUI programs - so a missing library is said loudly, not fatal.
@@ -50,6 +63,13 @@ GUI_NOTE=""
 if [ -f "$LINUX_GUI" ]; then cp "$LINUX_GUI" "$D/linux/sharpgui.so"; else GUI_NOTE="$GUI_NOTE linux"; echo "WARNING: no $LINUX_GUI - GUI programs will not run from the Linux install"; fi
 if [ -f "$WINDOWS_GUI" ]; then cp "$WINDOWS_GUI" "$D/windows/sharpgui.dll"; else GUI_NOTE="$GUI_NOTE windows"; echo "WARNING: no $WINDOWS_GUI - GUI programs will not run from the Windows install"; fi
 [ "$("$D/linux/sharp" -V 2>&1 | head -1 | awk '{print $2}')" = "$VM_V" ] || { echo "the Linux VM is not version $VM_V: rebuild it"; exit 1; }
+
+# ---- the CLion / IntelliJ plugin, as the zip the IDE installs from disk. It has its own version.
+# Built by windows/build_plugin.sh. A release without it is complete for the command line - so a
+# missing plugin is said loudly, not fatal.
+PLUGIN_V=$(grep '^pluginVersion=' "$REPO/tools/clion-plugin/gradle.properties" | cut -d= -f2 | tr -d '')
+PLUGIN_ZIP=${PLUGIN_ZIP:-$REPO/tools/clion-plugin/build/distributions/sharp-clion-plugin-$PLUGIN_V.zip}
+if [ -f "$PLUGIN_ZIP" ]; then mkdir -p "$D/clion-plugin"; cp "$PLUGIN_ZIP" "$D/clion-plugin/"; else PLUGIN_V=""; echo "WARNING: no $PLUGIN_ZIP - this release has no CLion plugin"; fi
 
 # ---- the compilers and the library
 cp "$COMPILERS/O/sharpc" "$D/shared/compiler/sharpc-v$V"
@@ -87,9 +107,11 @@ commit=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)
   echo "shared/compiler/sharpc-unoptimized-v$V     the same compiler, compiled by itself without -O"
   echo "linux/sharp                               x86-64 Linux, needs glibc $(ldd --version | head -1 | grep -o '[0-9]*\.[0-9]*$') or newer"
   echo "windows/sharp.exe                         x86-64 Windows, needs nothing else"
+  echo "linux/sdb, windows/sdb.exe                the debugger: $("$D/linux/sdb" -V 2>&1 | head -1)   (sdb -h; build programs with -dbg)"
   [ -f "$D/linux/sharpgui.so" ] && echo "linux/sharpgui.so                         the GUI (std.guikit); needs SDL2 on the machine:  sudo apt install libsdl2-2.0-0"
   [ -f "$D/windows/sharpgui.dll" ] && echo "windows/sharpgui.dll                      the GUI (std.guikit); needs nothing else"
   [ -n "$GUI_NOTE" ] && echo "(no GUI library in this release for:$GUI_NOTE)"
+  [ -n "$PLUGIN_V" ] && echo "clion-plugin/                             the CLion / IntelliJ plugin $PLUGIN_V (Settings > Plugins > Install Plugin from Disk)"
 } | sed 's/$/\r/' > "$D/VERSION.txt"
 
 # ---- the zip (python: the same on every machine, and the Unix files keep their "can be run" bit)

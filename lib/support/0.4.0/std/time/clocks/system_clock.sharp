@@ -14,7 +14,7 @@ import (
  * - It is the SYSTEM ("wall") clock. It can jump forwards or backwards when
  *   the operating system corrects the time (NTP, a user changing the clock).
  *   The runtime has no monotonic clock, so elapsed times measured with it
- *   (`stopwatch`, time.measure) can occasionally be wrong by the size of
+ *   (`stopwatch`, measure_time) can occasionally be wrong by the size of
  *   such a correction, or even negative.
  * - The runtime returns the reading as one `decimal`. A `decimal` holds whole
  *   numbers exactly only up to 2^53; the reading is about 1.7e18, where
@@ -46,5 +46,41 @@ class system_clock : clock {
     /** milliseconds since 1970-01-01T00:00:00Z right now (the same value as std `utc_mills()`) */
     def millis(): decimal {
         return now().to_epoch_milli();
+    }
+
+    /** microseconds since 1970-01-01T00:00:00Z right now */
+    def micros(): decimal {
+        reading : decimal = vm.time_in_nanoseconds().value;
+        return (reading - reading % 1000) / 1000;
+    }
+
+    /** nanoseconds since 1970-01-01T00:00:00Z right now (the same value as std `nano_time()`), good to about 256 of them */
+    def nanos(): decimal {
+        return vm.time_in_nanoseconds().value;
+    }
+
+    // ------------------------------------------------------------------
+    //  the LOCAL time, field by field, as the operating system has it
+    //  (the C library's struct tm). What zone_offset.system_default reads.
+    // ------------------------------------------------------------------
+
+    static const local_second : _int64 = 0;
+    static const local_minute : _int64 = 1;
+    static const local_hour : _int64 = 2;
+    static const local_day : _int64 = 3;
+    /** 0 is January */
+    static const local_month : _int64 = 4;
+    /** years since 1900 */
+    static const local_year : _int64 = 5;
+    /** 0 is Sunday */
+    static const local_week_day : _int64 = 6;
+    /** 0 is the first of January */
+    static const local_year_day : _int64 = 7;
+    /** above 0 while daylight saving time is in force */
+    static const local_daylight_saving : _int64 = 8;
+
+    /** one field of the local time right now: `system_clock.local_field(system_clock.local_hour)` */
+    static def local_field(which: _int64): decimal {
+        return vm.get_os_time(which).value;
     }
 }

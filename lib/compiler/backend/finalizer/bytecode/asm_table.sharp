@@ -75,7 +75,7 @@ def add_spec(name: string, recipe: string) {
     opcode : _int64 = hex_value(parts[0]);
     fields := new number_list();
     for(i : _int64 = 2; i < sizeof(parts); i++) { fields.add(hex_value(parts[i])); }
-    asm_specs_by_name!!.put(name, new numbered_spec(asm_specs!!.size().value as _int64));
+    asm_specs_by_name!!.put(name, new numbered_spec(asm_specs!!.size()));
     asm_specs!!.add(new asm_spec(name, opcode, parts[1], fields));
 }
 

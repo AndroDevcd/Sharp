@@ -30,7 +30,7 @@ class counter {
 }
 
 def now() : decimal {
-    return time.mills_time().value;
+    return utc_mills().value;
 }
 
 def report(what: string, began: decimal, times: decimal) {
@@ -77,7 +77,7 @@ def main() {
     began = now();
     total = 0;
     for(i : decimal = 0; i < 300000; i++) {
-        total = total + sin_of(i);
+        total = total + sin(i);
     }
     report("300,000 sines", began, 300000);
 

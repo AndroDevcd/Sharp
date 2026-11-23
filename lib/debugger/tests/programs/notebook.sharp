@@ -1,0 +1,47 @@
+mod app;
+
+import ( std.io )
+
+/**
+ * A small program for sdb's tests: a class with fields, calls three deep,
+ * locals of each kind, and some output.
+ */
+class notebook {
+    notes : list<string> = new list<string>();
+    title : string = "";
+
+    notebook(name: string) { title = name; }
+
+    def add(note: string) : bool {
+        if(note.is_empty()) {
+            return false;
+        }
+        if(holds(note)) {
+            return false;
+        }
+        notes.add(note);
+        return true;
+    }
+
+    def holds(note: string) : bool {
+        for(i : _int64 = 0; i < notes.size(); i++) {
+            if(notes.at(i) == note) { return true; }
+        }
+        return false;
+    }
+}
+
+def fill(book: notebook) : _int64 {
+    added : _int64 = 0;
+    if(book.add("milk")) { added++; }
+    if(book.add("bread")) { added++; }
+    if(book.add("milk")) { added++; }
+    return added;
+}
+
+def main() {
+    println("loading notes...");
+    book := new notebook("shopping");
+    count : _int64 = fill(book);
+    println("" + count + " notes added");
+}

@@ -32,12 +32,12 @@ class ini_section {
 
     /** the number of entries */
     def size() : decimal {
-        return entry_keys.size().value;
+        return entry_keys.size();
     }
 
     /** the position of `key`, or -1 */
     private def index_of(key: string) : decimal {
-        total : decimal = entry_keys.size().value;
+        total : decimal = entry_keys.size();
         for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(entry_keys.at(i), key)) {
                 return i;
@@ -95,7 +95,7 @@ class ini_section {
     /** the keys of all entries in order (a new list) */
     def keys() : list<string> {
         result := new list<string>();
-        total : decimal = entry_keys.size().value;
+        total : decimal = entry_keys.size();
         for(i : decimal = 0; i < total; i++) {
             result.add(entry_keys.at(i));
         }

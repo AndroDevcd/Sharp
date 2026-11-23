@@ -246,7 +246,7 @@ def test_priority_queue() {
     test("pq descending poll") { expect(big_first.poll().value).should_be(9); };
 
     // a lambda as the comparison: shortest string first
-    by_length := new priority_queue<string>({ a: string, b: string -> (decimal) return a.size().value - b.size().value; });
+    by_length := new priority_queue<string>({ a: string, b: string -> (decimal) return a.size() - b.size(); });
     by_length.add("ccc"); by_length.add("a"); by_length.add("dddd"); by_length.add("bb");
     test("pq<string> poll") { expect(by_length.poll()).should_be("a"); };
     test("pq<string> poll 2") { expect(by_length.poll()).should_be("bb"); };

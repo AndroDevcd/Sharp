@@ -202,7 +202,7 @@ class csv_reader {
                 if(pos < count && chars[pos] != separator && chars[pos] != '\n' && chars[pos] != '\r') {
                     fail("expected a separator or the end of the line after the closing quote", pos);
                 }
-                row.add(buf.to_string()!!);
+                row.add(buf.build());
             } else {
                 start : decimal = pos;
                 while(pos < count && chars[pos] != separator && chars[pos] != '\n' && chars[pos] != '\r') {
@@ -275,7 +275,7 @@ class csv_reader {
         if(header == null) {
             throw new illegal_state_exception("csv_reader: column_index() needs read_header() first");
         }
-        total : decimal = header!!.size().value;
+        total : decimal = header!!.size();
         for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(header!!.at(i), name)) {
                 return i;

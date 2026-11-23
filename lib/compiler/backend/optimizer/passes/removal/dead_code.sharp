@@ -41,7 +41,7 @@ import (
  */
 def remove_dead_code(analyses: function_analyses) : _int64 {
     code := analyses.code;
-    count : _int64 = code.instructions.size().value as _int64;
+    count : _int64 = code.instructions.size();
     needed_slots := new slot_set(code.slot_count());
     needed := new number_list();
     for(i : _int64 = 0; i < count; i++) {

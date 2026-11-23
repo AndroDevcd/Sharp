@@ -136,7 +136,7 @@ stable class glide {
 
     /** move every gliding box on to where it should be at `clock`. Gives 1 while anything is still moving. */
     static def step(clock: decimal) : _int64 {
-        count : _int64 = moving.size().value;
+        count : _int64 = moving.size();
         if(count == 0) {
             return 0;
         }

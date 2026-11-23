@@ -162,7 +162,7 @@ class net {
 }
 
 def main() {
-   set_seed(time.mills_time() >> 4); // set random seed to current time in mills
+   set_seed(utc_mills() >> 4); // set random seed to current time in mills
    neural_net := new net(new list<decimal>({ 2, 2, 2, 3, 1 }));
 
 // train net

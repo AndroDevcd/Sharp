@@ -52,8 +52,8 @@ class array_iterator<T> : iterator<T> {
         limit = to.value;
     }
 
-    /** 1 while there are elements left, otherwise 0. O(1). */
-    override def has_next() : decimal {
+    /** 1 while there are elements left. O(1). */
+    override def has_next() : bool {
         return position < limit;
     }
 

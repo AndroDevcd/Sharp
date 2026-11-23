@@ -5,6 +5,7 @@
  * unix-install.sh):
  *
  *     <home>/bin/sharp(.exe)                    the VM
+ *     <home>/bin/sdb(.exe)                      the debugger (sharp.ide.debug starts it)
  *     <home>/compiler/sharpc-v0.4.0             the compiler - a Sharp program the VM runs
  *     <home>/compiler/sharpc-unoptimized-v0.4.0 the same compiler built without the optimizer
  *     <home>/lib/                               the standard library
@@ -33,6 +34,8 @@ data class SharpToolchain(
     val library: String,
     /** The language version, read from the compiler's file name: `0.4.0`. */
     val version: String,
+    /** sdb, the debugger (`<home>/bin/sdb`), when the installation has one: releases before 0.5.6 have none. */
+    val debugger: String? = null,
 )
 
 object SharpToolchains {
@@ -88,6 +91,7 @@ object SharpToolchains {
             unoptimizedCompiler = unoptimized?.let { "$root/compiler/$it" },
             library = library,
             version = version,
+            debugger = listOf("$root/bin/sdb.exe", "$root/bin/sdb").firstOrNull { Files.isRegularFile(Paths.get(it)) },
         )
     }
 

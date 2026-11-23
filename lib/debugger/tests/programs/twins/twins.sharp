@@ -1,0 +1,7 @@
+mod app;
+
+import ( std.io, shop, school )
+
+def main() {
+    println("" + (shop_notes() + school_notes()) + " notes");
+}

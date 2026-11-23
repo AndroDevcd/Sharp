@@ -1,6 +1,6 @@
 mod std.testing;
 
-import ( std.di )
+import ( std.di, platform )
 
 /**
  * TESTING - small programs that check that your code does what you meant.
@@ -45,6 +45,14 @@ import ( std.di )
  *      finish_tests()              print the summary and end the program: exit code 0 when every
  *                                  test passed, 1 when any failed (so a build script can tell)
  *
+ * IN AN EDITOR. A test program started with the argument `-ide-tests`
+ * (`sharp basket_tests -ide-tests`) reports for a program instead of a
+ * person: one line for each group and test as it starts and ends, in the
+ * form editors' test views read (JetBrains "service messages"). The CLion
+ * plugin starts test programs this way and shows the groups, their tests,
+ * which failed and where each one is written. The test program itself is not
+ * changed for it.
+ *
  * ONE TEST, ONE THING. Each test builds what it needs from scratch, does one
  * thing, and checks the result. Tests do not share objects and do not depend
  * on the order they run in - then a failing test points at exactly one thing.
@@ -85,6 +93,11 @@ stable class test_run {
     private static before : list<test_step> = new list<test_step>();   // the open group's before_each blocks
     private static after : list<test_step> = new list<test_step>();
 
+    // reporting for an editor (the argument -ide-tests): 0 not looked yet, 1 yes, 2 no
+    private static for_editor : _int64 = 0;
+    private static place_file : string = "";        // what find_place found last
+    private static place_line : string = "";
+
     // ------------------------------------------------------------ groups
 
     static def group(name: string, body: ()()) {
@@ -96,11 +109,16 @@ stable class test_run {
         before.clear();
         after.clear();
 
-        if(quiet == 0) {
+        if(to_editor()) {
+            tell_editor("testSuiteStarted name='" + escaped(name) + "'" + written_at());
+        } else if(quiet == 0) {
             println("");
             println(name);
         }
         body();
+        if(to_editor()) {
+            tell_editor("testSuiteFinished name='" + escaped(name) + "'");
+        }
 
         inside_group = 0;
         before.clear();
@@ -132,8 +150,19 @@ stable class test_run {
     }
 
     /** is a test running right now? */
-    static def in_a_test() : _int64 {
-        return inside_test;
+    static def in_a_test() : bool {
+        return inside_test != 0;
+    }
+
+    /**
+     * `written` is a word for tests only (mock<...>(), given, verify: mock.sharp).
+     * Outside a `tests("...") { ... }` group - in the program itself - it is refused.
+     */
+    static def only_in_tests(written: string) {
+        if(inside_group == 0) {
+            throw new illegal_state_exception("`" + written + "` only works inside `tests(\"...\") { ... }`: "
+                + "a mock is a stand-in for tests, not for the running program");
+        }
     }
 
     // ------------------------------------------------------------ one test
@@ -143,11 +172,16 @@ stable class test_run {
         inside_test = 1;
         problem : string = "";
         went_wrong : _int64 = 0;
+        began : _int64 = 0;
+        if(to_editor()) {
+            tell_editor("testStarted name='" + escaped(name) + "'" + written_at());
+            began = utc_mills().value;
+        }
 
         // the group's preparation, the test itself, the group's clean-up: the
         // clean-up runs whatever happened before it
         try {
-            for(i : _int64 = 0; i < before.size().value; i++) {
+            for(i : _int64 = 0; i < before.size(); i++) {
                 before.at(i).run();
             }
             body();
@@ -159,7 +193,7 @@ stable class test_run {
             problem = unexpected(other);
         }
         try {
-            for(i : _int64 = 0; i < after.size().value; i++) {
+            for(i : _int64 = 0; i < after.size(); i++) {
                 after.at(i).run();
             }
         } catch(late: throwable) {
@@ -171,7 +205,16 @@ stable class test_run {
         inside_test = 0;
         replacements.clear();                   // the stand-ins a test provided end with it (mock.sharp)
 
-        if(went_wrong == 0) {
+        if(to_editor()) {
+            if(went_wrong == 0) {
+                passed = passed + 1;
+            } else {
+                failed = failed + 1;
+                failures.add(group_name + " > " + name);
+                tell_editor("testFailed name='" + escaped(name) + "'" + failure_for_editor(problem));
+            }
+            tell_editor("testFinished name='" + escaped(name) + "' duration='" + (utc_mills().value - began) + "'");
+        } else if(went_wrong == 0) {
             passed = passed + 1;
             if(quiet == 0) { println("  ok    " + name); }
         } else {
@@ -181,6 +224,84 @@ stable class test_run {
             else { println("  FAIL  " + name); }
             print_indented(problem);
         }
+    }
+
+    // ------------------------------------------------------------ reporting for an editor
+
+    /** was the program started with -ide-tests? (looked up once) */
+    private static def to_editor() : bool {
+        if(for_editor == 0) {
+            for_editor = 2;
+            given : string[] = program_arguments();
+            for(i : _int64 = 0; i < sizeof(given); i++) {
+                if(given[i] == "-ide-tests") { for_editor = 1; }
+            }
+        }
+        return for_editor == 1;
+    }
+
+    /** one line for the editor's test view, sent at once (output into a pipe is collected otherwise) */
+    private static def tell_editor(message: string) {
+        println("##teamcity[" + message + "]");
+        flush();
+    }
+
+    /**
+     * `words` as they may stand between the quotes of a message for the editor:
+     * a bar before the signs that mean something there, |n for a new line.
+     */
+    private static def escaped(words: string) : string {
+        result := new string_builder();
+        for(i : _int64 = 0; i < words.size(); i++) {
+            sign : _int64 = words.at(i).value;
+            if(sign == 10) { result.append("|n"); }
+            else if(sign == 13) { result.append("|r"); }
+            else {
+                if(sign == 124 || sign == 39 || sign == 91 || sign == 93) { result.append("|"); }   // | ' [ ]
+                result.append(part(words, i, i + 1));
+            }
+        }
+        return result.to_string()!!;
+    }
+
+    /**
+     * Where the tests(...) or test(...) being started is written, for the editor
+     * to jump to: ` locationHint='sharp://<file>:<line>'`, or "" when not known.
+     * (Found the way a failure's place is: an exception thrown here remembers
+     * the calls that led to it, and the deepest one in the program's own files
+     * is the line that says tests(...) or test(...).)
+     */
+    private static def written_at() : string {
+        try {
+            throw new test_failure("");
+        } catch(here: test_failure) {
+            if(find_place(here) && place_line.size() > 0) {
+                return " locationHint='sharp://" + escaped(place_file) + ":" + place_line + "'";
+            }
+        }
+        return "";
+    }
+
+    /**
+     * A failure as the editor takes it: the first line as the message, all of
+     * it as the details. A failed comparison ("expected ...", "but was  ...")
+     * also hands over the two values, for the editor to show side by side.
+     */
+    private static def failure_for_editor(problem: string) : string {
+        first_end : _int64 = 0;
+        while(first_end < problem.size() && problem.at(first_end).value != 10) { first_end = first_end + 1; }
+        first : string = part(problem, 0, first_end);
+        text : string = " message='" + escaped(first) + "' details='" + escaped(problem) + "'";
+        if(first_end < problem.size() && index_of(first, "expected ") == 0) {
+            second_end : _int64 = first_end + 1;
+            while(second_end < problem.size() && problem.at(second_end).value != 10) { second_end = second_end + 1; }
+            second : string = part(problem, first_end + 1, second_end);
+            if(index_of(second, "but was  ") == 0) {
+                text = text + " type='comparisonFailure' expected='" + escaped(part(first, 9, first.size()))
+                     + "' actual='" + escaped(part(second, 9, second.size())) + "'";
+            }
+        }
+        return text;
     }
 
     /** an exception the test did not ask for, as words: what it said, and where in YOUR code it came from */
@@ -198,50 +319,62 @@ stable class test_run {
      * "" when the trail is not known.
      */
     private static def place_of(thrown: throwable) : string {
+        if(!find_place(thrown)) { return ""; }
+        if(place_line.size() == 0) { return "\nat " + place_file; }
+        return "\nat " + place_file + ", line " + place_line;
+    }
+
+    /** the same place, left in place_file and place_line ("" when the trail names no line); false when there is none */
+    private static def find_place(thrown: throwable) : bool {
+        place_file = "";
+        place_line = "";
         trail : string? = thrown.stack_trace;
         if(trail == null) {
-            return "";
+            return false;
         }
         text : string = trail!!;
         found : string = "";
 
         start : _int64 = 0;
-        length : _int64 = text.size().value;
+        length : _int64 = text.size();
         for(i : _int64 = 0; i <= length; i++) {
             if(i == length || text.at(i).value == 10) {
                 step : string = part(text, start, i);
                 // (not the library's own files, and not a class the compiler wrote for mock<...>())
-                if(holds(step, "Source \"") == 1 && holds(step, "/std/") == 0 && holds(step, "/platform/") == 0
-                   && holds(step, "Source \"mock<") == 0) {
+                // (a Windows path may be written with either slash)
+                if(holds(step, "Source \"") && !holds(step, "/std/") && !holds(step, "/platform/")
+                   && !holds(step, "\\std\\") && !holds(step, "\\platform\\")
+                   && !holds(step, "Source \"mock<")) {
                     found = step;               // later steps are deeper: keep the last one of the program's own
                 }
                 start = i + 1;
             }
         }
-        if(found.size().value == 0) {
-            return "";
+        if(found.size() == 0) {
+            return false;
         }
 
         // the step reads:  Source "<file>", line <n>, in <function> ...
         from : _int64 = index_of(found, "Source \"") + 8;
         to : _int64 = from;
-        while(to < found.size().value && found.at(to).value != 34) { to = to + 1; }      // up to the closing quote
-        file_name : string = part(found, from, to);
+        while(to < found.size() && found.at(to).value != 34) { to = to + 1; }      // up to the closing quote
+        place_file = part(found, from, to);
 
         line_at : _int64 = index_of(found, ", line ");
         if(line_at < 0) {
-            return "\nat " + file_name;
+            return true;
         }
         number_from : _int64 = line_at + 7;
         number_to : _int64 = number_from;
-        while(number_to < found.size().value && found.at(number_to).value >= 48 && found.at(number_to).value <= 57) { number_to = number_to + 1; }
-        return "\nat " + file_name + ", line " + part(found, number_from, number_to);
+        while(number_to < found.size() && found.at(number_to).value >= 48 && found.at(number_to).value <= 57) { number_to = number_to + 1; }
+        place_line = part(found, number_from, number_to);
+        return true;
     }
 
     /** where `piece` first appears in `words`, or -1 */
     private static def index_of(words: string, piece: string) : _int64 {
-        length : _int64 = words.size().value;
-        wide : _int64 = piece.size().value;
+        length : _int64 = words.size();
+        wide : _int64 = piece.size();
         for(at : _int64 = 0; at + wide <= length; at++) {
             same : _int64 = 1;
             for(i : _int64 = 0; i < wide && same == 1; i++) {
@@ -252,15 +385,15 @@ stable class test_run {
         return 0 - 1;
     }
 
-    private static def holds(words: string, piece: string) : _int64 {
-        if(index_of(words, piece) >= 0) { return 1; }
-        return 0;
+    private static def holds(words: string, piece: string) : bool {
+        if(index_of(words, piece) >= 0) { return true; }
+        return false;
     }
 
     /** print several lines, each moved in under the test's name */
     private static def print_indented(words: string) {
         start : _int64 = 0;
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         for(i : _int64 = 0; i < length; i++) {
             if(words.at(i).value == 10) {
                 println("        " + part(words, start, i));
@@ -289,7 +422,7 @@ stable class test_run {
         println("");
         if(failed > 0) {
             println("failed:");
-            for(i : _int64 = 0; i < failures.size().value; i++) {
+            for(i : _int64 = 0; i < failures.size(); i++) {
                 println("  " + failures.at(i));
             }
             println("");
@@ -410,7 +543,7 @@ def expect_throws<e>(body: ()()) {
     if(threw == 0) {
         throw new test_failure("expected the block to throw an exception\nbut it threw nothing");
     }
-    if(wrong_kind.size().value > 0) {
+    if(wrong_kind.size() > 0) {
         throw new test_failure("expected the block to throw a different kind of exception\nbut it threw one that said: " + wrong_kind);
     }
 }

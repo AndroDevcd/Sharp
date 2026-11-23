@@ -1,0 +1,679 @@
+mod std.net;
+
+import ( std.io, std.data, std.reflect )
+
+/**
+ * AN HTTP SERVER: routes, written the way the client's are
+ *
+ *      class user { id : _int64 = 0; name : string = ""; }
+ *      class new_user { name : string = ""; }
+ *
+ *      server := new http_server();
+ *
+ *      server.GET("/hello") { it.text("hello"); };
+ *
+ *      server.GET("/users/{id}") {
+ *          found := users.find(it.number("id"));
+ *          if(found == null) { throw new http_error(404, "no such user"); }
+ *          it.json(found!!);                               // an object of yours, as json
+ *      };
+ *
+ *      server.POST("/users") {
+ *          wanted := it.body<new_user>();                  // the json body, as an object of yours
+ *          it.status(201).json(users.add(wanted.name));
+ *      };
+ *
+ *      server.files("/static", "public");                  // GET /static/app.js  ->  the file public/app.js
+ *      server.socket("/live") { ... };                     // a websocket (`it` is a web_socket)
+ *      server.serve(8080);                                 // runs until stop()
+ *
+ * A ROUTE is a method and a path; a part in braces takes whatever stands
+ * there ("/users/{id}" answers /users/7 and /users/ann). The block runs for
+ * each request with `it`, an http_exchange: the request to read and the
+ * answer to give.
+ *
+ * READ THE REQUEST                         GIVE THE ANSWER
+ *      it.method()   it.path()                  it.text("...")          plain text
+ *      it.path("id")    a part in braces        it.html("...")
+ *      it.number("id")  ... as a number         it.json(object)         an object, a list, a json_value
+ *      it.query("q")    ?q=...  (null: none)    it.bytes(data, type)
+ *      it.header("x")   (null: none)            it.file(new file(...))
+ *      it.body_text()   it.body_bytes()         it.redirect("/login")
+ *      it.body_json()   a json_value            it.status(201)          (before the body; 200 without it)
+ *      it.body<t>()     an object of t          it.header("X-Name", "value")
+ *      it.remote()      who is asking           (nothing at all answers 204, "done, no content")
+ *
+ * WHEN A HANDLER THROWS: http_error(status, message) is answered with that
+ * status and {"error": message}; anything else is a 500, printed with
+ * where it happened. No route for the path: 404; a route, but not for
+ * that method: 405.
+ *
+ *      server.before { ... }       runs before every handler; when it answers (say 401) the handler is skipped
+ *      server.after { ... }        runs after it, the answer still open to change (a header for all)
+ *      server.start(8080)          serve in the background and return the port (0: any free port)
+ *      server.start(8080, true)    ... for this machine only (127.0.0.1)
+ *      server.serve(8080)          serve and wait
+ *      server.stop()
+ *      server.workers = 32;        requests served at the same time (16)
+ *
+ * Each request runs on one of the server's threads, several at once: what
+ * handlers share has to be guarded (lock, an atomic, a database).
+ *
+ * This is plain HTTP/1.1. For https put a reverse proxy in front (Caddy,
+ * nginx), which is how servers are run anyway.
+ *
+ *      Java comparison: Javalin / Spark - app.get("/users/{id}", ctx -> ...);
+ *      Python: Flask's @app.get("/users/<id>"); JavaScript: Express.
+ */
+class http_error base exception {
+    status : _int64;
+
+    public http_error(status: _int64, message: string) -> base(message) {
+        self->status = status;
+    }
+}
+
+/** one request and the answer to it */
+class http_exchange {
+    private verb : string = "";
+    private where : string = "/";
+    private asked : string = "";                        // the query, as it was sent
+    private sent_headers : http_headers = new http_headers();
+    private sent_body : _int8[] = new _int8[0];
+    private from : string = "";
+    private names : list<string> = new list<string>();      // the route's parts in braces ...
+    private values : list<string> = new list<string>();     // ... and what stood there
+
+    private code : _int64 = 0;                          // 0: nothing was answered yet
+    private out_headers : http_headers = new http_headers();
+    private out_body : _int8[] = new _int8[0];
+
+    http_exchange(verb: string, where: string, asked: string, headers: http_headers, body: _int8[], from: string) {
+        self->verb = verb;
+        self->where = where;
+        self->asked = asked;
+        sent_headers = headers;
+        sent_body = body;
+        self->from = from;
+    }
+
+    // ================================================================ the request
+
+    def method() : string { return verb; }
+    /** the path as it was asked for, without the query: "/users/7" */
+    def path() : string { return where; }
+    /** the address of who is asking */
+    def remote() : string { return from; }
+    def headers() : http_headers { return sent_headers; }
+    def header(name: string) : string? { return sent_headers.find(name); }
+
+    /** (for the server: the route that fits says what stood at its braces) */
+    def captured(name: string, value: string) {
+        names.add(name);
+        values.add(value);
+    }
+
+    /** what stood at {name} of the route. Throws illegal_argument_exception when the route has no such part. */
+    def path(name: string) : string {
+        for(i : _int64 = 0; i < names.size(); i++) {
+            if(names.at(i) == name) { return values.at(i); }
+        }
+        throw new illegal_argument_exception("path(\"" + name + "\"): the route has no {" + name + "}");
+    }
+
+    /** {name} of the route as a number; http_error 400 when it is not one */
+    def number(name: string) : decimal {
+        text : string = path(name);
+        if(!io_strings.is_number(text)) { throw new http_error(400, "`" + text + "` is not a number"); }
+        return io_strings.parse_number(text);
+    }
+
+    /** ?name=value of the address; null when it has none */
+    def query(name: string) : string? {
+        return url_codec.query_value(asked, name);
+    }
+
+    def query_or(name: string, fallback: string) : string {
+        return url_codec.query_value(asked, name) ?: fallback;
+    }
+
+    def body_bytes() : _int8[] { return sent_body; }
+
+    def body_text() : string {
+        if(sizeof(sent_body) == 0) { return ""; }
+        return new string(sent_body, 0, sizeof(sent_body));
+    }
+
+    /** the body as json; http_error 400 when it is not json */
+    def body_json() : json_value {
+        try {
+            return json_parser.parse(body_text());
+        } catch(bad: json_exception) {
+            throw new http_error(400, "the body is not json: " + bad.get_message());
+        }
+        return json_value.of_null();
+    }
+
+    /** the json body as an object of t (json.sharp); http_error 400 when it does not fit */
+    def body<t>() : t {
+        value : json_value = body_json();
+        try {
+            return json.value_to<t>(value);
+        } catch(bad: json_exception) {
+            throw new http_error(400, bad.get_message());
+        }
+        return new t();
+    }
+
+    // ================================================================ the answer
+
+    def status(number: _int64) : http_exchange {
+        code = number;
+        return self;
+    }
+
+    def header(name: string, value: string) : http_exchange {
+        out_headers.put(name, value);
+        return self;
+    }
+
+    private def answer(data: _int8[]?, type: string) {
+        if(code == 0) { code = 200; }
+        if(data == null) { out_body = new _int8[0]; } else { out_body = data!!; }
+        out_headers.put("Content-Type", type);
+    }
+
+    def text(value: string) { answer(value.data, "text/plain; charset=utf-8"); }
+    def html(value: string) { answer(value.data, "text/html; charset=utf-8"); }
+    def bytes(data: _int8[]?, type: string) { answer(data, type); }
+
+    /** an object of yours, a list, an array or a json_value, as json */
+    def json(source: object?) {
+        answer(json_objects.value_of(source, 0).to_string()!!.data, "application/json");
+    }
+
+    /** a file; what it is is told by its ending (.html, .png ...). http_error 404 when it is not there. */
+    def file(source: file) {
+        if(!source.exists() || source.is_directory()) { throw new http_error(404, "not found"); }
+        answer(source.read_bytes(), http_types.of_name(source.name()));
+    }
+
+    /** "go there instead" (302) */
+    def redirect(to: string) {
+        code = 302;
+        out_headers.put("Location", to);
+    }
+
+    def is_answered() : bool { return code != 0; }
+    def answered_status() : _int64 { return code; }
+    def answered_headers() : http_headers { return out_headers; }
+    def answered_body() : _int8[] { return out_body; }
+}
+
+/** what a file is, by the ending of its name */
+class http_types {
+    static def of_name(name: string) : string {
+        dot : _int64 = io_strings.last_index_of(name, '.') as _int64;
+        if(dot < 0) { return "application/octet-stream"; }
+        ending : string = io_strings.to_lower(io_strings.slice_from(name, dot + 1));
+        if(ending == "html" || ending == "htm") { return "text/html; charset=utf-8"; }
+        if(ending == "css") { return "text/css; charset=utf-8"; }
+        if(ending == "js" || ending == "mjs") { return "text/javascript; charset=utf-8"; }
+        if(ending == "json") { return "application/json"; }
+        if(ending == "txt" || ending == "md") { return "text/plain; charset=utf-8"; }
+        if(ending == "xml") { return "application/xml"; }
+        if(ending == "csv") { return "text/csv; charset=utf-8"; }
+        if(ending == "png") { return "image/png"; }
+        if(ending == "jpg" || ending == "jpeg") { return "image/jpeg"; }
+        if(ending == "gif") { return "image/gif"; }
+        if(ending == "svg") { return "image/svg+xml"; }
+        if(ending == "ico") { return "image/x-icon"; }
+        if(ending == "webp") { return "image/webp"; }
+        if(ending == "pdf") { return "application/pdf"; }
+        if(ending == "zip") { return "application/zip"; }
+        if(ending == "wasm") { return "application/wasm"; }
+        if(ending == "woff2") { return "font/woff2"; }
+        if(ending == "mp3") { return "audio/mpeg"; }
+        if(ending == "mp4") { return "video/mp4"; }
+        return "application/octet-stream";
+    }
+
+    /** the words that go with a status */
+    static def reason(status: _int64) : string {
+        if(status == 200) { return "OK"; }
+        if(status == 201) { return "Created"; }
+        if(status == 202) { return "Accepted"; }
+        if(status == 204) { return "No Content"; }
+        if(status == 301) { return "Moved Permanently"; }
+        if(status == 302) { return "Found"; }
+        if(status == 303) { return "See Other"; }
+        if(status == 304) { return "Not Modified"; }
+        if(status == 307) { return "Temporary Redirect"; }
+        if(status == 308) { return "Permanent Redirect"; }
+        if(status == 400) { return "Bad Request"; }
+        if(status == 401) { return "Unauthorized"; }
+        if(status == 403) { return "Forbidden"; }
+        if(status == 404) { return "Not Found"; }
+        if(status == 405) { return "Method Not Allowed"; }
+        if(status == 409) { return "Conflict"; }
+        if(status == 413) { return "Content Too Large"; }
+        if(status == 415) { return "Unsupported Media Type"; }
+        if(status == 422) { return "Unprocessable Content"; }
+        if(status == 429) { return "Too Many Requests"; }
+        if(status == 500) { return "Internal Server Error"; }
+        if(status == 501) { return "Not Implemented"; }
+        if(status == 502) { return "Bad Gateway"; }
+        if(status == 503) { return "Service Unavailable"; }
+        if(status == 504) { return "Gateway Timeout"; }
+        if(status == 101) { return "Switching Protocols"; }
+        return "Status";
+    }
+}
+
+/** one route: a method, the parts of its path, and what runs for it */
+class http_route {
+    method : string;
+    parts : list<string>;
+    handler : (http_exchange)();
+    socket_handler : (web_socket)();
+    is_socket : bool = false;
+
+    http_route(method: string, parts: list<string>) {
+        self->method = method;
+        self->parts = parts;
+    }
+
+    /** does the path (in parts) fit? When it does, what stood at the braces goes into `into`. */
+    def fits(path: list<string>, into: http_exchange?) : bool {
+        if(path.size() != parts.size()) { return false; }
+        for(i : _int64 = 0; i < parts.size(); i++) {
+            part : string = parts.at(i);
+            if(sizeof(part.data) > 1 && part.data!![0] == '{') { continue; }
+            if(part != path.at(i)) { return false; }
+        }
+        if(into != null) {
+            for(i : _int64 = 0; i < parts.size(); i++) {
+                part : string = parts.at(i);
+                if(sizeof(part.data) > 1 && part.data!![0] == '{') {
+                    into!!.captured(io_strings.slice(part, 1, sizeof(part.data) - 1), path.at(i));
+                }
+            }
+        }
+        return true;
+    }
+}
+
+class http_hook {
+    run : (http_exchange)();
+    http_hook(run: (http_exchange)()) { self->run = run; }
+}
+
+class http_server {
+    /** how many requests are served at the same time */
+    workers : _int64 = 16;
+    /** milliseconds a connection may stay silent between requests before it is closed */
+    idle_wait : _int64 = 5000;
+    /** the largest body a request may have, in bytes */
+    most_body : _int64 = 16 * 1024 * 1024;
+    /** print what a handler threw (the message and where) */
+    show_errors : bool = true;
+
+    private routes : list<http_route> = new list<http_route>();
+    private folders_at : list<string> = new list<string>();
+    private folders : list<string> = new list<string>();
+    private before_hooks : list<http_hook> = new list<http_hook>();
+    private after_hooks : list<http_hook> = new list<http_hook>();
+    private listener : tcp_server?;
+    private running : bool = false;
+    private threads : list<thread> = new list<thread>();
+    private guests : list<tcp_socket> = new list<tcp_socket>();     // the connections being served (stop() closes them)
+
+    // ================================================================ routes
+
+    def GET(route: string, handler: (http_exchange)()) { add("GET", route, handler); }
+    def POST(route: string, handler: (http_exchange)()) { add("POST", route, handler); }
+    def PUT(route: string, handler: (http_exchange)()) { add("PUT", route, handler); }
+    def PATCH(route: string, handler: (http_exchange)()) { add("PATCH", route, handler); }
+    def DELETE(route: string, handler: (http_exchange)()) { add("DELETE", route, handler); }
+
+    /** a route for any method ("OPTIONS" ...) */
+    def add(method: string, route: string, handler: (http_exchange)()) {
+        made := new http_route(io_strings.to_upper(method), parts_of(route));
+        made.handler = handler;
+        routes.add(made);
+    }
+
+    /** a websocket at that path: the block runs for each one that connects, and the websocket is closed when it ends */
+    def socket(route: string, handler: (web_socket)()) {
+        made := new http_route("GET", parts_of(route));
+        made.socket_handler = handler;
+        made.is_socket = true;
+        routes.add(made);
+    }
+
+    /** serve the files of `folder` under `prefix`: files("/static", "public") answers /static/css/a.css with public/css/a.css */
+    def files(prefix: string, folder: string) {
+        while(sizeof(prefix.data) > 1 && io_strings.ends_with(prefix, "/")) { prefix = io_strings.slice(prefix, 0, sizeof(prefix.data) - 1); }
+        folders_at.add(prefix);
+        folders.add(folder);
+    }
+
+    def before(hook: (http_exchange)()) { before_hooks.add(new http_hook(hook)); }
+    def after(hook: (http_exchange)()) { after_hooks.add(new http_hook(hook)); }
+
+    /** "/users/{id}/" -> [users, {id}] */
+    private static def parts_of(path: string) : list<string> {
+        parts := new list<string>();
+        pieces := io_strings.split(path, '/');
+        for(i : _int64 = 0; i < pieces.size(); i++) {
+            if(sizeof(pieces.at(i).data) > 0) { parts.add(pieces.at(i)); }
+        }
+        return parts;
+    }
+
+    // ================================================================ running
+
+    /** serve in the background; returns the port (which says what it is when 0 - any free one - was asked for) */
+    def start(port: _int64) : _int64 {
+        return start(port, false);
+    }
+
+    def start(port: _int64, local_only: bool) : _int64 {
+        if(running) { throw new illegal_state_exception("the server is running already"); }
+        listener = new tcp_server(port, local_only);
+        running = true;
+        if(workers < 1) { workers = 1; }
+        for(i : _int64 = 0; i < workers; i++) {
+            worker := new thread("http server " + (i + 1), 1, http_server_worker.work);
+            threads.add(worker);
+            worker.start(new object[] { self });
+        }
+        return listener!!.port();
+    }
+
+    /** serve and wait: returns when stop() is called (by a handler, or another thread) */
+    def serve(port: _int64) {
+        start(port);
+        for(i : _int64 = 0; i < threads.size(); i++) { threads.at(i).join(); }
+    }
+
+    /** the port being listened on; 0 when the server is not running */
+    def port() : _int64 {
+        if(listener == null || !running) { return 0; }
+        return listener!!.port();
+    }
+
+    def is_running() : bool { return running; }
+
+    /**
+     * Stop: no new connections, and the open ones are closed - a request
+     * in the middle of being answered loses its connection.
+     */
+    def stop() {
+        if(!running) { return; }
+        running = false;
+        listener!!.close();
+        lock(guests) {
+            for(i : _int64 = 0; i < guests.size(); i++) { guests.at(i).close(); }
+            guests.clear();
+        }
+        threads.clear();
+    }
+
+    /** one of the server's threads: connections, one after the other, until the server stops */
+    def accept_loop() {
+        while(running) {
+            guest : tcp_socket? = null;
+            try {
+                guest = listener!!.accept();
+            } catch(closed: socket_exception) {
+                if(!running) { break; }
+                continue;
+            }
+            lock(guests) { guests.add(guest!!); }
+            try {
+                converse(guest!!);
+            } catch(problem: throwable) {
+                // (a connection that broke is its own business: the thread serves the next)
+            }
+            lock(guests) { guests.remove(guest!!); }
+            guest!!.close();
+        }
+    }
+
+    /** the requests of one connection, until it closes or asks to be closed */
+    private def converse(guest: tcp_socket) {
+        line := new http_line(guest, guest, null, "");
+        while(running) {
+            line.set_timeout(idle_wait);
+            first : string? = null;
+            try {
+                first = line.read_line();
+            } catch(silent: socket_timeout) {
+                return;
+            }
+            if(first == null) { return; }
+            words := io_strings.split(first!!, ' ');
+            if(words.size() < 3 || !io_strings.starts_with(words.at(2), "HTTP/1.")) {
+                reply(line, 400, new http_headers(), error_body("this is not an HTTP request"), false, false);
+                return;
+            }
+            method : string = io_strings.to_upper(words.at(0));
+            target : string = words.at(1);
+            old : bool = words.at(2) == "HTTP/1.0";
+
+            headers := new http_headers();
+            count : _int64 = 0;
+            while(true) {
+                one : string? = line.read_line();
+                if(one == null) { return; }
+                if(sizeof(one!!.data) == 0) { break; }
+                count++;
+                if(count > 500) { reply(line, 400, new http_headers(), error_body("too many headers"), false, false); return; }
+                colon : _int64 = io_strings.index_of(one!!, ':') as _int64;
+                if(colon > 0) { headers.add(io_strings.trim(io_strings.slice(one!!, 0, colon)), io_strings.trim(io_strings.slice_from(one!!, colon + 1))); }
+            }
+
+            said : string = io_strings.to_lower(headers.find_or("Connection", ""));
+            stays : bool = !io_strings.contains(said, "close") && (!old || io_strings.contains(said, "keep-alive"));
+
+            // ---- the body
+            body : _int8[] = new _int8[0];
+            if(io_strings.contains(io_strings.to_lower(headers.find_or("Expect", "")), "100-continue")) {
+                go_on : string = "HTTP/1.1 100 Continue\r\n\r\n";
+                guest.write(go_on.data!!, sizeof(go_on.data));
+            }
+            if(io_strings.contains(io_strings.to_lower(headers.find_or("Transfer-Encoding", "")), "chunked")) {
+                whole := new byte_buffer();
+                while(true) {
+                    head : string? = line.read_line();
+                    if(head == null) { return; }
+                    size : _int64 = 0;
+                    for(i : _int64 = 0; i < sizeof(head!!.data); i++) {
+                        digit : _int64 = character.digit_value(head!!.data!![i], 16) as _int64;
+                        if(digit < 0) { break; }
+                        size = size * 16 + digit;
+                    }
+                    if(size == 0) { break; }
+                    if(whole.size() + size > most_body) { reply(line, 413, new http_headers(), error_body("the body is too large"), false, false); return; }
+                    whole.put_bytes(line.read_exactly(size));
+                    line.read_line();
+                }
+                while(true) {
+                    after : string? = line.read_line();
+                    if(after == null || sizeof(after!!.data) == 0) { break; }
+                }
+                body = whole.to_array() ?: new _int8[0];
+            } else if(headers.has("Content-Length")) {
+                length : string = io_strings.trim(headers.find_or("Content-Length", "0"));
+                if(!io_strings.is_int(length)) { reply(line, 400, new http_headers(), error_body("Content-Length is not a number"), false, false); return; }
+                size : _int64 = io_strings.parse_int(length) as _int64;
+                if(size > most_body) { reply(line, 413, new http_headers(), error_body("the body is too large"), false, false); return; }
+                if(size > 0) { body = line.read_exactly(size); }
+            }
+
+            // ---- the path and the query
+            query : string = "";
+            mark : _int64 = io_strings.index_of(target, '?') as _int64;
+            if(mark >= 0) {
+                query = io_strings.slice_from(target, mark + 1);
+                target = io_strings.slice(target, 0, mark);
+            }
+            exchange := new http_exchange(method, target, query, headers, body, guest.host());
+
+            // ---- a websocket takes the connection over
+            wanted : http_route? = socket_route(exchange);
+            if(wanted != null && io_strings.contains(io_strings.to_lower(headers.find_or("Upgrade", "")), "websocket")) {
+                key : string? = headers.find("Sec-WebSocket-Key");
+                if(key == null) { reply(line, 400, new http_headers(), error_body("a websocket request without its key"), false, false); return; }
+                agreed : string = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "
+                    + web_socket.accept_for(key!!) + "\r\n\r\n";
+                guest.write(agreed.data!!, sizeof(agreed.data));
+                line.set_timeout(0);
+                live := web_socket.of_server(line);
+                run := wanted!!.socket_handler;
+                try {
+                    run(live);
+                } catch(problem: throwable) {
+                    report(exchange, problem);
+                }
+                live.close();
+                return;
+            }
+
+            dispatch(exchange);
+            status : _int64 = exchange.answered_status();
+            if(status == 0) { status = 204; }
+            reply(line, status, exchange.answered_headers(), exchange.answered_body(), stays, method == "HEAD");
+            if(!stays) { return; }
+        }
+    }
+
+    /** the websocket route the request's path fits; null when there is none */
+    private def socket_route(exchange: http_exchange) : http_route? {
+        if(exchange.method() != "GET") { return null; }
+        path : list<string> = decoded_parts(exchange.path());
+        for(i : _int64 = 0; i < routes.size(); i++) {
+            route := routes.at(i);
+            if(route.is_socket && route.fits(path, null)) {
+                route.fits(path, exchange);
+                return route;
+            }
+        }
+        return null;
+    }
+
+    private static def decoded_parts(path: string) : list<string> {
+        parts : list<string> = parts_of(path);
+        for(i : _int64 = 0; i < parts.size(); i++) { parts.put(i, url_codec.decode(parts.at(i))); }
+        return parts;
+    }
+
+    /** find the route and run it; whatever it throws becomes an answer */
+    private def dispatch(exchange: http_exchange) {
+        try {
+            for(i : _int64 = 0; i < before_hooks.size() && !exchange.is_answered(); i++) {
+                run := before_hooks.at(i).run;
+                run(exchange);
+            }
+            if(!exchange.is_answered()) { route(exchange); }
+            for(i : _int64 = 0; i < after_hooks.size(); i++) {
+                run := after_hooks.at(i).run;
+                run(exchange);
+            }
+        } catch(refused: http_error) {
+            exchange.status(refused.status);
+            exchange.bytes(error_body(refused.get_message()), "application/json");
+        } catch(problem: throwable) {
+            report(exchange, problem);
+            exchange.status(500);
+            exchange.bytes(error_body("the server failed to answer"), "application/json");
+        }
+    }
+
+    private def route(exchange: http_exchange) {
+        // HEAD is GET without the body. (Not `method = "GET"`: giving a string variable a text in quotes
+        // changes the string it shares with the exchange, and the request would be a GET from then on.)
+        method : string = exchange.method();
+        is_get : bool = method == "GET" || method == "HEAD";
+        path : list<string> = decoded_parts(exchange.path());
+        other_method : bool = false;
+        for(i : _int64 = 0; i < routes.size(); i++) {
+            candidate := routes.at(i);
+            if(candidate.is_socket || !candidate.fits(path, null)) { continue; }
+            same_method : bool = candidate.method == method || (is_get && candidate.method == "GET");
+            if(!same_method) { other_method = true; continue; }
+            candidate.fits(path, exchange);
+            run := candidate.handler;
+            run(exchange);
+            return;
+        }
+        if(is_get && serve_file(exchange, path)) { return; }
+        if(other_method) { throw new http_error(405, exchange.method() + " is not allowed here"); }
+        throw new http_error(404, "not found");
+    }
+
+    /** a file of one of the folders given to files(); false when the path is under none of them */
+    private def serve_file(exchange: http_exchange, path: list<string>) : bool {
+        asked : string = exchange.path();
+        for(i : _int64 = 0; i < folders_at.size(); i++) {
+            prefix : string = folders_at.at(i);
+            under : bool = prefix == "/" || asked == prefix || io_strings.starts_with(asked, prefix + "/");
+            if(!under) { continue; }
+            skip : _int64 = parts_of(prefix).size();
+            place := new char_buffer();
+            place.append(folders.at(i));
+            for(j : _int64 = skip; j < path.size(); j++) {
+                part : string = path.at(j);
+                // a part that would climb out of the folder, or name another drive
+                if(part == ".." || part == "." || io_strings.contains(part, "\\") || io_strings.contains(part, ":")) { throw new http_error(404, "not found"); }
+                place.append("/").append(part);
+            }
+            found := new file(place.build());
+            if(found.exists() && found.is_directory()) { found = new file(place.build() + "/index.html"); }
+            exchange.file(found);
+            return true;
+        }
+        return false;
+    }
+
+    private def report(exchange: http_exchange, problem: throwable) {
+        if(!show_errors) { return; }
+        print("http_server: " + exchange.method() + " " + exchange.path() + " failed: " + problem.get_message() + "\n" + problem.stack_trace + "\n");
+    }
+
+    private static def error_body(message: string) : _int8[] {
+        made := json_value.new_object();
+        made.put_string("error", message);
+        return made.to_string()!!.data!!;
+    }
+
+    /** write one answer: the first line, the headers, an empty line, the body (not for HEAD) */
+    private static def reply(line: http_line, status: _int64, headers: http_headers, body: _int8[], stays: bool, head_only: bool) {
+        out := new char_buffer();
+        out.append("HTTP/1.1 ").append_int(status).append(" ").append(http_types.reason(status)).append("\r\n");
+        for(i : _int64 = 0; i < headers.size(); i++) {
+            name : string = headers.name_at(i);
+            if(io_strings.equals_ignore_case(name, "Content-Length") || io_strings.equals_ignore_case(name, "Connection")) { continue; }
+            out.append(name).append(": ").append(headers.value_at(i)).append("\r\n");
+        }
+        if(sizeof(body) > 0 && !headers.has("Content-Type")) { out.append("Content-Type: application/json\r\n"); }
+        if(status != 204 && status != 304) { out.append("Content-Length: ").append_int(sizeof(body)).append("\r\n"); }
+        if(stays) { out.append("Connection: keep-alive\r\n"); } else { out.append("Connection: close\r\n"); }
+        out.append("\r\n");
+        whole := new byte_buffer();
+        whole.put_bytes(out.to_array());
+        if(!head_only && sizeof(body) > 0 && status != 204 && status != 304) { whole.put_bytes(body); }
+        bytes : _int8[] = whole.to_array()!!;
+        line.wire.write(bytes, sizeof(bytes));
+    }
+}
+
+/** what a thread of the server runs */
+class http_server_worker {
+    static def work(args: object[]) : int {
+        server := args[0] as http_server;
+        server.accept_loop();
+        return 0;
+    }
+}

@@ -1,0 +1,325 @@
+mod std.reflect;
+
+import ( platform.kernel )
+
+/**
+ * WHAT THE VM ANSWERS (the library's own; programs use `reflect`)
+ *
+ * The VM knows no class of std.reflect. It answers questions about the
+ * program in plain numbers and characters, and class_info, field_info and
+ * function_info are built from the answers. A class is named by its number,
+ * a function by its number, a field by its class's number and its place in
+ * the class's list of fields (instance fields first, then static ones).
+ * What each answer holds: lib/runtime/interrupts/reflection.cpp.
+ */
+class reflect_vm {
+    /** numbers about the program (kind 0), a class (1), a field (2), a class's functions (3), a function (4) */
+    static def facts(kind: _int64, a: _int64, b: _int64) : _int64[] {
+        return raw_facts(kind, a, b) as _int64[];
+    }
+
+    /** a name: a class's (kind 0), its full name (1), a field's (2), a function's (3), its full name (4) */
+    static def text(kind: _int64, a: _int64, b: _int64) : string {
+        characters : _int8[]? = raw_text(kind, a, b) as _int8[];
+        if(sizeof(characters) == 0) { return new string(""); }
+        return new string(characters!!, 0, sizeof(characters));
+    }
+
+    /** what an object is: [ kind, class or -1, array or not, size ]; kind -1 for null */
+    static def class_of(target: object?) : _int64[] {
+        return raw_class_of(target) as _int64[];
+    }
+
+    /** the number of the class with a full name, or -1 */
+    static def find(full_name: string) : _int64 {
+        if(sizeof(full_name.data) == 0) { return 0 - 1; }
+        return (raw_find(full_name.data!!) as _int64[])[0];
+    }
+
+    /** an object of a class with empty fields and no constructor run (count < 0), or an array with room for `count` of them */
+    static def make(class_id: _int64, count: _int64) : object? {
+        return raw_new(class_id, count);
+    }
+
+    /** a field's value; a number as an object of its number class */
+    static def read(class_id: _int64, place: _int64, target: object?) : object? {
+        return raw_get(class_id, place, target);
+    }
+
+    /** give a field a value; a number as an object of a number class or as a number array */
+    static def write(class_id: _int64, place: _int64, target: object?, value: object?) {
+        raw_put(class_id, place, target, value);
+    }
+
+    /**
+     * Call a function. `arguments` has one item per parameter and, before them,
+     * the object the function is called on when it is a function of an object.
+     * What it gives comes back as an object (a number in its number class);
+     * null when it gives nothing.
+     */
+    static def call(function_id: _int64, arguments: object[]?) : object? {
+        // a function value that names the function: what `calld` calls
+        named := new function_value();
+        named.address = function_id;
+        count : _int64 = sizeof(arguments);
+        if(count == 0) { return call_0(named, arguments, function_id); }
+        if(count == 1) { return call_1(named, arguments, function_id); }
+        if(count == 2) { return call_2(named, arguments, function_id); }
+        if(count == 3) { return call_3(named, arguments, function_id); }
+        if(count == 4) { return call_4(named, arguments, function_id); }
+        if(count == 5) { return call_5(named, arguments, function_id); }
+        if(count == 6) { return call_6(named, arguments, function_id); }
+        if(count == 7) { return call_7(named, arguments, function_id); }
+        if(count == 8) { return call_8(named, arguments, function_id); }
+        throw new reflect_exception("a call by reflection takes at most 8 values (the object and 7 arguments), not " + count);
+    }
+}
+
+local def raw_facts(kind: _int64, a: _int64, b: _int64) : object? {
+    asm {
+        ipushl [kind]
+        ipushl [a]
+        ipushl [b]
+        int 0x51
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def raw_text(kind: _int64, a: _int64, b: _int64) : object? {
+    asm {
+        ipushl [kind]
+        ipushl [a]
+        ipushl [b]
+        int 0x52
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def raw_class_of(target: object?) : object? {
+    asm {
+        pushl [target]
+        int 0x5f
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def raw_find(name: _int8[]) : object? {
+    asm {
+        pushl [name]
+        int 0x60
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def raw_new(class_id: _int64, count: _int64) : object? {
+    asm {
+        ipushl [class_id]
+        ipushl [count]
+        int 0x5c
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def raw_get(class_id: _int64, place: _int64, target: object?) : object? {
+    asm {
+        ipushl [class_id]
+        ipushl [place]
+        pushl [target]
+        int 0x5e
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def raw_put(class_id: _int64, place: _int64, target: object?, value: object?) {
+    asm {
+        ipushl [class_id]
+        ipushl [place]
+        pushl [target]
+        pushl [value]
+        int 0x5d
+    };
+}
+
+/*
+ * The calls. Each lays the function value and the list of arguments on the
+ * stack; `int 0x61` puts the arguments themselves in place of the list (a
+ * number parameter gets a number); `calld n` calls; `int 0x62` turns what the
+ * function gave into an object. One function per number of arguments, because
+ * `calld` has that number written in it.
+ */
+local def call_0(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 0
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_1(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 1
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_2(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 2
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_3(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 3
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_4(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 4
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_5(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 5
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_6(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 6
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_7(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 7
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}
+
+local def call_8(named: object, arguments: object[]?, id: _int64) : object? {
+    asm {
+        pushl [named]
+        pushl [arguments]
+        ipushl [id]
+        int 0x61
+        calld 8
+        ipushl [id]
+        int 0x62
+        popObj2
+        returnObj
+        ret 0
+    }
+
+    return null;
+}

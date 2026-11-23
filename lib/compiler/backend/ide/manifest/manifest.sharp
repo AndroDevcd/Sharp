@@ -53,7 +53,11 @@ def write_manifest(folder: string, run: string, level: string, files: ide_files,
     }
     w.key(KEY_ERRORS);  w.number(errors);
     w.key(KEY_WARNINGS);  w.number(warnings);
-    w.key(KEY_WRITTEN_IN_MS);  w.number(clock_ms() - started_ms);
+    // (the clock is the system's time of day, which the system may set back while the files are
+    //  being written - WSL does when the machine is busy: a time taken is never less than nothing)
+    written_in : _int64 = clock_ms() - started_ms;
+    if(written_in < 0) { written_in = 0; }
+    w.key(KEY_WRITTEN_IN_MS);  w.number(written_in);
 
     w.key(KEY_DIAGNOSTICS);  w.text("diagnostics.json");
     w.key(KEY_TYPES);

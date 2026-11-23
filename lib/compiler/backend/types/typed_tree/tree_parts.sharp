@@ -50,7 +50,7 @@ def all_expressions_in(expression: bound_expression) : list<bound_expression> {
         found.add(next);
         parts.clear();
         add_parts(next, parts);
-        for(i : _int64 = parts.size().value as _int64 - 1; i >= 0; i--) { waiting.add(parts.at(i)); }
+        for(i : _int64 = parts.size() - 1; i >= 0; i--) { waiting.add(parts.at(i)); }
     }
     return found;
 }

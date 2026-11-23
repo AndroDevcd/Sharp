@@ -12,9 +12,8 @@ mod std.time;
  *
  * How it stays exact: the stopwatch keeps the INSTANT it was started at and
  * computes `duration.between(started_at, clock.now())`. Both are stored as
- * seconds + nanoseconds, so the subtraction is exact. (The old
- * time.measure converted two absolute nanosecond readings to the wanted
- * unit first and subtracted afterwards, which loses up to one whole unit.)
+ * seconds + nanoseconds, so the subtraction is exact. For one block of
+ * code, `measure_time { ... }` (measure.sharp) does the starting and stopping.
  *
  * NOTE: the system clock is not monotonic (see `system_clock`). When it is
  * set back while a stopwatch runs the raw difference would be negative; the
@@ -111,8 +110,8 @@ class stopwatch {
     }
 
     /** 1 while the stopwatch is measuring */
-    def is_running(): decimal {
-        return running;
+    def is_running(): bool {
+        return running != 0;
     }
 
     /**

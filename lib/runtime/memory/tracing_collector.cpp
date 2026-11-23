@@ -632,20 +632,9 @@ static void mark_owners_of_interior_pointers(bool oldObjectsToo) {
 }
 
 static void mark_roots() {
-    // static fields and reflection objects of every class
-    for(Int i = 0; i < vm.mf.classes; i++) {
+    // the static fields of every class
+    for(Int i = 0; i < vm.mf.classes; i++)
         mark(vm.staticHeap[i].o);
-
-        sharp_class *sc = vm.classes + i;
-        mark(sc->reflect);
-        if(sc->fields != nullptr) {
-            for(Int j = 0; j < sc->totalFieldCount; j++)
-                mark(sc->fields[j].reflect);
-        }
-    }
-
-    for(Int i = 0; i < vm.mf.methods; i++)
-        mark(vm.methods[i].reflect);
 
     mark(vm.memoryExcept.o);
 

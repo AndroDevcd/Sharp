@@ -42,7 +42,7 @@ def print_analysis_stats(session: analysis_session) {
         }
     }
     println("undecided: " + counters.constructions_undecided + " conversion(s) through a constructor where several constructors fit");
-    println("components: " + (session.prog.components.size().value as _int64) + " block(s), " + counters.definitions
+    println("components: " + session.prog.components.size() + " block(s), " + counters.definitions
             + " definition(s), " + counters.requests + " `get` / `inject` request(s) resolved");
     println("lambdas: " + counters.lambdas + " analysed, " + counters.function_values + " function(s) named as values");
     println("off by default (-wextra): " + counters.unused_locals + " unused local(s) W1034, " + counters.unused_private_members

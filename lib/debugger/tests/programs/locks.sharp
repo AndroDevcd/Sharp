@@ -1,0 +1,30 @@
+mod app;
+
+import ( std.io, std.io.coroutines )
+
+/**
+ * A program for sdb's tests of a fiber that waits for a lock: `main` holds
+ * the gate while a second thread asks for it.
+ */
+class gate_keeper {
+    static gate : string = "the gate";
+    static passed : _int64 = 0;
+}
+
+def pass_gate(args: object[]) : int {
+    lock(gate_keeper.gate) {
+        gate_keeper.passed++;
+    }
+    return 0;
+}
+
+def main() {
+    waiter := new thread("waiter", pass_gate);
+    lock(gate_keeper.gate) {
+        waiter.start();
+        delay(200);
+        println("holding the gate, passed " + gate_keeper.passed);
+    }
+    waiter.join();
+    println("passed " + gate_keeper.passed);
+}

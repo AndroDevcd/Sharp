@@ -29,6 +29,8 @@ if exist "%DEST%\lib" rmdir /s /q "%DEST%\lib"
 if exist "%DEST%\examples" rmdir /s /q "%DEST%\examples"
 mkdir "%DEST%\bin" 2>nul
 copy /y "%HERE%sharp.exe" "%DEST%\bin\" >nul
+rem sdb, the debugger
+if exist "%HERE%sdb.exe" copy /y "%HERE%sdb.exe" "%DEST%\bin\" >nul
 rem the GUI's native library goes beside sharp.exe: std.guikit loads it from the VM's own folder
 if exist "%HERE%sharpgui.dll" copy /y "%HERE%sharpgui.dll" "%DEST%\bin\" >nul
 copy /y "%HERE%sharpc.cmd" "%DEST%\bin\" >nul
@@ -59,6 +61,7 @@ echo Sharp @VERSION@ is installed.
 echo Open a NEW terminal (so it sees the new PATH), then from any folder:
 echo     sharpc myprogram.sharp -o myprogram
 echo     sharp myprogram
+echo To debug it:  sharpc myprogram.sharp -dbg -o myprogram   then   sdb myprogram
 echo An example to start from: %DEST%\examples\hello.sharp
 rmdir /s /q "%WORK%"
 if /i not "%QUIET%"=="/quiet" pause

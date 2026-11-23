@@ -91,8 +91,8 @@ class char_array : loopable<_int8> {
     override def to_string() := new string(data);
 
     /** The exception for a position outside of the array. */
-    private def bounds_error(what: string, index: decimal): bounds_except {
-        return new bounds_except("$what: index ${new int(index)} is outside of a char_array of ${new int(sizeof(data))} characters");
+    private def bounds_error(what: string, index: decimal): out_of_bounds_exception {
+        return new out_of_bounds_exception("$what: index ${new int(index)} is outside of a char_array of ${new int(sizeof(data))} characters");
     }
 
     /** The number of characters. */
@@ -100,8 +100,8 @@ class char_array : loopable<_int8> {
         return sizeof(data);
     }
 
-    /** 1 if there are no characters. */
-    def is_empty(): decimal {
+    /** true if there are no characters. */
+    def is_empty(): bool {
         return sizeof(data) == 0;
     }
 
@@ -169,8 +169,8 @@ class char_array : loopable<_int8> {
         return -1;
     }
 
-    /** 1 if at least one character equals `c`. */
-    def contains(c: char): decimal {
+    /** true if at least one character equals `c`. */
+    def contains(c: char): bool {
         return index_of(c) >= 0;
     }
 
@@ -261,7 +261,7 @@ class char_array : loopable<_int8> {
         from : decimal = start.value;
         to : decimal = end.value;
         if(from < 0 || to > n || to < from)
-            throw new bounds_except("slice: range $start..$end is not inside a char_array of ${new int(n)} characters");
+            throw new out_of_bounds_exception("slice: range $start..$end is not inside a char_array of ${new int(n)} characters");
 
         part : _int8[]? = null;
         if(to > from) {
@@ -271,14 +271,14 @@ class char_array : loopable<_int8> {
         return new char_array(part);
     }
 
-    /** 1 if `other` has the same characters in the same order (two empty arrays are equal). */
-    def content_equals(other: char_array): decimal {
+    /** true if `other` has the same characters in the same order (two empty arrays are equal). */
+    def content_equals(other: char_array): bool {
         n : decimal = sizeof(data);
-        if(n != sizeof(other.data)) return 0;
+        if(n != sizeof(other.data)) return false;
         for(i : decimal = 0; i < n; i++) {
-            if(data[i] != other.data[i]) return 0;
+            if(data[i] != other.data[i]) return false;
         }
-        return 1;
+        return true;
     }
 
     /** The characters as an array of `char` objects (length 0 for an empty array). */

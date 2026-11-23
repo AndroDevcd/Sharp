@@ -34,8 +34,8 @@ class time_text_reader {
         count = sizeof(text.data);
     }
 
-    /** 1 when every character has been read */
-    def at_end(): decimal {
+    /** true when every character has been read */
+    def at_end(): bool {
         return position >= count;
     }
 
@@ -83,25 +83,25 @@ class time_text_reader {
         return ch;
     }
 
-    /** consumes the next character when it is `ch`; returns 1 when it did */
-    def accept(ch: decimal): decimal {
+    /** consumes the next character when it is `ch`; returns true when it did */
+    def accept(ch: decimal): bool {
         if(position < count && source[position] == ch) {
             position++;
-            return 1;
+            return true;
         }
-        return 0;
+        return false;
     }
 
     /**
      * Like `accept` but upper and lower case letters are the same
      * (`ch` may be given in either case).
      */
-    def accept_ignore_case(ch: decimal): decimal {
+    def accept_ignore_case(ch: decimal): bool {
         if(position < count && lower(source[position]) == lower(ch)) {
             position++;
-            return 1;
+            return true;
         }
-        return 0;
+        return false;
     }
 
     /**
@@ -126,8 +126,8 @@ class time_text_reader {
         }
     }
 
-    /** 1 when the next character is a digit 0-9 */
-    def at_digit(): decimal {
+    /** true when the next character is a digit 0-9 */
+    def at_digit(): bool {
         return is_digit(peek());
     }
 
@@ -203,18 +203,18 @@ class time_text_reader {
         return 0 - 1;
     }
 
-    /** 1 when the characters at the cursor spell `word`, ignoring case */
-    private def matches_word(word: string): decimal {
+    /** true when the characters at the cursor spell `word`, ignoring case */
+    private def matches_word(word: string): bool {
         length : decimal = sizeof(word.data);
         if(length == 0 || position + length > count) {
-            return 0;
+            return false;
         }
         for(i : decimal = 0; i < length; i++) {
             if(lower(source[position + i]) != lower(word.data[i])) {
-                return 0;
+                return false;
             }
         }
-        return 1;
+        return true;
     }
 
     /**
@@ -228,13 +228,13 @@ class time_text_reader {
         return new date_time_exception(w.text());
     }
 
-    /** 1 when `ch` is one of the characters '0' .. '9' */
-    static def is_digit(ch: decimal): decimal {
+    /** true when `ch` is one of the characters '0' .. '9' */
+    static def is_digit(ch: decimal): bool {
         return ch >= '0' && ch <= '9';
     }
 
-    /** 1 when `ch` is a letter a-z or A-Z */
-    static def is_letter(ch: decimal): decimal {
+    /** true when `ch` is a letter a-z or A-Z */
+    static def is_letter(ch: decimal): bool {
         return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
     }
 

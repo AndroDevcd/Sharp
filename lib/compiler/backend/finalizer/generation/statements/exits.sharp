@@ -126,7 +126,7 @@ def leave_by(g: generator, kind: _int64, loop: bound_statement?, leaves: list<bo
 
 /** the try's record of ways out, while its block or handlers are being generated; null otherwise */
 def exits_of(g: generator, statement: bound_try) : try_exits? {
-    for(i : _int64 = (g.finally_tries.size().value as _int64) - 1; i >= 0; i--) {
+    for(i : _int64 = g.finally_tries.size() - 1; i >= 0; i--) {
         if(g.finally_tries.at(i).statement == statement) { return g.finally_tries.at(i); }
     }
     return null;
@@ -149,7 +149,7 @@ def final_jump(g: generator, kind: _int64, loop: bound_statement?, unit: source_
 
 /** where a `break` (the loop's end) or a `continue` (its next round) of a loop around this statement goes */
 def loop_label(g: generator, kind: _int64, loop: bound_statement?, unit: source_unit, node: _int64) : _int64 {
-    for(i : _int64 = (g.loops.size().value as _int64) - 1; i >= 0; i--) {
+    for(i : _int64 = g.loops.size() - 1; i >= 0; i--) {
         if(g.loops.at(i) == loop) {
             if(kind == WAY_BREAK) { return g.break_labels.at(i); }
             return g.continue_labels.at(i);

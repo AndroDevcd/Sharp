@@ -301,7 +301,7 @@ def add_listed_files(list_path: string) {
     if(!listing.exists())
         error_with_help("the file list `$list_path` of option `-files` does not exist",
                         "`-files` takes a text file with one source file on each line");
-    text : string? = listing.read();
+    text : string? = file_natives.read(listing.path);
     if(text == null) { return; }                // an empty list names no file
     data : _int8[]? = text!!.data;
     size : _int64 = sizeof(data);
@@ -374,7 +374,7 @@ def text_after(text: string, start: _int64) : string {
 /** 1 when every character of the text is a digit */
 def is_number(str: string) : decimal {
     foreach(c in str) {
-        if(!char.is_digit(c))
+        if(!character.is_digit(c))
             return false;
     }
     return true;

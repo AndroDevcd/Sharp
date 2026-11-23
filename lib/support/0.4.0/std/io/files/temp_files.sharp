@@ -58,7 +58,7 @@ class temp_files {
         if(!dir.is_directory()) {
             throw new io_exception("temp_files.set_directory: not a directory: " + path);
         }
-        directory_path = dir.get_path();
+        directory_path = dir.path;
     }
 
     /** look for the temporary directory of the system (see the class comment) */
@@ -66,9 +66,9 @@ class temp_files {
         if(build.is_windows()) {
             probe := new file("sharp_tmpdir_probe_" + io_strings.int_to_string(utc_mills().value) + ".tmp");
             found : string = ".";
-            command : string = "echo %TEMP%> " + io_strings.shell_quote(probe.get_path());
+            command : string = "echo %TEMP%> " + io_strings.shell_quote(probe.path);
             status := sys(command);
-            answer := file_natives.read(probe.get_path());
+            answer := file_natives.read(probe.path);
             if(!io_strings.is_null(answer)) {
                 candidate := io_strings.trim(answer!!);
                 if(sizeof(candidate.data) > 0) {
@@ -78,7 +78,7 @@ class temp_files {
                     }
                 }
             }
-            file_natives.delete_file(probe.get_path());
+            file_natives.delete_file(probe.path);
             return found;
         }
 
@@ -106,7 +106,7 @@ class temp_files {
      * the temporary directory.
      */
     static def new_path_in(dir: string, prefix: string, suffix: string) : string {
-        sep : decimal = file_natives.separator();
+        sep : decimal = std.io#path.separator();
         if(run_token == 0) {
             run_token = vm.time_in_nanoseconds().value % 1000000000000 + 1;
         }
@@ -125,7 +125,7 @@ class temp_files {
             buf.append_int(counter);
             buf.append(suffix);
 
-            candidate := buf.to_string()!!;
+            candidate := buf.build();
             taken := new file(candidate);
             if(!taken.exists()) {
                 return candidate;
@@ -156,9 +156,9 @@ class temp_files {
     static def create_file_in(dir: string, prefix: string, suffix: string) : file {
         f := new file(new_path_in(dir, prefix, suffix));
         if(!f.create_new()) {
-            throw new io_exception("could not create temporary file: " + f.get_path());
+            throw new io_exception("could not create temporary file: " + f.path);
         }
-        created.add(f.get_path());
+        created.add(f.path);
         return f;
     }
 
@@ -171,16 +171,16 @@ class temp_files {
      */
     static def create_directory(prefix: string) : file {
         dir := new file(new_path_in(directory(), prefix, ""));
-        if(dir.mkdir() != 0) {
-            throw new io_exception("could not create temporary directory: " + dir.get_path());
+        if(!dir.mkdir()) {
+            throw new io_exception("could not create temporary directory: " + dir.path);
         }
-        created.add(dir.get_path());
+        created.add(dir.path);
         return dir;
     }
 
     /** how many files and directories created through this class cleanup() would try to delete */
     static def pending() : decimal {
-        return created.size().value;
+        return created.size();
     }
 
     /**
@@ -190,7 +190,7 @@ class temp_files {
      */
     static def cleanup() : decimal {
         deleted : decimal = 0;
-        count : decimal = created.size().value;
+        count : decimal = created.size();
         for(i : decimal = 0; i < count; i++) {
             f := new file(created.at(i));
             if(f.exists()) {

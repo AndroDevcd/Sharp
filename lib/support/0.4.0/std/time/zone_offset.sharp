@@ -80,7 +80,7 @@ class zone_offset {
     /**
      * The offset the operating system currently applies to local time.
      *
-     * The runtime can report the local calendar fields (time.get_os_time)
+     * The runtime can report the local calendar fields (system_clock.local_field)
      * and the UTC clock, but not the offset itself, so it is measured: the
      * local date and time are rebuilt from the calendar fields and compared
      * with the UTC date and time read from the nanosecond clock. The fields
@@ -95,18 +95,18 @@ class zone_offset {
         local_seconds : decimal = 0;
         utc_seconds : decimal = 0;
         for(attempt : decimal = 0; attempt < 10; attempt++) {
-            before : decimal = time.get_os_time(time_request.tm_seconds).value;
+            before : decimal = system_clock.local_field(system_clock.local_second);
             utc_seconds = system_clock.instance.now().epoch_second();
             // tm_year counts from 1900 and tm_mon from 0 (the C library's struct tm)
             local_dt : date_time = date_time.of(
-                time.get_os_time(time_request.tm_year).value + 1900,
-                time.get_os_time(time_request.tm_mon).value + 1,
-                time.get_os_time(time_request.tm_mday).value,
-                time.get_os_time(time_request.tm_hour).value,
-                time.get_os_time(time_request.tm_minutes).value,
+                system_clock.local_field(system_clock.local_year) + 1900,
+                system_clock.local_field(system_clock.local_month) + 1,
+                system_clock.local_field(system_clock.local_day),
+                system_clock.local_field(system_clock.local_hour),
+                system_clock.local_field(system_clock.local_minute),
                 before % 60);
             local_seconds = local_dt.to_epoch_second(utc);
-            after : decimal = time.get_os_time(time_request.tm_seconds).value;
+            after : decimal = system_clock.local_field(system_clock.local_second);
             if(before == after) {
                 break;
             }
@@ -143,8 +143,8 @@ class zone_offset {
         return total % 60;
     }
 
-    /** 1 when this is UTC (offset zero) */
-    def is_utc(): decimal {
+    /** true when this is UTC (offset zero) */
+    def is_utc(): bool {
         return total == 0;
     }
 
@@ -152,8 +152,8 @@ class zone_offset {
     //  comparing
     // ------------------------------------------------------------------
 
-    def operator==(other: zone_offset): decimal { return total == other.total; }
-    def operator!=(other: zone_offset): decimal { return total != other.total; }
+    def operator==(other: zone_offset): bool { return total == other.total; }
+    def operator!=(other: zone_offset): bool { return total != other.total; }
 
     /**
      * Orders offsets by their size: -1 when this offset is further west

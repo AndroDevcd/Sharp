@@ -97,23 +97,23 @@ class csv_writer {
     }
 
     /** true when the field has to be quoted to be read back unchanged */
-    private def needs_quote(field: string) : decimal {
+    private def needs_quote(field: string) : bool {
         n : decimal = sizeof(field.data);
         if(n == 0) {
-            return 0;
+            return false;
         }
         first : decimal = field.data[0];
         last : decimal = field.data[n - 1];
         if(first == ' ' || first == '\t' || last == ' ' || last == '\t') {
-            return 1;
+            return true;
         }
         for(i : decimal = 0; i < n; i++) {
             ch : decimal = field.data[i];
             if(ch == separator || ch == quote || ch == '\n' || ch == '\r') {
-                return 1;
+                return true;
             }
         }
-        return 0;
+        return false;
     }
 
     /**
@@ -176,7 +176,7 @@ class csv_writer {
         if(fields_in_row > 0) {
             end_row();
         }
-        total : decimal = fields.size().value;
+        total : decimal = fields.size();
         for(i : decimal = 0; i < total; i++) {
             write_field(fields.at(i));
         }
@@ -190,7 +190,7 @@ class csv_writer {
 
     /** write every row of `rows` with write_row(). Returns this writer. */
     def write_rows(rows: list<csv_row>) : csv_writer {
-        total : decimal = rows.size().value;
+        total : decimal = rows.size();
         for(i : decimal = 0; i < total; i++) {
             write_row(rows.at(i));
         }
@@ -213,7 +213,7 @@ class csv_writer {
      * Throws io_exception when the file cannot be written.
      */
     def save(target: file) {
-        target.write_text(buf.to_string()!!);
+        target.write_text(buf.build());
     }
 
     /** forget everything written; the settings stay */

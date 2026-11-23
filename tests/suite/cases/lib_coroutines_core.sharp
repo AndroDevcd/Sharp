@@ -185,8 +185,8 @@ def test_async() {
         }
         results := deferred<int>.await_all(items);
         sum : decimal = 0;
-        for(i : decimal = 0; i < results.size().value; i++) { sum += results.at(i).value; }
-        test("await_all returned every result") { expect(results.size().value).should_be(5); };
+        for(i : decimal = 0; i < results.size(); i++) { sum += results.at(i).value; }
+        test("await_all returned every result") { expect(results.size()).should_be(5); };
         test("await_all sum") { expect(sum).should_be(50); };
     });
 

@@ -1,0 +1,28 @@
+mod std.net;
+
+/**
+ * A CONNECTION: one end of a conversation in bytes, whatever carries it
+ *
+ * tcp_socket (plain) and tls_socket (encrypted) are both one, so code written
+ * against `connection` - the HTTP client, a line protocol of your own - works
+ * over either:
+ *
+ *      def greet(line: connection) {
+ *          line.write(hello, sizeof(hello));
+ *          answer := line.read(4096);
+ *      }
+ *
+ * The three things every connection does:
+ *
+ *      read(most)          wait for bytes and return them: at least one, at most `most`.
+ *                          An EMPTY array: the other side has closed and all it sent was read.
+ *      write(data, count)  send the first `count` bytes of `data`, all of them
+ *      close()             close this end; twice does nothing
+ *
+ *      Java comparison: the InputStream and OutputStream of a java.net.Socket.
+ */
+interface connection {
+    def read(most: _int64) : _int8[];
+    def write(data: _int8[], count: _int64) : _int64;
+    def close();
+}

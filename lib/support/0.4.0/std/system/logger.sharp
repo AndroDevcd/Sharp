@@ -40,7 +40,13 @@ import ( std.io, std.math )
  * for ordinary logs and slow for very large ones - set_auto_flush(false)
  * and flush() or close() at the end are the remedy.
  *
- * Not thread safe: log from one thread, or guard the logger yourself.
+ * A file that must not grow without end: add_rotating_file("server.log",
+ * 1000000, 5) really appends (nothing is rewritten), and when the file
+ * passes a million bytes it becomes server.log.1 - the old .1 becomes .2,
+ * and so on, the fifth is deleted - and a new server.log is started.
+ *
+ * Several threads may log to one logger: each message is written whole,
+ * one after the other.
  */
 class logger {
     /* the levels */
@@ -55,6 +61,7 @@ class logger {
     private logger_name : string;
     private level : decimal = 2;
     private targets := new list<text_writer>();
+    private rotating := new list<rotating_log_file>();
     private pattern : string = "{time} {level} [{name}] {message}";
     private custom_pattern : decimal = 0;
     private timestamps : decimal = 1;
@@ -151,6 +158,19 @@ class logger {
         return self;
     }
 
+    /**
+     * Also append messages to the file at `path`, and start a new file when
+     * it has grown past `most_bytes`: the full one is kept as `path`.1, the
+     * one before as `path`.2 ... up to `keep` old files (0: none is kept).
+     * Returns this logger. Throws io_exception when the file cannot be opened.
+     */
+    def add_rotating_file(path: string, most_bytes: decimal, keep: decimal) : logger {
+        if(most_bytes < 1) { throw new illegal_argument_exception("logger: a rotating file needs room for at least one byte"); }
+        if(keep < 0) { throw new illegal_argument_exception("logger: the number of old files to keep cannot be negative"); }
+        rotating.add(new rotating_log_file(path, most_bytes, keep));
+        return self;
+    }
+
     /** also write messages to `target` (a string_writer in tests, a buffered_writer, ...). Returns this logger. */
     def add_writer(target: text_writer) : logger {
         targets.add(target);
@@ -159,7 +179,7 @@ class logger {
 
     /** how many targets the logger writes to */
     def target_count() : decimal {
-        return targets.size().value;
+        return targets.size() + rotating.size();
     }
 
     /**
@@ -241,7 +261,7 @@ class logger {
     def log_exception(message: string, problem: throwable) {
         buf := new char_buffer(128);
         buf.append(message).append(": ").append(problem.get_message());
-        log(4, buf.to_string()!!);
+        log(4, buf.build());
     }
 
     /**
@@ -264,13 +284,19 @@ class logger {
         }
 
         line := format_line(message_level, message);
-        written++;
-        count : decimal = targets.size().value;
-        for(i : decimal = 0; i < count; i++) {
-            target := targets.at(i);
-            target.write_line(line);
-            if(auto_flush) {
-                target.flush();
+        // one message at a time: two threads' lines must not be mixed, in a file or on the console
+        lock(self) {
+            written++;
+            count : decimal = targets.size();
+            for(i : decimal = 0; i < count; i++) {
+                target := targets.at(i);
+                target.write_line(line);
+                if(auto_flush) {
+                    target.flush();
+                }
+            }
+            for(i : decimal = 0; i < rotating.size(); i++) {
+                rotating.at(i).write_line(line, auto_flush != 0);
             }
         }
     }
@@ -313,21 +339,21 @@ class logger {
             buf.append_char(used.data[i]);
             i++;
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** true when `text` has `word` at index `at` */
-    private static def matches(text: string, at: decimal, word: string) : decimal {
+    private static def matches(text: string, at: decimal, word: string) : bool {
         m : decimal = sizeof(word.data);
         if(at + m > sizeof(text.data)) {
-            return 0;
+            return false;
         }
         for(k : decimal = 0; k < m; k++) {
             if(text.data[at + k] != word.data[k]) {
-                return 0;
+                return false;
             }
         }
-        return 1;
+        return true;
     }
 
     /** the current time in milliseconds since 1970, from the injected clock or the machine */
@@ -347,7 +373,7 @@ class logger {
         if(mills < 0 || mills != mills) {
             mills = 0;
         }
-        mills = floor(mills).value;
+        mills = floor(mills);
         ms : decimal = mills % 1000;
         seconds : decimal = (mills - ms) / 1000;
         second : decimal = seconds % 60;
@@ -394,7 +420,7 @@ class logger {
         buf.append(io_strings.pad_left(io_strings.int_to_string(minute), 2, '0')).append_char(':');
         buf.append(io_strings.pad_left(io_strings.int_to_string(second), 2, '0')).append_char('.');
         buf.append(io_strings.pad_left(io_strings.int_to_string(ms), 3, '0'));
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** how many messages were written so far (they passed the level) */
@@ -412,9 +438,12 @@ class logger {
      * Throws io_exception when a file cannot be written.
      */
     def flush() {
-        count : decimal = targets.size().value;
-        for(i : decimal = 0; i < count; i++) {
-            targets.at(i).flush();
+        lock(self) {
+            count : decimal = targets.size();
+            for(i : decimal = 0; i < count; i++) {
+                targets.at(i).flush();
+            }
+            for(i : decimal = 0; i < rotating.size(); i++) { rotating.at(i).flush(); }
         }
     }
 
@@ -428,9 +457,74 @@ class logger {
             return;
         }
         closed = 1;
-        count : decimal = targets.size().value;
-        for(i : decimal = 0; i < count; i++) {
-            targets.at(i).close();
+        lock(self) {
+            count : decimal = targets.size();
+            for(i : decimal = 0; i < count; i++) {
+                targets.at(i).close();
+            }
+            for(i : decimal = 0; i < rotating.size(); i++) { rotating.at(i).close(); }
         }
+    }
+}
+
+/**
+ * A log file that is appended to and replaced by a new one when it is full
+ * (logger.add_rotating_file). It is kept open; each line goes to the end of
+ * the file, so nothing that is there is written again.
+ */
+class rotating_log_file {
+    private path : string;
+    private most : decimal;
+    private keep : decimal;
+    private stream : file_stream?;
+    private size : decimal = 0;
+
+    rotating_log_file(path: string, most: decimal, keep: decimal) {
+        self->path = path;
+        self->most = most;
+        self->keep = keep;
+        start();
+    }
+
+    private def start() {
+        opened := file_stream.open(path, "a");
+        stream = opened;
+        size = new file(path).size();
+    }
+
+    def write_line(line: string, flush_now: bool) {
+        if(stream == null) { return; }
+        if(size > 0 && size + sizeof(line.data) + 1 > most) { rotate(); }
+        stream!!.write_text(line);
+        stream!!.write_text("\n");
+        size = size + sizeof(line.data) + 1;
+        if(flush_now) { stream!!.flush(); }
+    }
+
+    /** server.log -> server.log.1 -> server.log.2 ... ; the oldest is deleted; a new server.log is started */
+    private def rotate() {
+        stream!!.close();
+        stream = null;
+        if(keep < 1) {
+            new file(path).remove();
+        } else {
+            // (a rename that did not work is passed over: the log goes on in a new file either way)
+            oldest := new file(path + "." + (keep as _int64));
+            if(oldest.exists()) { oldest.remove(); }
+            for(number : _int64 = (keep as _int64) - 1; number >= 1; number--) {
+                older := new file(path + "." + number);
+                if(older.exists()) { file_natives.rename(older.path, path + "." + (number + 1)); }
+            }
+            file_natives.rename(path, path + ".1");
+        }
+        start();
+    }
+
+    def flush() {
+        if(stream != null) { stream!!.flush(); }
+    }
+
+    def close() {
+        if(stream != null) { stream!!.close(); stream = null; }
     }
 }

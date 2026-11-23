@@ -1,6 +1,6 @@
 mod main;
 
-import ( std.testing )
+import ( std.testing, std.io )
 
 /**
  * The small classes and functions of std:
@@ -221,32 +221,21 @@ def main(args: string[]) {
         test("get_elements: size") { expect(sizeof(hello.get_elements())).should_be(5); };
         test("get_elements: a character") { expect(hello.get_elements()[1]).should_be('e'); };
 
-        // ================= time: unit conversions (whole numbers, the rest is cut off)
-        test("nano_to_micro(5000000)") { expect(time.nano_to_micro(5000000).value).should_be(5000); };
-        test("nano_to_micro(1000)") { expect(time.nano_to_micro(1000).value).should_be(1); };
-        test("nano_to_micro(1999) cuts off") { expect(time.nano_to_micro(1999).value).should_be(1); };
-        test("nano_to_micro(999)") { expect(time.nano_to_micro(999).value).should_be(0); };
-        test("nano_to_micro(0)") { expect(time.nano_to_micro(0).value).should_be(0); };
-        test("nano_to_mills(5000000)") { expect(time.nano_to_mills(5000000).value).should_be(5); };
-        test("nano_to_mills(1000000)") { expect(time.nano_to_mills(1000000).value).should_be(1); };
-        test("nano_to_mills(1999999) cuts off") { expect(time.nano_to_mills(1999999).value).should_be(1); };
-        test("nano_to_mills(999999)") { expect(time.nano_to_mills(999999).value).should_be(0); };
-        test("nano_to_secs(3000000000)") { expect(time.nano_to_secs(3000000000).value).should_be(3); };
-        test("nano_to_secs(1000000000)") { expect(time.nano_to_secs(1000000000).value).should_be(1); };
-        test("nano_to_secs(999999999)") { expect(time.nano_to_secs(999999999).value).should_be(0); };
-        test("one hour of nanoseconds in seconds") { expect(time.nano_to_secs(3600000000000).value).should_be(3600); };
-        test("one day of nanoseconds in milliseconds") { expect(time.nano_to_mills(86400000000000).value).should_be(86400000); };
-
-        // the clock itself: only that it gives a positive number
-        test("nano_time() is positive") { expect_true(time.nano_time().value > 0); };
-        test("mills_time() is positive") { expect_true(time.mills_time().value > 0); };
-        test("micro_time() is positive") { expect_true(time.micro_time().value > 0); };
-
-        // the units are numbered in this order
-        test("time_unit.seconds") { expect(time_unit.seconds.ordinal).should_be(0); };
-        test("time_unit.milliseconds") { expect(time_unit.milliseconds.ordinal).should_be(1); };
-        test("time_unit.microseconds") { expect(time_unit.microseconds.ordinal).should_be(2); };
-        test("time_unit.nanoseconds") { expect(time_unit.nanoseconds.ordinal).should_be(3); };
+        // ================= the clock every program has: only that it reads after 2020
+        test("utc_mills() is after 2020") { expect_true(utc_mills().value > 1577836800000); };
+        test("nano_time() is after 2020") { expect_true(nano_time().value > 1577836800000000000); };
+        test("nano_time() and utc_mills() are the same clock") {
+            apart : decimal = nano_time().value / 1000000 - utc_mills().value;
+            expect_true(apart >= 0 - 5 && apart < 60000);
+        };
+        slept : _int64 = utc_mills().value;
+        thread.sleep(20);
+        thread.sleep_micros(5000);
+        slept = utc_mills().value - slept;
+        test("thread.sleep and sleep_micros take about their time") { expect_true(slept >= 20 && slept < 5000); };
+        negative : decimal = 0;
+        try { thread.sleep(0 - 1); } catch(no: error) { negative = 1; }
+        test("a negative sleep is refused") { expect_true(negative); };
 
         // ================= random numbers: always inside the range that was asked for
         outside : decimal = 0;

@@ -131,7 +131,7 @@ class buffered_reader : text_reader, loopable<string> {
         if(ch == '\r' && peek_char() == '\n') {
             read_char();
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** everything that has not been read yet ("" at the end). Throws io_exception when closed. */
@@ -143,7 +143,7 @@ class buffered_reader : text_reader, loopable<string> {
             buf.append_char(ch);
             ch = read_char();
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** true when there is at least one more character. Throws io_exception when closed. */
@@ -161,7 +161,7 @@ class buffered_reader : text_reader, loopable<string> {
     def skip_whitespace() : bool {
         check_open();
         ch : decimal = peek_char();
-        while(ch >= 0 && io_strings.is_space(ch)) {
+        while(ch >= 0 && character.is_whitespace(ch)) {
             read_char();
             ch = peek_char();
         }
@@ -177,11 +177,11 @@ class buffered_reader : text_reader, loopable<string> {
         skip_whitespace();
         buf := new char_buffer(32);
         ch : decimal = peek_char();
-        while(ch >= 0 && !io_strings.is_space(ch)) {
+        while(ch >= 0 && !character.is_whitespace(ch)) {
             buf.append_char(read_char());
             ch = peek_char();
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -197,7 +197,7 @@ class buffered_reader : text_reader, loopable<string> {
             buf.append_char(ch);
             ch = read_char();
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -218,7 +218,7 @@ class buffered_reader : text_reader, loopable<string> {
             }
             buf.append_char(ch);
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** the number of the line the next character is on, counting from 1 */
@@ -251,7 +251,7 @@ class buffered_reader : text_reader, loopable<string> {
      */
     override def get_elements() : string[]? {
         lines := read_lines();
-        count : decimal = lines.size().value;
+        count : decimal = lines.size();
         if(count == 0) {
             return null;
         }

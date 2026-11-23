@@ -137,7 +137,7 @@ def lay_out_program(analysed: analysed_program, eager: _int64, file_order: list<
     // where the VM starts: platform.srt_init
     start : sharp_function? = analysed.startup_function;
     if(start != null && start!!.kept == 1) { layout.entry = layout.function_of(start!!); }
-    layout.kept_functions = layout.functions.size().value as _int64;
+    layout.kept_functions = layout.functions.size();
     for(i : _int64 = 0; i < layout.functions.size(); i++) { layout.direct_calls.add(0 - 1); }
     return layout;
 }
@@ -236,7 +236,7 @@ def lay_out_class_contents(layout: program_layout) {
         collect_entries(made);
         if(made.has_static_part()) {
             made.static_flag = make_static_flag(made, prog);
-            made.static_flag!!.address = made.static_fields.size().value as _int64;
+            made.static_flag!!.address = made.static_fields.size();
             made.static_fields.add(made.static_flag!!);
         }
         collect_interfaces(made, layout.classes);
@@ -345,7 +345,7 @@ def kept_definitions(prog: sharp_program) : list<type_definition> {
 
 /** give a class the next address; its guid is its address (unique, as `is` needs: codegen.md 11.3) */
 def number_class(layout: program_layout, made: class_layout) {
-    made.address = layout.classes.size().value as _int64;
+    made.address = layout.classes.size();
     made.of.address = made.address;
     layout.classes.add(made);
 }

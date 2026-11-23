@@ -23,6 +23,8 @@ import (
  *      data                0E  <one record per function, in address order>
  *      code                <one code record per function, in the same order>  0A 1D
  *      meta                06  <one record per source file>  0A 1D
+ *      externs             3D  <the C functions the program calls>  0A 1D          (only when it has any)
+ *      debugger            3B  <local variables, bool fields: debug_locals.sharp>  0A 1D   (only with -dbg or -obf)
  *
  * Each section marker is read as ONE byte, so nothing may stand between the
  * end of a section and the next marker. Inside a record everything is read
@@ -63,7 +65,9 @@ class executable_options {
     application : string = "out";       // -o: the output name, as the C++ compiler writes it
     version : string = "1.0";           // -v
     target : _int64 = 2;                // -target; 2 is `alpha`, the C++ default
-    debug : _int64 = 0;                 // -dbg: the meta section carries the source text
+    debug : _int64 = 0;                 // -dbg: the meta section carries the source text, and the debugger's section is written
+    optimized : _int64 = 0;             // -O: the optimizer ran (the debugger's section then carries no variables: debug_locals.sharp)
+    obfuscated : _int64 = 0;            // names were replaced (-obf, or an `obfuscate` block): the debugger's section says so
     c_library_places : list<string>?;   // settings.json "c_libraries": triples of library, system, place
     project_folder : string = "";       // the project's folder: a place that is not absolute is looked for there too
 }
@@ -85,8 +89,8 @@ def write_manifest(out: byte_buffer, layout: program_layout, options: executable
     out.byte(0x04); out.text(options.version);
     out.byte(0x05); out.flag_char(options.debug);
     out.byte(0x06); out.int32(layout.entry!!.address);
-    out.byte(0x07); out.int32(layout.functions.size().value as _int64);
-    out.byte(0x08); out.int32(layout.classes.size().value as _int64);
+    out.byte(0x07); out.int32(layout.functions.size());
+    out.byte(0x08); out.int32(layout.classes.size());
     out.byte(0x09); out.number_text(EXE_FILE_VERSION);
     out.byte(0x0c); out.int32(layout.strings.count());
     out.byte(0x0e); out.number_text(options.target);
@@ -130,11 +134,11 @@ def write_type(out: byte_buffer, type: resolved_type?, layout: program_layout) {
 def write_symbols(out: byte_buffer, layout: program_layout) {
     out.byte(EXE_SYMBOLS);
     types := layout.function_types.types;
-    out.int32(types.size().value as _int64);
+    out.int32(types.size());
     for(i : _int64 = 0; i < types.size(); i++) {
         type := types.at(i);
         out.byte(EXE_FUNCTION_TYPE);
-        out.int32(type.parameters!!.size().value as _int64);
+        out.int32(type.parameters!!.size());
         for(j : _int64 = 0; j < type.parameters!!.size(); j++) { write_type(out, type.parameters!!.at(j), layout); }
         write_type(out, type.result, layout);
     }
@@ -161,12 +165,12 @@ def write_class(out: byte_buffer, made: class_layout, layout: program_layout, fi
 
     chain := classes_from_the_top(made);
     method_count : _int64 = 0;
-    for(i : _int64 = 0; i < chain.size(); i++) { method_count += chain.at(i).methods.size().value as _int64; }
+    for(i : _int64 = 0; i < chain.size(); i++) { method_count += chain.at(i).methods.size(); }
 
-    out.int32(made.static_fields.size().value as _int64);
-    out.int32(made.instance_fields.size().value as _int64);
+    out.int32(made.static_fields.size());
+    out.int32(made.instance_fields.size());
     out.int32(method_count);
-    out.int32(made.interface_layouts.size().value as _int64);
+    out.int32(made.interface_layouts.size());
 
     for(i : _int64 = 0; i < made.instance_fields.size(); i++) {
         write_field(out, made.instance_fields.at(i), layout, field_guid);
@@ -198,7 +202,7 @@ def classes_from_the_top(made: class_layout) : list<class_layout> {
         current = current!!.base_layout;
     }
     chain := new list<class_layout>();
-    for(i : _int64 = (upward.size().value as _int64) - 1; i >= 0; i--) { chain.add(upward.at(i)); }
+    for(i : _int64 = upward.size() - 1; i >= 0; i--) { chain.add(upward.at(i)); }
     return chain;
 }
 
@@ -349,7 +353,7 @@ def write_function_records(out: byte_buffer, layout: program_layout) {
  * (The loader reads try end BEFORE block start: data_processor.cpp.)
  */
 def write_try_records(out: byte_buffer, code: function_code) {
-    out.int32(code.tries.size().value as _int64);
+    out.int32(code.tries.size());
     for(i : _int64 = 0; i < code.tries.size(); i++) {
         record := code.tries.at(i);
         out.int32(record.try_start);

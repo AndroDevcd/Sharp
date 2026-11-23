@@ -15,14 +15,14 @@ def main(args: string[]) {
     // ---- BUG 1: joining an empty string adds the text "null"
     //      today: "a" + "" is "anull" (5 characters), "" + "" is "null"
     expect_str("a + empty variable", a + empty, "a");
-    expect("...its size", (a + empty).size().value, 1);
-    expect("a + \"\" size", (a + "").size().value, 1);
-    expect("empty + empty size", (empty + empty).size().value, 0);
+    expect("...its size", (a + empty).size(), 1);
+    expect("a + \"\" size", (a + "").size(), 1);
+    expect("empty + empty size", (empty + empty).size(), 0);
 
     // ---- BUG 2: an empty string in "$name" also becomes "null"
     //      today: "[$empty]" is "[null]" (6 characters)
     brackets := "[$empty]";
-    expect("[$$empty] size", brackets.size().value, 2);
+    expect("[$$empty] size", brackets.size(), 2);
 
     // ---- BUG 3: s += s does nothing
     //      today: "ab" stays "ab" (string.append returns early when given its own data)

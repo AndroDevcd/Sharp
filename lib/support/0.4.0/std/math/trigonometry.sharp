@@ -22,70 +22,70 @@ def to_degrees(radians: decimal): decimal {
 }
 
 /** arc sine as a native number, in -pi/2 .. pi/2; NaN outside -1 .. 1 */
-def asin_of(v: decimal): decimal { return math_call(v, 0, 0x6); }
+def asin(v: decimal): decimal { return math_call(v, 0, 0x6); }
 
 /** arc cosine as a native number, in 0 .. pi; NaN outside -1 .. 1 */
-def acos_of(v: decimal): decimal { return math_call(v, 0, 0x7); }
+def acos(v: decimal): decimal { return math_call(v, 0, 0x7); }
 
 /** arc tangent as a native number, in -pi/2 .. pi/2 */
-def atan_of(v: decimal): decimal { return math_call(v, 0, 0x8); }
+def atan(v: decimal): decimal { return math_call(v, 0, 0x8); }
 
 /**
  * The angle of the point (x, y) seen from the origin, in -pi .. pi. Unlike
- * atan_of(y / x) it knows the quadrant and copes with x == 0:
+ * atan(y / x) it knows the quadrant and copes with x == 0:
  * atan2(1, 1) == pi/4, atan2(1, -1) == 3pi/4, atan2(-1, 0) == -pi/2.
  * Note the argument order: y first (the same as C, Java and Kotlin).
  */
 def atan2(y: decimal, x: decimal): decimal { return math_call(y, x, 0x9); }
 
 /** hyperbolic sine as a native number: (e^v - e^-v) / 2 */
-def sinh_of(v: decimal): decimal { return math_call(v, 0, 0x3); }
+def sinh(v: decimal): decimal { return math_call(v, 0, 0x3); }
 
 /** hyperbolic cosine as a native number: (e^v + e^-v) / 2 */
-def cosh_of(v: decimal): decimal { return math_call(v, 0, 0x4); }
+def cosh(v: decimal): decimal { return math_call(v, 0, 0x4); }
 
 /** hyperbolic tangent as a native number: sinh / cosh, always in -1 .. 1 */
-def tanh_of(v: decimal): decimal { return math_call(v, 0, 0x5); }
+def tanh(v: decimal): decimal { return math_call(v, 0, 0x5); }
 
 /** secant: 1 / cos. Infinite where the cosine is 0. */
 def sec(radians: decimal): decimal {
-    return 1 / cos_of(radians);
+    return 1 / cos(radians);
 }
 
 /** cosecant: 1 / sin. Infinite where the sine is 0. */
 def csc(radians: decimal): decimal {
-    return 1 / sin_of(radians);
+    return 1 / sin(radians);
 }
 
 /** cotangent: cos / sin. Infinite where the sine is 0. */
 def cot(radians: decimal): decimal {
-    return cos_of(radians) / sin_of(radians);
+    return cos(radians) / sin(radians);
 }
 
 /**
  * Inverse hyperbolic sine, defined for every number.
- * Formula: ln(v + sqrt(v^2 + 1)), using asinh(-v) == -asinh(v) so the sum
+ * Formula: log(v + sqrt(v^2 + 1)), using asinh(-v) == -asinh(v) so the sum
  * inside the logarithm never cancels for negative v.
  */
 def asinh(v: decimal): decimal {
-    if(v < 0) return 0 - ln((0 - v) + square_root(v * v + 1));
-    return ln(v + square_root(v * v + 1));
+    if(v < 0) return 0 - log((0 - v) + sqrt(v * v + 1));
+    return log(v + sqrt(v * v + 1));
 }
 
 /**
  * Inverse hyperbolic cosine, defined for v >= 1 (NaN below 1).
- * Formula: ln(v + sqrt(v^2 - 1)).
+ * Formula: log(v + sqrt(v^2 - 1)).
  */
 def acosh(v: decimal): decimal {
-    return ln(v + square_root(v * v - 1));
+    return log(v + sqrt(v * v - 1));
 }
 
 /**
  * Inverse hyperbolic tangent, defined for -1 < v < 1 (+-infinity at +-1,
- * NaN outside). Formula: ln((1 + v) / (1 - v)) / 2.
+ * NaN outside). Formula: log((1 + v) / (1 - v)) / 2.
  */
 def atanh(v: decimal): decimal {
-    return ln((1 + v) / (1 - v)) / 2;
+    return log((1 + v) / (1 - v)) / 2;
 }
 
 /**
@@ -93,7 +93,7 @@ def atanh(v: decimal): decimal {
  * whole turns: normalize_radians(-pi/2) == 3pi/2.
  */
 def normalize_radians(radians: decimal): decimal {
-    result : decimal = radians - floor_of(radians / TAU) * TAU;
+    result : decimal = radians - floor(radians / TAU) * TAU;
     if(result >= TAU) result = 0;       // rounding can land exactly on a full turn
     return result;
 }
@@ -103,7 +103,7 @@ def normalize_radians(radians: decimal): decimal {
  * normalize_degrees(-90) == 270, normalize_degrees(725) == 5.
  */
 def normalize_degrees(degrees: decimal): decimal {
-    result : decimal = degrees - floor_of(degrees / 360) * 360;
+    result : decimal = degrees - floor(degrees / 360) * 360;
     if(result >= 360) result = 0;
     return result;
 }

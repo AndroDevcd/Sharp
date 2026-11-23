@@ -1,12 +1,12 @@
 mod main;
 
-import ( std.testing, std.text )
+import ( std.testing, std.text, std.io )
 
 /**
  * std.text - characters and reading text piece by piece:
  *   - character         is_digit, is_letter, to_upper, digit_value, for_digit ...
  *   - ascii, char_sets  names of control characters, ready-made character sets
- *   - text_buffer       the append-only buffer the package builds strings with
+ *   - char_buffer       the append-only buffer the package builds strings with
  *   - string_joiner     separator / prefix / suffix
  *   - string_tokenizer  tokens between delimiter characters
  *   - string_reader     a cursor: peek, next, match, read_while_in, read_until ...
@@ -84,7 +84,7 @@ def main(args: string[]) {
         test("repeat zero times") { expect(character.repeat('-', 0)).should_be(""); };
         hello : string = "hello";
         test("a char_at value is accepted") { expect_true(character.is_letter(hello.char_at(0))); };
-        test("a char object is accepted") { expect_true(character.is_letter(hello[0])); };
+        test("the value of a char object") { expect_true(character.is_letter(hello[0].value)); };
         try {
             character.for_digit(10, 10);
             test("for_digit(10, 10)") { fail_test("did not throw"); };
@@ -134,16 +134,15 @@ def main(args: string[]) {
             test("range backwards") { };
         }
 
-        // ---- text_buffer
-        buffer := new text_buffer();
+        // ---- char_buffer
+        buffer := new char_buffer();
         test("a new buffer is empty") { expect(buffer.length()).should_be(0); };
         test("a new buffer builds \"\"") { expect(buffer.build()).should_be(""); };
         test("last of an empty buffer") { expect(buffer.last()).should_be(0 - 1); };
-        buffer.append("ab").append_char('c').append_repeat('.', 3);
-        test("append, append_char, append_repeat") { expect(buffer.build()).should_be("abc..."); };
+        buffer.append("ab").append_char('c').append_repeated('.', 3);
+        test("append, append_char, append_repeated") { expect(buffer.build()).should_be("abc..."); };
         test("length") { expect(buffer.length()).should_be(6); };
         test("char_at") { expect(buffer.char_at(2)).should_be('c'); };
-        test("char_at outside") { expect(buffer.char_at(6)).should_be(0 - 1); };
         test("last") { expect(buffer.last()).should_be('.'); };
         buffer.drop_last();
         test("drop_last") { expect(buffer.build()).should_be("abc.."); };

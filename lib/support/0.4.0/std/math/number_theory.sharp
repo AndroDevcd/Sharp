@@ -10,12 +10,12 @@ mod std.math;
 
 /** true when the whole number n is divisible by 2 (also for negative n) */
 def is_even(n: decimal): bool {
-    return (n - 2 * floor_of(n / 2)) == 0;
+    return (n - 2 * floor(n / 2)) == 0;
 }
 
 /** true when the whole number n is not divisible by 2 (also for negative n) */
 def is_odd(n: decimal): bool {
-    return (n - 2 * floor_of(n / 2)) == 1;
+    return (n - 2 * floor(n / 2)) == 1;
 }
 
 /**
@@ -26,11 +26,11 @@ def is_odd(n: decimal): bool {
  * Algorithm: Euclid - replace (a, b) by (b, a mod b) until b is 0.
  */
 def gcd(a: decimal, b: decimal): decimal {
-    x : decimal = absolute(a);
-    y : decimal = absolute(b);
+    x : decimal = abs(a);
+    y : decimal = abs(b);
 
     while(y != 0) {
-        remainder : decimal = x - floor_of(x / y) * y;
+        remainder : decimal = x - floor(x / y) * y;
         x = y;
         y = remainder;
     }
@@ -46,7 +46,7 @@ def gcd(a: decimal, b: decimal): decimal {
  */
 def lcm(a: decimal, b: decimal): decimal {
     if(a == 0 || b == 0) return 0;
-    return absolute(a) / gcd(a, b) * absolute(b);
+    return abs(a) / gcd(a, b) * abs(b);
 }
 
 /**
@@ -58,7 +58,7 @@ def lcm(a: decimal, b: decimal): decimal {
  * Throws illegal_argument_exception when n is negative or not whole.
  */
 def factorial(n: decimal): decimal {
-    if(n < 0 || floor_of(n) != n)
+    if(n < 0 || floor(n) != n)
         throw new illegal_argument_exception("factorial: n must be a whole number >= 0");
 
     result : decimal = 1;
@@ -121,7 +121,7 @@ def permutations(n: decimal, k: decimal): decimal {
  * O(sqrt(n)) steps, fine up to about 10^12.
  */
 def is_prime(n: decimal): bool {
-    if(n < 2 || floor_of(n) != n) return false;
+    if(n < 2 || floor(n) != n) return false;
     if(n < 4) return true;                      // 2 and 3
     if((n % 2) == 0 || (n % 3) == 0) return false;
 
@@ -133,7 +133,7 @@ def is_prime(n: decimal): bool {
 
 /** the smallest prime that is greater than n: next_prime(7) == 11, next_prime(-5) == 2 */
 def next_prime(n: decimal): decimal {
-    candidate : decimal = floor_of(n) + 1;
+    candidate : decimal = floor(n) + 1;
     if(candidate < 2) candidate = 2;
 
     while(!is_prime(candidate)) {
@@ -150,7 +150,7 @@ def next_prime(n: decimal): decimal {
  * Throws illegal_argument_exception when n is < 1 or not whole.
  */
 def prime_factors(n: decimal): decimal[] {
-    if(n < 1 || floor_of(n) != n)
+    if(n < 1 || floor(n) != n)
         throw new illegal_argument_exception("prime_factors: n must be a whole number >= 1");
 
     // a number below 2^53 has at most 52 prime factors
@@ -184,7 +184,7 @@ def prime_factors(n: decimal): decimal[] {
  * Throws illegal_argument_exception when n is negative or not whole.
  */
 def fibonacci(n: decimal): decimal {
-    if(n < 0 || floor_of(n) != n)
+    if(n < 0 || floor(n) != n)
         throw new illegal_argument_exception("fibonacci: n must be a whole number >= 0");
 
     previous : decimal = 0;
@@ -217,7 +217,7 @@ def mod_pow(base_value: decimal, exponent: decimal, modulus: decimal): decimal {
         throw new illegal_argument_exception("mod_pow: the modulus must be in 1 .. 94906265");
 
     result : decimal = 1 % modulus;
-    factor : decimal = base_value - floor_of(base_value / modulus) * modulus;
+    factor : decimal = base_value - floor(base_value / modulus) * modulus;
     remaining : decimal = exponent;
 
     while(remaining > 0) {
@@ -225,7 +225,7 @@ def mod_pow(base_value: decimal, exponent: decimal, modulus: decimal): decimal {
             result = (result * factor) % modulus;
         }
         factor = (factor * factor) % modulus;
-        remaining = floor_of(remaining / 2);
+        remaining = floor(remaining / 2);
     }
     return result;
 }
@@ -235,11 +235,11 @@ def mod_pow(base_value: decimal, exponent: decimal, modulus: decimal): decimal {
  * digit_count(0) == 1, digit_count(999) == 3, digit_count(-1000) == 4.
  */
 def digit_count(n: decimal): decimal {
-    remaining : decimal = floor_of(absolute(n));
+    remaining : decimal = floor(abs(n));
     count : decimal = 1;
 
     while(remaining >= 10) {
-        remaining = floor_of(remaining / 10);
+        remaining = floor(remaining / 10);
         count++;
     }
     return count;
@@ -247,12 +247,12 @@ def digit_count(n: decimal): decimal {
 
 /** the sum of the decimal digits of the whole part of n, ignoring the sign: digit_sum(1234) == 10 */
 def digit_sum(n: decimal): decimal {
-    remaining : decimal = floor_of(absolute(n));
+    remaining : decimal = floor(abs(n));
     total : decimal = 0;
 
     while(remaining > 0) {
         total += remaining % 10;
-        remaining = floor_of(remaining / 10);
+        remaining = floor(remaining / 10);
     }
     return total;
 }

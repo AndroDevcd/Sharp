@@ -29,17 +29,17 @@ def main(args: string[]) {
     also_abc := new string("abc");
 
     // ---- size and empty
-    expect("size", hello.size().value, 11);
-    expect("size of \"abc\"", abc.size().value, 3);
+    expect("size", hello.size(), 11);
+    expect("size of \"abc\"", abc.size(), 3);
     nothing := "";
-    expect("size of \"\"", nothing.size().value, 0);
-    expect_true("\"\" is empty", nothing.empty());
-    expect_false("\"\" is not not_empty", nothing.not_empty());
-    expect_false("\"hello world\" is not empty", hello.empty());
-    expect_true("\"hello world\" is not_empty", hello.not_empty());
+    expect("size of \"\"", nothing.size(), 0);
+    expect_true("\"\" is empty", nothing.is_empty());
+    expect_false("\"\" is not not_empty", nothing.is_not_empty());
+    expect_false("\"hello world\" is not empty", hello.is_empty());
+    expect_true("\"hello world\" is not_empty", hello.is_not_empty());
     fresh := new string();
-    expect_true("new string() is empty", fresh.empty());
-    expect("new string() has size 0", fresh.size().value, 0);
+    expect_true("new string() is empty", fresh.is_empty());
+    expect("new string() has size 0", fresh.size(), 0);
 
     // ---- at and [] give the character as a char object
     expect("at(0) is 'h'", hello.at(0).value, 104);
@@ -57,7 +57,7 @@ def main(args: string[]) {
     expect_str("substring(6, 10)", hello.substring(6, 10), "worl");
     expect_str("substring(6, 11) goes to the end", hello.substring(6, 11), "world");
     expect_str("substring(4, 7)", hello.substring(4, 7), "o w");
-    expect("size of a substring", hello.substring(2, 9).size().value, 7);
+    expect("size of a substring", hello.substring(2, 9).size(), 7);
     expect_str("substring leaves the original alone", hello, "hello world");
 
     // ---- find: is the text somewhere inside?
@@ -115,7 +115,7 @@ def main(args: string[]) {
     expect_str("append a literal", a, "abcdef");
     a.append('g');
     expect_str("append a character", a, "abcdefg");
-    expect("size after appending", a.size().value, 7);
+    expect("size after appending", a.size(), 7);
     chained := a.append("1").append("2");
     expect_str("append returns the string, so calls chain", a, "abcdefg12");
     expect_str("...the result is that same string", chained, "abcdefg12");
@@ -136,7 +136,7 @@ def main(args: string[]) {
     expect_str("replace the first", r, "Xbc");
     r.replace(2, 'Z');
     expect_str("replace the last", r, "XbZ");
-    expect("replace keeps the size", r.size().value, 3);
+    expect("replace keeps the size", r.size(), 3);
 
     // ---- + makes a new string
     joined := abc + also_abc;
@@ -164,7 +164,7 @@ def main(args: string[]) {
     expect_str("interpolating a string", "<$abc>", "<abc>");
     from_char := new string('q');
     expect_str("new string(character)", from_char, "q");
-    expect("...has size 1", from_char.size().value, 1);
+    expect("...has size 1", from_char.size(), 1);
     from_chars := new string(new char[] { 'h', 'i' });
     expect_str("new string(char[])", from_chars, "hi");
 
@@ -173,20 +173,20 @@ def main(args: string[]) {
     for(k : decimal = 0; k < 100; k++) {
         grown += "ab";
     }
-    expect("100 times \"ab\"", grown.size().value, 200);
+    expect("100 times \"ab\"", grown.size(), 200);
     expect_true("...starts with abab", grown.starts_with("abab"));
     expect("...last character is 'b'", grown.at(199).value, 98);
 
     // ---- escapes inside a literal are one character each
     escapes := "a\nb\tc";
-    expect("size of \"a\\nb\\tc\"", escapes.size().value, 5);
+    expect("size of \"a\\nb\\tc\"", escapes.size(), 5);
     expect("\\n is 10", escapes.at(1).value, 10);
     expect("\\t is 9", escapes.at(3).value, 9);
     quoted := "say \"hi\"";
-    expect("size with escaped quotes", quoted.size().value, 8);
+    expect("size with escaped quotes", quoted.size(), 8);
     expect("\\\" is 34", quoted.at(4).value, 34);
     slash := "a\\b";
-    expect("size of a\\\\b", slash.size().value, 3);
+    expect("size of a\\\\b", slash.size(), 3);
     expect("\\\\ is 92", slash.at(1).value, 92);
 
     // ---- two variables, one string

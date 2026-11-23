@@ -34,8 +34,8 @@ def main() {
       println("item: @$i = ${array[i]}");
    }
 
-   // we can sort the list by calling 'linear_sort'
-   array.linear_sort({ a, b -> return a > b; });
+   // we can sort the list by calling 'sort' with a comparison of two elements
+   array.sort({ a, b -> return a - b; });
 
    println("sorted list:");
    index := 0;

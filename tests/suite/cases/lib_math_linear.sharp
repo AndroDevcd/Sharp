@@ -312,7 +312,7 @@ def check_matrix() {
     test("power: F11") { expect(fib.at(0, 0)).should_be(89); };
     test("power: F10") { expect(fib.at(0, 1)).should_be(55); };
     test("power: F9") { expect(fib.at(1, 1)).should_be(34); };
-    test("power(0) is the identity") { expect_true((a.power(0) == matrix.identity(2))); };
+    test("pow(0) is the identity") { expect_true((a.power(0) == matrix.identity(2))); };
 
     minor := d.minor(0, 0);
     test("minor size") { expect(minor.rows * 10 + minor.columns).should_be(22); };

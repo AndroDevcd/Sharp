@@ -41,12 +41,12 @@ class dictionary<k,v> : loopable<pair<k,v> > {
 
     /** Number of pairs (a key that was written twice counts twice). O(1). */
     def size() : decimal {
-        return map.size().value;
+        return map.size();
     }
 
-    /** 1 when the dictionary has no pairs, otherwise 0. O(1). */
-    def is_empty() : decimal {
-        return map.size().value == 0;
+    /** true when the dictionary has no pairs. O(1). */
+    def is_empty() : bool {
+        return map.size() == 0;
     }
 
     /**

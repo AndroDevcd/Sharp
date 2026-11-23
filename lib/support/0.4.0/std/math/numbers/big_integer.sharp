@@ -53,15 +53,15 @@ class big_integer {
      * the digits as text instead).
      */
     static def of(value: decimal): big_integer {
-        if(floor_of(value) != value || absolute(value) > 9007199254740992)
+        if(floor(value) != value || abs(value) > 9007199254740992)
             throw new illegal_argument_exception("big_integer: not an exact whole number (pass the digits as text)");
 
         // split the magnitude into at most three limbs (2^53 < 10^21)
-        remaining : decimal = absolute(value);
+        remaining : decimal = abs(value);
         found := new decimal[3];
         count : decimal = 0;
         do {
-            high : decimal = floor_of(remaining / BASE);
+            high : decimal = floor(remaining / BASE);
             found[count++] = remaining - high * BASE;
             remaining = high;
         } while(remaining > 0);
@@ -78,7 +78,7 @@ class big_integer {
      * a decimal point, letters).
      */
     big_integer(text: string) {
-        length : decimal = text.size().value;
+        length : decimal = text.size();
         start : decimal = 0;
 
         if(length > 0 && (text.at(0).value == '-' || text.at(0).value == '+')) {
@@ -97,7 +97,7 @@ class big_integer {
 
         // take the digits in groups of 7, starting at the END of the text
         digits : decimal = length - start;
-        count : decimal = ceil_of(digits / BASE_DIGITS);
+        count : decimal = ceil(digits / BASE_DIGITS);
         result := new decimal[count];
         group_end : decimal = length;
 
@@ -154,7 +154,7 @@ class big_integer {
      * Throws illegal_argument_exception when n is negative or not whole.
      */
     static def factorial(n: decimal): big_integer {
-        if(n < 0 || floor_of(n) != n)
+        if(n < 0 || floor(n) != n)
             throw new illegal_argument_exception("big_integer: factorial needs a whole number >= 0");
 
         result := of(1);
@@ -170,7 +170,7 @@ class big_integer {
      * Throws illegal_argument_exception when n is negative or not whole.
      */
     static def fibonacci(n: decimal): big_integer {
-        if(n < 0 || floor_of(n) != n)
+        if(n < 0 || floor(n) != n)
             throw new illegal_argument_exception("big_integer: fibonacci needs a whole number >= 0");
 
         previous := of(0);
@@ -277,7 +277,7 @@ class big_integer {
                 for(j : decimal = 0; j < sizeof(b); j++) {
                     // < 10^7 + 10^14 + 10^7: exact
                     current : decimal = result[i + j] + a[i] * b[j] + carry;
-                    carry = floor_of(current / BASE);
+                    carry = floor(current / BASE);
                     result[i + j] = current - carry * BASE;
                 }
                 result[i + sizeof(b)] = result[i + sizeof(b)] + carry;
@@ -292,7 +292,7 @@ class big_integer {
         carry : decimal = 0;
         for(i : decimal = 0; i < sizeof(a); i++) {
             current : decimal = a[i] * factor + carry;
-            carry = floor_of(current / BASE);
+            carry = floor(current / BASE);
             result[i] = current - carry * BASE;
         }
         result[sizeof(a)] = carry;
@@ -351,7 +351,7 @@ class big_integer {
 
             digit : decimal = 0;
             if(compare_magnitude(remainder, b) >= 0) {
-                digit = floor_of(approximate(remainder, low) / divisor_estimate);
+                digit = floor(approximate(remainder, low) / divisor_estimate);
                 if(digit >= BASE) digit = BASE - 1;
 
                 product := trimmed(multiply_small(b, digit));
@@ -501,7 +501,7 @@ class big_integer {
      * Throws illegal_argument_exception when exponent is negative or not whole.
      */
     def pow(exponent: decimal): big_integer {
-        if(exponent < 0 || floor_of(exponent) != exponent)
+        if(exponent < 0 || floor(exponent) != exponent)
             throw new illegal_argument_exception("big_integer: the exponent must be a whole number >= 0");
 
         result := of(1);
@@ -512,7 +512,7 @@ class big_integer {
             if((remaining % 2) == 1) {
                 result = result * factor;
             }
-            remaining = floor_of(remaining / 2);
+            remaining = floor(remaining / 2);
             if(remaining > 0) {
                 factor = factor * factor;
             }
@@ -551,7 +551,7 @@ class big_integer {
             throw new arithmetic_exception("big_integer: square root of a negative number");
         if(is_zero()) return of(0);
 
-        guess := of(10).pow(floor_of(digit_count() / 2) + 1);
+        guess := of(10).pow(floor(digit_count() / 2) + 1);
         while(true) {
             better := (guess + operator/(guess)) / 2;
             if(better.compare_to(guess) >= 0) {
@@ -655,7 +655,7 @@ class big_integer {
         top : decimal = limbs[sizeof(limbs) - 1];
         count : decimal = 1;
         while(top >= 10) {
-            top = floor_of(top / 10);
+            top = floor(top / 10);
             count++;
         }
         return (sizeof(limbs) - 1) * BASE_DIGITS + count;
@@ -706,7 +706,7 @@ class big_integer {
             value : decimal = limbs[i];
             // every limb gives 7 digits, except the top one which stops at the sign
             for(d : decimal = 0; d < BASE_DIGITS && position >= negative; d++) {
-                high : decimal = floor_of(value / 10);
+                high : decimal = floor(value / 10);
                 text[position--] = '0' + (value - high * 10);
                 value = high;
             }

@@ -67,7 +67,7 @@ def sharp_files_below(folder: string) : list<string> {
     if(!directory.is_directory())
         throw new io_exception("not a directory: " + folder);
 
-    paths := file_natives.tree_files(directory.get_absolute_path());
+    paths := file_natives.tree_files(directory.absolute_path());
     // (`paths == null` would call the == operator of string on an array of strings)
     paths_object : object = paths;
     if(paths_object == null)
@@ -110,7 +110,7 @@ def add_project_files(files: list<string>) {
 
     proj_dir := new file(options.project_dir);
     try {
-       foreach(found in sharp_files_below(proj_dir.get_absolute_path())) {
+       foreach(found in sharp_files_below(proj_dir.absolute_path())) {
            if(!contains(files, found)) { files.add(found); }
        }
     } catch(io_exception) {
@@ -129,9 +129,8 @@ def add_project_files(files: list<string>) {
  * started - and a file that was named twice is compiled once.
  */
 def check_source_files(files: list<string>) {
-    fp := new file("no_file");
     for(i := 0; i < files.size(); i++) {
-        fp.update_path(files[i]);
+        fp := new file(files[i]);
 
         if(!(fp.exists()))
             report_missing_source(files.at(i));
@@ -143,7 +142,7 @@ def check_source_files(files: list<string>) {
         if(!files[i].ends_with(".sharp"))
             error_with_help("file `${files.at(i)}` is not a Sharp file: its name does not end in .sharp",
                             "a source file of this compiler is named `<name>.sharp`");
-        files[i] = fp.get_absolute_path();
+        files[i] = fp.absolute_path();
     }
 
     // remove duplicate files
@@ -164,25 +163,24 @@ def check_source_files(files: list<string>) {
  */
 def report_missing_source(written: string) {
     folder : string = ".";
-    parent : string? = file_natives.parent_of(written);
-    if(parent != null && sizeof(parent!!.data) > 0) { folder = parent!!; }
+    parent : string = std.io#path.parent(written);
+    if(sizeof(parent.data) > 0) { folder = parent; }
     hint : string = "";
     try {
         listed := new file(folder);
         if(listed.is_directory()) {
             names := new list<string>();
-            paths := file_natives.tree_files(listed.get_absolute_path());
+            paths := file_natives.tree_files(listed.absolute_path());
             paths_object : object = paths;
             if(paths_object != null && sizeof(paths) < 20000) {
-                listed_folder : string = listed.get_absolute_path();
+                listed_folder : string = listed.absolute_path();
                 foreach(path in paths) {
                     if(!path.ends_with(".sharp")) { continue; }
-                    path_parent : string? = file_natives.parent_of(path);
-                    if(path_parent == null || path_parent!! != listed_folder) { continue; }
-                    names.add(new file(path).get_name()!!);
+                    if(std.io#path.parent(path) != listed_folder) { continue; }
+                    names.add(new file(path).name());
                 }
             }
-            own_name : string = new file(written).get_name()!!;
+            own_name : string = new file(written).name();
             hint = did_you_mean(closest_names(own_name, names, 3));
         }
     } catch(e: throwable) {
@@ -202,7 +200,7 @@ def report_missing_source(written: string) {
  */
 def check_output_is_not_a_source(files: list<string>, output: string) {
     written := new file(output);
-    output_absolute : string = written.get_absolute_path();
+    output_absolute : string = written.absolute_path();
     foreach(source in files) {
         if(source == output_absolute) {
             error_with_help("the output file `$output` is one of the source files being compiled: writing it would overwrite that source",

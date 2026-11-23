@@ -58,7 +58,7 @@ class lambda_form {
     /** how many parameters are written; -1 for the form without an arrow (they come from where it is used) */
     def parameter_count() : _int64 {
         if(has_arrow == 0) { return 0 - 1; }
-        return names.size().value as _int64;
+        return names.size();
     }
 }
 
@@ -86,7 +86,7 @@ def read_lambda_form(context: analysis_context, node: _int64) : lambda_form {
             i++;
         }
     }
-    form.has_arrow = form.names.size().value > 0 || arrow_after_brace(context, node);
+    form.has_arrow = form.names.size() > 0 || arrow_after_brace(context, node);
 
     result : _int64 = tree.child_of_kind(node, N_RETURN_TYPE);
     if(result >= 0) {

@@ -258,7 +258,7 @@ def fill_from(numbers: decimal[], index: decimal) {
 
 // ---- recursion on strings
 def count_letter(text: string, letter: decimal, index: decimal): decimal {
-    if(index == text.size().value) {
+    if(index == text.size()) {
         return 0;
     }
     if(text.at(index).value == letter) {
@@ -541,7 +541,7 @@ def main(args: string[]) {
     expect_str("binary_digits(1024)", binary_digits(1024), "10000000000");
     expect_str("repeat(ab, 3)", repeat("ab", 3), "ababab");
     expect_str("repeat(ab, 1)", repeat("ab", 1), "ab");
-    expect("repeat(abc, 50) has 150 characters", repeat("abc", 50).size().value, 150);
+    expect("repeat(abc, 50) has 150 characters", repeat("abc", 50).size(), 150);
     expect_str("nest(0)", nest(0), "x");
     expect_str("nest(3)", nest(3), "(((x)))");
 

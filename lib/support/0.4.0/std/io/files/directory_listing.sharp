@@ -78,18 +78,18 @@ class directory_listing {
         command : string = "";
         if(build.is_windows()) {
             command = "dir /b /a " + io_strings.shell_quote(dir_path) + " > "
-                + io_strings.shell_quote(output.get_path()) + " 2>nul";
+                + io_strings.shell_quote(output.path) + " 2>nul";
         } else {
             command = "ls -1Ap -- " + io_strings.shell_quote(dir_path) + " > "
-                + io_strings.shell_quote(output.get_path()) + " 2>/dev/null";
+                + io_strings.shell_quote(output.path) + " 2>/dev/null";
         }
 
         status : decimal = sys(command).value;
         if(!output.exists()) {
             return null;
         }
-        text := file_natives.read(output.get_path());
-        file_natives.delete_file(output.get_path());
+        text := file_natives.read(output.path);
+        file_natives.delete_file(output.path);
         if(status != 0) {
             return null;
         }
@@ -100,7 +100,7 @@ class directory_listing {
         }
 
         lines := io_strings.split_lines(text!!);
-        count : decimal = lines.size().value;
+        count : decimal = lines.size();
         for(i : decimal = 0; i < count; i++) {
             name := lines.at(i);
             n : decimal = sizeof(name.data);
@@ -125,7 +125,7 @@ class directory_listing {
     static def names_from_runtime(dir_path: string) : list<string> {
         result := new list<string>();
         dir := new file(dir_path);
-        paths := file_natives.tree_files(dir.get_path());
+        paths := file_natives.tree_files(dir.path);
         // (`paths == null` would call the == operator of string on an array of strings)
         paths_object : object = paths;
         if(paths_object == null) {
@@ -133,7 +133,7 @@ class directory_listing {
         }
 
         // every reported path is "<dir><separator><name>[<separator>...]"
-        dir_text := dir.get_path();
+        dir_text := dir.path;
         skip : decimal = sizeof(dir_text.data);
         if(skip > 0 && dir_text.data[skip - 1] != '/' && dir_text.data[skip - 1] != '\\') {
             skip++;
@@ -153,7 +153,7 @@ class directory_listing {
         // sort, then drop the repeats (a sub directory shows up once per file in it)
         io_strings.sort(result);
         unique := new list<string>();
-        count : decimal = result.size().value;
+        count : decimal = result.size();
         for(i : decimal = 0; i < count; i++) {
             if(i == 0 || io_strings.compare(result.at(i), result.at(i - 1)) != 0) {
                 unique.add(result.at(i));

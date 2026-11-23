@@ -1,6 +1,6 @@
 mod std.system;
 
-import ( std.io, platform )
+import ( std.c, std.io, platform )
 
 /**
  * Runs a command of the operating system and tells what came out of it.
@@ -13,7 +13,6 @@ import ( std.io, platform )
  *     }
  *
  *     code := process.execute("make install");      // output goes straight to the console
- *     home := process.environment("HOME");          // an environment variable, or null
  *
  * A process object is the finished result of one run: the command, its exit
  * code, and everything it printed to standard output and to standard error.
@@ -35,6 +34,14 @@ import ( std.io, platform )
  * does, and "command not found" is 127.
  */
 class process {
+    extern "unix:c" {
+        static def getpid() : c_int;
+    }
+
+    extern "windows:kernel32" {
+        static def GetCurrentProcessId() : c_uint;
+    }
+
     private command_line : string;
     private code : decimal = 0;
     private out_text : string = "";
@@ -94,33 +101,33 @@ class process {
         } else {
             line.append("( ").append(command).append(" ) > ");
         }
-        line.append(io_strings.shell_quote(out_file.get_path()));
+        line.append(io_strings.shell_quote(out_file.path));
         if(merged) {
             line.append(" 2>&1");
         } else {
-            line.append(" 2> ").append(io_strings.shell_quote(err_file.get_path()));
+            line.append(" 2> ").append(io_strings.shell_quote(err_file.path));
         }
-        if(has_input) {
-            in_file.write_text(input);
-            line.append(" < ").append(io_strings.shell_quote(in_file.get_path()));
-        }
+        try {
+            if(has_input) {
+                in_file.write_text(input);
+                line.append(" < ").append(io_strings.shell_quote(in_file.path));
+            }
 
-        status := sys(line.to_string()!!);
-        result.code = decode_status(status.value);
+            status := sys(line.build());
+            result.code = decode_status(status.value);
 
-        if(!out_file.exists()) {
-            in_file.remove();
-            err_file.remove();
-            throw new io_exception("process: could not capture the output of: " + command);
-        }
-        result.out_text = out_file.read_text();
-        out_file.remove();
-        if(err_file.exists()) {
-            result.err_text = err_file.read_text();
-            err_file.remove();
-        }
-        if(has_input) {
-            in_file.remove();
+            if(!out_file.exists()) {
+                throw new io_exception("process: could not capture the output of: " + command);
+            }
+            result.out_text = out_file.read_text();
+            if(err_file.exists()) {
+                result.err_text = err_file.read_text();
+            }
+        } finally {
+            // (whatever happened: none of the three files stays behind)
+            if(out_file.exists()) { out_file.remove(); }
+            if(err_file.exists()) { err_file.remove(); }
+            if(in_file.exists()) { in_file.remove(); }
         }
         return result;
     }
@@ -201,7 +208,7 @@ class process {
             message := new char_buffer(128);
             message.append("command failed with exit code ").append_int(code).append(": ").append(command_line);
             message.append_char('\n').append(io_strings.trim(err_text));
-            throw new io_exception(message.to_string()!!);
+            throw new io_exception(message.build());
         }
         return self;
     }
@@ -220,27 +227,10 @@ class process {
         return io_strings.shell_quote(argument);
     }
 
-    /**
-     * The value of the environment variable `name`, or null when it is not
-     * set (or set to nothing). The system is asked directly (environment.sharp);
-     * no shell is started.
-     * Throws illegal_argument_exception when the name contains anything
-     * but letters, digits and '_'.
-     */
-    static def environment(name: string) : string? {
-        n : decimal = sizeof(name.data);
-        valid : decimal = n > 0;
-        for(i : decimal = 0; i < n; i++) {
-            ch : decimal = name.data[i];
-            if(!(io_strings.is_letter(ch) || io_strings.is_digit(ch) || ch == '_')) {
-                valid = 0;
-            }
-        }
-        if(!valid) {
-            throw new illegal_argument_exception("process: not a name of an environment variable: \"" + name + "\"");
-        }
-
-        return environment.value(name);
+    /** the number the system knows THIS program by (what subprocess.id() is, seen from the program that started it) */
+    static def id() : _int64 {
+        if(build.is_windows()) { return GetCurrentProcessId(); }
+        return getpid();
     }
 
     /** true when the shell can find a program called `name` (looked up the way the shell does, in the PATH) */
@@ -251,6 +241,6 @@ class process {
         } else {
             command.append("command -v ").append(io_strings.shell_quote(name));
         }
-        return run(command.to_string()!!).code == 0;
+        return run(command.build()).code == 0;
     }
 }

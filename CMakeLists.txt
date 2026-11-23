@@ -234,8 +234,7 @@ else()
             )
 
     set(SOURCE_FILES main.cpp stdimports.h ${runtime_SRC}
-            lib/runtime/reflect/reflection.cpp
-            lib/runtime/reflect/reflection.h)
+            )
     add_executable(Sharp ${SOURCE_FILES})
 
     # Link libraries based on platform  

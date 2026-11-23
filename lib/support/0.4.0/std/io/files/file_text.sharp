@@ -79,12 +79,12 @@ mutate file {
      */
     def write_lines(lines: list<string>) {
         buf := new char_buffer(256);
-        count : decimal = lines.size().value;
+        count : decimal = lines.size();
         for(i : decimal = 0; i < count; i++) {
             buf.append(lines.at(i));
             buf.append_char('\n');
         }
-        write_text(buf.to_string()!!);
+        write_text(buf.build());
     }
 
     /**
@@ -108,7 +108,7 @@ mutate file {
         buf := new char_buffer(sizeof(old!!.data) + sizeof(text.data));
         buf.append(old!!);
         buf.append(text);
-        write_text(buf.to_string()!!);
+        write_text(buf.build());
     }
 
     /**
@@ -121,7 +121,7 @@ mutate file {
         buf := new char_buffer(sizeof(line.data) + 1);
         buf.append(line);
         buf.append_char('\n');
-        append_text(buf.to_string()!!);
+        append_text(buf.build());
     }
 
     /**

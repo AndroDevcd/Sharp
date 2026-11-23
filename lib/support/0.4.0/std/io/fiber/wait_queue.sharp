@@ -41,7 +41,7 @@ class wait_queue {
     }
 
     /** true when no waiter is queued */
-    def empty() : bool {
+    def is_empty() : bool {
         return count == 0;
     }
 
@@ -99,7 +99,7 @@ class wait_queue {
             }
 
             unlink(w!!);
-            if(w!!.resume(new_state) != 0) {
+            if(w!!.resume(new_state)) {
                 return w;
             }
         }
@@ -116,7 +116,7 @@ class wait_queue {
             }
 
             unlink(w!!);
-            if(w!!.resume_with(new_state, value) != 0) {
+            if(w!!.resume_with(new_state, value)) {
                 return w;
             }
         }

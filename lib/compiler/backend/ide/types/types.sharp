@@ -73,7 +73,7 @@ class ide_types {
     def intern(json: string, text: string) : _int64 {
         known := by_json.at(json);
         if(known != null) { return known!!.id; }
-        id : _int64 = entries.size().value as _int64;
+        id : _int64 = entries.size();
         entries.add(json);
         texts.add(text);
         by_json.put(json, new id_box(id));

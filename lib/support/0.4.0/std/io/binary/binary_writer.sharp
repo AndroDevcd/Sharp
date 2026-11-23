@@ -101,7 +101,7 @@ class binary_writer {
      * write_signed_varint) or a number that is not whole.
      */
     def write_varint(value: decimal) : binary_writer {
-        if(value < 0 || floor(value).value != value || value > 9007199254740992) {
+        if(value < 0 || floor(value) != value || value > 9007199254740992) {
             throw new illegal_argument_exception("write_varint: not a whole number from 0 to 2^53: "
                 + io_strings.number_to_string(value));
         }
@@ -124,7 +124,7 @@ class binary_writer {
      * of range.
      */
     def write_signed_varint(value: decimal) : binary_writer {
-        if(floor(value).value != value || value > 4503599627370496 || value < 0 - 4503599627370496) {
+        if(floor(value) != value || value > 4503599627370496 || value < 0 - 4503599627370496) {
             throw new illegal_argument_exception("write_signed_varint: not a whole number from -2^52 to 2^52: "
                 + io_strings.number_to_string(value));
         }
@@ -159,7 +159,7 @@ class binary_writer {
      * string as write_string() writes it. Returns this writer.
      */
     def write_string_list(items: list<string>) : binary_writer {
-        count : decimal = items.size().value;
+        count : decimal = items.size();
         write_varint(count);
         for(i : decimal = 0; i < count; i++) {
             write_string(items.at(i));

@@ -36,13 +36,11 @@ def write_file_atomically(folder: string, name: string, text: string) {
     path : string = folder + "/" + name;
     temporary : string = path + ".tmp";
 
-    written := new file(temporary);
-    if(written.write(text) != 0) { throw new io_exception("cannot write " + temporary); }
+    if(file_natives.write(temporary, text) != 0) { throw new io_exception("cannot write " + temporary); }
 
-    if(written.rename(new file(path)) != 0) {
+    if(file_natives.rename(temporary, path) != 0) {
         // some file systems refuse to rename over an existing file: remove it and try once more
-        new file(path).delete();
-        again := new file(temporary);
-        if(again.rename(new file(path)) != 0) { throw new io_exception("cannot rename " + temporary + " to " + path); }
+        new file(path).remove();
+        if(file_natives.rename(temporary, path) != 0) { throw new io_exception("cannot rename " + temporary + " to " + path); }
     }
 }

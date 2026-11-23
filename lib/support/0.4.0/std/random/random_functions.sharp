@@ -71,12 +71,12 @@ def rand_range(low: decimal, high: decimal): decimal {
  * 1 (the "bell curve").
  *
  * Algorithm: the Box-Muller transform. From two uniform numbers u1 (in
- * 0 < u1 <= 1) and u2:  sqrt(-2 ln(u1)) * cos(2 pi u2).
+ * 0 < u1 <= 1) and u2:  sqrt(-2 log(u1)) * cos(2 pi u2).
  */
 def rand_gaussian(): decimal {
     u1 : decimal = 1 - rand_unit();         // 0 < u1 <= 1, so the logarithm is finite
     u2 : decimal = rand_unit();
-    return square_root(0 - 2 * ln(u1)) * cos_of(TAU * u2);
+    return sqrt(0 - 2 * log(u1)) * cos(TAU * u2);
 }
 
 /**
@@ -107,7 +107,7 @@ def rand_pick(values: decimal[]): decimal {
 def rand_pick(values: list<string>): string {
     if(values.size() == 0)
         throw new illegal_argument_exception("rand_pick: the list is empty");
-    return values.at(rand_index(values.size().value));
+    return values.at(rand_index(values.size()));
 }
 
 /**
@@ -179,7 +179,7 @@ def rand_string(length: decimal): string {
 def rand_string(length: decimal, alphabet: string): string {
     if(length < 0)
         throw new illegal_argument_exception("rand_string: the length cannot be negative");
-    choices : decimal = alphabet.size().value;
+    choices : decimal = alphabet.size();
     if(choices == 0)
         throw new illegal_argument_exception("rand_string: the alphabet is empty");
     if(length == 0) return "";

@@ -96,7 +96,7 @@ def make_array(g: generator, element: resolved_type, size: _int64) : _int64 {
 /** an array of the given items, each stored in order (`{ 1, 2, 3 }`) */
 def array_of_items(g: generator, element: resolved_type, items: list<bound_expression>, at: bound_expression) : _int64 {
     count : _int64 = g.b.temp(SLOT_INT);
-    g.b.int_constant(count, items.size().value as _int64);
+    g.b.int_constant(count, items.size());
     target : _int64 = make_array(g, element, count);
     g.b.release(count);
     for(i : _int64 = 0; i < items.size(); i++) {

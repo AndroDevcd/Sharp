@@ -1,0 +1,349 @@
+mod main;
+
+import ( std.testing, std.io, std.system )
+
+/**
+ * THE TESTS OF sdb, THE SHARP DEBUGGER - written in Sharp, run by `sharp`.
+ *
+ *      sharp sdb_tests <the sdb program> <the folder with the built test programs>
+ *
+ * Each test starts sdb as a program of its own (std.system subprocess) on one
+ * of the small programs in tests/programs, hands it commands the way a person
+ * types them, and reads what it says. sdb in this use prints plain, unchanging
+ * text - no colours, nothing redrawn - which is what makes it testable, and
+ * what lets a script (or an assistant) drive it.
+ *
+ * Two ways of talking to it:
+ *
+ *      answers(program, commands)      all the commands at once, then everything sdb said
+ *      a conversation                  one command, read the answer, decide the next
+ *                                      (the last group below)
+ *
+ * tests/run.sh builds sdb and the programs and starts this. The programs are
+ * built with -dbg; `values_plain` without, `values_obf` with -obf too.
+ * (The line numbers below are those of the programs in tests/programs: a
+ * program changed there changes them here.)
+ */
+sdb_program : string = "";
+built : string = "";
+
+/** start sdb with these arguments, give it `commands` as what is typed, and hand back all it printed */
+def sdb_says(arguments: string[], commands: string) : string {
+    child := subprocess.start_program(sdb_program, arguments, true);
+    child.write_text(commands);
+    child.close_input();
+    said := child.read_all_text();
+    child.wait();
+    child.close();
+    return said;
+}
+
+/** sdb on one of the built programs */
+def answers(program: string, commands: string) : string {
+    return sdb_says(new string[] { built + "/" + program }, commands);
+}
+
+/** sdb's exit code for these arguments, with nothing typed */
+def exit_code_of(arguments: string[]) : _int64 {
+    child := subprocess.start_program(sdb_program, arguments, true);
+    child.close_input();
+    child.read_all_text();
+    code : _int64 = child.wait();
+    child.close();
+    return code;
+}
+
+/** read what a conversation's sdb prints, line by line, up to the line that holds `piece` ("" when it ends first) */
+def read_up_to(child: subprocess, piece: string) : string {
+    while(true) {
+        line := child.read_line();
+        if(line == null) { return ""; }
+        if(line!!.contains(piece)) { return line!!; }
+    }
+    return "";
+}
+
+def main(args: string[]) {
+    if(sizeof(args) < 2) {
+        println("usage: sharp sdb_tests <the sdb program> <the folder with the built test programs>");
+        exit(new int(2));
+    }
+    sdb_program = args[0];
+    built = args[1];
+    show_only_failures();
+
+    tests("starting") {
+        said := answers("notebook.dbg", "quit\n");
+        test("the first stop is the program's own main") {
+            expect(said).should_contain("at the start of the program: app#main  notebook.sharp:43");
+        };
+        test("the line about to run is shown") { expect(said).should_contain("->    43      println(\"loading notes...\");"); };
+
+        ran := sdb_says(new string[] { "-run", "-b", "app#fill", built + "/notebook.dbg" }, "continue\n");
+        test("-run with -b stops at the breakpoint, not at main") {
+            expect(ran).should_contain("breakpoint 1: app#fill  notebook.sharp:35");
+            expect(ran.contains("at the start of the program")).should_be(false);
+        };
+        test("the program's output and its end are reported") {
+            expect(ran).should_contain("2 notes added");
+            expect(ran).should_contain("the program ended with exit code 0");
+        };
+        test("a program that is not there is refused") {
+            expect(exit_code_of(new string[] { built + "/no_such_program" })).should_be(1);
+        };
+
+        plain := answers("values_plain", "locals\nquit\n");
+        test("a build without -dbg is said to be one") {
+            expect(plain).should_contain("note: the program was built without -dbg");
+            expect(plain).should_contain("the names of this function's variables are not in the program");
+        };
+    };
+
+    tests("breakpoints") {
+        said := answers("notebook.dbg", "break notebook.holds\nbreak app#fill\nbreak add\nbreak nothing_like_this\n"
+            + "break notebook.sharp:22\nbreak notebook.sharp:25\nbreak nofile.sharp:3\nbreaks\nclear 1\nclear 9\nbreaks\nquit\n");
+        test("a function by the end of its name") { expect(said).should_contain("breakpoint 1 at app#notebook.holds  notebook.sharp:27"); };
+        test("a function outside a class has no class in its name") { expect(said).should_contain("breakpoint 2 at app#fill  notebook.sharp:35"); };
+        test("a name that fits several functions lists them") {
+            expect(said).should_contain("`add` fits more than one function");
+            expect(said).should_contain("  app#notebook.add");
+        };
+        test("an unknown function") { expect(said).should_contain("no function named `nothing_like_this`"); };
+        test("a line of a file") { expect(said).should_contain("breakpoint 3 at app#notebook.add  notebook.sharp:22"); };
+        test("a line without code is refused and the next one named") {
+            expect(said).should_contain("line 25 of notebook.sharp holds no code; the next line that does is 27");
+        };
+        test("an unknown file") { expect(said).should_contain("no source file named `nofile.sharp`"); };
+        test("clear takes one away, and says when there is none") {
+            expect(said).should_contain("breakpoint 1 is cleared");
+            expect(said).should_contain("there is no breakpoint 9");
+        };
+
+        switched := answers("notebook.dbg", "break app#fill\nbreak app#notebook.holds\ndisable 1\nbreaks\ncontinue\nenable 1\ndisable 9\nbreaks\nquit\n");
+        test("a breakpoint switched off is kept and does not stop the program") {
+            expect(switched).should_contain("  1  app#fill  notebook.sharp:35   (off)");
+            expect(switched).should_contain("breakpoint 2: app#notebook.holds");
+            expect(switched.contains("breakpoint 1: app#fill")).should_be(false);
+        };
+        test("enable switches it on again; an unknown number is said") {
+            expect(switched).should_contain("breakpoint 1 is switched on");
+            expect(switched).should_contain("there is no breakpoint 9");
+        };
+
+        twins := answers("twins.dbg", "break notes.sharp:5\nbreak shop/notes.sharp:5\nquit\n");
+        test("two files of one name: the bare name is refused, more of the path is taken") {
+            expect(twins).should_contain("`notes.sharp` fits more than one file");
+            expect(twins).should_contain("breakpoint 1 at shop#shop_notes  shop/notes.sharp:5");
+        };
+    };
+
+    tests("stepping") {
+        said := answers("notebook.dbg", "break app#fill\nbreak app#notebook.add\ncontinue\nnext\ncontinue\nbacktrace\nout\nnexti\nnexti\nquit\n");
+        test("next goes to the next line") { expect(said).should_contain("app#fill  notebook.sharp:36"); };
+        test("a breakpoint inside what the line calls stops there") { expect(said).should_contain("breakpoint 2: app#notebook.add  notebook.sharp:16"); };
+        test("backtrace lists the calls, the looked-at one marked") {
+            expect(said).should_contain("* 0  app#notebook.add  notebook.sharp:16");
+            expect(said).should_contain("  2  app#main  notebook.sharp:45");
+        };
+        test("out comes back to the line of the call") { expect(said).should_contain("app#fill  notebook.sharp:36   (thread 0, fiber 0)"); };
+        test("nexti says which instruction, and stays in the function") { expect(said).should_contain("app#fill  notebook.sharp:36  instruction "); };
+    };
+
+    tests("into") {
+        said := answers("values.dbg", "break values.sharp:65\ncontinue\ninto\nbacktrace\nintoi\nquit\n");
+        test("into goes into the function the line calls") { expect(said).should_contain("app#sum  values.sharp:31"); };
+        test("the caller is the next frame") { expect(said).should_contain("  1  app#main  values.sharp:65"); };
+        test("intoi says which instruction") { expect(said).should_contain("  instruction "); };
+    };
+
+    tests("values") {
+        said := answers("values.dbg", "locals\nbreak values.sharp:65\nbreak app#sum\ncontinue\nlocals\nprint corner\nprint corner.x\n"
+            + "print nothing.x\nprint numbers[2]\nprint numbers[9]\nprint big\nprint notes\nprint notes[1]\nprint nobody\n"
+            + "print app#visits\nprint point.made\nprint nosuchthing\ncontinue\nnext\nnext\nprint numbers[i]\nframe 1\nprint ratio\nquit\n");
+        test("a variable on its own line is not set yet") { expect(said).should_contain("count = (not set yet: this line gives it its value)"); };
+        test("numbers, a bool, a text, null") {
+            expect(said).should_contain("ratio   = 2.5");
+            expect(said).should_contain("ready   = true");
+            expect(said).should_contain("small   = -5");
+            expect(said).should_contain("name    = \"milk\\tand bread\"");
+            expect(said).should_contain("nothing = null");
+        };
+        test("an object lists its fields") {
+            expect(said).should_contain("corner = app#point");
+            expect(said).should_contain("  label = \"corner\"");
+        };
+        test("a field, and a field of null") {
+            expect(said).should_contain("corner.x = 3");
+            expect(said).should_contain("`nothing` is null");
+        };
+        test("an element, and one past the end") {
+            expect(said).should_contain("numbers[2] = 30");
+            expect(said).should_contain("`numbers` has 4 elements: the last is [3]");
+        };
+        test("an array shows its first 15 elements, then ...") {
+            expect(said).should_contain("big = _int64[40] [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, ...]");
+        };
+        test("a list shows its elements and takes an index") {
+            expect(said).should_contain("notes = std#list<std#string> (2) [\"milk\", \"bread\"]");
+            expect(said).should_contain("notes[1] = \"bread\"");
+            expect(said).should_contain("nobody = std#list<app#point> (0)");
+        };
+        test("a module's variable and a static field") {
+            expect(said).should_contain("app#visits = 7");
+            expect(said).should_contain("point.made = 1");
+        };
+        test("an unknown name") { expect(said).should_contain("nothing named `nosuchthing` can be seen here"); };
+        test("an index taken from a variable") { expect(said).should_contain("numbers[i] = 10"); };
+        test("frame N looks at a caller's variables") {
+            expect(said).should_contain("frame 1: app#main  values.sharp:65");
+            expect(said).should_contain("ratio = 2.5");
+        };
+    };
+
+    tests("set") {
+        said := answers("values.dbg", "break values.sharp:65\ncontinue\nset count = 12\nset small = 300\nset ratio = 0.5\nset ready = false\n"
+            + "set numbers[2] = 99\nset corner.x = 7\nset points[0] = null\nset count = 1.5\nset ready = 1\nset corner = 5\nset nope = 1\n"
+            + "print numbers\nprint corner\nprint points\nclear all\ncontinue\n");
+        test("a whole number, and one that wraps round in a small type") {
+            expect(said).should_contain("count = 12");
+            expect(said).should_contain("small = 44");
+        };
+        test("a decimal and a bool") {
+            expect(said).should_contain("ratio = 0.5");
+            expect(said).should_contain("ready = false");
+        };
+        test("an element, a field, an object to null") {
+            expect(said).should_contain("numbers = _int64[4] [10, 20, 99, 40]");
+            expect(said).should_contain("  x = 7");
+            expect(said).should_contain("points = app#point[2] [null, null]");
+        };
+        test("what a value cannot take is refused") {
+            expect(said).should_contain("`count` was not set: this is a whole number");
+            expect(said).should_contain("`ready` was not set: a bool is set to true or false");
+            expect(said).should_contain("`corner` was not set: an object can be set to null");
+            expect(said).should_contain("nothing named `nope`");
+        };
+        test("the program goes on with the new values") { expect(said).should_contain("total 170, squared 65"); };
+
+        texts := answers("values.dbg", "break values.sharp:65\ncontinue\nset name = \"bread and jam\"\nset corner.label = \"edge\"\nprint corner\n"
+            + "set nothing = \"x\"\nset count = \"x\"\nset name = null\nset name = \"back\"\nset name = \"\"\nquit\n");
+        test("a text is given to a text variable and to a text field") {
+            expect(texts).should_contain("name = \"bread and jam\"");
+            expect(texts).should_contain("  label = \"edge\"");
+        };
+        test("a text variable that is null takes a text again, and the empty text") {
+            expect(texts).should_contain("name = null");
+            expect(texts).should_contain("name = \"back\"");
+            expect(texts).should_contain("name = \"\"");
+        };
+        test("a text is refused where another kind of thing is held") {
+            expect(texts).should_contain("`nothing` was not set: it is null, and nothing says that it is a variable for a text");
+            expect(texts).should_contain("`count` was not set");
+        };
+    };
+
+    tests("localized variables") {
+        said := answers("fiber_values.dbg", "break app#show\ncontinue\nprint turn\nfiber 0 print app#turn\nset turn = 12\ncontinue\nprint turn\ncontinue\n");
+        test("a localized variable is the looked-at fiber's own") {
+            expect(said).should_contain("turn = 9");
+            expect(said).should_contain("app#turn = 5");
+        };
+        test("it is set for that fiber only") {
+            expect(said).should_contain("the coroutine has 12");
+            expect(said).should_contain("main has 5");
+        };
+    };
+
+    tests("lambdas and bools") {
+        said := answers("lambdas.dbg", "break lambdas.sharp:53\nbreak lambdas.sharp:65\ncontinue\nlocals\nclear 1\ncontinue\nprint board\nprint flags\nquit\n");
+        test("a lambda sees its own variables and those of the functions around it") {
+            expect(said).should_contain("step      = 5");
+            expect(said).should_contain("inner     = 1");
+            expect(said).should_contain("untouched = 99");
+        };
+        test("bool fields and bool arrays read true and false") {
+            expect(said).should_contain("  on = true");
+            expect(said).should_contain("  locked = false");
+            expect(said).should_contain("flags = bool[2] [false, true]");
+        };
+    };
+
+    tests("threads and fibers") {
+        said := answers("workers.dbg", "break app#work\nbreak workers.sharp:39\ncontinue\nthreads\nthread 0 backtrace\nclear 1\ncontinue\n"
+            + "fibers\nfibers 2\nfibers nap\nfiber 5\nfiber 5 backtrace\nquit\n");
+        test("a breakpoint in a second thread is reported with its thread") { expect(said).should_contain("breakpoint 1: app#work  workers.sharp:13   (thread "); };
+        test("a thread that waits in a join is in extern c++, the VM's own are VM") {
+            expect(said).should_contain("extern c++");
+            expect(said).should_contain("Gc                VM");
+        };
+        test("thread N command looks at that thread for one command") { expect(said).should_contain("app#main  workers.sharp:35"); };
+        test("fibers are paged, 20 to a page") { expect(said).should_contain("fibers 1 to 20 of 30, page 1 of 2: `fibers 2` shows the next"); };
+        test("a sleeping fiber says so, and where in the program it is") { expect(said).should_contain("ms left  app#nap  workers.sharp:25"); };
+        test("the word is looked for in every call of a fiber") { expect(said).should_contain("with `nap` (30 in all)"); };
+        test("fiber N shows its calls") { expect(said).should_contain("fiber 5 \"coroutine\": sleeping"); };
+
+        locks := answers("locks.dbg", "break locks.sharp:26\ncontinue\nfibers\nquit\n");
+        test("a fiber that waits for a lock names the fiber that holds it") {
+            expect(locks).should_contain("waiting for a lock that fiber 0 holds  app#pass_gate  locks.sharp:15");
+        };
+
+        two := answers("two_threads.dbg", "break app#spin\ncontinue\ncontinue\nthreads\nquit\n");
+        test("two threads at one breakpoint are both reported, and both are running") {
+            expect(two).should_contain("(thread 3, fiber 1)");
+            expect(two).should_contain("(thread 4, fiber 2)");
+            expect(two).should_contain("first         running");
+        };
+    };
+
+    tests("obfuscated programs") {
+        said := answers("values_obf", "break point.length_squared\ncontinue\nlocals\nprint self.label\nquit\n");
+        test("with its name map the names are the written ones, the program's own beside them") {
+            expect(said).should_contain("name map: ");
+            expect(said).should_contain("at the start of the program: app#main (");
+            expect(said).should_contain("breakpoint 1 at app#point.length_squared (");
+            expect(said).should_contain("self.label (self.");
+        };
+        test("without its map it is refused") {
+            expect(exit_code_of(new string[] { "-map", built + "/no_such.map", built + "/values_obf" })).should_be(1);
+            refused := sdb_says(new string[] { "-map", built + "/no_such.map", built + "/values_obf" }, "");
+            expect(refused).should_contain("sdb cannot debug this program: its names were replaced");
+        };
+    };
+
+    tests("help") {
+        said := answers("notebook.dbg", "help\nhelp looking\nhelp print\nhelp nope\nquit\n");
+        test("help lists the topics") {
+            expect(said).should_contain("  running ");
+            expect(said).should_contain("continue, next, into, out, nexti, intoi, quit");
+        };
+        test("help <topic> lists its commands") { expect(said).should_contain("  print <path> "); };
+        test("help <command> has examples") { expect(said).should_contain("    print book.title          a field of another object"); };
+        test("an unknown word") { expect(said).should_contain("no topic and no command `nope`"); };
+    };
+
+    tests("a conversation") {
+        child := subprocess.start_program(sdb_program, new string[] { built + "/notebook.dbg" }, true);
+        first := read_up_to(child, "at the start of the program");
+        test("sdb says where it stopped before anything is typed") { expect(first).should_contain("app#main"); };
+
+        child.write_text("break app#fill\n");
+        placed := read_up_to(child, "breakpoint 1 at");
+        test("a command is answered while sdb waits for the next") { expect(placed).should_contain("app#fill  notebook.sharp:35"); };
+
+        child.write_text("continue\n");
+        stopped := read_up_to(child, "breakpoint 1:");
+        test("the program runs on and stops where it was told") { expect(stopped).should_contain("app#fill"); };
+
+        child.write_text("next\nprint added\n");
+        value := read_up_to(child, "added =");
+        test("what is asked next depends on what was answered") { expect(value).should_contain("added = 0"); };
+
+        child.write_text("quit\n");
+        child.close_input();
+        child.read_all_text();
+        test("quit ends sdb") { expect(child.wait()).should_be(0); };
+        child.close();
+    };
+
+    finish_tests("sdb");
+}

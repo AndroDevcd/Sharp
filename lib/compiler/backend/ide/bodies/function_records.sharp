@@ -157,10 +157,10 @@ private def consider_function(job: bodies_job, function: sharp_function) {
     key : string = function_key(function.unit.file, function.node);
     if(bodies.by_key.at(key) != null) { return; }
 
-    entry := new function_entry(function, key, bodies.functions.size().value as _int64);
+    entry := new function_entry(function, key, bodies.functions.size());
     if(function.locals != null) {
         variables : list<local_variable> = function.locals!!;
-        numbers := new _int32[variables.size().value as _int64];
+        numbers := new _int32[variables.size()];
         for(i : _int64 = 0; i < variables.size(); i++) {
             variable := variables.at(i);
             numbers[i] = 0 - 1;

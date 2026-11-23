@@ -3,7 +3,7 @@ mod std;
 /**
  * Extra methods for ALL number classes (int, long, short, byte, char,
  * double, uint ...), added to their common base class `number<T, NT>` with
- * a `mutate` declaration so that std/primatives.sharp itself stays as it is
+ * a `mutate` declaration so that std/primitives/numbers.sharp itself stays as it is
  * (the compiler and the optimizer rely on its fields and constructors).
  *
  * T is the native type the box holds (_int32 for int, decimal for double ...)
@@ -189,7 +189,7 @@ mutate number {
      */
     def to_padded_string(width: decimal): string {
         plain := to_string_radix(10);
-        length : decimal = plain.size().value;
+        length : decimal = plain.size();
         if(length >= width) return plain;
 
         negative : decimal = value < 0;
@@ -220,7 +220,7 @@ mutate number {
         if(radix < 2 || radix > 36 || radix != (radix as _int64))
             throw new illegal_argument_exception("parse_radix: the radix must be a whole number in 2 .. 36");
 
-        length : decimal = text.size().value;
+        length : decimal = text.size();
         position : decimal = 0;
         negative : decimal = 0;
 
@@ -267,7 +267,7 @@ mutate number {
 
     /** true when the text is an optional + or - followed by one or more decimal digits */
     static def is_parsable(text: string): bool {
-        length : decimal = text.size().value;
+        length : decimal = text.size();
         position : decimal = 0;
 
         if(length > 0 && (text.at(0).value == '-' || text.at(0).value == '+')) {

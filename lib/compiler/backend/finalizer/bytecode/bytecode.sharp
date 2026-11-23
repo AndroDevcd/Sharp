@@ -101,7 +101,7 @@ def lower_function(made: function_layout, constants: text_table) : function_code
  * two passes decide the same, since none of these words depends on a label.
  */
 def select_every_instruction(out: code_emitter, ir: ir_function, context: selection_context, labels: number_list?) {
-    count : _int64 = ir.instructions.size().value as _int64;
+    count : _int64 = ir.instructions.size();
     joined_jump : _int64 = 0 - 1;       // the jump a comparison before it has already done (selection_slots.sharp)
     joined_compare : _int64 = 0 - 1;    // ... and the comparison a constant before it has already done
     for(i : _int64 = 0; i < count; i++) {

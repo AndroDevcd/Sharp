@@ -194,7 +194,7 @@ def main(args: string[]) {
     words := new string[] { "a", "bc", "def" };
     expect("string array size", sizeof(words), 3);
     expect_str("string element", words[1], "bc");
-    expect("method on a string element", words[2].size().value, 3);
+    expect("method on a string element", words[2].size(), 3);
     expect_str("join", join(words), "a,bc,def,");
     words[0] = "zz";
     expect_str("string element replaced", words[0], "zz");

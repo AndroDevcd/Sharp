@@ -38,8 +38,8 @@ def test_ini_reading() {
     test("quoted value keeps spaces") { expect(config.find("paths", "home")!!).should_be("  C:\\dir  "); };
     test("quoted value escapes") { expect(config.find("paths", "msg")!!).should_be("say " + q + "hi" + q + "\n"); };
     test("keys of a section") { expect(io_strings.join(config.keys("server"), "|")).should_be("host|port|debug|url"); };
-    test("keys of empty section") { expect(config.keys("empty section").size().value).should_be(0); };
-    test("keys of missing section") { expect(config.keys("nope").size().value).should_be(0); };
+    test("keys of empty section") { expect(config.keys("empty section").size()).should_be(0); };
+    test("keys of missing section") { expect(config.keys("nope").size()).should_be(0); };
     test("has_section") { expect_true(config.has_section("paths")); };
     test("has_section empty") { expect_true(config.has_section("empty section")); };
     test("has_section missing") { expect_false(config.has_section("Server")); };

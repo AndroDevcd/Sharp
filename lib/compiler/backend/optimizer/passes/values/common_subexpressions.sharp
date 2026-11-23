@@ -52,7 +52,7 @@ import (
 def eliminate_common_subexpressions(analyses: function_analyses) : _int64 {
     code := analyses.code;
     if(code.tries.size() > 0) { return 0; }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     table := new expression_table(code, 2);
     if(table.count == 0) { return 0; }
     graph := analyses.graph();

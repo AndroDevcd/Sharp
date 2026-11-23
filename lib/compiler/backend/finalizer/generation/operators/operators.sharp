@@ -73,7 +73,7 @@ def binary_value(g: generator, e: bound_binary) : _int64 {
 
     // back up: the innermost left operand, then each operation with the result so far as its left side
     value : _int64 = value_of(g, link.left);
-    for(i : _int64 = (chain.size().value as _int64) - 1; i >= 0; i--) {
+    for(i : _int64 = chain.size() - 1; i >= 0; i--) {
         value = operation_value(g, chain.at(i), value, rights.at(i));
     }
     return value;

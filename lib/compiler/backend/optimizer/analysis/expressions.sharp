@@ -37,6 +37,9 @@ import (
  *                              (two classes can each have a field there: both end)
  *      a static read           any `set_static`; a call that may run a static part
  *      an element read         any `set_element`
+ *      an array's length       nothing a program writes directly; a call that may
+ *                              change anything, because `realloc` makes the SAME
+ *                              array longer or shorter
  *      a call that reads       any of the three
  *      all of them             a call that may change anything, a call of a
  *                              function value, `lock` / `unlock` (another fiber runs)
@@ -56,6 +59,7 @@ const READS_A_FIELD   : _int64 = 1;
 const READS_A_STATIC  : _int64 = 2;
 const READS_AN_ELEMENT : _int64 = 3;
 const READS_ANYTHING  : _int64 = 4;        // a call of a function that reads fields, statics or elements
+const READS_A_LENGTH  : _int64 = 5;        // an array's length: only `realloc` changes it, so only a call that may change anything ends it
 
 // what an instruction may change in memory
 const WRITES_NO_MEMORY : _int64 = 0;
@@ -88,6 +92,7 @@ def memory_read_by(made: ir_instruction) : _int64 {
     if(kind == IR_GET_FIELD) { return READS_A_FIELD; }
     if(kind == IR_GET_STATIC) { return READS_A_STATIC; }
     if(kind == IR_GET_ELEMENT) { return READS_AN_ELEMENT; }
+    if(kind == IR_LENGTH) { return READS_A_LENGTH; }
     if(kind == IR_CALL) {
         if((facts_of_call(made) & FACT_READS_NOTHING) != 0) { return READS_NO_MEMORY; }
         return READS_ANYTHING;
@@ -209,7 +214,7 @@ class expression_table {
         first_one = new number_list();
         reads_memory = new number_list();
         with_memory = new number_list();
-        total : _int64 = code.instructions.size().value as _int64;
+        total : _int64 = code.instructions.size();
         of = new _int64[total + 1];
 
         // ---- every expression instruction gets the number of the first one like it (a hash table of instructions)

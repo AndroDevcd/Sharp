@@ -160,7 +160,7 @@ class sharp_class base sharp_declaration {
     def is_open() : _int64 {
         if(open_state == 0) {
             open_state = 1;
-            if(type_parameters.size().value > 0) { open_state = 2; }
+            if(type_parameters.size() > 0) { open_state = 2; }
             else if(owner != null && owner!!.is_open()) { open_state = 2; }
         }
         return open_state == 2;
@@ -184,7 +184,7 @@ class sharp_class base sharp_declaration {
         }
         return 0;
     }
-    def is_generic() : _int64 { return type_parameters.size().value > 0; }
+    def is_generic() : _int64 { return type_parameters.size() > 0; }
 }
 
 /** the T of `class box<T base number>`: a name that stands for a type inside the class or function */

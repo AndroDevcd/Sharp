@@ -52,7 +52,7 @@ def logical_value(g: generator, e: bound_logical) : _int64 {
 
     // back up: the innermost left side, then each operator with the result so far as its left side
     left : _int64 = condition_of(g, link.left);
-    for(i : _int64 = (chain.size().value as _int64) - 1; i >= 0; i--) {
+    for(i : _int64 = chain.size() - 1; i >= 0; i--) {
         link = chain.at(i);
         target : _int64 = targets.at(i);
         finish : _int64 = finishes.at(i);

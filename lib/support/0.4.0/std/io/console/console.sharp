@@ -258,7 +258,7 @@ class console {
      * illegal_argument_exception when there are no choices.
      */
     static def choose(message: string, choices: list<string>) : decimal {
-        count : decimal = choices.size().value;
+        count : decimal = choices.size();
         if(count == 0) {
             throw new illegal_argument_exception("choose: there are no choices");
         }

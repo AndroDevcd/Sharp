@@ -40,7 +40,7 @@ import (
 def eliminate_null_checks(analyses: function_analyses) : _int64 {
     code := analyses.code;
     if(code.tries.size() > 0) { return 0; }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     any : _int64 = 0;
     for(i : _int64 = 0; i < total && any == 0; i++) {
         if(code.instructions.at(i).kind == IR_IS_NULL) { any = 1; }

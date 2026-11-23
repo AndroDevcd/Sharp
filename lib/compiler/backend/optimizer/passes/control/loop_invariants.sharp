@@ -70,7 +70,7 @@ def move_loop_invariants(analyses: function_analyses) : _int64 {
     graph := analyses.graph();
     forest := find_loops(graph);
     if(forest.valid == 0 || forest.count == 0) { return 0; }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     blocks : _int64 = graph.blocks;
 
     // ---- the innermost loop of every block: the smallest loop that has it

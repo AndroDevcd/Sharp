@@ -65,7 +65,7 @@ class b10 {
 
 // ---- generic functions and type parameters
 def twin<T>(a: T) { }
-def twin<U>(a: U, b: U) { }
+def twin<U>(b: U) { }
 class c1<T, T> { }
 def c1b<A, A>() { }
 class c1c { def later<T>(x: T) : int; }                             // E0345  a generic function cannot be left to the classes below

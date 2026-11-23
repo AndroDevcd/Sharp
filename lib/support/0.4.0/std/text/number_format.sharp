@@ -59,7 +59,7 @@ class number_format {
      * `out` in the given radix, with at least `min_digits` digits (zeros are
      * put in front).
      */
-    private static def append_digits(out: text_buffer, value: decimal, radix: decimal, min_digits: decimal, upper: decimal) {
+    private static def append_digits(out: char_buffer, value: decimal, radix: decimal, min_digits: decimal, upper: decimal) {
         // the digits come out last first, so they are collected in a small buffer from its end
         buffer := new _int8[64];
         at : decimal = 64;
@@ -94,7 +94,7 @@ class number_format {
     /** Throws illegal_argument_exception unless 0 <= decimals <= 15. */
     private static def check_decimals(decimals: decimal) {
         if(decimals < 0 || decimals > 15)
-            throw new ill_arg_except("decimals must be between 0 and 15, but was ${new int(decimals)}");
+            throw new illegal_argument_exception("decimals must be between 0 and 15, but was ${new int(decimals)}");
     }
 
     /** 10 to the power of `exponent` (a small whole number >= 0). */
@@ -120,7 +120,7 @@ class number_format {
         scale : decimal = power_of_ten(decimals);
         scaled : decimal = magnitude * scale;
 
-        out := new text_buffer();
+        out := new char_buffer();
         if(scaled >= exact_limit) {
             // too large to round here: every digit that exists is already a whole-number digit
             if(negative) out.append_char('-');
@@ -148,7 +148,7 @@ class number_format {
         if(separator == 0) {
             append_digits(out, whole, 10, 1, 0);
         } else {
-            digits := new text_buffer();
+            digits := new char_buffer();
             append_digits(digits, whole, 10, 1, 0);
             append_grouped(out, digits.build(), separator);
         }
@@ -160,7 +160,7 @@ class number_format {
     }
 
     /** Appends `digits` with `separator` between groups of three, counted from the right (0 = no grouping). */
-    private static def append_grouped(out: text_buffer, digits: string, separator: decimal) {
+    private static def append_grouped(out: char_buffer, digits: string, separator: decimal) {
         n : decimal = sizeof(digits.data);
         for(i : decimal = 0; i < n; i++) {
             if(separator != 0 && i > 0 && (n - i) % 3 == 0) out.append_char(separator);
@@ -173,9 +173,9 @@ class number_format {
         special := special_name(number);
         if((special as object) != null) return special!!;
         if(radix < 2 || radix > 36)
-            throw new ill_arg_except("radix must be between 2 and 36, but was ${new int(radix)}");
+            throw new illegal_argument_exception("radix must be between 2 and 36, but was ${new int(radix)}");
         if(width < 0)
-            throw new ill_arg_except("width cannot be negative: ${new int(width)}");
+            throw new illegal_argument_exception("width cannot be negative: ${new int(width)}");
 
         negative : decimal = number < 0;
         magnitude : decimal = negative ? 0 - number : number;
@@ -183,11 +183,11 @@ class number_format {
             if(radix == 10) {
                 return negative ? "-" + huge(magnitude) : huge(magnitude);
             }
-            throw new ill_arg_except("the number is too large to be written exactly in radix ${new int(radix)}");
+            throw new illegal_argument_exception("the number is too large to be written exactly in radix ${new int(radix)}");
         }
 
         whole : decimal = magnitude as _int64;                  // cut the fraction off
-        out := new text_buffer();
+        out := new char_buffer();
         if(negative && whole > 0) out.append_char('-');
         append_digits(out, whole, radix, width < 1 ? 1 : width, upper);
         return out.build();
@@ -373,7 +373,7 @@ class number_format {
             }
         }
 
-        out := new text_buffer();
+        out := new char_buffer();
         if(negative) out.append_char('-');
         out.append(format_decimal(mantissa, decimals.value, 0, '.'));
         out.append_char('e');
@@ -409,7 +409,7 @@ class number_format {
      * Throws illegal_argument_exception if the number is negative.
      */
     static def bytes(number: decimal): string {
-        if(number < 0) throw new ill_arg_except("bytes: a size cannot be negative");
+        if(number < 0) throw new illegal_argument_exception("bytes: a size cannot be negative");
         if(number < 1024) return integer(number) + " B";
 
         units : string = "KMGTPE";
@@ -420,7 +420,7 @@ class number_format {
             value = value / 1024;
             unit++;
         }
-        out := new text_buffer();
+        out := new char_buffer();
         out.append(format_decimal(value, 1, 0, '.'));
         out.append_char(' ');
         out.append_char(units.data[unit]);
@@ -436,11 +436,11 @@ class number_format {
     static def roman(number: decimal): string {
         whole : decimal = number as _int64;
         if(whole < 1 || whole > 3999)
-            throw new ill_arg_except("roman: the number must be between 1 and 3999");
+            throw new illegal_argument_exception("roman: the number must be between 1 and 3999");
 
         values := new decimal[] { 1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1 };
         symbols := new string[] { "M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I" };
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < 13; i++) {
             while(whole >= values[i]) {
                 out.append(symbols[i]);

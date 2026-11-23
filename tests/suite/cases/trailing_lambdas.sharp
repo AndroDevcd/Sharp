@@ -83,7 +83,7 @@ def main(args: string[]) {
     expect("it used twice", apply(7) { it * it }, 49);
     expect("count_if { it > 3 }", count_if(numbers) { it > 3 }, 3);
     expect("sum_by { it * 10 }", sum_by(numbers) { it * 10 }, 210);
-    expect("it of a string", with_text("hello") { it.size().value }, 5);
+    expect("it of a string", with_text("hello") { it.size() }, 5);
 
     total.value = 0;
     each(numbers) { total.add(it); }

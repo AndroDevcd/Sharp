@@ -228,7 +228,7 @@ import ( std.io.coroutines, std.io.coroutines.channels )
 
 def fetch_price(item: string) : int {
     delay(200);                             // a slow network call
-    return item.size().value * 10;
+    return item.size() * 10;
 }
 
 def main() {
@@ -259,6 +259,30 @@ received 1
 received 2
 ```
 
+### A debugger that knows your program
+
+Build with `-dbg`, run `sdb`, and stop anywhere: see the source, every variable, every thread and coroutine - and change values while the program waits.
+
+```
+$ sharpc notebook.sharp -dbg -o notebook
+$ sdb notebook
+(sdb) break notebook.sharp:41
+(sdb) continue
+breakpoint 1: app#notebook.add  notebook.sharp:41   (thread 0, fiber 0)
+(sdb) locals
+self  = app#notebook
+note  = "milk"
+found = null
+(sdb) print self.notes
+self.notes = std#list<std#string> (2) ["bread", "eggs"]
+(sdb) set note = "oat milk"
+(sdb) fibers sleeping
+  id     name       state                  where
+  5      coroutine  sleeping, 398 ms left  app#refresh  notebook.sharp:88
+```
+
+In a terminal it opens full screen: your program's output and the prompt on the left; the source, the variables and the calls on the right. See [the sdb guide](lib/debugger/doc/sdb.md).
+
 ## Documentation
 
 | Resource | What you'll find |
@@ -266,6 +290,7 @@ received 2
 | [Getting Started](GETTING_STARTED.md) | Your first program, classes, generics, null safety, tests and a window |
 | [Examples](examples) | Sample programs, [GUI apps](examples/gui), and [tests and mocks](examples/testing) |
 | [Language by example](tests/suite/cases) | Small, commented programs that each cover one feature |
+| [The debugger, sdb](lib/debugger/doc/sdb.md) | Breakpoints, stepping, variables, threads and coroutines; `sdb.json` |
 | [Building Sharp](build-scripts/README.md) | How to build, test and release Sharp |
 | [CLion / IntelliJ plugin](tools/clion-plugin) | Editor support for Sharp |
 
@@ -276,8 +301,11 @@ Sharp builds on Linux or WSL. Install the prerequisites, then run the build and 
 ```
 sudo apt install g++ rsync python3 libsdl2-dev
 bash build-scripts/build.sh
-bash build-scripts/test.sh
+bash test.sh
 ```
+
+`bash test.sh help` lists what can be tested: everything or one part (`compiler`, `library`, `vm`,
+`debugger`, `tools`, `programs`), quick or `full`.
 
 The compiler is written in Sharp and is built by its own last good build. See [Building Sharp](build-scripts/README.md) for the full guide, including how to make a release.
 
@@ -287,5 +315,6 @@ The compiler is written in Sharp and is built by its own last good build. See [B
 |---|---|---|
 | Virtual machine | C++ | [`lib/runtime`](lib/runtime), [`lib/core`](lib/core), [`main.cpp`](main.cpp) |
 | Compiler | Sharp | [`lib/compiler`](lib/compiler) |
+| Debugger (`sdb`) | C++ | [`lib/debugger`](lib/debugger): the VM's sources with the debugger compiled in |
 | Standard library | Sharp | [`lib/support/0.4.0`](lib/support/0.4.0) |
 | GUI native layer | C++ | [`lib/support/0.4.0/std/guikit/platform/native`](lib/support/0.4.0/std/guikit/platform/native) |

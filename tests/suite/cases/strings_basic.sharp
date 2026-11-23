@@ -44,7 +44,7 @@ def main(args: string[]) {
     expect_str("stored in a variable", joined, "abcd");
     expect_str("+ makes a new string: a is unchanged", a, "ab");
     expect_str("...and so is b", b, "cd");
-    expect("the size of a joined string", joined.size().value, 4);
+    expect("the size of a joined string", joined.size(), 4);
 
     // ---- joining with +=
     s := "x";
@@ -54,7 +54,7 @@ def main(args: string[]) {
     expect_str("+= variable", s, "xyab");
     s += a + b;
     expect_str("+= an expression", s, "xyababcd");
-    expect("the size after +=", s.size().value, 8);
+    expect("the size after +=", s.size(), 8);
     letters := "";
     letters += "a";
     letters += "b";
@@ -120,7 +120,7 @@ def main(args: string[]) {
     expect_str("a char object", "letter $letter", "letter q");
     expect_str("a global", "$motto", "global");
     price := "$$5";
-    expect("$$$$ is one character", price.size().value, 2);
+    expect("$$$$ is one character", price.size(), 2);
     expect("...and it is a dollar sign", price.at(0).value, 36);
 
     // ---- "${expression}" puts any expression into the string
@@ -180,9 +180,9 @@ def main(args: string[]) {
 
     // ---- empty strings
     empty := "";
-    expect("the size of \"\"", empty.size().value, 0);
-    expect_true("\"\".empty()", empty.empty());
-    expect_false("\"x\".empty()", s.empty());
+    expect("the size of \"\"", empty.size(), 0);
+    expect_true("\"\".empty()", empty.is_empty());
+    expect_false("\"x\".empty()", s.is_empty());
     expect_true("\"\" == \"\"", (empty == ""));
     expect_false("\"\" == \"a\"", (empty == "a"));
     expect_true("\"\" != \"a\"", (empty != "a"));
@@ -194,14 +194,14 @@ def main(args: string[]) {
     // ---- numbers inside strings are characters
     digits := "12" + "34";
     expect_str("\"12\" + \"34\"", digits, "1234");
-    expect("...has 4 characters", digits.size().value, 4);
+    expect("...has 4 characters", digits.size(), 4);
     expect("the first is the character '1'", digits.at(0).value, '1');
     expect("...which is 49, not 1", digits.at(0).value, 49);
     expect("a digit's value is the character - '0'", digits.at(3).value - '0', 4);
     expect_false("\"1\" is not \"1.0\"", ("1" == "1.0"));
     expect_false("\"07\" is not \"7\"", ("07" == "7"));
     mixed := "abc123";
-    expect("letters and digits", mixed.size().value, 6);
+    expect("letters and digits", mixed.size(), 6);
     expect_str("a version number", "v" + 9 + "." + 99, "v9.99");
     seven : int = 7;
     expect_true("an int turned into a string", ("" + seven == "7"));
@@ -212,7 +212,7 @@ def main(args: string[]) {
     expect_str("greet(greet(...))", greet(greet("you")), "hello hello you");
     expect_str("repeat(\"ab\", 3)", repeat("ab", 3), "ababab");
     expect_str("repeat(\"-\", 1)", repeat("-", 1), "-");
-    expect("repeat(\"abc\", 100) size", repeat("abc", 100).size().value, 300);
+    expect("repeat(\"abc\", 100) size", repeat("abc", 100).size(), 300);
     expect_str("a call in a join", greet("a") + "!" + greet("b"), "hello a!hello b");
 
     finish("strings_basic");

@@ -47,7 +47,7 @@ def written_type_id(types: ide_types, type: sharp_type?) : _int64 {
 
     quick : _int64 = 0;         // 1: this type can be found by number (and `quick_key` says which); 2: in the table of generic types
     quick_key : _int64 = 0;
-    argument_count : _int64 = t.arguments.size().value as _int64;
+    argument_count : _int64 = t.arguments.size();
     marks : _int64 = t.is_array + 2 * t.is_nullable + 4 * t.has_nullable_items;
     if(argument_count == 0 && (t.form == TYPE_NAMED || t.form == TYPE_NATIVE)) {
         if(t.form == TYPE_NAMED) {

@@ -46,7 +46,7 @@ class csv_row {
 
     /** the number of fields */
     def size() : decimal {
-        return values.size().value;
+        return values.size();
     }
 
     /**
@@ -59,7 +59,7 @@ class csv_row {
 
     /** the field at position `index`, or `fallback` when the row is shorter than that */
     def at_or(index: decimal, fallback: string) : string {
-        if(index < 0 || index >= values.size().value) {
+        if(index < 0 || index >= values.size()) {
             return fallback;
         }
         return values.at(index);
@@ -70,7 +70,7 @@ class csv_row {
         if(names == null) {
             return 0 - 1;
         }
-        total : decimal = names!!.size().value;
+        total : decimal = names!!.size();
         for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(names!!.at(i), name)) {
                 return i;
@@ -82,7 +82,7 @@ class csv_row {
     /** true when the header has a column `name` and this row is long enough to have a field in it */
     def has_field(name: string) : bool {
         index : decimal = column_index(name);
-        return index >= 0 && index < values.size().value;
+        return index >= 0 && index < values.size();
     }
 
     /**
@@ -98,8 +98,8 @@ class csv_row {
         if(index < 0) {
             throw new csv_exception("csv: there is no column \"" + name + "\"");
         }
-        if(index >= values.size().value) {
-            throw new csv_exception("csv: the row has only " + io_strings.int_to_string(values.size().value)
+        if(index >= values.size()) {
+            throw new csv_exception("csv: the row has only " + io_strings.int_to_string(values.size())
                 + " fields, none for column \"" + name + "\"");
         }
         return values.at(index);

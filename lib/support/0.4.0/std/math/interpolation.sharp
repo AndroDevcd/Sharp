@@ -73,5 +73,5 @@ def wrap(v: decimal, low: decimal, high: decimal): decimal {
         throw new illegal_argument_exception("wrap: low must be less than high");
 
     span : decimal = high - low;
-    return low + ((v - low) - floor_of((v - low) / span) * span);
+    return low + ((v - low) - floor((v - low) / span) * span);
 }

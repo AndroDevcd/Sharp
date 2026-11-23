@@ -163,7 +163,7 @@ def earlier_same_definition(components: list<sharp_component>, position: _int64,
     for(c : _int64 = 0; c <= position; c++) {
         block := components.at(c);
         if(!same_component(block, declared)) { continue; }
-        last : _int64 = block.definitions.size().value as _int64;
+        last : _int64 = block.definitions.size();
         if(c == position) { last = index; }
         for(i : _int64 = 0; i < last; i++) {
             earlier := block.definitions.at(i);

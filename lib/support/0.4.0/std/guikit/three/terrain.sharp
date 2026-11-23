@@ -101,7 +101,7 @@ class terrain base thing {
         step : decimal = side / squares;
         east : decimal = (land_height(px + step, pz) - land_height(px - step, pz)) / (step * 2);
         south : decimal = (land_height(px, pz + step) - land_height(px, pz - step)) / (step * 2);
-        return square_root(east * east + south * south);
+        return sqrt(east * east + south * south);
     }
 
     /**
@@ -247,8 +247,8 @@ class scattering base thing {
 
     /** a number from 0 to 1 that looks random and is always the same for the same n */
     private static def chance(n: decimal) : decimal {
-        v : decimal = sin_of(n * 12.9898) * 43758.5453;
-        return v - floor_of(v);
+        v : decimal = sin(n * 12.9898) * 43758.5453;
+        return v - floor(v);
     }
 
     /** work out where the copies stand (once), and which models they show */
@@ -333,7 +333,7 @@ local stable class copies_store {
     private static ids : list<long> = new list<long>();
 
     static def find(key: string) : _int64 {
-        count : _int64 = keys.size().value;
+        count : _int64 = keys.size();
         for(i : _int64 = 0; i < count; i++) {
             if(keys.at(i) == key) { return ids.at(i).value; }
         }

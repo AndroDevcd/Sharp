@@ -87,6 +87,10 @@ def report_if_same(first: sharp_declaration, second: sharp_declaration, where: s
         // def string.shout() and def int.shout() are functions of different types
         if((a.extends == null) != (b.extends == null)) { return 0; }
         if(a.extends != null && !same_type(a.extends, b.extends, null, 0)) { return 0; }
+        // `def find<T>(key: string) : T` beside `def find(key: string) : entry`: a call says which it means by
+        // writing type arguments or not (`find<user>("a")`, `find("a")`), so the two are told apart. (Two generic
+        // functions of one name are E0358's: generic_functions.sharp.)
+        if(a.is_generic() != b.is_generic()) { return 0; }
         if(!same_parameters(a, b, null, 0)) { return 0; }
 
         b.declared_twice = 1;

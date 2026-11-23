@@ -47,7 +47,7 @@ class fraction {
     fraction(numerator: decimal, denominator: decimal) {
         if(denominator == 0)
             throw new division_by_zero_exception("fraction: the denominator cannot be 0");
-        if(floor_of(numerator) != numerator || floor_of(denominator) != denominator)
+        if(floor(numerator) != numerator || floor(denominator) != denominator)
             throw new illegal_argument_exception("fraction: numerator and denominator must be whole numbers");
 
         // normalise: positive denominator, no common divisor
@@ -98,7 +98,7 @@ class fraction {
      * division_by_zero_exception when the denominator is 0.
      */
     static def parse(text: string): fraction {
-        length : decimal = text.size().value;
+        length : decimal = text.size();
         slash : decimal = 0 - 1;
         for(i : decimal = 0; i < length; i++) {
             if(text.at(i).value == '/') {
@@ -160,7 +160,7 @@ class fraction {
             throw new illegal_argument_exception("fraction: max_denominator must be >= 1");
 
         negative : decimal = value < 0;
-        remaining : decimal = absolute(value);
+        remaining : decimal = abs(value);
 
         // h(-2) / k(-2) = 0 / 1 and h(-1) / k(-1) = 1 / 0
         h_before : decimal = 0;
@@ -169,7 +169,7 @@ class fraction {
         k_last : decimal = 0;
 
         for(step : decimal = 0; step < 64; step++) {
-            term : decimal = floor_of(remaining);
+            term : decimal = floor(remaining);
             h_next : decimal = term * h_last + h_before;
             k_next : decimal = term * k_last + k_before;
 
@@ -300,7 +300,7 @@ class fraction {
 
     /** the fraction without its sign */
     def abs(): fraction {
-        return new fraction(absolute(numerator), denominator);
+        return new fraction(abs(numerator), denominator);
     }
 
     /**
@@ -311,7 +311,7 @@ class fraction {
      * division_by_zero_exception for zero raised to a negative power.
      */
     def pow(exponent: decimal): fraction {
-        if(floor_of(exponent) != exponent)
+        if(floor(exponent) != exponent)
             throw new illegal_argument_exception("fraction: the exponent must be a whole number");
 
         if(exponent < 0) {
@@ -346,12 +346,12 @@ class fraction {
 
     /** the largest whole number <= the fraction: floor(7/2) == 3, floor(-7/2) == -4 */
     def floor(): decimal {
-        return floor_of(numerator / denominator);
+        return floor(numerator / denominator);
     }
 
     /** the smallest whole number >= the fraction: ceil(7/2) == 4, ceil(-7/2) == -3 */
     def ceil(): decimal {
-        return ceil_of(numerator / denominator);
+        return ceil(numerator / denominator);
     }
 
     /** the nearest whole number, ties away from zero: round(5/2) == 3, round(-5/2) == -3 */
@@ -378,7 +378,7 @@ class fraction {
      */
     def to_mixed_string(): string {
         whole : decimal = trunc(numerator / denominator);
-        rest : decimal = absolute(numerator) - absolute(whole) * denominator;
+        rest : decimal = abs(numerator) - abs(whole) * denominator;
 
         if(rest == 0) return number_to_string(whole);
         if(whole == 0) return number_to_string(numerator) + "/" + number_to_string(denominator);

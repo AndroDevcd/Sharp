@@ -68,7 +68,7 @@ def generated_name(id: _int64) : string {
 def write_name_map(names: name_maker, path: string) : string {
     try {
         target := new file(path);
-        target.write("# the names obfuscation gave (kind, new name, what it stands for)\n" + names.lines.build());
+        file_natives.write(target.path, "# the names obfuscation gave (kind, new name, what it stands for)\n" + names.lines.build());
     } catch(e: exception) {
         return "could not write the map of obfuscated names `" + path + "`: " + e.get_message();
     }

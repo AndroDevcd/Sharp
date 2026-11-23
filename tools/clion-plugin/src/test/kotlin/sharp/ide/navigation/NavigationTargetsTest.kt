@@ -54,7 +54,7 @@ class NavigationTargetsTest {
 
     @Test
     fun aLocalLeadsToWhereItWasDeclared() {
-        val t = targetAt("count.value", 2)!!
+        val t = targetAt("count;", 2)!!
         assertEquals("count", wordInSample(t))
         assertEquals(saved.indexOf("count := names.size()"), t.from)
         val parameter = targetAt("names.size", 2)!!
@@ -90,7 +90,7 @@ class NavigationTargetsTest {
         // the target offsets are in the compiler's text; the view maps the SOURCE offset back first
         val edited = "// added\n" + saved
         val view = shop.view(edited)
-        val atNow = edited.indexOf("count.value") + 2
+        val atNow = edited.indexOf("count;") + 2
         val t = NavigationTargets.at(view, atNow)!!
         assertEquals(saved.indexOf("count := names.size()"), t.from)
         assertEquals(edited.indexOf("count := names.size()"), view.toCurrent(t.from))

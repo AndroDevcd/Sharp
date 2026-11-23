@@ -103,13 +103,13 @@ const MAX_OPTIMIZED_INSTRUCTIONS : _int64 = 40000;
 def optimize_program(layout: program_layout, settings: optimizer_settings) : optimizer_report {
     report := new optimizer_report();
     chosen := new list<function_layout>();
-    functions_count : _int64 = layout.functions.size().value as _int64;
+    functions_count : _int64 = layout.functions.size();
     for(i : _int64 = 0; i < functions_count; i++) {
         made := layout.functions.at(i);
         if(made.ir == null) { continue; }
         code : ir_function = made.ir!!;
         report.functions++;
-        report.before = report.before + (code.instructions.size().value as _int64);
+        report.before = report.before + code.instructions.size();
         if(!can_be_optimized(code)) { report.with_asm++; continue; }
         if(code.instructions.size() > MAX_OPTIMIZED_INSTRUCTIONS) { report.too_large++; continue; }
         chosen.add(made);
@@ -122,8 +122,8 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
         joined := flatten_string_concatenation(layout, chosen);
         report.took("string-concatenation", started);
         report.count("string-concatenation", joined.sites, 0);
-        report.functions = report.functions + (joined.twins.size().value as _int64);
-        report.append_twins = joined.twins.size().value as _int64;
+        report.functions = report.functions + joined.twins.size();
+        report.append_twins = joined.twins.size();
         flattened = joined.sites;
     }
     passes := new local_passes(settings);
@@ -170,12 +170,12 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
             }
             choices := new inline_choices(layout);
             for(i : _int64 = 0; i < chosen.size() && settings.runs("inline-calls"); i++) {
-                before : _int64 = chosen.at(i).ir!!.instructions.size().value as _int64;
+                before : _int64 = chosen.at(i).ir!!.instructions.size();
                 started : _int64 = now();
                 inlined : _int64 = inline_calls(chosen.at(i), choices);
                 report.took("inline-calls", started);
                 if(inlined > 0) {
-                    report.count("inline-calls", inlined, before - (chosen.at(i).ir!!.instructions.size().value as _int64));
+                    report.count("inline-calls", inlined, before - (chosen.at(i).ir!!.instructions.size()));
                     show_trace(passes, chosen.at(i).ir!!, "inline-calls");
                     kept.at(i).changed();
                     run_local_passes(kept.at(i), passes, report);
@@ -337,12 +337,12 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
     if(settings.runs("loop-unrolling")) {
         for(i : _int64 = 0; i < chosen.size(); i++) {
             code : ir_function = chosen.at(i).ir!!;
-            before : _int64 = code.instructions.size().value as _int64;
+            before : _int64 = code.instructions.size();
             started : _int64 = now();
             unrolled : _int64 = unroll_loops(kept.at(i));
             report.took("loop-unrolling", started);
             if(unrolled > 0) {
-                report.count("loop-unrolling", unrolled, before - (code.instructions.size().value as _int64));
+                report.count("loop-unrolling", unrolled, before - code.instructions.size());
                 show_trace(passes, code, "loop-unrolling");
                 // every copy of the body now has its own known counter: the value passes fold them
                 run_local_passes(kept.at(i), passes, report);
@@ -356,12 +356,12 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
     if(settings.runs("loop-formula")) {
         for(i : _int64 = 0; i < chosen.size(); i++) {
             code : ir_function = chosen.at(i).ir!!;
-            before : _int64 = code.instructions.size().value as _int64;
+            before : _int64 = code.instructions.size();
             started : _int64 = now();
             replaced : _int64 = replace_loops_by_formulas(kept.at(i));
             report.took("loop-formula", started);
             if(replaced > 0) {
-                report.count("loop-formula", replaced, before - (code.instructions.size().value as _int64));
+                report.count("loop-formula", replaced, before - code.instructions.size());
                 show_trace(passes, code, "loop-formula");
                 run_local_passes(kept.at(i), passes, report);
                 changed.replace(i, 1);
@@ -373,18 +373,18 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
     if(settings.runs("loop-rotation")) {
         for(i : _int64 = 0; i < chosen.size(); i++) {
             code : ir_function = chosen.at(i).ir!!;
-            before : _int64 = code.instructions.size().value as _int64;
+            before : _int64 = code.instructions.size();
             started : _int64 = now();
             rotated : _int64 = rotate_loops(code);
             report.took("loop-rotation", started);
             if(rotated > 0) {
-                report.count("loop-rotation", rotated, before - (code.instructions.size().value as _int64));
+                report.count("loop-rotation", rotated, before - code.instructions.size());
                 // the code is the same, only in another order: what is left to do is the jump to the
                 // moved test that now lands right after itself, and the like
                 kept.at(i).changed();
                 if(passes.on[PASS_JUMPS] == 1) {
-                    size : _int64 = code.instructions.size().value as _int64;
-                    report.count("jump-cleanup", clean_up_jumps(kept.at(i)), size - (code.instructions.size().value as _int64));
+                    size : _int64 = code.instructions.size();
+                    report.count("jump-cleanup", clean_up_jumps(kept.at(i)), size - code.instructions.size());
                 }
                 changed.replace(i, 1);
             }
@@ -416,7 +416,7 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
 
     for(i : _int64 = 0; i < layout.functions.size(); i++) {      // (with the twins native returns added)
         made := layout.functions.at(i);
-        if(made.ir != null) { report.after = report.after + (made.ir!!.instructions.size().value as _int64); }
+        if(made.ir != null) { report.after = report.after + made.ir!!.instructions.size(); }
     }
     for(i : _int64 = 0; i < changed.count; i++) {
         if(changed.at(i) == 1) { report.changed++; }
@@ -492,11 +492,11 @@ def run_local_passes(analyses: function_analyses, passes: local_passes, report: 
         waiting : _int64 = 0;
         for(p : _int64 = 0; p < LOCAL_PASSES; p++) {
             if(passes.on[p] == 0 || clean[p] == 1) { continue; }
-            size : _int64 = code.instructions.size().value as _int64;
+            size : _int64 = code.instructions.size();
             started : _int64 = now();
             changes : _int64 = run_local_pass(p, analyses, passes);
             report.took(passes.names[p], started);
-            report.count(passes.names[p], changes, size - (code.instructions.size().value as _int64));
+            report.count(passes.names[p], changes, size - code.instructions.size());
             if(changes > 0) { show_trace(passes, code, passes.names[p]); }
             if(changes > 0) {
                 any = 1;

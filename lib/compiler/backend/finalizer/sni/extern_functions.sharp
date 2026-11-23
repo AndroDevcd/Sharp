@@ -212,7 +212,7 @@ def c_function_text(written: sharp_type?, found: resolved_type) : string {
     }
     text := new string_builder("fn(");
     count : _int64 = 0;
-    if(found.parameters != null) { count = found.parameters!!.size().value as _int64; }
+    if(found.parameters != null) { count = found.parameters!!.size(); }
     for(i : _int64 = 0; i < count; i++) {
         one : sharp_type? = null;
         if(written_parameters != null && i < written_parameters!!.size()) { one = written_parameters!!.at(i); }

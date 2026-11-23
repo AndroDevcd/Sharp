@@ -668,10 +668,10 @@ The VM finds these classes by their full name when it starts
 `std#int`, `std#char`, `std#bool`, `std#short`, `std#byte`, `std#uint`,
 `std#uchar`, `std#ushort`, `std#long`, `std#ulong`,
 `platform.kernel#stack_state`, `std.io#thread`, `std#exception`, `std#error`,
-`std#char_array`, `std.io.fiber#fiber`, `std.reflect#_class_`,
-`std.reflect#_field_`, `std.reflect#_function_`, `std.reflect#data_type`,
-`std.reflect#_function_param_`, `std.reflect#description`, and
-`platform.kernel#function_value` (`memory/function_value.cpp`). Analysis's
+`std#char_array`, `std.io.fiber#fiber`, and
+`platform.kernel#function_value` (`memory/function_value.cpp`). (The six
+classes of the old `std.reflect` were on this list until 0.5.5; the VM now
+answers reflection in numbers and names, and knows no class of it.) Analysis's
 `analysed.required_classes` is the C++ compiler's list, which leaves some of
 them out (`std#bool`, `std#char`, `std#long`, `function_value` ...): layout
 keeps every class of THIS list with all its fields (kept.sharp,

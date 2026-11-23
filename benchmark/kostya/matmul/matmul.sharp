@@ -55,7 +55,7 @@ def matmul(a: decimal[], b: decimal[], n: decimal) : decimal[] {
 }
 
 def calc(size: decimal) : decimal {
-    n : decimal = floor_of(size / 2) * 2;
+    n : decimal = floor(size / 2) * 2;
     a := build_matrix(n, 1);
     b := build_matrix(n, 2);
 
@@ -70,7 +70,7 @@ def main(args: string[]) {
 
     left : decimal = calc(101);
     right : decimal = 0 - 18.67;
-    if(absolute(left - right) > 0.1) {
+    if(abs(left - right) > 0.1) {
         println("self test failed: " + left + " != " + right);
         exit(1);
     }

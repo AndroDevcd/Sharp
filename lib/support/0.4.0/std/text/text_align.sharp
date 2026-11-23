@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * text_align
  *
@@ -24,12 +26,12 @@ class text_align {
     /** Throws illegal_argument_exception if the width is negative. */
     private static def check_width(width: decimal) {
         if(width < 0)
-            throw new ill_arg_except("the width cannot be negative: " + number_format.integer(width));
+            throw new illegal_argument_exception("the width cannot be negative: " + number_format.integer(width));
     }
 
     /** `left` copies of fill, the text, `right` copies of fill. */
     private static def pad(text: string, left: decimal, right: decimal, fill: decimal): string {
-        out := new text_buffer();
+        out := new char_buffer();
         out.ensure_capacity(left + sizeof(text.data) + right);
         for(i : decimal = 0; i < left; i++) {
             out.append_char(fill);
@@ -118,7 +120,7 @@ class text_align {
 
         leftover : decimal = spaces % gaps;                 // this many gaps get one space more
         each : decimal = (spaces - leftover) / gaps;
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < count; i++) {
             out.append(words[i]);
             if(i < gaps) {
@@ -155,6 +157,6 @@ class text_align {
      */
     static def rule(c: char, width: int): string {
         check_width(width.value);
-        return character.repeat(c, width);
+        return character.repeat(c.value, width.value);
     }
 }

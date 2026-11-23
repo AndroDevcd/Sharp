@@ -230,7 +230,7 @@ stable class mesh {
         }
         for(i : _int64 = 0; i < corner_count; i++) {
             at : _int64 = i * 3;
-            length : decimal = square_root(normals[at] * normals[at] + normals[at + 1] * normals[at + 1] + normals[at + 2] * normals[at + 2]);
+            length : decimal = sqrt(normals[at] * normals[at] + normals[at + 1] * normals[at + 1] + normals[at + 2] * normals[at + 2]);
             if(length > 0) {
                 normals[at] = normals[at] / length;
                 normals[at + 1] = normals[at + 1] / length;
@@ -276,7 +276,7 @@ stable class mesh {
             nx : decimal = uy * vz - uz * vy;
             ny : decimal = uz * vx - ux * vz;
             nz : decimal = ux * vy - uy * vx;
-            length : decimal = square_root(nx * nx + ny * ny + nz * nz);
+            length : decimal = sqrt(nx * nx + ny * ny + nz * nz);
             if(length > 0) { nx = nx / length; ny = ny / length; nz = nz / length; }
             first : _int64 = corner_count;
             for(k : _int64 = 0; k < 3; k++) {
@@ -315,12 +315,12 @@ stable class mesh {
 
     /** turn round (0, 0, 0), in degrees, as a thing is turned: heading, then nose up, then rolled */
     def turned(yaw: decimal, pitch: decimal, roll: decimal) : mesh {
-        cy : decimal = cos_of(0 - yaw * PI_VALUE / 180);
-        sy : decimal = sin_of(0 - yaw * PI_VALUE / 180);
-        cp : decimal = cos_of(pitch * PI_VALUE / 180);
-        sp : decimal = sin_of(pitch * PI_VALUE / 180);
-        cr : decimal = cos_of(0 - roll * PI_VALUE / 180);
-        sr : decimal = sin_of(0 - roll * PI_VALUE / 180);
+        cy : decimal = cos(0 - yaw * PI_VALUE / 180);
+        sy : decimal = sin(0 - yaw * PI_VALUE / 180);
+        cp : decimal = cos(pitch * PI_VALUE / 180);
+        sp : decimal = sin(pitch * PI_VALUE / 180);
+        cr : decimal = cos(0 - roll * PI_VALUE / 180);
+        sr : decimal = sin(0 - roll * PI_VALUE / 180);
         // heading * pitch * roll, as nine numbers
         r00 : decimal = cy * cr + sy * sp * sr;
         r01 : decimal = sy * sp * cr - cy * sr;
@@ -448,7 +448,7 @@ stable class mesh {
         }
         send(model_id);
         if(more != null) {
-            count : _int64 = more!!.size().value;
+            count : _int64 = more!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 more!!.at(i).send(model_id);
             }

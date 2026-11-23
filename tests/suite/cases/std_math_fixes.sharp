@@ -13,7 +13,7 @@ def main(args: string[]) {
     tests("std_math_fixes") {
         // ---- fixed, used to be wrong (1): NEGATIVE_INFINITY is -2147483648, not minus infinity
         // (it is declared as `-1.0 / 0.0`; POSITIVE_INFINITY, `1.0 / 0.0`, is right)
-        test("NEGATIVE_INFINITY is smaller than any number") { expect_true(NEGATIVE_INFINITY.value < 0 - 1000000000000); };
+        test("NEGATIVE_INFINITY is smaller than any number") { expect_true(NEGATIVE_INFINITY < 0 - 1000000000000); };
         test("log(0) is NEGATIVE_INFINITY") { expect_true(is_infinite(log(0))); };
 
         // ---- fixed, used to be wrong (2): is_nan() is false for NaN. It is written `v != v` on double
@@ -25,8 +25,8 @@ def main(args: string[]) {
 
         // ---- fixed, used to be wrong (3): round() rounds negative numbers towards zero
         // (it cuts off the fraction and only looks for a fraction >= 0.5)
-        below : double = 0 - 2.6;
-        test("round(-2.6)") { expect(round(below).value).should_be(0 - 3); };
+        below : decimal = 0 - 2.6;
+        test("round(-2.6)") { expect(round(below)).should_be(0 - 3); };
 
         // ---- fixed, used to be wrong (4): a long that does not fit 32 bits: -5000000000 becomes -2147483648
         // before abs() ever sees it (the long object already prints as -2147483648)

@@ -14,27 +14,10 @@ mod std.io;
  *     f.sibling("notes.txt")         /home/joe/notes.txt
  *     f.parent()!!.child("sub/x")    /home/joe/sub/x
  *
- * name(), parent() and absolute_path() are the dependable versions of the
- * older get_name(), get_parent_file() and get_absolute_path(): they handle
- * paths directly below the root ("/etc") and paths that do not exist yet.
+ * name(), parent() and absolute_path() handle paths directly below the root
+ * ("/etc") and paths that do not exist yet.
  */
 mutate file {
-
-    /** the character between the parts of a path on this system: '/' or '\' (as a character code) */
-    static def separator_char() : decimal {
-        return file_natives.separator();
-    }
-
-    /** the index of the last separator in the path, or -1 */
-    private def last_separator() : decimal {
-        sep : decimal = file_natives.separator();
-        for(i : decimal = sizeof(path.data) - 1; i >= 0; i--) {
-            if(path.data[i] == sep) {
-                return i;
-            }
-        }
-        return 0 - 1;
-    }
 
     /**
      * The last part of the path: the name of the file or directory without
@@ -42,12 +25,11 @@ mutate file {
      * "a.txt" gives "a.txt". For a root ("/") the path itself is returned.
      */
     def name() : string {
-        at : decimal = last_separator();
-        n : decimal = sizeof(path.data);
-        if(at < 0 || at + 1 >= n) {
+        last := std.io#path.file_name(path);
+        if(sizeof(last.data) == 0) {
             return path;
         }
-        return io_strings.slice(path, at + 1, n);
+        return last;
     }
 
     /**
@@ -56,7 +38,11 @@ mutate file {
      * "/home/joe/a.txt" gives "/home/joe", "/a.txt" gives "/".
      */
     def parent_path() : string? {
-        return file_natives.parent_of(path);
+        up := std.io#path.parent(path);
+        if(sizeof(up.data) == 0) {
+            return null;
+        }
+        return up;
     }
 
     /** the directory this file or directory lies in as a file object, or null when the path has no parent (see parent_path) */
@@ -75,12 +61,7 @@ mutate file {
      * first character (".profile") have no extension: "" is returned.
      */
     def extension() : string {
-        own := name();
-        dot : decimal = io_strings.last_index_of(own, '.');
-        if(dot <= 0) {
-            return "";
-        }
-        return io_strings.slice_from(own, dot + 1);
+        return std.io#path.extension(path);
     }
 
     /**
@@ -89,12 +70,7 @@ mutate file {
      * ".profile", "notes" gives "notes".
      */
     def name_without_extension() : string {
-        own := name();
-        dot : decimal = io_strings.last_index_of(own, '.');
-        if(dot <= 0) {
-            return own;
-        }
-        return io_strings.slice(own, 0, dot);
+        return std.io#path.stem(name());
     }
 
     /** true when the name ends with "." + wanted, compared without regard to case: has_extension("TXT") is true for "a.txt" */
@@ -108,7 +84,7 @@ mutate file {
      * not depend on the current directory.
      */
     def is_absolute() : bool {
-        return file_natives.is_rooted(path) != 0;
+        return std.io#path.is_absolute(path);
     }
 
     /**
@@ -130,7 +106,7 @@ mutate file {
      */
     def child(child_name: string) : file {
         if(sizeof(child_name.data) == 0) {
-            throw new null_except("child: the name cannot be empty");
+            throw new nullptr_exception("child: the name cannot be empty");
         }
         return new file(file_natives.join(path, child_name));
     }
@@ -143,7 +119,7 @@ mutate file {
      */
     def sibling(other_name: string) : file {
         if(sizeof(other_name.data) == 0) {
-            throw new null_except("sibling: the name cannot be empty");
+            throw new nullptr_exception("sibling: the name cannot be empty");
         }
         dir := parent_path();
         if(io_strings.is_null(dir)) {

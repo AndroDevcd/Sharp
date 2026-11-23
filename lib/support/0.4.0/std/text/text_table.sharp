@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * text_table
  *
@@ -56,7 +58,7 @@ class text_table {
     text_table(headers: string[]) {
         columns = sizeof(headers);
         if(columns == 0)
-            throw new ill_arg_except("text_table: a table needs at least one column");
+            throw new illegal_argument_exception("text_table: a table needs at least one column");
 
         self->headers = new string[columns];
         alignment = new decimal[columns];
@@ -80,9 +82,9 @@ class text_table {
      */
     def align(column: int, mode: int): text_table {
         if(column.value < 0 || column.value >= columns)
-            throw new bounds_except("align: there is no column $column in a table of ${new int(columns)} columns");
+            throw new out_of_bounds_exception("align: there is no column $column in a table of ${new int(columns)} columns");
         if(mode.value < 0 || mode.value > 2)
-            throw new ill_arg_except("align: mode must be text_table.left, right or center");
+            throw new illegal_argument_exception("align: mode must be text_table.left, right or center");
         alignment[column.value] = mode.value;
         return self;
     }
@@ -101,7 +103,7 @@ class text_table {
     def add_row(row: string[]): text_table {
         given : decimal = sizeof(row);
         if(given > columns)
-            throw new ill_arg_except("add_row: the row has " + number_format.integer(given)
+            throw new illegal_argument_exception("add_row: the row has " + number_format.integer(given)
                 + " cells but the table has only " + number_format.integer(columns) + " columns");
 
         for(c : decimal = 0; c < columns; c++) {
@@ -128,7 +130,7 @@ class text_table {
      */
     def cell(row: int, column: int): string {
         if(row.value < 0 || row.value >= rows || column.value < 0 || column.value >= columns)
-            throw new bounds_except("cell: there is no cell at row $row, column $column");
+            throw new out_of_bounds_exception("cell: there is no cell at row $row, column $column");
         return cells.at(row.value * columns + column.value);
     }
 
@@ -155,7 +157,7 @@ class text_table {
     }
 
     /** Appends `text` in a field of `width` characters, aligned by `mode`. */
-    private static def append_cell(out: text_buffer, text: string, width: decimal, mode: decimal) {
+    private static def append_cell(out: char_buffer, text: string, width: decimal, mode: decimal) {
         missing : decimal = width - sizeof(text.data);
         before : decimal = 0;
         if(mode == right) before = missing;
@@ -171,7 +173,7 @@ class text_table {
     }
 
     /** Appends a frame line such as "+-----+----+" and a line end. */
-    private def append_rule(out: text_buffer, widths: decimal[]) {
+    private def append_rule(out: char_buffer, widths: decimal[]) {
         out.append_char('+');
         for(c : decimal = 0; c < columns; c++) {
             for(i : decimal = 0; i < widths[c] + 2; i++) {
@@ -183,7 +185,7 @@ class text_table {
     }
 
     /** Appends one line of cells (`row` < 0 = the headers) and a line end. */
-    private def append_row(out: text_buffer, widths: decimal[], row: decimal) {
+    private def append_row(out: char_buffer, widths: decimal[], row: decimal) {
         if(bordered) out.append_char('|');
         for(c : decimal = 0; c < columns; c++) {
             text : string = "";
@@ -205,7 +207,7 @@ class text_table {
     }
 
     /** Removes spaces at the end of the builder (the plain layout has no reason to pad the last column). */
-    private static def trim_trailing_spaces(out: text_buffer) {
+    private static def trim_trailing_spaces(out: char_buffer) {
         while(out.length() > 0 && out.last() == ' ') {
             out.drop_last();
         }
@@ -217,7 +219,7 @@ class text_table {
      */
     def render(): string {
         widths := measure();
-        out := new text_buffer();
+        out := new char_buffer();
 
         if(bordered) {
             append_rule(out, widths);

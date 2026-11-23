@@ -14,7 +14,7 @@ import ( std.io, platform, platform.kernel )
  * Everything is static. Most answers come from the runtime (the `build`
  * class of the platform module); the ones about the user's environment
  * (home directory, user name, host name) are asked from the shell on the
- * first call and remembered - see process.environment() - and are "" when
+ * first call and remembered - see environment - and are "" when
  * they cannot be found out.
  */
 class platform_info {
@@ -104,23 +104,14 @@ class platform_info {
         return temp_files.directory();
     }
 
-    /** the value of an environment variable, or `fallback` when it is not set */
-    static def environment_or(name: string, fallback: string) : string {
-        value := process.environment(name);
-        if(io_strings.is_null(value)) {
-            return fallback;
-        }
-        return value!!;
-    }
-
     /** the home directory of the user (HOME on unix, USERPROFILE on windows), or "" when unknown */
     static def home_directory() : string {
         if(!asked_home) {
             asked_home = 1;
             if(build.is_windows()) {
-                home_path = environment_or("USERPROFILE", "");
+                home_path = environment.value_or("USERPROFILE", "");
             } else {
-                home_path = environment_or("HOME", "");
+                home_path = environment.value_or("HOME", "");
             }
         }
         return home_path;
@@ -131,11 +122,11 @@ class platform_info {
         if(!asked_user) {
             asked_user = 1;
             if(build.is_windows()) {
-                user = environment_or("USERNAME", "");
+                user = environment.value_or("USERNAME", "");
             } else {
-                user = environment_or("USER", "");
+                user = environment.value_or("USER", "");
                 if(sizeof(user.data) == 0) {
-                    user = environment_or("LOGNAME", "");
+                    user = environment.value_or("LOGNAME", "");
                 }
             }
         }
@@ -169,6 +160,6 @@ class platform_info {
         buf := new char_buffer(64);
         buf.append(os_name()).append(", ").append_int(processor_count()).append(" processors, app ");
         buf.append(build.app_name).append_char(' ').append(build.version);
-        return buf.to_string()!!;
+        return buf.build();
     }
 }

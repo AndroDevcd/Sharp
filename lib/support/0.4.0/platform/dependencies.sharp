@@ -60,11 +60,5 @@ obfuscate -keep_inclusive {
     byte,
     double,
     number<_int32, int>, // int base class
-    fiber,
-    _class_,
-    _field_,
-    _function_,
-    data_type,
-    _function_param_,
-    description
+    fiber
 }

@@ -56,7 +56,7 @@ class json_writer {
     static def quote(text: string) : string {
         buf := new char_buffer(sizeof(text.data) + 8);
         new json_writer().write_string(buf, text);
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -153,7 +153,7 @@ class json_writer {
                 open.pop_back();
                 next.pop_back();
                 orders.pop_back();
-                new_line(buf, open.size().value);
+                new_line(buf, open.size());
                 if(container.is_array()) { buf.append_char(']'); } else { buf.append_char('}'); }
                 continue;
             }
@@ -161,8 +161,8 @@ class json_writer {
             if(done > 0) {
                 buf.append_char(',');
             }
-            new_line(buf, open.size().value);
-            next.put(next.size().value - 1, new int(done + 1));
+            new_line(buf, open.size());
+            next.put(next.size() - 1, new int(done + 1));
 
             position : decimal = orders.last().position_of(done);
             if(container.is_object()) {
@@ -174,7 +174,7 @@ class json_writer {
             }
             current = container.value_at(position);
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** in indented output: start a new line, indented for nesting depth `depth` */

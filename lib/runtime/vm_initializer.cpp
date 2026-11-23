@@ -12,7 +12,6 @@
 #include "multitasking/thread/sharp_thread.h"
 #include "../util/time.h"
 #include "main.h"
-#include "reflect/reflection.h"
 #include "jit/jit_compiler.h"
 #include "memory/tracing_collector.h"
 #include "memory/function_value.h"
@@ -61,19 +60,13 @@ int initialize_virtual_machine()
     vm.ushort_class = locate_class("std#ushort");
     vm.long_class = locate_class("std#long");
     vm.ulong_class = locate_class("std#ulong");
+    vm.double_class = locate_class("std#double");      // (reflection hands a decimal field out in one)
     vm.stack_sate = locate_class("platform.kernel#stack_state");
     vm.thread_class = locate_class("std.io#thread");
     vm.exception_class = locate_class("std#exception");
     vm.error_class = locate_class("std#error");
     vm.char_array_class = locate_class("std#char_array");
     vm.fiber_class = locate_class("std.io.fiber#fiber");
-    vm.reflect_class = locate_class("std.reflect#_class_");
-    vm.reflect_field = locate_class("std.reflect#_field_");
-    vm.reflect_function = locate_class("std.reflect#_function_");
-    vm.reflect_data_type = locate_class("std.reflect#data_type");
-    vm.reflect_func_params = locate_class("std.reflect#_function_param_");
-    vm.reflect_description = locate_class("std.reflect#description");
-    init_reflect_objects();
     cout.precision(16);
 
     copy_object(&vm.memoryExcept, create_object(vm.out_of_memory_except));

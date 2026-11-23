@@ -64,10 +64,10 @@ def parse_file_unit(path: string) : source_unit {
             return unit;
         }
 
-        text : string? = source.read();
+        text : string? = file_natives.read(source.path);
         if(text == null) {
-            // read() gives null for an empty file too: an empty file is fine
-            if(source.length() > 0) {
+            // the read gives null for an empty file too: an empty file is fine
+            if(source.size() > 0) {
                 unit.problem = "the file could not be read";
                 return unit;
             }

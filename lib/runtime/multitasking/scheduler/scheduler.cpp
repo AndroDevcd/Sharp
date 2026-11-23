@@ -16,6 +16,7 @@
 #include "../../memory/tracing_collector.h"
 #include "../fiber/task_controller.h"
 #include "../../telemetry/telemetry.h"
+#include "../../../debugger/hooks.h"        // what the debugger build (sdb) adds; empty in the plain VM
 #include <unordered_map>
 #include <vector>
 #include <queue>
@@ -89,8 +90,9 @@ void __usleep(unsigned int usec)
 }
 
 uInt sched_now_micros() {
-    return (uInt) std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()).count();
+    // (SDB_SCHEDULER_TIME: the debugger leaves out the time the program was held; the plain VM changes nothing)
+    return SDB_SCHEDULER_TIME((uInt) std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
 }
 
 // ---------------------------------------------------------------------------------
@@ -663,8 +665,10 @@ void run_scheduler() {
                 if(now <= thread->lastRanMicros)
                     continue;   // it has run for no time at all yet
 
+                // (SDB_KEEPS_FIBER: a fiber the debugger is stepping stays on its thread; always false in the plain VM)
                 if((thread->readyHead != nullptr || unboundWaiting)
-                    && (now - thread->lastRanMicros) > time_slice_of(thread)) {
+                    && (now - thread->lastRanMicros) > time_slice_of(thread)
+                    && !SDB_KEEPS_FIBER(thread)) {
                     enable_context_switch(thread, true);
                 }
             }

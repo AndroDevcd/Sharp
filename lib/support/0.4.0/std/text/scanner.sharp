@@ -55,15 +55,15 @@ class scanner {
         size = sizeof(text.data);
     }
 
-    /** 1 if the character `c` separates tokens. */
-    private def is_separator(c: decimal): decimal {
+    /** true if the character `c` separates tokens. */
+    private def is_separator(c: decimal): bool {
         m : decimal = sizeof(separators.data);
         if(m == 0) return c == ' ' || (c >= 9 && c <= 13);
 
         for(j : decimal = 0; j < m; j++) {
-            if(separators.data[j] == c) return 1;
+            if(separators.data[j] == c) return true;
         }
-        return 0;
+        return false;
     }
 
     /** Position of the first character of the next token (size if there is none). Reads nothing. */
@@ -106,8 +106,8 @@ class scanner {
 
     // ------------------------------------------------------------------ words
 
-    /** 1 if there is another token. Reads nothing. */
-    def has_next(): decimal {
+    /** true if there is another token. Reads nothing. */
+    def has_next(): bool {
         return token_start() < size;
     }
 
@@ -136,10 +136,10 @@ class scanner {
 
     // ------------------------------------------------------------------ numbers and bools
 
-    /** 1 if the next token is a whole number that next_int() would accept. Reads nothing. */
-    def has_next_int(): decimal {
+    /** true if the next token is a whole number that next_int() would accept. Reads nothing. */
+    def has_next_int(): bool {
         token := peek_token();
-        if((token as object) == null) return 0;
+        if((token as object) == null) return false;
         return number_parser.is_long(token!!);
     }
 
@@ -165,10 +165,10 @@ class scanner {
         return next_int();
     }
 
-    /** 1 if the next token is a number that next_double() would accept ("12", "-1.5", "1e3"). Reads nothing. */
-    def has_next_double(): decimal {
+    /** true if the next token is a number that next_double() would accept ("12", "-1.5", "1e3"). Reads nothing. */
+    def has_next_double(): bool {
         token := peek_token();
-        if((token as object) == null) return 0;
+        if((token as object) == null) return false;
         return number_parser.is_double(token!!);
     }
 
@@ -193,10 +193,10 @@ class scanner {
         return next_double();
     }
 
-    /** 1 if the next token is "true" or "false" (capital / small letters do not matter). Reads nothing. */
-    def has_next_bool(): decimal {
+    /** true if the next token is "true" or "false" (capital / small letters do not matter). Reads nothing. */
+    def has_next_bool(): bool {
         token := peek_token();
-        if((token as object) == null) return 0;
+        if((token as object) == null) return false;
         return number_parser.parse_bool_or(token!!, false) || token!!.equals_ignore_case("false");
     }
 
@@ -214,8 +214,8 @@ class scanner {
 
     // ------------------------------------------------------------------ lines and raw text
 
-    /** 1 if there is anything left to read as a line (even an empty last line needs at least one unread character). */
-    def has_next_line(): decimal {
+    /** true if there is anything left to read as a line (even an empty last line needs at least one unread character). */
+    def has_next_line(): bool {
         return cursor < size;
     }
 
@@ -248,12 +248,12 @@ class scanner {
      * If the next token is exactly `expected`, reads it and returns 1;
      * otherwise reads nothing and returns 0.
      */
-    def skip(expected: string): decimal {
+    def skip(expected: string): bool {
         token := peek_token();
-        if((token as object) == null) return 0;
-        if(token!! != expected) return 0;
+        if((token as object) == null) return false;
+        if(token!! != expected) return false;
         consume_token();
-        return 1;
+        return true;
     }
 
     /** Everything that has not been read yet, exactly as it is in the text. Reads nothing. */

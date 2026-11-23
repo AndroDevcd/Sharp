@@ -360,14 +360,6 @@ class regex {
         return c;
     }
 
-    /** The value of the hexadecimal digit `c`, or -1. */
-    private static def hex_value(c: decimal): decimal {
-        if(c >= '0' && c <= '9') return c - '0';
-        if(c >= 'a' && c <= 'f') return c - 'a' + 10;
-        if(c >= 'A' && c <= 'F') return c - 'A' + 10;
-        return -1;
-    }
-
     /**
      * Reads the escape at `pos` (which is at the backslash) as a single
      * character and returns it, moving past it; returns -1000 without moving
@@ -384,9 +376,9 @@ class regex {
         else if(e == 'v') result = 11;
         else if(e == '0') result = 0;
         else if(e == 'x') {
-            if(pos + 3 >= pat_len || hex_value(pat[pos + 2]) < 0 || hex_value(pat[pos + 3]) < 0)
+            if(pos + 3 >= pat_len || character.digit_value(pat[pos + 2], 16) < 0 || character.digit_value(pat[pos + 3], 16) < 0)
                 throw bad_pattern("\\x must be followed by two hexadecimal digits", pos);
-            code : decimal = hex_value(pat[pos + 2]) * 16 + hex_value(pat[pos + 3]);
+            code : decimal = character.digit_value(pat[pos + 2], 16) * 16 + character.digit_value(pat[pos + 3], 16);
             if(code > 127) code = code - 256;       // characters are signed bytes
             pos += 4;
             return code;
@@ -646,13 +638,13 @@ class regex {
 
     // ================================================================== running the program
 
-    /** 1 if `c` is a word character: a letter, a digit or '_'. */
-    private static def is_word(c: decimal): decimal {
+    /** true if `c` is a word character: a letter, a digit or '_'. */
+    private static def is_word(c: decimal): bool {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
     }
 
-    /** 1 if there is a word boundary between text positions at - 1 and at. */
-    private static def at_boundary(t: _int8[]?, n: decimal, at: decimal): decimal {
+    /** true if there is a word boundary between text positions at - 1 and at. */
+    private static def at_boundary(t: _int8[]?, n: decimal, at: decimal): bool {
         before : decimal = 0;
         after : decimal = 0;
         if(at > 0) before = is_word(t[at - 1]);
@@ -692,12 +684,12 @@ class regex {
     /**
      * Runs the program from text position `start`. Returns 1 and leaves the
      * group positions in `caps` if the pattern matches there (and, with
-     * `whole` set, reaches exactly the end of the text); otherwise 0.
+     * `whole` set, reaches exactly the end of the text);.
      * prepare() must have been called for this text; several starts of one
      * search share the "already tried" memory, which is what makes a search
      * over all start positions cost no more than one pass.
      */
-    private def run(t: _int8[]?, n: decimal, start: decimal, whole: decimal): decimal {
+    private def run(t: _int8[]?, n: decimal, start: decimal, whole: decimal): bool {
         slots : decimal = group_total * 2;
         for(i : decimal = 0; i < slots; i++) {
             caps[i] = -1;
@@ -756,7 +748,7 @@ class regex {
                     else failed = 1;
                 } else {
                     // op_match
-                    if(!whole || sp == n) return 1;
+                    if(!whole || sp == n) return true;
                     failed = 1;
                 }
             }
@@ -774,22 +766,22 @@ class regex {
                         resumed = 1;
                     }
                 }
-                if(!resumed) return 0;
+                if(!resumed) return false;
             }
         }
-        return 0;
+        return false;
     }
 
     /**
      * Looks for the leftmost match that starts at `from` or later. Returns 1
      * with the positions in `caps`, or 0.
      */
-    private def search(t: _int8[]?, n: decimal, from: decimal): decimal {
+    private def search(t: _int8[]?, n: decimal, from: decimal): bool {
         prepare(n);
         for(start : decimal = from; start <= n; start++) {
-            if(run(t, n, start, 0)) return 1;
+            if(run(t, n, start, 0)) return true;
         }
-        return 0;
+        return false;
     }
 
     // ================================================================== the public functions
@@ -805,17 +797,17 @@ class regex {
     }
 
     /**
-     * 1 if the WHOLE text fits the pattern, otherwise 0
+     * true if the WHOLE text fits the pattern
      * (new regex("\\d+").matches("123") is 1, matches("123a") is 0).
      */
-    def matches(text: string): decimal {
+    def matches(text: string): bool {
         n : decimal = sizeof(text.data);
         prepare(n);
         return run(text.data, n, 0, 1);
     }
 
-    /** 1 if the pattern matches somewhere in the text, otherwise 0. */
-    def contains(text: string): decimal {
+    /** true if the pattern matches somewhere in the text. */
+    def contains(text: string): bool {
         return search(text.data, sizeof(text.data), 0);
     }
 
@@ -838,7 +830,7 @@ class regex {
     def find(text: string, start: int): regex_match? {
         n : decimal = sizeof(text.data);
         if(start.value < 0 || start.value > n)
-            throw new bounds_except("find: start $start is outside of a text of " + number_format.integer(n) + " characters");
+            throw new out_of_bounds_exception("find: start $start is outside of a text of " + number_format.integer(n) + " characters");
         if(!search(text.data, n, start.value)) return null;
         return new regex_match(text, caps!!, group_total);
     }
@@ -857,7 +849,7 @@ class regex {
             if(caps[1] > caps[0]) from = caps[1];
             else from = caps[1] + 1;
         }
-        if(found.empty()) return new regex_match[0];
+        if(found.is_empty()) return new regex_match[0];
         return found.get_elements()!!;
     }
 
@@ -879,7 +871,7 @@ class regex {
      * from the current match: \0 .. \9 (or $0 .. $9) give the text of that
      * group, \\ a backslash and \$ a dollar sign.
      */
-    private def append_replacement(out: text_buffer, t: _int8[]?, replacement: string) {
+    private def append_replacement(out: char_buffer, t: _int8[]?, replacement: string) {
         r := replacement.data;
         m : decimal = sizeof(r);
         i : decimal = 0;
@@ -888,7 +880,7 @@ class regex {
             if((c == '\\' || c == '$') && i + 1 < m && r[i + 1] >= '0' && r[i + 1] <= '9') {
                 group : decimal = r[i + 1] - '0';
                 if(group >= group_total)
-                    throw new ill_arg_except("replacement refers to group " + number_format.integer(group)
+                    throw new illegal_argument_exception("replacement refers to group " + number_format.integer(group)
                         + " but the pattern has " + number_format.integer(group_total - 1) + " groups");
                 from : decimal = caps[group * 2];
                 to : decimal = caps[group * 2 + 1];
@@ -910,7 +902,7 @@ class regex {
     private def replace(text: string, replacement: string, limit: decimal): string {
         t := text.data;
         n : decimal = sizeof(t);
-        out := new text_buffer();
+        out := new char_buffer();
         copied : decimal = 0;               // the text before this position is already in `out`
         from : decimal = 0;
         done : decimal = 0;
@@ -967,13 +959,13 @@ class regex {
      * Throws illegal_argument_exception if limit is negative.
      */
     def split(text: string, limit: int): string[] {
-        if(limit.value < 0) throw new ill_arg_except("split: the limit cannot be negative: $limit");
+        if(limit.value < 0) throw new illegal_argument_exception("split: the limit cannot be negative: $limit");
         t := text.data;
         n : decimal = sizeof(t);
         parts := new list<string>();
         piece_start : decimal = 0;
         from : decimal = 0;
-        while(from <= n && (limit.value == 0 || parts.size().value < limit.value - 1) && search(t, n, from)) {
+        while(from <= n && (limit.value == 0 || parts.size() < limit.value - 1) && search(t, n, from)) {
             match_start : decimal = caps[0];
             match_end : decimal = caps[1];
             if(match_end == match_start) {
@@ -995,13 +987,13 @@ class regex {
         return parts.get_elements()!!;
     }
 
-    /** One-off test: 1 if `pattern` matches somewhere in `text`. Throws parse_exception for a bad pattern. */
-    static def is_match(pattern: string, text: string): decimal {
+    /** One-off test: true if `pattern` matches somewhere in `text`. Throws parse_exception for a bad pattern. */
+    static def is_match(pattern: string, text: string): bool {
         return new regex(pattern).contains(text);
     }
 
-    /** One-off test: 1 if the WHOLE `text` fits `pattern`. Throws parse_exception for a bad pattern. */
-    static def matches(pattern: string, text: string): decimal {
+    /** One-off test: true if the WHOLE `text` fits `pattern`. Throws parse_exception for a bad pattern. */
+    static def matches(pattern: string, text: string): bool {
         return new regex(pattern).matches(text);
     }
 
@@ -1013,7 +1005,7 @@ class regex {
     static def escape(text: string): string {
         d := text.data;
         n : decimal = sizeof(d);
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < n; i++) {
             c : decimal = d[i];
             if(c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '(' || c == ')' || c == '['

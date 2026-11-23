@@ -48,7 +48,7 @@ stable class dropdown base composable {
 
     override def build() : element {
         t : theme = ui_host.current!!.look;
-        count : _int64 = titles.size().value;
+        count : _int64 = titles.size();
 
         shown : string = "";
         if(bound.value >= 0 && bound.value < count) {

@@ -237,7 +237,7 @@ def main(args: string[]) {
     texts.put("second");
     expect_str("box<string>: after put", texts.take(), "second");
     expect_str("box<string>: swap", texts.swap("third"), "second");
-    expect("box<string>: a method of the item", texts.take().size().value, 5);
+    expect("box<string>: a method of the item", texts.take().size(), 5);
     wrapped := new box<int>(new int(41));
     expect("box<int>: the number inside the int object", wrapped.take().value, 41);
 

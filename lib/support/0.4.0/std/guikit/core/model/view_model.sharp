@@ -136,7 +136,7 @@ stable class view_model {
         }
         alive = 0;
         if(work != null) {
-            count : _int64 = work!!.size().value;
+            count : _int64 = work!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 work!!.at(i).cancel();
             }
@@ -170,7 +170,7 @@ stable class view_model {
 
     private def cleared() {
         if(endings != null) {
-            count : _int64 = endings!!.size().value;
+            count : _int64 = endings!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 endings!!.at(i).run();
             }
@@ -207,7 +207,7 @@ stable class model_store {
 
     /** the model of class t in this store: made the first time, the same one after that */
     def of<t base view_model>() : t {
-        count : _int64 = held.size().value;
+        count : _int64 = held.size();
         for(i : _int64 = 0; i < count; i++) {
             if(held.at(i) is t) {
                 return held.at(i) as t;
@@ -220,7 +220,7 @@ stable class model_store {
 
     /** drop every model: each one's work is cancelled and its when_cleared blocks run */
     def drop_all() {
-        count : _int64 = held.size().value;
+        count : _int64 = held.size();
         for(i : _int64 = 0; i < count; i++) {
             held.at(i).drop();                  // its work is cancelled, its when_cleared blocks run
         }

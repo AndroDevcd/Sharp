@@ -16,7 +16,7 @@ public class thread_group : loopable<thread> {
 	
 	def add(t : thread) {
 	    lock(self) {
-	        index := handles.indexof(t);
+	        index := handles.index_of(t);
             if(index >= 0) {
                handles.put(index, t);
             } else {
@@ -26,12 +26,13 @@ public class thread_group : loopable<thread> {
 		}
 	}
 	
-	def size() := n_threads;
+	def size() : _int64 = n_threads;
 	def get_name() := name;
 	def get_priority() := default_priority;
 	def remove(id : int) : bool {
 	    lock (self) {
-	        _thread := find(id);
+	        // (not find(id): the VM's lock does not count, so a second lock inside this one would end it early)
+	        _thread := with_id(id);
             if(_thread != null) {
                 handles.remove(_thread!!);
                 n_threads--;
@@ -48,7 +49,7 @@ public class thread_group : loopable<thread> {
 
     def find(find_func: (thread)(bool)) : thread? {
 	    lock (self) {
-           for(i := 0; i < handles.size().value; i++) {
+           for(i := 0; i < handles.size(); i++) {
                _thread := handles.at(i);
                if(_thread != null && find_func(_thread)) {
                    return _thread;
@@ -61,14 +62,19 @@ public class thread_group : loopable<thread> {
 
     def find(id: int) : thread? {
 	    lock (self) {
-           for(i := 0; i < handles.size().value; i++) {
-               if(handles[i].get_id() == id) {
-                   return handles[i];
-               }
-           }
-
-           return null;
+           return with_id(id);
         }
+    }
+
+    /** the thread with this id, or null; the caller holds the lock */
+    private def with_id(id: int) : thread? {
+        for(i := 0; i < handles.size(); i++) {
+            if(handles[i].get_id() == id) {
+                return handles[i];
+            }
+        }
+
+        return null;
     }
 	
 	def kill_all() {
@@ -83,5 +89,5 @@ public class thread_group : loopable<thread> {
 	private handles := new list<thread>();
 	private name : string;
 	private default_priority : thread_priority;
-	private n_threads := 0;
+	private n_threads : _int64 = 0;
 }

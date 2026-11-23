@@ -65,8 +65,8 @@ class immutable_list<T> : loopable<T>, iterable<T> {
         return sizeof(items);
     }
 
-    /** 1 when the list has no elements, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when the list has no elements. O(1). */
+    def is_empty() : bool {
         return sizeof(items) == 0;
     }
 
@@ -121,8 +121,8 @@ class immutable_list<T> : loopable<T>, iterable<T> {
         return -1;
     }
 
-    /** 1 when an element equals `element`, otherwise 0. O(n). */
-    def contains(element: T) : decimal {
+    /** true when an element equals `element`. O(n). */
+    def contains(element: T) : bool {
         return index_of(element) >= 0;
     }
 

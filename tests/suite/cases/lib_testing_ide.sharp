@@ -1,0 +1,89 @@
+mod main;
+
+import ( std.io, std.testing, std.system, platform )
+
+/**
+ * std.testing for an editor: a test program started with `-ide-tests`
+ * reports each group and test as lines an editor's test view reads
+ * (`##teamcity[...]`), with where each is written.
+ *
+ * The program starts ITSELF as a child (`sharp lib_testing_ide child -ide-tests`):
+ * the child is a small test program with a test that passes, one whose check
+ * fails and one that throws; this program reads what the child printed.
+ * Started without the argument, the same child reports for a person.
+ */
+def be_the_child() {
+    tests("a basket") {
+        test("it's empty [at first]") {
+            expect(0).should_be(0);
+        };
+        test("adding puts one in") {
+            expect(2).should_be(1);
+        };
+        test("something throws") {
+            throw new illegal_state_exception("no | milk");
+        };
+    };
+    tests("second group") {
+        test("fine") { expect("a").should_be("a"); };
+    };
+    finish_tests();
+}
+
+def main(args: string[]) {
+    if(sizeof(args) > 0 && args[0] == "child") {
+        be_the_child();
+        return;
+    }
+    show_only_failures();
+    tests("lib_testing_ide") {
+        test("program_arguments() is what main was handed") {
+            expect(sizeof(program_arguments())).should_be(sizeof(args));
+        };
+
+        child := subprocess.run(program_path(), new string[] { "child", "-ide-tests" }, true);
+        said := child.read_all_text();
+        code : _int64 = child.wait();
+        child.close();
+
+        test("a group starts and ends") {
+            expect(said).should_contain("##teamcity[testSuiteStarted name='a basket' locationHint='sharp://");
+            expect(said).should_contain("##teamcity[testSuiteFinished name='a basket']");
+            expect(said).should_contain("##teamcity[testSuiteStarted name='second group'");
+        };
+        test("a test starts and ends, with the signs in its name escaped") {
+            expect(said).should_contain("##teamcity[testStarted name='it|'s empty |[at first|]' locationHint='sharp://");
+            expect(said).should_contain("##teamcity[testFinished name='it|'s empty |[at first|]' duration='");
+        };
+        test("where a test is written: this file and a line") {
+            expect(said).should_contain("lib_testing_ide.sharp:17']");          // the line of test("it's empty ...")
+            expect(said).should_contain("lib_testing_ide.sharp:16']");          // the line of tests("a basket")
+        };
+        test("a failed check hands over what was expected and what it was") {
+            expect(said).should_contain("##teamcity[testFailed name='adding puts one in' message='expected 1'");
+            expect(said).should_contain("type='comparisonFailure' expected='1' actual='2']");
+        };
+        test("an exception is a failure with its words, a bar doubled") {
+            expect(said).should_contain("##teamcity[testFailed name='something throws'");
+            expect(said).should_contain("|nno || milk|nat ");
+        };
+        test("no line for a person about a test") {
+            expect(said.find("  ok    ")).should_be(false);
+            expect(said.find("  FAIL  ")).should_be(false);
+        };
+        test("the summary and the exit code stay") {
+            expect(said).should_contain("2 failed, 2 passed (4 tests)");
+            expect(code).should_be(1);
+        };
+
+        plain := subprocess.run(program_path(), new string[] { "child" }, true);
+        plain_said := plain.read_all_text();
+        plain.wait();
+        plain.close();
+        test("without the argument it reports for a person") {
+            expect(plain_said).should_contain("  FAIL  adding puts one in");
+            expect(plain_said.find("##teamcity")).should_be(false);
+        };
+    };
+    finish_tests("lib_testing_ide");
+}

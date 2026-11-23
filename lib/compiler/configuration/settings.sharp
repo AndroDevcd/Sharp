@@ -117,7 +117,7 @@ def add_ignored_file(filepath : string) {
       return;
    }
 
-   options.ignored_files.add(ignored_file.get_absolute_path());
+   options.ignored_files.add(ignored_file.absolute_path());
 }
 
 def add_ignored_directory(dirpath : string) {
@@ -132,7 +132,7 @@ def add_ignored_directory(dirpath : string) {
       return;
    }
 
-   options.ignored_directories.add(ignored_dir.get_absolute_path());
+   options.ignored_directories.add(ignored_dir.absolute_path());
 }
 
 def add_library_path(libpath: string) {
@@ -149,7 +149,7 @@ def add_library_path(libpath: string) {
       return;
    }
 
-   options.libraries.add(library_dir.get_absolute_path());
+   options.libraries.add(library_dir.absolute_path());
 }
 
 /** -P <folder>: compile the project in that folder */
@@ -166,7 +166,7 @@ def set_project_directory(path: string) {
    }
 
    options.compile_mode = compilation_mode.project_mode;
-   options.project_dir = project_folder.get_absolute_path();
+   options.project_dir = project_folder.absolute_path();
 }
 
 /** -cache <folder>: keep the build cache there (cache/cache_controller.sharp) */
@@ -176,7 +176,7 @@ def set_cache_folder(path: string) {
       error("cache folder: $path was found to be a file");
    }
 
-   options.cache_folder = cache_folder.get_absolute_path();
+   options.cache_folder = cache_folder.absolute_path();
 }
 
 def enable_warnings_as_errors() {

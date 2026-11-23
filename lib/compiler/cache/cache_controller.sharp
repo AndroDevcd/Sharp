@@ -162,8 +162,8 @@ def load_or_parse(path: string) : source_unit {
     modified : decimal = 0 - 1;
     try {
         source := new file(path);
-        size = source.length().value;
-        modified = source.last_modified().value;
+        size = source.size();
+        modified = source.last_modified();
     } catch(e: throwable) {
         // parse_file_unit reports what is wrong with the file
     }

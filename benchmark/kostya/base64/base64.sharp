@@ -44,7 +44,7 @@ def main(args: string[]) {
 
     s_encoded : decimal = 0;
     for(i : decimal = 0; i < tries; i++) {
-        s_encoded += base64.encode_bytes(str1).size().value;
+        s_encoded += base64.encode_bytes(str1).size();
     }
     encode_seconds : decimal = (nano_time().value - start) / 1000000000;
 

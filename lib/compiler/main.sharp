@@ -127,7 +127,7 @@ def compile_from_command_line(args: string[]) : int {
     add_library_files(options.library_version);
     check_source_files(files);
     // (the files are absolute now: so must the name of the inspected one be)
-    if(sizeof(options.inspected_file.data) > 0) { options.inspected_file = new file(options.inspected_file).get_absolute_path(); }
+    if(sizeof(options.inspected_file.data) > 0) { options.inspected_file = new file(options.inspected_file).absolute_path(); }
     remove_ignored_files(files);
     if(!options.compile) { check_output_is_not_a_source(files, output_path()); }
     return exec_runtime(files);
@@ -208,18 +208,18 @@ def exec_runtime(files: list<string>) : int {
 
     if(problems > 0) {
         println("" + (problems as _int64) + " error(s) in " + (failed_files as _int64) + " of "
-                + (units.size().value as _int64) + " file(s)");
+                + units.size() + " file(s)");
         if(options.ide_folder != "") { write_syntax_errors_for_editor(options.ide_folder, units); }
         return 1;
     }
 
     // (`progress`: printed by the debug compiler only - configuration/build_kind.sharp)
     if(cache_enabled()) {
-        progress("parsed " + (units.size().value as _int64) + " file(s), no errors: "
+        progress("parsed " + units.size() + " file(s), no errors: "
                 + (unchanged_files as _int64) + " unchanged since the last build, "
                 + (changed_files as _int64) + " new or changed");
     } else {
-        progress("parsed " + (units.size().value as _int64) + " file(s), no errors");
+        progress("parsed " + units.size() + " file(s), no errors");
     }
 
     // ---- mock<T>(): the classes it asked for are written out and join the program as units of
@@ -383,7 +383,7 @@ def exec_runtime(files: list<string>) : int {
         println("" + (name_errors as _int64) + " error(s)");
         return 1;
     }
-    progress("names resolved in " + (whole_program.module_list.size().value as _int64) + " module(s)");
+    progress("names resolved in " + whole_program.module_list.size() + " module(s)");
     if(options.show_timings) {
         println("time: parsing " + (parse_ms as _int64) + " ms, declarations " + (collect_ms as _int64)
                 + " ms, type names " + (resolve_ms as _int64) + " ms, class checks " + (checks_ms as _int64)

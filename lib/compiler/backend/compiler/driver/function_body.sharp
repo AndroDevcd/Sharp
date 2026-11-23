@@ -196,7 +196,7 @@ def analyse_expression_body(context: analysis_context, function: sharp_function)
     if(function.type_state == TYPE_UNKNOWN) {
         found := analyse_expression(context, node, null);
         if(found.type.kind == RT_NIL) {
-            // `def sleep(ms: decimal) := time.sleep(ms);` - the call returns nothing, and so does the function
+            // `def sleep(ms: decimal) := thread.sleep(ms);` - the call returns nothing, and so does the function
             function.result_type = session.types.nil_type;
             function.type_state = TYPE_KNOWN;
             return new bound_expression_statement(context.unit, node, found);

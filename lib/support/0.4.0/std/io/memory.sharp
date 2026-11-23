@@ -82,8 +82,8 @@ def realloc(data: _uint64[]?, size: _int32) {
 }
 
 /*
-* memcopy(src, dest, destStart, srcStart, srcEnd): the elements src[srcStart .. srcEnd - 1]
-* are copied to dest, from dest[destStart] on. One version per kind of array.
+* memcopy(src, dest, dest_start, src_start, src_end): the elements src[src_start .. src_end - 1]
+* are copied to dest, from dest[dest_start] on. One version per kind of array.
 *
 * KNOWN TO THE COMPILER BY NAME. With -O the compiler shares a text literal
 * that is only ever read (lib/compiler/backend/optimizer/passes/calls/
@@ -94,121 +94,121 @@ def realloc(data: _uint64[]?, size: _int32) {
 * program's feet. (`dest` is written, and the compiler knows that.) If this
 * ever has to change, change `find_read_only_arguments` in that file too.
 */
-def memcopy(src: object[], dest: object[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: object[], dest: object[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: decimal[], dest: decimal[],  destStart: _int32, srcStart: _int32, srcEnd: _int64) {
+def memcopy(src: decimal[], dest: decimal[],  dest_start: _int32, src_start: _int32, src_end: _int64) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _int8[], dest: _int8[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _int8[], dest: _int8[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _int16[], dest: _int16[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _int16[], dest: _int16[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _int32[], dest: _int32[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _int32[], dest: _int32[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _int64[], dest: _int64[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _int64[], dest: _int64[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _uint8[], dest: _uint8[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _uint8[], dest: _uint8[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _uint16[], dest: _uint16[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _uint16[], dest: _uint16[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _uint32[], dest: _uint32[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _uint32[], dest: _uint32[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def memcopy(src: _uint64[], dest: _uint64[],  destStart: _int32, srcStart: _int32, srcEnd: _int32) {
+def memcopy(src: _uint64[], dest: _uint64[],  dest_start: _int32, src_start: _int32, src_end: _int32) {
     asm {
         pushl [dest]
         pushl [src]
-        ipushl [destStart]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [dest_start]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x21
     }
 }
 
-def copy(src: object, srcStart: _int32, srcEnd: _int32) : object? {
+def copy(src: object, src_start: _int32, src_end: _int32) : object? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -218,11 +218,11 @@ def copy(src: object, srcStart: _int32, srcEnd: _int32) : object? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: decimal[], srcStart: _int32, srcEnd: _int32) : decimal[]? {
+def copy(src: decimal[], src_start: _int32, src_end: _int32) : decimal[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -231,11 +231,11 @@ def copy(src: decimal[], srcStart: _int32, srcEnd: _int32) : decimal[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int8[], srcStart: _int32, srcEnd: _int32) : _int8[]? {
+def copy(src: _int8[], src_start: _int32, src_end: _int32) : _int8[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -244,11 +244,11 @@ def copy(src: _int8[], srcStart: _int32, srcEnd: _int32) : _int8[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int16[], srcStart: _int32, srcEnd: _int32) : _int16[]? {
+def copy(src: _int16[], src_start: _int32, src_end: _int32) : _int16[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -257,11 +257,11 @@ def copy(src: _int16[], srcStart: _int32, srcEnd: _int32) : _int16[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int32[], srcStart: _int32, srcEnd: _int32) : _int32[]? {
+def copy(src: _int32[], src_start: _int32, src_end: _int32) : _int32[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -270,11 +270,11 @@ def copy(src: _int32[], srcStart: _int32, srcEnd: _int32) : _int32[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint8[], srcStart: _int32, srcEnd: _int32) : _uint8[]? {
+def copy(src: _uint8[], src_start: _int32, src_end: _int32) : _uint8[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -283,11 +283,11 @@ def copy(src: _uint8[], srcStart: _int32, srcEnd: _int32) : _uint8[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint16[], srcStart: _int32, srcEnd: _int32) : _uint16[]? {
+def copy(src: _uint16[], src_start: _int32, src_end: _int32) : _uint16[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -296,11 +296,11 @@ def copy(src: _uint16[], srcStart: _int32, srcEnd: _int32) : _uint16[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint32[], srcStart: _int32, srcEnd: _int32) : _uint32[]? {
+def copy(src: _uint32[], src_start: _int32, src_end: _int32) : _uint32[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -309,11 +309,11 @@ def copy(src: _uint32[], srcStart: _int32, srcEnd: _int32) : _uint32[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _uint64[], srcStart: _int32, srcEnd: _int32) : _uint64[]? {
+def copy(src: _uint64[], src_start: _int32, src_end: _int32) : _uint64[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -322,11 +322,11 @@ def copy(src: _uint64[], srcStart: _int32, srcEnd: _int32) : _uint64[]? {
     return null; // to satisfy the compiler
 }
 
-def copy(src: _int64[], srcStart: _int32, srcEnd: _int32) : _int64[]? {
+def copy(src: _int64[], src_start: _int32, src_end: _int32) : _int64[]? {
     asm {
         pushl [src]
-        ipushl [srcStart]
-        ipushl [srcEnd]
+        ipushl [src_start]
+        ipushl [src_end]
         int 0x37
         popObj2
         returnObj
@@ -335,144 +335,4 @@ def copy(src: _int64[], srcStart: _int32, srcEnd: _int32) : _int64[]? {
     return null; // to satisfy the compiler
 }
 
-
-def invert(src: object[], start: _int64, len: _int64) : object? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: decimal[], start: _int64, len: _int64) : decimal[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _int8[], start: _int64, len: _int64) : _int8[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _int16[], start: _int64, len: _int64) : _int16[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _int32[], start: _int64, len: _int64) : _int32[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _int64[], start: _int64, len: _int64) : _int64[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _uint8[], start: _int64, len: _int64) : _uint8[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _uint16[], start: _int64, len: _int64) : _uint16[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _uint32[], start: _int64, len: _int64) : _uint32[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
-
-def invert(src: _uint64[], start: _int64, len: _int64) : _uint64[]? {
-    asm {
-        pushl [src]
-        ipushl [start]
-        ipushl [len]
-        int 0x22
-        popObj2
-        returnObj
-        ret 0
-    }
-
-    return null; // to satisfy the compiler
-}
 

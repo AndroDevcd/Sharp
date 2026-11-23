@@ -156,20 +156,20 @@ class offset_date_time {
         return to_instant().compare_to(other.to_instant());
     }
 
-    def is_before(other: offset_date_time): decimal { return compare_to(other) < 0; }
-    def is_after(other: offset_date_time): decimal { return compare_to(other) > 0; }
+    def is_before(other: offset_date_time): bool { return compare_to(other) < 0; }
+    def is_after(other: offset_date_time): bool { return compare_to(other) > 0; }
 
-    /** 1 when the local date-time AND the offset are both the same */
-    def same_fields(other: offset_date_time): decimal {
+    /** true when the local date-time AND the offset are both the same */
+    def same_fields(other: offset_date_time): bool {
         return local_part == other.local_part && offset_part == other.offset_part;
     }
 
-    def operator==(other: offset_date_time): decimal { return compare_to(other) == 0; }
-    def operator!=(other: offset_date_time): decimal { return compare_to(other) != 0; }
-    def operator<(other: offset_date_time): decimal { return compare_to(other) < 0; }
-    def operator<=(other: offset_date_time): decimal { return compare_to(other) <= 0; }
-    def operator>(other: offset_date_time): decimal { return compare_to(other) > 0; }
-    def operator>=(other: offset_date_time): decimal { return compare_to(other) >= 0; }
+    def operator==(other: offset_date_time): bool { return compare_to(other) == 0; }
+    def operator!=(other: offset_date_time): bool { return compare_to(other) != 0; }
+    def operator<(other: offset_date_time): bool { return compare_to(other) < 0; }
+    def operator<=(other: offset_date_time): bool { return compare_to(other) <= 0; }
+    def operator>(other: offset_date_time): bool { return compare_to(other) > 0; }
+    def operator>=(other: offset_date_time): bool { return compare_to(other) >= 0; }
 
     def operator+(amount: duration): offset_date_time { return plus(amount); }
     def operator-(amount: duration): offset_date_time { return minus(amount); }

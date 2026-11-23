@@ -1,0 +1,135 @@
+mod std.crypto;
+
+import ( std.io, std.data )
+
+/**
+ * SIGNATURES WITH A SHARED SECRET (HMAC), and passwords (PBKDF2)
+ *
+ *      signature := hmac.sha256_hex(secret, message);
+ *
+ * A hash of a message that only someone with the KEY can compute: a server
+ * that signs what it hands out (a session token, a webhook body, the
+ * parameters of an API call) can check later that it comes back unchanged
+ * and was signed by a holder of the key. Compare a signature you received
+ * with the one you computed using crypto.same(a, b), never ==.
+ *
+ *      hmac.sha256(key, message)           32 bytes        key and message as bytes
+ *      hmac.sha256_hex(key, message)       as text         key and message as texts
+ *      hmac.sha1 / sha1_hex                20 bytes        (old APIs, TOTP codes)
+ *      hmac.md5 / md5_hex                  16 bytes        (older APIs still)
+ *
+ * PASSWORDS. To store a password, store this instead:
+ *
+ *      salt := secure_random.bytes(16);                            // new for every password, stored beside it
+ *      stored := pbkdf2.sha256(password, salt, 100000, 32);        // 100000 rounds of hmac
+ *
+ * and to check one, compute it again from what was typed and the stored
+ * salt, and compare with crypto.same. The rounds make each guess cost
+ * someone who stole the stored values as much as it costs you once.
+ *
+ *      Java comparison: Mac.getInstance("HmacSHA256"), SecretKeyFactory("PBKDF2WithHmacSHA256");
+ *      Python: hmac.new(key, msg, "sha256"), hashlib.pbkdf2_hmac.
+ */
+class hmac {
+    static def sha256(key: _int8[]?, message: _int8[]?) : _int8[] { return of(hash_work.SHA256, key, message); }
+    static def sha1(key: _int8[]?, message: _int8[]?) : _int8[] { return of(hash_work.SHA1, key, message); }
+    static def md5(key: _int8[]?, message: _int8[]?) : _int8[] { return of(hash_work.MD5, key, message); }
+
+    static def sha256_hex(key: string, message: string) : string { return hex.encode_bytes(of(hash_work.SHA256, key.data, message.data)); }
+    static def sha1_hex(key: string, message: string) : string { return hex.encode_bytes(of(hash_work.SHA1, key.data, message.data)); }
+    static def md5_hex(key: string, message: string) : string { return hex.encode_bytes(of(hash_work.MD5, key.data, message.data)); }
+
+    /**
+     * hash(key ^ outer, hash(key ^ inner, message)): the key is mixed in
+     * twice, with two fixed patterns, so that knowing hash(message) helps
+     * nobody. A key longer than a block (64 bytes) is hashed first.
+     */
+    static def of(kind: _int64, key: _int8[]?, message: _int8[]?) : _int8[] {
+        short_key : _int8[]? = key;
+        if(sizeof(key) > 64) {
+            first := new hash_work(kind);
+            first.add(key);
+            short_key = first.finish();
+        }
+        inner_pad := new _int8[64];
+        outer_pad := new _int8[64];
+        for(i : _int64 = 0; i < 64; i++) {
+            part : _int64 = 0;
+            if(i < sizeof(short_key)) { part = short_key!![i] & 0xFF; }
+            inner_pad[i] = part ^ 0x36;
+            outer_pad[i] = part ^ 0x5c;
+        }
+        inner := new hash_work(kind);
+        inner.add(inner_pad);
+        inner.add(message);
+        outer := new hash_work(kind);
+        outer.add(outer_pad);
+        outer.add(inner.finish());
+        return outer.finish();
+    }
+}
+
+class pbkdf2 {
+    /**
+     * `length` bytes made from a password and a salt by `rounds` rounds of
+     * hmac-sha256. More rounds: slower for you once, slower for an attacker
+     * every guess (100000 or more).
+     */
+    static def sha256(password: string, salt: _int8[]?, rounds: _int64, length: _int64) : _int8[] {
+        if(rounds < 1) { throw new illegal_argument_exception("pbkdf2: at least one round"); }
+        if(length < 1) { throw new illegal_argument_exception("pbkdf2: the length has to be at least 1"); }
+        made := new _int8[length];
+        have : _int64 = 0;
+        number : _int64 = 1;
+        salted := new _int8[sizeof(salt) + 4];
+        for(i : _int64 = 0; i < sizeof(salt); i++) { salted[i] = salt!![i]; }
+        while(have < length) {
+            // the salt with the number of this piece behind it
+            salted[sizeof(salt)] = (number >> 24) & 0xFF;
+            salted[sizeof(salt) + 1] = (number >> 16) & 0xFF;
+            salted[sizeof(salt) + 2] = (number >> 8) & 0xFF;
+            salted[sizeof(salt) + 3] = number & 0xFF;
+            round : _int8[] = hmac.of(hash_work.SHA256, password.data, salted);
+            piece : _int8[] = copy(round, 0, sizeof(round))!!;
+            for(r : _int64 = 1; r < rounds; r++) {
+                round = hmac.of(hash_work.SHA256, password.data, round);
+                for(i : _int64 = 0; i < sizeof(piece); i++) { piece[i] = piece[i] ^ round[i]; }
+            }
+            for(i : _int64 = 0; i < sizeof(piece) && have < length; i++) {
+                made[have] = piece[i];
+                have++;
+            }
+            number++;
+        }
+        return made;
+    }
+
+    static def sha256_hex(password: string, salt: _int8[]?, rounds: _int64, length: _int64) : string {
+        return hex.encode_bytes(sha256(password, salt, rounds, length));
+    }
+}
+
+class crypto {
+    /**
+     * Are two secrets the same? Takes the same time wherever they differ:
+     * `==` stops at the first byte that is wrong, and how long it took tells
+     * an attacker how many bytes of a guess were right.
+     */
+    static def same(a: _int8[]?, b: _int8[]?) : bool {
+        if(sizeof(a) != sizeof(b)) { return false; }
+        different : _int64 = 0;
+        for(i : _int64 = 0; i < sizeof(a); i++) {
+            different = different | (a!![i] ^ b!![i]);
+        }
+        return different == 0;
+    }
+
+    static def same(a: string, b: string) : bool {
+        return same(a.data, b.data);
+    }
+
+    /** bytes as text, two characters each (0 to 9, a to f) */
+    static def hex(bytes: _int8[]?) : string {
+        return hex.encode_bytes(bytes);
+    }
+}

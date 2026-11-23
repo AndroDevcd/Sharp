@@ -134,7 +134,7 @@ def test_ranges_and_scans() {
     test("loop over set bits: sum (25..29 + 60..64)") { expect(sum).should_be(445); };
 
     indexes := b.to_list();
-    test("to_list size") { expect(indexes.size().value).should_be(10); };
+    test("to_list size") { expect(indexes.size()).should_be(10); };
     test("to_list first") { expect(indexes.at(0).value).should_be(25); };
     test("to_list last") { expect(indexes.at(9).value).should_be(64); };
 }
@@ -231,7 +231,7 @@ def test_sieve() {
     for(i : decimal = 0; i < 6000; i += 3) thirds.set_bit(i);
     test("thirds: cardinality") { expect(thirds.cardinality()).should_be(2000); };
     test("thirds: length") { expect(thirds.length()).should_be(5998); };
-    test("thirds: to_list") { expect(thirds.to_list().size().value).should_be(2000); };
+    test("thirds: to_list") { expect(thirds.to_list().size()).should_be(2000); };
     wrong : decimal = 0;
     for(i : decimal = 0; i < 6000; i++) {
         if((thirds.test(i) != 0) != (i % 3 == 0)) wrong++;

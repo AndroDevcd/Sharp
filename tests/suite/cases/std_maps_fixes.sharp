@@ -31,7 +31,7 @@ def main(args: string[]) {
         cities.put("fr", new city("paris"));
         cities.put("it", new city("rome"));
         test("remove of an existing key returns true") { expect_true(cities.remove("fr")); };
-        test("remove makes the map smaller") { expect(cities.size).should_be(1); };
+        test("remove makes the map smaller") { expect(cities.size()).should_be(1); };
         test("a removed key is gone") { expect_null(cities.at("fr")); };
         test("the other key is still there") { expect_not_null(cities.at("it")); };
 
@@ -60,7 +60,7 @@ def main(args: string[]) {
         try {
             empty := { as <string, city> : };
             built = 1;
-            test("an empty dictionary has no pairs") { expect(empty.map.size().value).should_be(0); };
+            test("an empty dictionary has no pairs") { expect(empty.map.size()).should_be(0); };
         } catch(e: exception) {
             built = 2;
         }

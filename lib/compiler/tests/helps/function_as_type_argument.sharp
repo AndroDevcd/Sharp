@@ -10,5 +10,5 @@ def twice(x: decimal) : decimal { return x * 2; }
 
 def main() {
     actions := new hash_map<string, (decimal)(decimal)>();
-    println(actions.size);
+    println(actions.size());
 }

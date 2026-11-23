@@ -62,8 +62,8 @@ class time_math {
         return n - whole;
     }
 
-    /** 1 when `n` has no fraction, otherwise 0 */
-    static def is_whole(n: decimal): decimal {
+    /** true when `n` has no fraction */
+    static def is_whole(n: decimal): bool {
         return fraction_of(n) == 0;
     }
 

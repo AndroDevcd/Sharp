@@ -90,7 +90,7 @@ class flow_graph {
 /** the control-flow graph of a function's IR as it is now */
 def build_flow_graph(code: ir_function) : flow_graph {
     graph := new flow_graph(code);
-    count : _int64 = code.instructions.size().value as _int64;
+    count : _int64 = code.instructions.size();
 
     // ---- the blocks: a new one at the start, at each label, after each jump / return / throw
     blocks : _int64 = 0;
@@ -171,7 +171,7 @@ def add_exception_edges(graph: flow_graph) {
     code := graph.code;
     lists := new list<number_list>();
     for(k : _int64 = 0; k < graph.blocks; k++) { lists.add(new number_list()); }
-    tries_count : _int64 = code.tries.size().value as _int64;
+    tries_count : _int64 = code.tries.size();
     for(t : _int64 = 0; t < tries_count; t++) {
         region := code.tries.at(t);
         start : _int64 = start_of_label(graph, region.start);

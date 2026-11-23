@@ -242,7 +242,7 @@ stable class painter {
 
     /** make the graphics card's clip area the innermost open one again (a change of layer forgets it) */
     private def reclip() {
-        open : _int64 = clips.size().value;
+        open : _int64 = clips.size();
         if(open == 0) {
             draw_unclip();
         } else {
@@ -365,7 +365,7 @@ stable class painter {
         bottom : decimal = top + h;
 
         // cut it down to the area that is already open, if there is one
-        open : _int64 = clips.size().value;
+        open : _int64 = clips.size();
         if(open > 0) {
             outer := clips.at(open - 1);
             if(left < outer.x) { left = outer.x; }
@@ -382,7 +382,7 @@ stable class painter {
 
     /** end the innermost clip(): back to the area that was open before it */
     def unclip() {
-        open : _int64 = clips.size().value;
+        open : _int64 = clips.size();
         if(open == 0) {
             return;
         }
@@ -477,7 +477,7 @@ stable class painter {
         ox = 0;
         oy = 0;
         level = 1;
-        if(clips.size().value > 0) {
+        if(clips.size() > 0) {
             clips.clear();
             draw_unclip();
         }

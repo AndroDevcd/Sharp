@@ -63,7 +63,7 @@ class buffered_writer : text_writer {
     /** hand the buffer on to the writer underneath, without flushing that one */
     private def drain() {
         if(buf.length() > 0) {
-            target.write(buf.to_string()!!);
+            target.write(buf.build());
             buf.clear();
         }
     }

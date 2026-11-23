@@ -115,8 +115,8 @@ class day_of_week {
         return time_math.floor_mod(other.number - number, 7);
     }
 
-    /** 1 for Saturday and Sunday */
-    def is_weekend(): decimal {
+    /** true for Saturday and Sunday */
+    def is_weekend(): bool {
         return number >= 6;
     }
 

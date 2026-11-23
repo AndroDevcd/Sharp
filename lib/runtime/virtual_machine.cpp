@@ -28,7 +28,6 @@
 #include "../Modules/std.io/serialization.h"
 #include "../core/access_flag.h"
 #include "termios.h"
-#include "reflect/reflection.h"
 #include "jit/jit_compiler.h"
 #include "memory/memory_helpers.h"
 #include "main.h"

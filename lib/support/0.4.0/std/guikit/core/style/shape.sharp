@@ -141,7 +141,7 @@ stable class shape {
             return;
         }
         // the corners, from fractions of the box to places in the painter
-        count : _int64 = points.size().value;
+        count : _int64 = points.size();
         xs := new decimal[count];
         ys := new decimal[count];
         for(i : _int64 = 0; i < count; i++) {

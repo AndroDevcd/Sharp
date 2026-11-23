@@ -21,7 +21,7 @@ mutate string_builder {
     /** INTERNAL. Throws out_of_bounds_exception unless 0 <= start <= end <= length. */
     private def check_range(what: string, start: decimal, end: decimal) {
         if(start < 0 || end > cursor || end < start)
-            throw new bounds_except("$what: range ${new int(start)}..${new int(end)} is not inside a text of ${size()} characters");
+            throw new out_of_bounds_exception("$what: range ${new int(start)}..${new int(end)} is not inside a text of ${size()} characters");
     }
 
     /**
@@ -95,7 +95,7 @@ mutate string_builder {
     def delete_char_at(pos: int) : string_builder {
         at : decimal = pos.value;
         if(at < 0 || at >= cursor)
-            throw new bounds_except("delete_char_at: index $pos is outside of a text of ${size()} characters");
+            throw new out_of_bounds_exception("delete_char_at: index $pos is outside of a text of ${size()} characters");
         close_gap(at, at + 1);
         return self;
     }
@@ -125,7 +125,7 @@ mutate string_builder {
     def set_char_at(pos: int, c: char) : string_builder {
         at : decimal = pos.value;
         if(at < 0 || at >= cursor)
-            throw new bounds_except("set_char_at: index $pos is outside of a text of ${size()} characters");
+            throw new out_of_bounds_exception("set_char_at: index $pos is outside of a text of ${size()} characters");
         data[at] = c.value;
         return self;
     }
@@ -163,7 +163,7 @@ mutate string_builder {
     def set_length(new_length: int, fill: char) : string_builder {
         wanted : decimal = new_length.value;
         if(wanted < 0)
-            throw new ill_arg_except("set_length: the length cannot be negative: $new_length");
+            throw new illegal_argument_exception("set_length: the length cannot be negative: $new_length");
 
         if(wanted > cursor) {
             reserve(wanted - cursor);
@@ -217,7 +217,7 @@ mutate string_builder {
     def append_repeat(text: string, count: int) : string_builder {
         times : decimal = count.value;
         if(times < 0)
-            throw new ill_arg_except("append_repeat: count cannot be negative: $count");
+            throw new illegal_argument_exception("append_repeat: count cannot be negative: $count");
 
         len : decimal = sizeof(text.data);
         if(len > 0 && times > 0) {

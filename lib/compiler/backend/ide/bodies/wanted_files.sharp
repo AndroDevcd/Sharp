@@ -37,7 +37,7 @@ def apply_wanted_files(folder: string, files: ide_files, prog: sharp_program) {
         return;
     }
 
-    text : string? = listing.read();
+    text : string? = file_natives.read(listing.path);
     if(text == null) { return; }                // an empty list: nothing is wanted
     data : _int8[]? = text!!.data;
     size : _int64 = sizeof(data);

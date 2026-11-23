@@ -60,7 +60,7 @@ class local_scope {
             names = new list<string>();
             hashes = new _int64[4];
         }
-        count : _int64 = variables!!.size().value as _int64;
+        count : _int64 = variables!!.size();
         if(count >= sizeof(hashes!!)) {
             grown := new _int64[count * 2];
             for(i : _int64 = 0; i < count; i++) { grown[i] = hashes!![i]; }
@@ -75,7 +75,7 @@ class local_scope {
     def declared_here(name: string, hash: _int64) : local_variable? {
         if(variables == null) { return null; }
         known : _int64[] = hashes!!;
-        for(i : _int64 = (variables!!.size().value as _int64) - 1; i >= 0; i--) {
+        for(i : _int64 = variables!!.size() - 1; i >= 0; i--) {
             if(known[i] == hash) {
                 candidate := variables!!.at(i);
                 if(candidate.name == name) { return candidate; }

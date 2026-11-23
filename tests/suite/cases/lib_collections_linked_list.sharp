@@ -106,7 +106,7 @@ def test_linked_list() {
     test("ll reverse backwards") { expect(drain(l.descending_iterator())).should_be("1,3,5,8"); };
 
     as_list := l.to_list();
-    test("ll to_list size") { expect(as_list.size().value).should_be(4); };
+    test("ll to_list size") { expect(as_list.size()).should_be(4); };
     test("ll to_list[1]") { expect(as_list.at(1).value).should_be(5); };
 
     l.add_all(as_list);

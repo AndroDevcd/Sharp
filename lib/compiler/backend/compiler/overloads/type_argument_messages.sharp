@@ -57,7 +57,7 @@ def report_type_arguments(context: analysis_context, code: string, name: string,
     help := "";
     if(code == "E0515") {
         heading = "`" + name + "` is called with the wrong number of type arguments";
-        label = "`" + name + "` has " + count_of(first.type_parameters.size().value as _int64, "type parameter") + ": `<" + parameters + ">`";
+        label = "`" + name + "` has " + count_of(first.type_parameters.size(), "type parameter") + ": `<" + parameters + ">`";
         help = "write one type for each of `<" + parameters + ">`, or none and let the arguments decide: `" + name + "(...)`";
     } else if(code == "E0516") {
         heading = "`" + name + "` is not generic, but type arguments are written";

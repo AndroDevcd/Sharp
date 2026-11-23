@@ -101,7 +101,7 @@ class deferred<t> base job {
     /** await_all() for a list. Kotlin: list.awaitAll() */
     static def await_all(items: list<deferred<t> >) : list<t> {
         results := new list<t>();
-        for(i : decimal = 0; i < items.size().value; i++) {
+        for(i : decimal = 0; i < items.size(); i++) {
             results.add(items.at(i).await());
         }
         return results;

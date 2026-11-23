@@ -39,7 +39,7 @@ stable class state_list<t> {
     /** how many items */
     def size() : _int64 {
         seen : _int64 = version.value;
-        return held.size().value;
+        return held.size();
     }
 
     /** the item at `index` (0 is the first) */
@@ -57,7 +57,7 @@ stable class state_list<t> {
     /** where `item` is in the list, or -1 when it is not in it */
     def index_of(item: t) : _int64 {
         seen : _int64 = version.value;
-        count : _int64 = held.size().value;
+        count : _int64 = held.size();
         for(i : _int64 = 0; i < count; i++) {
             if(held.at(i) == item) { return i; }
         }
@@ -112,7 +112,7 @@ stable class state_list<t> {
     /** replace everything with the items of `items` (what loading from a file or a server ends with) */
     def replace_all(items: list<t>) {
         held.clear();
-        count : _int64 = items.size().value;
+        count : _int64 = items.size();
         for(i : _int64 = 0; i < count; i++) {
             held.add(items.at(i));
         }
@@ -132,7 +132,7 @@ stable class state_list<t> {
     /** the items, put in without telling anybody: for what a saved list had in its file (saved.sharp) */
     def restore(items: list<t>) {
         held.clear();
-        count : _int64 = items.size().value;
+        count : _int64 = items.size();
         for(i : _int64 = 0; i < count; i++) {
             held.add(items.at(i));
         }

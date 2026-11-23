@@ -57,7 +57,7 @@ class function_type_table {
         if(numbers.at(key) != null) { return; }
         for(i : _int64 = 0; i < plain.parameters!!.size(); i++) { note(plain.parameters!!.at(i)); }
         note(plain.result);
-        numbers.put(key, new numbered(types.size().value as _int64));
+        numbers.put(key, new numbered(types.size()));
         types.add(plain);
     }
 
@@ -70,7 +70,7 @@ class function_type_table {
 
     /** how many function types the table holds */
     def count() : _int64 {
-        return types.size().value as _int64;
+        return types.size();
     }
 }
 

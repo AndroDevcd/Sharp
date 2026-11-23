@@ -149,12 +149,12 @@ class bit_set {
         return total;
     }
 
-    /** 1 when no bit is on, otherwise 0. O(n) in the number of words. */
-    def is_empty() : decimal {
+    /** true when no bit is on. O(n) in the number of words. */
+    def is_empty() : bool {
         for(i : decimal = 0; i < sizeof(words); i++) {
-            if(words[i] != 0) return 0;
+            if(words[i] != 0) return false;
         }
-        return 1;
+        return true;
     }
 
     /**
@@ -248,18 +248,18 @@ class bit_set {
         }
     }
 
-    /** 1 when at least one bit is on in both sets, otherwise 0. */
-    def intersects(other: bit_set) : decimal {
+    /** true when at least one bit is on in both sets. */
+    def intersects(other: bit_set) : bool {
         for(i : decimal = 0; i < sizeof(words); i++) {
             if(i < sizeof(other.words)) {
-                if((words[i] & other.words[i]) != 0) return 1;
+                if((words[i] & other.words[i]) != 0) return true;
             }
         }
-        return 0;
+        return false;
     }
 
-    /** 1 when exactly the same bits are on in both sets (their capacities may differ), otherwise 0. */
-    def same_bits(other: bit_set) : decimal {
+    /** true when exactly the same bits are on in both sets (their capacities may differ). */
+    def same_bits(other: bit_set) : bool {
         longest : decimal = sizeof(words);
         if(sizeof(other.words) > longest) longest = sizeof(other.words);
 
@@ -268,9 +268,9 @@ class bit_set {
             theirs : decimal = 0;
             if(i < sizeof(words)) mine = words[i];
             if(i < sizeof(other.words)) theirs = other.words[i];
-            if(mine != theirs) return 0;
+            if(mine != theirs) return false;
         }
-        return 1;
+        return true;
     }
 
     /** A new, independent bit set with the same bits on. */

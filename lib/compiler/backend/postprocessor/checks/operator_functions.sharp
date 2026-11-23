@@ -49,7 +49,7 @@ def check_operator_functions(prog: sharp_program, problems: list<diagnostic>) {
 
 /** W1025 for one operator function whose number of parameters no use of the operator has */
 def check_operator_function(declared: sharp_class, function: sharp_function, problems: list<diagnostic>) {
-    count : _int64 = function.parameters.size().value as _int64;
+    count : _int64 = function.parameters.size();
     name := function.name;
     symbol := operator_symbol(name);
 

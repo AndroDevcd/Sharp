@@ -152,7 +152,7 @@ def test_object_arrays() {
     test("min") { expect(arrays<int>.min(d, ascending).value).should_be(3); };
     test("max") { expect(arrays<int>.max(d, ascending).value).should_be(7); };
     test("min with the comparison turned around") { expect(arrays<int>.min(d, descending).value).should_be(7); };
-    test("max by length") { expect(arrays<string>.max(words, { x: string, y: string -> (decimal) return x.size().value - y.size().value; })).should_be("apple"); };
+    test("max by length") { expect(arrays<string>.max(words, { x: string, y: string -> (decimal) return x.size() - y.size(); })).should_be("apple"); };
     test("sum_of") { expect(arrays<int>.sum_of(d, { n: int -> (decimal) return n.value; })).should_be(25); };
     test("sum_of empty") { expect(arrays<int>.sum_of(none, { n: int -> (decimal) return n.value; })).should_be(0); };
     try { arrays<int>.min(none, ascending); test("min of empty") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("min of empty") { }; }
@@ -166,7 +166,7 @@ def test_object_arrays() {
 
     // to and from list
     as_list := arrays<int>.to_list(d);
-    test("to_list size") { expect(as_list.size().value).should_be(5); };
+    test("to_list size") { expect(as_list.size()).should_be(5); };
     test("to_list[3]") { expect(as_list.at(3).value).should_be(5); };
     back := arrays<int>.from_list(as_list);
     test("from_list") { expect(join(back)).should_be("7,3,7,5,3"); };
@@ -281,7 +281,7 @@ def test_var_arrays() {
     test("var equals different length") { expect(var_arrays.equals(b, none)).should_be(0); };
 
     boxed := var_arrays.to_list(b);
-    test("var to_list size") { expect(boxed.size().value).should_be(5); };
+    test("var to_list size") { expect(boxed.size()).should_be(5); };
     test("var to_list[2]") { expect(boxed.at(2).value).should_be(5); };
 
     // scale: 5000 pseudo random numbers, checked for order and for the same sum

@@ -84,7 +84,7 @@ class statistics {
 
     /**
      * The geometric mean: the n-th root of the product, computed as
-     * exp(mean(ln(x))) so the product cannot overflow.
+     * exp(mean(log(x))) so the product cannot overflow.
      * Throws illegal_argument_exception when a value is <= 0.
      */
     static def geometric_mean(values: decimal[]): decimal {
@@ -93,9 +93,9 @@ class statistics {
         for(i : decimal = 0; i < sizeof(values); i++) {
             if(values[i] <= 0)
                 throw new illegal_argument_exception("statistics.geometric_mean: all values must be > 0");
-            total += ln(values[i]);
+            total += log(values[i]);
         }
-        return exp_of(total / sizeof(values));
+        return exp(total / sizeof(values));
     }
 
     /**
@@ -162,7 +162,7 @@ class statistics {
         require_data(values, "median");
         ordered := sorted(values);
         n : decimal = sizeof(ordered);
-        half : decimal = floor_of(n / 2);
+        half : decimal = floor(n / 2);
 
         if((n % 2) == 1) return ordered[half];
         return (ordered[half - 1] + ordered[half]) / 2;
@@ -228,7 +228,7 @@ class statistics {
     /** population standard deviation: the square root of variance() */
     static def std_dev(values: decimal[]): decimal {
         require_data(values, "std_dev");
-        return square_root(variance(values));
+        return sqrt(variance(values));
     }
 
     /**
@@ -236,7 +236,7 @@ class statistics {
      * Throws illegal_argument_exception for fewer than 2 values.
      */
     static def sample_std_dev(values: decimal[]): decimal {
-        return square_root(sample_variance(values));
+        return sqrt(sample_variance(values));
     }
 
     /**
@@ -258,7 +258,7 @@ class statistics {
 
         ordered := sorted(values);
         rank : decimal = p / 100 * (sizeof(ordered) - 1);
-        low : decimal = floor_of(rank);
+        low : decimal = floor(rank);
         weight : decimal = rank - low;
 
         if(low + 1 >= sizeof(ordered)) return ordered[sizeof(ordered) - 1];
@@ -319,7 +319,7 @@ class statistics {
 
         if(spread_x == 0 || spread_y == 0)
             throw new arithmetic_exception("statistics.correlation: a series is constant");
-        return both / square_root(spread_x * spread_y);
+        return both / sqrt(spread_x * spread_y);
     }
 
     /**
@@ -340,7 +340,7 @@ class statistics {
      * be passed to the functions above. An empty list gives an empty array.
      */
     static def to_array(values: list<double>): decimal[] {
-        n : decimal = values.size().value;
+        n : decimal = values.size();
         result := new decimal[n];
         for(i : decimal = 0; i < n; i++) {
             result[i] = values.at(i).value;

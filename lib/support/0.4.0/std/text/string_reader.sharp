@@ -59,13 +59,13 @@ class string_reader {
         return size - cursor;
     }
 
-    /** 1 if every character has been read. */
-    def at_end(): decimal {
+    /** true if every character has been read. */
+    def at_end(): bool {
         return cursor >= size;
     }
 
-    /** 1 if there is at least one more character to read. */
-    def has_next(): decimal {
+    /** true if there is at least one more character to read. */
+    def has_next(): bool {
         return cursor < size;
     }
 
@@ -75,7 +75,7 @@ class string_reader {
      */
     def seek(new_position: int): string_reader {
         if(new_position.value < 0 || new_position.value > size)
-            throw new bounds_except("seek: position $new_position is outside of a text of ${new int(size)} characters");
+            throw new out_of_bounds_exception("seek: position $new_position is outside of a text of ${new int(size)} characters");
         cursor = new_position.value;
         return self;
     }
@@ -91,7 +91,7 @@ class string_reader {
      * Throws illegal_state_exception if mark() was never called.
      */
     def reset(): string_reader {
-        if(marked < 0) throw new ill_state_except("reset: no position was marked");
+        if(marked < 0) throw new illegal_state_exception("reset: no position was marked");
         cursor = marked;
         return self;
     }
@@ -164,33 +164,33 @@ class string_reader {
 
     // ------------------------------------------------------------------ matching fixed text
 
-    /** 1 if the text continues with `expected` at the cursor. Takes nothing. "" always matches. */
-    def looking_at(expected: string): decimal {
+    /** true if the text continues with `expected` at the cursor. Takes nothing. "" always matches. */
+    def looking_at(expected: string): bool {
         m : decimal = sizeof(expected.data);
-        if(cursor + m > size) return 0;
+        if(cursor + m > size) return false;
         for(j : decimal = 0; j < m; j++) {
-            if(text.data[cursor + j] != expected.data[j]) return 0;
+            if(text.data[cursor + j] != expected.data[j]) return false;
         }
-        return 1;
+        return true;
     }
 
     /**
      * If the text continues with `expected`, takes it and returns 1;
      * otherwise takes nothing and returns 0.
      */
-    def match(expected: string): decimal {
-        if(!looking_at(expected)) return 0;
+    def match(expected: string): bool {
+        if(!looking_at(expected)) return false;
         cursor += sizeof(expected.data);
-        return 1;
+        return true;
     }
 
     /** If the next character is `c`, takes it and returns 1; otherwise returns 0. */
-    def match_char(c: char): decimal {
+    def match_char(c: char): bool {
         if(cursor < size && text.data[cursor] == c.value) {
             cursor++;
-            return 1;
+            return true;
         }
-        return 0;
+        return false;
     }
 
     /**
@@ -209,13 +209,13 @@ class string_reader {
 
     // ------------------------------------------------------------------ runs of characters
 
-    /** 1 if the character `c` is one of the characters of `chars`. */
-    private static def one_of(c: decimal, chars: string): decimal {
+    /** true if the character `c` is one of the characters of `chars`. */
+    private static def one_of(c: decimal, chars: string): bool {
         m : decimal = sizeof(chars.data);
         for(j : decimal = 0; j < m; j++) {
-            if(chars.data[j] == c) return 1;
+            if(chars.data[j] == c) return true;
         }
-        return 0;
+        return false;
     }
 
     /** The characters from `start` up to the cursor as a string. */
@@ -282,7 +282,7 @@ class string_reader {
      */
     def read_until(delimiter: string): string {
         if(sizeof(delimiter.data) == 0)
-            throw new ill_arg_except("read_until: the delimiter cannot be empty");
+            throw new illegal_argument_exception("read_until: the delimiter cannot be empty");
 
         start : decimal = cursor;
         while(cursor < size && !looking_at(delimiter)) {

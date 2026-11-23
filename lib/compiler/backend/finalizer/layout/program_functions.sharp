@@ -155,7 +155,7 @@ def number_the_functions(layout: program_layout, per_class: list<list<function_l
 
 /** give a function the next address */
 def number_function(layout: program_layout, made: function_layout) {
-    made.address = layout.functions.size().value as _int64;
+    made.address = layout.functions.size();
     made.of.address = made.address;
     layout.functions.add(made);
 }

@@ -23,6 +23,7 @@ rm -rf "$DEST/bin" "$DEST/compiler" "$DEST/lib" "$DEST/examples"
 mkdir -p "$DEST/bin"
 cp "$HERE/sharp" "$HERE/sharpc" "$DEST/bin/"
 # the GUI's native library goes beside sharp: std.guikit loads it from the VM's own folder
+[ -f "$HERE/sdb" ] && cp "$HERE/sdb" "$DEST/bin/" && chmod +x "$DEST/bin/sdb"      # the debugger
 [ -f "$HERE/sharpgui.so" ] && cp "$HERE/sharpgui.so" "$DEST/bin/"
 chmod +x "$DEST/bin/sharp" "$DEST/bin/sharpc"
 cp -r "$SHARED/compiler" "$SHARED/lib" "$SHARED/examples" "$DEST/"

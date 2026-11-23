@@ -3037,6 +3037,8 @@ When the finished compiler gets a permanent home, change only **Compiler** (and 
 | Go to declaration (Ctrl+B, Ctrl+click) | any time | the declaration, also in the standard library |
 | Structure (Ctrl+F12), Go to Class (Ctrl+N), Go to Symbol (Ctrl+Alt+Shift+N) | any time | the file's classes and members; classes and functions of the whole program |
 | Tools > Run Sharp Check Now | on demand | runs at once, no waiting; says how many errors and warnings |
+| Run on a "Sharp Program" configuration with **Test program** ticked | on demand; needs Sharp 0.5.6 or newer | the program (tests written with `std.testing`) is started with `-ide-tests` and shown in the test view: the groups (`tests(...)`) at one level, passed or failed, their tests inside; double-click a group or a test to go to where it is written; a failed check's line is a link in its output, a failed comparison opens as a diff. Under Debug the console is the plain one |
+| Debug (Shift+F9) on a "Sharp Program" configuration | on demand; needs Sharp 0.5.6 or newer (`bin/sdb`) | builds with `-dbg`, runs under sdb: breakpoints in the gutter, Step Over / Into / Out, Pause, Run to Cursor, threads, calls, variables (opened: fields, elements), Set Value. No watches or evaluate, no conditions: sdb has none (`lib/debugger/doc/sdb.md`, the machine mode) |
 
 Only the files of the program (13.4) are checked; a `.sharp` file outside it gets colours only. Hover,
 go-to and completion of local variables work in the files that are OPEN in an editor (the plugin tells the

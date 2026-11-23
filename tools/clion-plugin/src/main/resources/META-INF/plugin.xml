@@ -73,6 +73,10 @@
         <runConfigurationProducer implementation="sharp.ide.execution.SharpRunConfigurationProducer"/>
         <projectViewNodeDecorator implementation="sharp.ide.execution.SharpProgramFolderDecorator"/>
 
+        <!-- debugging: the Debug button of a "Sharp Program" configuration, breakpoints in .sharp files (sharp.ide.debug; it drives sdb) -->
+        <programRunner implementation="sharp.ide.debug.SharpDebugRunner"/>
+        <xdebugger.breakpointType implementation="sharp.ide.debug.SharpLineBreakpointType"/>
+
         <!-- settings: the page and the quiet notifications -->
         <projectConfigurable parentId="language" instance="sharp.ide.settings.SharpConfigurable"
                              id="sharp.settings" displayName="Sharp"/>

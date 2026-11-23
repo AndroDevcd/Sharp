@@ -4,7 +4,7 @@ mod std.math;
  * Powers, roots and logarithms on native numbers.
  *
  * pow(), sqrt(), exp(), log() and log10() in math.sharp return `double`
- * objects; power(), square_root(), exp_of() and ln() in native_math.sharp are
+ * objects; pow(), sqrt(), exp() and log() in native_math.sharp are
  * their native twins. This file adds what was missing.
  */
 
@@ -28,10 +28,10 @@ def cube(v: decimal): decimal {
 def cbrt(v: decimal): decimal {
     if(v == 0 || v != v) return v;
 
-    size : decimal = absolute(v);
+    size : decimal = abs(v);
     if((size - size) != 0) return v;        // +-infinity
 
-    root : decimal = power(size, 1.0 / 3.0);
+    root : decimal = pow(size, 1.0 / 3.0);
     root = root - (root * root * root - size) / (3 * root * root);
 
     if(v < 0) return 0 - root;
@@ -49,9 +49,9 @@ def nth_root(v: decimal, n: decimal): decimal {
         throw new illegal_argument_exception("nth_root: n is 0");
 
     if(v < 0 && (n % 2) != 0) {
-        return 0 - power(0 - v, 1.0 / n);
+        return 0 - pow(0 - v, 1.0 / n);
     }
-    return power(v, 1.0 / n);
+    return pow(v, 1.0 / n);
 }
 
 /**
@@ -62,8 +62,8 @@ def nth_root(v: decimal, n: decimal): decimal {
  * m * sqrt(1 + (s / m)^2) - the intermediate values never exceed the result.
  */
 def hypot(x: decimal, y: decimal): decimal {
-    ax : decimal = absolute(x);
-    ay : decimal = absolute(y);
+    ax : decimal = abs(x);
+    ay : decimal = abs(y);
     large : decimal = ax;
     small : decimal = ay;
     if(ay > ax) {
@@ -73,7 +73,7 @@ def hypot(x: decimal, y: decimal): decimal {
 
     if(large == 0) return 0;
     ratio : decimal = small / large;
-    return large * square_root(1 + ratio * ratio);
+    return large * sqrt(1 + ratio * ratio);
 }
 
 /** the 3D version of hypot: sqrt(x^2 + y^2 + z^2); hypot(2, 3, 6) == 7 */
@@ -86,14 +86,14 @@ def hypot(x: decimal, y: decimal, z: decimal): decimal {
  * log2(0) is negative infinity, log2 of a negative number is NaN.
  *
  * Whole powers of two (and their reciprocals) are returned exactly: the
- * result of ln(v) / LN2 is rounded and kept when 2^rounded == v.
+ * result of log(v) / LN2 is rounded and kept when 2^rounded == v.
  */
 def log2(v: decimal): decimal {
-    result : decimal = ln(v) / LN2;
+    result : decimal = log(v) / LN2;
     if((result - result) != 0) return result;       // infinite or NaN
 
     nearest : decimal = round_half_away(result);
-    if(nearest != result && absolute(nearest - result) < 0.000000001 && power(2, nearest) == v) {
+    if(nearest != result && abs(nearest - result) < 0.000000001 && pow(2, nearest) == v) {
         return nearest;
     }
     return result;
@@ -101,7 +101,7 @@ def log2(v: decimal): decimal {
 
 /**
  * Logarithm of v in any base: log_base(81, 3) == 4.
- * Formula: ln(v) / ln(base).
+ * Formula: log(v) / log(base).
  *
  * Throws illegal_argument_exception when base is <= 0 or is 1 (no such
  * logarithm exists).
@@ -109,12 +109,12 @@ def log2(v: decimal): decimal {
 def log_base(v: decimal, base_value: decimal): decimal {
     if(base_value <= 0 || base_value == 1)
         throw new illegal_argument_exception("log_base: the base must be positive and not 1");
-    return ln(v) / ln(base_value);
+    return log(v) / log(base_value);
 }
 
 /** 2 raised to the power v: exp2(10) == 1024 */
 def exp2(v: decimal): decimal {
-    return power(2, v);
+    return pow(2, v);
 }
 
 /**
@@ -126,7 +126,7 @@ def exp2(v: decimal): decimal {
  * Throws illegal_argument_exception when exponent is negative or not whole.
  */
 def int_pow(base_value: decimal, exponent: decimal): decimal {
-    if(exponent < 0 || floor_of(exponent) != exponent)
+    if(exponent < 0 || floor(exponent) != exponent)
         throw new illegal_argument_exception("int_pow: the exponent must be a whole number >= 0");
 
     result : decimal = 1;
@@ -137,7 +137,7 @@ def int_pow(base_value: decimal, exponent: decimal): decimal {
         if((remaining % 2) == 1) {
             result = result * factor;
         }
-        remaining = floor_of(remaining / 2);
+        remaining = floor(remaining / 2);
         if(remaining > 0) {
             factor = factor * factor;
         }
@@ -158,7 +158,7 @@ def isqrt(n: decimal): decimal {
     if(n < 0)
         throw new illegal_argument_exception("isqrt: n is negative");
 
-    root : decimal = floor_of(square_root(n));
+    root : decimal = floor(sqrt(n));
     while(root * root > n) {
         root--;
     }
@@ -170,7 +170,7 @@ def isqrt(n: decimal): decimal {
 
 /** true when n is the square of a whole number: 0, 1, 4, 9, 16 ... (false for negatives and fractions) */
 def is_perfect_square(n: decimal): bool {
-    if(n < 0 || floor_of(n) != n) return false;
+    if(n < 0 || floor(n) != n) return false;
     root : decimal = isqrt(n);
     return root * root == n;
 }

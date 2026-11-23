@@ -241,14 +241,14 @@ def check_char_and_bool() {
     blank : char = ' ';
     dash : char = '-';
 
-    test("is_upper_case") { expect_true(capital.is_upper_case()); };
-    test("is_upper_case of a small letter") { expect_false(small.is_upper_case()); };
-    test("is_lower_case") { expect_true(small.is_lower_case()); };
-    test("is_lower_case of a digit") { expect_false(digit.is_lower_case()); };
+    test("is_upper") { expect_true(capital.is_upper()); };
+    test("is_upper of a small letter") { expect_false(small.is_upper()); };
+    test("is_lower") { expect_true(small.is_lower()); };
+    test("is_lower of a digit") { expect_false(digit.is_lower()); };
     test("is_letter") { expect_true(capital.is_letter()); };
     test("is_letter of a digit") { expect_false(digit.is_letter()); };
-    test("is_decimal_digit") { expect_true(digit.is_decimal_digit()); };
-    test("is_decimal_digit of a letter") { expect_false(small.is_decimal_digit()); };
+    test("is_digit") { expect_true(digit.is_digit()); };
+    test("is_digit of a letter") { expect_false(small.is_digit()); };
     test("is_letter_or_digit") { expect_true(digit.is_letter_or_digit()); };
     test("is_letter_or_digit of a dash") { expect_false(dash.is_letter_or_digit()); };
     test("is_hex_digit of 7") { expect_true(digit.is_hex_digit()); };
@@ -261,10 +261,10 @@ def check_char_and_bool() {
     newline : char = 10;
     test("is_whitespace of a line feed") { expect_true(newline.is_whitespace()); };
     test("is_whitespace of a letter") { expect_false(small.is_whitespace()); };
-    test("upper_case") { expect(small.upper_case().value).should_be('G'); };
-    test("upper_case of a capital") { expect(capital.upper_case().value).should_be('G'); };
-    test("lower_case") { expect(capital.lower_case().value).should_be('g'); };
-    test("lower_case of a digit") { expect(digit.lower_case().value).should_be('7'); };
+    test("to_upper") { expect(small.to_upper().value).should_be('G'); };
+    test("to_upper of a capital") { expect(capital.to_upper().value).should_be('G'); };
+    test("to_lower") { expect(capital.to_lower().value).should_be('g'); };
+    test("to_lower of a digit") { expect(digit.to_lower().value).should_be('7'); };
     test("digit_value") { expect(digit.digit_value()).should_be(7); };
     test("digit_value of a letter") { expect(small.digit_value()).should_be(16); };
     test("digit_value of a capital letter") { expect(hex_letter.digit_value()).should_be(15); };
@@ -279,9 +279,9 @@ def check_char_and_bool() {
         test("from_digit(36) throws") { };
     }
     // the static functions that were already there still work
-    test("char.is_digit") { expect_true(char.is_digit(digit)); };
-    test("char.is_alpha") { expect_true(char.is_alpha(small)); };
-    test("char.to_upper") { expect(char.to_upper(small).value).should_be('G'); };
+    test("character.is_digit") { expect_true(character.is_digit(digit.value)); };
+    test("character.is_letter") { expect_true(character.is_letter(small.value)); };
+    test("character.to_upper") { expect(character.to_upper(small.value)).should_be('G'); };
 
     yes : boolean = true;
     no : boolean = false;
@@ -312,7 +312,7 @@ def check_char_and_bool() {
 
 /* throws exception number `kind` with the message "m" */
 def throw_kind(kind: decimal) {
-    if(kind == 0) throw new unsupported_operation_exception("m");
+    if(kind == 0) throw new invalid_operation_exception("m");
     if(kind == 1) throw new no_such_element_exception("m");
     if(kind == 2) throw new number_format_exception("m");
     if(kind == 3) throw new arithmetic_exception("m");
@@ -320,7 +320,7 @@ def throw_kind(kind: decimal) {
     if(kind == 5) throw new overflow_exception("m");
     if(kind == 6) throw new timeout_exception("m");
     if(kind == 7) throw new concurrent_modification_exception("m");
-    if(kind == 8) throw new not_found_exception("m");
+    if(kind == 8) throw new illegal_state_exception("m");
     if(kind == 9) throw new parse_exception("m");
     if(kind == 10) throw new interrupted_exception("m");
 }
@@ -329,7 +329,7 @@ def throw_kind(kind: decimal) {
 def caught_by(kind: decimal): decimal {
     try {
         throw_kind(kind);
-    } catch(e: unsupported_operation_exception) {
+    } catch(e: invalid_operation_exception) {
         return 0;
     } catch(e: no_such_element_exception) {
         return 1;
@@ -345,7 +345,7 @@ def caught_by(kind: decimal): decimal {
         return 6;
     } catch(e: concurrent_modification_exception) {
         return 7;
-    } catch(e: not_found_exception) {
+    } catch(e: illegal_state_exception) {
         return 8;
     } catch(e: parse_exception) {
         return 9;
@@ -361,8 +361,8 @@ def check_exceptions() {
     }
 
     try {
-        throw new not_found_exception("no user with id 42");
-    } catch(e: not_found_exception) {
+        throw new no_such_element_exception("no user with id 42");
+    } catch(e: no_such_element_exception) {
         test("the message is kept") { expect(e.get_message()).should_be("no user with id 42"); };
     }
 

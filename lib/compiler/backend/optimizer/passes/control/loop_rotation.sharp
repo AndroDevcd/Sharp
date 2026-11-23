@@ -55,7 +55,7 @@ def rotate_loops(code: ir_function) : _int64 {
 def rotate_one_loop(code: ir_function) : _int64 {
     places := places_of_labels(code);
     facts := label_facts_of(code);
-    count : _int64 = code.instructions.size().value as _int64;
+    count : _int64 = code.instructions.size();
     for(back : _int64 = 0; back < count; back++) {
         made := code.instructions.at(back);
         if(made.kind != IR_JUMP) { continue; }
@@ -146,7 +146,7 @@ def rotate(code: ir_function, top_place: _int64, test_end: _int64, back: _int64)
     made.add(test);
     // the code after the loop was on the line the jump back was on
     if(line_at_back > 0) { made.add(line_mark(line_at_back)); }
-    old_count : _int64 = old.size().value as _int64;
+    old_count : _int64 = old.size();
     for(i : _int64 = back + 1; i < old_count; i++) { made.add(old.at(i)); }
     code.instructions = made;
 }

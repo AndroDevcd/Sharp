@@ -80,7 +80,7 @@ class virtual_targets {
 
     virtual_targets(layout: program_layout) {
         self->layout = layout;
-        only_body = new _int64[layout.functions.size().value as _int64 + 1];
+        only_body = new _int64[layout.functions.size() + 1];
         for(i : _int64 = 0; i < sizeof(only_body); i++) { only_body[i] = 0 - 1; }
     }
 
@@ -96,7 +96,7 @@ class virtual_targets {
         // every function of the executable that answers for this family: the root itself when it
         // has code, and each kept body that names the root as its delegate
         found : _int64 = 0 - 2;
-        count : _int64 = layout.functions.size().value as _int64;
+        count : _int64 = layout.functions.size();
         for(f : _int64 = 0; f < count; f++) {
             made := layout.functions.at(f);
             if(f != root_address && made.delegate_address != root_address) { continue; }
@@ -114,7 +114,7 @@ class virtual_targets {
         at : class_layout? = layout.classes.at(class_address);
         for(depth : _int64 = 0; at != null && depth < 64; depth++) {
             // (the VM searches the same way: the class, then each class above; in a class, the last method first)
-            for(m : _int64 = (at!!.methods.size().value as _int64) - 1; m >= 0; m--) {
+            for(m : _int64 = at!!.methods.size() - 1; m >= 0; m--) {
                 made := at!!.methods.at(m);
                 if(made.address != root_address && made.delegate_address != root_address) { continue; }
                 if(made.kind == FUNCTION_DELEGATE || made.kind == FUNCTION_NATIVE || made.ir == null) { return 0 - 1; }
@@ -129,7 +129,7 @@ class virtual_targets {
 /** every virtual call of the function whose one body can be worked out becomes a direct call: how many */
 def devirtualize_calls(analyses: function_analyses, targets: virtual_targets) : _int64 {
     code := analyses.code;
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     any : _int64 = 0;
     for(i : _int64 = 0; i < total && any == 0; i++) {
         at := code.instructions.at(i);

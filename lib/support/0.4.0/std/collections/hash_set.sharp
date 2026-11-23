@@ -41,17 +41,17 @@ class hash_set<T base _object_> : loopable<T>, iterable<T> {
         return members.size();
     }
 
-    /** 1 when the set has no elements, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when the set has no elements. O(1). */
+    def is_empty() : bool {
         return members.is_empty();
     }
 
     /**
      * Add an element unless an equal one is already in the set. O(1) on average.
      *
-     * @return 1 when the element was added, 0 when it was already there
+     * @return true when the element was added, false when it was already there
      */
-    def add(element: T) : decimal {
+    def add(element: T) : bool {
         return members.put_if_absent(element, element);
     }
 
@@ -62,7 +62,7 @@ class hash_set<T base _object_> : loopable<T>, iterable<T> {
      */
     def add_all(elements: list<T>) : decimal {
         added : decimal = 0;
-        n : decimal = elements.size().value;
+        n : decimal = elements.size();
         for(i : decimal = 0; i < n; i++)
             added += add(elements.at(i));
         return added;
@@ -80,17 +80,17 @@ class hash_set<T base _object_> : loopable<T>, iterable<T> {
         return added;
     }
 
-    /** 1 when the set holds an element equal to `element`, otherwise 0. O(1) on average. */
-    def contains(element: T) : decimal {
+    /** true when the set holds an element equal to `element`. O(1) on average. */
+    def contains(element: T) : bool {
         return members.contains_key(element);
     }
 
     /**
      * Remove an element. O(1) on average.
      *
-     * @return 1 when it was removed, 0 when the set did not hold it
+     * @return true when it was removed, false when the set did not hold it
      */
-    def remove(element: T) : decimal {
+    def remove(element: T) : bool {
         return members.remove(element);
     }
 
@@ -99,13 +99,13 @@ class hash_set<T base _object_> : loopable<T>, iterable<T> {
         members.clear();
     }
 
-    /** 1 when every element of `other` is also in this set (other is a subset of this one). O(n) in the size of `other`. */
-    def contains_all(other: hash_set<T>) : decimal {
+    /** true when every element of `other` is also in this set (other is a subset of this one). O(n) in the size of `other`. */
+    def contains_all(other: hash_set<T>) : bool {
         items := other.to_array();
         for(i : decimal = 0; i < sizeof(items); i++) {
-            if(!members.contains_key(items[i])) return 0;
+            if(!members.contains_key(items[i])) return false;
         }
-        return 1;
+        return true;
     }
 
     /**
@@ -146,11 +146,11 @@ class hash_set<T base _object_> : loopable<T>, iterable<T> {
     }
 
     /**
-     * 1 when both sets hold exactly the same elements (the order they were
-     * added in does not matter), otherwise 0. O(n).
+     * true when both sets hold exactly the same elements (the order they were
+     * added in does not matter). O(n).
      */
-    def same_elements(other: hash_set<T>) : decimal {
-        if(size() != other.size()) return 0;
+    def same_elements(other: hash_set<T>) : bool {
+        if(size() != other.size()) return false;
         return contains_all(other);
     }
 

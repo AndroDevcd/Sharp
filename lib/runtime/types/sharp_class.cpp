@@ -26,7 +26,6 @@ CXX11_INLINE void init_struct(sharp_class *sc) {
     sc->totalFieldCount = 0;
     sc->methodCount = 0;
     sc->interfaceCount = 0;
-    sc->reflect = nullptr;
     sc->hash = 0;
     sc->instanceNumberSlots = nullptr;
     sc->staticNumberSlots = nullptr;

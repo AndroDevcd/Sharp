@@ -145,7 +145,7 @@ mutate string {
     /** pad_start with the character to pad with: "42".pad_start(5, '0') is "00042". */
     def pad_start(width: int, pad: char): string {
         w : decimal = width.value;
-        if(w < 0) throw new ill_arg_except("pad_start: width cannot be negative: $width");
+        if(w < 0) throw new illegal_argument_exception("pad_start: width cannot be negative: $width");
         missing : decimal = w - sizeof(data);
         if(missing < 0) missing = 0;
         return padded(missing, 0, pad.value);
@@ -163,7 +163,7 @@ mutate string {
     /** pad_end with the character to pad with: "ab".pad_end(4, '.') is "ab..". */
     def pad_end(width: int, pad: char): string {
         w : decimal = width.value;
-        if(w < 0) throw new ill_arg_except("pad_end: width cannot be negative: $width");
+        if(w < 0) throw new illegal_argument_exception("pad_end: width cannot be negative: $width");
         missing : decimal = w - sizeof(data);
         if(missing < 0) missing = 0;
         return padded(0, missing, pad.value);
@@ -182,7 +182,7 @@ mutate string {
     /** center with the character to pad with: "ab".center(6, '*') is "**ab**". */
     def center(width: int, pad: char): string {
         w : decimal = width.value;
-        if(w < 0) throw new ill_arg_except("center: width cannot be negative: $width");
+        if(w < 0) throw new illegal_argument_exception("center: width cannot be negative: $width");
         missing : decimal = w - sizeof(data);
         if(missing < 0) missing = 0;
         left : decimal = (missing - (missing % 2)) / 2;

@@ -140,12 +140,14 @@ class generator {
             add_record_parameter(function);
         } else {
             locals : list<local_variable> = function.locals!!;
-            parameters : _int64 = function.parameters.size().value as _int64;
+            parameters : _int64 = function.parameters.size();
             for(i : _int64 = 0; i < locals.size() && i < parameters; i++) { add_local(locals.at(i)); }
             add_record_parameter(function);
             for(i : _int64 = parameters; i < locals.size(); i++) { add_local(locals.at(i)); }
         }
         add_own_record(function.closure);
+        made.record_parameter_slot = record_parameter;
+        if(function.closure != null) { made.own_record_slot = record_slots.at(record_slots.count - 1); }
     }
 
     /** the hidden record parameter of a lambda that is handed one */

@@ -72,7 +72,7 @@ class version {
         check_number(major);
         check_number(minor);
         check_number(patch);
-        check_identifiers(pre_release, 0, pre_release.size().value, true, pre_release);
+        check_identifiers(pre_release, 0, pre_release.size(), true, pre_release);
         self->major = major;
         self->minor = minor;
         self->patch = patch;
@@ -97,7 +97,7 @@ class version {
      * "1.2.x", "1.2.3-", "1.2.3-a..b", "v1.2.3", "".
      */
     static def parse(text: string): version {
-        length : decimal = text.size().value;
+        length : decimal = text.size();
 
         // find where the numbers end: at the first '-' or '+'
         numbers_end : decimal = length;
@@ -297,8 +297,8 @@ class version {
         if(minor != other.minor) return direction(minor - other.minor);
         if(patch != other.patch) return direction(patch - other.patch);
 
-        mine : decimal = pre_release.size().value;
-        theirs : decimal = other.pre_release.size().value;
+        mine : decimal = pre_release.size();
+        theirs : decimal = other.pre_release.size();
         if(mine == 0 && theirs == 0) return 0;
         if(mine == 0) return 1;             // a release is newer than its pre-releases
         if(theirs == 0) return 0 - 1;
@@ -314,8 +314,8 @@ class version {
 
     /** compare two non-empty pre-release texts identifier by identifier (rule 3 of the class comment) */
     private static def compare_pre_release(a: string, b: string): decimal {
-        size_a : decimal = a.size().value;
-        size_b : decimal = b.size().value;
+        size_a : decimal = a.size();
+        size_b : decimal = b.size();
         start_a : decimal = 0;
         start_b : decimal = 0;
 
@@ -412,7 +412,7 @@ class version {
      */
     override def hash(): int {
         result : decimal = ((major * 31 + minor) * 31 + patch) % 2147483647;
-        for(i : decimal = 0; i < pre_release.size().value; i++) {
+        for(i : decimal = 0; i < pre_release.size(); i++) {
             result = (result * 31 + pre_release.at(i).value) % 2147483647;
         }
         return result;

@@ -47,7 +47,7 @@ def label_facts_of(code: ir_function) : label_facts {
         facts.closes_range.add(0);
         facts.jumps_to.add(0);
     }
-    tries_count : _int64 = code.tries.size().value as _int64;
+    tries_count : _int64 = code.tries.size();
     for(t : _int64 = 0; t < tries_count; t++) {
         region := code.tries.at(t);
         facts.names_try.replace(region.start, 1);
@@ -62,7 +62,7 @@ def label_facts_of(code: ir_function) : label_facts {
             facts.closes_range.replace(region.finally_end, 1);
         }
     }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := code.instructions.at(i);
         if(is_jump(made)) { facts.jumps_to.replace(made.number, facts.jumps_to.at(made.number) + 1); }
@@ -76,7 +76,7 @@ def label_facts_of(code: ir_function) : label_facts {
  * by a label that ends a range? Such an instruction is never removed (R1).
  */
 def closes_a_range(code: ir_function, facts: label_facts, index: _int64) : _int64 {
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = index + 1; i < total; i++) {
         made := code.instructions.at(i);
         if(made.kind == IR_LABEL) {
@@ -93,7 +93,7 @@ def closes_a_range(code: ir_function, facts: label_facts, index: _int64) : _int6
  * `line` marks are passed over. -1 when there is none (the end).
  */
 def next_real_instruction(code: ir_function, index: _int64) : _int64 {
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = index; i < total; i++) {
         kind : _int64 = code.instructions.at(i).kind;
         if(kind != IR_LABEL && kind != IR_LINE) { return i; }
@@ -103,7 +103,7 @@ def next_real_instruction(code: ir_function, index: _int64) : _int64 {
 
 /** the index of the instruction that places `label`, or -1 */
 def place_of_label(code: ir_function, label: _int64) : _int64 {
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := code.instructions.at(i);
         if(made.kind == IR_LABEL && made.number == label) { return i; }
@@ -115,7 +115,7 @@ def place_of_label(code: ir_function, label: _int64) : _int64 {
 def places_of_labels(code: ir_function) : number_list {
     places := new number_list();
     for(i : _int64 = 0; i < code.label_count; i++) { places.add(0 - 1); }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := code.instructions.at(i);
         if(made.kind == IR_LABEL) { places.replace(made.number, i); }

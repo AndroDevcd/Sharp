@@ -133,7 +133,7 @@ class value_walk {
         positions.count = 0;
         waiting.count = 0;
         for(b : _int64 = 0; b < graph.blocks; b++) { reached[b] = 0; }
-        total : _int64 = code.instructions.size().value as _int64;
+        total : _int64 = code.instructions.size();
         if(from >= total) { return 1; }
         state.clear();
         state.add(slot);
@@ -218,7 +218,7 @@ class value_walk {
  * set for argument k (`self` is argument 0 of a function that has one).
  */
 def find_read_only_arguments(layout: program_layout) : _int64[] {
-    count : _int64 = layout.functions.size().value as _int64;
+    count : _int64 = layout.functions.size();
     read_only := new _int64[count + 1];
     one : _int64 = 1;
 
@@ -285,12 +285,12 @@ class string_shape {
 
     string_shape(layout: program_layout) {
         self->layout = layout;
-        classes : _int64 = layout.classes.size().value as _int64;
+        classes : _int64 = layout.classes.size();
         for(c : _int64 = 0; c < classes && string_address < 0; c++) {
             made := layout.classes.at(c);
             if(made.full_name != "std#string") { continue; }
             string_address = c;
-            fields : _int64 = made.instance_fields.size().value as _int64;
+            fields : _int64 = made.instance_fields.size();
             for(i : _int64 = 0; i < fields; i++) {
                 if(made.instance_fields.at(i).name == "data") { data_field = made.instance_fields.at(i); }
             }
@@ -327,7 +327,7 @@ class string_shape {
 def share_literals(analyses: function_analyses, shape: string_shape, read_only: _int64[]) : _int64 {
     code := analyses.code;
     if(code.tries.size() > 0 || shape.data_field == null) { return 0; }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     texts : _int64 = 0;
     for(i : _int64 = 0; i < total; i++) {
         at := code.instructions.at(i);

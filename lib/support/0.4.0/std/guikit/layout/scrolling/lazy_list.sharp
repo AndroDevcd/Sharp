@@ -24,7 +24,7 @@ local stable class lazy_section {
  *
  *      lazy_column(modifier().fill()) {
  *          item { text("Contacts").size(22).bold(); }          // one fixed row
- *          items(people.size().value) { i: _int64 ->           // one row per person,
+ *          items(people.size()) { i: _int64 ->           // one row per person,
  *              contact_row(people.at(i));                      // built only when it scrolls into view
  *          }
  *          item { text("end of list").dim(); }
@@ -156,7 +156,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         // find the section the row is in, and its number within that section
         within : _int64 = index;
         at : _int64 = 0;
-        while(at < sections.size().value - 1 && within >= sections.at(at).count) {
+        while(at < sections.size() - 1 && within >= sections.at(at).count) {
             within = within - sections.at(at).count;
             at = at + 1;
         }
@@ -185,7 +185,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         before : view? = null;
         if(old_rows != null) {
             slot : _int64 = index - old_first;
-            if(slot >= 0 && slot < old_rows!!.size().value) {
+            if(slot >= 0 && slot < old_rows!!.size()) {
                 before = old_rows!!.at(slot);
             }
         }
@@ -211,7 +211,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         shown_tall = tall;
 
         if(total == 0) {
-            while(rows.size().value > 0) {
+            while(rows.size() > 0) {
                 drop_row(rows.at(0));
                 rows.remove_at(0);
             }
@@ -233,10 +233,10 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         if(first < 0) { first = 0; }
 
         // the rows kept from last time are only useful if they still begin at `first`
-        if(rows.size().value > 0 && rows_first != first) {
+        if(rows.size() > 0 && rows_first != first) {
             sync_rows_to_first(wide);
         }
-        if(rows.size().value == 0) {
+        if(rows.size() == 0) {
             rows.add(build_row(first));
             rows_first = first;
         }
@@ -259,7 +259,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
             if(first_cut < 0) { first_cut = 0; }           // at the very top: no further
 
             // 2. the first row has scrolled out entirely: let it go
-            while(rows.size().value > 1 && first_cut >= step_of(rows.at(0))) {
+            while(rows.size() > 1 && first_cut >= step_of(rows.at(0))) {
                 first_cut = first_cut - step_of(rows.at(0));
                 drop_row(rows.at(0));
                 rows.remove_at(0);
@@ -272,7 +272,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
             used : _int64 = 0;
             sum : decimal = 0;
             while(bottom < tall && first + used < total) {
-                if(used >= rows.size().value) {
+                if(used >= rows.size()) {
                     rows.add(build_row(first + used));
                 }
                 line : view = rows.at(used);
@@ -282,8 +282,8 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
                 used = used + 1;
             }
             // rows kept from last time that are now below the window
-            while(rows.size().value > used) {
-                last : _int64 = rows.size().value - 1;
+            while(rows.size() > used) {
+                last : _int64 = rows.size() - 1;
                 drop_row(rows.at(last));
                 rows.remove_at(last);
             }
@@ -311,14 +311,14 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
      */
     private def sync_rows_to_first(wide: decimal) {
         // rows before the new first row: gone
-        while(rows.size().value > 0 && rows_first < first) {
+        while(rows.size() > 0 && rows_first < first) {
             drop_row(rows.at(0));
             rows.remove_at(0);
             rows_first = rows_first + 1;
         }
         // the kept rows start AFTER the new first row: nothing of them lines up cheaply - start over
-        if(rows.size().value > 0 && rows_first != first) {
-            while(rows.size().value > 0) {
+        if(rows.size() > 0 && rows_first != first) {
+            while(rows.size() > 0) {
                 drop_row(rows.at(0));
                 rows.remove_at(0);
             }
@@ -327,7 +327,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
 
     override def arrange() {
         top : decimal = me.inner_y() - first_cut;
-        count : _int64 = rows.size().value;
+        count : _int64 = rows.size();
         for(i : _int64 = 0; i < count; i++) {
             line : view = rows.at(i);
             line.arrange(me.inner_x(), num.nearest(top), line.want_w, line.want_h);

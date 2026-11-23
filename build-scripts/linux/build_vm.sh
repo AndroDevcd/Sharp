@@ -12,6 +12,11 @@
 #     LDFLAGS=<flags>   more flags for the link step (a memory checker: see the end of this comment)
 #     any arguments     more flags for the C++ compiler
 #
+# The same sources build the debugger (build_sdb.sh sets these three; nothing else uses them):
+#     PROGRAM=<name>    what the built program is called             (default: sharp)
+#     MAIN=<file>       the file with `main`                          (default: main.cpp)
+#     MORE_SOURCES=<..> more .cpp files to compile in, as shell patterns
+#
 # Needs: g++ with C++17 (g++ 8 or newer). On a Raspberry Pi:  sudo apt install g++
 #
 # WHAT DEPENDS ON THE CPU
@@ -72,7 +77,7 @@ echo "$CXX $FLAGS" > "$OUT/flags.new"
 if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/flags.new" "$OUT/flags.txt"; fi
 
 {
-  ls main.cpp lib/runtime/*.cpp lib/runtime/error/*.cpp lib/runtime/interrupts/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
+  ls ${MAIN:-main.cpp} $MORE_SOURCES lib/runtime/*.cpp lib/runtime/error/*.cpp lib/runtime/interrupts/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
      lib/runtime/sni/*.cpp lib/runtime/cffi/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
      lib/runtime/telemetry/*.cpp lib/core/*.cpp lib/core/opcode/*.cpp lib/util/*.cpp lib/util/zip/*.cpp \
      lib/Modules/math/*.cpp lib/Modules/std/*.cpp lib/Modules/std.io/*.cpp
@@ -88,7 +93,7 @@ for o in "$OUT"/*.o; do
   n=$(basename "$o" .o); grep -qxF "$n" <(tr "/ " "__" < "$OUT/files.txt") || rm -f "$o"
 done
 
-NEWEST_H=$(find lib/runtime lib/core lib/Modules lib/util stdimports.h -name '*.h' -not -path 'lib/util/jit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+NEWEST_H=$(find lib/runtime lib/core lib/Modules lib/util lib/debugger stdimports.h -name '*.h' -not -path 'lib/util/jit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
 export OUT FLAGS NEWEST_H CXX
 TOTAL=$(wc -l < "$OUT/files.txt")
 cat "$OUT/files.txt" | xargs -P "$JOBS" -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"
@@ -99,7 +104,8 @@ BUILT=$(ls "$OUT"/*.o 2>/dev/null | wc -l)
 echo "compiled: $BUILT of $TOTAL files"
 [ "$BUILT" = "$TOTAL" ] || { echo "the VM was not linked: fix the files marked FAILED above (the whole message of each is in $OUT/<file>.o.err)"; exit 1; }
 
-rm -f "$OUT/sharp"
-"$CXX" -o "$OUT/sharp" "$OUT"/*.o $LINK 2>&1 | grep -v warning | head -20
-[ -x "$OUT/sharp" ] || { echo "the VM did not link"; exit 1; }
-echo "built: $OUT/sharp   ($("$OUT/sharp" -V 2>&1 | head -1))"
+PROGRAM=${PROGRAM:-sharp}
+rm -f "$OUT/$PROGRAM"
+"$CXX" -o "$OUT/$PROGRAM" "$OUT"/*.o $LINK 2>&1 | grep -v warning | head -20
+[ -x "$OUT/$PROGRAM" ] || { echo "the VM did not link"; exit 1; }
+echo "built: $OUT/$PROGRAM   ($("$OUT/$PROGRAM" -V 2>&1 | head -1))"

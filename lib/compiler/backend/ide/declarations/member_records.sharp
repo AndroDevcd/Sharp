@@ -167,7 +167,7 @@ def write_function(w: json_writer, job: declaration_job, class_file: _int64, fun
     write_identity(w, job, function, class_file);
     write_at(w, job, function);
 
-    count : _int64 = function.parameters.size().value as _int64;
+    count : _int64 = function.parameters.size();
     parameter_ids := new _int64[count];
     for(i : _int64 = 0; i < count; i++) {
         parameter_ids[i] = written_type_id(job.types, function.parameters.at(i).type);

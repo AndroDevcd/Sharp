@@ -28,13 +28,17 @@
  */
 package sharp.ide.execution
 
+import com.intellij.execution.DefaultExecutionResult
 import com.intellij.execution.ExecutionException
+import com.intellij.execution.ExecutionResult
+import com.intellij.execution.Executor
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessHandlerFactory
 import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.runners.ProgramRunner
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -45,6 +49,7 @@ import sharp.ide.paths.ProgramSettings
 import sharp.ide.project.SharpProjectFiles
 import sharp.ide.settings.SharpApplicationSettings
 import sharp.ide.settings.SharpProjectSettings
+import sharp.ide.testing.SharpTestView
 import sharp.ide.toolchain.SharpToolchain
 import sharp.ide.toolchain.SharpToolchains
 import java.nio.charset.StandardCharsets
@@ -79,6 +84,32 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
     }
 
     override fun startProcess(): ProcessHandler {
+        val handler = ProcessHandlerFactory.getInstance().createColoredProcessHandler(prepare(debugPort = null))
+        ProcessTerminatedListener.attach(handler)      // "Process finished with exit code N" at the end
+        return handler
+    }
+
+    /** A test program's run is shown in the platform's test view (sharp.ide.testing); any other in the plain console. */
+    override fun execute(executor: Executor, runner: ProgramRunner<*>): ExecutionResult {
+        if (!showsTests()) return super.execute(executor, runner)
+        val handler = startProcess()
+        val console = SharpTestView.consoleFor(configuration, executor, handler)
+        console.addMessageFilter(SharpConsoleFilter(environment.project))
+        return DefaultExecutionResult(console, handler, *createActions(console, handler, executor))
+    }
+
+    /** A test program that is run (not only built) reports its tests for the test view. */
+    private fun showsTests(): Boolean = configuration.fields.testProgram && !configuration.fields.buildOnly
+
+    /**
+     * Everything a run needs before its process is started: the editors saved, the plan made, its
+     * files written. Gives the command to start.
+     *
+     * `debugPort`: a DEBUG run (sharp.ide.debug). The program is built with -dbg and started by sdb,
+     * the debugger, which is told the port the IDE listens on. Null: a plain run.
+     * Not to be called on the UI thread when it can be helped: it reads the folder's files.
+     */
+    fun prepare(debugPort: Int?): GeneralCommandLine {
         val project = environment.project
         // the compiler reads the files from disk: what is in the editors goes there first
         ApplicationManager.getApplication().invokeAndWait { FileDocumentManager.getInstance().saveAllDocuments() }
@@ -93,22 +124,22 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             excludedFolders = projectSettings.excludedFolders.toList(),
             libraryPath = projectSettings.libraryPath,
             compilerOptions = ParametersListUtil.parse(configuration.fields.compilerOptions ?: ""),
-            programArguments = ParametersListUtil.parse(configuration.fields.programArguments ?: ""),
+            // (a test program is told to report for the test view; under the debugger its console is the plain one)
+            programArguments = ParametersListUtil.parse(configuration.fields.programArguments ?: "") +
+                (if (showsTests() && debugPort == null) listOf(SharpTestView.ARGUMENT) else emptyList()),
             workingDirectory = configuration.fields.workingDirectory ?: "",
             buildOnly = configuration.fields.buildOnly,
             unoptimizedCompiler = configuration.fields.unoptimizedCompiler,
             windows = SystemInfo.isWindows,
             alwaysRebuild = configuration.fields.alwaysRebuild,
             cxxCompiler = app.cxxCompiler,
+            debugPort = debugPort,
         )
         write(plan)
-        val commandLine = GeneralCommandLine(plan.command)
+        return GeneralCommandLine(plan.command)
             .withWorkDirectory(plan.workingDirectory)
             .withCharset(StandardCharsets.UTF_8)
             .withEnvironment(plan.environment)
-        val handler = ProcessHandlerFactory.getInstance().createColoredProcessHandler(commandLine)
-        ProcessTerminatedListener.attach(handler)      // "Process finished with exit code N" at the end
-        return handler
     }
 
     companion object {
@@ -142,7 +173,17 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             windows: Boolean,
             alwaysRebuild: Boolean = false,
             cxxCompiler: String = "",
+            /** A debug run: the port the IDE listens on for sdb (sharp.ide.debug). Null: a plain run. */
+            debugPort: Int? = null,
         ): RunPlan {
+            // a debug run is built with -dbg (the names of variables and the source text the debugger
+            // shows come from it) and is always run - by sdb, which is told where the IDE listens
+            val debugger = if (debugPort == null) null else toolchain.debugger
+                ?: throw ExecutionException("This Sharp installation has no debugger (looked for ${toolchain.home}/bin/sdb): install Sharp 0.5.6 or newer")
+            @Suppress("NAME_SHADOWING")
+            val compilerOptions = if (debugPort != null && "-dbg" !in compilerOptions && "-debug" !in compilerOptions) compilerOptions + "-dbg" else compilerOptions
+            @Suppress("NAME_SHADOWING")
+            val buildOnly = buildOnly && debugPort == null
             val folder = ProgramFiles.normalise(programFolder)
             if (folder.isEmpty()) throw ExecutionException("No program folder is set: choose it in Run > Edit Configurations")
             if (!Files.isDirectory(Paths.get(folder))) throw ExecutionException("The program folder does not exist: $folder")
@@ -223,6 +264,7 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
                 upToDate = upToDate,
                 newStamp = newStamp.toString(),
                 keptStamp = keptStamp.toString(),
+                runner = if (debugger == null) emptyList() else listOf(debugger, "-machine", debugPort.toString()),
             )
             return if (windows) {
                 val script = runFolder.resolve("run.cmd")

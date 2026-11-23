@@ -85,13 +85,13 @@ class file_utils {
 
     /** create the directory a file lies in when it is missing */
     private static def ensure_parent(target: file) {
-        up := file_natives.parent_of(target.get_path());
-        if(io_strings.is_null(up)) {
+        up := target.parent();
+        if(up == null) {
             return;
         }
-        dir := new file(up!!);
+        dir := up!!;
         if(!dir.mkdirs()) {
-            throw new io_exception("could not create directory: " + dir.get_path());
+            throw new io_exception("could not create directory: " + dir.path);
         }
     }
 
@@ -199,7 +199,7 @@ class file_utils {
         if(!start.is_directory()) {
             return 1;
         }
-        return new directory_walker(start).files_only().to_list().size().value;
+        return new directory_walker(start).files_only().to_list().size();
     }
 
     /**
@@ -212,15 +212,15 @@ class file_utils {
     static def list_tree(dir_path: string) : list<string> {
         start := new file(dir_path);
         result := new list<string>();
-        skip : decimal = sizeof(start.get_path().data);
-        last : decimal = start.get_path().data[skip - 1];
+        skip : decimal = sizeof(start.path.data);
+        last : decimal = start.path.data[skip - 1];
         if(last != '/' && last != 92) {
             skip++;
         }
         entries := start.walk();
-        count : decimal = entries.size().value;
+        count : decimal = entries.size();
         for(i : decimal = 0; i < count; i++) {
-            relative := io_strings.slice_from(entries.at(i).get_path(), skip);
+            relative := io_strings.slice_from(entries.at(i).path, skip);
             result.add(io_strings.replace_char(relative, 92, '/'));
         }
         return result;
@@ -260,7 +260,7 @@ class file_utils {
 
         first_root := new file(first_path);
         second_root := new file(second_path);
-        count : decimal = first.size().value;
+        count : decimal = first.size();
         for(i : decimal = 0; i < count; i++) {
             if(!io_strings.equals(first.at(i), second.at(i))) {
                 return false;

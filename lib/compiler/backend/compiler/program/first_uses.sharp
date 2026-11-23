@@ -45,7 +45,7 @@ class first_uses {
 
     first_uses(fields: list<sharp_field>) {
         self->fields = fields;
-        states = new _int64[fields.size().value as _int64];
+        states = new _int64[fields.size()];
     }
 
     /** what was seen first for the field (FIRST_NOTHING for one not asked about) */
@@ -91,7 +91,7 @@ def note_first_uses_in_statement(statement: bound_statement, uses: first_uses) {
         inside.clear();
         statement_parts(next, expressions, inside);
         for(i : _int64 = 0; i < expressions.size(); i++) { note_first_uses_in_expression(expressions.at(i), uses); }
-        for(i : _int64 = inside.size().value as _int64 - 1; i >= 0; i--) { waiting.add(inside.at(i)); }
+        for(i : _int64 = inside.size() - 1; i >= 0; i--) { waiting.add(inside.at(i)); }
     }
 }
 
@@ -122,7 +122,7 @@ def note_first_uses_in_expression(expression: bound_expression, uses: first_uses
         }
         parts.clear();
         add_parts(next, parts);
-        for(i : _int64 = parts.size().value as _int64 - 1; i >= 0; i--) { waiting.add(parts.at(i)); }
+        for(i : _int64 = parts.size() - 1; i >= 0; i--) { waiting.add(parts.at(i)); }
     }
 }
 

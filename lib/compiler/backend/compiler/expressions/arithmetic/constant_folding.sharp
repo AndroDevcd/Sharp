@@ -159,7 +159,7 @@ def decimal_result(operation: _int64, a: decimal, b: decimal) : decimal {
     if(operation == P_MINUS) { return a - b; }
     if(operation == P_STAR) { return a * b; }
     if(operation == P_SLASH) { return a / b; }
-    if(operation == P_EXPONENT) { return power(a, b); }
+    if(operation == P_EXPONENT) { return pow(a, b); }
     if(operation == P_EQEQ) { return a == b; }
     if(operation == P_NOTEQ) { return a != b; }
     if(operation == P_LESS) { return a < b; }

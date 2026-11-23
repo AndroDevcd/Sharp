@@ -45,7 +45,7 @@ stable class fab base widget : behavior {
     /** the font of the words: a single sign ("+") is drawn large, words at the ordinary size */
     private def face() : font {
         host := ui_host.current!!;
-        if(words.size().value <= 1) {
+        if(words.size() <= 1) {
             return host.font_of(26);
         }
         return host.font_of(host.look.text_size, 1);
@@ -54,7 +54,7 @@ stable class fab base widget : behavior {
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         me.content_h = SIZE;
         me.content_w = SIZE;
-        if(words.size().value > 1) {
+        if(words.size() > 1) {
             me.content_w = face().width_of(words) + 40;
         }
     }

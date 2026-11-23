@@ -73,7 +73,7 @@ def inferred_type_of(session: analysis_session, value: bound_expression) : resol
  *                                              returns what `w` is
  *      any other plain number (`w * 2`,        its number CLASS: int, long, double ...
  *      `sizeof(data)`, `g()`, `w as _int64`)   (`def size() := sizeof(data);` returns an
- *                                              `int` object, and `s.size().value` is its number)
+ *                                              `int` object, and `s.size()` is its number)
  *      anything else                           the value's type
  */
 def inferred_result_of(session: analysis_session, value: bound_expression) : resolved_type {

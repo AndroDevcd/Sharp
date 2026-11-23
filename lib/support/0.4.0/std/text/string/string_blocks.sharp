@@ -1,0 +1,66 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - fallbacks, and functions that take a block (part of the `string` class, see string_core.sharp)
+ *
+ * if_empty and if_blank give another text when this one has nothing in it;
+ * filter_chars, count_chars, any_char and all_chars ask a block about each
+ * character (`it` is the character, a plain number):
+ *
+ *      name.if_blank("nobody")
+ *      "a1b22".filter_chars { it >= '0' && it <= '9' }       // "122"
+ *      "a1b22".count_chars { it >= '0' && it <= '9' }        // 3
+ *
+ * For the parts of a text as a list, with filter, map and the other list
+ * functions (std collection_functions.sharp): `list_of<string>(line.split(","))`.
+ */
+mutate string {
+
+    /** `otherwise` when the string has no characters, the string itself when it has */
+    def if_empty(otherwise: string): string {
+        if(sizeof(data) == 0) return otherwise;
+        return self;
+    }
+
+    /** `otherwise` when the string is empty or only whitespace, the string itself when not */
+    def if_blank(otherwise: string): string {
+        if(is_blank()) return otherwise;
+        return self;
+    }
+
+    /** A new string of the characters the block says yes to, in order. */
+    def filter_chars(wanted: (_int8)(bool)): string {
+        kept := new string_builder();
+        for(i : _int64 = 0; i < sizeof(data); i++) {
+            if(wanted(data[i])) kept.append(data[i]);
+        }
+        return kept.to_string()!!;
+    }
+
+    /** How many characters the block says yes to. */
+    def count_chars(wanted: (_int8)(bool)): decimal {
+        hits : decimal = 0;
+        for(i : _int64 = 0; i < sizeof(data); i++) {
+            if(wanted(data[i])) hits++;
+        }
+        return hits;
+    }
+
+    /** true when the block says yes to at least one character. */
+    def any_char(wanted: (_int8)(bool)): bool {
+        for(i : _int64 = 0; i < sizeof(data); i++) {
+            if(wanted(data[i])) return true;
+        }
+        return false;
+    }
+
+    /** true when the block says yes to every character (and for an empty string). */
+    def all_chars(wanted: (_int8)(bool)): bool {
+        for(i : _int64 = 0; i < sizeof(data); i++) {
+            if(!wanted(data[i])) return false;
+        }
+        return true;
+    }
+}

@@ -85,14 +85,6 @@ def check_required_declarations(session: analysis_session, analysed: analysed_pr
     require_class(session, analysed, "std.io", "thread", missing);
     require_class(session, analysed, "std.io.fiber", "fiber", missing);
 
-    // reflection: what the VM fills in to describe the program to itself
-    require_class(session, analysed, "std.reflect", "_class_", missing);
-    require_class(session, analysed, "std.reflect", "_field_", missing);
-    require_class(session, analysed, "std.reflect", "_function_", missing);
-    require_class(session, analysed, "std.reflect", "data_type", missing);
-    require_class(session, analysed, "std.reflect", "_function_param_", missing);
-    require_class(session, analysed, "std.reflect", "description", missing);
-
     if(missing.size() > 0 && analysed.main_function != null) {
         report_missing(session, analysed.main_function!!, missing);
     }
@@ -180,7 +172,7 @@ def report_missing(session: analysis_session, main_function: sharp_function, mis
     first : string = missing.at(0);
     message := "this program cannot run: the runtime needs " + first + ", which is not part of it";
     if(missing.size() > 1) {
-        message = "this program cannot run: the runtime needs " + first + " and " + (missing.size().value - 1)
+        message = "this program cannot run: the runtime needs " + first + " and " + (missing.size() - 1)
                   + " more, which are not part of it";
     }
     d := error_at_names("E0962", message, main_function.unit, main_function.node);

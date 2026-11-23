@@ -96,11 +96,29 @@ def rename_for_obfuscation(layout: program_layout, everything: _int64) : obfusca
         holder : _int64 = class_modifier(made.owner.of, rules, everything);
         if(made.owner.is_module_globals == 1 || made.owner.is_closure_record == 1) { holder = default_class_modifier(everything); }
         if(should_rename_member(member_modifier(made.of, rules, everything), holder) == 1) {
+            written_as : string = made.full_name;
             made.name = result.names.rename("function", made.full_name);
+            rename_locals(made.of, written_as, result);
         }
         made.full_name = made.owner.full_name + "." + made.name;
     }
     return result;
+}
+
+/**
+ * The local variables of a renamed function get new names too: with -dbg the
+ * executable carries them (output/debug_locals.sharp), and a name like
+ * `password` says as much as the function's did. The map names each as
+ * `<the function as written>.<the variable>`.
+ */
+def rename_locals(function: sharp_function, written_as: string, result: obfuscation_result) {
+    if(function.locals == null) { return; }
+    locals : list<local_variable> = function.locals!!;
+    for(i : _int64 = 0; i < locals.size(); i++) {
+        variable := locals.at(i);
+        if(variable.is_hidden == 1) { continue; }
+        variable.carried_name = result.names.rename("local", written_as + "." + variable.name);
+    }
 }
 
 /** a class gets a new name; its full name is its new module name (or the class around it) and the new name */

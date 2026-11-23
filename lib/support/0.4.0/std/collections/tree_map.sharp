@@ -58,8 +58,8 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
         return count;
     }
 
-    /** 1 when the map has no pairs, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when the map has no pairs. O(1). */
+    def is_empty() : bool {
         return count == 0;
     }
 
@@ -80,13 +80,13 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
     /**
      * Store a value for a key. O(log n).
      *
-     * @return 1 when the key is new, 0 when an existing value was replaced
+     * @return true when the key is new, false when an existing value was replaced
      */
-    def put(key: K, value: V) : decimal {
+    def put(key: K, value: V) : bool {
         if(root == null) {
             root = new tree_node<K, V>(key, value);
             count = 1;
-            return 1;
+            return true;
         }
 
         // walk down to the place where the key belongs
@@ -95,7 +95,7 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
             order : decimal = compare(key, node.key);
             if(order == 0) {
                 node.value = value;
-                return 0;
+                return false;
             }
 
             if(order < 0) {
@@ -119,16 +119,16 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
 
         count++;
         rebalance_upwards(node);
-        return 1;
+        return true;
     }
 
     /**
      * Store a value only when the key is not in the map yet. O(log n).
      *
-     * @return 1 when the pair was added, 0 when the key already existed
+     * @return true when the pair was added, false when the key already existed
      */
-    def put_if_absent(key: K, value: V) : decimal {
-        if(find_node(key) != null) return 0;
+    def put_if_absent(key: K, value: V) : bool {
+        if(find_node(key) != null) return false;
         return put(key, value);
     }
 
@@ -146,41 +146,41 @@ class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
         return node!!.value;
     }
 
-    /** 1 when the map has the key, otherwise 0. O(log n). */
-    def contains_key(key: K) : decimal {
-        if(find_node(key) == null) return 0;
-        return 1;
+    /** true when the map has the key. O(log n). */
+    def contains_key(key: K) : bool {
+        if(find_node(key) == null) return false;
+        return true;
     }
 
     /**
-     * 1 when at least one key maps to a value that equals `wanted` (compared with `==`). O(n).
+     * true when at least one key maps to a value that equals `wanted` (compared with `==`). O(n).
      *
      * (The parameter is deliberately not called `value`. With that name the
-     * compiler fails here, inside std/primatives.sharp: the `==` of the
+     * compiler fails here, inside std/primitives/numbers.sharp: the `==` of the
      * number classes is compiled on first use, apparently in the scope of
      * the function that uses it, where a parameter named `value` hides the
      * field `value` that operator reads.)
      */
-    def contains_value(wanted: V) : decimal {
+    def contains_value(wanted: V) : bool {
         node := first_node();
         while(node != null) {
             current := node!!;
-            if(current.value == wanted) return 1;
+            if(current.value == wanted) return true;
             node = current.next_node();
         }
-        return 0;
+        return false;
     }
 
     /**
      * Remove a key and its value. O(log n).
      *
-     * @return 1 when the key was removed, 0 when the map did not have it
+     * @return true when the key was removed, false when the map did not have it
      */
-    def remove(key: K) : decimal {
+    def remove(key: K) : bool {
         node := find_node(key);
-        if(node == null) return 0;
+        if(node == null) return false;
         remove_node(node!!);
-        return 1;
+        return true;
     }
 
     /**

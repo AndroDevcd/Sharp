@@ -37,8 +37,8 @@ mutate string {
     def split(delimiter: string, limit: int): string[] {
         m : decimal = sizeof(delimiter.data);
         max_parts : decimal = limit.value;
-        if(m == 0) throw new ill_arg_except("split: the delimiter cannot be empty");
-        if(max_parts < 0) throw new ill_arg_except("split: the limit cannot be negative: $limit");
+        if(m == 0) throw new illegal_argument_exception("split: the delimiter cannot be empty");
+        if(max_parts < 0) throw new illegal_argument_exception("split: the limit cannot be negative: $limit");
 
         // pass 1: how many parts will there be?
         n : decimal = sizeof(data);
@@ -69,7 +69,7 @@ mutate string {
      */
     def split_any(delimiters: string): string[] {
         if(sizeof(delimiters.data) == 0)
-            throw new ill_arg_except("split_any: the set of delimiters cannot be empty");
+            throw new illegal_argument_exception("split_any: the set of delimiters cannot be empty");
 
         n : decimal = sizeof(data);
         parts : decimal = 1;
@@ -175,7 +175,7 @@ mutate string {
      */
     def chunked(chunk_size: int): string[] {
         step : decimal = chunk_size.value;
-        if(step < 1) throw new ill_arg_except("chunked: the size must be at least 1: $chunk_size");
+        if(step < 1) throw new illegal_argument_exception("chunked: the size must be at least 1: $chunk_size");
 
         n : decimal = sizeof(data);
         // n / step rounded up (the remainder decides whether there is a last, shorter piece)
@@ -235,7 +235,7 @@ mutate string {
      * which would make a call to an overloaded `join` ambiguous.)
      */
     static def join_list(separator: string, parts: list<string>): string {
-        if(parts.empty()) return new string();
+        if(parts.is_empty()) return new string();
         return join(separator, parts.get_elements()!!);
     }
 }

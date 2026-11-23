@@ -14,14 +14,14 @@ mod std.util;
  *     again := table.value();     // the same object, not built again
  *
  * std#deferred_init is the older, thinner version of this class; lazy adds
- * is_initialized(), reset(), a ready-made value, and it also remembers a
- * null result instead of calling the supplier again.
+ * is_initialized(), reset() and a ready-made value.
  *
  * The supplier runs at most once (until reset()). If it throws, nothing is
  * remembered and the next value() call runs it again. The class does no
  * locking: when several threads may ask at the same time, guard the call.
  *
- * LIMITATION: T must be an object type.
+ * LIMITATION: T must be an object type, and the supplier has to give an
+ * object: value() throws for a null.
  */
 class lazy<T> {
     private supplier : ()(T);

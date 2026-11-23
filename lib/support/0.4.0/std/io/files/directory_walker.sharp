@@ -6,7 +6,7 @@ mod std.io;
  *     walker := new directory_walker(new file("src"));
  *     walker.set_filter({ f: file -> (bool) return f.has_extension("sharp"); });
  *     while(walker.has_next()) {
- *         println(walker.next().get_path());
+ *         println(walker.next().path);
  *     }
  *
  * The walk does not use recursion (deep trees are no problem for the stack):
@@ -68,7 +68,7 @@ class directory_walker {
      */
     directory_walker(root: file) {
         if(!root.exists()) {
-            throw new io_exception("directory_walker: not found: " + root.get_path());
+            throw new io_exception("directory_walker: not found: " + root.path);
         }
         self->root = root;
     }
@@ -179,9 +179,9 @@ class directory_walker {
 
     private def pending_count() : decimal {
         if(breadth) {
-            return pending.size().value - head;
+            return pending.size() - head;
         }
-        return pending.size().value;
+        return pending.size();
     }
 
     /** visit entries until one is found that should be reported; leaves it in `upcoming` (null at the end of the walk) */
@@ -202,8 +202,8 @@ class directory_walker {
                     enter = enter_filter(entry);
                 }
                 if(enter) {
-                    names := directory_listing.names(entry.get_path());
-                    count : decimal = names.size().value;
+                    names := directory_listing.names(entry.path);
+                    count : decimal = names.size();
                     if(breadth) {
                         for(i : decimal = 0; i < count; i++) {
                             pending.add(entry.child(names.at(i)));

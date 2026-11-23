@@ -56,7 +56,7 @@ def store_through_index(context: analysis_context, node: _int64, index_call: bou
                 return call;
             }
             // a put that takes the index but not this VALUE: the value is the mistake
-            refused := put_refusing_only_the_value(result, arguments.size().value);
+            refused := put_refusing_only_the_value(result, arguments.size());
             if(refused != null) {
                 report_no_conversion(context, value, refused!!.failed_how!!, "the value stored by `"
                                      + source_text_of(context, index_call.node) + " = ...` (the parameter `" + refused!!.failed_parameter

@@ -1,0 +1,404 @@
+mod std.net;
+
+import ( std.io, std.data, std.compress )
+
+/**
+ * THE HTTP CLIENT: sends requests over the network (HTTP/1.1, http and https)
+ *
+ * Most programs never make one: http.GET(...) and every http_service use a
+ * shared one. Make your own to give it other settings:
+ *
+ *      client := new http_client();
+ *      client.wait = 5000;                 // milliseconds of silence before a request gives up (30000)
+ *      client.most_redirects = 3;          // "go there instead" answers followed per request (10)
+ *      client.agent = "my-app/1.0";        // the User-Agent header
+ *      answer := client.send(new http_request("GET", "https://example.com/"));
+ *
+ * WHAT IT DOES FOR YOU
+ *   - https: the connection is a tls_socket, so the server's certificate is
+ *     checked (tls.sharp);
+ *   - connections are KEPT and used again: the second request to a server
+ *     does not connect (or do the TLS handshake) again. A kept connection
+ *     the server has closed meanwhile is noticed and the request sent anew;
+ *   - redirects are followed (301, 302, 303, 307, 308), the way a browser
+ *     does: 303 - and a POST that gets 301 or 302 - goes on as a GET, 307
+ *     and 308 repeat the request as it was. Authorization is not carried to
+ *     another server;
+ *   - bodies in pieces ("chunked") are put together;
+ *   - it tells servers it reads compressed answers (gzip) and unpacks them:
+ *     text and json usually travel at a fifth of their size.
+ *
+ * WHAT IT THROWS: http_exception when there is no answer (http_timeout when
+ * the server was silent too long). An answer is returned whatever its
+ * status - 404 and 500 are answers; require_ok() turns them into
+ * http_status_exception.
+ *
+ * One client can be used by several threads at once: each request has a
+ * connection to itself.
+ *
+ * Not done: HTTP/2, proxies, cookies kept between requests.
+ */
+class http_client : http_engine {
+    wait : _int64 = 30000;
+    most_redirects : _int64 = 10;
+    agent : string = "sharp-http/1.0";
+    /** keep connections for the next request to the same server */
+    keep : bool = true;
+
+    private idle : list<http_line> = new list<http_line>();
+    private static const MOST_IDLE : _int64 = 16;
+
+    override def send(asked: http_request) : http_response {
+        where : url = url.parse(asked.resolved_address());
+        body : _int8[]? = asked.resolved_body();
+        // (a string of its own: `method = ...` below must not change the request's)
+        method : string = new string(io_strings.to_upper(asked.method));
+        headers : http_headers = asked.headers.copy_all();
+        patience : _int64 = asked.wait;
+        if(patience < 0) { patience = wait; }
+
+        hops : _int64 = 0;
+        while(true) {
+            answer : http_response = exchange(where, method, headers, body, patience);
+            answer.address = where.to_string()!!;
+            status : _int64 = answer.status;
+            is_redirect : bool = status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+            link : string? = answer.header("Location");
+            if(!asked.redirects || !is_redirect || link == null) { return answer; }
+
+            hops++;
+            if(hops > most_redirects) {
+                throw new http_exception("" + asked.method + " " + asked.address + ": more than " + most_redirects
+                    + " redirects (the last one to " + link!! + ")");
+            }
+            next : url = where.resolve(link!!);
+            if(status == 303 || ((status == 301 || status == 302) && method != "GET" && method != "HEAD")) {
+                method = new string("GET");
+                body = null;
+                headers.remove("Content-Type");
+            }
+            if(next.origin() != where.origin()) { headers.remove("Authorization"); }
+            where = next;
+        }
+        return new http_response(0, "");
+    }
+
+    /** close the connections that are kept for later */
+    def close() {
+        lock(self) {
+            for(i : _int64 = 0; i < idle.size(); i++) { idle.at(i).close(); }
+            idle.clear();
+        }
+    }
+
+    // ================================================================ one request, one answer
+
+    private def exchange(where: url, method: string, headers: http_headers, body: _int8[]?, patience: _int64) : http_response {
+        message : _int8[] = request_bytes(where, method, headers, body);
+        attempt : _int64 = 0;
+        while(true) {
+            attempt++;
+            line : http_line? = null;
+            if(attempt == 1) { line = take(where.origin()); }
+            kept : bool = line != null;
+            if(line == null) { line = open(where); }
+            try {
+                line!!.set_timeout(patience);
+                line!!.wire.write(message, sizeof(message));
+                answer : http_response = read_answer(line!!, method);
+                if(line!!.reusable && keep) { give_back(line!!); }
+                else { line!!.close(); }
+                return answer;
+            } catch(late: socket_timeout) {
+                line!!.close();
+                throw new http_timeout(method + " " + where.to_string()!! + ": the server did not answer within " + patience + " ms");
+            } catch(broken: socket_exception) {
+                line!!.close();
+                // a kept connection the server closed while it lay idle: nothing of this request was answered, so it is sent anew
+                if(kept && !line!!.arrived) { continue; }
+                throw new http_exception(method + " " + where.to_string()!! + ": " + broken.get_message());
+            } catch(wrong: http_exception) {
+                line!!.close();
+                throw wrong;
+            }
+        }
+        return new http_response(0, "");
+    }
+
+    private def open(where: url) : http_line {
+        made : http_line? = null;
+        try {
+            if(where.is_secure()) {
+                secure := tls_socket.connect(where.host, where.port);
+                made = new http_line(secure, null, secure, where.origin());
+            } else {
+                plain := tcp_socket.connect(where.host, where.port);
+                made = new http_line(plain, plain, null, where.origin());
+            }
+        } catch(unsafe: tls_exception) {
+            throw new http_exception(where.origin() + ": " + unsafe.get_message());
+        } catch(unreachable: socket_exception) {
+            throw new http_exception(where.origin() + ": " + unreachable.get_message());
+        }
+        return made!!;
+    }
+
+    /** a kept connection to that server, or null */
+    private def take(origin: string) : http_line? {
+        found : http_line? = null;
+        lock(self) {
+            for(i : _int64 = (idle.size() - 1); i >= 0; i--) {
+                if(idle.at(i).origin == origin) {
+                    found = idle.at(i);
+                    idle.remove_at(i);
+                    break;
+                }
+            }
+        }
+        return found;
+    }
+
+    private def give_back(line: http_line) {
+        oldest : http_line? = null;
+        lock(self) {
+            if(idle.size() >= MOST_IDLE) { oldest = idle.at(0); idle.remove_at(0); }
+            idle.add(line);
+        }
+        if(oldest != null) { oldest!!.close(); }
+    }
+
+    /** the request as it goes over the wire: the first line, the headers, an empty line, the body */
+    private def request_bytes(where: url, method: string, headers: http_headers, body: _int8[]?) : _int8[] {
+        head := new char_buffer();
+        head.append(method).append(" ").append(where.target()).append(" HTTP/1.1\r\n");
+        if(!headers.has("Host")) { head.append("Host: ").append(where.host_and_port()).append("\r\n"); }
+        if(!headers.has("User-Agent")) { head.append("User-Agent: ").append(agent).append("\r\n"); }
+        if(!headers.has("Accept")) { head.append("Accept: */*\r\n"); }
+        if(!headers.has("Accept-Encoding")) { head.append("Accept-Encoding: gzip\r\n"); }
+        for(i : _int64 = 0; i < headers.size(); i++) {
+            name : string = headers.name_at(i);
+            if(io_strings.equals_ignore_case(name, "Content-Length")) { continue; }        // counted here
+            head.append(name).append(": ").append(headers.value_at(i)).append("\r\n");
+        }
+        if(body != null || method == "POST" || method == "PUT" || method == "PATCH") {
+            head.append("Content-Length: ").append_int(sizeof(body)).append("\r\n");
+        }
+        head.append("\r\n");
+        whole := new byte_buffer();
+        whole.put_bytes(head.to_array());
+        if(sizeof(body) > 0) { whole.put_bytes(body); }
+        return whole.to_array() ?: new _int8[0];
+    }
+
+    private def read_answer(line: http_line, method: string) : http_response {
+        answer : http_response? = null;
+        version_one_zero : bool = false;
+        while(true) {
+            first : string? = line.read_line();
+            if(first == null) { throw new socket_exception("the server closed the connection without answering"); }
+            text : string = first!!;
+            // "HTTP/1.1 200 OK"
+            if(!io_strings.starts_with(text, "HTTP/") || sizeof(text.data) < 12) {
+                throw new http_exception("what the server sent is not HTTP: `" + http_line.shown(text) + "`");
+            }
+            version_one_zero = io_strings.starts_with(text, "HTTP/1.0");
+            space : _int64 = io_strings.index_of(text, ' ') as _int64;
+            number : string = io_strings.slice(text, space + 1, space + 4);
+            if(space < 0 || !io_strings.is_int(number)) {
+                throw new http_exception("what the server sent is not HTTP: `" + http_line.shown(text) + "`");
+            }
+            reason : string = "";
+            if(sizeof(text.data) > space + 5) { reason = io_strings.slice_from(text, space + 5); }
+            answer = new http_response(io_strings.parse_int(number) as _int64, reason);
+
+            lines : _int64 = 0;
+            while(true) {
+                one : string? = line.read_line();
+                if(one == null) { throw new http_exception("the server closed the connection in the middle of its headers"); }
+                if(sizeof(one!!.data) == 0) { break; }
+                lines++;
+                if(lines > 500) { throw new http_exception("the server sent more than 500 headers"); }
+                colon : _int64 = io_strings.index_of(one!!, ':') as _int64;
+                if(colon <= 0) { continue; }
+                answer!!.headers.add(io_strings.trim(io_strings.slice(one!!, 0, colon)), io_strings.trim(io_strings.slice_from(one!!, colon + 1)));
+            }
+            // 100 to 199: "go on", "still working" - the real answer follows
+            if(answer!!.status >= 100 && answer!!.status < 200 && answer!!.status != 101) { continue; }
+            break;
+        }
+
+        made : http_response = answer!!;
+        said : string = io_strings.to_lower(made.headers.find_or("Connection", ""));
+        line.reusable = !io_strings.contains(said, "close") && (!version_one_zero || io_strings.contains(said, "keep-alive"));
+
+        if(method == "HEAD" || made.status == 204 || made.status == 304) {
+            // an answer without a body, whatever its headers say
+        } else if(io_strings.contains(io_strings.to_lower(made.headers.find_or("Transfer-Encoding", "")), "chunked")) {
+            made.set_body(read_chunks(line));
+        } else if(made.headers.has("Content-Length")) {
+            length : string = io_strings.trim(made.headers.find_or("Content-Length", "0"));
+            if(!io_strings.is_int(length)) { throw new http_exception("the server's Content-Length is not a number: `" + length + "`"); }
+            made.set_body(line.read_exactly(io_strings.parse_int(length) as _int64));
+        } else {
+            // no length said: the body is everything until the server closes
+            made.set_body(line.read_rest());
+            line.reusable = false;
+        }
+        unpack(made);
+        return made;
+    }
+
+    /** a body the server compressed (Content-Encoding) becomes what it was */
+    private def unpack(made: http_response) {
+        how : string = io_strings.trim(io_strings.to_lower(made.headers.find_or("Content-Encoding", "")));
+        if(sizeof(how.data) == 0 || how == "identity" || sizeof(made.bytes()) == 0) { return; }
+        try {
+            if(how == "gzip" || how == "x-gzip") {
+                made.set_body(gzip.decompress(made.bytes()));
+            } else if(how == "deflate") {
+                // the name says deflate and means zlib; some servers send the bare stream all the same
+                packed : _int8[] = made.bytes();
+                if(sizeof(packed) > 1 && (packed[0] & 0x0F) == 8 && (((packed[0] & 0xFF) << 8) | (packed[1] & 0xFF)) % 31 == 0) {
+                    made.set_body(zlib.decompress(packed));
+                } else {
+                    made.set_body(deflate.decompress(packed));
+                }
+            } else {
+                return;         // a way of packing this client does not know (it asked for none of them): the body as it came
+            }
+        } catch(damaged: compress_exception) {
+            throw new http_exception("the server's compressed answer could not be unpacked: " + damaged.get_message());
+        }
+        // the headers describe the body as it travelled: they no longer fit
+        made.headers.remove("Content-Encoding");
+        made.headers.remove("Content-Length");
+    }
+
+    /** a body in pieces: each a line with its size in hex, then that many bytes; a piece of size 0 ends it */
+    private def read_chunks(line: http_line) : _int8[] {
+        whole := new byte_buffer();
+        while(true) {
+            head : string? = line.read_line();
+            if(head == null) { throw new http_exception("the server closed the connection in the middle of the body"); }
+            size : _int64 = 0;
+            digits : _int64 = 0;
+            for(i : _int64 = 0; i < sizeof(head!!.data); i++) {
+                value : _int64 = character.digit_value(head!!.data!![i], 16) as _int64;
+                if(value < 0) { break; }
+                size = size * 16 + value;
+                digits++;
+            }
+            if(digits == 0) { throw new http_exception("the body is not in pieces as the server said: `" + http_line.shown(head!!) + "`"); }
+            if(size == 0) { break; }
+            whole.put_bytes(line.read_exactly(size));
+            line.read_line();                           // the end of line after a piece
+        }
+        // lines after the last piece ("trailers"), up to an empty one
+        while(true) {
+            after : string? = line.read_line();
+            if(after == null || sizeof(after!!.data) == 0) { break; }
+        }
+        return whole.to_array() ?: new _int8[0];
+    }
+}
+
+/** one connection to a server, and the bytes read from it that were not used yet */
+class http_line {
+    wire : connection;
+    origin : string;
+    /** can the next request use it (the server keeps it open, and the answer was read to its end)? */
+    reusable : bool = false;
+    /** has anything arrived since it was taken for a request? */
+    arrived : bool = false;
+    private plain : tcp_socket?;
+    private secure : tls_socket?;
+    private held : _int8[] = new _int8[0];
+    private at : _int64 = 0;
+
+    http_line(wire: connection, plain: tcp_socket?, secure: tls_socket?, origin: string) {
+        self->wire = wire;
+        self->plain = plain;
+        self->secure = secure;
+        self->origin = origin;
+    }
+
+    def set_timeout(milliseconds: _int64) {
+        arrived = false;
+        if(plain != null) { plain!!.set_timeout(milliseconds); }
+        if(secure != null) { secure!!.set_timeout(milliseconds); }
+    }
+
+    def close() {
+        wire.close();
+    }
+
+    /** read more from the connection; false when the server has closed it */
+    private def more() : bool {
+        held = wire.read(16384);
+        at = 0;
+        if(sizeof(held) > 0) { arrived = true; }
+        return sizeof(held) > 0;
+    }
+
+    /** the next line, without its end; null when the server closed before any of it came */
+    def read_line() : string? {
+        text := new char_buffer();
+        any : bool = false;
+        while(true) {
+            if(at >= sizeof(held)) {
+                if(!more()) {
+                    if(!any) { return null; }
+                    break;
+                }
+            }
+            any = true;
+            ch : _int64 = held[at];
+            at++;
+            if(ch == '\n') { break; }
+            if(ch != '\r') { text.append_char(ch); }
+            if(text.length() > 65536) { throw new http_exception("the server sent a line of more than 65536 characters"); }
+        }
+        return text.build();
+    }
+
+    def read_exactly(count: _int64) : _int8[] {
+        whole := new _int8[count];
+        have : _int64 = 0;
+        while(have < count) {
+            if(at >= sizeof(held)) {
+                if(!more()) { throw new http_exception("the server closed the connection after " + have + " of the body's " + count + " bytes"); }
+            }
+            take : _int64 = sizeof(held) - at;
+            if(take > count - have) { take = count - have; }
+            for(i : _int64 = 0; i < take; i++) { whole[have + i] = held[at + i]; }
+            have = have + take;
+            at = at + take;
+        }
+        return whole;
+    }
+
+    /** everything until the server closes */
+    def read_rest() : _int8[] {
+        whole := new byte_buffer();
+        while(true) {
+            if(at >= sizeof(held)) {
+                if(!more()) { break; }
+            }
+            if(at == 0) { whole.put_bytes(held); }
+            else { whole.put_bytes(copy(held, at, sizeof(held))); }
+            at = sizeof(held);
+        }
+        return whole.to_array() ?: new _int8[0];
+    }
+
+    /** a line for an error message: its first 60 characters, nothing unprintable */
+    static def shown(text: string) : string {
+        made := new char_buffer();
+        for(i : _int64 = 0; i < sizeof(text.data) && i < 60; i++) {
+            ch : _int64 = text.data!![i];
+            if(ch < 32 || ch > 126) { made.append_char('?'); }
+            else { made.append_char(ch); }
+        }
+        return made.build();
+    }
+}

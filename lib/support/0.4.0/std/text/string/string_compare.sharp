@@ -52,71 +52,71 @@ mutate string {
     }
 
     /**
-     * 1 if both strings have the same characters when capital and small ASCII
+     * true if both strings have the same characters when capital and small ASCII
      * letters are treated as equal ("Hello".equals_ignore_case("hELLO") is 1).
      */
-    def equals_ignore_case(other: string): decimal {
-        if(sizeof(data) != sizeof(other.data)) return 0;
+    def equals_ignore_case(other: string): bool {
+        if(sizeof(data) != sizeof(other.data)) return false;
         return string_support.region_equals_ignore_case(data, 0, other.data);
     }
 
     /**
-     * 1 if the string is not empty and every character is a digit 0-9.
+     * true if the string is not empty and every character is a digit 0-9.
      * (A sign or a decimal point makes it 0: see is_number() for those.)
      */
-    def is_digits(): decimal {
+    def is_digits(): bool {
         n : decimal = sizeof(data);
         for(i : decimal = 0; i < n; i++) {
             c : decimal = data[i];
-            if(c < '0' || c > '9') return 0;
+            if(c < '0' || c > '9') return false;
         }
         return n > 0;
     }
 
-    /** 1 if the string is not empty and every character is an ASCII letter. */
-    def is_letters(): decimal {
+    /** true if the string is not empty and every character is an ASCII letter. */
+    def is_letters(): bool {
         n : decimal = sizeof(data);
         for(i : decimal = 0; i < n; i++) {
             c : decimal = data[i];
-            if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) return 0;
+            if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))) return false;
         }
         return n > 0;
     }
 
-    /** 1 if the string is not empty and every character is an ASCII letter or a digit. */
-    def is_letters_or_digits(): decimal {
+    /** true if the string is not empty and every character is an ASCII letter or a digit. */
+    def is_letters_or_digits(): bool {
         n : decimal = sizeof(data);
         for(i : decimal = 0; i < n; i++) {
             c : decimal = data[i];
-            if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) return 0;
+            if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) return false;
         }
         return n > 0;
     }
 
     /**
-     * 1 if every character is plain ASCII (code 0 to 127). "" gives 1.
+     * true if every character is plain ASCII (code 0 to 127). "" gives 1.
      * (Characters are stored as signed bytes, so the others show up as negative numbers.)
      */
-    def is_ascii(): decimal {
+    def is_ascii(): bool {
         n : decimal = sizeof(data);
         for(i : decimal = 0; i < n; i++) {
-            if(data[i] < 0) return 0;
+            if(data[i] < 0) return false;
         }
-        return 1;
+        return true;
     }
 
     /**
-     * 1 if the string reads the same forwards and backwards ("level").
+     * true if the string reads the same forwards and backwards ("level").
      * "" and one-character strings give 1. Case matters: "Abba" gives 0.
      */
-    def is_palindrome(): decimal {
+    def is_palindrome(): bool {
         i : decimal = 0;
         j : decimal = sizeof(data) - 1;
         while(i < j) {
-            if(data[i] != data[j]) return 0;
+            if(data[i] != data[j]) return false;
             i++;
             j--;
         }
-        return 1;
+        return true;
     }
 }

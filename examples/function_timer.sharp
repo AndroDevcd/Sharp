@@ -1,7 +1,8 @@
 mod main;
 
 import (
-    std.io
+    std.io,
+    std.time
 )
 
 def timed_func() { // perform a computation for a random amount of time
@@ -12,11 +13,11 @@ def timed_func() { // perform a computation for a random amount of time
 /**
  * This program shows how to time the execution of a program
  *
- * Here we use the 'time.measure()' function to measure how long the code took
- * in milliseconds
+ * Here we use the 'measure_time' function of std.time to measure how long
+ * the code took. What it gives is a duration: to_string() writes it as
+ * "2.004s", to_millis() gives the milliseconds as a number.
  */
 def main() {
-   println("function took ${time.measure(milliseconds, { ->
-      timed_func();
-   })}ms");
+   took := measure_time { timed_func(); };
+   println("function took " + took.to_string());
 }

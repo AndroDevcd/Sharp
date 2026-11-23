@@ -21,16 +21,16 @@ def main(args: string[]) {
     tests("lib_text_string_builder") {
         // ---- the core: size and text are exact
         sb := new string_builder();
-        test("a new builder is empty") { expect(sb.size().value).should_be(0); };
+        test("a new builder is empty") { expect(sb.size()).should_be(0); };
         test("a new builder builds \"\"") { expect(sb.build()).should_be(""); };
         test("is_empty") { expect_true(sb.is_empty()); };
         sb.append("abc");
         sb.append("def");
-        test("size after two appends") { expect(sb.size().value).should_be(6); };
+        test("size after two appends") { expect(sb.size()).should_be(6); };
         test("length") { expect(sb.length()).should_be(6); };
         test("build") { expect(sb.build()).should_be("abcdef"); };
         test("to_string") { expect(sb.to_string()!!).should_be("abcdef"); };
-        test("the built string has no extra character") { expect(sb.build().size().value).should_be(6); };
+        test("the built string has no extra character") { expect(sb.build().size()).should_be(6); };
         test("is_empty with text") { expect_false(sb.is_empty()); };
         test("is_not_empty") { expect_true(sb.is_not_empty()); };
         sb.append('g');

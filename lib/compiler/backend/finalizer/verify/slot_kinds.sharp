@@ -130,7 +130,7 @@ def call_fits(code: ir_function, made: ir_instruction) : _int64 {
         if(!holds(code, made.target, kind_of_type(function.result_type!!))) { return 0; }
     }
     arguments : number_list = made.arguments!!;
-    parameters : _int64 = function.parameters.size().value as _int64;
+    parameters : _int64 = function.parameters.size();
     before : _int64 = arguments.count - parameters;         // 1 when `self` is handed over first, else 0
     if(before < 0 || before > 1) { return 1; }              // (a function the generator made itself: nothing to compare with)
     if(before == 1 && !holds(code, arguments.at(0), SLOT_REF)) { return 0; }

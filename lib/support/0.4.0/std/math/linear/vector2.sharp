@@ -56,7 +56,7 @@ class vector2 {
      * (polar -> cartesian): (length * cos, length * sin).
      */
     static def from_angle(radians: decimal, length: decimal): vector2 {
-        return new vector2(cos_of(radians) * length, sin_of(radians) * length);
+        return new vector2(cos(radians) * length, sin(radians) * length);
     }
 
     /** component-wise sum */
@@ -177,8 +177,8 @@ class vector2 {
 
     /** this vector turned counter clockwise by `radians` around the origin */
     def rotated(radians: decimal): vector2 {
-        c : decimal = cos_of(radians);
-        s : decimal = sin_of(radians);
+        c : decimal = cos(radians);
+        s : decimal = sin(radians);
         return new vector2(x * c - y * s, x * s + y * c);
     }
 
@@ -221,7 +221,7 @@ class vector2 {
 
     /** (|x|, |y|) */
     def abs(): vector2 {
-        return new vector2(absolute(x), absolute(y));
+        return new vector2(abs(x), abs(y));
     }
 
     /** the smaller x and the smaller y of the two vectors */
@@ -236,7 +236,7 @@ class vector2 {
 
     /** true when both components differ by at most `tolerance` */
     def approx_equals(other: vector2, tolerance: decimal): bool {
-        return absolute(x - other.x) <= tolerance && absolute(y - other.y) <= tolerance;
+        return abs(x - other.x) <= tolerance && abs(y - other.y) <= tolerance;
     }
 
     /** the components as a new array { x, y } */

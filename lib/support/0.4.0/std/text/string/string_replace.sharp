@@ -58,7 +58,7 @@ mutate string {
      */
     def replace_all(old: string, replacement: string): string {
         if(sizeof(old.data) == 0)
-            throw new ill_arg_except("replace_all: the text to replace cannot be empty");
+            throw new illegal_argument_exception("replace_all: the text to replace cannot be empty");
 
         first_at : decimal = string_support.find_forward(data, old.data, 0);
         if(first_at < 0) return string_support.slice(data, 0, sizeof(data));
@@ -73,7 +73,7 @@ mutate string {
      */
     def replace_first(old: string, replacement: string): string {
         if(sizeof(old.data) == 0)
-            throw new ill_arg_except("replace_first: the text to replace cannot be empty");
+            throw new illegal_argument_exception("replace_first: the text to replace cannot be empty");
 
         at : decimal = string_support.find_forward(data, old.data, 0);
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
@@ -88,7 +88,7 @@ mutate string {
      */
     def replace_last(old: string, replacement: string): string {
         if(sizeof(old.data) == 0)
-            throw new ill_arg_except("replace_last: the text to replace cannot be empty");
+            throw new illegal_argument_exception("replace_last: the text to replace cannot be empty");
 
         at : decimal = string_support.find_backward(data, old.data, sizeof(data));
         if(at < 0) return string_support.slice(data, 0, sizeof(data));
@@ -126,7 +126,7 @@ mutate string {
         from : decimal = start.value;
         to : decimal = end.value;
         if(from < 0 || to > n || to < from)
-            throw new bounds_except("replace_range: range $start..$end is not inside a string of ${size()} characters");
+            throw new out_of_bounds_exception("replace_range: range $start..$end is not inside a string of ${size()} characters");
 
         r : decimal = sizeof(replacement.data);
         total : decimal = n - (to - from) + r;
@@ -146,7 +146,7 @@ mutate string {
      */
     def insert(position: int, text: string): string {
         if(position.value < 0 || position.value > sizeof(data))
-            throw new bounds_except("insert: position $position is outside of a string of ${size()} characters");
+            throw new out_of_bounds_exception("insert: position $position is outside of a string of ${size()} characters");
         return replace_range(position, position, text);
     }
 
@@ -157,7 +157,7 @@ mutate string {
      */
     def remove(text: string): string {
         if(sizeof(text.data) == 0)
-            throw new ill_arg_except("remove: the text to remove cannot be empty");
+            throw new illegal_argument_exception("remove: the text to remove cannot be empty");
         return replace_all(text, "");
     }
 

@@ -63,6 +63,42 @@ class var_arrays {
         }
     }
 
+    /**
+     * The positions of the numbers in their order, smallest number first:
+     * result[0] is where the smallest number is. Equal numbers keep the
+     * order they have, and the array is not changed.
+     *
+     *     var_arrays.order_of(ages)       // { 30, 10, 20 } gives { 1, 2, 0 }
+     *
+     * This is how a list is sorted by a number (sorted_by): the number of
+     * each element once, then the positions merged into order.
+     */
+    static def order_of(keys: decimal[]) : _int64[] {
+        count : _int64 = sizeof(keys);
+        order := new _int64[count];
+        spare := new _int64[count];
+        for(i : _int64 = 0; i < count; i++) { order[i] = i; }
+        for(width : _int64 = 1; width < count; width = width * 2) {
+            for(low : _int64 = 0; low < count; low += width * 2) {
+                middle : _int64 = low + width < count ? low + width : count;
+                high : _int64 = low + width * 2 < count ? low + width * 2 : count;
+                left : _int64 = low;
+                right : _int64 = middle;
+                out : _int64 = low;
+                while(left < middle && right < high) {
+                    if(keys[order[left]] <= keys[order[right]]) { spare[out++] = order[left++]; }
+                    else { spare[out++] = order[right++]; }
+                }
+                while(left < middle) { spare[out++] = order[left++]; }
+                while(right < high) { spare[out++] = order[right++]; }
+            }
+            held := order;
+            order = spare;
+            spare = held;
+        }
+        return order;
+    }
+
     /** Sort an array in place, largest number first. O(n log n). */
     static def sort_descending(items: decimal[]) {
         sort(items);
@@ -76,12 +112,12 @@ class var_arrays {
         return result;
     }
 
-    /** 1 when no number is smaller than the one in front of it, otherwise 0. O(n). */
-    static def is_sorted(items: decimal[]) : decimal {
+    /** true when no number is smaller than the one in front of it. O(n). */
+    static def is_sorted(items: decimal[]) : bool {
         for(i : decimal = 1; i < sizeof(items); i++) {
-            if(items[i - 1] > items[i]) return 0;
+            if(items[i - 1] > items[i]) return false;
         }
-        return 1;
+        return true;
     }
 
     /**
@@ -166,8 +202,8 @@ class var_arrays {
         return -1;
     }
 
-    /** 1 when a number equals `value`, otherwise 0. O(n). */
-    static def contains(items: decimal[], value: decimal) : decimal {
+    /** true when a number equals `value`. O(n). */
+    static def contains(items: decimal[], value: decimal) : bool {
         return index_of(items, value) >= 0;
     }
 
@@ -220,13 +256,13 @@ class var_arrays {
         return sum(items) / sizeof(items);
     }
 
-    /** 1 when both arrays have the same length and the same number at every position, otherwise 0. O(n). */
-    static def equals(first: decimal[], second: decimal[]) : decimal {
-        if(sizeof(first) != sizeof(second)) return 0;
+    /** true when both arrays have the same length and the same number at every position. O(n). */
+    static def equals(first: decimal[], second: decimal[]) : bool {
+        if(sizeof(first) != sizeof(second)) return false;
         for(i : decimal = 0; i < sizeof(first); i++) {
-            if(first[i] != second[i]) return 0;
+            if(first[i] != second[i]) return false;
         }
-        return 1;
+        return true;
     }
 
     /** A new `list` with every number boxed as a `double`, in the same order. O(n). */

@@ -92,30 +92,30 @@ mutate string {
     }
 
     /**
-     * 1 if the string has at least one letter and none of its letters is a
+     * true if the string has at least one letter and none of its letters is a
      * small letter ("ABC 12".is_upper() is 1; "" and "123" give 0).
      */
-    def is_upper(): decimal {
+    def is_upper(): bool {
         n : decimal = sizeof(data);
         letters : decimal = 0;
         for(i : decimal = 0; i < n; i++) {
             c : decimal = data[i];
-            if(c >= 'a' && c <= 'z') return 0;
+            if(c >= 'a' && c <= 'z') return false;
             if(c >= 'A' && c <= 'Z') letters++;
         }
         return letters > 0;
     }
 
     /**
-     * 1 if the string has at least one letter and none of its letters is a
+     * true if the string has at least one letter and none of its letters is a
      * capital letter ("abc 12".is_lower() is 1; "" and "123" give 0).
      */
-    def is_lower(): decimal {
+    def is_lower(): bool {
         n : decimal = sizeof(data);
         letters : decimal = 0;
         for(i : decimal = 0; i < n; i++) {
             c : decimal = data[i];
-            if(c >= 'A' && c <= 'Z') return 0;
+            if(c >= 'A' && c <= 'Z') return false;
             if(c >= 'a' && c <= 'z') letters++;
         }
         return letters > 0;

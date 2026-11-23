@@ -1640,9 +1640,9 @@ a literal stays a plain number (`5` an `_int32`, `1.5` a `decimal`, `'a'` and
 `true` an `_int8`, `"x"` an `_int8[]`, `null` `object`); a variable or field
 named by itself keeps its type (`def width() := w;`); any OTHER plain number
 (`w * 2`, `sizeof(data)`, a call, a cast) becomes its number class - `def
-size() := sizeof(data);` returns an `int` OBJECT, which is why the library writes
-`s.size().value`; a value of type nil makes the function return nothing
-(`def sleep(ms: decimal) := time.sleep(ms);`).
+size() := sizeof(data);` returns an `int` OBJECT, which is why the library names the type:
+`def size() : _int64 = sizeof(data);`; a value of type nil makes the function return nothing
+(`def sleep(ms: decimal) := thread.sleep(ms);`).
 
 Several names in one statement, `a : int = 1, b = 2;`, share the type of the
 first (checked; `variables_multiple.sharp` in the suite).
@@ -2998,7 +2998,7 @@ block only matters to code generation.
 | `alias t as name;` | a second name for a TYPE, in a module, a class or a block. It is never a value: used as one it is `E0404` unless followed by `.` or `(` (then it is the type it stands for) | done (declared), EF |
 | `native def f(x: t) : r;` | a function the VM implements: no body (`E0365` when it has one, D41), `static`, never `override`, not part of any override family. A call is `CALL_STATIC` | GM, CO |
 | `static_init` and `tls_init` of `platform.kernel#platform` | the two functions the compiler fills in itself (static field values, enum values, thread-local values). In the library they must be written EMPTY: `E0961` otherwise (C++: "platform level function does not allow statements or expressions inside"). `srt_init` of the same class is where the VM starts (`analysed_program.startup_function`) | WP (done) |
-| the modules and classes the VM needs | the VM makes objects of some classes itself and finds them by name: the modules `std`, `std.io`, `std.io.fiber`, `platform.kernel`, and the classes `throwable`, `exception`, `error`, the thirteen exceptions and errors the VM throws, `_enum_`, `string`, `char_array`, `int`, `number`, `platform.kernel#stack_state`, `std.io#thread`, `std.io.fiber#fiber` and the six `std.reflect` classes (the list of the C++ `validate_required_dependencies`, in `program/required_declarations.sharp`). A program WITH a `main` that lacks one: `E0962`, once, at `main`, listing them (D89). Those present are `analysed_program.required_classes`, roots of the reachability walk | WP |
+| the modules and classes the VM needs | the VM makes objects of some classes itself and finds them by name: the modules `std`, `std.io`, `std.io.fiber`, `platform.kernel`, and the classes `throwable`, `exception`, `error`, the thirteen exceptions and errors the VM throws, `_enum_`, `string`, `char_array`, `int`, `number`, `platform.kernel#stack_state`, `std.io#thread` and `std.io.fiber#fiber` (the list of the C++ `validate_required_dependencies` without its six `std.reflect` classes, which the VM no longer fills in; in `program/required_declarations.sharp`). A program WITH a `main` that lacks one: `E0962`, once, at `main`, listing them (D89). Those present are `analysed_program.required_classes`, roots of the reachability walk | WP |
 | a `static` function of a class without a body | may be declared (a class below may declare its own), but CALLING it is `E0510`: a static call is never virtual (D88) | WP |
 | `localized x : t;` | a variable with one value per thread / fiber (`FLAG_LOCALIZED`, `local_variable.is_localized`). No getter or setter (`E0376`). Read and assigned like any other; reaching a static one through an object is `W1012` | GM, EF |
 | `excuse x : t;` | "do not check that this is given a value" (7.15.4). Nothing else | WP |

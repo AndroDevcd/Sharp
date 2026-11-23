@@ -36,6 +36,12 @@ import ( std.di )
  * answer; calling it without a given { } fails the test and says which
  * given to write.
  *
+ * ONLY IN TESTS. mock<t>(), given { } and verify { } work inside a
+ * tests("...") { ... } group - in one of its tests, or beside them as
+ * set-up. Anywhere else (the program's own code) they throw an
+ * illegal_state_exception: a mock silently answers 0 and "", which a running
+ * program must never get by mistake.
+ *
  * t must be an INTERFACE. An ordinary class's functions have bodies, and a
  * function with a body cannot be replaced in Sharp - so the edges of a
  * program that tests want to stand in for are written as interfaces.
@@ -87,6 +93,11 @@ class mock {
     private calls : list<mock_call> = new list<mock_call>();
     private stubs : list<mock_stub> = new list<mock_stub>();
 
+    /** a mock is made inside a group of tests (in one of its tests, or beside them); anywhere else it is refused */
+    mock() {
+        test_run.only_in_tests("mock<...>()");
+    }
+
     // ========================================================================
     // FRAMEWORK USE: what the class the compiler writes for mock<t>() calls.
     // Every function of the interface becomes one of these, given the
@@ -105,9 +116,9 @@ class mock {
             return null;
         }
         calls.add(arrived);
-        for(i : _int64 = stubs.size().value - 1; i >= 0; i--) {
+        for(i : _int64 = stubs.size() - 1; i >= 0; i--) {
             stub : mock_stub = stubs.at(i);
-            if(stub.fits(arrived) == 1) {
+            if(stub.fits(arrived)) {
                 if(stub.failure != null) {
                     throw stub.failure!!;
                 }
@@ -199,7 +210,7 @@ class mock {
     /** how many times a function of this name was called */
     def times_called(function: string) : _int64 {
         count : _int64 = 0;
-        for(i : _int64 = 0; i < calls.size().value; i++) {
+        for(i : _int64 = 0; i < calls.size(); i++) {
             if(calls.at(i).function == function) { count = count + 1; }
         }
         return count;
@@ -207,7 +218,7 @@ class mock {
 
     /** the first argument of the last call of `function` (null when never called, or called with none) */
     def last_argument(function: string) : object? {
-        for(i : _int64 = calls.size().value - 1; i >= 0; i--) {
+        for(i : _int64 = calls.size() - 1; i >= 0; i--) {
             if(calls.at(i).function == function) {
                 return calls.at(i).args.first();
             }
@@ -217,11 +228,11 @@ class mock {
 
     /** every call that was made, in order: `load(), save("milk")` */
     def story() : string {
-        if(calls.size().value == 0) {
+        if(calls.size() == 0) {
             return "nothing was called";
         }
         words : string = "";
-        for(i : _int64 = 0; i < calls.size().value; i++) {
+        for(i : _int64 = 0; i < calls.size(); i++) {
             if(i > 0) { words = words + ", "; }
             words = words + calls.at(i).words();
         }
@@ -242,8 +253,8 @@ class mock {
     /** how many calls fit `wanted`; each one that does is marked as checked */
     def count_fitting(wanted: mock_stub) : _int64 {
         count : _int64 = 0;
-        for(i : _int64 = 0; i < calls.size().value; i++) {
-            if(wanted.fits(calls.at(i)) == 1) {
+        for(i : _int64 = 0; i < calls.size(); i++) {
+            if(wanted.fits(calls.at(i))) {
                 calls.at(i).checked = 1;
                 count = count + 1;
             }
@@ -254,9 +265,9 @@ class mock {
     /** the calls no verify has covered, as words ("" when there are none) */
     def unchecked_story() : string {
         words : string = "";
-        for(i : _int64 = 0; i < calls.size().value; i++) {
+        for(i : _int64 = 0; i < calls.size(); i++) {
             if(calls.at(i).checked == 0) {
-                if(words.size().value > 0) { words = words + ", "; }
+                if(words.size() > 0) { words = words + ", "; }
                 words = words + calls.at(i).words();
             }
         }
@@ -285,12 +296,12 @@ stable class mock_args {
     }
 
     def count() : _int64 {
-        return items.size().value;
+        return items.size();
     }
 
     /** the first argument as an object (a number comes boxed); null when there is none */
     def first() : object? {
-        if(items.size().value == 0) {
+        if(items.size() == 0) {
             return null;
         }
         one : mock_arg = items.at(0);
@@ -305,21 +316,21 @@ stable class mock_args {
      * arguments written in a given / verify block)? The same count, and each
      * one equal - or the pattern says "any" there.
      */
-    def fits(wanted: mock_args) : _int64 {
-        if(items.size().value != wanted.items.size().value) {
-            return 0;
+    def fits(wanted: mock_args) : bool {
+        if(items.size() != wanted.items.size()) {
+            return false;
         }
-        for(i : _int64 = 0; i < items.size().value; i++) {
-            if(wanted.items.at(i).accepts(items.at(i)) == 0) {
-                return 0;
+        for(i : _int64 = 0; i < items.size(); i++) {
+            if(!wanted.items.at(i).accepts(items.at(i))) {
+                return false;
             }
         }
-        return 1;
+        return true;
     }
 
     def words() : string {
         made : string = "";
-        for(i : _int64 = 0; i < items.size().value; i++) {
+        for(i : _int64 = 0; i < items.size(); i++) {
             if(i > 0) { made = made + ", "; }
             made = made + items.at(i).words();
         }
@@ -340,29 +351,29 @@ stable class mock_arg {
     }
 
     /** as a PATTERN: does it accept the argument a real call had? */
-    def accepts(real: mock_arg) : _int64 {
+    def accepts(real: mock_arg) : bool {
         if(is_number != real.is_number) {
-            return 0;
+            return false;
         }
         if(is_number == 1) {
-            if(number == mock_recorder.ANY_NUMBER || number == real.number) { return 1; }
-            return 0;
+            if(number == mock_recorder.ANY_NUMBER || number == real.number) { return true; }
+            return false;
         }
         if(thing == null || real.thing == null) {
-            if(thing == null && real.thing == null) { return 1; }
-            return 0;
+            if(thing == null && real.thing == null) { return true; }
+            return false;
         }
         if(thing!! == mock_recorder.any_text_mark) {
-            return 1;                                   // any_text(): whatever is there
+            return true;                                   // any_text(): whatever is there
         }
         if(thing is string && real.thing is string) {   // texts are equal when they read the same
             mine : string = thing as string;
             theirs : string = real.thing as string;
-            if(mine == theirs) { return 1; }
-            return 0;
+            if(mine == theirs) { return true; }
+            return false;
         }
-        if(thing!! == real.thing!!) { return 1; }       // any other object: the very same one
-        return 0;
+        if(thing!! == real.thing!!) { return true; }       // any other object: the very same one
+        return false;
     }
 
     def words() : string {
@@ -413,12 +424,12 @@ stable class mock_stub {
     }
 
     /** is `real` a call this stub is for? */
-    def fits(real: mock_call) : _int64 {
+    def fits(real: mock_call) : bool {
         if(!(real.function == pattern.function)) {
-            return 0;
+            return false;
         }
         if(any_arguments == 1) {
-            return 1;
+            return true;
         }
         return real.args.fits(pattern.args);
     }
@@ -468,16 +479,16 @@ stable class mock_recorder {
 
         purpose : string = "check";
         if(word == "given") { purpose = "set up"; }
-        if(noted.size().value == 0) {
+        if(noted.size() == 0) {
             throw new illegal_state_exception("this `" + word + " { ... }` block did not call a mock, so there is nothing to " + purpose
                 + "\nwrite the call itself in the block:  " + word + " { the_mock.some_function(...); }");
         }
-        if(noted.size().value > 1) {
+        if(noted.size() > 1) {
             found : string = "";
-            for(i : _int64 = 0; i < noted.size().value; i++) {
+            for(i : _int64 = 0; i < noted.size(); i++) {
                 found = found + "\n    " + noted.at(i).words();
             }
-            throw new illegal_state_exception("a `" + word + " { ... }` block is about ONE call, but this one made " + noted.size().value + ":" + found
+            throw new illegal_state_exception("a `" + word + " { ... }` block is about ONE call, but this one made " + noted.size() + ":" + found
                 + "\nwrite one `" + word + " { ... }` for each");
         }
         return noted.at(0);
@@ -580,16 +591,19 @@ stable class call_check {
 
 /** set up what ONE call on a mock gives back:  given { store.load(); }.returns(notes); */
 def given(block: ()()) : stubbing {
+    test_run.only_in_tests("given { ... }");
     return new stubbing(mock_recorder.the_call_of(block, "given"));
 }
 
 /** check how often ONE call on a mock was made:  verify { store.save("milk"); }.once(); */
 def verify(block: ()()) : call_check {
+    test_run.only_in_tests("verify { ... }");
     return new call_check(mock_recorder.the_call_of(block, "verify"));
 }
 
 /** the by-name form, for a mock class written by hand: every call of that function, whatever its arguments */
 def verify(on: mock, function: string) : call_check {
+    test_run.only_in_tests("verify(...)");
     made := new call_check(new mock_call(on, function, new mock_args()));
     return made.with_any_arguments();
 }
@@ -600,7 +614,7 @@ def verify_nothing_else(stand_in: object) {
         throw new illegal_argument_exception("verify_nothing_else(...) takes a mock: an object made with mock<...>(), or of a class written on top of `mock`");
     }
     left : string = (stand_in as mock).unchecked_story();
-    if(left.size().value > 0) {
+    if(left.size() > 0) {
         throw new test_failure("expected nothing else to be asked of the mock\nbut it was also asked: " + left);
     }
 }
@@ -621,7 +635,7 @@ def any_number() : decimal {
  * block runs once, now.
  */
 def provide<t>(make: ()(t)) {
-    if(test_run.in_a_test() == 0) {
+    if(!test_run.in_a_test()) {
         throw new illegal_state_exception("`provide<...>() { ... }` only works inside a `test(\"...\") { ... }`: a stand-in lasts for one test");
     }
     replacements.put(make() as object);

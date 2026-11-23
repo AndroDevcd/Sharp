@@ -15,15 +15,15 @@ def main(args: string[]) {
     tests("std_string_builder_fixes") {
         // ---- fixed, used to be wrong (1): size() is one too large; an empty builder has size 1
         empty := new string_builder();
-        test("size of a new builder") { expect(empty.size().value).should_be(0); };
+        test("size of a new builder") { expect(empty.size()).should_be(0); };
 
         sb := new string_builder();
         sb.append("abc");
-        test("size after append(\"abc\")") { expect(sb.size().value).should_be(3); };
+        test("size after append(\"abc\")") { expect(sb.size()).should_be(3); };
 
         // ---- fixed, used to be wrong (2): to_string() has one character too many: a 0 character at the end,
         // so the result never equals the text that was appended
-        test("length of to_string()") { expect(sb.to_string()!!.size().value).should_be(3); };
+        test("length of to_string()") { expect(sb.to_string()!!.size()).should_be(3); };
         test("to_string()") { expect(sb.to_string()!!).should_be("abc"); };
         test("to_string() of an empty builder") { expect(empty.to_string()!!).should_be(""); };
 
@@ -40,11 +40,11 @@ def main(args: string[]) {
         // ---- fixed, used to be wrong (5): the copy constructor does the same: the copy of a 5 character
         // builder reports size 261
         copied := new string_builder(hello);
-        test("size of a copy") { expect(copied.size().value).should_be(5); };
+        test("size of a copy") { expect(copied.size()).should_be(5); };
 
         // ---- fixed, used to be wrong (6): substring() gives a builder whose cursor was never set (size 1)
         part := new string_builder("abcdefgh").substring(2, 5);
-        test("size of substring(2, 5)") { expect(part.size().value).should_be(3); };
+        test("size of substring(2, 5)") { expect(part.size()).should_be(3); };
 
         // ---- fixed, used to be wrong (7): at(length) is allowed (it gives the 0 character) instead of throwing
         threw : decimal = 0;

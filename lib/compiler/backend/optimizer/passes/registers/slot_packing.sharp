@@ -202,7 +202,7 @@ class slot_packing {
 
     /** write the new numbers into every instruction and every try record; the frame gets its new size */
     def renumber() {
-        total : _int64 = code.instructions.size().value as _int64;
+        total : _int64 = code.instructions.size();
         for(i : _int64 = 0; i < total; i++) {
             made := code.instructions.at(i);
             if(slot_written(made) >= 0) { made.target = new_number[made.target]; }

@@ -5,8 +5,8 @@ def main(args: string[]) {
     row := new list<string>();
     row.add("x");
     rows.add(row);
-    expect("list of lists", rows.at(0).size().value, 1);
+    expect("list of lists", rows.at(0).size(), 1);
     tight := new list<list<string>>();
-    expect("without the space", tight.size().value, 0);
+    expect("without the space", tight.size(), 0);
     finish("generics_nested_lists");
 }

@@ -36,16 +36,9 @@ import ( std.io )
  */
 class url_codec {
     /** true for the characters that never need encoding: A-Z a-z 0-9 - . _ ~ */
-    private static def is_unreserved(ch: decimal) : decimal {
+    private static def is_unreserved(ch: decimal) : bool {
         return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
             || ch == '-' || ch == '.' || ch == '_' || ch == '~';
-    }
-
-    private static def hex_digit(value: decimal) : decimal {
-        if(value < 10) {
-            return '0' + value;
-        }
-        return 'A' + (value - 10);
     }
 
     private static def encode_with(text: string, keep_slash: decimal, plus_for_space: decimal) : string {
@@ -59,11 +52,11 @@ class url_codec {
                 buf.append_char('+');
             } else {
                 buf.append_char('%');
-                buf.append_char(hex_digit(ch >> 4));
-                buf.append_char(hex_digit(ch & 15));
+                buf.append_char(character.to_upper(character.for_digit(ch >> 4, 16)));
+                buf.append_char(character.to_upper(character.for_digit(ch & 15, 16)));
             }
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -98,8 +91,8 @@ class url_codec {
                 high : decimal = 0 - 1;
                 low : decimal = 0 - 1;
                 if(i + 2 < n) {
-                    high = io_strings.hex_value(text.data[i + 1]);
-                    low = io_strings.hex_value(text.data[i + 2]);
+                    high = character.digit_value(text.data[i + 1], 16);
+                    low = character.digit_value(text.data[i + 2], 16);
                 }
                 if(high < 0 || low < 0) {
                     throw new parse_exception("url: '%' without two hexadecimal digits at position "
@@ -115,7 +108,7 @@ class url_codec {
                 i++;
             }
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -148,11 +141,11 @@ class url_codec {
      */
     static def build_query(keys: list<string>, values: list<string>) : string {
         if(keys.size() != values.size()) {
-            throw new illegal_argument_exception("build_query: " + io_strings.int_to_string(keys.size().value)
-                + " keys but " + io_strings.int_to_string(values.size().value) + " values");
+            throw new illegal_argument_exception("build_query: " + io_strings.int_to_string(keys.size())
+                + " keys but " + io_strings.int_to_string(values.size()) + " values");
         }
         buf := new char_buffer(128);
-        total : decimal = keys.size().value;
+        total : decimal = keys.size();
         for(i : decimal = 0; i < total; i++) {
             if(i > 0) {
                 buf.append_char('&');
@@ -161,7 +154,7 @@ class url_codec {
             buf.append_char('=');
             buf.append(encode_form(values.at(i)));
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -170,15 +163,19 @@ class url_codec {
      * decoded value to `values`. A piece without '=' is a key with the
      * value ""; empty pieces ("a=1&&b=2") are skipped. One '?' at the very
      * beginning is skipped, and when the text is a whole URL only the part
-     * behind its first '?' and before a '#' is read. Returns the number of
+     * behind its first '?' and before a '#' is read (a '?' that comes after
+     * the first '=' or '&' belongs to a value). Returns the number of
      * pairs added.
      * Throws parse_exception for a malformed %XX.
      */
     static def parse_query(query: string, keys: list<string>, values: list<string>) : decimal {
         n : decimal = sizeof(query.data);
         start : decimal = 0;
+        // (a `?` after the first `=` or `&` is part of a value - "next=/a?b=1" - not where a query begins)
         mark : decimal = io_strings.index_of(query, '?', 0);
-        if(mark >= 0) {
+        first_equals : decimal = io_strings.index_of(query, '=', 0);
+        first_and : decimal = io_strings.index_of(query, '&', 0);
+        if(mark >= 0 && (first_equals < 0 || mark < first_equals) && (first_and < 0 || mark < first_and)) {
             start = mark + 1;
         }
         end : decimal = io_strings.index_of(query, '#', start);

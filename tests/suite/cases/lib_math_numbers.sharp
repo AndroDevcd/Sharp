@@ -77,14 +77,14 @@ def check_complex() {
     euler := new complex(0, PI_VALUE).exp();            // e^(i pi) = -1
     test("e^(i pi): re") { expect(euler.re).should_be_near(0 - 1, 0.000000000001); };
     test("e^(i pi): im") { expect(euler.im).should_be_near(0, 0.000000000001); };
-    log := new complex(0 - 1, 0).log();                 // ln(-1) = i pi
-    test("ln(-1): re") { expect(log.re).should_be_near(0, 0.000000000001); };
-    test("ln(-1): im") { expect(log.im).should_be_near(PI_VALUE, 0.000000000001); };
+    log := new complex(0 - 1, 0).log();                 // log(-1) = i pi
+    test("log(-1): re") { expect(log.re).should_be_near(0, 0.000000000001); };
+    test("log(-1): im") { expect(log.im).should_be_near(PI_VALUE, 0.000000000001); };
     try {
         complex.zero().log();
-        test("ln(0)") { fail_test("no exception"); };
+        test("log(0)") { fail_test("no exception"); };
     } catch(e: arithmetic_exception) {
-        test("ln(0) throws") { };
+        test("log(0) throws") { };
     }
 
     squared := a.pow(2);                                // 9 - 16 + 24i
@@ -250,7 +250,7 @@ def check_fraction() {
     test("from_decimal(-0.125) denominator") { expect(minus.denominator).should_be(8); };
     test("from_decimal of a whole number") { expect(fraction.from_decimal(4, 10).numerator).should_be(4); };
     try {
-        fraction.from_decimal(NaN.value, 10);
+        fraction.from_decimal(NaN, 10);
         test("from_decimal(NaN)") { fail_test("no exception"); };
     } catch(e: illegal_argument_exception) {
         test("from_decimal(NaN) throws") { };

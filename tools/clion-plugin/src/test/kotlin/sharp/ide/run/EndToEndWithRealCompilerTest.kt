@@ -157,12 +157,12 @@ class EndToEndWithRealCompilerTest : BasePlatformTestCase() {
         assertEquals("the real library file", "list.sharp", jump.single().containingFile.name)
         assertEquals("size", jump.single().text)
         // ... and on a local of this file: the jump stays in the file, at the declaration
-        val onCount = saved.indexOf("return count.value;") + "return c".length
+        val onCount = saved.indexOf("return count;") + "return c".length
         val local = SharpGotoDeclarationHandler().getGotoDeclarationTargets(myFixture.file.findElementAt(onCount), onCount, myFixture.editor)!!
         assertEquals(saved.indexOf("count := names.size()"), local.single().textRange.startOffset)
 
         // after a dot typed since the run (the index is one save behind): own members of `book`, inherited `label`
-        val at = saved.indexOf("    return count.value;")
+        val at = saved.indexOf("    return count;")
         WriteCommandAction.runWriteCommandAction(project) { myFixture.editor.document.insertString(at, "    owner.\n") }
         com.intellij.psi.PsiDocumentManager.getInstance(project).commitAllDocuments()
         myFixture.editor.caretModel.moveToOffset(at + "    owner.".length)

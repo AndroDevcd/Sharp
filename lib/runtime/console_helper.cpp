@@ -42,10 +42,10 @@
 // and with one beyond that.
 //
 std::string natural_number(double value) {
-    if(value != value) return "nan";
+    if(value != value) return "NaN";
     if(value == 0) return "0";                              // (also "minus zero")
-    if(value > 1.7976931348623157e308) return "infinity";
-    if(value < -1.7976931348623157e308) return "-infinity";
+    if(value > 1.7976931348623157e308) return "Infinity";
+    if(value < -1.7976931348623157e308) return "-Infinity";
 
     // a whole number (a count, a pixel, an index - most numbers a program prints): its digits
     // straight away. Below 1e15 every whole number is exact, and comes out the same as below.

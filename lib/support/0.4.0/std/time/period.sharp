@@ -98,13 +98,13 @@ class period {
         return year_count * 12 + month_count;
     }
 
-    /** 1 when all three fields are 0 */
-    def is_zero(): decimal {
+    /** true when all three fields are 0 */
+    def is_zero(): bool {
         return year_count == 0 && month_count == 0 && day_count == 0;
     }
 
-    /** 1 when at least one of the three fields is negative */
-    def is_negative(): decimal {
+    /** true when at least one of the three fields is negative */
+    def is_negative(): bool {
         return year_count < 0 || month_count < 0 || day_count < 0;
     }
 
@@ -166,11 +166,11 @@ class period {
      * 1 when all three fields are the same. Periods are compared field by
      * field without normalising: 12 months is NOT equal to 1 year.
      */
-    def operator==(other: period): decimal {
+    def operator==(other: period): bool {
         return year_count == other.year_count && month_count == other.month_count && day_count == other.day_count;
     }
 
-    def operator!=(other: period): decimal {
+    def operator!=(other: period): bool {
         return year_count != other.year_count || month_count != other.month_count || day_count != other.day_count;
     }
 

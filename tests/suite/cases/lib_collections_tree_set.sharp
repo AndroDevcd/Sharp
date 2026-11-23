@@ -13,7 +13,7 @@ def descending(a: int, b: int) : decimal { return b.value - a.value; }
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : decimal = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size(); i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -54,12 +54,12 @@ def test_tree_map_against_reference() {
 
         if(seed % 3 == 0) {
             // remove
-            was_there : decimal = present[key];
+            was_there : bool = present[key] != 0;
             if(was_there) { present[key] = 0; count--; }
             if(m.remove(key) != was_there) agree = 0;
         } else {
             // insert or replace
-            was_new : decimal = !present[key];
+            was_new : bool = present[key] == 0;
             if(was_new) { present[key] = 1; count++; }
             stored[key] = step;
             if(m.put(key, step) != was_new) agree = 0;
@@ -72,7 +72,7 @@ def test_tree_map_against_reference() {
 
     // every key: contains, value
     for(key : decimal = 0; key < 500; key++) {
-        if(m.contains_key(key) != present[key]) agree = 0;
+        if(m.contains_key(key) != (present[key] != 0)) agree = 0;
         if(present[key]) {
             if(m.at(key)!!.value != stored[key]) agree = 0;
         }
@@ -112,7 +112,7 @@ def test_tree_map_against_reference() {
     // a range, counted both ways
     in_range : decimal = 0;
     for(k : decimal = 100; k < 300; k++) in_range += present[k];
-    test("tree random range_keys") { expect(m.range_keys(100, 300).size().value).should_be(in_range); };
+    test("tree random range_keys") { expect(m.range_keys(100, 300).size()).should_be(in_range); };
     it := m.range_iterator(100, 300);
     walked = 0;
     while(it.has_next()) { it.next(); walked++; }
@@ -135,7 +135,7 @@ def test_tree_set() {
     test("tset new is_empty") { expect(s.is_empty()).should_be(1); };
     test("tset empty get_elements") { expect_null(s.get_elements()); };
     test("tset floor on empty") { expect_null(s.floor(1)); };
-    test("tset tail on empty") { expect(s.tail(1).size().value).should_be(0); };
+    test("tset tail on empty") { expect(s.tail(1).size()).should_be(0); };
     try { s.first(); test("tset first empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("tset first empty") { }; }
     try { s.last(); test("tset last empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("tset last empty") { }; }
     try { s.poll_first(); test("tset poll_first empty") { fail_test("did not throw"); }; } catch(e: no_such_element_exception) { test("tset poll_first empty") { }; }

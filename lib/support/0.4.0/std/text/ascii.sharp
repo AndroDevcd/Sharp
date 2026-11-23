@@ -59,18 +59,18 @@ class ascii {
         return names[code];
     }
 
-    /** 1 if `code` is an ASCII code, 0 to 127. */
-    static def is_ascii(code: char): decimal {
+    /** true if `code` is an ASCII code, 0 to 127. */
+    static def is_ascii(code: char): bool {
         return code.value >= 0 && code.value <= 127;
     }
 
-    /** 1 if every character of `text` is ASCII ("" gives 1). */
-    static def is_ascii_text(text: string): decimal {
+    /** true if every character of `text` is ASCII ("" gives 1). */
+    static def is_ascii_text(text: string): bool {
         n : decimal = sizeof(text.data);
         for(i : decimal = 0; i < n; i++) {
-            if(text.data[i] < 0) return 0;
+            if(text.data[i] < 0) return false;
         }
-        return 1;
+        return true;
     }
 
     /**

@@ -181,35 +181,35 @@ class waiter {
      * MUST be called while holding `guard`. Does not block.
      *
      * @param new_state RESUMED, CANCELLED or CLOSED
-     * @return 1 when this call claimed the waiter: the caller MUST then call
+     * @return true when this call claimed the waiter: the caller MUST then call
      *         unpark() (once, soon, preferably after releasing the lock).
-     *         0 when the waiter was claimed before (it timed out, was cancelled
+     *         false when the waiter was claimed before (it timed out, was cancelled
      *         or resumed by somebody else): the caller must look for another
      *         waiter and must NOT call unpark().
      */
-    def resume(new_state: decimal) : decimal {
+    def resume(new_state: decimal) : bool {
         if(state != 0) {
-            return 0;
+            return false;
         }
 
         state = new_state;
         wake = 1;
-        return 1;
+        return true;
     }
 
     /**
      * resume() that also hands a value to the waiting fiber (it reads `item`
      * after park() returns). Same rules as resume().
      */
-    def resume_with(new_state: decimal, value: object?) : decimal {
+    def resume_with(new_state: decimal, value: object?) : bool {
         if(state != 0) {
-            return 0;
+            return false;
         }
 
         item = value;
         state = new_state;
         wake = 1;
-        return 1;
+        return true;
     }
 
     /**
@@ -217,20 +217,20 @@ class waiter {
      * (the job was already cancelled, a timeout passed). MUST be called by the
      * owner fiber while holding `guard`. Does not block.
      *
-     * @return 1 when the waiter is now withdrawn (park() will return at once,
-     *         nobody will unpark it). 0 when another fiber claimed it first:
+     * @return true when the waiter is now withdrawn (park() will return at once,
+     *         nobody will unpark it). false when another fiber claimed it first:
      *         the owner must still call park() to finish the handshake and
      *         then act on `state`.
      */
-    def abandon(new_state: decimal) : decimal {
+    def abandon(new_state: decimal) : bool {
         if(state != 0) {
-            return 0;
+            return false;
         }
 
         state = new_state;
         wake = 1;
         self_claimed = 1;
-        return 1;
+        return true;
     }
 
     /** true while nobody has claimed the waiter. Hold `guard` for an answer that stays true. */

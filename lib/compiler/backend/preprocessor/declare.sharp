@@ -440,7 +440,7 @@ def add_parameters(unit: source_unit, parameters: _int64, function: sharp_functi
             function.parameters.add(new sharp_parameter(node_text(unit, parameter), type, parameter));
         } else if(tree.kinds!![parameter] == N_VARIADIC && function.variadic_from < 0) {
             // def printf(format: string, ..., count: c_int): C's variable arguments begin after `format`
-            function.variadic_from = function.parameters.size().value as _int64;
+            function.variadic_from = function.parameters.size();
         }
         parameter = tree.next_sibling!![parameter];
     }

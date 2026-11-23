@@ -280,11 +280,11 @@ def main(args: string[]) {
     expect("hash", b.hash().value, 7);
 
     // ---- helpers of char
-    expect_true("is_digit('5')", char.is_digit('5'));
-    expect_false("is_digit('x')", char.is_digit('x'));
-    expect_true("is_alpha('x')", char.is_alpha('x'));
-    expect("to_upper('b') is 'B'", char.to_upper('b').value, 66);
-    expect("to_lower('Q') is 'q'", char.to_lower('Q').value, 113);
+    expect_true("is_digit('5')", character.is_digit('5'));
+    expect_false("is_digit('x')", character.is_digit('x'));
+    expect_true("is_letter('x')", character.is_letter('x'));
+    expect("to_upper('b') is 'B'", character.to_upper('b'), 66);
+    expect("to_lower('Q') is 'q'", character.to_lower('Q'), 113);
 
     // ---- an array of boxes starts out as nulls
     boxes := new int[3];

@@ -157,18 +157,18 @@ class duration {
         return nano_part;
     }
 
-    /** 1 when the duration is exactly zero */
-    def is_zero(): decimal {
+    /** true when the duration is exactly zero */
+    def is_zero(): bool {
         return secs == 0 && nano_part == 0;
     }
 
-    /** 1 when the duration is less than zero */
-    def is_negative(): decimal {
+    /** true when the duration is less than zero */
+    def is_negative(): bool {
         return secs < 0;
     }
 
-    /** 1 when the duration is greater than zero */
-    def is_positive(): decimal {
+    /** true when the duration is greater than zero */
+    def is_positive(): bool {
         return secs > 0 || (secs == 0 && nano_part > 0);
     }
 
@@ -284,12 +284,12 @@ class duration {
     def operator*(factor: decimal): duration { return multiplied_by(factor); }
     def operator/(divisor: decimal): duration { return divided_by(divisor); }
 
-    def operator==(other: duration): decimal { return secs == other.secs && nano_part == other.nano_part; }
-    def operator!=(other: duration): decimal { return secs != other.secs || nano_part != other.nano_part; }
-    def operator<(other: duration): decimal { return compare_to(other) < 0; }
-    def operator<=(other: duration): decimal { return compare_to(other) <= 0; }
-    def operator>(other: duration): decimal { return compare_to(other) > 0; }
-    def operator>=(other: duration): decimal { return compare_to(other) >= 0; }
+    def operator==(other: duration): bool { return secs == other.secs && nano_part == other.nano_part; }
+    def operator!=(other: duration): bool { return secs != other.secs || nano_part != other.nano_part; }
+    def operator<(other: duration): bool { return compare_to(other) < 0; }
+    def operator<=(other: duration): bool { return compare_to(other) <= 0; }
+    def operator>(other: duration): bool { return compare_to(other) > 0; }
+    def operator>=(other: duration): bool { return compare_to(other) >= 0; }
 
     /** -1 when this duration is shorter than `other`, 0 when equal, 1 when longer */
     def compare_to(other: duration): decimal {

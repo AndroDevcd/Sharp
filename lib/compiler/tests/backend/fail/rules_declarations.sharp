@@ -1,4 +1,4 @@
-// expect: E0303 E0301 E0333 E0333 E0346 E0302 E0351 E0352 E0331 E0384 E0900 E0331
+// expect: E0351 E0303 E0301 E0333 E0333 E0346 E0302 E0351 E0352 E0331 E0384 E0900 E0331
 mod app;
 
 // The "Leftovers: rules" stage: mistakes in declarations that used to slip
@@ -44,7 +44,7 @@ class h { alias _int64 as x; class x { } }          // E0302
 
 // a type argument a bound refuses: the instance is not analysed, so nothing is
 // reported from inside the library's hash_map and its entry<...>
-def keeps_functions() { funcs := new hash_map<string, (decimal)(decimal)>(); }     // E0351
+def keeps_functions() { funcs := new hash_map<string, (decimal)(decimal)>(); }     // E0351, and once more where hash_map names itself (put_all)
 
 // a generic function that makes ever deeper instances: ONE E0352, not one per written type
 def wrap<T>(x: T, depth: _int64) : _int64 {

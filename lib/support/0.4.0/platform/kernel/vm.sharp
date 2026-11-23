@@ -33,6 +33,9 @@ class vm {
         }
     }
 
+    /** what the program was started with, as main(args) gets it (platform.srt_init fills it in before main runs) */
+    static arguments : string[] = new string[0];
+
     /**
      * The whole path of the file of the running program
      * (`sharp build/outputs/app` -> C:/project/build/outputs/app).

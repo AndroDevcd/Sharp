@@ -200,8 +200,8 @@ class thing {
 
     /** this far the way it faces (below 0: backwards) */
     def forward(distance: decimal) : thing {
-        x = x + sin_of(heading * PI_VALUE / 180) * distance;
-        z = z - cos_of(heading * PI_VALUE / 180) * distance;
+        x = x + sin(heading * PI_VALUE / 180) * distance;
+        z = z - cos(heading * PI_VALUE / 180) * distance;
         return touched();
     }
 
@@ -211,8 +211,8 @@ class thing {
 
     /** this far to its right (below 0: to its left) */
     def sideways(distance: decimal) : thing {
-        x = x + cos_of(heading * PI_VALUE / 180) * distance;
-        z = z + sin_of(heading * PI_VALUE / 180) * distance;
+        x = x + cos(heading * PI_VALUE / 180) * distance;
+        z = z + sin(heading * PI_VALUE / 180) * distance;
         return touched();
     }
 
@@ -372,7 +372,7 @@ class thing {
 
     def remove(kid: thing) : thing {
         if(kids != null) {
-            count : _int64 = kids!!.size().value;
+            count : _int64 = kids!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 if(kids!!.at(i) == kid) {
                     kids!!.remove_at(i);
@@ -418,7 +418,7 @@ class thing {
         dx : decimal = other.x - x;
         dy : decimal = other.y - y;
         dz : decimal = other.z - z;
-        return square_root(dx * dx + dy * dy + dz * dz);
+        return sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     /**
@@ -446,10 +446,10 @@ class thing {
         high_z : decimal = box[5] * size_z;
         if(heading != 0 || spin_heading != 0) {
             // turned: the box that holds it whichever way it faces
-            far : decimal = absolute(low_x);
-            if(absolute(high_x) > far) { far = absolute(high_x); }
-            if(absolute(low_z) > far) { far = absolute(low_z); }
-            if(absolute(high_z) > far) { far = absolute(high_z); }
+            far : decimal = abs(low_x);
+            if(abs(high_x) > far) { far = abs(high_x); }
+            if(abs(low_z) > far) { far = abs(low_z); }
+            if(abs(high_z) > far) { far = abs(high_z); }
             low_x = 0 - far;
             high_x = far;
             low_z = 0 - far;

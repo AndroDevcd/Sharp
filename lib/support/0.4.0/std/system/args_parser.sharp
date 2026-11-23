@@ -88,7 +88,7 @@ class args_parser {
         valid : decimal = n > 0;
         for(i : decimal = 0; i < n; i++) {
             ch : decimal = name.data[i];
-            if(!(io_strings.is_letter(ch) || io_strings.is_digit(ch) || ch == '-' || ch == '_')) {
+            if(!(character.is_letter(ch) || character.is_digit(ch) || ch == '-' || ch == '_')) {
                 valid = 0;
             }
         }
@@ -98,11 +98,11 @@ class args_parser {
         if(!valid) {
             throw new illegal_argument_exception("args_parser: not a usable name: \"" + name + "\"");
         }
-        if(letter != 0 && !(io_strings.is_letter(letter) || io_strings.is_digit(letter))) {
+        if(letter != 0 && !(character.is_letter(letter) || character.is_digit(letter))) {
             throw new illegal_argument_exception("args_parser: the short name of --" + name + " must be a letter or digit");
         }
 
-        count : decimal = options.size().value;
+        count : decimal = options.size();
         for(i : decimal = 0; i < count; i++) {
             other := options.at(i);
             if(io_strings.equals(other.name, name)) {
@@ -112,7 +112,7 @@ class args_parser {
                 throw new illegal_argument_exception("args_parser: -" + io_strings.from_char(letter) + " is declared twice");
             }
         }
-        count = positionals.size().value;
+        count = positionals.size();
         for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(positionals.at(i).name, name)) {
                 throw new illegal_argument_exception("args_parser: \"" + name + "\" is declared twice");
@@ -192,7 +192,7 @@ class args_parser {
     def add_positional(name: string, description: string, required: bool) : args_parser {
         check_new(name, 0);
         // (nested ifs: && does not stop early when its left side is a bool object)
-        if(positionals.size().value > 0) {
+        if(positionals.size() > 0) {
             if(required && !positionals.last().required) {
                 throw new illegal_argument_exception("args_parser: the required argument \"" + name
                     + "\" cannot follow an optional one");
@@ -224,7 +224,7 @@ class args_parser {
     /* ------------------------------------------------------------------ */
 
     private def find_long(name: string) : args_option? {
-        count : decimal = options.size().value;
+        count : decimal = options.size();
         for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(options.at(i).name, name)) {
                 return options.at(i);
@@ -234,7 +234,7 @@ class args_parser {
     }
 
     private def find_letter(letter: decimal) : args_option? {
-        count : decimal = options.size().value;
+        count : decimal = options.size();
         for(i : decimal = 0; i < count; i++) {
             if(options.at(i).letter == letter) {
                 return options.at(i);
@@ -272,11 +272,11 @@ class args_parser {
      */
     def parse_list(args: list<string>) {
         // start fresh
-        count : decimal = options.size().value;
+        count : decimal = options.size();
         for(i : decimal = 0; i < count; i++) {
             options.at(i).reset();
         }
-        count = positionals.size().value;
+        count = positionals.size();
         for(i : decimal = 0; i < count; i++) {
             positionals.at(i).reset();
         }
@@ -285,7 +285,7 @@ class args_parser {
 
         next_positional : decimal = 0;
         only_positionals : decimal = 0;
-        total : decimal = args.size().value;
+        total : decimal = args.size();
         i : decimal = 0;
         while(i < total) {
             arg := args.at(i);
@@ -298,7 +298,7 @@ class args_parser {
             }
             if(!is_option) {
                 // ---- a positional argument
-                if(next_positional < positionals.size().value) {
+                if(next_positional < positionals.size()) {
                     record(positionals.at(next_positional), arg);
                     next_positional++;
                 } else if(extra_allowed) {
@@ -385,14 +385,14 @@ class args_parser {
             return; // the user only wants the help: nothing is missing
         }
 
-        count = options.size().value;
+        count = options.size();
         for(j : decimal = 0; j < count; j++) {
             option := options.at(j);
             if(option.required && option.seen == 0) {
                 throw new args_exception("missing required option --" + option.name);
             }
         }
-        count = positionals.size().value;
+        count = positionals.size();
         for(j : decimal = 0; j < count; j++) {
             option := positionals.at(j);
             if(option.required && option.seen == 0) {
@@ -411,7 +411,7 @@ class args_parser {
         if(found != null) {
             return found!!;
         }
-        count : decimal = positionals.size().value;
+        count : decimal = positionals.size();
         for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(positionals.at(i).name, name)) {
                 return positionals.at(i);
@@ -543,17 +543,17 @@ class args_parser {
     def usage() : string {
         buf := new char_buffer(128);
         buf.append("usage: ").append(program);
-        if(options.size().value > 0) {
+        if(options.size() > 0) {
             buf.append(" [options]");
         }
-        count : decimal = options.size().value;
+        count : decimal = options.size();
         for(i : decimal = 0; i < count; i++) {
             option := options.at(i);
             if(option.required) {
                 buf.append(" --").append(option.name).append_char(' ').append(option.value_name);
             }
         }
-        count = positionals.size().value;
+        count = positionals.size();
         for(i : decimal = 0; i < count; i++) {
             option := positionals.at(i);
             if(option.required) {
@@ -565,7 +565,7 @@ class args_parser {
         if(extra_allowed) {
             buf.append(" [").append(extra_name).append("...]");
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**
@@ -580,7 +580,7 @@ class args_parser {
         right := new list<string>();
         headings := new list<int>(); // 1 for the lines that are section headings
 
-        pos_count : decimal = positionals.size().value;
+        pos_count : decimal = positionals.size();
         if(pos_count > 0 || extra_allowed) {
             left.add("arguments:");
             right.add("");
@@ -605,7 +605,7 @@ class args_parser {
         left.add("options:");
         right.add("");
         headings.add(new int(1));
-        opt_count : decimal = options.size().value;
+        opt_count : decimal = options.size();
         for(i : decimal = 0; i < opt_count; i++) {
             option := options.at(i);
             entry := new char_buffer(32);
@@ -619,7 +619,7 @@ class args_parser {
             if(option.kind == args_option.kind_value) {
                 entry.append_char(' ').append(option.value_name);
             }
-            left.add(entry.to_string()!!);
+            left.add(entry.build());
 
             note := new char_buffer(64);
             note.append(option.description);
@@ -628,7 +628,7 @@ class args_parser {
             } else if(option.has_default) {
                 note.append(" (default: ").append(option.default_value).append_char(41); // 41 is the closing parenthesis
             }
-            right.add(note.to_string()!!);
+            right.add(note.build());
             headings.add(new int(0));
         }
         if(find_long("help") == null) {
@@ -642,7 +642,7 @@ class args_parser {
         }
 
         width : decimal = 0;
-        lines : decimal = left.size().value;
+        lines : decimal = left.size();
         for(i : decimal = 0; i < lines; i++) {
             if(headings.at(i).value == 0 && io_strings.length(left.at(i)) > width) {
                 width = io_strings.length(left.at(i));
@@ -666,6 +666,6 @@ class args_parser {
                 buf.append_char('\n');
             }
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 }

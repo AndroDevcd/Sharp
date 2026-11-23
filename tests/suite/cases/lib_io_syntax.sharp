@@ -37,7 +37,7 @@ def main(args: string[]) {
         test("char literal ')' before )") { expect(code_of(')')).should_be(41); };
         maybe := maybe_text();
         test("!! before )") { expect("x" + maybe!!).should_be("xy"); };
-        test("method on a literal") { expect("abc".size().value).should_be(3); };
+        test("method on a literal") { expect("abc".size()).should_be(3); };
     };
     finish_tests("lib_io_syntax");
 }

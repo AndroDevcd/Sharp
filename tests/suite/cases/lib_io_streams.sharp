@@ -75,7 +75,7 @@ def test_string_reader() {
     catch(e: illegal_argument_exception) { test("negative read") { }; }
 
     lines := new string_text_reader("one\n\nthree\n").read_lines();
-    test("read_lines count") { expect(lines.size().value).should_be(3); };
+    test("read_lines count") { expect(lines.size()).should_be(3); };
     test("read_lines empty line") { expect(lines.at(1)).should_be(""); };
     test("read_lines last") { expect(lines.at(2)).should_be("three"); };
 
@@ -84,13 +84,13 @@ def test_string_reader() {
     foreach(line in src1) {
         joined.append(line).append_char('|');
     }
-    test("foreach over lines") { expect(joined.to_string()!!).should_be("x|y|z|"); };
+    test("foreach over lines") { expect(joined.build()).should_be("x|y|z|"); };
 
     empty := new string_text_reader("");
     test("empty has_more") { expect_false(empty.has_more()); };
     test("empty read_char") { expect(empty.read_char()).should_be(0 - 1); };
     test("empty read_line") { expect_true(io_strings.is_null(empty.read_line())); };
-    test("empty read_lines") { expect(empty.read_lines().size().value).should_be(0); };
+    test("empty read_lines") { expect(empty.read_lines().size()).should_be(0); };
 
     high := new _int8[2];
     high[0] = 200; high[1] = 255;
@@ -139,14 +139,14 @@ def test_buffered_reader() {
     test("skip_whitespace returns true") { expect_true(r.skip_whitespace()); };
 
     lines := new buffered_reader(new string_text_reader("a\n\nb\r\n")).read_lines();
-    test("read_lines") { expect(lines.size().value).should_be(3); };
+    test("read_lines") { expect(lines.size()).should_be(3); };
     test("read_lines blank") { expect(lines.at(1)).should_be(""); };
     joined := new char_buffer();
     src2 := new buffered_reader(new string_text_reader("p\nq"));
     foreach(line in src2) {
         joined.append(line).append_char('|');
     }
-    test("foreach") { expect(joined.to_string()!!).should_be("p|q|"); };
+    test("foreach") { expect(joined.build()).should_be("p|q|"); };
 
     // numbers separated by any white space
     numbers := new buffered_reader(new string_text_reader("1 2\n3\t4   5\n"));
@@ -335,7 +335,7 @@ def test_buffered_writer() {
     }
     fw.close();
     back := target.read_lines();
-    test("100 lines through two writers") { expect(back.size().value).should_be(100); };
+    test("100 lines through two writers") { expect(back.size()).should_be(100); };
     test("line 99") { expect(back.at(99)).should_be("99"); };
 
     // console_writer: only that it can be used and closed (its output is not captured here)

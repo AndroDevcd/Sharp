@@ -136,25 +136,25 @@ mutate string {
     }
 
     /**
-     * 1 if `text` occurs anywhere in the string. Every string contains "".
+     * true if `text` occurs anywhere in the string. Every string contains "".
      * (The older `find(text)` answers the same question with a `bool` object.)
      */
-    def contains(text: string): decimal {
+    def contains(text: string): bool {
         return string_support.find_forward(data, text.data, 0) >= 0;
     }
 
     /** contains(text) that treats ASCII capital and small letters as equal. */
-    def contains_ignore_case(text: string): decimal {
+    def contains_ignore_case(text: string): bool {
         return index_of_ignore_case(text) >= 0;
     }
 
-    /** 1 if at least one character of the string is one of the characters in `chars`. */
-    def contains_any(chars: string): decimal {
+    /** true if at least one character of the string is one of the characters in `chars`. */
+    def contains_any(chars: string): bool {
         return index_of_any(chars, 0) >= 0;
     }
 
-    /** 1 if at least one character of the string equals `c`. */
-    def contains_char(c: char): decimal {
+    /** true if at least one character of the string equals `c`. */
+    def contains_char(c: char): bool {
         return index_of_char(c, 0) >= 0;
     }
 
@@ -187,21 +187,21 @@ mutate string {
     }
 
     /**
-     * 1 if `text` occurs exactly at position `position`
+     * true if `text` occurs exactly at position `position`
      * ("hello".starts_with_at("ll", 2) is 1). A position outside of the string,
      * or a text that does not fit there, gives 0.
      */
-    def starts_with_at(text: string, position: int): decimal {
+    def starts_with_at(text: string, position: int): bool {
         return string_support.region_equals(data, position.value, text.data);
     }
 
     /** starts_with(prefix) that treats ASCII capital and small letters as equal. */
-    def starts_with_ignore_case(prefix: string): decimal {
+    def starts_with_ignore_case(prefix: string): bool {
         return string_support.region_equals_ignore_case(data, 0, prefix.data);
     }
 
     /** ends_with(suffix) that treats ASCII capital and small letters as equal. */
-    def ends_with_ignore_case(suffix: string): decimal {
+    def ends_with_ignore_case(suffix: string): bool {
         return string_support.region_equals_ignore_case(data, sizeof(data) - sizeof(suffix.data), suffix.data);
     }
 }

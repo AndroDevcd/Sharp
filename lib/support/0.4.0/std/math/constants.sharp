@@ -4,7 +4,7 @@ mod std.math;
  * Mathematical constants as NATIVE numbers (decimal).
  *
  * The two constants in math.sharp, PI and E, are `double` objects and need
- * `.value` when a native number is wanted (PI.value * 2). Everything in this
+ * `.value` when a native number is wanted (PI * 2). Everything in this
  * file is a plain `decimal`, so it can be used in arithmetic directly:
  *
  *     circumference : decimal = TAU * radius;
@@ -13,10 +13,10 @@ mod std.math;
  * select the nearest 64-bit floating point number.
  */
 
-/** pi as a native number (the same value as PI.value): 3.14159... */
+/** pi as a native number (the same value as PI): 3.14159... */
 public const PI_VALUE : decimal = 3.1415926535897932;
 
-/** e as a native number (the same value as E.value): 2.71828... */
+/** e as a native number (the same value as E): 2.71828... */
 public const E_VALUE : decimal = 2.7182818284590452;
 
 /** tau = 2 * pi, the number of radians in a full turn */

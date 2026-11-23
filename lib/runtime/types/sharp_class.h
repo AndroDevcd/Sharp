@@ -29,7 +29,6 @@ struct sharp_class {
     Int totalFieldCount;
     Int methodCount;
     Int interfaceCount;
-    sharp_object *reflect;
 
     // Which slots of an instance / of the static object hold a number instead
     // of a reference (see "THE SLOTS OF A CLASS INSTANCE" in

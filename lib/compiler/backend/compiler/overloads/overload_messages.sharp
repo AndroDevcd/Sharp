@@ -77,7 +77,7 @@ def report_no_fit_with_help(context: analysis_context, code: string, heading: st
         d.with_note(signature_of(candidate.function) + "    " + candidate.reason_text());
         shown++;
     }
-    if(ordered.size() > shown && shown > 0) { d.with_note("and " + (ordered.size().value as _int64 - shown) + " more"); }
+    if(ordered.size() > shown && shown > 0) { d.with_note("and " + (ordered.size() - shown) + " more"); }
 
     add_equals_as_operator(context, d, node, arguments);
     if(ordered.size() == 1) {
@@ -204,8 +204,8 @@ def explain_failed_argument(context: analysis_context, d: diagnostic, candidate:
 def add_count_fix(context: analysis_context, d: diagnostic, candidate: call_candidate, arguments: list<call_argument>) {
     if(candidate.wrong_count == 0) { return; }
     parameters := candidate.function.parameters;
-    given : _int64 = arguments.size().value as _int64;
-    wanted : _int64 = parameters.size().value as _int64;
+    given : _int64 = arguments.size();
+    wanted : _int64 = parameters.size();
     text := new string_builder("");
     if(given < wanted) {
         for(i : _int64 = given; i < wanted; i++) {
@@ -256,7 +256,7 @@ def nearest_misses_first(rejected: list<call_candidate>) : list<call_candidate> 
 /** E0503: several candidates fit equally well */
 def report_ambiguous(context: analysis_context, name: string, node: _int64, tied: list<call_candidate>,
                      arguments: list<call_argument>) {
-    d := problem_for_call(context, "E0503", "the call of `" + name + "` is ambiguous: " + (tied.size().value as _int64)
+    d := problem_for_call(context, "E0503", "the call of `" + name + "` is ambiguous: " + tied.size()
                     + " functions fit " + argument_types_text(arguments) + " equally well", node);
     d.with_label("cannot tell which `" + name + "` is meant");
     for(i : _int64 = 0; i < tied.size() && i < 6; i++) { d.with_note(signature_of(tied.at(i).function)); }

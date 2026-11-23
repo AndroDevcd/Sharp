@@ -23,7 +23,10 @@ struct sharp_field {
     sharp_type *type;
     bool isArray;
     bool threadLocal;
-    sharp_object *reflect;
+    // What an executable built with -dbg says about the field beyond its type, for the debugger
+    // (lib/debugger): LOCAL_BOOL or LOCAL_BOOL_ARRAY (types/sharp_function.h) for a `bool` field,
+    // which the VM itself keeps as a one-byte number; 0 for every other field.
+    int debugKind;
 };
 
 CXX11_INLINE void init_struct(sharp_field *sf);

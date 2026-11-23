@@ -19,13 +19,13 @@ mutate string_builder {
         return cursor;
     }
 
-    /** 1 if the builder holds no text. */
-    def is_empty() : decimal {
+    /** true if the builder holds no text. */
+    def is_empty() : bool {
         return cursor == 0;
     }
 
-    /** 1 if the builder holds at least one character. */
-    def is_not_empty() : decimal {
+    /** true if the builder holds at least one character. */
+    def is_not_empty() : bool {
         return cursor != 0;
     }
 
@@ -62,19 +62,19 @@ mutate string_builder {
     def char_at(pos: int) : decimal {
         at : decimal = pos.value;
         if(at < 0 || at >= cursor)
-            throw new bounds_except("char_at: index $pos is outside of a text of ${size()} characters");
+            throw new out_of_bounds_exception("char_at: index $pos is outside of a text of ${size()} characters");
         return data[at];
     }
 
     /** The first character. Throws out_of_bounds_exception if the builder is empty. */
     def first() : decimal {
-        if(cursor == 0) throw new bounds_except("first: the builder is empty");
+        if(cursor == 0) throw new out_of_bounds_exception("first: the builder is empty");
         return data[0];
     }
 
     /** The last character. Throws out_of_bounds_exception if the builder is empty. */
     def last() : decimal {
-        if(cursor == 0) throw new bounds_except("last: the builder is empty");
+        if(cursor == 0) throw new out_of_bounds_exception("last: the builder is empty");
         return data[cursor - 1];
     }
 
@@ -100,13 +100,13 @@ mutate string_builder {
         return -1;
     }
 
-    /** 1 if `text` occurs anywhere in the builder's text. */
-    def contains(text: string) : decimal {
+    /** true if `text` occurs anywhere in the builder's text. */
+    def contains(text: string) : bool {
         return find_from(text.data, sizeof(text.data), 0) >= 0;
     }
 
-    /** 1 if the builder's text is exactly `text`. (Same as `==`, as a native number.) */
-    def equals_text(text: string) : decimal {
+    /** true if the builder's text is exactly `text`. (Same as `==`, as a native number.) */
+    def equals_text(text: string) : bool {
         return cursor == sizeof(text.data) && matches_at(0, text.data, cursor);
     }
 
@@ -120,7 +120,7 @@ mutate string_builder {
         from : decimal = start.value;
         to : decimal = end.value;
         if(from < 0 || to > cursor || to < from)
-            throw new bounds_except("slice: range $start..$end is not inside a text of ${size()} characters");
+            throw new out_of_bounds_exception("slice: range $start..$end is not inside a text of ${size()} characters");
         if(from == to) return new string();
         return new string(data!!, from, to);
     }

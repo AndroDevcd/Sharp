@@ -94,7 +94,7 @@ class sieve {
 
 def generate_trie(primes: list<int>) : node {
     root := new node();
-    count : decimal = primes.size().value;
+    count : decimal = primes.size();
 
     for(i : decimal = 0; i < count; i++) {
         digits := number_to_fixed(primes.at(i).value, 0).to_bytes();
@@ -138,7 +138,7 @@ def find(upper_bound: decimal, prefix: decimal) : decimal[]? {
     front : decimal = 0;
 
     found := new list<int>();
-    while(front < queue_nodes.size().value) {
+    while(front < queue_nodes.size()) {
         top := queue_nodes.at(front);
         value : decimal = queue_values.at(front).value;
         front++;
@@ -146,14 +146,14 @@ def find(upper_bound: decimal, prefix: decimal) : decimal[]? {
         if(top.terminal) { found.add(value); }
 
         keys := top.children.keys();
-        for(k : decimal = 0; k < keys.size().value; k++) {
+        for(k : decimal = 0; k < keys.size(); k++) {
             digit := keys.at(k);
             queue_nodes.add(top.children.at(digit)!!);
             queue_values.add(value * 10 + (digit.value - '0'));
         }
     }
 
-    result := new decimal[found.size().value];
+    result := new decimal[found.size()];
     for(i : decimal = 0; i < sizeof(result); i++) {
         result[i] = found.at(i).value;
     }

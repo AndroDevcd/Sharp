@@ -1,0 +1,130 @@
+mod std.reflect;
+
+import ( std.io )
+
+/**
+ * WHAT A FIELD, A PARAMETER OR A RESULT IS: `_int64`, `string`, `user[]`,
+ * `list<string>`, `object`, a function, or nothing (a function without a result).
+ *
+ *      field.type.name             // "list<string>"
+ *      field.type.is_number        // 1 for _int8 ... _uint64 and decimal (not for arrays of them)
+ *      field.type.class_of()       // the class_info, when the type is a class
+ *      field.type.arguments()      // for list<string>: the type `string`
+ *
+ * Whether a type is written with `?` is not kept in a program, so it is not
+ * known here: a field of a class may always hold null.
+ */
+class type_info {
+    // `kind` is one of these
+    static const INT8 : _int64 = 0;
+    static const INT16 : _int64 = 1;
+    static const INT32 : _int64 = 2;
+    static const INT64 : _int64 = 3;
+    static const UINT8 : _int64 = 4;        // also what `bool` is
+    static const UINT16 : _int64 = 5;
+    static const UINT32 : _int64 = 6;
+    static const UINT64 : _int64 = 7;
+    static const DECIMAL : _int64 = 9;
+    static const OBJECT : _int64 = 10;      // `object`: anything
+    static const CLASS : _int64 = 11;
+    static const FUNCTION : _int64 = 12;    // a function value: `(int)(string)`
+    static const NOTHING : _int64 = 99;
+
+    kind : _int64;
+    is_array : decimal;
+    /** the type as it is written: "_int64", "string", "user[]", "list<string>" */
+    name : string;
+    /** with the modules: "std#list<std#string>" */
+    full_name : string;
+    /** 1 for a plain number (not an array of them) */
+    is_number : decimal;
+    /** 1 for a class (not an array of them): class_of() gives it */
+    is_class : decimal;
+    /** 1 for the type `string` */
+    is_text : decimal;
+    /** 1 for what a function without a result gives, and for what null is */
+    is_nothing : decimal;
+    private class_id : _int64;
+
+    type_info(kind: _int64, class_id: _int64, is_array: decimal) {
+        self->kind = kind > FUNCTION ? NOTHING : kind;
+        self->class_id = kind == CLASS ? class_id : 0 - 1;
+        self->is_array = is_array != 0;
+        is_number = self->kind <= DECIMAL && !self->is_array;
+        is_class = self->kind == CLASS && !self->is_array && class_id >= 0;
+        name = written(0);
+        full_name = written(1);
+        is_text = is_class && full_name == "std#string";
+        is_nothing = self->kind == NOTHING;
+    }
+
+    /** the class the type is (for an array: the class of its items); null for numbers, `object` and functions */
+    def class_of() : class_info? {
+        if(class_id < 0) { return null; }
+        return reflect.by_number(class_id);
+    }
+
+    /** what stands in `<...>`: for list<string> the type string, for hash_map<string, int> two types; empty for other types */
+    def arguments() : list<type_info> {
+        found := new list<type_info>();
+        if(class_id < 0) { return found; }
+        names := reflect_names.parts(reflect_names.inside(reflect_vm.text(1, class_id, 0)));
+        for(i : _int64 = 0; i < names.size(); i++) { found.add(named(names.at(i))); }
+        return found;
+    }
+
+    /** true when a value of the type `other` can be held by this type: the same class or one below it, the same kind of number */
+    def takes(other: type_info) : bool {
+        if(is_array != other.is_array) { return false; }
+        if(kind == OBJECT) { return true; }
+        if(kind != CLASS) { return kind == other.kind; }
+        if(other.kind != CLASS) { return false; }
+        mine := class_of();
+        theirs := other.class_of();
+        if(mine == null || theirs == null) { return false; }
+        // (the values of an enum are objects of std#_enum_, the class every enum is based on)
+        if(mine!!.is_enum && theirs!!.full_name == "std#_enum_") { return true; }
+        return theirs!!.is_a(mine!!);
+    }
+
+    override def to_string() : string? {
+        return name;
+    }
+
+    /** the type with a name as the program holds it: "std#string", "_int64", "std#list<std#int>" */
+    static def named(written: string) : type_info {
+        if(written == "_int8") { return new type_info(INT8, 0 - 1, 0); }
+        if(written == "_int16") { return new type_info(INT16, 0 - 1, 0); }
+        if(written == "_int32") { return new type_info(INT32, 0 - 1, 0); }
+        if(written == "_int64") { return new type_info(INT64, 0 - 1, 0); }
+        if(written == "_uint8") { return new type_info(UINT8, 0 - 1, 0); }
+        if(written == "_uint16") { return new type_info(UINT16, 0 - 1, 0); }
+        if(written == "_uint32") { return new type_info(UINT32, 0 - 1, 0); }
+        if(written == "_uint64") { return new type_info(UINT64, 0 - 1, 0); }
+        if(written == "var" || written == "decimal") { return new type_info(DECIMAL, 0 - 1, 0); }
+        id : _int64 = reflect_vm.find(written);
+        if(id < 0) { return new type_info(OBJECT, 0 - 1, 0); }
+        return new type_info(CLASS, id, 0);
+    }
+
+    private def written(full: decimal) : string {
+        text : string = new string("nothing");
+        if(kind == INT8) { text = new string("_int8"); }
+        else if(kind == INT16) { text = new string("_int16"); }
+        else if(kind == INT32) { text = new string("_int32"); }
+        else if(kind == INT64) { text = new string("_int64"); }
+        else if(kind == UINT8) { text = new string("_uint8"); }
+        else if(kind == UINT16) { text = new string("_uint16"); }
+        else if(kind == UINT32) { text = new string("_uint32"); }
+        else if(kind == UINT64) { text = new string("_uint64"); }
+        else if(kind == DECIMAL) { text = new string("decimal"); }
+        else if(kind == OBJECT) { text = new string("object"); }
+        else if(kind == FUNCTION) { text = new string("function"); }
+        else if(kind == CLASS && class_id >= 0) {
+            text = reflect_vm.text(1, class_id, 0);
+            if(!full) { text = reflect_names.short(text); }
+        }
+        if(is_array) { return text + "[]"; }
+        return text;
+    }
+}

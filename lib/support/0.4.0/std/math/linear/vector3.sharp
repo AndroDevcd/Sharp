@@ -215,7 +215,7 @@ class vector3 {
 
     /** (|x|, |y|, |z|) */
     def abs(): vector3 {
-        return new vector3(absolute(x), absolute(y), absolute(z));
+        return new vector3(abs(x), abs(y), abs(z));
     }
 
     /** the smaller x, y and z of the two vectors */
@@ -230,9 +230,9 @@ class vector3 {
 
     /** true when all components differ by at most `tolerance` */
     def approx_equals(other: vector3, tolerance: decimal): bool {
-        return absolute(x - other.x) <= tolerance
-            && absolute(y - other.y) <= tolerance
-            && absolute(z - other.z) <= tolerance;
+        return abs(x - other.x) <= tolerance
+            && abs(y - other.y) <= tolerance
+            && abs(z - other.z) <= tolerance;
     }
 
     /** the x and y components as a 2D vector (z is dropped) */

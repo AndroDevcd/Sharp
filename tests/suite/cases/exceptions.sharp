@@ -454,18 +454,18 @@ def main(args: string[]) {
     // the short alias names are the same classes
     caught = 0;
     try {
-        throw new ill_state_except("alias");
+        throw new illegal_state_exception("alias");
     } catch(e: illegal_state_exception) {
         caught = 1;
     }
-    expect("ill_state_except is illegal_state_exception", caught, 1);
+    expect("illegal_state_exception is illegal_state_exception", caught, 1);
     caught = 0;
     try {
         throw new out_of_bounds_exception("alias");
-    } catch(e: bounds_except) {
+    } catch(e: out_of_bounds_exception) {
         caught = 1;
     }
-    expect("bounds_except is out_of_bounds_exception", caught, 1);
+    expect("out_of_bounds_exception is out_of_bounds_exception", caught, 1);
 
     // ---- built-in error: using a null object
     caught = 0;

@@ -97,12 +97,7 @@ mutate file {
                 break;
             }
             missing.add(dir);
-            up := file_natives.parent_of(dir.path);
-            if(io_strings.is_null(up)) {
-                current = null;
-            } else {
-                current = new file(up!!);
-            }
+            current = dir.parent();
         }
         if(current != null) {
             above := current!!;
@@ -112,7 +107,7 @@ mutate file {
         }
 
         // create them from the top down
-        for(i : decimal = missing.size().value - 1; i >= 0; i--) {
+        for(i : decimal = missing.size() - 1; i >= 0; i--) {
             dir := missing.at(i);
             dir.mkdir();
             if(!dir.is_directory()) {
@@ -150,7 +145,7 @@ mutate file {
 
         result := new list<file>();
         names := directory_listing.names(path);
-        count : decimal = names.size().value;
+        count : decimal = names.size();
         for(i : decimal = 0; i < count; i++) {
             result.add(new file(file_natives.join(path, names.at(i))));
         }
@@ -166,7 +161,7 @@ mutate file {
     def list_files(accept: (file)(bool)) : list<file> {
         all := list_files();
         result := new list<file>();
-        count : decimal = all.size().value;
+        count : decimal = all.size();
         for(i : decimal = 0; i < count; i++) {
             entry := all.at(i);
             if(accept(entry)) {
@@ -243,7 +238,7 @@ mutate file {
         pending.add(path);
         opened.add(new int(0));
 
-        while(pending.size().value > 0) {
+        while(pending.size() > 0) {
             top := pending.last();
             was_opened : decimal = opened.last().value;
             if(file_natives.delete_file(top) == 0) {
@@ -265,9 +260,9 @@ mutate file {
                 continue;
             }
 
-            opened.put(opened.size().value - 1, new int(1));
+            opened.put(opened.size() - 1, new int(1));
             names := directory_listing.names(top);
-            count : decimal = names.size().value;
+            count : decimal = names.size();
             for(i : decimal = 0; i < count; i++) {
                 pending.add(file_natives.join(top, names.at(i)));
                 opened.add(new int(0));
@@ -321,7 +316,7 @@ mutate file {
         // refuse to copy a directory into itself: that would never end
         from := file_natives.absolute(path);
         to := file_natives.absolute(dest.path);
-        sep : decimal = file_natives.separator();
+        sep : decimal = std.io#path.separator();
         inside : decimal = 0;
         if(io_strings.equals(from, to)) {
             inside = 1;

@@ -13,7 +13,7 @@ def descending(a: int, b: int) : decimal { return b.value - a.value; }
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : decimal = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size(); i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -49,7 +49,7 @@ def test_tree_map_basics() {
     test("tree last_entry empty") { expect_null(m.last_entry()); };
     test("tree floor_key empty") { expect_null(m.floor_key(5)); };
     test("tree ceiling_key empty") { expect_null(m.ceiling_key(5)); };
-    test("tree empty keys") { expect(m.keys().size().value).should_be(0); };
+    test("tree empty keys") { expect(m.keys().size()).should_be(0); };
     test("tree empty iterator") { expect(m.iterator().has_next()).should_be(0); };
     test("tree empty descending_iterator") { expect(m.descending_iterator().has_next()).should_be(0); };
     test("tree remove on empty") { expect(m.remove(1)).should_be(0); };
@@ -89,7 +89,7 @@ def test_tree_map_basics() {
     test("tree key_array[7]") { expect(m.key_array()[7].value).should_be(80); };
     test("tree values in key order [0]") { expect(m.values().at(0)).should_be("ten"); };
     test("tree values in key order [7]") { expect(m.values().at(7)).should_be("eighty"); };
-    test("tree entries size") { expect(m.entries().size().value).should_be(8); };
+    test("tree entries size") { expect(m.entries().size()).should_be(8); };
     test("tree entries[2].key") { expect(m.entries().at(2).key.value).should_be(30); };
     test("tree entries[2].value") { expect(m.entries().at(2).value).should_be("thirty"); };
     test("tree first_key") { expect(m.first_key().value).should_be(10); };
@@ -170,7 +170,7 @@ def test_tree_map_basics() {
     test("tree descending first_key") { expect(down.first_key().value).should_be(3); };
     test("tree descending floor_key (the nearest key at or BEFORE in map order)") { expect(or_minus_one(down.ceiling_key(0))).should_be(0 - 1); };
 
-    by_length := new tree_map<string, int>({ a: string, b: string -> (decimal) return a.size().value - b.size().value; });
+    by_length := new tree_map<string, int>({ a: string, b: string -> (decimal) return a.size() - b.size(); });
     by_length.put("ccc", 3); by_length.put("a", 1); by_length.put("bb", 2);
     test("tree same length is the same key") { expect(by_length.put("zz", 22)).should_be(0); };
     test("tree<string> size") { expect(by_length.size()).should_be(3); };

@@ -60,7 +60,7 @@ def implied_base_call(context: analysis_context, function: sharp_function) : bou
 /** does this function make an object (so it calls a base constructor)? A constructor, or an `init(x)` */
 def makes_an_object(function: sharp_function) : _int64 {
     if(function.kind == D_CONSTRUCTOR) { return 1; }
-    return function.kind == D_INIT && function.parameters.size().value > 0;
+    return function.kind == D_INIT && function.parameters.size() > 0;
 }
 
 /**

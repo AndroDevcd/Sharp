@@ -17,7 +17,7 @@ import ( std.c, platform )
  * afterwards (process.run) - not by the program that started this one.
  *
  * The system is asked directly (getenv on Linux, GetEnvironmentVariable on
- * Windows): no shell is started, as process.environment() once had to.
+ * Windows): no shell is started.
  */
 class environment {
     extern "unix:c" {
@@ -92,10 +92,16 @@ class environment {
     static def remove(name: string) {
         check(name);
         if(build.is_windows()) {
-            nothing : string? = null;
-            SetEnvironmentVariableA(name, nothing!!);
+            windows_environment_clear.SetEnvironmentVariableA(name, 0);
         } else {
             unsetenv(name);
         }
+    }
+}
+
+/** SetEnvironmentVariableA with no text (C's NULL) for the value, which is how Windows takes a name out */
+class windows_environment_clear {
+    extern "windows:kernel32" {
+        static def SetEnvironmentVariableA(name: string, value: pointer) : c_int;
     }
 }

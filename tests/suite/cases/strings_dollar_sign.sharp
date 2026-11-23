@@ -2,7 +2,7 @@ mod main;
 import ( testing )
 def main(args: string[]) {
     price := "cost: $5";
-    expect("dollar in a literal", price.size().value, 8);
+    expect("dollar in a literal", price.size(), 8);
     name := "x";
     expect_str("interpolation still works", "a $name b", "a x b");
     expect_str("dollar at the end", "5$", "5" + "$$");

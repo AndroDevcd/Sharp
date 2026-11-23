@@ -36,7 +36,7 @@ def note_failure(folder: string, problem: throwable) {
         text.append("\n");
         trace : string? = problem.stack_trace;
         if(trace != null) { text.append(trace!!); }
-        new file(folder + "/" + FAILURE_NOTE).write(text.build());
+        file_natives.write(folder + "/" + FAILURE_NOTE, text.build());
     } catch(e: throwable) {
         // nothing is left to try: the plugin still sees that no manifest was written
     }
@@ -45,5 +45,5 @@ def note_failure(folder: string, problem: throwable) {
 /** a run that got as far as its manifest: an older note in the same folder is no longer true */
 def clear_failure_note(folder: string) {
     note := new file(folder + "/" + FAILURE_NOTE);
-    if(note.exists()) { note.delete(); }
+    if(note.exists()) { note.remove(); }
 }

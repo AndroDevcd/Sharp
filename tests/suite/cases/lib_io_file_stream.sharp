@@ -16,7 +16,7 @@ def main(args: string[]) {
         folder := new file(temp_files.directory() + "/sharp_suite_io_stream");
         folder.delete_recursively();
         folder.mkdirs();
-        path : string = folder.get_path() + "/stream.txt";
+        path : string = folder.path + "/stream.txt";
 
         // ---- write, then read back piece by piece
         out := file_stream.open(path, "w");
@@ -78,7 +78,7 @@ def main(args: string[]) {
         both.close();
 
         // ---- bytes: every value, in blocks, and a line longer than the stream's own buffer
-        binary : string = folder.get_path() + "/bytes.bin";
+        binary : string = folder.path + "/bytes.bin";
         block := new _int8[256];
         for(i : decimal = 0; i < 256; i++) { block[i] = i; }
         bytes := file_stream.open(binary, "w");
@@ -103,7 +103,7 @@ def main(args: string[]) {
         test("read to the end in pieces") { expect(total).should_be(102410); };
         back.close();
 
-        long_path : string = folder.get_path() + "/long.txt";
+        long_path : string = folder.path + "/long.txt";
         long_out := file_stream.open(long_path, "w");
         for(i : decimal = 0; i < 1000; i++) { long_out.write_text("0123456789"); }
         long_out.write_text("\nshort\n");
@@ -117,8 +117,8 @@ def main(args: string[]) {
 
         // ---- what is refused
         refused : decimal = 0;
-        try { file_stream.open(folder.get_path() + "/not_there.txt", "r"); } catch(gone: io_exception) { refused++; }
-        try { file_stream.open(folder.get_path() + "/no/such/folder/x.txt", "w"); } catch(gone: io_exception) { refused++; }
+        try { file_stream.open(folder.path + "/not_there.txt", "r"); } catch(gone: io_exception) { refused++; }
+        try { file_stream.open(folder.path + "/no/such/folder/x.txt", "w"); } catch(gone: io_exception) { refused++; }
         test("a file that is not there, a folder that is not there") { expect(refused).should_be(2); };
         wrong_mode : decimal = 0;
         try { file_stream.open(path, "x"); } catch(wrong: illegal_argument_exception) { wrong_mode = 1; }

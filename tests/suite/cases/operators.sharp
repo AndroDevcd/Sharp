@@ -156,7 +156,7 @@ class table {
     }
 
     def operator[](key: string): decimal {
-        return key.size().value;
+        return key.size();
     }
 }
 

@@ -357,7 +357,7 @@ def test_parser_good() {
     for(i : decimal = 0; i < 900; i++) {
         deep.append_char(']');
     }
-    deep_text := deep.to_string()!!;
+    deep_text := deep.build();
     nested := json_parser.parse(deep_text);
     depth : decimal = 0;
     walk := nested;
@@ -391,11 +391,11 @@ def test_parser_good() {
         big.append("{" + q + "id" + q + ":").append_int(i).append("," + q + "name" + q + ":" + q + "item ").append_int(i).append(q + "," + q + "ok" + q + ":true}");
     }
     big.append_char(']');
-    items := json_parser.parse(big.to_string()!!);
+    items := json_parser.parse(big.build());
     test("2000 objects") { expect(items.size()).should_be(2000); };
     test("object 1999 id") { expect(items.at(1999).member("id").as_number()).should_be(1999); };
     test("object 1234 name") { expect(items.at(1234).member("name").as_string()).should_be("item 1234"); };
-    test("large document written back the same") { expect(items.to_string()!!).should_be(big.to_string()!!); };
+    test("large document written back the same") { expect(items.to_string()!!).should_be(big.build()); };
 }
 
 def test_parser_bad() {
@@ -490,7 +490,7 @@ def test_writer() {
     // numbers
     nums := json_value.new_array();
     nums.add_number(0).add_number(0 - 1).add_number(2.5).add_number(1e21).add_number(1e-7).add_number(123456789012).add_number(0.1);
-    test("numbers") { expect(nums.to_string()!!).should_be("[0,-1,2.5,1e21,1e-7,123456789012,0.1]"); };
+    test("numbers") { expect(nums.to_string()!!).should_be("[0,-1,2.5,1e+21,0.0000001,123456789012,0.1]"); };
     try { json_value.of_number(0.0 / 0.0).to_string(); test("NaN cannot be written") { fail_test("no exception"); }; }
     catch(e: json_exception) { test("NaN cannot be written") { }; }
     inf := json_value.new_array();

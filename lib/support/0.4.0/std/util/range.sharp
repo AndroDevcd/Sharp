@@ -68,7 +68,7 @@ class range : loopable<decimal> {
             count = 0;
             self->last = last;
         } else {
-            whole_steps : decimal = floor_of(steps);
+            whole_steps : decimal = floor(steps);
             count = whole_steps + 1;
             self->last = first + whole_steps * step;
         }
@@ -108,7 +108,7 @@ class range : loopable<decimal> {
 
         position : decimal = (value - first) / step;
         if(position < 0 || position > count - 1) return false;
-        return floor_of(position) == position && first + position * step == value;
+        return floor(position) == position && first + position * step == value;
     }
 
     /**

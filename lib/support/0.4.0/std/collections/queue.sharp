@@ -35,8 +35,8 @@ class queue<T> : loopable<T>, iterable<T> {
         return items.size();
     }
 
-    /** 1 when the queue has no elements, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when the queue has no elements. O(1). */
+    def is_empty() : bool {
         return items.is_empty();
     }
 
@@ -95,8 +95,8 @@ class queue<T> : loopable<T>, iterable<T> {
         return items.last();
     }
 
-    /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
-    def contains(element: T) : decimal {
+    /** true when an element equals `element` (compared with `==`). O(n). */
+    def contains(element: T) : bool {
         return items.contains(element);
     }
 

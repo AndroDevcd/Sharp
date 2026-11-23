@@ -3,7 +3,7 @@ import ( testing )
 def main(args: string[]) {
     one := { "k" : 1 };
     two := { "a" : 1, "b" : 2 };
-    expect("one pair", one.map.size().value, 1);
-    expect("two pairs", two.map.size().value, 2);
+    expect("one pair", one.map.size(), 1);
+    expect("two pairs", two.map.size(), 2);
     finish("dictionary_one_pair");
 }

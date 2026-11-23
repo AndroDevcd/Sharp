@@ -17,7 +17,7 @@ q : string = "\"";
 /** the rows as text that shows the structure: fields in [brackets], rows separated by / */
 def show(rows: list<csv_row>): string {
     buf := new char_buffer();
-    count : decimal = rows.size().value;
+    count : decimal = rows.size();
     for(r : decimal = 0; r < count; r++) {
         if(r > 0) {
             buf.append_char('/');
@@ -27,7 +27,7 @@ def show(rows: list<csv_row>): string {
             buf.append_char('[').append(row.at(i)).append_char(']');
         }
     }
-    return buf.to_string()!!;
+    return buf.build();
 }
 
 def expect_rows(name: string, text: string, expected: string) {
@@ -105,7 +105,7 @@ def test_reader() {
     r := new csv_reader("name,age,city\nAda,36,London\nBob,41\n");
     test("has_next") { expect_true(r.has_next()); };
     header := r.read_header();
-    test("header size") { expect(header.size().value).should_be(3); };
+    test("header size") { expect(header.size()).should_be(3); };
     test("column_index") { expect(r.column_index("age")).should_be(1); };
     test("column_index missing") { expect(r.column_index("Age")).should_be(0 - 1); };
     first := r.next_row();
@@ -138,7 +138,7 @@ def test_reader() {
     try { plain.field("a"); test("field without header") { fail_test("no exception"); }; }
     catch(e: csv_exception) { test("field without header") { }; }
     fields := new csv_reader("x,y\n").next_fields();
-    test("next_fields") { expect(fields.size().value).should_be(2); };
+    test("next_fields") { expect(fields.size()).should_be(2); };
 }
 
 def test_writer() {
@@ -207,7 +207,7 @@ def test_round_trip() {
 
     text := csv_writer.format(rows);
     back := csv_reader.parse(text);
-    test("round trip row count") { expect(back.size().value).should_be(8); };
+    test("round trip row count") { expect(back.size()).should_be(8); };
     test("round trip content") { expect(show(back)).should_be(show(rows)); };
     test("write again gives the same text") { expect(csv_writer.format(back)).should_be(text); };
 
@@ -220,7 +220,7 @@ def test_round_trip() {
     empty_row := new csv_row();
     empty_row.add("");
     one.add(empty_row);
-    test("a row of one empty field survives") { expect(csv_reader.parse(csv_writer.format(one)).size().value).should_be(1); };
+    test("a row of one empty field survives") { expect(csv_reader.parse(csv_writer.format(one)).size()).should_be(1); };
 
     // through a file
     target := new file(base_dir + "/data.csv");
@@ -238,7 +238,7 @@ def test_round_trip() {
         big.write_number(i).write_field("name " + io_strings.int_to_string(i)).write_field("a,b").end_row();
     }
     table := csv_reader.parse(big.to_string()!!);
-    test("3000 rows") { expect(table.size().value).should_be(3000); };
+    test("3000 rows") { expect(table.size()).should_be(3000); };
     test("row 2999") { expect(show_one(table.at(2999))).should_be("[2999][name 2999][a,b]"); };
 }
 

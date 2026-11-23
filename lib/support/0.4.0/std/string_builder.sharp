@@ -215,10 +215,13 @@ class string_builder : loopable<_int8> {
         return self;
     }
 
-    /** A NEW builder holding this text followed by `immstr` ("null" if it is null). This builder is not changed. */
+    /**
+     * A NEW builder holding this text followed by `immstr`. This builder is not changed.
+     * (a null adds nothing: that is how an empty text in quotes, `builder + ""`, arrives)
+     */
     def operator+(immstr : _int8[]?) : string_builder {
         s := new string_builder(self);
-        return s.append(immstr ?: "null");
+        return s.append(immstr);
     }
 
     /** A NEW builder holding this text followed by the text of `obj` ("null" if it is null). */
@@ -312,13 +315,13 @@ class string_builder : loopable<_int8> {
         return result;
     }
 
-    /** INTERNAL. 1 if `needle` (of `needle_size` characters) occurs in the text exactly at position `pos`. */
-    private def matches_at(pos: decimal, needle: _int8[]?, needle_size: decimal) : decimal {
-        if(pos < 0 || pos + needle_size > cursor) return 0;
+    /** INTERNAL. true if `needle` (of `needle_size` characters) occurs in the text exactly at position `pos`. */
+    private def matches_at(pos: decimal, needle: _int8[]?, needle_size: decimal) : bool {
+        if(pos < 0 || pos + needle_size > cursor) return false;
         for(j : decimal = 0; j < needle_size; j++) {
-            if(data[pos + j] != needle[j]) return 0;
+            if(data[pos + j] != needle[j]) return false;
         }
-        return 1;
+        return true;
     }
 
     /** INTERNAL. Position of the first occurrence of `needle` at or after `from`, or -1. */
@@ -338,7 +341,7 @@ class string_builder : loopable<_int8> {
 
     /** true if the text starts with `prefix` (every text starts with ""). */
     def starts_with(prefix: string) : bool {
-        return matches_at(0, prefix.data, sizeof(prefix.data)) != 0;
+        return matches_at(0, prefix.data, sizeof(prefix.data));
     }
 
     /** true if `str` occurs anywhere in the text. */
@@ -353,11 +356,11 @@ class string_builder : loopable<_int8> {
 
     /** true if the text ends with `postfix` (every text ends with ""). */
     def ends_with(postfix: string) : bool {
-        return matches_at(cursor - sizeof(postfix.data), postfix.data, sizeof(postfix.data)) != 0;
+        return matches_at(cursor - sizeof(postfix.data), postfix.data, sizeof(postfix.data));
     }
 
-    /** The number of characters in the text, as an `int` object (see length() for a native number). */
-    def size() : int {
+    /** The number of characters in the text. */
+    def size() : _int64 {
         return cursor;
     }
 
@@ -388,31 +391,31 @@ class string_builder : loopable<_int8> {
     }
 
     /**
-     * A NEW builder holding the characters from `startPos` up to (not including) `endPos`.
-     * Throws out_of_bounds_exception if startPos is not inside the text or endPos is beyond it,
-     * illegal_argument_exception if endPos is less than startPos.
+     * A NEW builder holding the characters from `start_pos` up to (not including) `end_pos`.
+     * Throws out_of_bounds_exception if start_pos is not inside the text or end_pos is beyond it,
+     * illegal_argument_exception if end_pos is less than start_pos.
      */
-    public def substring(startPos: int, endPos: int) : string_builder {
-        if((startPos.value >= cursor) || (startPos.value < 0))
-            throw bounds_error(startPos);
-        if(endPos.value < startPos.value)
-            throw new ill_arg_except(
-                "endPos: $endPos cannot be less than the startPos: $startPos");
-        if(endPos.value > cursor)
-            throw bounds_error(endPos);
+    public def substring(start_pos: int, end_pos: int) : string_builder {
+        if((start_pos.value >= cursor) || (start_pos.value < 0))
+            throw bounds_error(start_pos);
+        if(end_pos.value < start_pos.value)
+            throw new illegal_argument_exception(
+                "end_pos: $end_pos cannot be less than the start_pos: $start_pos");
+        if(end_pos.value > cursor)
+            throw bounds_error(end_pos);
 
         str := new string_builder();
-        len : decimal = endPos.value - startPos.value;
+        len : decimal = end_pos.value - start_pos.value;
         if(len > 0) {
             str.reserve(len);
-            memcopy(data!!, str.data!!, 0, startPos.value, endPos.value);
+            memcopy(data!!, str.data!!, 0, start_pos.value, end_pos.value);
             str.cursor = len;
         }
         return str;
     }
 
-    private def bounds_error(pos : int) : bounds_except {
-        return new bounds_except("Index out of bounds exception at: $pos with size of: ${size()}");
+    private def bounds_error(pos : int) : out_of_bounds_exception {
+        return new out_of_bounds_exception("Index out of bounds exception at: $pos with size of: ${size()}");
     }
 
     /** A hash of the text: equal texts give equal hashes (the same formula as string.hash()). */

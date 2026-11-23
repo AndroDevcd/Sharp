@@ -60,7 +60,7 @@ class number_parser {
     /** Throws illegal_argument_exception unless 2 <= radix <= 36. */
     private static def check_radix(radix: decimal) {
         if(radix < 2 || radix > 36)
-            throw new ill_arg_except("radix must be between 2 and 36, but was ${new int(radix)}");
+            throw new illegal_argument_exception("radix must be between 2 and 36, but was ${new int(radix)}");
     }
 
     /**
@@ -168,7 +168,7 @@ class number_parser {
 
     /** Builds the exception for a text that failed a check (`what` is "integer", "decimal number" ...). */
     private static def failure(text: string, what: string, problem: decimal): number_format_exception {
-        message := new text_buffer();
+        message := new char_buffer();
         message.append("\"").append(text).append("\" is not a valid ").append(what).append(": ");
         if(problem == err_empty) {
             message.append("the text is empty");
@@ -230,8 +230,8 @@ class number_parser {
         return read_integer(text.data, 10);
     }
 
-    /** 1 if parse_int(text) would succeed. */
-    static def is_int(text: string): decimal {
+    /** true if parse_int(text) would succeed. */
+    static def is_int(text: string): bool {
         return check_integer(text.data, 10, max_int, 1) == ok;
     }
 
@@ -269,8 +269,8 @@ class number_parser {
         return read_integer(text.data, 10);
     }
 
-    /** 1 if parse_long(text) would succeed. */
-    static def is_long(text: string): decimal {
+    /** true if parse_long(text) would succeed. */
+    static def is_long(text: string): bool {
         return check_integer(text.data, 10, max_long, 0) == ok;
     }
 
@@ -338,8 +338,8 @@ class number_parser {
         return strtod(text).value;
     }
 
-    /** 1 if parse_double(text) would succeed. */
-    static def is_double(text: string): decimal {
+    /** true if parse_double(text) would succeed. */
+    static def is_double(text: string): bool {
         return check_double(text.data) == ok;
     }
 
@@ -359,14 +359,14 @@ class number_parser {
     }
 
     /**
-     * 1 if text is "true", 0 if it is "false" (in any mix of capital and small letters).
+     * true if text is "true", false if it is "false" (in any mix of capital and small letters).
      * Throws number_format_exception for any other text ("yes", "1", "" ...).
      */
-    static def parse_bool(text: string): decimal {
+    static def parse_bool(text: string): bool {
         value : decimal = check_bool(text.data);
         if(value < 0)
             throw new number_format_exception("\"" + text + "\" is not a valid bool: expected true or false");
-        return value;
+        return value != 0;
     }
 
     /** parse_bool(text) that returns null instead of throwing. */

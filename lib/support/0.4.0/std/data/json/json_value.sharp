@@ -197,7 +197,7 @@ class json_value {
      */
     def as_int() : decimal {
         expect_kind(kind_number);
-        if(number - number != 0 || floor(number).value != number) {
+        if(number - number != 0 || floor(number) != number) {
             throw new json_exception("expected a whole number but the value is " + io_strings.number_to_string(number));
         }
         return number;
@@ -317,7 +317,7 @@ class json_value {
      */
     def insert_at(index: decimal, value: json_value) : json_value {
         expect_kind(kind_array);
-        if(index < 0 || index > count || floor(index).value != index) {
+        if(index < 0 || index > count || floor(index) != index) {
             throw new json_exception("index " + io_strings.number_to_string(index) + " is outside an array of "
                 + io_strings.int_to_string(count) + " elements");
         }
@@ -387,7 +387,7 @@ class json_value {
     }
 
     private def check_index(index: decimal) {
-        if(index < 0 || index >= count || floor(index).value != index) {
+        if(index < 0 || index >= count || floor(index) != index) {
             throw new json_exception("index " + io_strings.number_to_string(index) + " is outside an array of "
                 + io_strings.int_to_string(count) + " elements");
         }

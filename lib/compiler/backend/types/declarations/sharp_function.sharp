@@ -128,7 +128,7 @@ class sharp_function base sharp_declaration {
 
     def has_body() : _int64 { return body >= 0 || expression >= 0; }
     def is_extension() : _int64 { return extends != null; }
-    def is_generic() : _int64 { return type_parameters.size().value > 0; }
+    def is_generic() : _int64 { return type_parameters.size() > 0; }
 
     /** name(type, type): what tells two functions with one name apart */
     def signature() : string {

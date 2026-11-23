@@ -324,7 +324,7 @@ stable class ui_host {
 
     /** a popup is open: remember it for placing, painting and input (called while the page is arranged) */
     def add_overlay(floating: view) {
-        count : _int64 = overlays.size().value;
+        count : _int64 = overlays.size();
         for(i : _int64 = 0; i < count; i++) {
             if(overlays.at(i) == floating) {
                 return;                           // already listed (a scroller arranged its part of the page again)
@@ -339,14 +339,14 @@ stable class ui_host {
      * while its parent's content is arranged here, so the list can grow as we go.
      */
     private def place_overlays(width: decimal, height: decimal) {
-        for(i : _int64 = 0; i < overlays.size().value; i++) {
+        for(i : _int64 = 0; i < overlays.size(); i++) {
             floating := overlays.at(i).how as popup;
             floating.place_content(width, height);
         }
     }
 
     private def paint_overlays(p: painter, width: decimal, height: decimal) {
-        count : _int64 = overlays.size().value;
+        count : _int64 = overlays.size();
         for(i : _int64 = 0; i < count; i++) {
             floating := overlays.at(i).how as popup;
             floating.paint_floating(p, width, height);
@@ -355,7 +355,7 @@ stable class ui_host {
 
     /** the topmost open popup, or null when none is open */
     private def top_overlay() : popup? {
-        count : _int64 = overlays.size().value;
+        count : _int64 = overlays.size();
         if(count == 0) {
             return null;
         }
@@ -533,7 +533,7 @@ stable class ui_host {
         kept : list<font> = font_sizes;
         if(bold == 1) { kept = bold_sizes; }
 
-        count : _int64 = kept.size().value;
+        count : _int64 = kept.size();
         for(i : _int64 = 0; i < count; i++) {
             if(kept.at(i).size == size) {
                 return kept.at(i);
@@ -549,7 +549,7 @@ stable class ui_host {
 
     /** is this key held down right now? (games: host.key_held(KEY_LEFT)) */
     def key_held(key: _int64) : _int64 {
-        count : _int64 = keys_held.size().value;
+        count : _int64 = keys_held.size();
         for(i : _int64 = 0; i < count; i++) {
             if(keys_held.at(i).value == key) { return 1; }
         }
@@ -579,7 +579,7 @@ stable class ui_host {
     }
 
     private def rebuild_stale() {
-        count : _int64 = stale.size().value;
+        count : _int64 = stale.size();
         if(count == 0) {
             return;
         }
@@ -1005,7 +1005,7 @@ stable class ui_host {
         }
 
         // toasts whose time is up
-        count : _int64 = toasts.size().value;
+        count : _int64 = toasts.size();
         for(i : _int64 = count - 1; i >= 0; i--) {
             if(win.time() >= toasts.at(i).until) {
                 toasts.remove_at(i);
@@ -1072,7 +1072,7 @@ stable class ui_host {
 
     /** the toasts, newest lowest, each fading out over the last moment of its time */
     private def paint_toasts(p: painter, width: decimal, height: decimal) {
-        count : _int64 = toasts.size().value;
+        count : _int64 = toasts.size();
         if(count == 0) {
             return;
         }
@@ -1164,7 +1164,7 @@ stable class ui_host {
     }
 
     private def key_released(key: _int64) {
-        count : _int64 = keys_held.size().value;
+        count : _int64 = keys_held.size();
         for(i : _int64 = 0; i < count; i++) {
             if(keys_held.at(i).value == key) {
                 keys_held.remove_at(i);
@@ -1179,7 +1179,7 @@ stable class ui_host {
     private def move_focus(direction: _int64) {
         stops := new list<view>();
         collect_focusable(top!!, stops);
-        count : _int64 = stops.size().value;
+        count : _int64 = stops.size();
         if(count == 0) {
             focus = null;
             return;

@@ -33,9 +33,9 @@ class CallSiteAndImportTest {
 
     private fun site(text: String, caret: Int = text.length) = CallSite.at(CodeTokens.scan(text), caret)
 
-    /** Types `code` before `return count.value;` of the sample and asks for parameter info at its end. */
+    /** Types `code` before `return count;` of the sample and asks for parameter info at its end. */
     private fun hints(code: String): Pair<CallSiteInfo, List<ParameterHint>>? {
-        val at = saved.indexOf("    return count.value;")
+        val at = saved.indexOf("    return count;")
         val text = saved.substring(0, at) + "    " + code + "\n" + saved.substring(at)
         return ParameterHints.overloads(shop.view(text), text, at + 4 + code.length)
     }

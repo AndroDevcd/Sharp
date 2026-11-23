@@ -1,0 +1,321 @@
+mod std.reflect;
+
+import ( std.io )
+
+/**
+ * ONE OBJECT, BY NAMES: an object together with its class (see reflect.sharp)
+ *
+ *      view := reflect.on(someone);
+ *      view.read("name")                   // the field's value, as an object
+ *      view.number("age")                  // ... as a number
+ *      view.text("home.city")              // through objects: null when one on the way is null
+ *      view.write("age", 33);
+ *      view.write("name", "ann");
+ *      view.call("greet", "bob")           // what the object's own class has for the name
+ *      view.fields { print(it.name + " = " + it.text() + "\n"); }
+ *
+ *      view.to_text()                      // user(name=ann, age=33, home=address(city=oslo))
+ *      view.copy()                         // a new object with the same field values
+ *      view.same_as(other)                 // the same class and equal field values
+ *
+ * to_text, copy and same_as are what is otherwise written by hand for each
+ * class. copy gives the new object the same numbers and the SAME objects in
+ * its fields (it does not copy those in turn).
+ *
+ * PROTECTIONS. A view reads, writes, calls and shows what is public.
+ * `reflect.on(someone).open()` is a view that does so for private and
+ * protected fields and functions too. copy and same_as go by every field
+ * either way: they hand no private value out.
+ */
+class object_view {
+    target : object;
+    shape : class_info;
+    private opened : decimal;
+
+    object_view(target: object) {
+        found := reflect.of(target);
+        if(found == null) { throw new reflect_exception("reflect.on: this is an array, not an object of a class"); }
+        self->target = target;
+        shape = found!!;
+    }
+
+    /** a view of the same object that also reads, writes, calls and shows what is private or protected */
+    def open() : object_view {
+        made := new object_view(target);
+        made.shape = shape.open();
+        made.opened = 1;
+        return made;
+    }
+
+    /** the class of an object as this view may use it: open for an open view */
+    private def shape_of(held: object?) : class_info? {
+        found := reflect.of(held);
+        if(found == null || !opened) { return found; }
+        return found!!.open();
+    }
+
+    /** the value of a field ("name"), or of a field of a field ("home.city"): null when an object on the way is null */
+    def read(path: string) : object? {
+        names := reflect_names.steps(path);
+        held : object? = target;
+        for(i : _int64 = 0; i < names.size(); i++) {
+            if(held == null) { return null; }
+            mine := shape_of(held);
+            if(mine == null) { throw new reflect_exception("`" + path + "`: what stands before `" + names.at(i) + "` is an array, not an object"); }
+            held = mine!!.field_or_fail(names.at(i)).read(held);
+        }
+        return held;
+    }
+
+    /** the number of a number field, by its name or path; 0 when an object on the way is null */
+    def number(path: string) : decimal {
+        last : _int64 = last_dot(path);
+        holder : object? = last < 0 ? target : read(new string(path.data!!, 0, last));
+        if(holder == null) { return 0; }
+        name : string = last < 0 ? path : new string(path.data!!, last + 1, sizeof(path.data));
+        return shape_of(holder)!!.field_or_fail(name).number(holder);
+    }
+
+    /** the value of a field as text, by its name or path; null for null */
+    def text(path: string) : string? {
+        last : _int64 = last_dot(path);
+        holder : object? = last < 0 ? target : read(new string(path.data!!, 0, last));
+        if(holder == null) { return null; }
+        name : string = last < 0 ? path : new string(path.data!!, last + 1, sizeof(path.data));
+        return shape_of(holder)!!.field_or_fail(name).text(holder);
+    }
+
+    /** give a field a value (field_info.write) */
+    def write(name: string, value: object?) {
+        shape.field_or_fail(name).write(target, value);
+    }
+
+    /** give a number field a number */
+    def write(name: string, value: decimal) {
+        shape.field_or_fail(name).write(target, value);
+    }
+
+    /** call the function of the object's class with a name and no parameters */
+    def call(name: string) : object? {
+        return call_with(name, null);
+    }
+
+    /** call the function with a name that takes these */
+    def call(name: string, first: object?) : object? {
+        values := new object[1];
+        values[0] = first;
+        return call_with(name, values);
+    }
+
+    def call(name: string, first: object?, second: object?) : object? {
+        values := new object[2];
+        values[0] = first; values[1] = second;
+        return call_with(name, values);
+    }
+
+    def call(name: string, first: object?, second: object?, third: object?) : object? {
+        values := new object[3];
+        values[0] = first; values[1] = second; values[2] = third;
+        return call_with(name, values);
+    }
+
+    /** call the function with a name whose parameters take `values` (null: none) */
+    def call_with(name: string, values: object[]?) : object? {
+        named := shape.functions_named(name);
+        for(i : _int64 = 0; i < named.size(); i++) {
+            if(named.at(i).takes(values)) { return named.at(i).call_on(target, values); }
+        }
+        if(named.size() == 0) { throw new reflect_exception("`" + shape.full_name + "` has no function `" + name + "`"); }
+        throw new reflect_exception("`" + shape.full_name + "." + name + "` cannot be called with " + function_info.shown(values)
+            + " (there is: " + named.at(0).to_string()!! + ")");
+    }
+
+    /** runs the block for each field of the object that the view may read, with its value: `it.name`, `it.value()`, `it.number()`, `it.text()`, `it.field` */
+    def fields(action: (field_reading)()) {
+        all := shape.fields();
+        for(i : _int64 = 0; i < all.size(); i++) {
+            if(all.at(i).is_open()) { action(new field_reading(all.at(i), target)); }
+        }
+    }
+
+    /** a new object of the same class with the same value in every field (the same objects, not copies of them) */
+    def copy() : object {
+        made : object = reflect_vm.make(shape.id, 0 - 1)!!;
+        all := shape.open().fields();
+        for(i : _int64 = 0; i < all.size(); i++) {
+            // (what read gives is what write takes: a number comes and goes in its number class)
+            reflect_vm.write(shape.id, i, made, all.at(i).read(target));
+        }
+        return made;
+    }
+
+    /** true when `other` is of the same class and every field holds an equal value: equal numbers, equal texts, the same or equal objects */
+    def same_as(other: object?) : bool {
+        if(other == null) { return false; }
+        theirs := reflect.of(other);
+        if(theirs == null || theirs!!.id != shape.id) { return false; }
+        return same(target, other, 0);
+    }
+
+    /** "user(name=ann, age=33, home=address(city=oslo))": the public fields, and the private ones too for an open view */
+    def to_text() : string {
+        text := new string_builder();
+        show(text, target, 0, opened);
+        return text.to_string()!!;
+    }
+
+    override def to_string() : string? {
+        return to_text();
+    }
+
+    private static def last_dot(path: string) : _int64 {
+        for(i : _int64 = sizeof(path.data) - 1; i >= 0; i--) { if(path.data!![i] == '.') { return i; } }
+        return 0 - 1;
+    }
+
+    /** field by field; objects in fields are compared the same way, 20 deep at most */
+    private static def same(a: object?, b: object?, depth: _int64) : bool {
+        if(a == null || b == null) { return a == null && b == null; }
+        mine := reflect.of(a);
+        theirs := reflect.of(b);
+        if(mine == null || theirs == null) { return mine == null && theirs == null && same_array(a, b, depth); }
+        if(mine!!.id != theirs!!.id) { return false; }
+        if(mine!!.full_name == "std#string") { return (a as string) == (b as string); }
+        if(depth > 20) { return true; }
+        all := mine!!.open().fields();
+        for(i : _int64 = 0; i < all.size(); i++) {
+            field := all.at(i);
+            if(field.type.is_number) {
+                if(field.number(a) != field.number(b)) { return false; }
+            } else if(!same(field.read(a), field.read(b), depth + 1)) { return false; }
+        }
+        return true;
+    }
+
+    private static def same_array(a: object?, b: object?, depth: _int64) : bool {
+        first := reflect.type_of(a);
+        second := reflect.type_of(b);
+        if(first.kind != second.kind || reflect_vm.class_of(a)[3] != reflect_vm.class_of(b)[3]) { return false; }
+        if(first.kind <= type_info.DECIMAL) {
+            // numbers: their texts say whether they are equal, whatever kind of number array it is
+            return number_text(a, first.kind) == number_text(b, second.kind);
+        }
+        mine : object[] = a as object[];
+        theirs : object[] = b as object[];
+        for(i : _int64 = 0; i < sizeof(mine); i++) { if(!same(mine[i], theirs[i], depth + 1)) { return false; } }
+        return true;
+    }
+
+    private static def number_text(held: object?, kind: _int64) : string {
+        text := new string_builder();
+        if(kind == type_info.INT8) { items := held as _int8[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else if(kind == type_info.INT16) { items := held as _int16[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else if(kind == type_info.INT32) { items := held as _int32[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else if(kind == type_info.UINT8) { items := held as _uint8[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else if(kind == type_info.UINT16) { items := held as _uint16[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else if(kind == type_info.UINT32) { items := held as _uint32[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else if(kind == type_info.UINT64) { items := held as _uint64[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else if(kind == type_info.DECIMAL) { items := held as decimal[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        else { items := held as _int64[]; for(i : _int64 = 0; i < sizeof(items); i++) { text.append("" + items[i] + " "); } }
+        return text.to_string()!!;
+    }
+
+    /** an object as text: a string in itself, a list as [a, b], any other object as class(field=value, ...); 6 deep at most. `every`: private fields too. */
+    private static def show(text: string_builder, held: object?, depth: _int64, every: decimal) {
+        if(held == null) { text.append("null"); return; }
+        mine := reflect.of(held);
+        if(mine == null) {
+            said := reflect.type_of(held);
+            if(said.kind == type_info.INT8) {
+                characters : _int8[] = held as _int8[];
+                text.append(new string(characters, 0, sizeof(characters)));
+            } else if(said.kind > type_info.DECIMAL) {
+                items : object[] = held as object[];
+                text.append("[");
+                for(i : _int64 = 0; i < sizeof(items); i++) {
+                    if(i > 0) { text.append(", "); }
+                    show(text, items[i], depth + 1, every);
+                }
+                text.append("]");
+            } else {
+                text.append(said.name);
+            }
+            return;
+        }
+        // (what a list and a number class keep inside is the library's own to read)
+        inside := mine!!.open();
+        shape : class_info = every ? inside : mine!!;
+        if(shape.full_name == "std#string") { text.append(held as string); return; }
+        if(shape.is_enum || shape.full_name == "std#_enum_") {
+            label : _int8[]? = (held as _enum_).name;
+            if(sizeof(label) > 0) { text.append(new string(label!!, 0, sizeof(label))); }
+            return;
+        }
+        if(function_info.is_number_class(shape.full_name)) {
+            inner := inside.field("value");
+            if(inner != null) { text.append(inner!!.text(held)!!); }
+            return;
+        }
+        if(io_strings.starts_with(shape.full_name, "std#list<")) {
+            storage := inside.field("data");
+            count := inside.field("n_elements");
+            text.append("[");
+            if(storage != null && count != null) {
+                items : object[]? = storage!!.read(held) as object[];
+                size : _int64 = count!!.number(held);
+                for(i : _int64 = 0; i < size; i++) {
+                    if(i > 0) { text.append(", "); }
+                    show(text, items[i], depth + 1, every);
+                }
+            }
+            text.append("]");
+            return;
+        }
+        text.append(shape.name);
+        if(depth > 6) { text.append("(...)"); return; }
+        text.append("(");
+        all := shape.fields();
+        shown : _int64 = 0;
+        for(i : _int64 = 0; i < all.size(); i++) {
+            field := all.at(i);
+            if(!field.is_open()) { continue; }
+            if(shown > 0) { text.append(", "); }
+            shown++;
+            text.append(field.name);
+            text.append("=");
+            if(field.type.is_number) { text.append(field.text(held)!!); }
+            else { show(text, field.read(held), depth + 1, every); }
+        }
+        text.append(")");
+    }
+}
+
+/** one field of one object: what object_view.fields hands its block */
+class field_reading {
+    field : field_info;
+    name : string;
+    private holder : object;
+
+    field_reading(field: field_info, holder: object) {
+        self->field = field;
+        self->holder = holder;
+        name = field.name;
+    }
+
+    /** the value as an object (a number in its number class) */
+    def value() : object? {
+        return field.read(holder);
+    }
+
+    /** the value as a number, for a number field */
+    def number() : decimal {
+        return field.number(holder);
+    }
+
+    /** the value as text; "null" for null */
+    def text() : string {
+        found := field.text(holder);
+        if(found == null) { return new string("null"); }
+        return found!!;
+    }
+}

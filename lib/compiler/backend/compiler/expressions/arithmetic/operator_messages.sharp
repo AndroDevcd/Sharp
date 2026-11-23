@@ -107,10 +107,10 @@ def reported_as_misdeclared(context: analysis_context, node: _int64, owner: shar
         return 1;
     }
     declared := functions.at(0);
-    d := problem_at(context, "E0511", "`" + owner.written.name + "." + name + "` is declared with " + declared.parameters.size().value
+    d := problem_at(context, "E0511", "`" + owner.written.name + "." + name + "` is declared with " + declared.parameters.size()
                     + " parameter(s), so `" + name_at(context, node) + "` cannot use it", node);
     d.with_label("no `" + name + "` with " + wanted + " parameter(s)");
-    d.with_related_place(place_of_declaration(declared, "declared here, with " + declared.parameters.size().value + " parameter(s)"));
+    d.with_related_place(place_of_declaration(declared, "declared here, with " + declared.parameters.size() + " parameter(s)"));
     if(wanted == 1) {
         d.with_note("`a " + name_at(context, node) + " b` calls `a." + name + "(b)`: the left operand is `self`, so the function takes ONE parameter, the right operand");
         if(declared.parameters.size() == 2 && declared.parameters.at(1).value_type != null && declared.result_type != null) {

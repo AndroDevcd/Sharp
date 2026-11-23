@@ -1,358 +1,188 @@
-mod std;
-
-import (
-    std.io
-)
-
-/**
-* Created by bknun on 9/3/2022
-* 
-* @class synced_list
-*
-* Description:
-* This class serves as the "thread safe" version of @class list<T>: the same
-* growable, array backed list, with every operation run inside lock(self),
-* so several threads may use one synced_list at the same time.
-*
-* Each single call is atomic; a SEQUENCE of calls is not. "if(!l.empty())
-* l.pop_last()" can still fail when another thread empties the list in
-* between. To loop while other threads change the list, loop over a
-* snapshot: foreach (get_elements() copies the elements) or to_list().
-*/
-class synced_list<T base _object_> : loopable<T> {
-    private n_elements : decimal;
-    private data : T[]?;
-    private is_compact: decimal;
-
-    private static const default_capacity := 10;
-    private static const min_capacity := 128;
-
-    synced_list() {
-        data = new T[default_capacity];
-    }
-
-    synced_list(starting_capacity: int) {
-        data = new T[starting_capacity.value];
-    }
-
-    def set_compact(compact_array: int) {
-        lock(self) {
-            is_compact = compact_array.value;
-        }
-    }
-
-    override def get_elements() : T[]? {
-        lock(self) {
-            if(n_elements == 0) return null;
-            else return copy(data!!, 0, n_elements) as T[];
-        }
-    }
-
-    def operator[](index: int): T {
-        lock(self) {
-            if(index.value >= n_elements || index.value < 0)
-                throw new bounds_except(out_of_bounds_msg(index));
-            return data[index.value];
-        }
-    }
-
-    def at(index: int): T {
-        lock(self) {
-            if(index.value >= n_elements || index.value < 0)
-                throw new bounds_except(out_of_bounds_msg(index));
-            return data[index.value];
-        }
-    }
-
-    def last(): T {
-        return at(n_elements - 1);
-    }
-
-    def put(index: int, element: T) : T {
-        lock(self) {
-            if (index.value >= n_elements || index.value < 0)
-                throw new bounds_except(out_of_bounds_msg(index));
-
-            old_val := data[index.value];
-            data[index.value] = element;
-            return old_val;
-        }
-    }
-
-    private def expand() {
-        if(is_compact) {
-            realloc(data!!, sizeof(data) + min_capacity);
-        } else
-            realloc(data!!, sizeof(data) + (sizeof(data) >> 4) + min_capacity);
-    }
-
-    def clear() {
-        lock(self) {
-            if(n_elements > 0) {
-                data = new T[default_capacity];
-                n_elements = 0;
-            }
-        }
-    }
-
-    def pop_last() : T {
-        lock(self) {
-            item := last();
-            pop_back();
-            return item;
-        }
-    }
-
-    def pop_first() : T {
-        lock(self) {
-            if(n_elements > 0) {
-                item := data[0];
-                remove_at(0);
-                return item;
-            } else {
-                throw new bounds_except(out_of_bounds_msg(0));
-            }
-        }
-    }
-
-    /**
-     * Add every element of `lst` at the end of this list, in order. The
-     * whole batch is added under one lock, so other threads see either none
-     * or all of it. `lst` may be empty. O(n).
-     */
-    def add_all(lst: list<T>) {
-        lock(self) {
-            n : decimal = lst.size().value;
-            for(i : decimal = 0; i < n; i++) {
-                if(n_elements >= sizeof(data))
-                    expand();
-                data[n_elements++] = lst.at(i);
-            }
-        }
-    }
-
-    /** The first element. @throws out_of_bounds_exception when the list is empty */
-    def first(): T {
-        return at(0);
-    }
-
-    /** 1 when the list has no elements, otherwise 0 (a native number; empty() answers with a bool object). */
-    def is_empty() : decimal {
-        lock(self) {
-            return n_elements == 0;
-        }
-    }
-
-    /** 1 when an element equals `element` (compared with `==`), otherwise 0. O(n). */
-    def contains(element: T) : decimal {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-                if(element == data[i]) return 1;
-            }
-            return 0;
-        }
-    }
-
-    /**
-     * A snapshot of the elements as an ordinary (not synchronized) list.
-     * The way to loop safely while other threads keep changing this list. O(n).
-     */
-    def to_list() : list<T> {
-        lock(self) {
-            result := new list<T>();
-            for(i : decimal = 0; i < n_elements; i++)
-                result.add(data[i]);
-            return result;
-        }
-    }
-
-    def add(element: T) {
-        lock(self) {
-            if(n_elements >= sizeof(data))
-                expand();
-            data[n_elements++] = element;
-        }
-    }
-
-    def indexof(element: T) : int {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-                if(element == data[i]) {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-    }
-
-    def pop_back() {
-        lock(self) {
-            if(n_elements > 0) {
-                excuse no_val : T;
-                data[--n_elements] = no_val;
-            }
-        }
-    }
-
-    def size() : int {
-        lock(self) {
-            return n_elements;
-        }
-    }
-
-    def empty() : bool {
-        lock(self) {
-            return n_elements==0;
-        }
-    }
-
-    def insert(index: int, element: T) {
-        lock(self) {
-            if(index.value > n_elements || index.value < 0)
-               throw new bounds_except(out_of_bounds_msg(index));
-
-            if(n_elements == 0) {
-                add(element);
-            } else {
-               if(n_elements >= sizeof(data))
-                   expand();
-               n_elements++;
-                for(i : decimal = n_elements - 1; i > index.value; i--)
-                   data[i] = data[i-1];
-                data[index.value] = element;
-            }
-        }
-    }
-
-
-    def remove(val: T) {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-                if(val == data[i]) {
-                    remove_at(i);
-                    return;
-                }
-            }
-        }
-    }
-
-    def remove(val: T, compare_fun: (T, T)(bool)) {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-                if(compare_fun(val, data[i])) {
-                    remove_at(i);
-                    return;
-                }
-            }
-        }
-    }
-
-    def remove_at(index: int) {
-        lock(self) {
-            if(index.value >= n_elements || index.value < 0)
-               throw new bounds_except(out_of_bounds_msg(index));
-
-            num_moved := n_elements - index.value - 1;
-            if (num_moved > 0)
-                memcopy(data!!, data!!, index.value, index.value+1, n_elements);
-
-            pop_back();
-        }
-    }
-
-    def indexof(comparer: T, find_func: (T, T)(bool)) : int {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-                if(find_func(data[i], comparer)) {
-                    return i;
-                }
-            }
-
-            return -1;
-        }
-    }
-
-    def linear_sort(swap: (T, T)(bool)) {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-
-                for (j : decimal = 0; j < n_elements; j++) {
-                    if((j + 1) < n_elements) {
-
-                        if (swap(data[j], data[j+1])) {
-                            tmp := data[j];
-                            data[j] = data[j+1];
-                            data[j+1] = tmp;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    def find(comparer : T, find_func: (T, T)(bool)) : T? {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-                if(find_func(data[i], comparer)) {
-                    return data[i];
-                }
-            }
-
-            return null;
-        }
-    }
-
-    def replace(val: T, compare_fun: (T, T)(decimal)) : bool {
-        lock(self) {
-            for(i : decimal = 0; i < n_elements; i++) {
-                if(compare_fun(val, data[i])) {
-                    data[i] = val;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-    }
-
-    override def to_string() : string? {
-        lock(self) {
-            str := new string_builder();
-
-            str += "[ ";
-            for(i := 0; i < n_elements; i++) {
-                str += data[i];
-
-                if((i + 1) < n_elements) {
-                    str += ", ";
-                }
-            }
-
-            str += " ]";
-            return str.to_string();
-        }
-    }
-
-    override def hash() : int {
-        lock(self) {
-            i : decimal = 0;
-            hash_value := 0;
-            multiplier := 0;
-            const m := 1e9 + 9;
-
-            foreach(item in data) {
-                hash_value = (hash_value + item.hash().value + multiplier) % m;
-                multiplier = i * (i % 10);
-            }
-
-            return hash_value;
-        }
-    }
-
-    private def out_of_bounds_msg(index: int) : string {
-        // (an int object, so the size prints as "3" and not "3.0000000000000000")
-        count : int = n_elements;
-        return "Index: $index, size: $count";
-    }
-}
+mod std;
+
+/**
+* @class synced_list
+*
+* Description:
+* A list<T> that several threads may use at the same time: the same
+* functions, each run inside lock(self).
+*
+* Each single call is atomic; a SEQUENCE of calls is not. "if(!l.is_empty())
+* l.pop_last()" can still fail when another thread empties the list in
+* between. To loop while other threads change the list, loop over a
+* snapshot: foreach (get_elements() copies the elements) or to_list() - and
+* to_list() is also the way to the functions of a list (filter, map ...).
+*/
+class synced_list<T base _object_> : loopable<T> {
+    /** the list that does the work; every use of it is inside lock(self) */
+    private items : list<T>;
+
+    synced_list() {
+        items = new list<T>();
+    }
+
+    synced_list(starting_capacity: int) {
+        items = new list<T>(starting_capacity);
+    }
+
+    /** A copy of the elements as an array, or null when the list is empty (what foreach uses). */
+    override def get_elements() : T[]? {
+        lock(self) { return items.get_elements(); }
+    }
+
+    /** A new array with the elements (length 0 for an empty list). */
+    def to_array() : T[] {
+        lock(self) { return items.to_array(); }
+    }
+
+    /** A new plain list with the elements. */
+    def to_list() : list<T> {
+        lock(self) { return items.sub_list(0, items.size()); }
+    }
+
+    def operator[](index: int): T {
+        lock(self) { return items.at(index); }
+    }
+
+    def at(index: int): T {
+        lock(self) { return items.at(index); }
+    }
+
+    def first(): T {
+        lock(self) { return items.first(); }
+    }
+
+    def last(): T {
+        lock(self) { return items.last(); }
+    }
+
+    /** Replace the element at a position; returns the element that was there. */
+    def put(index: int, element: T) : T {
+        lock(self) { return items.put(index, element); }
+    }
+
+    def add(element: T) {
+        lock(self) { items.add(element); }
+    }
+
+    /** Add every element of a plain list at the end, in order. */
+    def add_all(lst: list<T>) {
+        lock(self) { items.add_all(lst); }
+    }
+
+    def insert(index: int, element: T) {
+        lock(self) { items.insert(index, element); }
+    }
+
+    def clear() {
+        lock(self) { items.clear(); }
+    }
+
+    /** Remove the last element and return it; throws out_of_bounds_exception when the list is empty. */
+    def pop_last() : T {
+        lock(self) { return items.pop_last(); }
+    }
+
+    /** Remove the first element and return it; throws out_of_bounds_exception when the list is empty. */
+    def pop_first() : T {
+        lock(self) { return items.pop_first(); }
+    }
+
+    /** Remove the last element; does nothing when the list is empty. */
+    def pop_back() {
+        lock(self) { items.pop_back(); }
+    }
+
+    /** Remove the first element that equals `val`; does nothing when there is none. */
+    def remove(val: T) {
+        lock(self) { items.remove(val); }
+    }
+
+    /** Remove the first element for which compare_fun(val, element) answers true. */
+    def remove(val: T, compare_fun: (T, T)(bool)) {
+        lock(self) { items.remove(val, compare_fun); }
+    }
+
+    def remove_at(index: int) {
+        lock(self) { items.remove_at(index); }
+    }
+
+    def size() : _int64 {
+        lock(self) { return items.size(); }
+    }
+
+    def is_empty() : bool {
+        lock(self) { return items.is_empty(); }
+    }
+
+    def contains(element: T) : bool {
+        lock(self) { return items.contains(element); }
+    }
+
+    /** Position of the first element that equals `element`, or -1. */
+    def index_of(element: T) : _int64 {
+        lock(self) { return items.index_of(element); }
+    }
+
+    /** Position of the first element for which find_func(element, comparer) answers true, or -1. */
+    def index_of(comparer: T, find_func: (T, T)(bool)) : _int64 {
+        lock(self) { return items.index_of(comparer, find_func); }
+    }
+
+    /** Position of the last element that equals `element`, or -1. */
+    def last_index_of(element: T) : _int64 {
+        lock(self) { return items.last_index_of(element); }
+    }
+
+    /** The first element for which find_func(element, comparer) answers true, or null. */
+    def find(comparer : T, find_func: (T, T)(bool)) : T? {
+        lock(self) { return items.find(comparer, find_func); }
+    }
+
+    /** Replace the first element for which compare_fun(val, element) answers true with `val`. */
+    def replace(val: T, compare_fun: (T, T)(decimal)) : bool {
+        lock(self) { return items.replace(val, compare_fun); }
+    }
+
+    /** Sort in place (see list.sort): no other thread sees the list half sorted. */
+    def sort(compare: (T, T)(decimal)) {
+        lock(self) { items.sort(compare); }
+    }
+
+    /** Reverse the order of the elements in place. */
+    def reverse() {
+        lock(self) { items.reverse(); }
+    }
+
+    /** "[ a, b, c ]" */
+    override def to_string() : string? {
+        elements := to_array();
+        str := new string_builder();
+
+        str += "[ ";
+        for(i : _int64 = 0; i < sizeof(elements); i++) {
+            str += elements[i];
+
+            if((i + 1) < sizeof(elements)) {
+                str += ", ";
+            }
+        }
+
+        str += " ]";
+        return str.to_string();
+    }
+
+    override def hash() : int {
+        elements := to_array();
+        hash_value := 0;
+        multiplier := 0;
+        const m := 1e9 + 9;
+
+        for(i : _int64 = 0; i < sizeof(elements); i++) {
+            hash_value = (hash_value + elements[i].hash().value + multiplier) % m;
+            multiplier = (i + 1) * ((i + 1) % 10);
+        }
+
+        return hash_value;
+    }
+}

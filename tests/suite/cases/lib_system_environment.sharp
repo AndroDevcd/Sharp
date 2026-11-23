@@ -32,17 +32,15 @@ def main(args: string[]) {
         // ---- a value longer than the first buffer, and one with odd characters
         long_value := new char_buffer();
         for(i : decimal = 0; i < 300; i++) { long_value.append("0123456789"); }
-        environment.put("SHARP_SUITE_LONG", long_value.to_string()!!);
+        environment.put("SHARP_SUITE_LONG", long_value.build());
         test("a value of 3000 characters") { expect(sizeof(environment.value("SHARP_SUITE_LONG")!!.data)).should_be(3000); };
-        test("... unchanged") { expect(environment.value("SHARP_SUITE_LONG")!!).should_be(long_value.to_string()!!); };
+        test("... unchanged") { expect(environment.value("SHARP_SUITE_LONG")!!).should_be(long_value.build()); };
         environment.remove("SHARP_SUITE_LONG");
         environment.put("SHARP_SUITE_ODD", "a b;c=d \"e\" %PATH% $$HOME");
         test("spaces, quotes, = and signs come back as they went in") { expect(environment.value("SHARP_SUITE_ODD")!!).should_be("a b;c=d \"e\" %PATH% $$HOME"); };
         environment.remove("SHARP_SUITE_ODD");
 
         // ---- the older way of asking still answers, and the same
-        test("process.environment") { expect(process.environment("PATH")!!).should_be(environment.value("PATH")!!); };
-        test("process.environment of nothing") { expect_true(io_strings.is_null(process.environment("SHARP_SUITE_NO_SUCH_VARIABLE"))); };
 
         // ---- a program this one starts sees what was set
         environment.put("SHARP_SUITE_CHILD", "seen by the child");

@@ -76,7 +76,7 @@ class base64 {
             }
             buf.append_range(flat.data!!, start, end);
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /**

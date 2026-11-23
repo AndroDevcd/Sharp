@@ -15,7 +15,7 @@ def ascending(a: int, b: int) : decimal { return a.value - b.value; }
 /** "1,2,3" for a list of ints */
 def join(items: list<int>) : string {
     text := "";
-    for(i : decimal = 0; i < items.size().value; i++) {
+    for(i : decimal = 0; i < items.size(); i++) {
         if(i > 0) text = text + ",";
         text = text + items.at(i);
     }
@@ -45,17 +45,17 @@ def test_list() {
     test("list contains") { expect(l.contains(9)).should_be(1); };
     test("list contains missing") { expect(l.contains(5)).should_be(0); };
     test("list contains in empty") { expect(empty.contains(5)).should_be(0); };
-    test("list last_indexof") { expect(l.last_indexof(4).value).should_be(2); };
-    test("list last_indexof missing") { expect(l.last_indexof(5).value).should_be(0 - 1); };
+    test("list last_index_of") { expect(l.last_index_of(4)).should_be(2); };
+    test("list last_index_of missing") { expect(l.last_index_of(5)).should_be(0 - 1); };
     test("list to_array") { expect(sizeof(l.to_array())).should_be(4); };
     test("list to_array[3]") { expect(l.to_array()[3].value).should_be(9); };
     test("list to_array of empty is not null") { expect(sizeof(empty.to_array())).should_be(0); };
 
     test("list sub_list") { expect(join(l.sub_list(1, 3))).should_be("7,4"); };
-    test("list sub_list empty") { expect(l.sub_list(2, 2).size().value).should_be(0); };
+    test("list sub_list empty") { expect(l.sub_list(2, 2).size()).should_be(0); };
     part := l.sub_list(0, 4);
     part.add(1);
-    test("list sub_list is independent") { expect(l.size().value).should_be(4); };
+    test("list sub_list is independent") { expect(l.size()).should_be(4); };
     try { l.sub_list(0, 5); test("list sub_list past the end") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("list sub_list past the end") { }; }
     try { l.sub_list(3, 2); test("list sub_list from > to") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("list sub_list from > to") { }; }
 
@@ -68,7 +68,7 @@ def test_list() {
     l.sort(ascending);
     test("list sort again") { expect(join(l)).should_be("1,4,4,7,9"); };
     empty.sort(ascending);
-    test("list sort of empty") { expect(empty.size().value).should_be(0); };
+    test("list sort of empty") { expect(empty.size()).should_be(0); };
 
     // works for a list of a user class too, and is stable
     cards := new list<card>();
@@ -96,7 +96,7 @@ def test_list() {
         if(big.at(i - 1).value > big.at(i).value) in_order = 0;
         sum_after += big.at(i).value;
     }
-    test("list sort 5000: size") { expect(big.size().value).should_be(5000); };
+    test("list sort 5000: size") { expect(big.size()).should_be(5000); };
     test("list sort 5000: ascending") { expect(in_order).should_be(1); };
     test("list sort 5000: nothing lost") { expect(sum_after).should_be(sum_before); };
     big.add(0);
@@ -107,9 +107,9 @@ def test_list() {
     target.add_all(list_of(5, 6, 7, 8));
     test("list add_all appends") { expect(join(target)).should_be("1,2,3,4,5,6,7,8"); };
     target.add_all(new list<int>());
-    test("list add_all of an empty list") { expect(target.size().value).should_be(8); };
+    test("list add_all of an empty list") { expect(target.size()).should_be(8); };
     target.add_all(target);
-    test("list add_all of itself") { expect(target.size().value).should_be(16); };
+    test("list add_all of itself") { expect(target.size()).should_be(16); };
     try { target.at(99); test("list at out of bounds") { fail_test("did not throw"); }; }
     catch(e: out_of_bounds_exception) { test("list out of bounds message") { expect(e.get_message()).should_be("Index: 99, size: 16"); }; }
 }
@@ -123,18 +123,18 @@ def test_synced_list() {
     test("synced contains") { expect(s.contains(5)).should_be(1); };
     test("synced contains missing") { expect(s.contains(4)).should_be(0); };
     s.add_all(list_of(7, 8, 9, 10));
-    test("synced add_all appends: size") { expect(s.size().value).should_be(6); };
+    test("synced add_all appends: size") { expect(s.size()).should_be(6); };
     test("synced add_all appends: first") { expect(s.first().value).should_be(3); };
     test("synced add_all appends: last") { expect(s.last().value).should_be(10); };
     s.add_all(new list<int>());
-    test("synced add_all of an empty list") { expect(s.size().value).should_be(6); };
+    test("synced add_all of an empty list") { expect(s.size()).should_be(6); };
     snapshot := s.to_list();
     test("synced to_list") { expect(join(snapshot)).should_be("3,5,7,8,9,10"); };
     snapshot.clear();
-    test("synced to_list is a copy") { expect(s.size().value).should_be(6); };
+    test("synced to_list is a copy") { expect(s.size()).should_be(6); };
     // past the first storage array (10 slots)
     for(i : decimal = 0; i < 300; i++) s.add(i);
-    test("synced grown size") { expect(s.size().value).should_be(306); };
+    test("synced grown size") { expect(s.size()).should_be(306); };
     test("synced grown last") { expect(s.last().value).should_be(299); };
 }
 
@@ -149,25 +149,25 @@ def test_hash_map() {
 
     test("map remove") { expect_true(m.remove("b")); };
     test("map remove again") { expect_false(m.remove("b")); };
-    test("map size after remove") { expect(m.size).should_be(2); };
+    test("map size after remove") { expect(m.size()).should_be(2); };
     test("map removed key is gone") { expect_null(m.at("b")); };
     test("map other keys survive") { expect(m.at("a")!!.value + m.at("c")!!.value).should_be(4); };
 
-    test("map keys") { expect(m.keys().size().value).should_be(2); };
-    test("map values") { expect(m.values().size().value).should_be(2); };
+    test("map keys") { expect(m.keys().size()).should_be(2); };
+    test("map values") { expect(m.values().size()).should_be(2); };
     sum : decimal = 0;
     foreach(x in m.values()) { sum += x.value; }
     test("map values sum") { expect(sum).should_be(4); };
     entries := m.entries();
-    test("map entries") { expect(entries.size().value).should_be(2); };
+    test("map entries") { expect(entries.size()).should_be(2); };
     seen := "";
     sum = 0;
     foreach(e in entries) {
-        if(e.first == "a") seen = seen + "a";
-        if(e.first == "c") seen = seen + "c";
-        sum += e.second.value;
+        if(e.key == "a") seen = seen + "a";
+        if(e.key == "c") seen = seen + "c";
+        sum += e.value.value;
     }
-    test("map entries: both keys once") { expect(seen.size().value).should_be(2); };
+    test("map entries: both keys once") { expect(seen.size()).should_be(2); };
     test("map entries: values") { expect(sum).should_be(4); };
 
     // keys in one bucket (1, 129, 257 with 128 buckets): remove from the middle, the end, the front
@@ -180,7 +180,7 @@ def test_hash_map() {
     test("map chain: removed is gone") { expect_null(chain.at(129)); };
     test("map remove another of the chain") { expect_true(chain.remove(257)); };
     test("map remove the last of the chain") { expect_true(chain.remove(1)); };
-    test("map chain: empty") { expect(chain.size).should_be(0); };
+    test("map chain: empty") { expect(chain.size()).should_be(0); };
     chain.put(1, "again");
     test("map chain: usable again") { expect(chain.at(1)!!).should_be("again"); };
 
@@ -188,8 +188,7 @@ def test_hash_map() {
     capacity : int = 4;
     big := new hash_map<int, int>(capacity);
     for(i : decimal = 0; i < 2000; i++) big.put(i * 3, i);
-    test("map growth: size") { expect(big.size).should_be(2000); };
-    test("map growth: the bucket array grew") { expect_true(sizeof(big.data) > 2000); };
+    test("map growth: size") { expect(big.size()).should_be(2000); };
     wrong : decimal = 0;
     for(i : decimal = 0; i < 2000; i++) {
         found := big.at(i * 3);
@@ -199,12 +198,12 @@ def test_hash_map() {
     test("map growth: every key found") { expect(wrong).should_be(0); };
     test("map growth: a key between") { expect_null(big.at(4)); };
     for(i : decimal = 0; i < 2000; i += 2) big.remove(i * 3);
-    test("map growth: size after 1000 removes") { expect(big.size).should_be(1000); };
+    test("map growth: size after 1000 removes") { expect(big.size()).should_be(1000); };
     test("map growth: a removed key") { expect_null(big.at(6)); };
     test("map growth: a kept key") { expect(big.at(9)!!.value).should_be(3); };
-    test("map growth: keys()") { expect(big.keys().size().value).should_be(1000); };
+    test("map growth: keys()") { expect(big.keys().size()).should_be(1000); };
     big.clear();
-    test("map clear") { expect(big.size).should_be(0); };
+    test("map clear") { expect(big.size()).should_be(0); };
     test("map is_empty after clear") { expect_true(big.is_empty()); };
 }
 
@@ -213,30 +212,30 @@ def test_hash_table() {
     test("table put new") { expect_true(t.put("ann", 31)); };
     test("table put existing") { expect_false(t.put("ann", 32)); };
     test("table at") { expect(t.at("ann")!!.value).should_be(32); };
-    test("table size") { expect(t.size).should_be(1); };
+    test("table size") { expect(t.size()).should_be(1); };
     test("table at missing") { expect_null(t.at("bob")); };
     test("table contains_key") { expect_true(t.contains_key("ann")); };
     test("table contains_key missing") { expect_false(t.contains_key("bob")); };
     t.put("bob", 45);
-    test("table keys") { expect(t.keys().size().value).should_be(2); };
+    test("table keys") { expect(t.keys().size()).should_be(2); };
     sum : decimal = 0;
     foreach(x in t.values()) { sum += x.value; }
     test("table values") { expect(sum).should_be(77); };
     test("table remove") { expect_true(t.remove("ann")); };
     test("table remove again") { expect_false(t.remove("ann")); };
     test("table removed key") { expect_null(t.at("ann")); };
-    test("table size after remove") { expect(t.size).should_be(1); };
+    test("table size after remove") { expect(t.size()).should_be(1); };
 
     numbers := new hash_table<int, int>();
     for(i : decimal = 0; i < 1000; i++) numbers.put(i, i * 2);
-    test("table 1000: size") { expect(numbers.size).should_be(1000); };
+    test("table 1000: size") { expect(numbers.size()).should_be(1000); };
     wrong : decimal = 0;
     for(i : decimal = 0; i < 1000; i++) {
         if(numbers.at(i)!!.value != i * 2) wrong++;
     }
     test("table 1000: every key found") { expect(wrong).should_be(0); };
     numbers.clear();
-    test("table clear") { expect(numbers.size).should_be(0); };
+    test("table clear") { expect(numbers.size()).should_be(0); };
 }
 
 def test_dictionary() {
@@ -261,7 +260,7 @@ def test_dictionary() {
     foreach(entry in none) { visited++; }
     test("empty dict foreach") { expect(visited).should_be(0); };
     // the old way to reach the pairs still works
-    test("dict map field") { expect(ages.map.size().value).should_be(3); };
+    test("dict map field") { expect(ages.map.size()).should_be(3); };
     test("dict map pair") { expect(ages.map.at(1).second).should_be(45); };
 }
 

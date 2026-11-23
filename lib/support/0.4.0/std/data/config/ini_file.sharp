@@ -76,7 +76,7 @@ class ini_file {
     def read_text(text: string) {
         lines := io_strings.split_lines(text);
         current : string = "";
-        total : decimal = lines.size().value;
+        total : decimal = lines.size();
         for(i : decimal = 0; i < total; i++) {
             line := io_strings.trim(lines.at(i));
             n : decimal = sizeof(line.data);
@@ -143,30 +143,30 @@ class ini_file {
                 i++;
             }
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** true when the value has to be written in quotes to be read back unchanged */
-    private static def needs_quotes(value: string) : decimal {
+    private static def needs_quotes(value: string) : bool {
         n : decimal = sizeof(value.data);
         if(n == 0) {
-            return 0;
+            return false;
         }
-        if(io_strings.is_space(value.data[0]) || io_strings.is_space(value.data[n - 1]) || value.data[0] == '"') {
-            return 1;
+        if(character.is_whitespace(value.data[0]) || character.is_whitespace(value.data[n - 1]) || value.data[0] == '"') {
+            return true;
         }
         for(i : decimal = 0; i < n; i++) {
             ch : decimal = value.data[i];
             if(ch == '\n' || ch == '\r' || ch == '\t') {
-                return 1;
+                return true;
             }
         }
-        return 0;
+        return false;
     }
 
     /** the position of the section `name` in the list, or -1 */
     private def section_index(name: string) : decimal {
-        total : decimal = all_sections.size().value;
+        total : decimal = all_sections.size();
         for(i : decimal = 0; i < total; i++) {
             if(io_strings.equals(all_sections.at(i).name(), name)) {
                 return i;
@@ -203,7 +203,7 @@ class ini_file {
     /** the names of all sections in order ("" for the global section, when it has entries) */
     def sections() : list<string> {
         result := new list<string>();
-        total : decimal = all_sections.size().value;
+        total : decimal = all_sections.size();
         for(i : decimal = 0; i < total; i++) {
             result.add(all_sections.at(i).name());
         }
@@ -325,7 +325,7 @@ class ini_file {
             throw new illegal_argument_exception("ini: the key cannot be empty");
         }
         first : decimal = name.data[0];
-        if(first == '[' || first == ';' || first == '#' || io_strings.is_space(first) || io_strings.is_space(name.data[n - 1])) {
+        if(first == '[' || first == ';' || first == '#' || character.is_whitespace(first) || character.is_whitespace(name.data[n - 1])) {
             throw new illegal_argument_exception("ini: a key cannot start with '[', ';' or '#' or have spaces around it: " + name);
         }
         for(i : decimal = 0; i < n; i++) {
@@ -358,7 +358,7 @@ class ini_file {
     /** the number of entries in all sections together */
     def size() : decimal {
         count : decimal = 0;
-        total : decimal = all_sections.size().value;
+        total : decimal = all_sections.size();
         for(i : decimal = 0; i < total; i++) {
             count += all_sections.at(i).size();
         }
@@ -378,7 +378,7 @@ class ini_file {
         if(global_at >= 0) {
             write_entries(buf, all_sections.at(global_at));
         }
-        total : decimal = all_sections.size().value;
+        total : decimal = all_sections.size();
         for(i : decimal = 0; i < total; i++) {
             if(i == global_at) {
                 continue;

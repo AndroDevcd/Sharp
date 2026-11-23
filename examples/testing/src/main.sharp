@@ -22,7 +22,7 @@ class basket {
     private items : list<string> = new list<string>();
 
     def add(item: string) { items.add(item); }
-    def count() : _int64 { return items.size().value; }
+    def count() : _int64 { return items.size(); }
     def at(index: _int64) : string { return items.at(index); }
     def is_empty() : _int64 {
         if(count() == 0) { return 1; }

@@ -51,7 +51,7 @@ def propagate_copies(analyses: function_analyses, numbers: _int64, references: _
     index := new _int64[slots + 1];
     followed_slots := new number_list();
     for(s : _int64 = 0; s <= slots; s++) { index[s] = 0 - 1; }
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := code.instructions.at(i);
         if(is_plain_copy(made) && index[made.target] < 0) {

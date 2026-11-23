@@ -45,8 +45,8 @@ class tree_set<T> : loopable<T>, iterable<T> {
         return members.size();
     }
 
-    /** 1 when the set has no elements, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when the set has no elements. O(1). */
+    def is_empty() : bool {
         return members.is_empty();
     }
 
@@ -54,9 +54,9 @@ class tree_set<T> : loopable<T>, iterable<T> {
      * Add an element unless the set already holds one that compares as
      * equal. O(log n).
      *
-     * @return 1 when the element was added, 0 when it was already there
+     * @return true when the element was added, false when it was already there
      */
-    def add(element: T) : decimal {
+    def add(element: T) : bool {
         return members.put_if_absent(element, element);
     }
 
@@ -67,23 +67,23 @@ class tree_set<T> : loopable<T>, iterable<T> {
      */
     def add_all(elements: list<T>) : decimal {
         added : decimal = 0;
-        n : decimal = elements.size().value;
+        n : decimal = elements.size();
         for(i : decimal = 0; i < n; i++)
             added += add(elements.at(i));
         return added;
     }
 
-    /** 1 when the set holds the element, otherwise 0. O(log n). */
-    def contains(element: T) : decimal {
+    /** true when the set holds the element. O(log n). */
+    def contains(element: T) : bool {
         return members.contains_key(element);
     }
 
     /**
      * Remove an element. O(log n).
      *
-     * @return 1 when it was removed, 0 when the set did not hold it
+     * @return true when it was removed, false when the set did not hold it
      */
-    def remove(element: T) : decimal {
+    def remove(element: T) : bool {
         return members.remove(element);
     }
 

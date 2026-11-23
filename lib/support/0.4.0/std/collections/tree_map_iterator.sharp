@@ -34,10 +34,10 @@ class tree_map_iterator<K, V> : iterator<map_entry<K, V> > {
         }
     }
 
-    /** 1 while there are pairs left, otherwise 0. O(1). */
-    override def has_next() : decimal {
-        if(current == null) return 0;
-        return 1;
+    /** 1 while there are pairs left. O(1). */
+    override def has_next() : bool {
+        if(current == null) return false;
+        return true;
     }
 
     /**

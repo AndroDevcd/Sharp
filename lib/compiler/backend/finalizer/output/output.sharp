@@ -23,6 +23,7 @@ import (
  *      output.sharp            this front door: write_executable
  *      byte_buffer.sharp       the bytes: big-endian int32, texts, flag chars
  *      sections.sharp          header, manifest, symbols, strings, constants, data, code, meta
+ *      debug_locals.sharp      with -dbg, what the debugger needs: the names of local variables, which fields are bools
  *
  * (The texts of the decimal constants are made when the code is: layout/tables.sharp.)
  *
@@ -39,6 +40,7 @@ def executable_bytes(layout: program_layout, options: executable_options) : _int
     write_code(out, layout);
     write_meta(out, layout, options);
     write_externs(out, layout, options);
+    write_debugger_section(out, layout, options);
     return out.to_array();
 }
 
@@ -65,8 +67,8 @@ def write_executable(layout: program_layout, options: executable_options, path: 
  */
 def why_not_written(path: string) : string {
     folder : string = ".";
-    parent : string? = file_natives.parent_of(path);
-    if(parent != null && sizeof(parent!!.data) > 0) { folder = parent!!; }
+    parent : string = std.io#path.parent(path);
+    if(sizeof(parent.data) > 0) { folder = parent; }
     into := new file(folder);
     if(!into.exists()) {
         return "could not write `" + path + "`: the folder `" + folder + "` does not exist\n  = help: make it first (`mkdir -p " + folder + "`), or write the executable somewhere else with -o";

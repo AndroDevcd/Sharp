@@ -59,7 +59,7 @@ def remove_unreachable_code(analyses: function_analyses) : _int64 {
  * block is reached by falling into it.
  */
 def can_have_unreachable_code(code: ir_function) : _int64 {
-    last : _int64 = (code.instructions.size().value as _int64) - 1;
+    last : _int64 = code.instructions.size() - 1;
     for(i : _int64 = 0; i < last; i++) {
         if(ends_the_way(code.instructions.at(i))) { return 1; }
     }

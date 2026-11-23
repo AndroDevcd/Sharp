@@ -338,7 +338,7 @@ def test_iteration() {
     for(i : decimal = 1; i <= 4; i++) { other.send(i * i); }
     other.close();
     items := other.to_list();
-    test("to_list size") { expect(items.size().value).should_be(4); };
+    test("to_list size") { expect(items.size()).should_be(4); };
     test("to_list first") { expect(items.at(0).value).should_be(1); };
     test("to_list last") { expect(items.at(3).value).should_be(16); };
 

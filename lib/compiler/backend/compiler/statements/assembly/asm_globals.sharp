@@ -136,7 +136,7 @@ def function_address(context: analysis_context, name: string, named: list<sharp_
     made := new bound_asm_operand(ASM_FUNCTION);
     made.function = functions.at(0);
     if(functions.size() > 1) {
-        d := problem_at(context, "W1042", "`" + name + "` has " + (functions.size().value as _int64) + " overloads; this operand is the address of `"
+        d := problem_at(context, "W1042", "`" + name + "` has " + functions.size() + " overloads; this operand is the address of `"
                         + signature_of(functions.at(0)) + "`", node);
         d.with_label("nothing here says which `" + name + "` is meant");
         d.with_related_place(place_of_declaration(functions.at(0), "the one taken: the first declared"));

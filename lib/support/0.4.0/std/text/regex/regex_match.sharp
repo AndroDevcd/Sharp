@@ -44,7 +44,7 @@ class regex_match {
     /** Throws out_of_bounds_exception unless 0 <= group <= group_count(). */
     private def check_group(index: decimal) {
         if(index < 0 || index >= groups)
-            throw new bounds_except("there is no group " + number_format.integer(index)
+            throw new out_of_bounds_exception("there is no group " + number_format.integer(index)
                 + "; the pattern has " + number_format.integer(groups - 1) + " groups");
     }
 
@@ -74,10 +74,10 @@ class regex_match {
     }
 
     /**
-     * 1 if group `index` took part in the match (even if it matched "").
+     * true if group `index` took part in the match (even if it matched "").
      * Throws out_of_bounds_exception if the pattern has no such group.
      */
-    def has_group(index: int): decimal {
+    def has_group(index: int): bool {
         check_group(index.value);
         return positions[index.value * 2] >= 0;
     }

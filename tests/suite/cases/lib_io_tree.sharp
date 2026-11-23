@@ -14,12 +14,12 @@ import ( std.testing, std.io )
 
 /** is this windows? (its paths are written with back slashes) */
 def on_windows(): bool {
-    return file.separator_char() != '/';
+    return std.io#path.separator() != '/';
 }
 
 /** `path`, written with slashes here, the way this system writes it */
 def os(path: string): string {
-    return io_strings.replace_char(path, '/', file.separator_char());
+    return io_strings.replace_char(path, '/', std.io#path.separator());
 }
 
 /** the folder this test works in: below /tmp, or on windows below the directory for temporary files */
@@ -37,14 +37,14 @@ def at(name: string): file {
 def names_of(files: list<file>): string {
     buf := new char_buffer();
     skip : decimal = io_strings.length(base_dir) + 1;
-    count : decimal = files.size().value;
+    count : decimal = files.size();
     for(i : decimal = 0; i < count; i++) {
         if(i > 0) {
             buf.append_char(' ');
         }
-        buf.append(io_strings.replace_char(io_strings.slice_from(files.at(i).get_path(), skip), file.separator_char(), '/'));
+        buf.append(io_strings.replace_char(io_strings.slice_from(files.at(i).path, skip), std.io#path.separator(), '/'));
     }
-    return buf.to_string()!!;
+    return buf.build();
 }
 
 /**
@@ -81,7 +81,7 @@ def test_mkdirs_and_listing() {
     build_tree();
     t := at("t");
     test("list") { expect(io_strings.join(t.list_names(), " ")).should_be(".dot a.txt b.md empty sub"); };
-    test("list of empty directory") { expect(at("t/empty").list_names().size().value).should_be(0); };
+    test("list of empty directory") { expect(at("t/empty").list_names().size()).should_be(0); };
     test("list_files") { expect(names_of(t.list_files())).should_be("t/.dot t/a.txt t/b.md t/empty t/sub"); };
     only_dirs := t.list_files({ f: file -> (bool) return f.is_directory(); });
     test("list_files with filter") { expect(names_of(only_dirs)).should_be("t/empty t/sub"); };
@@ -114,7 +114,7 @@ def test_walker() {
     test("directories_only") { expect(names_of(new directory_walker(t).directories_only().to_list())).should_be("t/empty t/sub t/sub/deep t/sub/deep/deeper"); };
     test("max depth 1") { expect(names_of(new directory_walker(t).set_max_depth(1).to_list())).should_be("t/.dot t/a.txt t/b.md t/empty t/sub"); };
     test("max depth 2") { expect(names_of(new directory_walker(t).set_max_depth(2).files_only().to_list())).should_be("t/.dot t/a.txt t/b.md t/sub/c.txt"); };
-    test("max depth 0") { expect(new directory_walker(t).set_max_depth(0).to_list().size().value).should_be(0); };
+    test("max depth 0") { expect(new directory_walker(t).set_max_depth(0).to_list().size()).should_be(0); };
     test("include_root") { expect(names_of(new directory_walker(at("t/sub/deep")).include_root().to_list())).should_be("t/sub/deep t/sub/deep/d.txt t/sub/deep/deeper"); };
 
     txt := new directory_walker(t);
@@ -144,8 +144,8 @@ def test_walker() {
     try { new directory_walker(t).set_max_depth(0 - 1); test("negative depth") { fail_test("no exception"); }; }
     catch(e: illegal_argument_exception) { test("negative depth") { }; }
 
-    test("walker on a plain file") { expect(new directory_walker(at("t/a.txt")).to_list().size().value).should_be(0); };
-    test("walker on a plain file with root") { expect(new directory_walker(at("t/a.txt")).include_root().to_list().size().value).should_be(1); };
+    test("walker on a plain file") { expect(new directory_walker(at("t/a.txt")).to_list().size()).should_be(0); };
+    test("walker on a plain file with root") { expect(new directory_walker(at("t/a.txt")).include_root().to_list().size()).should_be(1); };
     test("for_each count") { expect(new directory_walker(t).for_each({ f: file -> f.exists(); })).should_be(9); };
 
     // a deep chain: no recursion, so depth is no problem (but the default limit is 64)
@@ -154,9 +154,9 @@ def test_walker() {
     for(i : decimal = 0; i < 80; i++) {
         chain.append("/n");
     }
-    at(chain.to_string()!!).mkdirs();
-    test("default depth limit") { expect(new directory_walker(at("deepchain")).to_list().size().value).should_be(64); };
-    test("raised depth limit") { expect(new directory_walker(at("deepchain")).set_max_depth(200).to_list().size().value).should_be(80); };
+    at(chain.build()).mkdirs();
+    test("default depth limit") { expect(new directory_walker(at("deepchain")).to_list().size()).should_be(64); };
+    test("raised depth limit") { expect(new directory_walker(at("deepchain")).set_max_depth(200).to_list().size()).should_be(80); };
     test("delete deep chain") { expect_true(at("deepchain").delete_recursively()); };
 }
 
@@ -221,8 +221,8 @@ def test_listing_fallback() {
     t := base_dir + "/t";
     test("shell listing is the default") { expect_true(directory_listing.is_shell_enabled()); };
     test("names") { expect(io_strings.join(directory_listing.names(t), " ")).should_be(".dot a.txt b.md empty sub"); };
-    test("names of a file") { expect(directory_listing.names(t + "/a.txt").size().value).should_be(0); };
-    test("names of missing") { expect(directory_listing.names(t + "/nope").size().value).should_be(0); };
+    test("names of a file") { expect(directory_listing.names(t + "/a.txt").size()).should_be(0); };
+    test("names of missing") { expect(directory_listing.names(t + "/nope").size()).should_be(0); };
 
     // the runtime call alone: no hidden files, no empty directories
     test("names_from_runtime") { expect(io_strings.join(directory_listing.names_from_runtime(t), " ")).should_be("a.txt b.md sub"); };
@@ -291,7 +291,7 @@ def test_file_utils() {
     test("write_text creates directories") { expect_true(file_utils.is_file(root + "/x/y/z.txt")); };
     test("read_text") { expect(file_utils.read_text(root + "/x/y/z.txt")).should_be("hello"); };
     file_utils.append_text(root + "/x/y/z.txt", "\nworld\n");
-    test("read_lines") { expect(file_utils.read_lines(root + "/x/y/z.txt").size().value).should_be(2); };
+    test("read_lines") { expect(file_utils.read_lines(root + "/x/y/z.txt").size()).should_be(2); };
     file_utils.append_text(root + "/new/app.txt", "first");
     test("append_text creates") { expect(file_utils.read_text(root + "/new/app.txt")).should_be("first"); };
     lines := new list<string>();
@@ -316,7 +316,7 @@ def test_file_utils() {
     test("touched file is empty") { expect(file_utils.size_of_tree(root + "/touched/t.txt")).should_be(0); };
     new file(root + "/touched/t.txt").set_last_modified(1000000000);
     file_utils.touch(root + "/touched/t.txt");
-    test("touch updates the time") { expect_true(new file(root + "/touched/t.txt").last_modified().value > 1500000000); };
+    test("touch updates the time") { expect_true(new file(root + "/touched/t.txt").last_modified() > 1500000000); };
 
     test("list_tree") { expect(io_strings.join(file_utils.list_tree(root + "/x"), " ")).should_be("y y/z.txt"); };
     test("count_files") { expect(file_utils.count_files(root)).should_be(4); };

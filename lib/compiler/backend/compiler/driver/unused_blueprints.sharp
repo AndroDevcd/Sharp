@@ -81,11 +81,11 @@ class stand_in_marks {
     problems : _int64;              // analysis_session.problems
 
     stand_in_marks(session: analysis_session) {
-        instances = session.prog.generic_instances.size().value as _int64;
-        function_instances = session.prog.pending_functions.size().value as _int64;
-        analysed_functions = session.analysed_functions.size().value as _int64;
-        requests = session.unsettled_requests.size().value as _int64;
-        problems = session.problems.size().value as _int64;
+        instances = session.prog.generic_instances.size();
+        function_instances = session.prog.pending_functions.size();
+        analysed_functions = session.analysed_functions.size();
+        requests = session.unsettled_requests.size();
+        problems = session.problems.size();
     }
 }
 
@@ -95,33 +95,33 @@ def analyse_unused_blueprints(session: analysis_session) : stand_in_marks {
     marks := new stand_in_marks(session);
 
     // 1. the generic classes nothing made an instance of
-    classes : _int64 = prog.all_classes.size().value as _int64;       // (fixed: making instances may add classes)
+    classes : _int64 = prog.all_classes.size();       // (fixed: making instances may add classes)
     for(i : _int64 = 0; i < classes; i++) {
         declared := prog.all_classes.at(i);
         if(!declared.is_generic() || has_instances(declared)) { continue; }
         if(declared.owner != null && declared.owner!!.is_open()) { continue; }
         nowhere := new sharp_type(TYPE_NAMED, declared.unit, 0 - 1);    // (no place names it: -1)
-        instantiate(prog, declared, unknown_types(session, declared.type_parameters.size().value as _int64), nowhere, null, session.problems);
+        instantiate(prog, declared, unknown_types(session, declared.type_parameters.size()), nowhere, null, session.problems);
     }
     analyse_work_list(session, marks.instances, marks.function_instances);
 
     // 2. the generic functions nothing made an instance of. After the classes: a generic
     //    function of a generic class is looked for in the instances that exist by now,
     //    the stand-ins of step 1 among them
-    before : _int64 = prog.pending_functions.size().value as _int64;
-    blueprints : _int64 = prog.generic_functions.size().value as _int64;
+    before : _int64 = prog.pending_functions.size();
+    blueprints : _int64 = prog.generic_functions.size();
     for(i : _int64 = 0; i < blueprints; i++) {
         function : sharp_function? = copy_to_stand_in_for(prog.generic_functions.at(i));
         if(function == null) { continue; }
-        instantiate_function(prog, function!!, unknown_types(session, function!!.type_parameters.size().value as _int64));
+        instantiate_function(prog, function!!, unknown_types(session, function!!.type_parameters.size()));
     }
-    analyse_work_list(session, prog.generic_instances.size().value as _int64, before);
+    analyse_work_list(session, prog.generic_instances.size(), before);
     return marks;
 }
 
 /** has the program made an instance of this generic class? */
 def has_instances(blueprint: sharp_class) : _int64 {
-    return blueprint.instance_list != null && blueprint.instance_list!!.size().value > 0;
+    return blueprint.instance_list != null && blueprint.instance_list!!.size() > 0;
 }
 
 /** `count` times "not known": the type arguments of a stand-in */

@@ -1,0 +1,25 @@
+mod app;
+
+import ( std.io, std.io.coroutines )
+
+/**
+ * A program for sdb's tests of pausing (Ctrl+C): started with "spin" it
+ * computes for a long time; started with "sleep" every thread sleeps.
+ */
+def spin(turns: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < turns; i++) {
+        total += i % 7;
+    }
+    return total;
+}
+
+def main(args: string[]) {
+    if(sizeof(args) > 0 && args[0] == "sleep") {
+        println("sleeping");
+        delay(60000);
+    } else {
+        println("spinning");
+        println("" + spin(4000000000));
+    }
+}

@@ -27,7 +27,7 @@ mutate list {
     // a field the class did not have, private to it like any of its own
     private touched : decimal = 0;
 
-    def is_blank() : decimal { return size().value == 0; }
+    def is_blank() : decimal { return size() == 0; }
     def touch() { touched = touched + 1; }
     def touches() : decimal { return touched; }
 }

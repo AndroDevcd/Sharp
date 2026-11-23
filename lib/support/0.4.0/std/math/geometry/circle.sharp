@@ -130,7 +130,7 @@ class circle {
 
     /** the point on the border in direction `radians` from the centre (0 = +x, counter clockwise) */
     def point_at(radians: decimal): vector2 {
-        return new vector2(x + radius * cos_of(radians), y + radius * sin_of(radians));
+        return new vector2(x + radius * cos(radians), y + radius * sin(radians));
     }
 
     /** the same circle moved by (dx, dy) */

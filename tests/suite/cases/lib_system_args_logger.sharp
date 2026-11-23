@@ -57,8 +57,8 @@ def test_args() {
     test("missing optional positional is empty") { expect(p.value("target")).should_be(""); };
     test("value_or") { expect(p.value_or("target", "same")).should_be("same"); };
     test("optional option missing") { expect_false(p.has("include")); };
-    test("values of a missing option") { expect(p.values("include").size().value).should_be(0); };
-    test("no extra arguments") { expect(p.rest().size().value).should_be(0); };
+    test("values of a missing option") { expect(p.values("include").size()).should_be(0); };
+    test("no extra arguments") { expect(p.rest().size()).should_be(0); };
     test("help not requested") { expect_false(p.help_requested()); };
 
     p.parse_list(line("--verbose|--jobs|8|--output=dir with space|src|dst|--dry-run"));
@@ -322,7 +322,7 @@ def test_logger() {
     test("flush") { expect(target.read_text()).should_be("earlier line\nINFO  [app] one\nINFO  [app] two\n"); };
     flog.warn("three");
     flog.close();
-    test("close writes the rest") { expect(target.read_lines().size().value).should_be(4); };
+    test("close writes the rest") { expect(target.read_lines().size()).should_be(4); };
     again := new logger("app");
     again.set_timestamps(false).add_file(target);
     again.error("four");
@@ -330,6 +330,37 @@ def test_logger() {
     test("a new logger appends") { expect(target.read_lines().at(4)).should_be("ERROR [app] four"); };
     try { new logger("x").add_file(new file(base_dir)); test("directory as log file") { fail_test("no exception"); }; }
     catch(e: io_exception) { test("directory as log file") { }; }
+
+    // a file that starts anew when it is full: lines of 20 bytes ("INFO  [r] line 0001" and the line end), room for 3
+    turning : string = base_dir + "/turn.log";
+    rlog := new logger("r");
+    rlog.set_timestamps(false).add_rotating_file(turning, 60, 2);
+    test("rotating: counts as a target") { expect(rlog.target_count()).should_be(1); };
+    rlog.info("line 0001");
+    rlog.info("line 0002");
+    rlog.info("line 0003");
+    test("rotating: appended, on disk at once") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0001\nINFO  [r] line 0002\nINFO  [r] line 0003\n"); };
+    test("rotating: not full yet, no old file") { expect_false(new file(turning + ".1").exists()); };
+    rlog.info("line 0004");
+    test("rotating: the full file became .1") { expect(new file(turning + ".1").read_text()).should_be("INFO  [r] line 0001\nINFO  [r] line 0002\nINFO  [r] line 0003\n"); };
+    test("rotating: a new file was started") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0004\n"); };
+    rlog.info("line 0005");
+    rlog.info("line 0006");
+    rlog.info("line 0007");
+    test("rotating: .1 became .2") { expect(new file(turning + ".2").read_lines().at(0)).should_be("INFO  [r] line 0001"); };
+    test("rotating: the second full file is .1") { expect(new file(turning + ".1").read_lines().at(0)).should_be("INFO  [r] line 0004"); };
+    rlog.info("line 0008");
+    rlog.info("line 0009");
+    rlog.info("line 0010");
+    test("rotating: the oldest is dropped (2 are kept)") { expect(new file(turning + ".2").read_lines().at(0)).should_be("INFO  [r] line 0004"); };
+    test("rotating: no third old file") { expect_false(new file(turning + ".3").exists()); };
+    test("rotating: the current file") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0010\n"); };
+    rlog.close();
+    more := new logger("r");
+    more.set_timestamps(false).add_rotating_file(turning, 60, 2);
+    more.info("line 0011");
+    more.close();
+    test("rotating: a new logger goes on in the same file") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0010\nINFO  [r] line 0011\n"); };
 }
 
 def always_fails() {

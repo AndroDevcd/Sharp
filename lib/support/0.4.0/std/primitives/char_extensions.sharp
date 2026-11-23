@@ -1,75 +1,64 @@
 mod std;
 
 /**
- * Extra methods for the `char` class, added with a `mutate` declaration;
- * std/primatives.sharp itself is unchanged.
- *
- * The class already has STATIC tests that take a char (char.is_digit(c),
- * char.is_alpha(c), char.to_upper(c) ...). These are the matching INSTANCE
- * methods, called on the character itself, plus a few that were missing:
+ * The questions of `character` asked of a `char` object itself:
  *
  *     c : char = 'G';
- *     c.is_upper_case()         // true
- *     c.lower_case().value            // 'g'
- *     c.is_hex_digit()          // false
+ *     c.is_upper()                    // true
+ *     c.to_lower().value              // 'g'
+ *     c.is_hex_digit()                // false
  *     digit : char = '7';
  *     digit.digit_value()             // 7
  *     char.from_digit(11).value       // 'b'
  *
- * Only the ASCII range is covered (codes 0 .. 127); other codes are neither
- * letters nor digits nor whitespace.
+ * Each one is the function of the same name of `character`, which takes the
+ * code of a character (a plain number) and says what is covered: the ASCII
+ * range, codes 0 .. 127.
  */
 mutate char {
-
     /** true for the capital letters A .. Z */
-    def is_upper_case(): bool {
-        return value >= 'A' && value <= 'Z';
+    def is_upper(): bool {
+        return character.is_upper(value);
     }
 
     /** true for the small letters a .. z */
-    def is_lower_case(): bool {
-        return value >= 'a' && value <= 'z';
+    def is_lower(): bool {
+        return character.is_lower(value);
     }
 
     /** true for the letters A .. Z and a .. z */
     def is_letter(): bool {
-        return (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z');
+        return character.is_letter(value);
     }
 
     /** true for the decimal digits 0 .. 9 */
-    def is_decimal_digit(): bool {
-        return value >= '0' && value <= '9';
+    def is_digit(): bool {
+        return character.is_digit(value);
     }
 
     /** true for letters and decimal digits */
     def is_letter_or_digit(): bool {
-        return (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') || (value >= '0' && value <= '9');
+        return character.is_letter_or_digit(value);
     }
 
     /** true for the hexadecimal digits 0 .. 9, a .. f and A .. F */
     def is_hex_digit(): bool {
-        return (value >= '0' && value <= '9') || (value >= 'a' && value <= 'f') || (value >= 'A' && value <= 'F');
+        return character.is_hex_digit(value);
     }
 
-    /**
-     * True for the characters that only make space: the blank (32), tab
-     * (9), line feed (10), vertical tab (11), form feed (12) and carriage
-     * return (13).
-     */
+    /** true for the characters that only make space: blank, tab, line feed, vertical tab, form feed, carriage return */
     def is_whitespace(): bool {
-        return value == 32 || (value >= 9 && value <= 13);
+        return character.is_whitespace(value);
     }
 
     /** the capital form of a small letter; every other character is returned as it is */
-    def upper_case(): char {
-        if(value >= 'a' && value <= 'z') return new char(value - 32);
-        return new char(value);
+    def to_upper(): char {
+        return new char(character.to_upper(value));
     }
 
     /** the small form of a capital letter; every other character is returned as it is */
-    def lower_case(): char {
-        if(value >= 'A' && value <= 'Z') return new char(value + 32);
-        return new char(value);
+    def to_lower(): char {
+        return new char(character.to_lower(value));
     }
 
     /**
@@ -78,10 +67,7 @@ mutate char {
      * any base up to 36). -1 for every other character.
      */
     def digit_value(): decimal {
-        if(value >= '0' && value <= '9') return value - '0';
-        if(value >= 'a' && value <= 'z') return value - 'a' + 10;
-        if(value >= 'A' && value <= 'Z') return value - 'A' + 10;
-        return 0 - 1;
+        return character.digit_value(value, 36);
     }
 
     /**
@@ -92,8 +78,6 @@ mutate char {
     static def from_digit(digit: decimal): char {
         if(digit < 0 || digit > 35 || digit != (digit as _int64))
             throw new illegal_argument_exception("char.from_digit: the digit must be a whole number in 0 .. 35");
-
-        if(digit < 10) return new char('0' + digit);
-        return new char('a' + (digit - 10));
+        return new char(character.for_digit(digit, 36));
     }
 }

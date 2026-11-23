@@ -33,14 +33,14 @@ def main(args: string[]) {
 
         // ---- split
         parts := path.split("/usr//lib/x.so");
-        test("split count") { expect(parts.size().value).should_be(3); };
+        test("split count") { expect(parts.size()).should_be(3); };
         test("split 0") { expect(parts.at(0)).should_be("usr"); };
         test("split 1") { expect(parts.at(1)).should_be("lib"); };
         test("split 2") { expect(parts.at(2)).should_be("x.so"); };
-        test("split root only") { expect(path.split("/").size().value).should_be(0); };
-        test("split empty") { expect(path.split("").size().value).should_be(0); };
-        test("split mixed separators") { expect(path.split("a\\b/c").size().value).should_be(3); };
-        test("split keeps dots") { expect(path.split("a/./../b").size().value).should_be(4); };
+        test("split root only") { expect(path.split("/").size()).should_be(0); };
+        test("split empty") { expect(path.split("").size()).should_be(0); };
+        test("split mixed separators") { expect(path.split("a\\b/c").size()).should_be(3); };
+        test("split keeps dots") { expect(path.split("a/./../b").size()).should_be(4); };
 
         // ---- join
         test("join") { expect(u(path.join("src", "main.sharp"))).should_be("src/main.sharp"); };

@@ -122,7 +122,7 @@ class generation_result {
 
     /** how many messages code generation has: with a place in the source, and without */
     def error_count() : _int64 {
-        return (problems.size().value as _int64) + (plain_errors.size().value as _int64);
+        return problems.size() + plain_errors.size();
     }
 }
 
@@ -145,8 +145,8 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
     started : decimal = clock_ms();
     layout := lay_out_program(analysed, request.eager, request.file_order);
     result.layout_ms = clock_ms() - started;
-    result.functions = layout.functions.size().value as _int64;
-    result.classes = layout.classes.size().value as _int64;
+    result.functions = layout.functions.size();
+    result.classes = layout.classes.size();
     if(layout.entry == null) {
         result.plain_errors.add("error[E0970]: internal error: the function the VM starts at was not laid out\n");
         return result;
@@ -189,7 +189,7 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
     // (-ir shows the IR the bytecode step gets: after the optimizer, with -O)
     if(request.show_ir == 1 && request.file_order.size() > 0) {
         shown_file : string = request.inspected_file;
-        if(sizeof(shown_file.data) == 0) { shown_file = request.file_order.at(request.file_order.size().value - 1); }
+        if(sizeof(shown_file.data) == 0) { shown_file = request.file_order.at(request.file_order.size() - 1); }
         print_ir_of_file(layout, shown_file);
     }
     if(result.not_generated > 0) {
@@ -262,9 +262,11 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
     options.version = request.version;
     options.target = request.target;
     options.debug = request.debug;
+    options.optimized = request.optimizer.on;
+    if(renamed.names.renamed > 0) { options.obfuscated = 1; }
     options.c_library_places = request.c_library_places;
     options.project_folder = request.project_folder;
-    layout.application_id = application_id_of(request.application, layout.functions.size().value as _int64);
+    layout.application_id = application_id_of(request.application, layout.functions.size());
     problem := write_executable(layout, options, request.output);
     if(sizeof(problem.data) > 0) {
         result.plain_errors.add("error: " + problem + "\n");
@@ -277,7 +279,7 @@ def generate_program(analysed: analysed_program, request: generation_request) : 
     if(sizeof(request.sni_folder.data) > 0) {
         // -sni (or a project, by itself): sni.h, and per group of native functions its prototypes
         // and its glue (sni/native_files.sharp)
-        groups : _int64 = native_libraries_of(layout).size().value as _int64;
+        groups : _int64 = native_libraries_of(layout).size();
         if(groups > 0 || request.sni_only_when_native == 0) {
             native_problem := write_native_files(layout, request.sni_folder);
             if(sizeof(native_problem.data) > 0) { result.plain_errors.add("error: " + native_problem + "\n"); }

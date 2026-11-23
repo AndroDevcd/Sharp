@@ -58,7 +58,7 @@ stable class timer {
     /** run every timer whose time has come (`now`: the host's clock, in seconds). Called once per turn of the loop. */
     static def run_due(now: decimal) {
         // by index, and re-reading the size: a timer's function may start new timers
-        for(i : _int64 = 0; i < all.size().value; i++) {
+        for(i : _int64 = 0; i < all.size(); i++) {
             t : timer = all.at(i);
             if(t.live == 0) { continue; }
             if(t.due < 0) { t.due = now + t.delay; }
@@ -70,7 +70,7 @@ stable class timer {
         }
 
         // drop the finished and cancelled ones, last to first so the positions stay right
-        for(i : _int64 = all.size().value - 1; i >= 0; i--) {
+        for(i : _int64 = all.size() - 1; i >= 0; i--) {
             if(all.at(i).live == 0) { all.remove_at(i); }
         }
     }
@@ -78,7 +78,7 @@ stable class timer {
     /** seconds until the soonest timer is due (0 when one is due already); -1 when there is none */
     static def next_due_in(now: decimal) : decimal {
         soonest : decimal = 0 - 1;
-        count : _int64 = all.size().value;
+        count : _int64 = all.size();
         for(i : _int64 = 0; i < count; i++) {
             t : timer = all.at(i);
             if(t.live == 0) { continue; }

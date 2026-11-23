@@ -30,7 +30,7 @@ def dictionary_value(g: generator, e: bound_dictionary) : _int64 {
         g.stop("a dictionary of a class that is not in the executable", e.unit, e.node);
     }
     count : _int64 = g.b.temp(SLOT_INT);
-    g.b.int_constant(count, e.keys.size().value as _int64);
+    g.b.int_constant(count, e.keys.size());
     array : _int64 = g.b.temp(SLOT_REF);
     made := g.b.emit(IR_NEW_ARRAY);
     made.target = array;

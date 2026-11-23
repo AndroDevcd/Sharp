@@ -68,16 +68,16 @@ class task {
     static def from_text(line: string) : task {
         parts : list<string> = new list<string>();
         start : _int64 = 0;
-        for(i : _int64 = 0; i < line.size().value; i++) {
-            if(line.at(i).value == 9 && parts.size().value < 5) {       // a tab; the notes (the last part) may hold more
+        for(i : _int64 = 0; i < line.size(); i++) {
+            if(line.at(i).value == 9 && parts.size() < 5) {       // a tab; the notes (the last part) may hold more
                 parts.add(txt.slice(line, start, i));
                 start = i + 1;
             }
         }
-        parts.add(txt.slice(line, start, line.size().value));
+        parts.add(txt.slice(line, start, line.size()));
 
         made := task("", "");
-        if(parts.size().value == 6) {
+        if(parts.size() == 6) {
             made.id = number_of(parts.at(0));
             if(parts.at(1) == "1") { made.done = 1; }
             if(parts.at(2) == "1") { made.starred = 1; }
@@ -91,7 +91,7 @@ class task {
     /** a whole number from its digits ("42" -> 42) */
     static def number_of(digits: string) : _int64 {
         total : _int64 = 0;
-        for(i : _int64 = 0; i < digits.size().value; i++) {
+        for(i : _int64 = 0; i < digits.size(); i++) {
             byte : _int64 = digits.at(i).value;
             if(byte >= 48 && byte <= 57) { total = total * 10 + (byte - 48); }
         }
@@ -415,7 +415,7 @@ class tasks_screen base composable {
     }
 
     def notes_or_none(one: task) : string {
-        if(one.notes.size().value > 0) { return one.notes; }
+        if(one.notes.size() > 0) { return one.notes; }
         return "No notes.";
     }
 

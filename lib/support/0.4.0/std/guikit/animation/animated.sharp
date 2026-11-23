@@ -119,7 +119,7 @@ stable class animated : state_cell {
     static def step_all(now: decimal) : _int64 {
         still : _int64 = 0;
         // by index, re-reading the size: a rebuild caused here may start more animations
-        for(i : _int64 = 0; i < running.size().value; i++) {
+        for(i : _int64 = 0; i < running.size(); i++) {
             a : animated = running.at(i);
             if(a.active == 0) { continue; }
             if(a.started < 0) { a.started = now; }
@@ -136,7 +136,7 @@ stable class animated : state_cell {
                 still = 1;
             }
         }
-        for(i : _int64 = running.size().value - 1; i >= 0; i--) {
+        for(i : _int64 = running.size() - 1; i >= 0; i--) {
             if(running.at(i).active == 0) { running.remove_at(i); }
         }
         return still;

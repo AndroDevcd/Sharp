@@ -230,13 +230,13 @@ def main(args: string[]) {
 
 /** v moved into 0 .. span: things that leave one side come back on the other */
 def wrap(v: decimal, span: decimal) : decimal {
-    return v - floor_of(v / span) * span;
+    return v - floor(v / span) * span;
 }
 
 /** a number from 0 to 1 that looks random but is always the same for the same n */
 def chance(n: decimal) : decimal {
-    v : decimal = sin_of(n * 12.9898) * 43758.5453;
-    return v - floor_of(v);
+    v : decimal = sin(n * 12.9898) * 43758.5453;
+    return v - floor(v);
 }
 
 /**
@@ -248,7 +248,7 @@ def chance(n: decimal) : decimal {
 def city(b: shape_batch, t: decimal, w: decimal, foot: decimal, speed: decimal, s: decimal, near: decimal) {
     slot : decimal = 74 * s;
     shift : decimal = t * speed;
-    for(k : decimal = floor_of(shift / slot) - 1; k * slot - shift < w + slot; k++) {
+    for(k : decimal = floor(shift / slot) - 1; k * slot - shift < w + slot; k++) {
         building(b, t, k + near * 5000, k * slot - shift, foot, slot, s, near);
     }
 }
@@ -267,7 +267,7 @@ def building(b: shape_batch, t: decimal, k: decimal, x: decimal, foot: decimal, 
         return;
     }
 
-    kind : decimal = floor_of(shade * 4);                      // brick, concrete, glass, sandstone
+    kind : decimal = floor(shade * 4);                      // brick, concrete, glass, sandstone
     body : _int64 = 0x965240FF;
     if(kind == 1) { body = 0x969AA0FF; }
     else if(kind == 2) { body = 0x466E8CFF; }
@@ -275,7 +275,7 @@ def building(b: shape_batch, t: decimal, k: decimal, x: decimal, foot: decimal, 
     b.rect(left, top, wide, tall, body);
     b.rect(left + wide - 6, top, 6, tall, 0x00000032);                     // the shaded side
 
-    roof : decimal = floor_of(chance(k + 0.5) * 4);
+    roof : decimal = floor(chance(k + 0.5) * 4);
     if(roof == 0) {                                            // a ledge
         b.rect(left - 3, top - 5, wide + 6, 6, 0x505058FF);
     } else if(roof == 1) {                                     // an antenna, its light blinking
@@ -297,12 +297,12 @@ def building(b: shape_batch, t: decimal, k: decimal, x: decimal, foot: decimal, 
     lit : _int64 = 0xFFDE82FF;
     unlit : _int64 = 0x283042FF;
     if(kind == 2) { unlit = 0x6EA0BEFF; }        // glass: the sky in it
-    cols : decimal = floor_of((wide - 10) / 12);
-    rows : decimal = floor_of((tall - 14) / 16);
+    cols : decimal = floor((wide - 10) / 12);
+    rows : decimal = floor((tall - 14) / 16);
     for(r : decimal = 0; r < rows; r++) {
         for(c : decimal = 0; c < cols; c++) {
             n : decimal = k * 31 + r * 7.3 + c * 1.9;
-            moment : decimal = floor_of(t * 0.4 + chance(n) * 20);
+            moment : decimal = floor(t * 0.4 + chance(n) * 20);
             ink : _int64 = unlit;
             if(chance(n + moment * 3.7) > 0.55) { ink = lit; }
             b.rect(left + 6 + c * 12, top + 10 + r * 16, 7, 9, ink);
@@ -322,7 +322,7 @@ def sky(b: shape_batch, w: decimal, ground: decimal) {
 def sun_and_clouds(b: shape_batch, t: decimal, w: decimal, h: decimal) {
     sx : decimal = w * 0.8;
     sy : decimal = h * 0.16;
-    b.circle(sx, sy, 46 + sin_of(t * 2) * 3, 0xFFE67846);
+    b.circle(sx, sy, 46 + sin(t * 2) * 3, 0xFFE67846);
     b.circle(sx, sy, 32, 0xFFD65AFF);
     for(i : decimal = 0; i < 6; i++) {
         cx : decimal = wrap(i * 210 + t * (12 + i * 3), w + 240) - 120;
@@ -338,7 +338,7 @@ def sun_and_clouds(b: shape_batch, t: decimal, w: decimal, h: decimal) {
 /** a ridge of mountains: one polygon along a sum of two waves, scrolling */
 def mountains(p: painter, t: decimal, w: decimal, foot: decimal, wave: decimal, tall: decimal, speed: decimal, c: _int64) {
     shift : decimal = t * speed;
-    steps : _int64 = floor_of((w + 24) / 24) + 1;
+    steps : _int64 = floor((w + 24) / 24) + 1;
     xs := new decimal[steps + 2];                              // the ridge, with a corner under each end
     ys := new decimal[steps + 2];
     xs[0] = 0;
@@ -347,7 +347,7 @@ def mountains(p: painter, t: decimal, w: decimal, foot: decimal, wave: decimal, 
         x : decimal = i * 24;
         u : decimal = x + shift;
         xs[i + 1] = x;
-        ys[i + 1] = foot - tall * (0.6 + 0.4 * sin_of(u * wave)) - tall * 0.35 * sin_of(u * wave * 3.1);
+        ys[i + 1] = foot - tall * (0.6 + 0.4 * sin(u * wave)) - tall * 0.35 * sin(u * wave * 3.1);
     }
     xs[steps + 1] = w + 24;
     ys[steps + 1] = foot + 200;
@@ -362,10 +362,10 @@ def windmill(b: shape_batch, t: decimal, w: decimal, ground: decimal) {
     turn : decimal = t * 2.2;
     for(blade : decimal = 0; blade < 4; blade++) {
         a : decimal = turn + blade * HALF_PI;
-        tip_x : decimal = x + cos_of(a) * 48;
-        tip_y : decimal = top + sin_of(a) * 48;
-        side_x : decimal = x + cos_of(a + 0.25) * 44;
-        side_y : decimal = top + sin_of(a + 0.25) * 44;
+        tip_x : decimal = x + cos(a) * 48;
+        tip_y : decimal = top + sin(a) * 48;
+        side_x : decimal = x + cos(a + 0.25) * 44;
+        side_y : decimal = top + sin(a + 0.25) * 44;
         b.triangle(x, top, tip_x, tip_y, side_x, side_y, 0xF5F5F0FF);
         b.line(x, top, tip_x, tip_y, 2, 0x786450FF);
     }
@@ -374,7 +374,7 @@ def windmill(b: shape_batch, t: decimal, w: decimal, ground: decimal) {
 
 /** a tree: a pine or a round one by number, the top swaying in the wind */
 def tree(b: shape_batch, t: decimal, n: decimal, x: decimal, foot: decimal, s: decimal) {
-    sway : decimal = sin_of(t * 1.7 + n * 0.9) * 5 * s;
+    sway : decimal = sin(t * 1.7 + n * 0.9) * 5 * s;
     b.rect(x - 4 * s, foot - 30 * s, 8 * s, 30 * s, 0x6E4C34FF);
     if(n % 2 == 0) {
         for(k : decimal = 0; k < 3; k++) {
@@ -394,7 +394,7 @@ def vehicle(b: shape_batch, t: decimal, c: car, x: decimal, y: decimal) {
     s : decimal = c.size;
     if(c.lane == 0) { s = s * 0.85; }                         // the far lane is a little smaller
     long : decimal = 110 * s;
-    bounce : decimal = sin_of(t * 14 + c.x * 0.05) * 1.2;
+    bounce : decimal = sin(t * 14 + c.x * 0.05) * 1.2;
     body_y : decimal = y - 26 * s + bounce;
 
     b.rect(x + 6, y - 2, long - 12, 6, 3, 0x00000046);                      // the shadow
@@ -421,8 +421,8 @@ def wheel(b: shape_batch, x: decimal, y: decimal, radius: decimal, turned: decim
     b.circle(x, y, radius * 0.55, 0xAAAAB2FF);
     for(k : decimal = 0; k < 3; k++) {
         a : decimal = turned + k * PI_VALUE / 3;
-        b.line(x - cos_of(a) * radius * 0.5, y - sin_of(a) * radius * 0.5,
-               x + cos_of(a) * radius * 0.5, y + sin_of(a) * radius * 0.5, 2, 0x505058FF);
+        b.line(x - cos(a) * radius * 0.5, y - sin(a) * radius * 0.5,
+               x + cos(a) * radius * 0.5, y + sin(a) * radius * 0.5, 2, 0x505058FF);
     }
 }
 
@@ -432,7 +432,7 @@ def person(b: shape_batch, t: decimal, r: runner, x: decimal, foot: decimal) {
     step : decimal = t * r.stride * PI_VALUE * 2 + r.x * 0.01;
     leg : decimal = 17 * s;
     hip_x : decimal = x;
-    hip_y : decimal = foot - leg * 1.9 - (0.5 + 0.5 * cos_of(step * 2)) * 3 * s;      // up and down with each step
+    hip_y : decimal = foot - leg * 1.9 - (0.5 + 0.5 * cos(step * 2)) * 3 * s;      // up and down with each step
     neck_x : decimal = hip_x + 5 * s;                          // leaning into the run
     neck_y : decimal = hip_y - 28 * s;
     skin : _int64 = 0xF0C8A0FF;
@@ -442,18 +442,18 @@ def person(b: shape_batch, t: decimal, r: runner, x: decimal, foot: decimal) {
     for(side : decimal = 0; side < 2; side++) {
         a : decimal = step + side * PI_VALUE;
         // angles from straight down; more is further forward
-        thigh : decimal = 0.65 * sin_of(a);
-        shin : decimal = thigh - 1.1 * (0.5 + 0.5 * sin_of(a + 1.7));
-        knee_x : decimal = hip_x + sin_of(thigh) * leg;
-        knee_y : decimal = hip_y + cos_of(thigh) * leg;
-        foot_x : decimal = knee_x + sin_of(shin) * leg;
-        foot_y : decimal = knee_y + cos_of(shin) * leg;
-        upper : decimal = 0 - 0.7 * sin_of(a);                 // the arm on this side swings against the leg
+        thigh : decimal = 0.65 * sin(a);
+        shin : decimal = thigh - 1.1 * (0.5 + 0.5 * sin(a + 1.7));
+        knee_x : decimal = hip_x + sin(thigh) * leg;
+        knee_y : decimal = hip_y + cos(thigh) * leg;
+        foot_x : decimal = knee_x + sin(shin) * leg;
+        foot_y : decimal = knee_y + cos(shin) * leg;
+        upper : decimal = 0 - 0.7 * sin(a);                 // the arm on this side swings against the leg
         lower : decimal = upper + 1.4;
-        elbow_x : decimal = neck_x + sin_of(upper) * 13 * s;
-        elbow_y : decimal = neck_y + 3 * s + cos_of(upper) * 13 * s;
-        hand_x : decimal = elbow_x + sin_of(lower) * 12 * s;
-        hand_y : decimal = elbow_y + cos_of(lower) * 12 * s;
+        elbow_x : decimal = neck_x + sin(upper) * 13 * s;
+        elbow_y : decimal = neck_y + 3 * s + cos(upper) * 13 * s;
+        hand_x : decimal = elbow_x + sin(lower) * 12 * s;
+        hand_y : decimal = elbow_y + cos(lower) * 12 * s;
 
         limb : _int64 = dark;
         if(side == 1) { limb = 0x464C60FF; }        // the far side, a shade lighter
@@ -472,8 +472,8 @@ def flock(b: shape_batch, t: decimal, w: decimal, h: decimal, count: decimal) {
     ink : _int64 = 0x282832FF;
     for(i : decimal = 0; i < count; i++) {
         x : decimal = wrap(i * 83 + t * (60 + (i % 4) * 12), w + 80) - 40;
-        y : decimal = h * 0.12 + (i % 5) * 18 + sin_of(t * 1.3 + i) * 8;
-        beat : decimal = sin_of(t * 9 + i * 1.7) * 6;
+        y : decimal = h * 0.12 + (i % 5) * 18 + sin(t * 1.3 + i) * 8;
+        beat : decimal = sin(t * 9 + i * 1.7) * 6;
         b.line(x - 9, y - beat, x, y, 2, ink);
         b.line(x, y, x + 9, y - beat, 2, ink);
     }

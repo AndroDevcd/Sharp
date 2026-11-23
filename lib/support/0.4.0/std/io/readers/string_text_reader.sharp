@@ -246,7 +246,7 @@ class string_text_reader : text_reader, loopable<string> {
      */
     override def get_elements() : string[]? {
         lines := read_lines();
-        count_lines : decimal = lines.size().value;
+        count_lines : decimal = lines.size();
         if(count_lines == 0) {
             return null;
         }

@@ -106,5 +106,5 @@ class overload_result {
     }
 
     /** nothing applicable at all */
-    def found_none() : _int64 { return best == null && tied.size().value == 0; }
+    def found_none() : _int64 { return best == null && tied.size() == 0; }
 }

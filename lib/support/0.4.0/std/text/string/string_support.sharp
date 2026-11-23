@@ -37,8 +37,8 @@ class string_support {
         return new string(buffer!!, 0, len);
     }
 
-    /** 1 if `c` is whitespace: space, tab, \n, vertical tab (11), form feed (12), \r. */
-    static def is_space(c: decimal): decimal {
+    /** true if `c` is whitespace: space, tab, \n, vertical tab (11), form feed (12), \r. */
+    static def is_space(c: decimal): bool {
         return c == ' ' || (c >= 9 && c <= 13);
     }
 
@@ -54,37 +54,37 @@ class string_support {
         return c;
     }
 
-    /** 1 if the character `c` is one of the characters in `chars`. */
-    static def in_set(c: decimal, chars: _int8[]?): decimal {
+    /** true if the character `c` is one of the characters in `chars`. */
+    static def in_set(c: decimal, chars: _int8[]?): bool {
         m : decimal = sizeof(chars);
         for(j : decimal = 0; j < m; j++) {
-            if(chars[j] == c) return 1;
+            if(chars[j] == c) return true;
         }
-        return 0;
+        return false;
     }
 
     /**
-     * 1 if `needle` occurs in `data` exactly at position `at`. Never reads
+     * true if `needle` occurs in `data` exactly at position `at`. Never reads
      * outside of `data`: a needle that does not fit gives 0. An empty needle
      * fits everywhere from 0 to the length.
      */
-    static def region_equals(data: _int8[]?, at: decimal, needle: _int8[]?): decimal {
+    static def region_equals(data: _int8[]?, at: decimal, needle: _int8[]?): bool {
         m : decimal = sizeof(needle);
-        if(at < 0 || at + m > sizeof(data)) return 0;
+        if(at < 0 || at + m > sizeof(data)) return false;
         for(j : decimal = 0; j < m; j++) {
-            if(data[at + j] != needle[j]) return 0;
+            if(data[at + j] != needle[j]) return false;
         }
-        return 1;
+        return true;
     }
 
     /** region_equals that treats ASCII capital and small letters as equal. */
-    static def region_equals_ignore_case(data: _int8[]?, at: decimal, needle: _int8[]?): decimal {
+    static def region_equals_ignore_case(data: _int8[]?, at: decimal, needle: _int8[]?): bool {
         m : decimal = sizeof(needle);
-        if(at < 0 || at + m > sizeof(data)) return 0;
+        if(at < 0 || at + m > sizeof(data)) return false;
         for(j : decimal = 0; j < m; j++) {
-            if(lower_of(data[at + j]) != lower_of(needle[j])) return 0;
+            if(lower_of(data[at + j]) != lower_of(needle[j])) return false;
         }
-        return 1;
+        return true;
     }
 
     /**

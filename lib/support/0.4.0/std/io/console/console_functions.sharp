@@ -34,20 +34,6 @@ def chars_to_decimal(digits: _int8[]) : decimal {
     return result;
 }
 
-def strtol(str: string, base_num: int) : long {
-    data := str.data;
-    result : _int64 = base_num.value;
-
-    asm {
-        pushl [data]
-        ipushl [result]
-        int 0x50
-        smovr2 [result], ebx
-    }
-
-    return result;
-}
-
 def snprintf(fmt: int, num: double, precision: int) : string {
     result : _int8[]? = null;
     _fmt : _int64 = fmt.value;
@@ -155,14 +141,29 @@ def println(e: _enum_) {
     print_char('\n');
 }
 
+/** what read_line() remembers between two lines */
+class console_line_end {
+    /** 1 when the last line read ended with `\r`: a `\n` right after it belongs to that line end */
+    static after_return : _int64 = 0;
+}
+
 def read_line() : string {
     ch : char;
     message : string = "";
 
+    // (the Enter key gives `\r` alone, so the line ends there; input that has "\r\n" line ends
+    //  gives its `\n` as the first character of the next read, which is left out here)
     ch = read_char();
+    if(console_line_end.after_return && ch == 10) {
+        ch = read_char();
+    }
+    console_line_end.after_return = 0;
     while((ch != 13) && (ch != 10) && (ch != 0 - 1)) { // \r\n, or the input has ended
         message.append(ch);
         ch = read_char();
+    }
+    if(ch == 13) {
+        console_line_end.after_return = 1;
     }
 
     flush();
@@ -198,9 +199,9 @@ def read_char() : char {
  *      }
  *
  * (C: kbhit(). Java has no such thing: System.in.available() is the nearest.)
- * It is 0 when the input is not a console at all (a file, a pipe that has ended).
+ * It is false when the input is not a console at all (a file, a pipe that has ended).
  */
-def key_waiting() : _int64 {
+def key_waiting() : bool {
     result : _int64 = 0;
     asm {
         int 0x1b
@@ -247,12 +248,15 @@ def flush() {
     asm { int 0x34 }
 }
 
+/** milliseconds since 1970-01-01T00:00:00Z (dates, durations and clocks: std.time) */
 def utc_mills() : long {
-    return time.mills_time();
+    now : _int64 = vm.time_in_nanoseconds().value / 1000000;
+    return now;
 }
 
+/** nanoseconds since 1970-01-01T00:00:00Z, good to about 256 of them */
 def nano_time() : long {
-    return time.nano_time();
+    return vm.time_in_nanoseconds();
 }
 
 def exit(val : int) {
@@ -263,7 +267,8 @@ def exit() {
     vm.exit(0);
 }
 
-def sizeOf(data: object) : long {
+/** how many bytes an object takes in memory (the object itself: not what its fields refer to) */
+def memory_size(data: object) : _int64 {
     result : _int64;
 
     asm {
@@ -274,7 +279,8 @@ def sizeOf(data: object) : long {
     return result;
 }
 
-def sizeOf(data: object[]) : long {
+/** how many bytes an array of objects takes in memory (the array itself: not its elements) */
+def memory_size(data: object[]) : _int64 {
     result : _int64;
 
     asm {
@@ -358,36 +364,129 @@ local def print_numbers(str: char_array) {
     flush();
 }
 
+// "[ 1, 2, 3 ]": the pieces every array of numbers is printed with
+local def list_start() {
+    asm {
+        movi ebx, '['
+        movi egx, ' '
+        putc ebx
+        putc egx
+    }
+}
+
+local def list_between() {
+    asm {
+        movi ebx, ','
+        movi egx, ' '
+        putc ebx
+        putc egx
+    }
+}
+
+local def list_end() {
+    asm {
+        movi ebx, ' '
+        movi egx, ']'
+        putc ebx
+        putc egx
+    }
+
+    flush();
+}
+
+local def put_whole(value: _int64) {
+    asm {
+        loadl ebx, [value]
+        put ebx
+    }
+}
+
+local def print_numbers(str: decimal[]) {
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        one : decimal = str[i];
+        asm {
+            loadl ebx, [one]
+            dput ebx
+        }
+    }
+    list_end();
+}
+
 local def print_numbers(str: _int16[]) {
-    print_numbers(str);
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        put_whole(str[i]);
+    }
+    list_end();
 }
 
 local def print_numbers(str: _int32[]) {
-    print_numbers(str);
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        put_whole(str[i]);
+    }
+    list_end();
 }
 
 local def print_numbers(str: _int64[]) {
-    print_numbers(str);
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        put_whole(str[i]);
+    }
+    list_end();
 }
 
 local def print_numbers(str: _uint8[]) {
-    print_numbers(str);
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        put_whole(str[i]);
+    }
+    list_end();
 }
 
 local def print_numbers(str: _uint16[]) {
-    print_numbers(str);
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        put_whole(str[i]);
+    }
+    list_end();
 }
 
 local def print_numbers(str: _uint32[]) {
-    print_numbers(str);
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        put_whole(str[i]);
+    }
+    list_end();
 }
 
 local def print_numbers(str: _uint64[]) {
-    print_numbers(str);
+    list_start();
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        if(i > 0) { list_between(); }
+        put_whole(str[i]);
+    }
+    list_end();
 }
 
 local def print_chars(str: _int16[]) {
-    print_chars(str);
+    for(i : _int64 = 0; i < sizeof(str); i++) {
+        ch : _int64 = str[i];
+        asm {
+            loadl ebx, [ch]
+            putc ebx
+        }
+    }
+
+    flush();
 }
 
 /**

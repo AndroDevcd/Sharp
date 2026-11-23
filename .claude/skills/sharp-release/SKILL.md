@@ -12,7 +12,9 @@ machine, so `sharp` and `sharpc` in any terminal are the latest.
 the same scripts: if one breaks or is missing a step, fix the script - never work around it with a
 private helper.
 
-**Not part of this skill:** the CLion plugin. Do not build, bump or mention installing it here.
+**The CLion plugin** (`tools/clion-plugin`) is built by the release (`windows/build_plugin.sh`) and shipped in the zip's
+`clion-plugin/` folder. It has its own version, `pluginVersion` in `tools/clion-plugin/gradle.properties`: bump it by hand
+when the plugin changed. It is NOT installed by the release: the user installs the zip in the IDE (Install Plugin from Disk).
 
 ## Ground rules
 
@@ -83,17 +85,19 @@ Leave the number out only when the version in the sources was never released (st
 whether to replace that zip, and only after their yes in that turn run it as
 `echo Y | bash build-scripts/release.sh ...`. Never pipe the Y on your own judgment.
 
-Seven steps, each a script that also runs alone (the top of `release.sh` lists them): the Linux VM
-and the compiler, the short tests, the three release compilers, the Linux GUI library, the Windows
-VM, the Windows GUI library, the zip. It stops at the first failure with
+Ten steps, each a script that also runs alone (the top of `release.sh` lists them): the Linux VM
+and the compiler, the short tests (which build and test the Linux sdb), the three release compilers,
+the Linux GUI library, the Linux sdb, the Windows VM, the Windows GUI library, the Windows sdb, the CLion plugin, the zip. It stops at the first failure with
 `RELEASE STOPPED at step N (<script>)`; fix the cause and run it again.
 
-It must show, in order: `built: Sharp X (VM Y)`, `TESTS: PASS (tests 1 2 4 5 12 14 15)`,
-`release compilers: OK`, both `built: ...sharpgui...` lines, `release: .../sharp-X.zip`, `installed: sharp <VM version> ..., Sharp X`, `the GUI library is installed`,
-`RELEASE DONE`, and no `WARNING: no ...sharpgui` line.
+It must show, in order: `built: Sharp X (VM Y)`, `TESTS: PASS (tests 1 2 4 5 12 14 15 16)`,
+`release compilers: OK`, both `built: ...sharpgui...` lines, `release: .../sharp-X.zip`, `installed: sharp <VM version> ..., Sharp X`, `the GUI library is installed`, `the debugger is installed: sdb ...`,
+`built: ...sharp-clion-plugin-<version>.zip`,
+`RELEASE DONE`, and no `WARNING: no ...` line.
 
-Extra tests by what changed (WSL, `bash build-scripts/test.sh only <numbers>`):
-the standard library: 8 - code generation or the optimizer: 7 8 11 13 - the VM: say that `full` was not run.
+Extra tests by what changed: ALWAYS through the repository's own `test.sh` (Git Bash, at the root), never a private helper -
+`bash test.sh changed` (the parts the changed files need), `bash test.sh <part> full`, `bash test.sh case <name>`.
+If it cannot run something, add that to `test.sh`. Say when `full` was not run.
 
 ### 4. Install
 

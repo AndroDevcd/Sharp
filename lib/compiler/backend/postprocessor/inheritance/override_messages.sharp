@@ -99,7 +99,7 @@ def kind_and_name(declared: sharp_class) : string {
 
 /** E0341: one message for the class, listing everything it lacks */
 def report_missing(declared: sharp_class, missing: list<inherited_function>, problems: list<diagnostic>) {
-    count : _int64 = missing.size().value as _int64;
+    count : _int64 = missing.size();
     title : string = "`" + declared.name + "` does not define `" + missing.at(0).function.name + "`, which "
                      + kind_and_name(missing.at(0).from) + " requires";
     if(count > 1) {

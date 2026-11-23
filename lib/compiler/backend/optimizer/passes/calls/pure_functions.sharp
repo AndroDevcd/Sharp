@@ -102,7 +102,7 @@ const FACTS_OF_WRITING : _int64 = 7;
  */
 def find_function_facts(layout: program_layout) : function_facts_result {
     result := new function_facts_result();
-    count : _int64 = layout.functions.size().value as _int64;
+    count : _int64 = layout.functions.size();
 
     // ---- 1. each function alone
     own := new _int64[count + 1];               // the facts its own instructions allow (with FACT_ALWAYS_ENDS: no loop)
@@ -197,7 +197,7 @@ def after_call(theirs: _int64, self_is: _int64) : _int64 {
  */
 def facts_of_own_code(made: function_layout, code: ir_function, site_callee: number_list, site_self: number_list) : _int64 {
     facts : _int64 = FACTS_ASSUMED | FACT_ALWAYS_ENDS;
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     // the static part of a class writes that class's static fields: that is what "initializes" means
     is_static_part : _int64 = made.kind == FUNCTION_INITIALIZER && made.is_static == 1;
     if(is_static_part) { facts = without(facts, FACT_NO_STATIC_PART); }
@@ -259,7 +259,7 @@ def facts_of_own_code(made: function_layout, code: ir_function, site_callee: num
         } else if(kind == IR_GET_ELEMENT) {
             facts = without(facts, FACT_READS_NOTHING | FACT_NEVER_RAISES | FACT_SAFE_WITH_SELF);
         } else if(kind == IR_LENGTH) {
-            facts = without(facts, FACT_READS_NOTHING);     // (an array's length never changes, but WHICH array a field holds does)
+            facts = without(facts, FACT_READS_NOTHING);     // (WHICH array a field holds changes, and `realloc` changes the length of one)
         } else if(kind == IR_LOCK || kind == IR_UNLOCK) {
             return 0;                               // it may wait for another fiber: anything can happen meanwhile
         } else if(kind == IR_CALL_VALUE || kind == IR_ASM) {
@@ -305,7 +305,7 @@ def only_fresh_objects(code: ir_function, graph: flow_graph, at: _int64, slot: _
 
 /** does the function call anything whose call could be removed (so the removal passes are worth running again)? */
 def calls_something_removable(code: ir_function) : _int64 {
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         at := code.instructions.at(i);
         if(at.kind == IR_CALL && has_effect(at) == 0) { return 1; }

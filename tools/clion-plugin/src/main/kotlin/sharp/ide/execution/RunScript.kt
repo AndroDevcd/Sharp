@@ -50,6 +50,11 @@ data class RunScriptValues(
     val newStamp: String = "",
     /** ... and where it is copied to when the build worked ("" for neither: no stamp is kept). */
     val keptStamp: String = "",
+    /**
+     * What runs the program, when it is not the VM alone: the debugger and its own options
+     * (`sdb -machine 51234`). Empty: the VM. The program and its arguments follow either way.
+     */
+    val runner: List<String> = emptyList(),
 )
 
 /** One word of the compiler's command line: an option as it is, or a path (written the system's way and quoted). */
@@ -82,7 +87,8 @@ object RunScript {
             lines += "exit /b 0"
         } else {
             lines += "cd /d ${win(v.workingDirectory)}"
-            lines += (listOf(win(v.vm), win(v.output)) + v.programArguments.map(::winArgument)).joinToString(" ")
+            val runner = if (v.runner.isEmpty()) listOf(win(v.vm)) else listOf(win(v.runner[0])) + v.runner.drop(1).map(::winArgument)
+            lines += (runner + win(v.output) + v.programArguments.map(::winArgument)).joinToString(" ")
             lines += "exit /b %ERRORLEVEL%"
         }
         lines += ":failed"
@@ -112,7 +118,8 @@ object RunScript {
             if (!v.upToDate) lines += "echo ${sh("Built ${v.output}")}"
         } else {
             lines += "cd ${sh(v.workingDirectory)} || exit 1"
-            lines += "exec " + (listOf(sh(v.vm), sh(v.output)) + v.programArguments.map(::sh)).joinToString(" ")
+            val runner = if (v.runner.isEmpty()) listOf(sh(v.vm)) else v.runner.map(::sh)
+            lines += "exec " + (runner + sh(v.output) + v.programArguments.map(::sh)).joinToString(" ")
         }
         return lines.joinToString("\n") + "\n"
     }

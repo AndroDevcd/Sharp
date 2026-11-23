@@ -35,7 +35,7 @@ import (
  *      found, in the order of its passes.
  */
 def in_source_order(found: list<diagnostic>, file_order: list<string>) : list<diagnostic> {
-    count : _int64 = found.size().value as _int64;
+    count : _int64 = found.size();
     if(count < 2) { return found; }
     ranks := file_ranks(found, file_order);
 
@@ -80,9 +80,9 @@ def file_ranks(found: list<diagnostic>, file_order: list<string>) : _int64[] {
     for(i : _int64 = 0; i < file_order.size(); i++) {
         if(rank_of.at(file_order.at(i)) == null) { rank_of.put(file_order.at(i), new int(i)); }
     }
-    next_rank : _int64 = file_order.size().value as _int64;
+    next_rank : _int64 = file_order.size();
 
-    count : _int64 = found.size().value as _int64;
+    count : _int64 = found.size();
     ranks := new _int64[count];
     for(i : _int64 = 0; i < count; i++) {
         file := found.at(i).file;

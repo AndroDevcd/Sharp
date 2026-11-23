@@ -68,7 +68,7 @@ def call_value(g: generator, e: bound_call, used: _int64) : _int64 {
         link = link.on as bound_call;
     }
     value : _int64 = one_call(g, link, 1, 0 - 1);
-    for(i : _int64 = (chain.size().value as _int64) - 1; i >= 0; i--) {
+    for(i : _int64 = chain.size() - 1; i >= 0; i--) {
         wanted : _int64 = 1;
         if(i == 0) { wanted = used; }
         value = one_call(g, chain.at(i), wanted, value);

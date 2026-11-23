@@ -215,7 +215,7 @@ def is_jump(made: ir_instruction) : _int64 {
  * the optimizer cannot see which.
  */
 def can_be_optimized(code: ir_function) : _int64 {
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         if(code.instructions.at(i).kind == IR_ASM) { return 0; }
     }
@@ -256,7 +256,7 @@ def remove_instructions(code: ir_function, indexes: number_list) {
     if(indexes.count == 0) { return; }
     kept := new list<ir_instruction>();
     next : _int64 = 0;
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         if(next < indexes.count && indexes.at(next) == i) {
             next++;

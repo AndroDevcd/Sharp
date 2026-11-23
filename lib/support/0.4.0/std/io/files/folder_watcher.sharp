@@ -1,0 +1,134 @@
+mod std.io;
+
+/**
+ * WATCHING A FOLDER: what was added, changed or removed since the last look
+ *
+ *      watch := new folder_watcher("src");             // remembers what is there now
+ *      while(true) {
+ *          changes := watch.wait(60000);               // up to a minute: returns as soon as something changes
+ *          for(i : _int64 = 0; i < changes.size(); i++) {
+ *              change := changes.at(i);
+ *              print(change.kind + " " + change.path + "\n");      // "added src/new.sharp", "changed src/main.sharp" ...
+ *          }
+ *      }
+ *
+ *      watch.changes()                 look now: the changes since the last look (an empty list: none)
+ *      watch.wait(milliseconds)        look every 250 ms until there are changes or the time is up
+ *      watch.only { ... }              watch only the files the block accepts (`it` is a file): by ending, by name
+ *      watch.every(100)                look more (or less) often than every 250 ms while waiting
+ *
+ * The folder is watched with everything below it. A file counts as
+ * changed when its size or its time of last change is different. That is
+ * how build tools and "reload on save" work: look, compare, look again.
+ * It is the same code on every system and needs nothing from it; the price
+ * is that a change is seen at the next look, not the instant it happens,
+ * and that a file rewritten within the clock's step (a second on some file
+ * systems) with the same size goes unnoticed.
+ *
+ *      Java comparison: java.nio.file.WatchService; Python: the watchdog package.
+ */
+class file_change {
+    /** the file's path, as the folder's path with what is below it: "src/net/tcp.sharp" */
+    path : string;
+    /** "added", "changed" or "removed" */
+    kind : string;
+
+    file_change(path: string, kind: string) {
+        self->path = path;
+        self->kind = kind;
+    }
+
+    def is_added() : bool { return kind == "added"; }
+    def is_changed() : bool { return kind == "changed"; }
+    def is_removed() : bool { return kind == "removed"; }
+
+    override def to_string() : string? {
+        return kind + " " + path;
+    }
+}
+
+class folder_watch_filter {
+    accept : (file)(bool);
+    folder_watch_filter(accept: (file)(bool)) { self->accept = accept; }
+}
+
+class folder_watcher {
+    private root : string;
+    private pause : _int64 = 250;
+    private filter : folder_watch_filter?;
+    /** what was there at the last look: each path, and its size and time as one text */
+    private seen : hash_map<string, string> = new hash_map<string, string>();
+    private seen_paths : list<string> = new list<string>();
+
+    /** watch that folder from now on. Throws io_exception when it is not a folder. */
+    folder_watcher(folder: string) {
+        if(!new file(folder).is_directory()) { throw new io_exception("there is no folder " + folder); }
+        root = folder;
+        look(null);
+    }
+
+    def only(accept: (file)(bool)) : folder_watcher {
+        filter = new folder_watch_filter(accept);
+        look(null);         // (what is remembered is what is watched)
+        return self;
+    }
+
+    def every(milliseconds: _int64) : folder_watcher {
+        if(milliseconds < 1) { milliseconds = 1; }
+        pause = milliseconds;
+        return self;
+    }
+
+    def changes() : list<file_change> {
+        found := new list<file_change>();
+        look(found);
+        return found;
+    }
+
+    def wait(milliseconds: _int64) : list<file_change> {
+        // (by the clock: a pause can end before its time)
+        started : _int64 = utc_mills().value;
+        while(true) {
+            found : list<file_change> = changes();
+            waited : _int64 = utc_mills().value - started;
+            if(found.size() > 0 || waited >= milliseconds) { return found; }
+            step : _int64 = pause;
+            if(step > milliseconds - waited) { step = milliseconds - waited; }
+            thread.sleep(step);
+        }
+        return new list<file_change>();
+    }
+
+    /** read the folder, compare with what was remembered (into `found`, when it is given), and remember it */
+    private def look(found: list<file_change>?) {
+        now := new hash_map<string, string>();
+        now_paths := new list<string>();
+        if(new file(root).is_directory()) {
+            below : list<file> = new file(root).walk();
+            for(i : _int64 = 0; i < below.size(); i++) {
+                one : file = below.at(i);
+                if(one.is_directory()) { continue; }
+                if(filter != null) {
+                    accept := filter!!.accept;
+                    if(!accept(one)) { continue; }
+                }
+                path : string = io_strings.replace_char(one.path, '\\', '/');
+                mark : string = "" + one.size() + ":" + one.last_modified();
+                now.put(path, mark);
+                now_paths.add(path);
+                if(found != null) {
+                    before : string? = seen.at(path);
+                    if(before == null) { found!!.add(new file_change(path, "added")); }
+                    else if(before!! != mark) { found!!.add(new file_change(path, "changed")); }
+                }
+            }
+        }
+        if(found != null) {
+            for(i : _int64 = 0; i < seen_paths.size(); i++) {
+                if(now.at(seen_paths.at(i)) == null) { found!!.add(new file_change(seen_paths.at(i), "removed")); }
+            }
+        }
+        seen = now;
+        seen_paths = now_paths;
+    }
+}

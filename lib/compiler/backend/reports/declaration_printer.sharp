@@ -63,9 +63,9 @@ def print_declarations(prog: sharp_program) {
     }
 
     if(prog.well_known != null) {
-        println("generics and members: " + (prog.generic_instances.size().value as _int64) + " class(es) made from generic classes, "
-                + (prog.generic_functions.size().value as _int64) + " generic function(s), "
-                + (prog.components.size().value as _int64) + " component(s), "
+        println("generics and members: " + prog.generic_instances.size() + " class(es) made from generic classes, "
+                + prog.generic_functions.size() + " generic function(s), "
+                + prog.components.size() + " component(s), "
                 + prog.unresolved_in_real_class + " type(s) left unresolved");
     }
 }
@@ -73,7 +73,7 @@ def print_declarations(prog: sharp_program) {
 /** how many instances were made from a generic class */
 def instance_count(declared: sharp_class) : _int64 {
     if(declared.instance_list == null) { return 0; }
-    return declared.instance_list!!.size().value as _int64;
+    return declared.instance_list!!.size();
 }
 
 /** what stage 5 found out about a class, for the end of its line */
@@ -132,7 +132,7 @@ def print_inherited(prog: sharp_program, declared: sharp_class, indent: string) 
                 if(found.functions.size() > 0) { line.append(" and "); }
             }
             if(found.functions.size() > 0) {
-                line.append("" + (found.functions.size().value as _int64) + " function(s), nearest in "
+                line.append("" + found.functions.size() + " function(s), nearest in "
                             + found.functions.at(0).owner!!.qualified_name());
             }
         }

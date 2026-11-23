@@ -1,0 +1,42 @@
+mod app;
+
+import ( std.io, std.io.coroutines )
+
+/**
+ * A program for sdb's tests of threads and fibers: a second thread that
+ * computes, and coroutines that sleep - more of them than fit on one page of
+ * `fibers`.
+ */
+counter : _int64 = 0;
+
+def work(n: _int64) : _int64 {
+    doubled : _int64 = n * 2;
+    return doubled;
+}
+
+def worker(args: object[]) : int {
+    for(round : _int64 = 0; round < 3; round++) {
+        counter += work(round);
+    }
+    return 0;
+}
+
+def nap(time: _int64) {
+    delay(time);
+}
+
+def main() {
+    sleepers := new list<job>();
+    for(i : _int64 = 0; i < 25; i++) {
+        sleepers.add(launch({ -> nap(400); }));
+    }
+
+    helper := new thread("worker", worker);
+    helper.start();
+    helper.join();
+
+    yield();
+    println("counter " + counter);
+    for(i : _int64 = 0; i < sleepers.size(); i++) { sleepers.at(i).join(); }
+    println("all awake");
+}

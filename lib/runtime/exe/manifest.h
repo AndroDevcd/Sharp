@@ -23,7 +23,9 @@ struct manifest {
         sourceFiles(0),
         strings(0),
         constants(0),
-        threadLocals(0)
+        threadLocals(0),
+        obfuscated(false),
+        optimized(false)
     {}
 
     manifest(const manifest &m)
@@ -41,7 +43,9 @@ struct manifest {
         sourceFiles(m.sourceFiles),
         strings(m.strings),
         constants(m.constants),
-        threadLocals(m.threadLocals)
+        threadLocals(m.threadLocals),
+        obfuscated(m.obfuscated),
+        optimized(m.optimized)
     {}
 
 
@@ -59,6 +63,10 @@ struct manifest {
     Int strings;
     Int constants;
     Int threadLocals;
+    // not from the manifest itself: said by the debugger's section at the end of the file
+    // (exe_processor.cpp, process_debugger_data), for the debugger
+    bool obfuscated;        // the program's names were replaced (sharpc -obf)
+    bool optimized;         // it was built with -dbg and -O: it carries no names of local variables
 };
 
 #endif //SHARP_MANIFEST_H

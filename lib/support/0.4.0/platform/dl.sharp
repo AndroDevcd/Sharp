@@ -23,6 +23,15 @@ def program_path() : string {
     return vm.program_path();
 }
 
+/**
+ * What the program was started with - the same texts main(args) gets - for
+ * code that is not main and was not handed them (`sharp app --port 8080`
+ * -> "--port", "8080").
+ */
+def program_arguments() : string[] {
+    return vm.arguments;
+}
+
 /** the folder the running program's file is in (no `/` at the end) */
 def program_folder() : string {
     path := vm.program_path();

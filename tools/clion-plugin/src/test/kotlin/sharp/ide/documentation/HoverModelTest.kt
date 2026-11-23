@@ -46,12 +46,12 @@ class HoverModelTest {
     fun aFunctionCallShowsItsSignatureItsTypeItsOwnerAndWhereItIsDeclared() {
         val info = hover("names.size", 6)!!
         assertEquals("function", info.kind)
-        assertEquals("def size() : int", info.definition.replace("public ", ""))
-        assertEquals("int", info.type)
+        assertEquals("def size() : _int64", info.definition.replace("public ", ""))
+        assertEquals("_int64", info.type)
         assertEquals("std#list", info.memberOf)
         assertEquals("std", info.module)
         assertTrue(info.declaredIn!!, info.declaredIn!!.startsWith("list.sharp:"))
-        assertEquals("function size : int", info.hint)
+        assertEquals("function size : _int64", info.hint)
     }
 
     @Test
@@ -72,9 +72,9 @@ class HoverModelTest {
 
     @Test
     fun aVariableAndAParameter() {
-        val local = hover("count.value", 2)!!
+        val local = hover("count;", 2)!!
         assertEquals("local variable", local.kind)
-        assertEquals("count : int", local.definition)
+        assertEquals("count : _int64", local.definition)
         assertEquals("function `probe`", local.memberOf)
         assertTrue(local.declaredIn!!.startsWith("shop.sharp:"))
 
@@ -164,7 +164,7 @@ class HoverModelTest {
     fun theTextIsEscapedAndHasTheParts() {
         val html = HoverHtml.page(hover("names.size", 6)!!)
         assertTrue(html, html.contains("<div class='definition'><pre>"))
-        assertTrue(html, html.contains("<b>Type:</b> <code>int</code>"))
+        assertTrue(html, html.contains("<b>Type:</b> <code>_int64</code>"))
         assertTrue(html, html.contains("<b>Member of:</b> <code>std#list</code>"))
         assertTrue(html, html.contains("<b>Module:</b> <code>std</code>"))
         val generic = HoverHtml.page(hover("names.size", 2)!!)

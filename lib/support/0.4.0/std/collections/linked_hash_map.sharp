@@ -50,8 +50,8 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
         return count;
     }
 
-    /** 1 when the map has no pairs, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when the map has no pairs. O(1). */
+    def is_empty() : bool {
         return count == 0;
     }
 
@@ -60,14 +60,14 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
      * iteration order; an existing key keeps its position and only gets the
      * new value. O(1) on average.
      *
-     * @return 1 when the key is new, 0 when an existing value was replaced
+     * @return true when the key is new, false when an existing value was replaced
      */
-    def put(key: K, value: V) : decimal {
+    def put(key: K, value: V) : bool {
         hash_code : decimal = hash_of(key);
         node := find_node(key, hash_code);
         if(node != null) {
             node!!.value = value;
-            return 0;
+            return false;
         }
 
         if(count + 1 > sizeof(buckets) * 0.75) grow();
@@ -86,17 +86,17 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
         }
         newest = added;
         count++;
-        return 1;
+        return true;
     }
 
     /**
      * Store a value only when the key is not in the map yet. O(1) on average.
      *
-     * @return 1 when the pair was added, 0 when the key already existed
+     * @return true when the pair was added, false when the key already existed
      *         (the map is left unchanged)
      */
-    def put_if_absent(key: K, value: V) : decimal {
-        if(contains_key(key)) return 0;
+    def put_if_absent(key: K, value: V) : bool {
+        if(contains_key(key)) return false;
         return put(key, value);
     }
 
@@ -124,39 +124,39 @@ class linked_hash_map<K base _object_, V> : loopable<map_entry<K, V> >, iterable
         return node!!.value;
     }
 
-    /** 1 when the map has the key, otherwise 0. O(1) on average. */
-    def contains_key(key: K) : decimal {
-        if(find_node(key, hash_of(key)) == null) return 0;
-        return 1;
+    /** true when the map has the key. O(1) on average. */
+    def contains_key(key: K) : bool {
+        if(find_node(key, hash_of(key)) == null) return false;
+        return true;
     }
 
     /**
-     * 1 when at least one key maps to a value that equals `wanted` (compared with `==`). O(n).
+     * true when at least one key maps to a value that equals `wanted` (compared with `==`). O(n).
      *
      * (The parameter is deliberately not called `value`. With that name the
-     * compiler fails here, inside std/primatives.sharp: the `==` of the
+     * compiler fails here, inside std/primitives/numbers.sharp: the `==` of the
      * number classes is compiled on first use, apparently in the scope of
      * the function that uses it, where a parameter named `value` hides the
      * field `value` that operator reads.)
      */
-    def contains_value(wanted: V) : decimal {
+    def contains_value(wanted: V) : bool {
         node := oldest;
         while(node != null) {
             current := node!!;
-            if(current.value == wanted) return 1;
+            if(current.value == wanted) return true;
             node = current.after;
         }
-        return 0;
+        return false;
     }
 
     /**
      * Remove a key and its value. O(1) on average.
      *
-     * @return 1 when the key was removed, 0 when the map did not have it
+     * @return true when the key was removed, false when the map did not have it
      */
-    def remove(key: K) : decimal {
-        if(unlink(key) == null) return 0;
-        return 1;
+    def remove(key: K) : bool {
+        if(unlink(key) == null) return false;
+        return true;
     }
 
     /**

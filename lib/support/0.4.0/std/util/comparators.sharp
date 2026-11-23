@@ -34,7 +34,7 @@ class comparators {
 
     /** strings by their length, shortest first (equal lengths compare as equal) */
     static def string_length(): comparator<string> {
-        return comparator<string>.by_key({ s: string -> (decimal) return s.size().value; });
+        return comparator<string>.by_key({ s: string -> (decimal) return s.size(); });
     }
 
     /** int objects, smallest first */

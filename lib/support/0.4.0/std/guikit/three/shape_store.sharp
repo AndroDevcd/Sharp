@@ -19,7 +19,7 @@ stable class shape_store {
 
     /** the model kept under this name (0: none yet) */
     static def find(name: string) : _int64 {
-        count : _int64 = names.size().value;
+        count : _int64 = names.size();
         for(i : _int64 = 0; i < count; i++) {
             if(names.at(i) == name) { return models.at(i).value; }
         }

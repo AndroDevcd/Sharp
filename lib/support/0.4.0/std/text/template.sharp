@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * template
  *
@@ -44,15 +46,15 @@ class template {
 
     /** Index of `name` in names, or -1. */
     private def find(name: string): decimal {
-        count : decimal = names.size().value;
+        count : decimal = names.size();
         for(i : decimal = 0; i < count; i++) {
             if(names.at(i) == name) return i;
         }
         return -1;
     }
 
-    /** 1 if `c` may be part of a placeholder name. */
-    private static def is_name_char(c: decimal): decimal {
+    /** true if `c` may be part of a placeholder name. */
+    private static def is_name_char(c: decimal): bool {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
             || c == '_' || c == '.' || c == '-';
     }
@@ -64,7 +66,7 @@ class template {
      */
     def put(name: string, value: string): template {
         if(sizeof(name.data) == 0)
-            throw new ill_arg_except("put: the placeholder name cannot be empty");
+            throw new illegal_argument_exception("put: the placeholder name cannot be empty");
 
         at : decimal = find(name);
         if(at >= 0) {
@@ -93,15 +95,15 @@ class template {
     def put_all(new_names: string[], new_values: string[]): template {
         count : decimal = sizeof(new_names);
         if(count != sizeof(new_values))
-            throw new ill_arg_except("put_all: there must be as many values as names");
+            throw new illegal_argument_exception("put_all: there must be as many values as names");
         for(i : decimal = 0; i < count; i++) {
             put(new_names[i], new_values[i]);
         }
         return self;
     }
 
-    /** 1 if a value has been set for `name`. */
-    def has(name: string): decimal {
+    /** true if a value has been set for `name`. */
+    def has(name: string): bool {
         return find(name) >= 0;
     }
 
@@ -130,7 +132,7 @@ class template {
     }
 
     /**
-     * true: render() throws not_found_exception when a placeholder has no
+     * true: render() throws no_such_element_exception when a placeholder has no
      * value. false (the default): see set_missing_value.
      */
     def set_strict(on: bool): template {
@@ -200,7 +202,7 @@ class template {
                 } else {
                     name := placeholder_name(i, close);
                     known : decimal = 0;
-                    count : decimal = found.size().value;
+                    count : decimal = found.size();
                     for(k : decimal = 0; k < count; k++) {
                         if(found.at(k) == name) known = 1;
                     }
@@ -212,19 +214,19 @@ class template {
             }
         }
 
-        if(found.empty()) return new string[0];
+        if(found.is_empty()) return new string[0];
         return found.get_elements()!!;
     }
 
     /**
      * The text with every placeholder replaced by its value.
-     * Throws not_found_exception if a placeholder has no value and
+     * Throws no_such_element_exception if a placeholder has no value and
      * set_strict(true) was called.
      */
     def render(): string {
         d := text.data;
         n : decimal = sizeof(d);
-        out := new text_buffer();
+        out := new char_buffer();
         i : decimal = 0;
         while(i < n) {
             c : decimal = d[i];
@@ -245,7 +247,7 @@ class template {
                     if(at >= 0) {
                         out.append(values.at(at));
                     } else if(strict) {
-                        throw new not_found_exception("template: no value for placeholder {" + name + "}");
+                        throw new no_such_element_exception("template: no value for placeholder {" + name + "}");
                     } else if(has_missing_value) {
                         out.append(missing_value);
                     } else {

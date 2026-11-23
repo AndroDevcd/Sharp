@@ -10,7 +10,7 @@ mod std;
  *     double.max_value        // 1.7976931348623157e308
  *
  * The constants are native numbers (decimal), added to the classes of
- * std/primatives.sharp with `mutate` declarations.
+ * std/primitives/numbers.sharp with `mutate` declarations.
  *
  * long AND ulong: a native number is a 64-bit float and holds whole numbers
  * exactly only up to 2^53, so the true 64-bit limits (9223372036854775807

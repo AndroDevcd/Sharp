@@ -19,7 +19,7 @@ def add_one(x: decimal) : decimal { return x + 1; }
 def subtract(a: decimal, b: decimal) : decimal { return a - b; }
 def count_call() { calls++; }
 def bigger(a: int, b: int) : bool { return a > b; }
-def length(s: string) : decimal { return s.size().value; }
+def length(s: string) : decimal { return s.size(); }
 def join(a: string, b: string) : string { return a + b; }
 
 class maths {

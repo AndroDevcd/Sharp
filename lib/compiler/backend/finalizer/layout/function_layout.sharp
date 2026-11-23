@@ -79,6 +79,10 @@ class function_layout {
     definition : type_definition?;      // MADE_COMPONENT: the `single { }` / `factory { }` it gives the object of
 
     // what the later steps make
+    // (the two slots: set when the frame is laid out, read by output/debug_locals.sharp to say
+    //  where a variable a lambda uses lives)
+    record_parameter_slot : _int64 = 0 - 1;     // a lambda's hidden parameter: the closure record it was handed; -1: none
+    own_record_slot : _int64 = 0 - 1;           // the slot of the closure record this function makes for itself; -1: none
     ir : ir_function?;
     code : function_code?;
     encoding_problem : string?;         // an operand too large for its field (E0972); null when none
@@ -97,7 +101,7 @@ class function_layout {
      * the written ones (`calld` pushes it there: 4.6, 6.12).
      */
     def parameter_count() : _int64 {
-        return (of.parameters.size().value as _int64) + of.takes_record;
+        return of.parameters.size() + of.takes_record;
     }
 
     /** the closure record class a lambda's hidden last parameter holds; null when it has none */

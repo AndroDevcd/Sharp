@@ -344,7 +344,7 @@ class json_parser {
             }
         }
         // "nullx" or "true1" are not values
-        if(pos + n < count && (io_strings.is_letter(chars[pos + n]) || io_strings.is_digit(chars[pos + n]))) {
+        if(pos + n < count && (character.is_letter(chars[pos + n]) || character.is_digit(chars[pos + n]))) {
             fail("expected a value (did you mean " + word + "?)");
         }
         pos += n;
@@ -374,16 +374,16 @@ class json_parser {
         behind_point : _int64 = 0;
 
         // the whole part: a single 0, or digits that do not start with 0
-        if(pos >= count || !io_strings.is_digit(chars[pos])) {
+        if(pos >= count || !character.is_digit(chars[pos])) {
             fail("expected a digit after '-'");
         }
         if(chars[pos] == '0') {
             pos++;
-            if(pos < count && io_strings.is_digit(chars[pos])) {
+            if(pos < count && character.is_digit(chars[pos])) {
                 fail("a number cannot have a leading zero");
             }
         } else {
-            while(pos < count && io_strings.is_digit(chars[pos])) {
+            while(pos < count && character.is_digit(chars[pos])) {
                 if(digits < 900719925474099) {
                     digits = digits * 10 + (chars[pos] - '0');
                 } else {
@@ -396,10 +396,10 @@ class json_parser {
         // the fraction
         if(pos < count && chars[pos] == '.') {
             pos++;
-            if(pos >= count || !io_strings.is_digit(chars[pos])) {
+            if(pos >= count || !character.is_digit(chars[pos])) {
                 fail("expected a digit after the decimal point");
             }
-            while(pos < count && io_strings.is_digit(chars[pos])) {
+            while(pos < count && character.is_digit(chars[pos])) {
                 if(digits < 900719925474099) {
                     digits = digits * 10 + (chars[pos] - '0');
                     behind_point++;
@@ -419,10 +419,10 @@ class json_parser {
                 exponent_negative = chars[pos] == '-';
                 pos++;
             }
-            if(pos >= count || !io_strings.is_digit(chars[pos])) {
+            if(pos >= count || !character.is_digit(chars[pos])) {
                 fail("expected a digit in the exponent");
             }
-            while(pos < count && io_strings.is_digit(chars[pos])) {
+            while(pos < count && character.is_digit(chars[pos])) {
                 if(exponent < 1000) {
                     exponent = exponent * 10 + (chars[pos] - '0');
                 }
@@ -538,7 +538,7 @@ class json_parser {
                 fail("unknown escape: back slash followed by " + describe(escape));
             }
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** the value of the four hexadecimal digits at index `at` */
@@ -548,7 +548,7 @@ class json_parser {
         }
         code : _int64 = 0;
         for(i : _int64 = 0; i < 4; i++) {
-            digit : _int64 = io_strings.hex_value(chars[at + i]);
+            digit : _int64 = character.digit_value(chars[at + i], 16);
             if(digit < 0) {
                 pos = at + i;
                 fail("expected a hexadecimal digit after \\u but found " + describe(chars[at + i]));

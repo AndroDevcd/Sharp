@@ -17,6 +17,7 @@
 #include "data_processor.h"
 #include "meta_data_processor.h"
 #include "bytecode_processor.h"
+#include "../types/sharp_field.h"
 
 string exeData;
 int cursor = -1;
@@ -41,6 +42,7 @@ void validate_authenticity() {
 }
 
 void process_extern_data(KeyPair<int, string> &result);
+void process_debugger_data(KeyPair<int, string> &result);
 
 KeyPair<int, string> process_exe() {
     KeyPair<int, string> result(0, "");
@@ -66,6 +68,7 @@ KeyPair<int, string> process_exe() {
         process_bytecode(result);
         process_meta_data(result);
         process_extern_data(result);
+        process_debugger_data(result);
     } catch(invalid_argument &e) {
         return result.with(CORRUPT_FILE, e.what());
     } catch(overflow_error &e) {
@@ -127,6 +130,74 @@ void process_extern_data(KeyPair<int, string> &result) {
         } else {
             result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt (its extern section).\n");
             throw runtime_error("");
+        }
+    }
+}
+
+//
+// The debugger's section: what sdb (lib/debugger) shows and the VM itself never asks for - the
+// names of local variables and where each lives, and which fields are bools (the compiler:
+// backend/finalizer/output/debug_locals.sharp, which says what every number means). It stands
+// last, and only in a program built with -dbg and without -O.
+//
+//      0x3b   0x38: the program's names were replaced (-obf);  0x37: it was optimized (-O)
+//             per function:  0x3a, its address (int32), how many variables follow (int32),
+//                 per variable: its name (text), kind, first line, last line, slot (int32 each),
+//                 how many steps follow (int32) and each step (int32), field (int32)
+//             per class:  0x39, its address (int32), how many fields follow (int32),
+//                 per field: its place among the class's fields, kind (int32 each)
+//      0x1d
+//
+static void corrupt_debugger_section(KeyPair<int, string> &result) {
+    result.with(CORRUPT_FILE, "file `" + executable + "` may be corrupt (its debugger section).\n");
+    throw runtime_error("");
+}
+
+void process_debugger_data(KeyPair<int, string> &result) {
+    if((cursor + 1) >= exeData.size() || exeData[cursor + 1] != 0x3b) return;
+    next_char();
+    for(;;) {
+        char tag = next_char();
+        if(tag == 0x1d) break;
+        if(tag == 0x0a) continue;
+        if(tag == 0x38) { vm.mf.obfuscated = true; continue; }
+        if(tag == 0x37) { vm.mf.optimized = true; continue; }
+
+        int32_t address = next_int32();
+        int32_t count = next_int32();
+        if(address < 0 || count < 0) corrupt_debugger_section(result);
+
+        if(tag == 0x3a) {
+            if((uInt) address >= vm.mf.methods || vm.methods[address].locals != nullptr) corrupt_debugger_section(result);
+
+            sharp_function *function = &vm.methods[address];
+            function->locals = new local_data[count];
+            function->localCount = count;
+            for(int32_t i = 0; i < count; i++) {
+                local_data &local = function->locals[i];
+                next_string(local.name);
+                local.kind = next_int32();
+                local.firstLine = next_int32();
+                local.lastLine = next_int32();
+                local.slot = next_int32();
+                local.stepCount = next_int32();
+                if(local.stepCount < 0 || local.stepCount > 1000) corrupt_debugger_section(result);
+                local.steps = local.stepCount > 0 ? new int32_t[local.stepCount] : nullptr;
+                for(int32_t step = 0; step < local.stepCount; step++) local.steps[step] = next_int32();
+                local.field = next_int32();
+            }
+        } else if(tag == 0x39) {
+            if((uInt) address >= vm.mf.classes) corrupt_debugger_section(result);
+
+            sharp_class *of = &vm.classes[address];
+            for(int32_t i = 0; i < count; i++) {
+                int32_t place = next_int32();
+                int32_t kind = next_int32();
+                if(place < 0 || place >= of->totalFieldCount) corrupt_debugger_section(result);
+                of->fields[place].debugKind = kind;
+            }
+        } else {
+            corrupt_debugger_section(result);
         }
     }
 }

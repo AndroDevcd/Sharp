@@ -259,32 +259,32 @@ class calendar {
     //  business days (Monday to Friday, minus the holidays the caller names)
     // ------------------------------------------------------------------
 
-    /** 1 when `day` is a Saturday or Sunday */
-    static def is_weekend(day: date): decimal {
+    /** true when `day` is a Saturday or Sunday */
+    static def is_weekend(day: date): bool {
         return day.day_of_week().is_weekend();
     }
 
-    /** 1 when `day` is Monday to Friday */
-    static def is_business_day(day: date): decimal {
+    /** true when `day` is Monday to Friday */
+    static def is_business_day(day: date): bool {
         return !day.day_of_week().is_weekend();
     }
 
-    /** 1 when `day` is Monday to Friday and is not one of `holidays` */
-    static def is_business_day(day: date, holidays: date[]): decimal {
+    /** true when `day` is Monday to Friday and is not one of `holidays` */
+    static def is_business_day(day: date, holidays: date[]): bool {
         if(day.day_of_week().is_weekend()) {
-            return 0;
+            return false;
         }
         return !contains(holidays, day);
     }
 
-    /** 1 when `day` is in `days` */
-    private static def contains(days: date[], day: date): decimal {
+    /** true when `day` is in `days` */
+    private static def contains(days: date[], day: date): bool {
         for(i : decimal = 0; i < sizeof(days); i++) {
             if(days[i] == day) {
-                return 1;
+                return true;
             }
         }
-        return 0;
+        return false;
     }
 
     /**

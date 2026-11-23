@@ -60,8 +60,8 @@ class priority_queue<T> : loopable<T>, iterable<T> {
         return count;
     }
 
-    /** 1 when there are no elements, otherwise 0. O(1). */
-    def is_empty() : decimal {
+    /** true when there are no elements. O(1). */
+    def is_empty() : bool {
         return count == 0;
     }
 
@@ -81,7 +81,7 @@ class priority_queue<T> : loopable<T>, iterable<T> {
 
     /** Add every element of a `list`. O(m log n) for m new elements. */
     def add_all(elements: list<T>) {
-        n : decimal = elements.size().value;
+        n : decimal = elements.size();
         for(i : decimal = 0; i < n; i++)
             add(elements.at(i));
     }
@@ -123,24 +123,24 @@ class priority_queue<T> : loopable<T>, iterable<T> {
     /**
      * Remove one element that equals `element` (compared with `==`). O(n).
      *
-     * @return 1 when an element was removed, 0 when there was none
+     * @return true when an element was removed, false when there was none
      */
-    def remove(element: T) : decimal {
+    def remove(element: T) : bool {
         for(i : decimal = 0; i < count; i++) {
             if(heap[i] == element) {
                 remove_slot(i);
-                return 1;
+                return true;
             }
         }
-        return 0;
+        return false;
     }
 
-    /** 1 when an element equals `element`, otherwise 0. O(n). */
-    def contains(element: T) : decimal {
+    /** true when an element equals `element`. O(n). */
+    def contains(element: T) : bool {
         for(i : decimal = 0; i < count; i++) {
-            if(heap[i] == element) return 1;
+            if(heap[i] == element) return true;
         }
-        return 0;
+        return false;
     }
 
     /** Remove every element. O(1). */

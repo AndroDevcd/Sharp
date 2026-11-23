@@ -115,7 +115,7 @@ class string_similarity {
     static def hamming(a: string, b: string): decimal {
         n : decimal = sizeof(a.data);
         if(n != sizeof(b.data))
-            throw new ill_arg_except("hamming: the strings must have the same length ("
+            throw new illegal_argument_exception("hamming: the strings must have the same length ("
                 + number_format.integer(n) + " and " + number_format.integer(sizeof(b.data)) + ")");
 
         different : decimal = 0;

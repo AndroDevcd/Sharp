@@ -52,7 +52,7 @@ class file_writer : text_writer {
 
     private def prepare(target: file, append: bool) {
         if(target.is_directory()) {
-            throw new io_exception("cannot write to a directory: " + target.get_path());
+            throw new io_exception("cannot write to a directory: " + target.path);
         }
         self->target = target;
         buf = new char_buffer(256);
@@ -121,7 +121,7 @@ class file_writer : text_writer {
     override def flush() {
         check_open();
         if(dirty) {
-            target.write_text(buf.to_string()!!);
+            target.write_text(buf.build());
             dirty = 0;
         }
     }
@@ -140,7 +140,7 @@ class file_writer : text_writer {
         closed = 1;
         if(dirty) {
             dirty = 0;
-            target.write_text(buf.to_string()!!);
+            target.write_text(buf.build());
         }
     }
 

@@ -59,8 +59,8 @@ def choose_overload(session: analysis_session, functions: list<sharp_function>, 
     // question "could a constructor of the parameter class take it?" is never
     // asked of the others. (The library calls `number.operator==` with its
     // twenty overloads thousands of times.)
-    count : _int64 = functions.size().value as _int64;
-    argument_count : _int64 = arguments.size().value as _int64;
+    count : _int64 = functions.size();
+    argument_count : _int64 = arguments.size();
     has_lambda : _int64 = lambda_argument_in(arguments);
     tried := new call_candidate[count];         // what the quick pass found, by position; null: the count is wrong
     for(i : _int64 = 0; i < count; i++) {
@@ -87,7 +87,7 @@ def choose_overload(session: analysis_session, functions: list<sharp_function>, 
         else { result.rejected.add(candidate!!); }
     }
     applicable = sure_of_their_requests(applicable);
-    result.applicable_count = applicable.size().value as _int64;
+    result.applicable_count = applicable.size();
     if(applicable.size() == 0) { return; }
     if(applicable.size() == 1) {
         result.best = applicable.at(0);

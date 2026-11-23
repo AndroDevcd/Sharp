@@ -56,7 +56,7 @@ class complex {
      * direction `phase` (radians): magnitude * (cos(phase) + i sin(phase)).
      */
     static def from_polar(magnitude: decimal, phase: decimal): complex {
-        return new complex(magnitude * cos_of(phase), magnitude * sin_of(phase));
+        return new complex(magnitude * cos(phase), magnitude * sin(phase));
     }
 
     /** (a + bi) + (c + di) = (a + c) + (b + d)i */
@@ -134,7 +134,7 @@ class complex {
 
     /** true when both parts differ by at most `tolerance` */
     def approx_equals(other: complex, tolerance: decimal): bool {
-        return absolute(re - other.re) <= tolerance && absolute(im - other.im) <= tolerance;
+        return abs(re - other.re) <= tolerance && abs(im - other.im) <= tolerance;
     }
 
     /** the distance from the origin, sqrt(re^2 + im^2) (also called modulus or absolute value) */
@@ -180,18 +180,18 @@ class complex {
 
     /** e raised to this number: e^re * (cos(im) + i sin(im)) (Euler's formula) */
     def exp(): complex {
-        size : decimal = exp_of(re);
-        return new complex(size * cos_of(im), size * sin_of(im));
+        size : decimal = exp(re);
+        return new complex(size * cos(im), size * sin(im));
     }
 
     /**
-     * The principal natural logarithm: ln(magnitude) + phase * i.
+     * The principal natural logarithm: log(magnitude) + phase * i.
      * Throws arithmetic_exception for 0 + 0i (the logarithm of 0 does not exist).
      */
     def log(): complex {
         if(re == 0 && im == 0)
             throw new arithmetic_exception("complex: the logarithm of zero does not exist");
-        return new complex(ln(magnitude()), phase());
+        return new complex(log(magnitude()), phase());
     }
 
     /**
@@ -203,7 +203,7 @@ class complex {
             if(exponent == 0) return new complex(1, 0);
             return new complex(0, 0);
         }
-        return from_polar(power(magnitude(), exponent), phase() * exponent);
+        return from_polar(pow(magnitude(), exponent), phase() * exponent);
     }
 
     /**
@@ -216,8 +216,8 @@ class complex {
      */
     def sqrt(): complex {
         size : decimal = magnitude();
-        real : decimal = square_root((size + re) / 2);
-        imaginary : decimal = square_root((size - re) / 2);
+        real : decimal = sqrt((size + re) / 2);
+        imaginary : decimal = sqrt((size - re) / 2);
         if(im < 0) imaginary = 0 - imaginary;
         return new complex(real, imaginary);
     }

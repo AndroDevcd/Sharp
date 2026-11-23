@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * char_sets
  *
@@ -79,7 +81,7 @@ class char_sets {
         from : decimal = first.value;
         to : decimal = last.value;
         if(to < from)
-            throw new ill_arg_except("range: the last character comes before the first");
+            throw new illegal_argument_exception("range: the last character comes before the first");
 
         buffer := new _int8[to - from + 1];
         for(c : decimal = from; c <= to; c++) {
@@ -88,8 +90,8 @@ class char_sets {
         return new string(buffer);
     }
 
-    /** 1 if the character `c` is in `set_chars`. */
-    static def contains(set_chars: string, c: char): decimal {
+    /** true if the character `c` is in `set_chars`. */
+    static def contains(set_chars: string, c: char): bool {
         return set_chars.index_of_char(c) >= 0;
     }
 
@@ -98,21 +100,21 @@ class char_sets {
      * `a` in their order (without repeats), then those of `b` that are new.
      */
     static def union(a: string, b: string): string {
-        out := new text_buffer();
+        out := new char_buffer();
         append_new(out, a);
         append_new(out, b);
         return out.build();
     }
 
     /** Appends the characters of `text` that `out` does not hold yet. */
-    private static def append_new(out: text_buffer, text: string) {
+    private static def append_new(out: char_buffer, text: string) {
         n : decimal = sizeof(text.data);
         for(i : decimal = 0; i < n; i++) {
             c : decimal = text.data[i];
             known : decimal = 0;
             have : decimal = out.length();
             for(k : decimal = 0; k < have; k++) {
-                if(out.data[k] == c) {
+                if(out.char_at(k) == c) {
                     known = 1;
                     break;
                 }
@@ -123,25 +125,25 @@ class char_sets {
 
     /** The characters of `a` that are NOT in `b`, each once, in the order of `a`. */
     static def difference(a: string, b: string): string {
-        out := new text_buffer();
+        out := new char_buffer();
         append_new(out, a.remove_chars(b));
         return out.build();
     }
 
     /** The characters of `a` that are ALSO in `b`, each once, in the order of `a`. */
     static def intersection(a: string, b: string): string {
-        out := new text_buffer();
+        out := new char_buffer();
         append_new(out, a.retain_chars(b));
         return out.build();
     }
 
-    /** 1 if every character of `text` is in `set_chars` ("" gives 1). */
-    static def all_in(text: string, set_chars: string): decimal {
+    /** true if every character of `text` is in `set_chars` ("" gives 1). */
+    static def all_in(text: string, set_chars: string): bool {
         return text.index_of_none(set_chars) < 0;
     }
 
-    /** 1 if no character of `text` is in `set_chars` ("" gives 1). */
-    static def none_in(text: string, set_chars: string): decimal {
+    /** true if no character of `text` is in `set_chars` ("" gives 1). */
+    static def none_in(text: string, set_chars: string): bool {
         return text.index_of_any(set_chars) < 0;
     }
 

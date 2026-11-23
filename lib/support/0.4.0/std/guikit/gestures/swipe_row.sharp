@@ -131,7 +131,7 @@ stable class swipe_row base widget : behavior {
         } else {
             // not far enough: back to where it belongs
             offset = 0;
-            count : _int64 = me.kids.size().value;
+            count : _int64 = me.kids.size();
             for(i : _int64 = 0; i < count; i++) {
                 glide.to(me.kids.at(i), 0, 0);
             }

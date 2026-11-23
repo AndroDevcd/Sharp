@@ -19,8 +19,8 @@ mod std.math;
  * trunc(-2.9) == -2. NaN and the infinities are returned unchanged.
  */
 def trunc(v: decimal): decimal {
-    if(v < 0) return ceil_of(v);
-    return floor_of(v);
+    if(v < 0) return ceil(v);
+    return floor(v);
 }
 
 /**
@@ -36,8 +36,8 @@ def fract(v: decimal): decimal {
  * is what people usually call rounding: 2.5 -> 3, -2.5 -> -3, 2.4 -> 2.
  */
 def round_half_away(v: decimal): decimal {
-    if(v < 0) return ceil_of(v - 0.5);
-    return floor_of(v + 0.5);
+    if(v < 0) return ceil(v - 0.5);
+    return floor(v + 0.5);
 }
 
 /**
@@ -47,14 +47,14 @@ def round_half_away(v: decimal): decimal {
  * round_half_away does.
  */
 def round_half_even(v: decimal): decimal {
-    low : decimal = floor_of(v);
+    low : decimal = floor(v);
     difference : decimal = v - low;
 
     if(difference < 0.5) return low;
     if(difference > 0.5) return low + 1;
 
     // exactly half way: pick whichever of low and low + 1 is even
-    if(low - 2 * floor_of(low / 2) == 0) return low;
+    if(low - 2 * floor(low / 2) == 0) return low;
     return low + 1;
 }
 
@@ -69,24 +69,24 @@ def round_half_even(v: decimal): decimal {
  */
 def round_to(v: decimal, decimals: decimal): decimal {
     if(decimals < 0) {
-        scale : decimal = power(10, 0 - decimals);
+        scale : decimal = pow(10, 0 - decimals);
         return round_half_away(v / scale) * scale;
     }
 
-    scale : decimal = power(10, decimals);
+    scale : decimal = pow(10, decimals);
     return round_half_away(v * scale) / scale;
 }
 
 /** round DOWN to `decimals` digits after the point: floor_to(3.149, 2) == 3.14 */
 def floor_to(v: decimal, decimals: decimal): decimal {
-    scale : decimal = power(10, decimals);
-    return floor_of(v * scale) / scale;
+    scale : decimal = pow(10, decimals);
+    return floor(v * scale) / scale;
 }
 
 /** round UP to `decimals` digits after the point: ceil_to(3.141, 2) == 3.15 */
 def ceil_to(v: decimal, decimals: decimal): decimal {
-    scale : decimal = power(10, decimals);
-    return ceil_of(v * scale) / scale;
+    scale : decimal = pow(10, decimals);
+    return ceil(v * scale) / scale;
 }
 
 /**
@@ -135,7 +135,7 @@ def int_rem(dividend: decimal, divisor: decimal): decimal {
 def floor_div(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("floor_div: division by zero");
-    return floor_of(dividend / divisor);
+    return floor(dividend / divisor);
 }
 
 /**
@@ -150,7 +150,7 @@ def floor_div(dividend: decimal, divisor: decimal): decimal {
 def floor_mod(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("floor_mod: division by zero");
-    return dividend - floor_of(dividend / divisor) * divisor;
+    return dividend - floor(dividend / divisor) * divisor;
 }
 
 /**
@@ -162,5 +162,5 @@ def floor_mod(dividend: decimal, divisor: decimal): decimal {
 def ceil_div(dividend: decimal, divisor: decimal): decimal {
     if(divisor == 0)
         throw new division_by_zero_exception("ceil_div: division by zero");
-    return ceil_of(dividend / divisor);
+    return ceil(dividend / divisor);
 }

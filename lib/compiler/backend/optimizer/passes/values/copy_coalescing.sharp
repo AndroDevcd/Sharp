@@ -83,7 +83,7 @@ def coalesce_copies(analyses: function_analyses) : _int64 {
 
 /** does the function have a copy this pass could take away at all? */
 def has_a_plain_copy(code: ir_function) : _int64 {
-    return block_has_a_plain_copy(code, 0, code.instructions.size().value as _int64);
+    return block_has_a_plain_copy(code, 0, code.instructions.size());
 }
 
 /** how far back the write a copy reads is looked for: a long block is not searched again for every copy */

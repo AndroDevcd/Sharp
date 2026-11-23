@@ -66,6 +66,7 @@ class platform
             user_args[iter++] = new string(args[i] as _int8[]);
         }
 
+        vm.arguments = user_args;
         result := 0;
         when {
             main != null -> result = main(user_args);

@@ -59,14 +59,14 @@ class planner {
 
     def load() {
         found : list<string> = store.read_all();
-        for(i : _int64 = 0; i < found.size().value; i++) {
+        for(i : _int64 = 0; i < found.size(); i++) {
             tasks.add(found.at(i));
         }
     }
 
     /** add a task - unless its title is empty; gives 1 when it was added */
     def add(title: string) : _int64 {
-        if(title.size().value == 0) {
+        if(title.size() == 0) {
             return 0;
         }
         tasks.add(title);
@@ -75,7 +75,7 @@ class planner {
     }
 
     def headline() : string {
-        return "" + tasks.size().value + " tasks at " + time.now();
+        return "" + tasks.size() + " tasks at " + time.now();
     }
 }
 
@@ -122,7 +122,7 @@ def main() {
 
             verify { store.read_all(); }.once();
             verify { store.save(any_text()); }.never();
-            expect(p.tasks.size().value).should_be(2);
+            expect(p.tasks.size()).should_be(2);
         };
 
         test("adding a task saves it") {

@@ -85,8 +85,8 @@ class comparator<T> {
      * are equal. A text that is a prefix of the other comes first.
      */
     static def compare_text(a: string, b: string): decimal {
-        size_a : decimal = a.size().value;
-        size_b : decimal = b.size().value;
+        size_a : decimal = a.size();
+        size_b : decimal = b.size();
         shared : decimal = size_a;
         if(size_b < shared) shared = size_b;
 
@@ -216,7 +216,7 @@ class comparator<T> {
 
     /** sort a list in place (see sort for arrays); does nothing for an empty list */
     def sort(items: list<T>) {
-        n : decimal = items.size().value;
+        n : decimal = items.size();
         if(n < 2) return;
 
         sorted := new T[n];

@@ -42,30 +42,30 @@ mutate string {
         return sizeof(data);
     }
 
-    /** 1 if the string has no characters at all, otherwise 0. */
-    def is_empty(): decimal {
+    /** true if the string has no characters at all. */
+    def is_empty(): bool {
         return sizeof(data) == 0;
     }
 
-    /** 1 if the string has at least one character, otherwise 0. */
-    def is_not_empty(): decimal {
+    /** true if the string has at least one character. */
+    def is_not_empty(): bool {
         return sizeof(data) != 0;
     }
 
     /**
-     * 1 if the string is empty or holds nothing but whitespace
+     * true if the string is empty or holds nothing but whitespace
      * (space, tab, newline, carriage return, vertical tab, form feed).
      */
-    def is_blank(): decimal {
+    def is_blank(): bool {
         n : decimal = sizeof(data);
         for(i : decimal = 0; i < n; i++) {
-            if(!string_support.is_space(data[i])) return 0;
+            if(!string_support.is_space(data[i])) return false;
         }
-        return 1;
+        return true;
     }
 
-    /** 1 if the string holds at least one character that is not whitespace. */
-    def is_not_blank(): decimal {
+    /** true if the string holds at least one character that is not whitespace. */
+    def is_not_blank(): bool {
         return !is_blank();
     }
 
@@ -77,7 +77,7 @@ mutate string {
     def char_at(pos: int): decimal {
         p : decimal = pos.value;
         if(p < 0 || p >= sizeof(data))
-            throw new bounds_except("char_at: index $pos is outside of a string of ${size()} characters");
+            throw new out_of_bounds_exception("char_at: index $pos is outside of a string of ${size()} characters");
         return data[p];
     }
 
@@ -97,7 +97,7 @@ mutate string {
      */
     def first(): decimal {
         if(sizeof(data) == 0)
-            throw new bounds_except("first: the string is empty");
+            throw new out_of_bounds_exception("first: the string is empty");
         return data[0];
     }
 
@@ -114,7 +114,7 @@ mutate string {
     def last(): decimal {
         n : decimal = sizeof(data);
         if(n == 0)
-            throw new bounds_except("last: the string is empty");
+            throw new out_of_bounds_exception("last: the string is empty");
         return data[n - 1];
     }
 

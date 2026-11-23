@@ -21,7 +21,7 @@ import ( std.testing )
  */
 
 def takes_text(text: string): decimal {
-    return text.size().value;
+    return text.size();
 }
 
 def first_code(text: string): decimal {

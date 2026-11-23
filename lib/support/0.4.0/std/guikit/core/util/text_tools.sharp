@@ -48,7 +48,7 @@ stable class txt {
 
     /** the position one letter after `at` */
     static def after(words: string, at: _int64) : _int64 {
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         if(at >= length) { return length; }
         to : _int64 = at + 1;
         while(to < length && continues_letter(words.at(to).value) == 1) {
@@ -78,7 +78,7 @@ stable class txt {
 
     /** is there anything in `words` besides spaces, tabs and line ends? */
     static def is_blank(words: string) : _int64 {
-        for(i : _int64 = 0; i < words.size().value; i++) {
+        for(i : _int64 = 0; i < words.size(); i++) {
             byte : _int64 = words.at(i).value;
             if(byte != 32 && byte != 9 && byte != 10 && byte != 13) { return 0; }
         }

@@ -61,9 +61,9 @@ stable class shapes {
             tilt : decimal = PI_VALUE * i / down;
             for(j : _int64 = 0; j <= around; j++) {            // the first column again at the end: the texture's seam
                 turn : decimal = PI_VALUE * 2 * j / around;
-                nx : decimal = sin_of(tilt) * cos_of(turn);
-                ny : decimal = cos_of(tilt);
-                nz : decimal = sin_of(tilt) * sin_of(turn);
+                nx : decimal = sin(tilt) * cos(turn);
+                ny : decimal = cos(tilt);
+                nz : decimal = sin(tilt) * sin(turn);
                 m.corner(nx * radius, ny * radius, nz * radius, nx, ny, nz, 1 - 1.0 * j / around, 1.0 * i / down);
             }
         }
@@ -88,12 +88,12 @@ stable class shapes {
         m := new mesh();
         if(sides < 3) { sides = 3; }
         lean : decimal = bottom - top;                          // how much the side leans in: its facing tips up by this
-        long : decimal = square_root(height * height + lean * lean);
+        long : decimal = sqrt(height * height + lean * lean);
         if(long <= 0) { long = 1; }
         for(j : _int64 = 0; j <= sides; j++) {
             turn : decimal = PI_VALUE * 2 * j / sides;
-            cx : decimal = cos_of(turn);
-            cz : decimal = sin_of(turn);
+            cx : decimal = cos(turn);
+            cz : decimal = sin(turn);
             u : decimal = 1 - 1.0 * j / sides;
             m.corner(top * cx, height / 2, top * cz, cx * height / long, lean / long, cz * height / long, u, 0);
             m.corner(bottom * cx, 0 - height / 2, bottom * cz, cx * height / long, lean / long, cz * height / long, u, 1);
@@ -113,7 +113,7 @@ stable class shapes {
         first : _int64 = m.corner_count;
         for(j : _int64 = 0; j <= sides; j++) {
             turn : decimal = PI_VALUE * 2 * j / sides;
-            m.corner(radius * cos_of(turn), y, radius * sin_of(turn), 0, up, 0, 0.5 + cos_of(turn) / 2, 0.5 + sin_of(turn) / 2);
+            m.corner(radius * cos(turn), y, radius * sin(turn), 0, up, 0, 0.5 + cos(turn) / 2, 0.5 + sin(turn) / 2);
         }
         for(j : _int64 = 0; j < sides; j++) {
             if(up > 0) { m.triangle(middle, first + j + 1, first + j); }
@@ -170,9 +170,9 @@ stable class shapes {
             turn : decimal = PI_VALUE * 2 * i / around;
             for(j : _int64 = 0; j <= sides; j++) {
                 tube : decimal = PI_VALUE * 2 * j / sides;
-                out : decimal = radius + thickness * cos_of(tube);
-                m.corner(out * cos_of(turn), thickness * sin_of(tube), out * sin_of(turn),
-                         cos_of(tube) * cos_of(turn), sin_of(tube), cos_of(tube) * sin_of(turn), 1.0 * i / around, 1.0 * j / sides);
+                out : decimal = radius + thickness * cos(tube);
+                m.corner(out * cos(turn), thickness * sin(tube), out * sin(turn),
+                         cos(tube) * cos(turn), sin(tube), cos(tube) * sin(turn), 1.0 * i / around, 1.0 * j / sides);
             }
         }
         row : _int64 = sides + 1;

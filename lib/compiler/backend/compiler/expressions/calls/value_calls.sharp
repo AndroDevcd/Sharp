@@ -50,8 +50,8 @@ def call_function_value(context: analysis_context, callee: bound_expression, arg
     parameters : list<resolved_type> = type.parameters!!;
     if(parameters.size() != arguments.size()) {
         d := problem_over(context, "E0505", called_text(context, callee) + " takes "
-                          + count_of(parameters.size().value as _int64, "argument") + ", "
-                          + count_was(arguments.size().value as _int64, "given"), node);
+                          + count_of(parameters.size(), "argument") + ", "
+                          + count_was(arguments.size(), "given"), node);
         d.with_label("its type is `" + type.to_text() + "`");
         d.with_note("a function value is called with exactly the arguments its type lists");
         report(context, d);

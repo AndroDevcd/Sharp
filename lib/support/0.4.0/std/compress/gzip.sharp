@@ -1,0 +1,159 @@
+mod std.compress;
+
+import ( std.io, std.util )
+
+/**
+ * GZIP: compressed data as files and web servers carry it
+ *
+ *      small := gzip.compress(bytes);                      // what `gzip file` writes: the content of a .gz file
+ *      same := gzip.decompress(small);
+ *
+ *      gzip.compress_text("a long text ...")               // from and to texts
+ *      gzip.decompress_text(bytes)
+ *      gzip.compress_file(new file("log.txt"), new file("log.txt.gz"));
+ *      gzip.decompress_file(new file("log.txt.gz"), new file("log.txt"));
+ *      gzip.is_gzip(bytes)                                 // does it start as gzip data does?
+ *
+ * Gzip is deflate (deflate.sharp) with a short header in front and, behind
+ * it, a checksum and the length of the original - so damaged data is
+ * NOTICED: decompress throws compress_exception when the checksum or the
+ * length does not fit, where bare deflate would hand back wrong bytes.
+ *
+ * zlib is the same idea with a smaller wrapper (2 bytes in front, another
+ * checksum behind); it is what png images and many protocols use:
+ *
+ *      zlib.compress(bytes)        zlib.decompress(bytes)
+ *
+ *      Java comparison: GZIPOutputStream / GZIPInputStream; Python: gzip.compress / gzip.decompress.
+ */
+class gzip {
+    static def is_gzip(data: _int8[]?) : bool {
+        return sizeof(data) >= 3 && (data!![0] & 0xFF) == 0x1f && (data!![1] & 0xFF) == 0x8b && data!![2] == 8;
+    }
+
+    static def compress(data: _int8[]?) : _int8[] {
+        body : _int8[] = deflate.compress(data);
+        made := new _int8[sizeof(body) + 18];
+        // the header: "this is gzip", "deflate", no extras, no time, no hints, a system that is not named
+        made[0] = 0x1f; made[1] = 0x8b; made[2] = 8; made[9] = 255;
+        memcopy(body, made, 10, 0, sizeof(body));
+        at : _int64 = 10 + sizeof(body);
+        checksums.put32(made, at, hashing.crc32(data));
+        checksums.put32(made, at + 4, sizeof(data) & 0xFFFFFFFF);
+        return made;
+    }
+
+    /** decompress gzip data; several gzip streams one after the other (which `cat a.gz b.gz` makes) give their contents joined */
+    static def decompress(data: _int8[]?) : _int8[] {
+        whole : byte_buffer? = null;
+        first : _int8[]? = null;
+        at : _int64 = 0;
+        size : _int64 = sizeof(data);
+        while(true) {
+            if(size - at < 18 || (data!![at] & 0xFF) != 0x1f || (data!![at + 1] & 0xFF) != 0x8b) {
+                if(first == null) { throw new compress_exception("this is not gzip data"); }
+                break;          // what follows the last stream is not ours (padding)
+            }
+            if(data!![at + 2] != 8) { throw new compress_exception("gzip data compressed in a way that is not deflate"); }
+            flags : _int64 = data!![at + 3] & 0xFF;
+            at = at + 10;
+            if((flags & 4) != 0) {                          // an extra field: its length, then it
+                if(at + 2 > size) { throw new compress_exception("the gzip data ends in the middle"); }
+                at = at + 2 + ((data!![at] & 0xFF) | ((data!![at + 1] & 0xFF) << 8));
+            }
+            if((flags & 8) != 0) { while(at < size && data!![at] != 0) { at++; } at++; }        // the file's name, up to a 0
+            if((flags & 16) != 0) { while(at < size && data!![at] != 0) { at++; } at++; }       // a comment, up to a 0
+            if((flags & 2) != 0) { at = at + 2; }           // a checksum of the header
+            if(at >= size) { throw new compress_exception("the gzip data ends in the middle"); }
+
+            work := new inflater(data, at);
+            content : _int8[] = work.run();
+            at = work.position();
+            if(at + 8 > size) { throw new compress_exception("the gzip data ends before its checksum"); }
+            if(checksums.get32(data!!, at) != hashing.crc32(content)) {
+                throw new compress_exception("the gzip data is damaged: its checksum does not fit");
+            }
+            if(checksums.get32(data!!, at + 4) != (sizeof(content) & 0xFFFFFFFF)) {
+                throw new compress_exception("the gzip data is damaged: its length does not fit");
+            }
+            at = at + 8;
+            if(first == null) { first = content; }
+            else {
+                if(whole == null) { whole = new byte_buffer(); whole!!.put_bytes(first); }
+                whole!!.put_bytes(content);
+            }
+            if(at >= size) { break; }
+        }
+        if(whole != null) { return whole!!.to_array() ?: new _int8[0]; }
+        return first!!;
+    }
+
+    static def compress_text(text: string) : _int8[] {
+        return compress(text.data);
+    }
+
+    static def decompress_text(data: _int8[]?) : string {
+        bytes : _int8[] = decompress(data);
+        if(sizeof(bytes) == 0) { return ""; }
+        return new string(bytes, 0, sizeof(bytes));
+    }
+
+    static def compress_file(source: file, target: file) {
+        target.write_bytes(compress(source.read_bytes()));
+    }
+
+    static def decompress_file(source: file, target: file) {
+        target.write_bytes(decompress(source.read_bytes()));
+    }
+}
+
+class zlib {
+    static def compress(data: _int8[]?) : _int8[] {
+        body : _int8[] = deflate.compress(data);
+        made := new _int8[sizeof(body) + 6];
+        made[0] = 0x78; made[1] = 0x9c;                     // deflate, a window of 32768, and 2 bytes that divide by 31
+        memcopy(body, made, 2, 0, sizeof(body));
+        sum : _int64 = hashing.adler32(data);
+        at : _int64 = 2 + sizeof(body);
+        made[at] = (sum >> 24) & 0xFF; made[at + 1] = (sum >> 16) & 0xFF; made[at + 2] = (sum >> 8) & 0xFF; made[at + 3] = sum & 0xFF;
+        return made;
+    }
+
+    static def decompress(data: _int8[]?) : _int8[] {
+        size : _int64 = sizeof(data);
+        if(size < 6 || (data!![0] & 0x0F) != 8 || (((data!![0] & 0xFF) << 8) | (data!![1] & 0xFF)) % 31 != 0) {
+            throw new compress_exception("this is not zlib data");
+        }
+        if((data!![1] & 0x20) != 0) { throw new compress_exception("zlib data that needs a dictionary"); }
+        work := new inflater(data, 2);
+        content : _int8[] = work.run();
+        at : _int64 = work.position();
+        if(at + 4 > size) { throw new compress_exception("the zlib data ends before its checksum"); }
+        wanted : _int64 = ((data!![at] & 0xFF) << 24) | ((data!![at + 1] & 0xFF) << 16) | ((data!![at + 2] & 0xFF) << 8) | (data!![at + 3] & 0xFF);
+        if(wanted != hashing.adler32(content)) { throw new compress_exception("the zlib data is damaged: its checksum does not fit"); }
+        return content;
+    }
+}
+
+/** numbers of 2 and 4 bytes with the low byte first, as the containers write them (their checksums are hashing.crc32 and hashing.adler32) */
+class checksums {
+    static def get32(data: _int8[], at: _int64) : _int64 {
+        return (data[at] & 0xFF) | ((data[at + 1] & 0xFF) << 8) | ((data[at + 2] & 0xFF) << 16) | ((data[at + 3] & 0xFF) << 24);
+    }
+
+    static def put32(data: _int8[], at: _int64, value: _int64) {
+        data[at] = value & 0xFF;
+        data[at + 1] = (value >> 8) & 0xFF;
+        data[at + 2] = (value >> 16) & 0xFF;
+        data[at + 3] = (value >> 24) & 0xFF;
+    }
+
+    static def get16(data: _int8[], at: _int64) : _int64 {
+        return (data[at] & 0xFF) | ((data[at + 1] & 0xFF) << 8);
+    }
+
+    static def put16(data: _int8[], at: _int64, value: _int64) {
+        data[at] = value & 0xFF;
+        data[at + 1] = (value >> 8) & 0xFF;
+    }
+}

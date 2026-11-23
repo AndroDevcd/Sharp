@@ -7,6 +7,7 @@
 // for what a handler is.
 //
 #include "interrupt_internal.h"
+#include "../sig_handler.h"
 
 // For asking the OS the path of THIS binary (see op_runtime_path). Each system
 // has its own call; _WIN32 is the real predefined macro (same one sni_runtime.cpp
@@ -64,6 +65,22 @@ void op_exit(Int interrupt) {
 // decide things by it while their static parts are set up (the file class picks
 // its file system) - and that runs before the start function has stored anything.
 //
+//
+// Signals the program asked to hear about (sig_handler.h; the library: std.system signals).
+//
+//   signal_watch: EBX = which signal (1 Ctrl+C, 2 asked to end, 3 terminal closed),
+//                 ECX = 1 to hear about it, 0 to let it end the program again
+//   signal_take:  EBX = how long to wait, in milliseconds; EBX = the signal that came, 0 for none.
+//                 The wait is a gc-safe region: the thread touches no objects.
+//
+void op_signal_watch(Int interrupt) {
+    watch_signal((int)registers[EBX].i, registers[ECX].i != 0);
+}
+
+void op_signal_take(Int interrupt) {
+    registers[EBX].i = take_signal(registers[EBX].i);
+}
+
 void op_os_name(Int interrupt) {
     auto task = thread_self->task;
 #ifdef WIN32_

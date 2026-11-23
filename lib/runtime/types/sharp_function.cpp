@@ -35,6 +35,8 @@ void init_struct(sharp_function *sf) {
     sf->loopCount = 0;
     sf->isHighFrequency = false;
     sf->jfunc = nullptr;
+    sf->locals = nullptr;
+    sf->localCount = 0;
 }
 
 string get_info(sharp_function *sf, Int pc) {

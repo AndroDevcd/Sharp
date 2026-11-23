@@ -66,10 +66,10 @@ def lambda_signature_of(context: analysis_context, form: lambda_form, expected: 
     error_type : resolved_type = context.session.types.error_type;
     if(form.has_arrow == 0) { return signature_without_arrow(context, form, expected); }
 
-    count : _int64 = form.names.size().value as _int64;
+    count : _int64 = form.names.size();
     made := new lambda_signature(count);
     expected_count : _int64 = 0 - 1;
-    if(expected != null) { expected_count = expected!!.parameters!!.size().value as _int64; }
+    if(expected != null) { expected_count = expected!!.parameters!!.size(); }
     if(expected != null && expected_count != count) {
         report_parameter_count(context, form, expected!!);
         made.mismatch = 1;
@@ -128,7 +128,7 @@ def signature_without_arrow(context: analysis_context, form: lambda_form, expect
         made.hidden_it = 1;
         return made;
     }
-    count : _int64 = expected!!.parameters!!.size().value as _int64;
+    count : _int64 = expected!!.parameters!!.size();
     if(count > 1) {
         report_needs_names(context, form, expected!!);
         made := new lambda_signature(1);
@@ -154,8 +154,8 @@ def signature_without_arrow(context: analysis_context, form: lambda_form, expect
 
 /** E0801: `{ x, y -> ... }` where one parameter is expected */
 def report_parameter_count(context: analysis_context, form: lambda_form, expected: resolved_type) {
-    count : _int64 = form.names.size().value as _int64;
-    expected_count : _int64 = expected.parameters!!.size().value as _int64;
+    count : _int64 = form.names.size();
+    expected_count : _int64 = expected.parameters!!.size();
     d := problem_at(context, "E0801", "this lambda takes " + count_words(count, "parameter") + ", but `"
                     + expected.to_text() + "` takes " + count_words(expected_count, "parameter"), form.node);
     d.with_label("written with " + count_words(count, "parameter"));
@@ -166,7 +166,7 @@ def report_parameter_count(context: analysis_context, form: lambda_form, expecte
 
 /** E0801 for the form without an arrow: several values are passed, and they need names */
 def report_needs_names(context: analysis_context, form: lambda_form, expected: resolved_type) {
-    d := problem_at(context, "E0801", "this lambda is handed " + count_words(expected.parameters!!.size().value as _int64, "value")
+    d := problem_at(context, "E0801", "this lambda is handed " + count_words(expected.parameters!!.size(), "value")
                     + " (`" + expected.to_text() + "`), but it is written without parameters", form.node);
     d.with_label("no `->`: only one value can be called `it`");
     d.with_note("a lambda written without `->` has `it` when its function type has ONE parameter, and nothing else");
@@ -228,8 +228,8 @@ def report_nothing_expected(context: analysis_context, form: lambda_form) {
  */
 def report_written_lambda_against(context: analysis_context, lambda: bound_lambda, wanted: resolved_type, receiver: string) : _int64 {
     function : sharp_function = lambda.function;
-    count : _int64 = function.parameters.size().value as _int64;
-    expected_count : _int64 = wanted.parameters!!.size().value as _int64;
+    count : _int64 = function.parameters.size();
+    expected_count : _int64 = wanted.parameters!!.size();
     if(count != expected_count) {
         d := problem_at(context, "E0801", "this lambda takes " + count_words(count, "parameter") + ", but " + receiver
                         + " passes " + count_words(expected_count, "value") + " (`" + wanted.to_text() + "`)", lambda.node);

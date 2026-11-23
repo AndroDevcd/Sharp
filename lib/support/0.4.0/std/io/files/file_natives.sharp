@@ -6,56 +6,35 @@ import ( platform )
  * The file system calls of the runtime, as plain static functions that take
  * a path string. This is the lowest layer of the newer file functions
  * (file.read_text, file.mkdirs, file.walk, file_utils, temp_files, ...);
- * programs use those, not this class.
+ * programs use those, not this class. It is the one place of the library
+ * that holds these calls.
  *
- * Why it exists next to file_system: every function here hands the path to
- * the runtime exactly as it is given. A path may be relative to the current
- * directory, and it may name something that does not exist yet - writing a
- * new file, asking for the size of a missing file and so on simply work
- * (or report failure through their result), without exceptions about paths
- * that cannot be resolved.
+ * Every function here hands the path to the runtime exactly as it is given.
+ * A path may be relative to the current directory, and it may name
+ * something that does not exist yet - writing a new file, asking for the
+ * size of a missing file and so on simply work (or report failure through
+ * their result), without exceptions about paths that cannot be resolved.
  *
- * What the runtime offers (and nothing more): read a whole file, write a
- * whole file, create an empty file, delete a file, delete an empty
- * directory, the size of a file, the absolute form of an existing path, and
- * a list of the regular files in a directory tree. There are no file
- * handles: a file is always read or written in one piece.
+ * What the runtime offers: read a whole file, write a whole file, create an
+ * empty file or a directory, delete a file, delete an empty directory,
+ * rename, the size, kind, times and permissions of a file, the absolute
+ * form of an existing path, the current directory, the space on the disk,
+ * and a list of the regular files in a directory tree. There are no file
+ * handles here: a file is read or written in one piece (file_stream reads
+ * and writes in parts).
  *
  * Results that are numbers follow the operating system: 0 means success.
  * A path must not be empty (the runtime throws nullptr_exception for that).
  */
 class file_natives {
 
-    /** the character between the parts of a path on this system: '/' or the back slash (as a character code) */
-    static def separator() : decimal {
-        if(build.is_windows()) {
-            return 92;
-        }
-        return '/';
-    }
-
     /**
-     * True when the path starts at a root of the file system: with a
-     * separator, or - on windows - with a drive ("C:...").
+     * `name` behind `dir`, with one separator between them. Nothing else
+     * is looked at or changed (path.join also cleans both and knows an
+     * absolute second part): this is for a directory and a name read from it.
      */
-    static def is_rooted(file_path: string) : decimal {
-        n : decimal = sizeof(file_path.data);
-        if(n == 0) {
-            return 0;
-        }
-        first : decimal = file_path.data[0];
-        if(first == '/' || first == 92) {
-            return 1;
-        }
-        if(build.is_windows() && n >= 2 && file_path.data[1] == ':' && io_strings.is_letter(first)) {
-            return 1;
-        }
-        return 0;
-    }
-
-    /** `dir` + separator + `name` (no separator is added when `dir` already ends with one) */
     static def join(dir: string, name: string) : string {
-        sep : decimal = separator();
+        sep : decimal = path.separator();
         buf := new char_buffer(sizeof(dir.data) + sizeof(name.data) + 1);
         buf.append(dir);
         n : decimal = sizeof(dir.data);
@@ -63,35 +42,7 @@ class file_natives {
             buf.append_char(sep);
         }
         buf.append(name);
-        return buf.to_string()!!;
-    }
-
-    /**
-     * The path of the directory `file_path` lies in, or null when it has no
-     * parent: a bare name ("a.txt") or a root ("/"). "/home/joe/a.txt" gives
-     * "/home/joe", "/a.txt" gives "/". Only the separator of this system
-     * counts (paths held by `file` objects are normalized to it).
-     */
-    static def parent_of(file_path: string) : string? {
-        sep : decimal = separator();
-        n : decimal = sizeof(file_path.data);
-        at : decimal = 0 - 1;
-        for(i : decimal = n - 1; i >= 0; i--) {
-            if(file_path.data[i] == sep) {
-                at = i;
-                break;
-            }
-        }
-        if(at < 0 || at + 1 >= n) {
-            return null;
-        }
-        if(at == 0) {
-            return io_strings.slice(file_path, 0, 1); // "/a" -> "/"
-        }
-        if(file_path.data[at - 1] == ':') {
-            return io_strings.slice(file_path, 0, at + 1); // "C:\a" -> "C:\"
-        }
-        return io_strings.slice(file_path, 0, at);
+        return buf.build();
     }
 
     /**
@@ -251,10 +202,10 @@ class file_natives {
         if(raw != null && sizeof(raw) > 0) {
             return new string(raw);
         }
-        if(is_rooted(file_path)) {
+        if(path.is_absolute(file_path)) {
             return file_path;
         }
-        return join(file.current_directory(), file_path);
+        return join(current_directory(), file_path);
     }
 
     /**
@@ -296,5 +247,191 @@ class file_natives {
         };
 
         return result;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* what a path names: kind, permissions, times                         */
+    /* ------------------------------------------------------------------ */
+
+    /** the bits of attributes(): the path exists, it is a plain file, a directory, hidden */
+    static const exists_bit    : _int64 = 0x01;
+    static const file_bit      : _int64 = 0x02;
+    static const directory_bit : _int64 = 0x04;
+    static const hidden_bit    : _int64 = 0x80;
+
+    /**
+     * What a path names, as bits (exists_bit, file_bit, directory_bit,
+     * hidden_bit); 0 when nothing has that name. On unix a name that
+     * starts with '.' is hidden - the runtime's call does not report that.
+     */
+    static def attributes(file_path: string) : _int64 {
+        raw := file_path.data;
+        attrs : _int64 = 0;
+        asm {
+            pushl [raw]
+            int 0x25
+            smovr2 [attrs], ebx
+        };
+        if(attrs != 0 && !build.is_windows()) {
+            name_start : _int64 = 0;
+            for(i : _int64 = sizeof(raw) - 1; i >= 0; i--) {
+                if(raw[i] == '/') {
+                    name_start = i + 1;
+                    break;
+                }
+            }
+            if(name_start < sizeof(raw) && raw[name_start] == '.') {
+                attrs = attrs | hidden_bit;
+            }
+        }
+        return attrs;
+    }
+
+    /** the kinds of access can_access() and set_permission() take */
+    static const access_read    : _int64 = 0x04;
+    static const access_write   : _int64 = 0x02;
+    static const access_execute : _int64 = 0x01;
+
+    /** true when this program may read, write or run what the path names (windows has no "may run": false) */
+    static def can_access(file_path: string, access: _int64) : bool {
+        if(build.is_windows() && access == access_execute) {
+            return false;
+        }
+        raw := file_path.data;
+        kind : _int64 = access;
+        result : _int64 = 0;
+        asm {
+            pushl [raw]
+            loadl ebx, [kind]
+            int 0x24
+            smovr2 [result], ebx
+        };
+        return result == 0;
+    }
+
+    /**
+     * Allow or forbid one kind of access, for the owner only or for
+     * everybody. 0 when it worked (windows has no "may run": -1).
+     */
+    static def set_permission(file_path: string, access: _int64, enable: bool, owner_only: bool) : _int64 {
+        if(build.is_windows() && access == access_execute) {
+            return 0 - 1;
+        }
+        raw := file_path.data;
+        kind : _int64 = access;
+        on : _int64 = enable;
+        owner : _int64 = owner_only;
+        result : _int64 = 0;
+        asm {
+            pushl [raw]
+            loadl ebx, [kind]
+            loadl egx, [on]
+            loadl ecx, [owner]
+            int 0x2e
+            smovr2 [result], ebx
+        };
+        return result;
+    }
+
+    /** the times time_of() knows */
+    static const time_modified       : _int64 = 0x00;
+    static const time_status_changed : _int64 = 0x01;
+    static const time_accessed       : _int64 = 0x02;
+
+    /** one of the times of a file, in seconds since 1970 */
+    static def time_of(file_path: string, which: _int64) : _int64 {
+        raw := file_path.data;
+        kind : _int64 = which;
+        time : _int64 = 0;
+        asm {
+            pushl [raw]
+            loadl ebx, [kind]
+            int 0x26
+            smovr2 [time], ebx
+        }
+        return time;
+    }
+
+    /** set the time a file was last changed (seconds since 1970); answers that time when it worked, -1 when not */
+    static def set_modified_time(file_path: string, time: _int64) : _int64 {
+        raw := file_path.data;
+        seconds : _int64 = time;
+        result : _int64 = 0;
+        asm {
+            pushl [raw]
+            loadl ebx, [seconds]
+            int 0x2d
+            smovr2 [result], ebx
+        }
+        return result;
+    }
+
+    /** make one directory (the one above it has to exist); 0 when it worked */
+    static def create_directory(file_path: string) : _int64 {
+        raw := file_path.data;
+        result : _int64 = 0;
+        asm {
+            pushl [raw]
+            int 0x2b
+            smovr2 [result], ebx
+        };
+        return result;
+    }
+
+    /** the directory relative paths start from; throws io_exception when the system does not say */
+    static def current_directory() : string {
+        raw : _int8[];
+        asm {
+            int 0x4f
+            popl [raw]
+        };
+        if(raw == null) {
+            throw new io_exception("could not retrieve current directory");
+        }
+        return new string(raw);
+    }
+
+    /**
+     * A path the way this system writes it: the separators of the other
+     * system converted, repeated separators made one, and a separator at
+     * the end taken off - except where it is the path ("/", "C:\\", the
+     * "\\\\" a windows network path starts with).
+     */
+    static def normalize(file_path: string) : string {
+        n : _int64 = sizeof(file_path.data);
+        sep : _int64 = path.separator();
+        buf := new char_buffer(n + 1);
+        last_was_separator : _int64 = 0;
+        i : _int64 = 0;
+        if(build.is_windows() && n >= 2 && (file_path.data[0] == '/' || file_path.data[0] == 92)
+            && (file_path.data[1] == '/' || file_path.data[1] == 92)) {
+            // a network path keeps its two separators at the start
+            buf.append_char(92);
+            buf.append_char(92);
+            last_was_separator = 1;
+            i = 2;
+        }
+        for(; i < n; i++) {
+            ch : _int64 = file_path.data[i];
+            if(ch == '/' || ch == 92) {
+                if(!last_was_separator) {
+                    buf.append_char(sep);
+                }
+                last_was_separator = 1;
+            } else {
+                buf.append_char(ch);
+                last_was_separator = 0;
+            }
+        }
+
+        len : _int64 = buf.length();
+        if(last_was_separator && len > 1) {
+            is_drive_root : _int64 = build.is_windows() && len == 3 && buf.char_at(1) == ':';
+            is_share_start : _int64 = build.is_windows() && len == 2;
+            if(!is_drive_root && !is_share_start) {
+                buf.truncate(len - 1);
+            }
+        }
+        return buf.build();
     }
 }

@@ -60,13 +60,13 @@ stable class main_queue {
         // take the whole batch out under the lock, run it outside: an action may hand over more
         batch : list<queued_action> = new list<queued_action>();
         lock(guard) {
-            count : _int64 = waiting.size().value;
+            count : _int64 = waiting.size();
             for(i : _int64 = 0; i < count; i++) {
                 batch.add(waiting.at(i));
             }
             waiting.clear();
         }
-        ran : _int64 = batch.size().value;
+        ran : _int64 = batch.size();
         for(i : _int64 = 0; i < ran; i++) {
             batch.at(i).run();
         }
@@ -77,7 +77,7 @@ stable class main_queue {
     static def waiting_count() : _int64 {
         count : _int64 = 0;
         lock(guard) {
-            count = waiting.size().value;
+            count = waiting.size();
         }
         return count;
     }

@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * text_wrap
  *
@@ -25,14 +27,14 @@ class text_wrap {
     /** Throws illegal_argument_exception unless the width is at least 1. */
     private static def check_width(width: decimal) {
         if(width < 1)
-            throw new ill_arg_except("the width must be at least 1, but was " + number_format.integer(width));
+            throw new illegal_argument_exception("the width must be at least 1, but was " + number_format.integer(width));
     }
 
     /** Appends the lines of one paragraph (text without paragraph breaks) to `lines`. */
     private static def wrap_into(lines: list<string>, text: string, width: decimal) {
         words := text.split_whitespace();
         count : decimal = sizeof(words);
-        line := new text_buffer();
+        line := new char_buffer();
 
         for(w : decimal = 0; w < count; w++) {
             word := words[w];
@@ -62,7 +64,7 @@ class text_wrap {
 
     /** The strings of the list as an array (length 0 for an empty list). */
     private static def to_array(lines: list<string>): string[] {
-        if(lines.empty()) return new string[0];
+        if(lines.is_empty()) return new string[0];
         return lines.get_elements()!!;
     }
 
@@ -91,7 +93,7 @@ class text_wrap {
         source := text.lines();
         count : decimal = sizeof(source);
 
-        paragraph := new text_buffer();
+        paragraph := new char_buffer();
         pending_break : decimal = 0;            // an empty line was seen since the last paragraph
         for(i : decimal = 0; i <= count; i++) {
             // (i == count is one extra round to write the last paragraph)
@@ -103,7 +105,7 @@ class text_wrap {
                 paragraph.append(source[i]);
             } else {
                 if(paragraph.length() > 0) {
-                    if(pending_break && !lines.empty()) lines.add("");
+                    if(pending_break && !lines.is_empty()) lines.add("");
                     wrap_into(lines, paragraph.build(), width.value);
                     paragraph.clear();
                     pending_break = 0;
@@ -141,7 +143,7 @@ class text_wrap {
 
         lines := wrap(text, room);
         count : decimal = sizeof(lines);
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < count; i++) {
             if(i > 0) out.append_char('\n');
             if(i == 0) out.append(first_prefix);
@@ -159,7 +161,7 @@ class text_wrap {
     static def indent(text: string, prefix: string): string {
         lines := text.lines();
         count : decimal = sizeof(lines);
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < count; i++) {
             if(i > 0) out.append_char('\n');
             if(sizeof(lines[i].data) > 0) {
@@ -175,7 +177,7 @@ class text_wrap {
      * (It has its own name because indent(text, 3) would be ambiguous: a number also converts to a string.)
      */
     static def indent_by(text: string, spaces: int): string {
-        return indent(text, character.repeat(' ', spaces));
+        return indent(text, character.repeat(32, spaces.value));
     }
 
     /**
@@ -200,7 +202,7 @@ class text_wrap {
         }
         if(shared < 0) shared = 0;
 
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < count; i++) {
             if(i > 0) out.append_char('\n');
             line := lines[i];

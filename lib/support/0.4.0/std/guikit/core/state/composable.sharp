@@ -188,7 +188,7 @@ stable class composable : element, behavior, stateful {
         if(beats == null) { beats = new list<heartbeat>(); }
         beats!!.add(new heartbeat(seconds, action));
         if(alive == 1) {
-            beats!!.at(beats!!.size().value - 1).start();
+            beats!!.at(beats!!.size() - 1).start();
         }
     }
 
@@ -200,7 +200,7 @@ stable class composable : element, behavior, stateful {
         alive = 1;
         start_beats();
         if(on_shown != null) {
-            count : _int64 = on_shown!!.size().value;
+            count : _int64 = on_shown!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 on_shown!!.at(i).run();
             }
@@ -215,7 +215,7 @@ stable class composable : element, behavior, stateful {
         alive = 0;
         stop_beats();
         if(on_gone != null) {
-            count : _int64 = on_gone!!.size().value;
+            count : _int64 = on_gone!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 on_gone!!.at(i).run();
             }
@@ -230,7 +230,7 @@ stable class composable : element, behavior, stateful {
 
     private def start_beats() {
         if(beats != null) {
-            count : _int64 = beats!!.size().value;
+            count : _int64 = beats!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 beats!!.at(i).start();
             }
@@ -239,7 +239,7 @@ stable class composable : element, behavior, stateful {
 
     private def stop_beats() {
         if(beats != null) {
-            count : _int64 = beats!!.size().value;
+            count : _int64 = beats!!.size();
             for(i : _int64 = 0; i < count; i++) {
                 beats!!.at(i).stop();
             }
@@ -316,7 +316,7 @@ stable class composable : element, behavior, stateful {
 
     override def kind() : string {
         count : _int64 = 0;
-        if(cells != null) { count = cells!!.size().value; }
+        if(cells != null) { count = cells!!.size(); }
         return "composable/" + count;
     }
 
@@ -355,8 +355,8 @@ stable class composable : element, behavior, stateful {
         }
         before := old as composable;
         if(cells != null && before.cells != null) {
-            mine : _int64 = cells!!.size().value;
-            theirs : _int64 = before.cells!!.size().value;
+            mine : _int64 = cells!!.size();
+            theirs : _int64 = before.cells!!.size();
             if(mine == theirs) {
                 for(i : _int64 = 0; i < mine; i++) {
                     cells!!.at(i).take_from(before.cells!!.at(i));

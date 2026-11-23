@@ -48,7 +48,7 @@ class CompletionEngineTest {
     }
 
     /** Types `code` on a new line before the line that starts with `marker`, and asks at the end of it. */
-    private fun stale(code: String, marker: String = "    return count.value;"): CompletionResult {
+    private fun stale(code: String, marker: String = "    return count;"): CompletionResult {
         val at = saved.indexOf(marker)
         require(at >= 0) { "no `$marker`" }
         val text = saved.substring(0, at) + "    " + code + "\n" + saved.substring(at)
@@ -274,7 +274,7 @@ class CompletionEngineTest {
         val count = item(r, "count")!!
         assertEquals(CandidateKind.LOCAL, count.kind)
         assertEquals(100, count.priority)
-        assertEquals("int", count.typeText)
+        assertEquals("_int64", count.typeText)
         // parameters, other locals, functions and classes of the program and the keywords are there too
         for (name in listOf("names", "owner", "local_book", "make_book", "item", "book", "return", "color")) assertNotNull(name, item(r, name))
         assertEquals(CandidateKind.PARAMETER, item(r, "names")!!.kind)
@@ -312,7 +312,8 @@ class CompletionEngineTest {
         assertEquals(SiteKind.TYPE_NEW, afterNew.site.kind)
         assertNotNull(item(afterNew, "book"))
         assertEquals(Insertion.NEW, item(afterNew, "book")!!.insertion)
-        assertNull("an interface or enum cannot be made", item(afterNew, "priced") ?: item(afterNew, "color"))
+        // (the library has a class `color` of its own, which can be made: the sample's enum is the one that must be missing)
+        assertNull("an interface or enum cannot be made", item(afterNew, "priced") ?: afterNew.candidates.firstOrNull { it.name == "color" && it.kind == CandidateKind.ENUM })
         assertNull("not a type word", item(afterNew, "decimal"))
 
         val afterAs = stale("n := owner as ")

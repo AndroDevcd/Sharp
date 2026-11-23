@@ -50,6 +50,15 @@ IF THE COMPILER MISBEHAVES
     compiler itself.
 
 
+THE EDITOR: CLION / INTELLIJ
+
+    clion-plugin/ holds the Sharp plugin as a zip (do not unpack it). In the IDE:
+        Settings > Plugins > the gear at the top > Install Plugin from Disk...  and pick the zip.
+    It colours Sharp code, shows the compiler's errors as you type, completes names, and runs
+    and DEBUGS a folder of Sharp code (breakpoints, stepping, variables) with the Sharp
+    installed above. Install Sharp first.
+
+
 TO REMOVE SHARP
 
     Windows:  run  win-uninstall.cmd     Linux:  sh unix-uninstall.sh
@@ -57,8 +66,11 @@ TO REMOVE SHARP
 
 WHAT IS IN THIS ARCHIVE
 
-    windows/    the Windows installer, uninstaller, the VM (sharp.exe) and the sharpc command
-    linux/      the Linux installer, uninstaller, the VM (sharp) and the sharpc command
+    windows/    the Windows installer, uninstaller, the VM (sharp.exe), the debugger (sdb.exe)
+                and the sharpc command
+    linux/      the Linux installer, uninstaller, the VM (sharp), the debugger (sdb)
+                and the sharpc command
     shared/     the same on both systems: the compiler (a Sharp program the VM runs),
                 the standard library, the example
+    clion-plugin/   the plugin for CLion and IntelliJ IDEA
     VERSION.txt what exactly was built, and from which source

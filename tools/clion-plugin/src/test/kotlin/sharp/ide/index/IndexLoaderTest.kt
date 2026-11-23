@@ -127,11 +127,11 @@ class IndexLoaderTest {
 
     @Test
     fun aTypeIsAValueThatCanHaveItsParametersReplaced() {
-        val listOfT = shop.index.classesById["std#list"]!!.functions.single { it.name == "first" }.result!!
+        val listOfT = shop.index.classesById["std#list"]!!.functions.first { it.name == "first" && it.result?.text == "T" }.result!!       // (not the extension `first(wanted)`)
         assertEquals("T", listOfT.text)
         val string = shop.index.types.let { t -> (0 until t.size).mapNotNull { t.typeOf(it) }.first { it.text == "string" && it.classId == "std#string" } }
         assertEquals("string", listOfT.substitute(mapOf("T" to string)).text)
-        val nullableT = shop.index.classesById["std#list"]!!.functions.single { it.name == "find" }.result!!
+        val nullableT = shop.index.classesById["std#list"]!!.functions.first { it.name == "find" }.result!!
         assertEquals("T?", nullableT.text)
         assertEquals("string?", nullableT.substitute(mapOf("T" to string)).text)
     }

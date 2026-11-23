@@ -214,7 +214,7 @@ def main(args: string[]) {
         try {
             letter.render();
             test("strict rendering with a missing value") { fail_test("did not throw"); };
-        } catch(e: not_found_exception) {
+        } catch(e: no_such_element_exception) {
             test("the message names the placeholder") { expect_true(e.get_message().contains("{day}")); };
         }
         test("doubled braces") { expect(new template("{{x}} is {x}").put("x", "1").render()).should_be("{x} is 1"); };

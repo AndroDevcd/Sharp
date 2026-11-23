@@ -129,7 +129,7 @@ def report_if_mutating_one_instance(unit: source_unit, name_node: _int64, target
     argument : _int64 = tree.first_child!![last_part];
     while(argument >= 0) {
         if(tree.kinds!![argument] == N_TYPE) {
-            if(count >= target.type_parameters.size().value
+            if(count >= target.type_parameters.size()
                || make_type(unit, argument).to_text() != target.type_parameters.at(count).name) {
                 own_names = 0;
             }
@@ -137,7 +137,7 @@ def report_if_mutating_one_instance(unit: source_unit, name_node: _int64, target
         }
         argument = tree.next_sibling!![argument];
     }
-    if(count == 0 || (own_names == 1 && count == target.type_parameters.size().value)) { return 0; }
+    if(count == 0 || (own_names == 1 && count == target.type_parameters.size())) { return 0; }
 
     d := error_at_node("E0383", "`mutate` cannot be given type arguments: it changes `" + target.name + "` itself", unit, name_node)
         .with_label("the members are added to `" + target.name + "` as written")

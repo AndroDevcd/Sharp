@@ -1,0 +1,325 @@
+mod std.compress;
+
+import ( std.io, std.util )
+
+/**
+ * ZIP ARCHIVES: many files in one, each compressed
+ *
+ *      // read one
+ *      archive := zip_archive.open(new file("release.zip"));
+ *      archive.names()                             // "readme.txt", "bin/app", "docs/" ...
+ *      text := archive.read_text("readme.txt");
+ *      data := archive.read("bin/app");            // bytes
+ *      archive.extract_all("unpacked");            // every file, into that folder
+ *
+ *      // make one
+ *      made := new zip_builder();
+ *      made.add("readme.txt", "some text");
+ *      made.add_bytes("data/numbers.bin", bytes);
+ *      made.add_file("bin/app", new file("build/app"));
+ *      made.save(new file("release.zip"));
+ *
+ * Names in an archive use `/` whatever the system, and a name that ends in
+ * `/` is a folder. Every file's checksum is checked when it is read: a
+ * damaged archive is a compress_exception, not wrong bytes.
+ *
+ * extract_all refuses a name that would land outside the folder it is
+ * given ("../../etc/passwd"): an archive from somewhere else cannot write
+ * where it pleases.
+ *
+ * An archive is read into memory whole and built there: fine for the
+ * megabytes archives usually are, not for gigabytes. Not read: archives
+ * with passwords, the "zip64" form for files over 4 GB, and compression
+ * other than deflate (which is what every zip tool writes by default).
+ *
+ *      Java comparison: java.util.zip.ZipFile and ZipOutputStream; Python: zipfile.ZipFile.
+ */
+class zip_entry {
+    name : string;
+    /** the file's size, unpacked */
+    size : _int64 = 0;
+    packed_size : _int64 = 0;
+    is_folder : bool = false;
+    // where it is in the archive, and how it was packed
+    method : _int64 = 0;
+    checksum : _int64 = 0;
+    header_at : _int64 = 0;
+    data : _int8[]?;                        // (zip_builder: the packed bytes)
+
+    zip_entry(name: string) {
+        self->name = name;
+    }
+}
+
+class zip_archive {
+    private bytes : _int8[];
+    private entries : list<zip_entry> = new list<zip_entry>();
+
+    private zip_archive(bytes: _int8[]) {
+        self->bytes = bytes;
+    }
+
+    static def open(source: file) : zip_archive {
+        if(!source.exists() || source.is_directory()) { throw new io_exception("there is no file " + source.path); }
+        return of_bytes(source.read_bytes());
+    }
+
+    /** an archive that is in memory already (a download) */
+    static def of_bytes(data: _int8[]?) : zip_archive {
+        if(sizeof(data) < 22) { throw new compress_exception("this is not a zip archive"); }
+        made := new zip_archive(data!!);
+        made.read_list();
+        return made;
+    }
+
+    /**
+     * The list of files is at the END of an archive (so that files can be
+     * added without rewriting it): a record that starts with PK 5 6 says
+     * where the list is and how many entries it has.
+     */
+    private def read_list() {
+        size : _int64 = sizeof(bytes);
+        at : _int64 = size - 22;
+        lowest : _int64 = size - 22 - 65535;            // a comment of up to 65535 bytes may follow the record
+        if(lowest < 0) { lowest = 0; }
+        while(at >= lowest && checksums.get32(bytes, at) != 0x06054b50) { at--; }
+        if(at < lowest) { throw new compress_exception("this is not a zip archive (it has no list of files at its end)"); }
+        count : _int64 = checksums.get16(bytes, at + 10);
+        list_at : _int64 = checksums.get32(bytes, at + 16);
+        if(count == 0xFFFF || list_at == 0xFFFFFFFF) { throw new compress_exception("a zip64 archive (for files over 4 GB): not read"); }
+
+        at = list_at;
+        for(i : _int64 = 0; i < count; i++) {
+            if(at + 46 > size || checksums.get32(bytes, at) != 0x02014b50) { throw new compress_exception("the zip archive is damaged (its list of files)"); }
+            flags : _int64 = checksums.get16(bytes, at + 8);
+            name_size : _int64 = checksums.get16(bytes, at + 28);
+            extra_size : _int64 = checksums.get16(bytes, at + 30);
+            comment_size : _int64 = checksums.get16(bytes, at + 32);
+            if(at + 46 + name_size > size) { throw new compress_exception("the zip archive is damaged (its list of files)"); }
+            entry := new zip_entry(new string(bytes, at + 46, at + 46 + name_size));
+            entry.method = checksums.get16(bytes, at + 10);
+            entry.checksum = checksums.get32(bytes, at + 16);
+            entry.packed_size = checksums.get32(bytes, at + 20);
+            entry.size = checksums.get32(bytes, at + 24);
+            entry.header_at = checksums.get32(bytes, at + 42);
+            entry.is_folder = name_size > 0 && bytes[at + 46 + name_size - 1] == '/';
+            if((flags & 1) != 0) { entry.method = 0 - 1; }             // protected by a password
+            entries.add(entry);
+            at = at + 46 + name_size + extra_size + comment_size;
+        }
+    }
+
+    /** how many entries the archive has (folders count) */
+    def size() : _int64 { return entries.size() as _int64; }
+
+    def entry_at(index: _int64) : zip_entry { return entries.at(index); }
+
+    /** the names of the files and folders, in the archive's order */
+    def names() : list<string> {
+        found := new list<string>();
+        for(i : _int64 = 0; i < entries.size(); i++) { found.add(entries.at(i).name); }
+        return found;
+    }
+
+    def find(name: string) : zip_entry? {
+        for(i : _int64 = 0; i < entries.size(); i++) {
+            if(entries.at(i).name == name) { return entries.at(i); }
+        }
+        return null;
+    }
+
+    def has(name: string) : bool { return find(name) != null; }
+
+    /** the content of a file of the archive. Throws io_exception when it has no such file. */
+    def read(name: string) : _int8[] {
+        entry : zip_entry? = find(name);
+        if(entry == null) { throw new io_exception("the archive has no file `" + name + "`"); }
+        return read_entry(entry!!);
+    }
+
+    def read_text(name: string) : string {
+        data : _int8[] = read(name);
+        if(sizeof(data) == 0) { return ""; }
+        return new string(data, 0, sizeof(data));
+    }
+
+    def read_entry(entry: zip_entry) : _int8[] {
+        if(entry.is_folder) { return new _int8[0]; }
+        if(entry.method == 0 - 1) { throw new compress_exception("`" + entry.name + "` is protected by a password: not read"); }
+        at : _int64 = entry.header_at;
+        if(at + 30 > sizeof(bytes) || checksums.get32(bytes, at) != 0x04034b50) { throw new compress_exception("the zip archive is damaged (`" + entry.name + "`)"); }
+        // the file's own header repeats its name (and may carry other extras than the list did)
+        start : _int64 = at + 30 + checksums.get16(bytes, at + 26) + checksums.get16(bytes, at + 28);
+        if(start + entry.packed_size > sizeof(bytes)) { throw new compress_exception("the zip archive is cut off (`" + entry.name + "`)"); }
+        content : _int8[] = new _int8[0];
+        if(entry.method == 0) {
+            if(entry.packed_size > 0) { content = copy(bytes, start, start + entry.packed_size)!!; }
+        } else if(entry.method == 8) {
+            work := new inflater(bytes, start);
+            content = work.run();
+        } else {
+            throw new compress_exception("`" + entry.name + "` is compressed in a way that is not read (method " + entry.method + ")");
+        }
+        if(hashing.crc32(content) != entry.checksum) {
+            throw new compress_exception("`" + entry.name + "` is damaged: its checksum does not fit");
+        }
+        return content;
+    }
+
+    /** unpack every file into `folder` (made when it is not there). Returns how many files were written. */
+    def extract_all(folder: string) : _int64 {
+        written : _int64 = 0;
+        make_folders(folder);
+        for(i : _int64 = 0; i < entries.size(); i++) {
+            entry := entries.at(i);
+            place : string = safe_place(entry.name);
+            if(entry.is_folder) { make_folders(folder + "/" + place); continue; }
+            slash : _int64 = io_strings.last_index_of(place, '/') as _int64;
+            if(slash > 0) { make_folders(folder + "/" + io_strings.slice(place, 0, slash)); }
+            new file(folder + "/" + place).write_bytes(read_entry(entry));
+            written++;
+        }
+        return written;
+    }
+
+    /** an entry's name as a path below the target folder; compress_exception for one that would leave it */
+    private static def safe_place(name: string) : string {
+        place : string = io_strings.replace_char(name, '\\', '/');
+        parts := io_strings.split(place, '/');
+        made := new char_buffer();
+        for(i : _int64 = 0; i < parts.size(); i++) {
+            part : string = parts.at(i);
+            if(sizeof(part.data) == 0 || part == ".") { continue; }
+            if(part == ".." || io_strings.contains(part, ":")) {
+                throw new compress_exception("the archive has a file that would be written outside the folder: `" + name + "`");
+            }
+            if(made.length() > 0) { made.append("/"); }
+            made.append(part);
+        }
+        if(made.length() == 0) { throw new compress_exception("the archive has a file without a name: `" + name + "`"); }
+        return made.build();
+    }
+
+    /** make a folder and the folders above it */
+    private static def make_folders(path: string) {
+        parts := io_strings.split(io_strings.replace_char(path, '\\', '/'), '/');
+        so_far := new char_buffer();
+        for(i : _int64 = 0; i < parts.size(); i++) {
+            if(i > 0) { so_far.append("/"); }
+            so_far.append(parts.at(i));
+            if(sizeof(parts.at(i).data) == 0 || io_strings.ends_with(parts.at(i), ":")) { continue; }
+            made := new file(so_far.build());
+            if(!made.exists()) { made.mkdir(); }
+        }
+    }
+}
+
+class zip_builder {
+    private entries : list<zip_entry> = new list<zip_entry>();
+
+    /** a file with this text as its content */
+    def add(name: string, text: string) : zip_builder {
+        return add_bytes(name, text.data);
+    }
+
+    /** a file with these bytes as its content. A name that is in the archive already is replaced. */
+    def add_bytes(name: string, content: _int8[]?) : zip_builder {
+        place : string = io_strings.replace_char(name, '\\', '/');
+        while(io_strings.starts_with(place, "/")) { place = io_strings.slice_from(place, 1); }
+        if(sizeof(place.data) == 0) { throw new illegal_argument_exception("a file in an archive needs a name"); }
+        for(i : _int64 = 0; i < entries.size(); i++) {
+            if(entries.at(i).name == place) { entries.remove_at(i); break; }
+        }
+        entry := new zip_entry(place);
+        entry.size = sizeof(content);
+        entry.checksum = hashing.crc32(content);
+        entry.is_folder = io_strings.ends_with(place, "/");
+        // packed, unless that makes it no smaller (what is compressed already: images, other archives)
+        packed : _int8[]? = null;
+        if(sizeof(content) > 0) { packed = deflate.compress(content); }
+        if(packed != null && sizeof(packed) < sizeof(content)) {
+            entry.method = 8;
+            entry.data = packed;
+        } else {
+            entry.method = 0;
+            entry.data = content;
+        }
+        entry.packed_size = sizeof(entry.data);
+        entries.add(entry);
+        return self;
+    }
+
+    /** a file of the disk, under `name` in the archive. Throws io_exception when it is not there. */
+    def add_file(name: string, source: file) : zip_builder {
+        if(!source.exists() || source.is_directory()) { throw new io_exception("there is no file " + source.path); }
+        return add_bytes(name, source.read_bytes());
+    }
+
+    /** an (empty) folder */
+    def add_folder(name: string) : zip_builder {
+        if(io_strings.ends_with(name, "/")) { return add_bytes(name, null); }
+        return add_bytes(name + "/", null);
+    }
+
+    def size() : _int64 { return entries.size() as _int64; }
+
+    /** the archive, as the bytes of a .zip file */
+    def bytes() : _int8[] {
+        out := new byte_buffer();
+        out.little_endian();
+        // each file: its header, its name, its packed bytes
+        for(i : _int64 = 0; i < entries.size(); i++) {
+            entry := entries.at(i);
+            entry.header_at = out.size();
+            out.put_int32(0x04034b50);
+            write_common(out, entry);
+            out.put_int16(sizeof(entry.name.data));
+            out.put_int16(0);
+            out.put_bytes(entry.name.data);
+            if(sizeof(entry.data) > 0) { out.put_bytes(entry.data); }
+        }
+        // the list of files, and the record that says where the list is
+        list_at : _int64 = out.size();
+        for(i : _int64 = 0; i < entries.size(); i++) {
+            entry := entries.at(i);
+            out.put_int32(0x02014b50);
+            out.put_int16(20);                              // made by: the plain zip format, version 2.0
+            write_common(out, entry);
+            out.put_int16(sizeof(entry.name.data));
+            out.put_int16(0);                               // no extras
+            out.put_int16(0);                               // no comment
+            out.put_int16(0);                               // in this file (archives over several disks are long gone)
+            out.put_int16(0);                               // nothing known about the content
+            if(entry.is_folder) { out.put_int32(0x10); } else { out.put_int32(0); }
+            out.put_int32(entry.header_at);
+            out.put_bytes(entry.name.data);
+        }
+        list_size : _int64 = out.size() - list_at;
+        out.put_int32(0x06054b50);
+        out.put_int16(0);
+        out.put_int16(0);
+        out.put_int16(entries.size());
+        out.put_int16(entries.size());
+        out.put_int32(list_size);
+        out.put_int32(list_at);
+        out.put_int16(0);
+        return out.to_array() ?: new _int8[0];
+    }
+
+    /** what a file's header and its line in the list share */
+    private static def write_common(out: byte_buffer, entry: zip_entry) {
+        out.put_int16(20);                                  // needs: version 2.0 (deflate, folders)
+        out.put_int16(0x0800);                              // names are UTF-8
+        out.put_int16(entry.method);
+        out.put_int16(0);                                   // time: midnight
+        out.put_int16(0x0021);                              // date: 1 January 1980, the first a zip can say
+        out.put_int32(entry.checksum);
+        out.put_int32(entry.packed_size);
+        out.put_int32(entry.size);
+    }
+
+    /** write the archive to a file (made, or replaced) */
+    def save(target: file) {
+        target.write_bytes(bytes());
+    }
+}

@@ -24,11 +24,35 @@ def one_note() : list<string> {
     return made;
 }
 
+/** what the framework says when `block` is refused ("" when it is not) */
+def refusal_of(block: ()()) : string {
+    try { block(); } catch(e: illegal_state_exception) { return e.get_message(); }
+    return "";
+}
+
 def main() {
+    // outside a group of tests the words for mocks are refused: said here, checked in the first test
+    outside_mock : string = refusal_of() { mock<note_store>(); };
+    outside_given : string = refusal_of() { given { one_note(); }.returns(1); };
+    outside_verify : string = refusal_of() { verify { one_note(); }.once(); };
+
     tests("the mock runtime") {
+        beside := mock<note_store>();                   // beside the tests, as set-up: allowed
+
+        test("mock, given and verify are refused outside a group of tests") {
+            expect(outside_mock).should_contain("`mock<...>()` only works inside `tests(");
+            expect(outside_given).should_contain("`given { ... }` only works inside `tests(");
+            expect(outside_verify).should_contain("`verify { ... }` only works inside `tests(");
+        };
+
+        test("a mock made beside the tests works inside them") {
+            beside.save("milk");
+            verify { beside.save("milk"); }.once();
+        };
+
         test("nothing set up: harmless defaults, and the calls are remembered") {
             store := mock<note_store>();
-            expect(store.load().size().value).should_be(0);
+            expect(store.load().size()).should_be(0);
             expect(store.remove("x")).should_be(0);
             expect(store.title()).should_be("");
             expect_null(store.find("x", 1));
@@ -42,7 +66,7 @@ def main() {
             given { store.remove("milk"); }.returns(1);
             given { store.title(); }.returns("My notes");
 
-            expect(store.load().size().value).should_be(1);
+            expect(store.load().size()).should_be(1);
             expect(store.remove("milk")).should_be(1);
             expect(store.remove("bread")).should_be(0);
             expect(store.title()).should_be("My notes");
@@ -131,7 +155,7 @@ def main() {
         test("a chain on the result is still one call") {
             store := mock<note_store>();
             given { store.load().size(); }.returns(one_note());
-            expect(store.load().size().value).should_be(1);
+            expect(store.load().size()).should_be(1);
         };
     };
     finish_tests();

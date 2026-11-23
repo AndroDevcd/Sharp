@@ -12,11 +12,11 @@ def test_char_buffer() {
     buf := new char_buffer();
     test("new buffer is empty") { expect(buf.length()).should_be(0); };
     test("is_empty") { expect_true(buf.is_empty()); };
-    test("empty to_string") { expect(buf.to_string()!!).should_be(""); };
+    test("empty to_string") { expect(buf.build()).should_be(""); };
     test("empty to_array") { expect_null(buf.to_array()); };
 
     buf.append("x = ").append_int(42).append_char('\n');
-    test("chained appends") { expect(buf.to_string()!!).should_be("x = 42\n"); };
+    test("chained appends") { expect(buf.build()).should_be("x = 42\n"); };
     test("length") { expect(buf.length()).should_be(7); };
     test("char_at") { expect(buf.char_at(0)).should_be('x'); };
     test("not empty") { expect_false(buf.is_empty()); };
@@ -24,7 +24,7 @@ def test_char_buffer() {
     buf.set_char(0, 'y');
     test("set_char") { expect(buf.substring(0, 1)).should_be("y"); };
     buf.truncate(1);
-    test("truncate") { expect(buf.to_string()!!).should_be("y"); };
+    test("truncate") { expect(buf.build()).should_be("y"); };
     buf.clear();
     test("clear") { expect(buf.length()).should_be(0); };
 
@@ -41,7 +41,7 @@ def test_char_buffer() {
     test("string larger than capacity") { expect(small.length()).should_be(40); };
     small.clear();
     small.append_repeated('-', 5).append_number(2.5).append_number(3);
-    test("append_repeated and numbers") { expect(small.to_string()!!).should_be("-----2.53"); };
+    test("append_repeated and numbers") { expect(small.build()).should_be("-----2.53"); };
     small.clear();
     small.append("");
     small.append_repeated('x', 0);
@@ -50,7 +50,7 @@ def test_char_buffer() {
     chars := new _int8[4];
     chars[0] = 'w'; chars[1] = 'x'; chars[2] = 'y'; chars[3] = 'z';
     small.append_range(chars, 1, 3);
-    test("append_range") { expect(small.to_string()!!).should_be("xy"); };
+    test("append_range") { expect(small.build()).should_be("xy"); };
     arr := small.to_array();
     test("to_array size") { expect(sizeof(arr)).should_be(2); };
     test("to_array content") { expect(arr[1]).should_be('y'); };
@@ -130,43 +130,43 @@ def test_changing() {
     test("pad_left long enough") { expect(io_strings.pad_left("1234", 3, '0')).should_be("1234"); };
     test("pad_right") { expect(io_strings.pad_right("ab", 5, '.')).should_be("ab..."); };
     test("from_char") { expect(io_strings.from_char('q')).should_be("q"); };
-    test("lower_char") { expect(io_strings.lower_char('Q')).should_be('q'); };
-    test("upper_char") { expect(io_strings.upper_char('q')).should_be('Q'); };
-    test("upper_char of digit") { expect(io_strings.upper_char('5')).should_be('5'); };
-    test("hex_value digit") { expect(io_strings.hex_value('7')).should_be(7); };
-    test("hex_value lower") { expect(io_strings.hex_value('f')).should_be(15); };
-    test("hex_value upper") { expect(io_strings.hex_value('A')).should_be(10); };
-    test("hex_value none") { expect(io_strings.hex_value('g')).should_be(0 - 1); };
-    test("is_space tab") { expect_true(io_strings.is_space('\t')); };
-    test("is_space letter") { expect_false(io_strings.is_space('a')); };
-    test("is_digit") { expect_true(io_strings.is_digit('0')); };
-    test("is_digit letter") { expect_false(io_strings.is_digit('a')); };
-    test("is_letter") { expect_true(io_strings.is_letter('Z')); };
-    test("is_letter digit") { expect_false(io_strings.is_letter('1')); };
+    test("lower_char") { expect(character.to_lower('Q')).should_be('q'); };
+    test("upper_char") { expect(character.to_upper('q')).should_be('Q'); };
+    test("upper_char of digit") { expect(character.to_upper('5')).should_be('5'); };
+    test("digit_value in base 16: digit") { expect(character.digit_value('7', 16)).should_be(7); };
+    test("digit_value in base 16: lower") { expect(character.digit_value('f', 16)).should_be(15); };
+    test("digit_value in base 16: upper") { expect(character.digit_value('A', 16)).should_be(10); };
+    test("digit_value in base 16: none") { expect(character.digit_value('g', 16)).should_be(0 - 1); };
+    test("is_space tab") { expect_true(character.is_whitespace('\t')); };
+    test("is_space letter") { expect_false(character.is_whitespace('a')); };
+    test("is_digit") { expect_true(character.is_digit('0')); };
+    test("is_digit letter") { expect_false(character.is_digit('a')); };
+    test("is_letter") { expect_true(character.is_letter('Z')); };
+    test("is_letter digit") { expect_false(character.is_letter('1')); };
 }
 
 def test_split_join_sort() {
     parts := io_strings.split("a,,b", ',');
-    test("split keeps empty pieces") { expect(parts.size().value).should_be(3); };
+    test("split keeps empty pieces") { expect(parts.size()).should_be(3); };
     test("split 0") { expect(parts.at(0)).should_be("a"); };
     test("split 1") { expect(parts.at(1)).should_be(""); };
     test("split 2") { expect(parts.at(2)).should_be("b"); };
-    test("split empty string") { expect(io_strings.split("", ',').size().value).should_be(1); };
-    test("split no separator") { expect(io_strings.split("abc", ',').size().value).should_be(1); };
-    test("split trailing separator") { expect(io_strings.split("a,", ',').size().value).should_be(2); };
+    test("split empty string") { expect(io_strings.split("", ',').size()).should_be(1); };
+    test("split no separator") { expect(io_strings.split("abc", ',').size()).should_be(1); };
+    test("split trailing separator") { expect(io_strings.split("a,", ',').size()).should_be(2); };
     test("join") { expect(io_strings.join(parts, "|")).should_be("a||b"); };
     test("join empty list") { expect(io_strings.join(new list<string>(), ",")).should_be(""); };
 
     lines := io_strings.split_lines("one\ntwo\r\nthree\rfour");
-    test("split_lines count") { expect(lines.size().value).should_be(4); };
+    test("split_lines count") { expect(lines.size()).should_be(4); };
     test("line 0") { expect(lines.at(0)).should_be("one"); };
     test("line 1 (crlf)") { expect(lines.at(1)).should_be("two"); };
     test("line 2 (cr)") { expect(lines.at(2)).should_be("three"); };
     test("line 3 (no end)") { expect(lines.at(3)).should_be("four"); };
-    test("trailing newline adds no line") { expect(io_strings.split_lines("a\nb\n").size().value).should_be(2); };
-    test("empty text has no lines") { expect(io_strings.split_lines("").size().value).should_be(0); };
+    test("trailing newline adds no line") { expect(io_strings.split_lines("a\nb\n").size()).should_be(2); };
+    test("empty text has no lines") { expect(io_strings.split_lines("").size()).should_be(0); };
     blank := io_strings.split_lines("a\n\nb");
-    test("blank line kept") { expect(blank.size().value).should_be(3); };
+    test("blank line kept") { expect(blank.size()).should_be(3); };
     test("blank line is empty") { expect(blank.at(1)).should_be(""); };
 
     names := new list<string>();
@@ -211,9 +211,9 @@ def test_numbers() {
     test("number -0.75") { expect(io_strings.number_to_string(0 - 0.75)).should_be("-0.75"); };
     test("number pi") { expect(io_strings.number_to_string(3.141592653589793)).should_be("3.141592653589793"); };
     test("number 1e15") { expect(io_strings.number_to_string(1000000000000000)).should_be("1000000000000000"); };
-    test("number large") { expect(io_strings.number_to_string(1.5e300)).should_be("1.5e300"); };
+    test("number large") { expect(io_strings.number_to_string(1.5e300)).should_be("1.5e+300"); };
     test("number small") { expect(io_strings.number_to_string(2e-9)).should_be("2e-9"); };
-    test("number 1e21") { expect(io_strings.number_to_string(1e21)).should_be("1e21"); };
+    test("number 1e21") { expect(io_strings.number_to_string(1e21)).should_be("1e+21"); };
     test("NaN") { expect(io_strings.number_to_string(0.0 / 0.0)).should_be("NaN"); };
     test("Infinity") { expect(io_strings.number_to_string(1.0 / 0.0)).should_be("Infinity"); };
     test("-Infinity") { expect(io_strings.number_to_string(0 - 1.0 / 0.0)).should_be("-Infinity"); };
@@ -273,9 +273,14 @@ def main(args: string[]) {
         test("is_null of null") { expect_true(io_strings.is_null(null)); };
         test("is_null of empty") { expect_false(io_strings.is_null("")); };
         // single quotes on unix (one inside becomes '\''), double quotes on windows
-        windows : bool = file.separator_char() != '/';
+        windows : bool = std.io#path.separator() != '/';
         test("shell_quote plain") { expect(io_strings.shell_quote("a b")).should_be(windows ? "\"a b\"" : "'a b'"); };
         test("shell_quote with quote length") { expect(io_strings.length(io_strings.shell_quote("it's"))).should_be(windows ? 6 : 9); };
+
+        // string.starts_with / ends_with with nothing to compare
+        empty := new string("");
+        test("every text starts with the empty text") { expect_true("hello".starts_with(empty) && "hello".ends_with(empty) && empty.starts_with(empty)); };
+        test("starts_with") { expect_true("hello".starts_with("he") && !"hello".starts_with("lo") && !"he".starts_with("hello")); };
     };
     finish_tests("lib_io_strings");
 }

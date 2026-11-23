@@ -19,21 +19,13 @@ class atomic_ref<t> {
 
 	 def write(write_func: (data: t)()) {
         lock(self) {
-           try {
-		      write_func(value);
-		   } finally{
-		      self->_unlock();
-		   }
+           write_func(value);
 		}
 	 }
 
 	 def write(write_func: (data: t, args: object[])(), args: object[]) {
         lock(self) {
-           try {
-		      write_func(value, args);
-		   } finally{
-		      self->_unlock();
-		   }
+           write_func(value, args);
 		}
 	 }
 }

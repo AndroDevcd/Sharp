@@ -127,7 +127,7 @@ def report_no_compound(context: analysis_context, node: _int64, target: assign_t
         else { d.with_note("on an object `" + text + "` calls the function `operator" + text + "` of its class, and `"
                            + type.class_of!!.written.name + "` has none"); }
         // `a += b` is not turned into `a = a + b` for objects; when the class has that `+`, say so
-        arithmetic := text.substring(0, text.size().value as _int64 - 1);
+        arithmetic := text.substring(0, text.size() - 1);
         written := source_text_of(context, target.read.node);
         if(target.kind == TARGET_STORAGE && takes_operator(context, type.class_of!!, "operator" + arithmetic, value)) {
             d.with_help("`" + type.class_of!!.written.name + "` does have `operator" + arithmetic + "` for this: write `" + written + " = "
@@ -175,7 +175,7 @@ def explain_enum_arithmetic(context: analysis_context, d: diagnostic, read: boun
 /** "`red`, `green` and `blue`": the values of an enum, at most four */
 def enum_value_names(owner: sharp_class) : string {
     text := new string_builder("");
-    count : _int64 = owner.enum_values.size().value as _int64;
+    count : _int64 = owner.enum_values.size();
     for(i : _int64 = 0; i < count && i < 4; i++) {
         if(i > 0 && (i == count - 1 || i == 3)) { text.append(" and "); }
         else if(i > 0) { text.append(", "); }
@@ -194,7 +194,7 @@ def enum_value_names(owner: sharp_class) : string {
 def compound_on_class_property(context: analysis_context, node: _int64, target: assign_target, value: bound_expression) : bound_expression {
     error_type : resolved_type = context.session.types.error_type;
     text := name_at(context, node);
-    arithmetic := text.substring(0, text.size().value as _int64 - 1);
+    arithmetic := text.substring(0, text.size() - 1);
     combined := call_operator(context, node, target.read, "operator" + arithmetic, one_argument(value));
     if(combined == null) {
         report_no_compound(context, node, target, value);

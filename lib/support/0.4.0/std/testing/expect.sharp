@@ -94,7 +94,7 @@ stable class number_check {
 
     private def miss(expected: string) {
         words : string = "";
-        if(about.size().value > 0) { words = about + "\n"; }
+        if(about.size() > 0) { words = about + "\n"; }
         throw new test_failure(words + "expected " + expected + "\nbut was  " + value);
     }
 
@@ -155,7 +155,7 @@ stable class text_check {
 
     private def miss(expected: string) {
         words : string = "";
-        if(about.size().value > 0) { words = about + "\n"; }
+        if(about.size() > 0) { words = about + "\n"; }
         throw new test_failure(words + "expected " + expected + "\nbut was  \"" + value + "\"");
     }
 
@@ -168,11 +168,11 @@ stable class text_check {
     }
 
     def should_be_empty() {
-        if(value.size().value != 0) { miss("an empty text"); }
+        if(value.size() != 0) { miss("an empty text"); }
     }
 
     def should_not_be_empty() {
-        if(value.size().value == 0) { miss("a text with something in it"); }
+        if(value.size() == 0) { miss("a text with something in it"); }
     }
 
     /** `piece` must appear somewhere in the text */
@@ -186,8 +186,8 @@ stable class text_check {
 
     /** where `piece` first appears in the text, or -1 */
     private def find(piece: string) : decimal {
-        length : decimal = value.size().value;
-        wide : decimal = piece.size().value;
+        length : decimal = value.size();
+        wide : decimal = piece.size();
         for(at : decimal = 0; at + wide <= length; at++) {
             same : decimal = 1;
             for(i : decimal = 0; i < wide && same == 1; i++) {

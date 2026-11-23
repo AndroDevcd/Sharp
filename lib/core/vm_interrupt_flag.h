@@ -83,8 +83,8 @@ enum interrupt_flag
     OP_DESERIALIZE     = 0x4e,
     OP_CURRENT_DIRECTORY = 0x4f,
     OP_STRTOL = 0x50,
-    OP_DESCRIBE_OBJECT = 0x51,
-    OP_REFLECT_FIELD_VALUE = 0x52,
+    OP_REFLECT_FACTS = 0x51,         // pop: b, a, a kind; push: numbers about the program (interrupts/reflection.cpp)
+    OP_REFLECT_TEXT = 0x52,          // pop: b, a, a kind; push: a name
     OP_PROGRAM_PATH = 0x53,          // push: the whole path of the program file the VM is running
     OP_OS_NAME = 0x54,               // push: the operating system the VM runs on, "win" or "posix"
     OP_RUNTIME_PATH = 0x55,
@@ -93,7 +93,16 @@ enum interrupt_flag
     OP_C_KEEP = 0x58,                // pop: a function C will call after the call it is handed to (cffi/c_callback.h)
     OP_C_DROP = 0x59,
     OP_C_SERVE_ONE = 0x5a,           // run one call from a thread C started; push: an array of 1 item to go on, of none to stop
-    OP_C_SERVE_START = 0x5b,         // calls from threads C started wait for the serving thread from now on                // pop: a function C no longer has            // push: "" when every extern function of the program was found, else what is missing          // push: the whole path of the `sharp` runtime binary itself (libs ship beside it)
+    OP_C_SERVE_START = 0x5b,
+    OP_REFLECT_NEW = 0x5c,           // pop: a count, a class's number; push: an object of the class (count < 0) or an array of them
+    OP_REFLECT_PUT = 0x5d,           // pop: a value, an object, a field's place, a class's number: the field is given the value
+    OP_REFLECT_GET = 0x5e,           // pop: an object, a field's place, a class's number; push: the field's value
+    OP_REFLECT_CLASS_OF = 0x5f,      // pop: an object; push: what it is
+    OP_REFLECT_FIND = 0x60,          // pop: a class's full name; push: its number
+    OP_REFLECT_SPREAD = 0x61,        // pop: a function's number, a list of arguments; push: each argument, for the call that follows
+    OP_REFLECT_BOX = 0x62,           // pop: a function's number; the result of its call becomes an object
+    OP_SIGNAL_WATCH = 0x63,          // ebx: which signal, ecx: 1 hear about it / 0 let it end the program again (sig_handler.h)
+    OP_SIGNAL_TAKE = 0x64,           // ebx: how many milliseconds to wait; ebx: the signal that came, 0 for none
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

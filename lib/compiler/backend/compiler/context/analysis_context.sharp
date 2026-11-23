@@ -124,7 +124,7 @@ class analysis_context {
         variable := new local_variable(name, type, unit, node);
         variable.is_hidden = 1;
         variable.function = function;
-        variable.index = locals.size().value as _int64;
+        variable.index = locals.size();
         locals.add(variable);
         return variable;
     }
@@ -142,7 +142,7 @@ class analysis_context {
     /** add a variable to the innermost scope and to the function's list */
     def declare(variable: local_variable) {
         variable.function = function;
-        variable.index = locals.size().value as _int64;
+        variable.index = locals.size();
         locals.add(variable);
         if(scope == null) { open_scope(); }
         scope!!.declare(variable);

@@ -89,9 +89,9 @@ class SharpIntelligenceInEditorTest : BasePlatformTestCase() {
         return saved.substring(0, at + needle.length) + "<caret>" + saved.substring(at + needle.length)
     }
 
-    /** The saved text with `code` typed on a new line before `return count.value;` and the caret after it. */
+    /** The saved text with `code` typed on a new line before `return count;` and the caret after it. */
     private fun typed(code: String): String {
-        val at = saved.indexOf("    return count.value;")
+        val at = saved.indexOf("    return count;")
         return saved.substring(0, at) + "    " + code + "<caret>\n" + saved.substring(at)
     }
 
@@ -221,7 +221,7 @@ class SharpIntelligenceInEditorTest : BasePlatformTestCase() {
         val targets = SharpDocumentationTargetProvider().documentationTargets(myFixture.file, offset)
         assertEquals(1, targets.size)
         val target = targets.single()
-        assertEquals("function size : int", target.computeDocumentationHint())
+        assertEquals("function size : _int64", target.computeDocumentationHint())
         assertEquals("size", target.computePresentation().presentableText)
         assertNotNull(target.computeDocumentation())
     }
@@ -237,7 +237,7 @@ class SharpIntelligenceInEditorTest : BasePlatformTestCase() {
     // ---------------------------------------------------------------- go to declaration
 
     fun testGoToDeclarationOfALocalLeadsToItsDeclaration() {
-        open(saved.replaceFirst("count.value", "cou<caret>nt.value"))
+        open(saved.replaceFirst("count;", "cou<caret>nt;"))
         val offset = myFixture.editor.caretModel.offset
         val element = myFixture.file.findElementAt(offset)
         val targets = SharpGotoDeclarationHandler().getGotoDeclarationTargets(element, offset, myFixture.editor)!!
@@ -247,7 +247,7 @@ class SharpIntelligenceInEditorTest : BasePlatformTestCase() {
     }
 
     fun testGoToDeclarationFollowsTextAddedAboveTheTarget() {
-        open(saved.replaceFirst("count.value", "cou<caret>nt.value"))
+        open(saved.replaceFirst("count;", "cou<caret>nt;"))
         WriteCommandAction.runWriteCommandAction(project) { myFixture.editor.document.insertString(0, "// two\n// lines\n") }
         com.intellij.psi.PsiDocumentManager.getInstance(project).commitAllDocuments()      // the go-to action does this before it asks a handler
         val offset = myFixture.editor.caretModel.offset

@@ -58,7 +58,7 @@ import (
 def eliminate_boxes(analyses: function_analyses, parameters: _int64) : _int64 {
     code := analyses.code;
     if(code.tries.size() == 0) { give_boxes_their_own_slots(analyses); }
-    count : _int64 = code.instructions.size().value as _int64;
+    count : _int64 = code.instructions.size();
     made_at := new _int64[code.slot_count() + 1];      // per slot: the index of its one new_object, -1 none, -2 not a box
     for(s : _int64 = 0; s < sizeof(made_at); s++) { made_at[s] = 0 - 1; }
     candidates : _int64 = 0;
@@ -76,7 +76,7 @@ def eliminate_boxes(analyses: function_analyses, parameters: _int64) : _int64 {
     }
     if(candidates <= 0) { return 0; }
     for(s : _int64 = 0; s < parameters && s < sizeof(made_at); s++) { made_at[s] = 0 - 2; }
-    tries_count : _int64 = code.tries.size().value as _int64;
+    tries_count : _int64 = code.tries.size();
     for(t : _int64 = 0; t < tries_count; t++) {
         region := code.tries.at(t);
         for(h : _int64 = 0; h < region.catch_slots.count; h++) { if(region.catch_slots.at(h) >= 0) { made_at[region.catch_slots.at(h)] = 0 - 2; } }
@@ -128,7 +128,7 @@ def eliminate_boxes(analyses: function_analyses, parameters: _int64) : _int64 {
  */
 def give_boxes_their_own_slots(analyses: function_analyses) : _int64 {
     code := analyses.code;
-    count : _int64 = code.instructions.size().value as _int64;
+    count : _int64 = code.instructions.size();
     writes := new _int64[code.slot_count() + 1];
     news : _int64 = 0;
     for(i : _int64 = 0; i < count; i++) {
@@ -175,7 +175,7 @@ def give_boxes_their_own_slots(analyses: function_analyses) : _int64 {
 def replace_box(code: ir_function, box: _int64, made_at: _int64) {
     fields := new list<sharp_declaration>();
     slots := new number_list();
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := code.instructions.at(i);
         if((made.kind == IR_GET_FIELD || made.kind == IR_SET_FIELD) && made.first == box) {

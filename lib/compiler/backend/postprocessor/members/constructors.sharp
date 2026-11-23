@@ -73,7 +73,7 @@ def has_parameter_list(function: sharp_function) : _int64 {
 /** E0371 / E0372: the forms `init(...)` may not have */
 def check_init_block(declared: sharp_class, block: sharp_function, problems: list<diagnostic>) {
     if(!has_parameter_list(block)) { return; }
-    count : _int64 = block.parameters.size().value as _int64;
+    count : _int64 = block.parameters.size();
 
     if(block.has(FLAG_STATIC)) {
         problems.add(error_at_node("E0372", "a `static init` cannot have parameters", block.unit, block.node)

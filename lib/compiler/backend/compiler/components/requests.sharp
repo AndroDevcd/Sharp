@@ -85,7 +85,7 @@ def settle_request(context: analysis_context, request: component_request, missin
     search := search_definitions(session, request);
     // a definition that might answer is being analysed, or has no type yet only because a
     // request of its own is waiting: this request waits too, and is decided with the others
-    waits : _int64 = search.in_progress.size().value > 0 || (search.unknown_by_waiting.size().value > 0 && search.broken == 0);
+    waits : _int64 = search.in_progress.size() > 0 || (search.unknown_by_waiting.size() > 0 && search.broken == 0);
     if(search.found == null && search.no_such_component == 0 && waits == 1) {
         waiting := new list<type_definition>();
         for(i : _int64 = 0; i < session.definitions_in_progress.size(); i++) { waiting.add(session.definitions_in_progress.at(i)); }

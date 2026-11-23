@@ -91,6 +91,7 @@ class subprocess {
     private output : _int64 = NONE;
     private errors : _int64 = NONE;
     private merged : bool = false;
+    private direct : bool = false;              // started by its file and arguments: no shell stays in between
     private ended : bool = false;
     private code : _int64 = 0 - 1;
     private chunk := new _int8[8192];
@@ -112,8 +113,13 @@ class subprocess {
 
     /** ... with the error output mixed into the output, in the order printed, when `merge_errors` */
     static def start(command: string, merge_errors: bool) : subprocess {
+        return begin(command, merge_errors, false);
+    }
+
+    private static def begin(command: string, merge_errors: bool, direct: bool) : subprocess {
         child := new subprocess(command);
         child.merged = merge_errors;
+        child.direct = direct;
         if(build.is_windows()) { child.start_on_windows(); }
         else { child.start_on_unix(); }
         return child;
@@ -124,6 +130,11 @@ class subprocess {
      * is - quoted for the shell here, so spaces and signs in them are safe.
      *
      *      subprocess.start_program("git", new string[] { "commit", "-m", message });
+     *
+     * No shell stays between the two programs: id() is the program's own
+     * number and kill() stops the program itself. (Windows: a file that is
+     * not a program by itself - a .cmd or .bat script - is run by cmd.exe,
+     * and then the id is cmd.exe's.)
      */
     static def start_program(program: string, arguments: string[]) : subprocess {
         return start_program(program, arguments, false);
@@ -135,7 +146,7 @@ class subprocess {
         for(i : _int64 = 0; i < sizeof(arguments); i++) {
             line.append_char(' ').append(process.quote(arguments[i]));
         }
-        return start(line.to_string()!!, merge_errors);
+        return begin(line.build(), merge_errors, true);
     }
 
     /**
@@ -191,10 +202,12 @@ class subprocess {
 
         // /bin/sh -c "command": the three texts, and the list of their addresses with a 0 at its end
         size : _int64 = c_memory.pointer_size();
-        texts := new c_memory(sizeof(command_line.data) + 32);
+        // (a program started by its file: `exec` makes the shell BECOME it, so the id is the program's)
+        shell_text : string = direct ? "exec " + command_line : command_line;
+        texts := new c_memory(sizeof(shell_text.data) + 32);
         texts.put_text(0, "sh");
         texts.put_text(4, "-c");
-        texts.put_text(8, command_line);
+        texts.put_text(8, shell_text);
         list := new c_memory(4 * size);
         list.put_pointer(0, texts.address_at(0));
         list.put_pointer(size, texts.address_at(4));
@@ -254,14 +267,18 @@ class subprocess {
         else { startup.put_int64(96, child_errors[0]); }
         made := new c_memory(24);                       // PROCESS_INFORMATION: process, thread, their ids
 
-        // cmd /s /c "command": the outer pair of quotes is taken off and what is between them run as it is
-        line := new char_buffer(sizeof(command_line.data) + 32);
-        line.append("cmd.exe /s /c ").append_char('"').append(command_line).append_char('"');
-        text : string = line.to_string()!!;
-        writable := new _int8[sizeof(text.data) + 1];
-        for(i : _int64 = 0; i < sizeof(text.data); i++) { writable[i] = text.data!![i]; }
-
-        started : bool = CreateProcessA(0, writable, 0, 0, 1, 0x08000000, 0, 0, startup.address(), made.address()) != 0;   // 0x08000000: no console window of its own
+        // a program started by its file is started as it is: the system finds it (in the PATH too) ...
+        started : bool = false;
+        if(direct) {
+            started = CreateProcessA(0, writable_text(command_line), 0, 0, 1, 0x08000000, 0, 0, startup.address(), made.address()) != 0;
+        }
+        if(!started) {
+            // ... a command, and a file the system does not take for a program (a script), by the shell:
+            // cmd /s /c "command": the outer pair of quotes is taken off and what is between them run as it is
+            line := new char_buffer(sizeof(command_line.data) + 32);
+            line.append("cmd.exe /s /c ").append_char('"').append(command_line).append_char('"');
+            started = CreateProcessA(0, writable_text(line.build()), 0, 0, 1, 0x08000000, 0, 0, startup.address(), made.address()) != 0;   // 0x08000000: no console window of its own
+        }
         problem : _int64 = started ? 0 : GetLastError();
         if(started) {
             process_handle = made.int64_at(0);
@@ -285,6 +302,13 @@ class subprocess {
         if(!merged) { errors = our_errors[0]; }
     }
 
+    /** the bytes of `text` with a 0 at their end, in an array the system may write into (CreateProcess asks for that) */
+    private static def writable_text(text: string) : _int8[] {
+        writable := new _int8[sizeof(text.data) + 1];
+        for(i : _int64 = 0; i < sizeof(text.data); i++) { writable[i] = text.data!![i]; }
+        return writable;
+    }
+
     // ------------------------------------------------------------------ what it is
 
     /** the command line it was started with */
@@ -292,7 +316,12 @@ class subprocess {
         return command_line;
     }
 
-    /** the number the system knows the program by */
+    /**
+     * The number the system knows the program by: the program's own after
+     * start_program() and run(), the shell's after start() - a command is
+     * run by the shell, which may start several programs for it.
+     * process.id() is THIS program's.
+     */
     def id() : _int64 {
         return process_id;
     }
@@ -397,6 +426,7 @@ class subprocess {
     def read_line() : string? {
         line := new char_buffer();
         any : bool = false;
+        held_back : bool = false;       // a `\r` was read: it is part of the line unless a `\n` follows
         while(true) {
             if(read_from(output, one, 1) == 0) {
                 if(!any) { return null; }
@@ -404,9 +434,11 @@ class subprocess {
             }
             any = true;
             if(one[0] == '\n') { break; }
-            if(one[0] != '\r') { line.append_char(one[0]); }
+            if(held_back) { line.append_char('\r'); }
+            held_back = one[0] == '\r';
+            if(!held_back) { line.append_char(one[0]); }
         }
-        return line.to_string() ?: "";
+        return line.build();
     }
 
     /** everything the program prints from here to the end of its output (waits for it to close it) */

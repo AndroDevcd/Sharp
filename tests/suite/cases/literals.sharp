@@ -139,38 +139,38 @@ def main(args: string[]) {
 
     // ---- string literals
     hello := "hello";
-    expect("\"hello\" has 5 characters", hello.size().value, 5);
+    expect("\"hello\" has 5 characters", hello.size(), 5);
     expect("first character", hello.at(0).value, 'h');
     expect("last character", hello.at(4).value, 'o');
     expect("index operator", hello[1].value, 'e');
     empty := "";
-    expect("\"\" has no characters", empty.size().value, 0);
+    expect("\"\" has no characters", empty.size(), 0);
     spaced := "a b";
-    expect("a space is a character", spaced.size().value, 3);
+    expect("a space is a character", spaced.size(), 3);
     expect("the space", spaced.at(1).value, 32);
     digits := "123";
     expect("digits in a string are characters", digits.at(0).value, 49);
-    expect("\"123\" has 3 characters", digits.size().value, 3);
+    expect("\"123\" has 3 characters", digits.size(), 3);
     symbols := "a//b{c}";
-    expect("// inside a string is not a comment", symbols.size().value, 7);
+    expect("// inside a string is not a comment", symbols.size(), 7);
     quote := "it's";
     expect("single quote inside a string", quote.at(2).value, 39);
 
     // ---- escapes inside strings
     tabbed := "a\tb";
-    expect("\\t is one character", tabbed.size().value, 3);
+    expect("\\t is one character", tabbed.size(), 3);
     expect("\\t is a tab", tabbed.at(1).value, 9);
     lines := "one\ntwo";
-    expect("\\n is one character", lines.size().value, 7);
+    expect("\\n is one character", lines.size(), 7);
     expect("\\n is a new line", lines.at(3).value, 10);
     quoted := "a\"b";
-    expect("\\\" is one character", quoted.size().value, 3);
+    expect("\\\" is one character", quoted.size(), 3);
     expect("\\\" is a double quote", quoted.at(1).value, 34);
     slashed := "a\\b";
-    expect("\\\\ is one character", slashed.size().value, 3);
+    expect("\\\\ is one character", slashed.size(), 3);
     expect("\\\\ is a backslash", slashed.at(1).value, 92);
     dollar := "a$$b";
-    expect("$$$$ is one character", dollar.size().value, 3);
+    expect("$$$$ is one character", dollar.size(), 3);
     expect("$$$$ is a dollar sign", dollar.at(1).value, 36);
 
     finish("literals");

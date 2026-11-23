@@ -126,7 +126,7 @@ def main(args: string[]) {
             long_name = long_name + "0123456789";
         }
         long_copy := round_trip(new address(long_name, 9)) as address;
-        test("a 1000 character string: length") { expect(long_copy.street.size().value).should_be(1000); };
+        test("a 1000 character string: length") { expect(long_copy.street.size()).should_be(1000); };
         test("a 1000 character string: content") { expect_true((long_copy.street == long_name)); };
 
         // ================= an object with every kind of field

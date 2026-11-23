@@ -80,7 +80,7 @@ stable class plants {
     /** a tree of this kind ("tree", "pine") and seed, full or simple: grown now, or the one grown before */
     static def grown(kind: string, seed: decimal, full: bool) : plant {
         name : string = kind + " " + seed + " " + full;
-        count : _int64 = names.size().value;
+        count : _int64 = names.size();
         for(i : _int64 = 0; i < count; i++) {
             if(names.at(i) == name) {
                 return new plant(woods.at(i), crowns.at(i));
@@ -135,8 +135,8 @@ local stable class grower {
     /** the next random number, 0 .. 1 */
     private def roll() : decimal {
         drawn = drawn + 1;
-        v : decimal = sin_of(seed * 78.233 + drawn * 12.9898) * 43758.5453;
-        return v - floor_of(v);
+        v : decimal = sin(seed * 78.233 + drawn * 12.9898) * 43758.5453;
+        return v - floor(v);
     }
 
     private def between(low: decimal, high: decimal) : decimal {
@@ -160,7 +160,7 @@ local stable class grower {
         along : decimal = 0;
         rings = pieces + 1;
         for(i : _int64 = 0; i <= pieces; i++) {
-            long : decimal = square_root(dx * dx + dy * dy + dz * dz);
+            long : decimal = sqrt(dx * dx + dy * dy + dz * dz);
             dx = dx / long;
             dy = dy / long;
             dz = dz / long;
@@ -178,8 +178,8 @@ local stable class grower {
             ax : decimal = dz;
             ay : decimal = 0;
             az : decimal = 0 - dx;
-            if(absolute(dy) > 0.95) { ax = 1; ay = 0; az = 0; }
-            a_long : decimal = square_root(ax * ax + ay * ay + az * az);
+            if(abs(dy) > 0.95) { ax = 1; ay = 0; az = 0; }
+            a_long : decimal = sqrt(ax * ax + ay * ay + az * az);
             ax = ax / a_long;
             ay = ay / a_long;
             az = az / a_long;
@@ -188,9 +188,9 @@ local stable class grower {
             cz : decimal = ax * dy - ay * dx;
             for(j : _int64 = 0; j <= sides; j++) {
                 turn : decimal = PI_VALUE * 2 * j / sides;
-                nx : decimal = ax * cos_of(turn) + cx * sin_of(turn);
-                ny : decimal = ay * cos_of(turn) + cy * sin_of(turn);
-                nz : decimal = az * cos_of(turn) + cz * sin_of(turn);
+                nx : decimal = ax * cos(turn) + cx * sin(turn);
+                ny : decimal = ay * cos(turn) + cy * sin(turn);
+                nz : decimal = az * cos(turn) + cz * sin(turn);
                 wood.corner(x + nx * radius, y + ny * radius, z + nz * radius, nx, ny, nz, 2.0 * j / sides, along / 1.4);
             }
             if(i > 0) {
@@ -220,7 +220,7 @@ local stable class grower {
         nx : decimal = x - crown_x;
         ny : decimal = (y - crown_y) + crown_r * 0.45;                 // (tipped up: the top of a crown catches the sky)
         nz : decimal = z - crown_z;
-        long : decimal = square_root(nx * nx + ny * ny + nz * nz);
+        long : decimal = sqrt(nx * nx + ny * ny + nz * nz);
         if(long <= 0) { ny = 1; long = 1; }
         at : _int64 = foliage.corner(x, y, z, nx / long, ny / long, nz / long, u, v);
         foliage.tint(at, gui.pack(255 * shade * 0.96, 255 * shade, 255 * shade * 0.92));
@@ -232,7 +232,7 @@ local stable class grower {
         dx : decimal = x - crown_x;
         dy : decimal = y - crown_y;
         dz : decimal = z - crown_z;
-        out : decimal = square_root(dx * dx + dy * dy + dz * dz) / crown_r;
+        out : decimal = sqrt(dx * dx + dy * dy + dz * dz) / crown_r;
         if(out > 1) { out = 1; }
         low : decimal = 0.5 + 0.5 * (dy / crown_r);
         if(low < 0) { low = 0; }
@@ -242,12 +242,12 @@ local stable class grower {
 
     /** a spray of leaves: a square card `size` across round (x, y, z), turned `heading` round and tipped `tip` (radians) */
     private def spray(x: decimal, y: decimal, z: decimal, size: decimal, heading: decimal, tip: decimal) {
-        rx : decimal = cos_of(heading);
-        rz : decimal = sin_of(heading);
+        rx : decimal = cos(heading);
+        rz : decimal = sin(heading);
         // "up" on the card: straight up, tipped back round the card's sideways direction
-        ux : decimal = 0 - rz * sin_of(tip);
-        uy : decimal = cos_of(tip);
-        uz : decimal = rx * sin_of(tip);
+        ux : decimal = 0 - rz * sin(tip);
+        uy : decimal = cos(tip);
+        uz : decimal = rx * sin(tip);
         half : decimal = size / 2;
         shade : decimal = shade_at(x, y, z);
         a : _int64 = leaf_corner(x - rx * half - ux * half, y - uy * half, z - rz * half - uz * half, 0, 1, shade);
@@ -279,7 +279,7 @@ local stable class grower {
             for(i : _int64 = 0; i < 12; i++) {
                 round : decimal = PI_VALUE * 2 * i / 12 + between(0, 0.5);
                 out : decimal = crown_r * between(0.25, 0.7);
-                spray(cos_of(round) * out, crown_y + between(0 - 0.45, 0.5) * crown_r, sin_of(round) * out,
+                spray(cos(round) * out, crown_y + between(0 - 0.45, 0.5) * crown_r, sin(round) * out,
                       crown_r * between(1.0, 1.3), round + between(0 - 0.6, 0.6), between(0 - 0.6, 0.6));
             }
             dress("leaves");
@@ -304,7 +304,7 @@ local stable class grower {
             round : decimal = i * 2.4 + between(0 - 0.3, 0.3);
             lift : decimal = 0.35 + 0.5 * where;                       // the higher limbs point more upwards
             long : decimal = tall * between(0.36, 0.5) * (1 - 0.3 * where);
-            limb(px, py, pz, cos_of(round), lift, sin_of(round), long, trunk[at * 7 + 6] * 0.6, trunk[at * 7 + 6] * 0.2, 6, 4, 0, 0.45, 0, 0.09);
+            limb(px, py, pz, cos(round), lift, sin(round), long, trunk[at * 7 + 6] * 0.6, trunk[at * 7 + 6] * 0.2, 6, 4, 0, 0.45, 0, 0.09);
             main := new decimal[rings * 7];
             for(k : _int64 = 0; k < rings * 7; k++) { main[k] = path[k]; }
             main_rings : _int64 = rings;
@@ -319,7 +319,7 @@ local stable class grower {
                 sy : decimal = main[from * 7 + 1];
                 sz : decimal = main[from * 7 + 2];
                 side : decimal = round + (s - 1) * 1.1 + between(0 - 0.3, 0.3);
-                limb(sx, sy, sz, cos_of(side), between(0.2, 0.7), sin_of(side), long * between(0.4, 0.6),
+                limb(sx, sy, sz, cos(side), between(0.2, 0.7), sin(side), long * between(0.4, 0.6),
                      main[from * 7 + 6] * 0.55, main[from * 7 + 6] * 0.2, 4, 3, 0, 0.35, 0, 0.09);
                 end : _int64 = (rings - 1) * 7;
                 clump(path[end], path[end + 1], path[end + 2], 1.5, 3);
@@ -338,13 +338,13 @@ local stable class grower {
      * edge so it has body from every side
      */
     private def bough(x: decimal, y: decimal, z: decimal, round: decimal, lift: decimal, long: decimal) {
-        dx : decimal = cos_of(round) * cos_of(lift);
-        dy : decimal = sin_of(lift);
-        dz : decimal = sin_of(round) * cos_of(lift);
+        dx : decimal = cos(round) * cos(lift);
+        dy : decimal = sin(lift);
+        dz : decimal = sin(round) * cos(lift);
         wide : decimal = long * 0.62;
         // across the bough, level with the ground
-        sx : decimal = 0 - sin_of(round);
-        sz : decimal = cos_of(round);
+        sx : decimal = 0 - sin(round);
+        sz : decimal = cos(round);
         tx : decimal = x + dx * long;
         ty : decimal = y + dy * long;
         tz : decimal = z + dz * long;
@@ -397,7 +397,7 @@ local stable class grower {
 
     /** the made textures a tree wears until it is given its own */
     private def dress(leafage: string) {
-        which : _int64 = 1 + absolute(seed) % 3;
+        which : _int64 = 1 + abs(seed) % 3;
         wood.texture(g3_texture_made("bark", 1));
         if(leafage == "needles") { wood.color(0x9A8C84FF); }            // a conifer's bark is greyer
         foliage.texture(g3_texture_made(leafage, which)).cut_out();

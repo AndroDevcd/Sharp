@@ -56,7 +56,7 @@ def main(args: string[]) {
         joined = joined + "x";
         joined = joined + empty;
         test("several empty strings in a row") { expect(joined).should_be("x"); };
-        test("size after adding empty strings") { expect(joined.size().value).should_be(1); };
+        test("size after adding empty strings") { expect(joined.size()).should_be(1); };
         test("an empty string still equals \"\"") { expect_true((empty == "")); };
         test("ends_with \"\"") { expect_true(hello.ends_with("")); };
         test("at(4) still works") { expect(hello.at(4).value).should_be('o'); };

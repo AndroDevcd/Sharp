@@ -30,7 +30,7 @@ mutate string {
     def format(args: string[]): string {
         n : decimal = sizeof(data);
         count : decimal = sizeof(args);
-        out := new text_buffer();
+        out := new char_buffer();
         next_arg : decimal = 0;             // which argument the next {} takes
         i : decimal = 0;
         while(i < n) {
@@ -54,7 +54,7 @@ mutate string {
                 if(j < n && data[j] == '}') {
                     if(digits == 0) index = next_arg++;
                     if(index >= count)
-                        throw new ill_arg_except("format: placeholder asks for argument ${new int(index)} but only ${new int(count)} were given");
+                        throw new illegal_argument_exception("format: placeholder asks for argument ${new int(index)} but only ${new int(count)} were given");
                     arg := args[index];
                     if((arg as object) != null) out.append(arg);
                     i = j + 1;
@@ -88,7 +88,7 @@ mutate string {
      */
     def escape(): string {
         n : decimal = sizeof(data);
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < n; i++) {
             c : decimal = data[i];
             if(c == '\n') { out.append_char('\\'); out.append_char('n'); }
@@ -109,7 +109,7 @@ mutate string {
      */
     def unescape(): string {
         n : decimal = sizeof(data);
-        out := new text_buffer();
+        out := new char_buffer();
         i : decimal = 0;
         while(i < n) {
             c : decimal = data[i];
@@ -136,7 +136,7 @@ mutate string {
      * Handy in error messages, where it makes spaces and empty strings visible.
      */
     def quote(): string {
-        out := new text_buffer();
+        out := new char_buffer();
         out.append_char('"');
         out.append(escape());
         out.append_char('"');
@@ -164,10 +164,10 @@ mutate string {
         limit : decimal = max_length.value;
         m : decimal = sizeof(marker.data);
         if(limit < m)
-            throw new ill_arg_except("ellipsize: max_length $max_length leaves no room for the marker");
+            throw new illegal_argument_exception("ellipsize: max_length $max_length leaves no room for the marker");
         if(n <= limit) return string_support.slice(data, 0, n);
 
-        out := new text_buffer();
+        out := new char_buffer();
         out.append(string_support.slice(data, 0, limit - m));
         out.append(marker);
         return out.build();

@@ -11,6 +11,10 @@
  * This filter turns `<file>:<line>:<column>` after `-->` or `:::` into a link that opens the file
  * there. A place whose file does not exist (any more) is left as plain text.
  *
+ * A failed test of std.testing names the line of the check that failed in words, and that is a link too:
+ *
+ *         at C:/work/shapes/tests.sharp, line 12
+ *
  * `placeIn` is the part without IDE classes: the test asks it directly.
  */
 package sharp.ide.execution
@@ -40,9 +44,17 @@ class SharpConsoleFilter(private val project: Project) : Filter {
         //     C:/work/app/src/cpp/foo.cpp:4:1: error: expected ...
         private val CXX_PLACE = Regex("""^(.+?\.(?:cpp|cc|cxx|c|h|hpp|hh|hxx|inl)):(\d+):(\d+)(?=:)""", RegexOption.IGNORE_CASE)
 
+        // where a test failed, as std.testing says it:     at C:/work/app/tests.sharp, line 12
+        private val TEST_PLACE = Regex("""^\s*at (.+\.sharp), line (\d+)\s*$""")
+
         /** The place this line of compiler output names, or null. */
         fun placeIn(line: String): ConsolePlace? {
             val text = line.trimEnd('\n', '\r')
+            TEST_PLACE.find(text)?.let { test ->
+                val row = test.groupValues[2].toIntOrNull() ?: return null
+                if (row < 1) return null
+                return ConsolePlace(test.groups[1]!!.range.first, test.groups[2]!!.range.last + 1, test.groupValues[1], row, 1)
+            }
             val match = PLACE.find(text) ?: CXX_PLACE.find(text) ?: return null
             val file = match.groups[1] ?: return null
             val row = match.groupValues[2].toIntOrNull() ?: return null

@@ -47,14 +47,14 @@ const LOST : _int64 = 3;
 
 /** how high the valley's ground is at (x, z): two long swells and some smaller ones */
 def ground_at(x: decimal, z: decimal) : decimal {
-    return 6 + sin_of(x * 0.045) * 5 + cos_of(z * 0.06) * 4 + sin_of((x + z) * 0.11) * 1.6
-        + sin_of(x * 0.31) * cos_of(z * 0.27) * 0.5;
+    return 6 + sin(x * 0.045) * 5 + cos(z * 0.06) * 4 + sin((x + z) * 0.11) * 1.6
+        + sin(x * 0.31) * cos(z * 0.27) * 0.5;
 }
 
 /** a number from 0 to 1 that looks random and is always the same for the same n */
 def chance(n: decimal) : decimal {
-    v : decimal = sin_of(n * 12.9898) * 43758.5453;
-    return v - floor_of(v);
+    v : decimal = sin(n * 12.9898) * 43758.5453;
+    return v - floor(v);
 }
 
 class lantern_hunt base composable {
@@ -100,8 +100,8 @@ class lantern_hunt base composable {
         for(i : _int64 = 0; i < LANTERNS; i++) {
             round : decimal = chance(i + 11) * PI_VALUE * 2;
             far : decimal = 18 + 67 * chance(i + 37);
-            lantern_x[i] = LAND / 2 + cos_of(round) * far;
-            lantern_z[i] = LAND / 2 + sin_of(round) * far;
+            lantern_x[i] = LAND / 2 + cos(round) * far;
+            lantern_z[i] = LAND / 2 + sin(round) * far;
         }
 
         // the barrels: kept as things, so that the explorer can be asked whether it touches one
@@ -109,8 +109,8 @@ class lantern_hunt base composable {
         for(i : _int64 = 0; i < BARRELS; i++) {
             round : decimal = chance(i + 71) * PI_VALUE * 2;
             far : decimal = 6 + 40 * chance(i + 91);
-            x : decimal = LAND / 2 + cos_of(round) * far;
-            z : decimal = LAND / 2 + sin_of(round) * far;
+            x : decimal = LAND / 2 + cos(round) * far;
+            z : decimal = LAND / 2 + sin(round) * far;
             made[i] = model(assets + "Barrel_01/Barrel_01.gltf").at(x, ground_at(x, z), z).turn(chance(i) * 360).scale(1.5);
         }
         barrels = made;
@@ -166,7 +166,7 @@ class lantern_hunt base composable {
             time_left = 0;
             phase.value = LOST;
         }
-        whole : decimal = ceil_of(time_left);
+        whole : decimal = ceil(time_left);
         if(whole != seconds_shown.value) { seconds_shown.value = whole; }       // the clock on screen: once a second
     }
 
@@ -206,11 +206,11 @@ class lantern_hunt base composable {
                     play(f);
                     // the camera: behind and above the explorer, looking a little over its head
                     round : decimal = me.heading * PI_VALUE / 180;
-                    eye.at(me.x - sin_of(round) * 6, me.y + 3.1, me.z + cos_of(round) * 6).look_at(me.x, me.y + 1.5, me.z);
+                    eye.at(me.x - sin(round) * 6, me.y + 3.1, me.z + cos(round) * 6).look_at(me.x, me.y + 1.5, me.z);
                 } else {
                     // not playing: the camera drifts round the explorer
                     round : decimal = f.time * 0.18;
-                    eye.at(me.x + sin_of(round) * 13, me.y + 6, me.z + cos_of(round) * 13).look_at(me.x, me.y + 1.2, me.z);
+                    eye.at(me.x + sin(round) * 13, me.y + 6, me.z + cos(round) * 13).look_at(me.x, me.y + 1.2, me.z);
                 }
             };
 

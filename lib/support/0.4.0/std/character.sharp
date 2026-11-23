@@ -1,0 +1,199 @@
+mod std;
+
+/**
+ * character
+ *
+ * Questions about, and conversions of, single characters. All functions are
+ * static: `character.is_digit('7')`.
+ *
+ * A character is its code, a plain number: a literal ('a') or what
+ * `text.char_at(i)` and `text.data[i]` give (for a `char` object: its
+ * `value`, or the same questions asked of the object - `c.is_digit()`).
+ * A question is answered with a bool; a conversion gives the code.
+ *
+ * These are the character questions of the whole library.
+ *
+ * Characters are single bytes and only ASCII is classified: a byte outside of
+ * 0..127 (part of a UTF-8 sequence) is never a letter, digit, space or
+ * punctuation mark, and the case conversions leave it alone.
+ */
+class character {
+
+    /** true if `c` is one of the digits '0' to '9'. */
+    static def is_digit(c: _int64): bool {
+        return c >= '0' && c <= '9';
+    }
+
+    /** true if `c` is an ASCII letter, 'a'-'z' or 'A'-'Z'. */
+    static def is_letter(c: _int64): bool {
+        v : _int64 = c;
+        return (v >= 'a' && v <= 'z') || (v >= 'A' && v <= 'Z');
+    }
+
+    /** true if `c` is an ASCII letter or a digit. */
+    static def is_letter_or_digit(c: _int64): bool {
+        v : _int64 = c;
+        return (v >= 'a' && v <= 'z') || (v >= 'A' && v <= 'Z') || (v >= '0' && v <= '9');
+    }
+
+    /**
+     * true if `c` is whitespace: space, tab (9), line feed (10), vertical tab
+     * (11), form feed (12) or carriage return (13).
+     */
+    static def is_whitespace(c: _int64): bool {
+        v : _int64 = c;
+        return v == ' ' || (v >= 9 && v <= 13);
+    }
+
+    /** true if `c` is a capital letter 'A'-'Z'. */
+    static def is_upper(c: _int64): bool {
+        return c >= 'A' && c <= 'Z';
+    }
+
+    /** true if `c` is a small letter 'a'-'z'. */
+    static def is_lower(c: _int64): bool {
+        return c >= 'a' && c <= 'z';
+    }
+
+    /** The capital letter for a small letter; any other character is returned unchanged. */
+    static def to_upper(c: _int64): _int64 {
+        v : _int64 = c;
+        if(v >= 'a' && v <= 'z') return v - 32;
+        return v;
+    }
+
+    /** The small letter for a capital letter; any other character is returned unchanged. */
+    static def to_lower(c: _int64): _int64 {
+        v : _int64 = c;
+        if(v >= 'A' && v <= 'Z') return v + 32;
+        return v;
+    }
+
+    /** true if `c` is a hexadecimal digit: '0'-'9', 'a'-'f' or 'A'-'F'. */
+    static def is_hex_digit(c: _int64): bool {
+        v : _int64 = c;
+        return (v >= '0' && v <= '9') || (v >= 'a' && v <= 'f') || (v >= 'A' && v <= 'F');
+    }
+
+    /** true if `c` is an octal digit '0'-'7'. */
+    static def is_octal_digit(c: _int64): bool {
+        return c >= '0' && c <= '7';
+    }
+
+    /** true if `c` is a binary digit, '0' or '1'. */
+    static def is_binary_digit(c: _int64): bool {
+        return c == '0' || c == '1';
+    }
+
+    /**
+     * true if `c` is an ASCII punctuation mark or symbol: any visible ASCII
+     * character that is not a letter or a digit ( ! " # $ % & ' ( ) * + , - . /
+     * : ; < = > ? @ [ \ ] ^ _ ` { | } ~ ). The space is not punctuation.
+     */
+    static def is_punctuation(c: _int64): bool {
+        v : _int64 = c;
+        return (v >= 33 && v <= 47) || (v >= 58 && v <= 64) || (v >= 91 && v <= 96) || (v >= 123 && v <= 126);
+    }
+
+    /** true if `c` is an ASCII control character: code 0 to 31, or 127 (delete). Tab and newline are control characters. */
+    static def is_control(c: _int64): bool {
+        v : _int64 = c;
+        return (v >= 0 && v <= 31) || v == 127;
+    }
+
+    /** true if `c` is a visible ASCII character or the space: code 32 to 126. */
+    static def is_printable(c: _int64): bool {
+        return c >= 32 && c <= 126;
+    }
+
+    /** true if `c` is an ASCII character: code 0 to 127. */
+    static def is_ascii(c: _int64): bool {
+        return c >= 0 && c <= 127;
+    }
+
+    /** true if `c` is one of the vowels a e i o u, capital or small. */
+    static def is_vowel(c: _int64): bool {
+        v : _int64 = to_lower(c);
+        return v == 'a' || v == 'e' || v == 'i' || v == 'o' || v == 'u';
+    }
+
+    /** true if a name in a program may START with `c`: a letter or the underscore. */
+    static def is_identifier_start(c: _int64): bool {
+        return is_letter(c) || c == '_';
+    }
+
+    /** true if `c` may appear INSIDE a name in a program: a letter, a digit or the underscore. */
+    static def is_identifier_part(c: _int64): bool {
+        return is_letter_or_digit(c) || c == '_';
+    }
+
+    /**
+     * The value of `c` as a decimal digit: 0 to 9 for '0' to '9'.
+     * Returns -1 if `c` is not a digit (it never throws).
+     */
+    static def digit_value(c: _int64): _int64 {
+        v : _int64 = c;
+        if(v >= '0' && v <= '9') return v - '0';
+        return -1;
+    }
+
+    /**
+     * The value of `c` as a digit in base `radix`: '0'-'9' are 0-9 and the
+     * letters, capital or small, continue from 10 ('a' = 10 ... 'z' = 35).
+     * digit_value('f', 16) is 15. Returns -1 if `c` is not a digit in that
+     * radix ('8' in radix 8, 'g' in radix 16).
+     * Throws illegal_argument_exception if radix is not between 2 and 36.
+     */
+    static def digit_value(c: _int64, radix: _int64): _int64 {
+        if(radix < 2 || radix > 36)
+            throw new illegal_argument_exception("digit_value: radix must be between 2 and 36, but was $radix");
+
+        v : _int64 = c;
+        digit : _int64 = -1;
+        if(v >= '0' && v <= '9') digit = v - '0';
+        else if(v >= 'a' && v <= 'z') digit = v - 'a' + 10;
+        else if(v >= 'A' && v <= 'Z') digit = v - 'A' + 10;
+
+        if(digit >= radix) return -1;
+        return digit;
+    }
+
+    /**
+     * The character for the digit `value` in base `radix`, the opposite of
+     * digit_value: for_digit(7, 10) is '7', for_digit(11, 16) is 'b' (letters are small).
+     * Throws illegal_argument_exception if radix is not between 2 and 36 or
+     * value is not between 0 and radix - 1.
+     */
+    static def for_digit(value: _int64, radix: _int64): _int64 {
+        if(radix < 2 || radix > 36)
+            throw new illegal_argument_exception("for_digit: radix must be between 2 and 36, but was $radix");
+        if(value < 0 || value >= radix)
+            throw new illegal_argument_exception("for_digit: $value is not a digit in radix $radix");
+
+        if(value < 10) return '0' + value;
+        return 'a' + (value - 10);
+    }
+
+    /** true if `a` and `b` are the same character when capital and small ASCII letters are treated as equal. */
+    static def equals_ignore_case(a: _int64, b: _int64): bool {
+        return to_lower(a) == to_lower(b);
+    }
+
+    /** A string holding just the character `c`. */
+    static def to_string(c: _int64): string {
+        return new string(c as _int8);
+    }
+
+    /** A string holding the character `c` `count` times; "" for a count of 0 or less. */
+    static def repeat(c: _int64, count: _int64): string {
+        n : _int64 = count;
+        if(n <= 0) return new string();
+
+        buffer := new _int8[n];
+        v : _int64 = c;
+        for(i : decimal = 0; i < n; i++) {
+            buffer[i] = v;
+        }
+        return new string(buffer);
+    }
+}

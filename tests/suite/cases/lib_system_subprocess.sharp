@@ -48,6 +48,11 @@ def main(args: string[]) {
         be_the_child();
         return;
     }
+    if(sizeof(args) > 0 && args[0] == "id") {
+        // (started to say the number the system knows it by)
+        println("" + process.id());
+        return;
+    }
     show_only_failures();
     tests("lib_system_subprocess") {
         // ---- output, line by line
@@ -68,6 +73,15 @@ def main(args: string[]) {
         failing := subprocess.start("exit 3");
         test("exit 3") { expect(failing.wait()).should_be(3); };
         failing.close();
+
+        // ---- a program started by its file: its id is its own, not a shell's
+        numbered := subprocess.run(program_path(), new string[] { "id" });
+        its_id : _int64 = numbered.id();
+        said_id := io_strings.trim(numbered.read_all_text());
+        test("the id of a started program is the one the program itself has") { expect(said_id).should_be("" + its_id); };
+        test("... and not this program's") { expect_true(its_id != process.id()); };
+        numbered.wait();
+        numbered.close();
 
         // ---- a conversation with another Sharp program: this one, started again
         talker := subprocess.run(program_path(), new string[] { "child" });

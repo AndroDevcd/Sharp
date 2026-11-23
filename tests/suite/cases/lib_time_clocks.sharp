@@ -5,7 +5,7 @@ import ( std.testing, std.time )
 /**
  * The clock interface and everything built on it: fixed_clock, manual_clock,
  * offset_clock, system_clock, stopwatch, deadline, rate_limiter and
- * interval_timer. (time.measure is checked in lib_time_measure.sharp.)
+ * interval_timer. (measure_time is checked in lib_time_measure.sharp.)
  *
  * Every timing check runs on a manual_clock that the test moves itself, so
  * the numbers are exact and the test never sleeps. The real clock is only

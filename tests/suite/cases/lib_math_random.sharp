@@ -202,7 +202,7 @@ def check_properties() {
     test("a shuffled deck still has every card once") { expect_true(complete); };
     test("...and most cards moved") { expect_true(moved > 26); };
     test("permutation(0) is empty") { expect(sizeof(rng.permutation(0))).should_be(0); };
-    test("next_string length") { expect(rng.next_string(40).size().value).should_be(40); };
+    test("next_string length") { expect(rng.next_string(40).size()).should_be(40); };
 
     caught : decimal = 0;
     try { rng.next_int(0); } catch(e: illegal_argument_exception) { caught++; }
@@ -285,7 +285,7 @@ def check_runtime_generator() {
     words[2] = new string("c");
     rand_shuffle_objects(words);
     joined : string = words[0] + words[1] + words[2];
-    test("rand_shuffle_objects keeps the elements") { expect(joined.size().value).should_be(3); };
+    test("rand_shuffle_objects keeps the elements") { expect(joined.size()).should_be(3); };
     test("...all three of them") { expect_true(joined.find("a") && joined.find("b") && joined.find("c")); };
 
     order := rand_permutation(10);
@@ -295,10 +295,10 @@ def check_runtime_generator() {
     test("rand_permutation(0)") { expect(sizeof(rand_permutation(0))).should_be(0); };
 
     token := rand_string(24);
-    test("rand_string length") { expect(token.size().value).should_be(24); };
+    test("rand_string length") { expect(token.size()).should_be(24); };
     alphanumeric : decimal = 1;
     for(i : decimal = 0; i < 24; i++) {
-        if(!char.is_alpha_num(token.at(i))) alphanumeric = 0;
+        if(!character.is_letter_or_digit(token.at(i).value)) alphanumeric = 0;
     }
     test("rand_string is alphanumeric") { expect_true(alphanumeric); };
     test("rand_string with one possible character") { expect(rand_string(5, "x")).should_be("xxxxx"); };

@@ -106,27 +106,12 @@ class assertion_error base error {
 class error base exception {
     public error(message : string?) -> base(message) {}
 }
-
-/*
-* Alises for shorter name size
-*/
-alias illegal_argument_exception as ill_arg_except;
-alias illegal_state_exception as ill_state_except;
-alias out_of_bounds_exception as bounds_except;
-alias invalid_operation_exception as invalid_op_except;
-alias nullptr_exception as null_except;
-alias runtime_exception as runtime_except;
-alias thread_stack_exception as stack_except;
-alias class_cast_exception as cast_except;
-alias out_of_memory_exception as memory_except;
-alias incompatible_class_exception as incompatible_except;
-
-def runtime_error(message: string?) : runtime_except {
-    return new runtime_except(message);
+def runtime_error(message: string?) : runtime_exception {
+    return new runtime_exception(message);
 }
 
-def runtime_error() : runtime_except {
-    return new runtime_except();
+def runtime_error() : runtime_exception {
+    return new runtime_exception();
 }
 
 def todo(message: string?) {

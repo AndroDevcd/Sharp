@@ -80,12 +80,6 @@ struct virtual_machine {
     sharp_class *error_class;
     sharp_class *char_array_class;
     sharp_class *fiber_class;
-    sharp_class *reflect_class;
-    sharp_class *reflect_field;
-    sharp_class *reflect_function;
-    sharp_class *reflect_data_type;
-    sharp_class *reflect_func_params;
-    sharp_class *reflect_description;
 };
 
 extern virtual_machine vm;

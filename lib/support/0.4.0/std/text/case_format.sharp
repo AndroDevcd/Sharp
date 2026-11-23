@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * case_format
  *
@@ -20,7 +22,7 @@ mod std.text;
  *  - at '_', '-', '.', spaces and other whitespace (these are dropped;
  *    several in a row count as one)
  *  - before a capital letter that follows a small letter or a digit:
- *    "maxSize" -> max | Size,   "v2Final" -> v2 | Final
+ *    "max_size" -> max | Size,   "v2Final" -> v2 | Final
  *  - before the last capital of a run of capitals when a small letter
  *    follows, so abbreviations stay together: "HTTPServer" -> HTTP | Server
  *  - digits stay with the word in front of them: "utf8Text" -> utf8 | Text
@@ -29,28 +31,28 @@ mod std.text;
  */
 class case_format {
 
-    private static def is_upper(c: decimal): decimal { return c >= 'A' && c <= 'Z'; }
-    private static def is_lower(c: decimal): decimal { return c >= 'a' && c <= 'z'; }
-    private static def is_digit(c: decimal): decimal { return c >= '0' && c <= '9'; }
+    private static def is_upper(c: decimal): bool { return c >= 'A' && c <= 'Z'; }
+    private static def is_lower(c: decimal): bool { return c >= 'a' && c <= 'z'; }
+    private static def is_digit(c: decimal): bool { return c >= '0' && c <= '9'; }
 
-    /** 1 if `c` separates words and is not part of any word. */
-    private static def is_separator(c: decimal): decimal {
+    /** true if `c` separates words and is not part of any word. */
+    private static def is_separator(c: decimal): bool {
         return c == '_' || c == '-' || c == '.' || c == ' ' || (c >= 9 && c <= 13);
     }
 
     /**
-     * 1 if a new word starts at position `i` of `d` (which is not a separator
+     * true if a new word starts at position `i` of `d` (which is not a separator
      * and not the first character of a word run).
      */
-    private static def starts_word(d: _int8[]?, n: decimal, i: decimal): decimal {
+    private static def starts_word(d: _int8[]?, n: decimal, i: decimal): bool {
         c : decimal = d[i];
         previous : decimal = d[i - 1];
-        if(!is_upper(c)) return 0;
+        if(!is_upper(c)) return false;
         // aB or 2B
-        if(is_lower(previous) || is_digit(previous)) return 1;
+        if(is_lower(previous) || is_digit(previous)) return true;
         // ABc: the B starts a word ("HTTPServer" -> HTTP | Server)
-        if(is_upper(previous) && i + 1 < n && is_lower(d[i + 1])) return 1;
-        return 0;
+        if(is_upper(previous) && i + 1 < n && is_lower(d[i + 1])) return true;
+        return false;
     }
 
     /**
@@ -116,7 +118,7 @@ class case_format {
      */
     private static def assemble(words: string[], separator: decimal, first_style: decimal, rest_style: decimal): string {
         count : decimal = sizeof(words);
-        out := new text_buffer();
+        out := new char_buffer();
         for(w : decimal = 0; w < count; w++) {
             if(w > 0 && separator != 0) out.append_char(separator);
             style : decimal = w == 0 ? first_style : rest_style;
@@ -134,22 +136,22 @@ class case_format {
         return out.build();
     }
 
-    /** snake_case: small letters, words joined with '_'. to_snake("maxSize") is "max_size". */
+    /** snake_case: small letters, words joined with '_'. to_snake("max_size") is "max_size". */
     static def to_snake(name: string): string {
         return assemble(split_words(name), '_', 0, 0);
     }
 
-    /** SCREAMING_SNAKE_CASE, as used for constants: to_screaming_snake("maxSize") is "MAX_SIZE". */
+    /** SCREAMING_SNAKE_CASE, as used for constants: to_screaming_snake("max_size") is "MAX_SIZE". */
     static def to_screaming_snake(name: string): string {
         return assemble(split_words(name), '_', 2, 2);
     }
 
-    /** kebab-case: small letters, words joined with '-'. to_kebab("maxSize") is "max-size". */
+    /** kebab-case: small letters, words joined with '-'. to_kebab("max_size") is "max-size". */
     static def to_kebab(name: string): string {
         return assemble(split_words(name), '-', 0, 0);
     }
 
-    /** camelCase: first word small, the others capitalised, nothing between. to_camel("max_size") is "maxSize". */
+    /** camelCase: first word small, the others capitalised, nothing between. to_camel("max_size") is "max_size". */
     static def to_camel(name: string): string {
         return assemble(split_words(name), 0, 0, 1);
     }
@@ -169,7 +171,7 @@ class case_format {
         return assemble(split_words(name), ' ', 1, 0);
     }
 
-    /** dot.case: small letters, words joined with '.'. to_dot("maxSize") is "max.size". */
+    /** dot.case: small letters, words joined with '.'. to_dot("max_size") is "max.size". */
     static def to_dot(name: string): string {
         return assemble(split_words(name), '.', 0, 0);
     }

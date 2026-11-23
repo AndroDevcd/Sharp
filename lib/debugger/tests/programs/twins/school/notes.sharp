@@ -1,0 +1,7 @@
+mod school;
+
+/** the other file called notes.sharp */
+def school_notes() : _int64 {
+    count : _int64 = 5;
+    return count;
+}

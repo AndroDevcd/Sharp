@@ -9,7 +9,7 @@ import (
  * full, the next child starts a new line.
  *
  *      wrap {
- *          for(i : _int64 = 0; i < tags.size().value; i++) { tag_chip(tags.at(i)); }
+ *          for(i : _int64 = 0; i < tags.size(); i++) { tag_chip(tags.at(i)); }
  *      }.gap(8)
  *
  * Unlike a grid, the children keep their OWN widths - a short tag takes little

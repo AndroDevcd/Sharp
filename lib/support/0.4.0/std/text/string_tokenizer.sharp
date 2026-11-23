@@ -52,13 +52,13 @@ class string_tokenizer {
         self->return_delimiters = return_delimiters;
     }
 
-    /** 1 if the character `c` is one of the delimiters. */
-    private def is_delimiter(c: decimal): decimal {
+    /** true if the character `c` is one of the delimiters. */
+    private def is_delimiter(c: decimal): bool {
         m : decimal = sizeof(delimiters.data);
         for(j : decimal = 0; j < m; j++) {
-            if(delimiters.data[j] == c) return 1;
+            if(delimiters.data[j] == c) return true;
         }
-        return 0;
+        return false;
     }
 
     /** Position of the start of the next token at or after `from` (the length of the text if there is none). */
@@ -83,8 +83,8 @@ class string_tokenizer {
         return from;
     }
 
-    /** 1 if there is at least one more token. Does not move forward. */
-    def has_more_tokens(): decimal {
+    /** true if there is at least one more token. Does not move forward. */
+    def has_more_tokens(): bool {
         return skip_delimiters(position) < sizeof(text.data);
     }
 

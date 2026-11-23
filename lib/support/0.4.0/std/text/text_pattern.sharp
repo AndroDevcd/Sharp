@@ -1,5 +1,7 @@
 mod std.text;
 
+import ( std.io )
+
 /**
  * text_pattern
  *
@@ -185,10 +187,10 @@ class text_pattern {
         return i;
     }
 
-    /** 1 if element `e` (not a star) accepts the character `c`. */
-    private def accepts(e: decimal, c: decimal): decimal {
+    /** true if element `e` (not a star) accepts the character `c`. */
+    private def accepts(e: decimal, c: decimal): bool {
         kind : decimal = kinds[e];
-        if(kind == kind_any) return 1;
+        if(kind == kind_any) return true;
         c = fold(c);
         if(kind == kind_char) return values[e] == c;
 
@@ -203,14 +205,14 @@ class text_pattern {
             }
         }
         if(set_negated[e]) return !inside;
-        return inside;
+        return inside != 0;
     }
 
     /**
-     * 1 if the whole of `text` fits the pattern, otherwise 0.
+     * true if the whole of `text` fits the pattern.
      * An empty pattern only matches ""; "*" matches everything, including "".
      */
-    def matches(text: string): decimal {
+    def matches(text: string): bool {
         t := text.data;
         n : decimal = sizeof(t);
         ti : decimal = 0;               // next character of the text
@@ -234,7 +236,7 @@ class text_pattern {
                 ti = star_ti;
                 pi = star_pi;
             } else {
-                return 0;
+                return false;
             }
         }
 
@@ -279,35 +281,35 @@ class text_pattern {
         return source;
     }
 
-    /** 1 if the pattern has no wildcards at all, so that it matches exactly one text (apart from letter case). */
-    def is_literal(): decimal {
+    /** true if the pattern has no wildcards at all, so that it matches exactly one text (apart from letter case). */
+    def is_literal(): bool {
         for(e : decimal = 0; e < elements; e++) {
-            if(kinds[e] != kind_char) return 0;
+            if(kinds[e] != kind_char) return false;
         }
-        return 1;
+        return true;
     }
 
     /**
-     * One-off match: 1 if the whole of `text` fits `pattern`.
+     * One-off match: true if the whole of `text` fits `pattern`.
      * Throws parse_exception if the pattern is malformed.
      */
-    static def matches(pattern: string, text: string): decimal {
+    static def matches(pattern: string, text: string): bool {
         return new text_pattern(pattern).matches(text);
     }
 
     /** One-off match that treats ASCII capital and small letters as equal. */
-    static def matches_ignore_case(pattern: string, text: string): decimal {
+    static def matches_ignore_case(pattern: string, text: string): bool {
         return new text_pattern(pattern, true).matches(text);
     }
 
-    /** 1 if `text` contains a character that is special in a pattern: * ? [ or \ */
-    static def has_wildcards(text: string): decimal {
+    /** true if `text` contains a character that is special in a pattern: * ? [ or \ */
+    static def has_wildcards(text: string): bool {
         n : decimal = sizeof(text.data);
         for(i : decimal = 0; i < n; i++) {
             c : decimal = text.data[i];
-            if(c == '*' || c == '?' || c == '[' || c == '\\') return 1;
+            if(c == '*' || c == '?' || c == '[' || c == '\\') return true;
         }
-        return 0;
+        return false;
     }
 
     /**
@@ -317,7 +319,7 @@ class text_pattern {
      */
     static def escape(text: string): string {
         n : decimal = sizeof(text.data);
-        out := new text_buffer();
+        out := new char_buffer();
         for(i : decimal = 0; i < n; i++) {
             c : decimal = text.data[i];
             if(c == '*' || c == '?' || c == '[' || c == ']' || c == '\\') out.append_char('\\');

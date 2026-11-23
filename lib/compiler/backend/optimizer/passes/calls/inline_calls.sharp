@@ -92,7 +92,7 @@ class inline_choices {
 
     inline_choices(layout: program_layout) {
         self->layout = layout;
-        known = new _int64[layout.functions.size().value as _int64 + 1];
+        known = new _int64[layout.functions.size() + 1];
         for(i : _int64 = 0; i < sizeof(known); i++) { known[i] = 0 - 1; }
     }
 
@@ -115,7 +115,7 @@ def inline_calls(caller: function_layout, choices: inline_choices) : _int64 {
     code : ir_function = caller.ir!!;
     // first only looked for: most functions call nothing that is inlined, and then nothing is made
     wanted : _int64 = 0;
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total && wanted == 0; i++) {
         if(callee_to_inline(code.instructions.at(i), caller, choices) != null) { wanted = 1; }
     }
@@ -174,7 +174,7 @@ def can_be_inlined(callee: function_layout) : _int64 {
 def is_small_body(body: ir_function) : _int64 {
     real : _int64 = 0;
     places := places_of_labels(body);
-    total : _int64 = body.instructions.size().value as _int64;
+    total : _int64 = body.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         made := body.instructions.at(i);
         kind : _int64 = made.kind;
@@ -217,7 +217,7 @@ def copy_body(code: ir_function, made: list<ir_instruction>, call: ir_instructio
         made.add(into);
     }
     // ---- the body
-    total : _int64 = body.instructions.size().value as _int64;
+    total : _int64 = body.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         original := body.instructions.at(i);
         if(original.kind == IR_LINE) { continue; }

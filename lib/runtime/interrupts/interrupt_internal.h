@@ -47,7 +47,6 @@
 #include "../../Modules/std.io/serialization.h"
 #include "../../core/access_flag.h"
 #include "../termios.h"
-#include "../reflect/reflection.h"
 #include "../jit/jit_compiler.h"
 #include "../main.h"
 #include "../telemetry/telemetry.h"
@@ -144,6 +143,8 @@ void op_nop(Int interrupt);
 void op_system(Int interrupt);
 void op_exit(Int interrupt);
 void op_os_name(Int interrupt);
+void op_signal_watch(Int interrupt);
+void op_signal_take(Int interrupt);
 void op_program_path(Int interrupt);
 void op_runtime_path(Int interrupt);
 void op_c_library(Int interrupt);
@@ -161,7 +162,14 @@ void op_link_func(Int interrupt);
 // reflection.cpp - looking at the stack and at objects at run time
 void op_get_frame_info(Int interrupt);
 void op_get_stack_trace(Int interrupt);
-void op_describe_object(Int interrupt);
-void op_reflect_field_value(Int interrupt);
+void op_reflect_facts(Int interrupt);
+void op_reflect_text(Int interrupt);
+void op_reflect_class_of(Int interrupt);
+void op_reflect_find(Int interrupt);
+void op_reflect_new(Int interrupt);
+void op_reflect_get(Int interrupt);
+void op_reflect_put(Int interrupt);
+void op_reflect_spread(Int interrupt);
+void op_reflect_box(Int interrupt);
 
 #endif //SHARP_INTERRUPT_INTERNAL_H

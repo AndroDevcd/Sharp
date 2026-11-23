@@ -58,7 +58,7 @@ class rect {
      * from_corners(5, 7, 1, 2) is the rectangle at (1, 2) of size 4 x 5.
      */
     static def from_corners(x1: decimal, y1: decimal, x2: decimal, y2: decimal): rect {
-        return new rect(min(x1, x2), min(y1, y2), absolute(x2 - x1), absolute(y2 - y1));
+        return new rect(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1));
     }
 
     /**

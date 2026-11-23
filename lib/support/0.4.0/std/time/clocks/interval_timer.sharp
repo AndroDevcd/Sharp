@@ -53,8 +53,8 @@ class interval_timer {
         fired = 0;
     }
 
-    /** 1 when at least one period has passed since the last successful `poll()`; does not change the timer */
-    def is_due(): decimal {
+    /** true when at least one period has passed since the last successful `poll()`; does not change the timer */
+    def is_due(): bool {
         return source.now() >= next_due;
     }
 

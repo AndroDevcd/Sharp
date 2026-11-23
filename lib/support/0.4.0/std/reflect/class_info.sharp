@@ -1,0 +1,387 @@
+mod std.reflect;
+
+import ( std.io )
+
+/**
+ * A CLASS, AN INTERFACE OR AN ENUM of the program (see reflect.sharp)
+ *
+ *      shape := reflect.of<user>();
+ *      shape.name                      // "user"
+ *      shape.full_name                 // "app.models#user"
+ *      shape.module                    // "app.models"
+ *      shape.base_class()              // the class it is based on, or null
+ *      shape.is_a(other)               // the same class, one below it, or one that implements it
+ *
+ *      shape.fields()                  // its fields and those of the classes above it
+ *      shape.field("age")              // one of them (a static one too), or null
+ *      shape.functions()               // its functions, and those above it that it did not replace
+ *      shape.function("greet")         // the first function with the name, or null
+ *      shape.constructors()
+ *
+ *      shape.create()                  // an object, by the constructor without parameters
+ *      shape.create("ann", new int(31))  // ... by the constructor that takes these
+ *      shape.create_array(10)          // user[10], every item null
+ *
+ *      colors := reflect.of<color>();  // an enum
+ *      colors.values()                 // enum_value: .name, .number, .value
+ *      colors.value("red")
+ *
+ * PROTECTIONS. What is private or protected in the class is listed, and is
+ * not read, written or called. A class_info from open() allows it:
+ *
+ *      shape.field("secret")!!.read(someone)           // reflect_exception
+ *      shape.open().field("secret")!!.read(someone)    // allowed
+ *      shape.open().create()                           // a private constructor too
+ *
+ * open() gives another class_info for the same class (compare the two by
+ * `id`); the one every other part of the program gets stays closed.
+ */
+class class_info {
+    /** the VM's number for the class (there is one class_info for each class, and one more from open(): `==` compares them) */
+    id : _int64;
+    /** the name as it is written: "user", "list<string>" */
+    name : string;
+    /** with the modules: "app.models#user", "std#list<std#string>" */
+    full_name : string;
+    /** the module it is declared in */
+    module : string;
+    /** 1 for an enum */
+    is_enum : decimal;
+    /** 1 for a class made of a generic one: list<string> */
+    is_generic : decimal;
+
+    private base_id : _int64;
+    private owner_id : _int64;
+    private flags : _int64;
+    private instance_fields : _int64;
+    private static_field_count : _int64;
+    private interface_ids : list<int> = new list<int>();
+    private field_list : list<field_info>?;
+    private static_list : list<field_info>?;
+    private own_list : list<function_info>?;
+    private function_list : list<function_info>?;
+    private opened : decimal;
+    private open_one : class_info?;
+
+    class_info(id: _int64) {
+        self->id = id;
+        said := reflect_vm.facts(1, id, 0);
+        base_id = said[0];
+        owner_id = said[1];
+        flags = said[2];
+        instance_fields = said[3];
+        static_field_count = said[4];
+        for(i : _int64 = 0; i < said[6]; i++) { interface_ids.add(said[7 + i]); }
+        full_name = reflect_vm.text(1, id, 0);
+        name = reflect_names.short(full_name);
+        module = reflect_names.module_of(full_name);
+        is_generic = io_strings.index_of(name, '<') >= 0;
+        is_enum = base_id >= 0 && reflect_vm.text(1, base_id, 0) == "std#_enum_";
+    }
+
+    // ------------------------------------------------------------------ protections
+
+    /** the same class with the protections off: its private and protected fields are read and written, its private functions and constructors called */
+    def open() : class_info {
+        if(opened) { return self; }
+        if(open_one == null) {
+            made := new class_info(id);
+            made.opened = 1;
+            open_one = made;
+        }
+        return open_one!!;
+    }
+
+    /** true for a class_info that open() gave */
+    def is_open() : bool {
+        return opened != 0;
+    }
+
+    // ------------------------------------------------------------------ where it stands
+
+    /** the class it is based on; null when it is based on none */
+    def base_class() : class_info? {
+        if(base_id < 0) { return null; }
+        return reflect.by_number(base_id);
+    }
+
+    /** the class it is declared inside of; null for a class of a module */
+    def owner_class() : class_info? {
+        if(owner_id < 0) { return null; }
+        return reflect.by_number(owner_id);
+    }
+
+    /** the interfaces it implements, those of the classes above it too */
+    def interfaces() : list<class_info> {
+        found := new list<class_info>();
+        for(i : _int64 = 0; i < interface_ids.size(); i++) { found.add(reflect.by_number(interface_ids.at(i).value)); }
+        return found;
+    }
+
+    /** true when an object of this class can stand where `other` is asked for: the same class, a class below it, or one that implements it */
+    def is_a(other: class_info) : bool {
+        current : class_info? = self;
+        for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+            if(current!!.id == other.id) { return true; }
+            if(current!!.implements(other)) { return true; }
+            current = current!!.base_class();
+        }
+        return false;
+    }
+
+    /** true when `other` (or an interface based on it) is among interfaces() */
+    def implements(other: class_info) : bool {
+        for(i : _int64 = 0; i < interface_ids.size(); i++) {
+            named : class_info? = reflect.by_number(interface_ids.at(i).value);
+            for(depth : _int64 = 0; named != null && depth < 64; depth++) {
+                if(named!!.id == other.id) { return true; }
+                named = named!!.base_class();
+            }
+        }
+        return false;
+    }
+
+    /** what stands in `<...>` of a class made of a generic one: for list<string> the type string */
+    def type_arguments() : list<type_info> {
+        return new type_info(type_info.CLASS, id, 0).arguments();
+    }
+
+    // ------------------------------------------------------------------ fields
+
+    /** the fields an object of the class has: its own and those of the classes above it */
+    def fields() : list<field_info> {
+        if(field_list == null) {
+            found := new list<field_info>();
+            for(place : _int64 = 0; place < instance_fields; place++) { found.add(new field_info(self, place)); }
+            field_list = found;
+        }
+        return field_list!!;
+    }
+
+    /** the static fields of the class */
+    def static_fields() : list<field_info> {
+        if(static_list == null) {
+            found := new list<field_info>();
+            for(place : _int64 = 0; place < static_field_count; place++) {
+                next := new field_info(self, instance_fields + place);
+                // (a name with `@` is the compiler's own: the flag that says the static fields are set up)
+                if(sizeof(next.name.data) > 0 && next.name.data!![0] != '@') { found.add(next); }
+            }
+            static_list = found;
+        }
+        return static_list!!;
+    }
+
+    /** the field with a name, a static one too; null when the class has none (or the program did not keep it) */
+    def field(name: string) : field_info? {
+        mine := fields();
+        // the nearest class's field of a name wins: the list has the classes above first
+        for(i : _int64 = (mine.size() - 1); i >= 0; i--) { if(mine.at(i).name == name) { return mine.at(i); } }
+        shared := static_fields();
+        for(i : _int64 = 0; i < shared.size(); i++) { if(shared.at(i).name == name) { return shared.at(i); } }
+        return null;
+    }
+
+    /** field(name), or a reflect_exception that names what the class does have */
+    def field_or_fail(name: string) : field_info {
+        found := field(name);
+        if(found != null) { return found!!; }
+        has := new string_builder();
+        mine := fields();
+        for(i : _int64 = 0; i < mine.size(); i++) {
+            if(i > 0) { has.append(", "); }
+            has.append(mine.at(i).name);
+        }
+        throw new reflect_exception("`" + full_name + "` has no field `" + name + "` (it has: " + has.to_string()!! + ")");
+    }
+
+    // ------------------------------------------------------------------ functions
+
+    /** the functions and operators written in this class itself (not its constructors) */
+    def own_functions() : list<function_info> {
+        found := new list<function_info>();
+        all := functions();
+        for(i : _int64 = 0; i < all.size(); i++) { if(all.at(i).owner_id == id) { found.add(all.at(i)); } }
+        return found;
+    }
+
+    /** the functions of the class (not its constructors): its own first, then those of the classes above it that it did not replace */
+    def functions() : list<function_info> {
+        if(function_list == null) {
+            found := new list<function_info>();
+            every := every_function();
+            // (the VM lists the classes above first: from the end, the nearest class's function of a shape comes first)
+            for(i : _int64 = (every.size() - 1); i >= 0; i--) {
+                next := every.at(i);
+                if(next.is_constructor || next.is_setup) { continue; }
+                replaced : decimal = 0;
+                for(j : _int64 = 0; j < found.size(); j++) { if(found.at(j).same_shape(next)) { replaced = 1; break; } }
+                if(!replaced) { found.add(next); }
+            }
+            function_list = found;
+        }
+        return function_list!!;
+    }
+
+    /** everything the VM lists for the class: functions, constructors and init blocks, of the classes above it too */
+    private def every_function() : list<function_info> {
+        if(own_list == null) {
+            found := new list<function_info>();
+            ids := reflect_vm.facts(3, id, 0);
+            for(i : _int64 = 0; i < sizeof(ids); i++) {
+                next := new function_info(ids[i]);
+                if(opened) { next = next.open(); }
+                found.add(next);
+            }
+            own_list = found;
+        }
+        return own_list!!;
+    }
+
+    /** the first function with a name; null when there is none (or the program did not keep it) */
+    def function(name: string) : function_info? {
+        all := functions();
+        for(i : _int64 = 0; i < all.size(); i++) { if(all.at(i).name == name) { return all.at(i); } }
+        return null;
+    }
+
+    /** the function with a name that takes `count` parameters; null when there is none */
+    def function(name: string, count: _int64) : function_info? {
+        all := functions();
+        for(i : _int64 = 0; i < all.size(); i++) { if(all.at(i).name == name && all.at(i).parameters.size() == count) { return all.at(i); } }
+        return null;
+    }
+
+    /** every function with a name (one per list of parameters) */
+    def functions_named(name: string) : list<function_info> {
+        found := new list<function_info>();
+        all := functions();
+        for(i : _int64 = 0; i < all.size(); i++) { if(all.at(i).name == name) { found.add(all.at(i)); } }
+        return found;
+    }
+
+    /** the constructors of the class */
+    def constructors() : list<function_info> {
+        found := new list<function_info>();
+        mine := every_function();
+        for(i : _int64 = 0; i < mine.size(); i++) { if(mine.at(i).is_constructor && mine.at(i).owner_id == id) { found.add(mine.at(i)); } }
+        return found;
+    }
+
+    // ------------------------------------------------------------------ making objects
+
+    /** a new object, made by the constructor without parameters */
+    def create() : object {
+        return create_with(null);
+    }
+
+    /** a new object, made by the constructor that takes this */
+    def create(first: object?) : object {
+        values := new object[1];
+        values[0] = first;
+        return create_with(values);
+    }
+
+    def create(first: object?, second: object?) : object {
+        values := new object[2];
+        values[0] = first; values[1] = second;
+        return create_with(values);
+    }
+
+    def create(first: object?, second: object?, third: object?) : object {
+        values := new object[3];
+        values[0] = first; values[1] = second; values[2] = third;
+        return create_with(values);
+    }
+
+    def create(first: object?, second: object?, third: object?, fourth: object?) : object {
+        values := new object[4];
+        values[0] = first; values[1] = second; values[2] = third; values[3] = fourth;
+        return create_with(values);
+    }
+
+    /**
+     * A new object, made by the constructor that takes `values` (null: the one
+     * without parameters). The constructor is the first whose parameters take
+     * the values: as many of them, a number for a number, an object of the
+     * right class for a class.
+     *
+     * @throws reflect_exception when no constructor takes them, with the constructors there are
+     */
+    def create_with(values: object[]?) : object {
+        all := constructors();
+        for(i : _int64 = 0; i < all.size(); i++) {
+            if(all.at(i).takes(values)) {
+                made : object = reflect_vm.make(id, 0 - 1)!!;
+                all.at(i).call_on(made, values);
+                return made;
+            }
+        }
+        has := new string_builder();
+        for(i : _int64 = 0; i < all.size(); i++) {
+            if(i > 0) { has.append(", "); }
+            has.append(all.at(i).to_string()!!);
+        }
+        if(all.size() == 0) { has.append("none that the program kept"); }
+        throw new reflect_exception("`" + full_name + "` has no constructor that takes " + function_info.shown(values) + " (it has: " + has.to_string()!! + ")");
+    }
+
+    /** an array with room for `count` objects of the class, every item null; null for a count of 0, which is what an empty array is */
+    def create_array(count: _int64) : object? {
+        if(count < 0) { throw new illegal_argument_exception("create_array: the count cannot be negative"); }
+        if(count == 0) { return null; }
+        return reflect_vm.make(id, count);
+    }
+
+    // ------------------------------------------------------------------ enums
+
+    /** the values of an enum, in the order they are written; empty for a class that is no enum */
+    def values() : list<enum_value> {
+        found := new list<enum_value>();
+        if(!is_enum) { return found; }
+        shared := open().static_fields();
+        for(i : _int64 = 0; i < shared.size(); i++) {
+            held : object? = shared.at(i).read(null);
+            if(held == null) { continue; }
+            said := reflect_vm.class_of(held);
+            if(said[1] != base_id || said[2] != 0) { continue; }
+            found.add(new enum_value(shared.at(i).name, (held as _enum_).ordinal, held!!));
+        }
+        return found;
+    }
+
+    /** the value of an enum with a name; null when it has none */
+    def value(name: string) : enum_value? {
+        all := values();
+        for(i : _int64 = 0; i < all.size(); i++) { if(all.at(i).name == name) { return all.at(i); } }
+        return null;
+    }
+
+    /** the value of an enum with a number; null when it has none */
+    def value_at(number: _int64) : enum_value? {
+        all := values();
+        for(i : _int64 = 0; i < all.size(); i++) { if(all.at(i).number == number) { return all.at(i); } }
+        return null;
+    }
+
+    override def to_string() : string? {
+        return full_name;
+    }
+}
+
+/** one value of an enum: its name, its number, and the value itself (what a field of the enum's type holds) */
+class enum_value {
+    name : string;
+    number : _int64;
+    value : object;
+
+    enum_value(name: string, number: _int64, value: object) {
+        self->name = name;
+        self->number = number;
+        self->value = value;
+    }
+
+    override def to_string() : string? {
+        return name;
+    }
+}

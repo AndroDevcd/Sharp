@@ -114,13 +114,13 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
 
     /** the height the label takes above the box (0 without one) */
     private def label_tall() : decimal {
-        if(caption.size().value == 0) { return 0; }
+        if(caption.size() == 0) { return 0; }
         return small_face().line_height + 6;
     }
 
     /** the height of the line under the box: the error, or the helper (0 without either) */
     private def below_tall() : decimal {
-        if(problem.size().value == 0 && note.size().value == 0) { return 0; }
+        if(problem.size() == 0 && note.size() == 0) { return 0; }
         return small_face().line_height + 5;
     }
 
@@ -155,7 +155,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
 
     /** the cursor, kept inside the text as it is now (the state may have been changed from outside) */
     private def place() : _int64 {
-        length : _int64 = bound.peek().size().value;
+        length : _int64 = bound.peek().size();
         if(cursor < 0 || cursor > length) {
             cursor = length;
         }
@@ -197,7 +197,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
 
     /** the position one letter after `at` */
     private def step_forward(words: string, at: _int64) : _int64 {
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         if(at >= length) { return length; }
         to : _int64 = at + 1;
         while(to < length && continues_letter(words.at(to).value) == 1) {
@@ -235,7 +235,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
             return words;
         }
         dots : string = "";
-        count : _int64 = letters_in(words, words.size().value);
+        count : _int64 = letters_in(words, words.size());
         for(i : _int64 = 0; i < count; i++) {
             dots = dots + "*";
         }
@@ -292,9 +292,9 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
     /** replace the text from `from` to `to` with `put`, and leave the cursor after what was put in */
     private def replace_range(from: _int64, to: _int64, put: string) {
         words : string = bound.peek();
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         fresh : string = txt.slice(words, 0, from) + put + txt.slice(words, to, length);
-        cursor = from + put.size().value;
+        cursor = from + put.size();
         anchor = 0 - 1;
         bound.value = fresh;
     }
@@ -310,7 +310,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
         }
 
         allowed : string = filtered(words, from, to);
-        if(allowed.size().value == 0 && from == to) {
+        if(allowed.size() == 0 && from == to) {
             return;                                 // nothing may go in, and there is nothing to remove
         }
         replace_range(from, to, allowed);
@@ -327,19 +327,19 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
         kept : string = "";
         room : _int64 = 0 - 1;                      // -1: no limit
         if(most > 0) {
-            room = most - (letters_in(now, now.size().value) - (letters_in(now, to) - letters_in(now, from)));
+            room = most - (letters_in(now, now.size()) - (letters_in(now, to) - letters_in(now, from)));
             if(room < 0) { room = 0; }
         }
 
         // a numbers-only field allows one point, and a minus only at the very front
         has_point : _int64 = 0;
         if(digits == 1) {
-            for(i : _int64 = 0; i < now.size().value; i++) {
+            for(i : _int64 = 0; i < now.size(); i++) {
                 if((i < from || i >= to) && now.at(i).value == 46) { has_point = 1; }
             }
         }
 
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         at : _int64 = 0;
         while(at < length) {
             next : _int64 = step_forward(words, at);
@@ -351,7 +351,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
                 ok = 0;
                 if(byte >= 48 && byte <= 57) { ok = 1; }                // a digit
                 if(byte == 46 && has_point == 0) { ok = 1; has_point = 1; }        // the one point
-                if(byte == 45 && from == 0 && kept.size().value == 0) { ok = 1; }  // a minus, only in front
+                if(byte == 45 && from == 0 && kept.size() == 0) { ok = 1; }  // a minus, only in front
             }
             if(ok == 1 && room == 0) { ok = 0; }
 
@@ -382,7 +382,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
     override def key(e: event) : _int64 {
         words : string = bound.peek();
         at : _int64 = place();
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
 
         keep : _int64 = 0;
         if(e.has_shift()) { keep = 1; }
@@ -450,7 +450,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
     private def position_at(x: decimal) : _int64 {
         f : font = face();
         words : string = bound.peek();
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         wanted : decimal = x - (me.inner_x() + INSET) + shift;
 
         best : _int64 = 0;
@@ -493,7 +493,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
     /** select the run of word letters around `at` */
     private def select_word_at(at: _int64) {
         words : string = bound.peek();
-        length : _int64 = words.size().value;
+        length : _int64 = words.size();
         if(secret == 1) {
             anchor = 0;                                     // a password has no words to tell apart: all of it
             cursor = length;
@@ -522,11 +522,11 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
         at : _int64 = place();
 
         wrong : _int64 = 0;
-        if(problem.size().value > 0) { wrong = 1; }
+        if(problem.size() > 0) { wrong = 1; }
         small : font = small_face();
 
         // the label above
-        if(caption.size().value > 0) {
+        if(caption.size() > 0) {
             label_ink : color = t.text_dim;
             if(wrong == 1) { label_ink = t.danger; }
             else if(focused == 1) { label_ink = t.primary; }
@@ -548,7 +548,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
         // the line below: what is wrong, or the helper
         if(wrong == 1) {
             p.text(problem, me.x + 2, box_y + box_h + 4, small, t.danger);
-        } else if(note.size().value > 0) {
+        } else if(note.size() > 0) {
             p.text(note, me.x + 2, box_y + box_h + 4, small, t.text_dim);
         }
 
@@ -572,7 +572,7 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
             p.rect(left + from_x - shift, top, to_x - from_x, f.line_height, 3, t.primary.with_alpha(90));
         }
 
-        if(words.size().value == 0) {
+        if(words.size() == 0) {
             p.text(placeholder, left, top, f, t.text_dim);
         } else {
             ink : color = t.text;

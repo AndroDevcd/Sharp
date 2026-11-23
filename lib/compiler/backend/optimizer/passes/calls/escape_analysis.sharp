@@ -60,7 +60,7 @@ const MAX_TRACKED_ARGUMENTS : _int64 = 60;
 
 /** work out, for every function, which arguments do not escape; returns how many functions keep all of theirs in */
 def find_argument_escapes(layout: program_layout) : _int64 {
-    count : _int64 = layout.functions.size().value as _int64;
+    count : _int64 = layout.functions.size();
     kept := new _int64[count + 1];              // per function: bit k set = argument k does not escape (so far)
     arguments := new _int64[count + 1];         // per function: how many arguments (self and the parameters)
     one : _int64 = 1;
@@ -97,7 +97,7 @@ def find_argument_escapes(layout: program_layout) : _int64 {
 def arguments_kept_in(code: ir_function, arguments: _int64, kept: _int64[], functions: _int64) : _int64 {
     one : _int64 = 1;
     result : _int64 = (one << arguments) - 1;
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total && result != 0; i++) {
         made := code.instructions.at(i);
         kind : _int64 = made.kind;

@@ -26,7 +26,7 @@ def two_parameters(a: decimal, b: decimal): decimal { return a * 10 + b; }
 def six_parameters(a: decimal, b: decimal, c: decimal, d: decimal, e: decimal, f: decimal): decimal {
     return a * 100000 + b * 10000 + c * 1000 + d * 100 + e * 10 + f;
 }
-def string_parameter(s: string): decimal { return s.size().value; }
+def string_parameter(s: string): decimal { return s.size(); }
 def boxed_parameter(n: int): decimal { return n.value * 2; }
 def object_parameter(p: pair_of_numbers): decimal { return p.first + p.second; }
 def array_parameter(numbers: decimal[]): decimal {
@@ -37,7 +37,7 @@ def array_parameter(numbers: decimal[]): decimal {
     return total;
 }
 def mixed_parameters(scale: decimal, label: string, p: pair_of_numbers, numbers: decimal[]): decimal {
-    return scale * (label.size().value + p.first + numbers[0]);
+    return scale * (label.size() + p.first + numbers[0]);
 }
 
 // ---- a parameter is a copy of a number, but the same object

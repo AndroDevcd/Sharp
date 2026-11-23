@@ -78,7 +78,7 @@ class ansi {
         buf.append_char(27);
         buf.append_char('[');
         buf.append(body);
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     private static def check_color(color: decimal) {
@@ -154,7 +154,7 @@ class ansi {
         buf.append(code);
         buf.append(text);
         buf.append(reset());
-        return buf.to_string()!!;
+        return buf.build();
     }
 
     /** the code that clears the whole screen and puts the cursor in the top left corner */
@@ -205,7 +205,7 @@ class ansi {
             if(text.data[i] == 27 && i + 1 < n && text.data[i + 1] == '[') {
                 // skip to the letter that ends the sequence
                 i += 2;
-                while(i < n && !io_strings.is_letter(text.data[i])) {
+                while(i < n && !character.is_letter(text.data[i])) {
                     i++;
                 }
                 i++;
@@ -214,6 +214,6 @@ class ansi {
                 i++;
             }
         }
-        return buf.to_string()!!;
+        return buf.build();
     }
 }

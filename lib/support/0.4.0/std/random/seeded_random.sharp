@@ -163,7 +163,7 @@ class seeded_random {
      *
      * Algorithm: the Marsaglia polar method. Pick points (u, v) in the
      * square -1 .. 1 until one falls inside the unit circle (s = u^2 + v^2
-     * with 0 < s < 1); then u * f and v * f with f = sqrt(-2 ln(s) / s) are
+     * with 0 < s < 1); then u * f and v * f with f = sqrt(-2 log(s) / s) are
      * two independent normal values. The second one is kept for the next call.
      */
     def next_gaussian(): decimal {
@@ -181,7 +181,7 @@ class seeded_random {
             s = u * u + v * v;
         } while(s >= 1 || s == 0);
 
-        factor : decimal = square_root(0 - 2 * ln(s) / s);
+        factor : decimal = sqrt(0 - 2 * log(s) / s);
         spare_gaussian = v * factor;
         has_spare_gaussian = 1;
         return u * factor;
@@ -226,7 +226,7 @@ class seeded_random {
     def pick(values: list<string>): string {
         if(values.size() == 0)
             throw new illegal_argument_exception("seeded_random: cannot pick from an empty list");
-        return values.at(next_int(values.size().value));
+        return values.at(next_int(values.size()));
     }
 
     /**
@@ -290,7 +290,7 @@ class seeded_random {
     def next_string(length: decimal, alphabet: string): string {
         if(length < 0)
             throw new illegal_argument_exception("seeded_random: the length cannot be negative");
-        choices : decimal = alphabet.size().value;
+        choices : decimal = alphabet.size();
         if(choices == 0)
             throw new illegal_argument_exception("seeded_random: the alphabet is empty");
         if(length == 0) return "";

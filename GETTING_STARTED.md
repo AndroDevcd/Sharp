@@ -83,7 +83,7 @@ class basket {
     private items : list<string> = new list<string>();
 
     def add(item: string) { items.add(item); }
-    def count() : _int64 { return items.size().value; }
+    def count() : _int64 { return items.size(); }
 
     def describe() : string {
         line := "";

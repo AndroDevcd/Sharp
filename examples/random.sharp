@@ -2,7 +2,7 @@ mod main;
 
 // this program shows how to use the random number generator provided by the standard library
 def main() {
-   set_seed(utc_mills_time() >> 4); // set random seed to current time in mills
+   set_seed(utc_mills() >> 4); // set random seed to current time in mills
 
    random_0_to_1        := rand();
    random_int           := rand_int();

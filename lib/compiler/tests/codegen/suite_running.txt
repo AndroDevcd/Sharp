@@ -65,7 +65,6 @@ lib_collections_list
 lib_collections_mutate_generic
 lib_collections_queues
 lib_collections_std_fixes
-lib_collections_transforms
 lib_collections_tree_map
 lib_collections_tree_set
 lib_coroutines_channels

@@ -44,7 +44,7 @@ class todo_app base composable {
             }.gap(8);
 
             column(card) {
-                count : _int64 = tasks.value.size().value;
+                count : _int64 = tasks.value.size();
                 if(count == 0) {
                     text("Nothing yet. Type a task above and press Enter.").dim();
                 }
@@ -55,7 +55,7 @@ class todo_app base composable {
             }.gap(8);
 
             spacer();
-            button("Clear everything", modifier().enable(tasks.value.size().value)) { clear_all(); }.outline();
+            button("Clear everything", modifier().enable(tasks.value.size())) { clear_all(); }.outline();
         }.gap(14);
     }
 

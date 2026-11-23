@@ -77,13 +77,13 @@ class date_time_fields {
         return new date_time_exception("cannot parse \"" + original + "\": " + reason);
     }
 
-    /** 1 when the fields are enough to build a date */
-    def has_date(): decimal {
+    /** true when the fields are enough to build a date */
+    def has_date(): bool {
         return has_year && ((has_month && has_day) || has_day_of_year);
     }
 
-    /** 1 when the fields are enough to build a time of day */
-    def has_time(): decimal {
+    /** true when the fields are enough to build a time of day */
+    def has_time(): bool {
         return has_hour || (has_hour_12 && has_am_pm);
     }
 

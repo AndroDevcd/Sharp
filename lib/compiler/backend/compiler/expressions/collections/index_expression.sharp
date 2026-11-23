@@ -150,8 +150,8 @@ def add_library_item_access(context: analysis_context, d: diagnostic, owner: sha
     receiver := as_operand_text(context, target.node);
     index := "<index>";
     if(arguments.size() == 1) { index = source_text_of(context, arguments.at(0).node); }
-    has_at : _int64 = operator_functions(context, owner, "at").size().value > 0;
-    has_put : _int64 = operator_functions(context, owner, "put").size().value > 0;
+    has_at : _int64 = operator_functions(context, owner, "at").size() > 0;
+    has_put : _int64 = operator_functions(context, owner, "put").size() > 0;
 
     if(context.reading_a_target == 1 && has_put) {
         d.with_help("store an item with `put`: `" + receiver + ".put(" + index + ", <value>);`");

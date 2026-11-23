@@ -122,24 +122,24 @@ class rate_limiter {
         return estimate;
     }
 
-    /** takes one permit when one is available; returns 1 when it did, 0 when the caller must not proceed */
-    def try_acquire(): decimal {
+    /** takes one permit when one is available; returns true when it did, false when the caller must not proceed */
+    def try_acquire(): bool {
         return try_acquire(1);
     }
 
     /**
      * Takes `count` permits at once when that many are available (all or
-     * nothing); returns 1 when it did.
+     * nothing); returns true when it did.
      * @throws date_time_exception when `count` is not a whole number in 1 .. the bucket size
      */
-    def try_acquire(count: decimal): decimal {
+    def try_acquire(count: decimal): bool {
         time_math.check_range("permit count", count, 1, capacity);
         refill();
         if(tokens < count) {
-            return 0;
+            return false;
         }
         tokens -= count;
-        return 1;
+        return true;
     }
 
     /** how many permits could be taken right now: 0 .. the bucket size */

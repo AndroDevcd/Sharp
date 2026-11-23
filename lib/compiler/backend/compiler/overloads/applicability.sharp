@@ -38,8 +38,8 @@ import (
 def fit_candidate(session: analysis_session, function: sharp_function, arguments: list<call_argument>,
                   allow_construction: _int64) : call_candidate {
     candidate := new call_candidate(function);
-    parameter_count : _int64 = function.parameters.size().value as _int64;
-    argument_count : _int64 = arguments.size().value as _int64;
+    parameter_count : _int64 = function.parameters.size();
+    argument_count : _int64 = arguments.size();
     if(parameter_count != argument_count) {
         candidate.wrong_count = 1;
         candidate.parameter_count = parameter_count;
@@ -99,7 +99,7 @@ def fits_lambda(candidate: call_candidate, argument: call_argument, wanted: reso
     }
     if(argument.named != null) { return fits_function_name(candidate, argument, wanted, position); }
 
-    wanted_count : _int64 = wanted.parameters!!.size().value as _int64;
+    wanted_count : _int64 = wanted.parameters!!.size();
     if(argument.lambda_parameters >= 0 && argument.lambda_parameters != wanted_count) {
         candidate.failed_argument = position;
         candidate.reason = "argument " + (position + 1) + " is a lambda with " + count_of(argument.lambda_parameters, "parameter")

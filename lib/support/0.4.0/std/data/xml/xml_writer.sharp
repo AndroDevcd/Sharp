@@ -91,9 +91,9 @@ class xml_writer {
         ok : decimal = n > 0;
         for(i : decimal = 0; ok && i < n; i++) {
             ch : decimal = name.data[i] & 0xff;
-            start_char : decimal = io_strings.is_letter(ch) || ch == '_' || ch == ':' || ch >= 128;
+            start_char : decimal = character.is_letter(ch) || ch == '_' || ch == ':' || ch >= 128;
             if(!start_char) {
-                if(i == 0 || !(io_strings.is_digit(ch) || ch == '-' || ch == '.')) {
+                if(i == 0 || !(character.is_digit(ch) || ch == '-' || ch == '.')) {
                     ok = 0;
                 }
             }
@@ -142,27 +142,27 @@ class xml_writer {
     }
 
     /** true when the innermost open element has text (then nothing inside it is put on new lines) */
-    private def inside_text() : decimal {
-        count : decimal = open_content.size().value;
+    private def inside_text() : bool {
+        count : decimal = open_content.size();
         for(i : decimal = 0; i < count; i++) {
             if(open_content.at(i).value >= 2) {
-                return 1;
+                return true;
             }
         }
-        return 0;
+        return false;
     }
 
     /** start a new line for something at the current nesting depth (only when indenting) */
     private def new_line() {
         if(indent > 0 && !inside_text() && buf.length() > 0) {
             buf.append_char('\n');
-            buf.append_repeated(' ', open_names.size().value * indent);
+            buf.append_repeated(' ', open_names.size() * indent);
         }
     }
 
     /** note that the innermost open element got content of the given kind (1 = element/comment, 2 = text) */
     private def mark_content(kind: decimal) {
-        count : decimal = open_content.size().value;
+        count : decimal = open_content.size();
         if(count > 0) {
             old : decimal = open_content.at(count - 1).value;
             if(kind == 1 && (old == 0 || old == 2)) {
@@ -199,12 +199,12 @@ class xml_writer {
      */
     def start(name: string) : xml_writer {
         check_name(name);
-        if(open_names.size().value == 0 && has_root) {
+        if(open_names.size() == 0 && has_root) {
             throw new illegal_state_exception("xml: a document has exactly one root element; \"" + name + "\" would be a second one");
         }
         close_start_tag();
         mark_content(1);
-        if(open_names.size().value == 0) {
+        if(open_names.size() == 0) {
             if(wrote_prolog && indent == 0) {
                 buf.append_char('\n'); // the root always starts on its own line after the prolog
             }
@@ -234,7 +234,7 @@ class xml_writer {
             throw new illegal_state_exception("xml: attribute \"" + name + "\" must directly follow start()");
         }
         check_name(name);
-        count : decimal = attribute_names.size().value;
+        count : decimal = attribute_names.size();
         for(i : decimal = 0; i < count; i++) {
             if(io_strings.equals(attribute_names.at(i), name)) {
                 throw new illegal_state_exception("xml: the element has two attributes \"" + name + "\"");
@@ -262,7 +262,7 @@ class xml_writer {
      * illegal_argument_exception for a character XML does not allow.
      */
     def text(content: string) : xml_writer {
-        if(open_names.size().value == 0) {
+        if(open_names.size() == 0) {
             throw new illegal_state_exception("xml: text has to be inside an element");
         }
         if(sizeof(content.data) == 0) {
@@ -282,7 +282,7 @@ class xml_writer {
      * Throws illegal_state_exception when no element is open.
      */
     def cdata(content: string) : xml_writer {
-        if(open_names.size().value == 0) {
+        if(open_names.size() == 0) {
             throw new illegal_state_exception("xml: a CDATA section has to be inside an element");
         }
         close_start_tag();
@@ -316,14 +316,14 @@ class xml_writer {
         }
         close_start_tag();
         mark_content(1);
-        if(open_names.size().value == 0 && buf.length() > 0 && indent == 0) {
+        if(open_names.size() == 0 && buf.length() > 0 && indent == 0) {
             buf.append_char('\n');
         }
         new_line();
         buf.append("<!--");
         buf.append(content);
         buf.append("-->");
-        if(open_names.size().value == 0) {
+        if(open_names.size() == 0) {
             wrote_prolog = 1;
         }
         return self;
@@ -335,7 +335,7 @@ class xml_writer {
      * Throws illegal_state_exception when no element is open.
      */
     def end() : xml_writer {
-        if(open_names.size().value == 0) {
+        if(open_names.size() == 0) {
             throw new illegal_state_exception("xml: end() without an open element");
         }
         name := open_names.pop_last();
@@ -365,7 +365,7 @@ class xml_writer {
 
     /** close all elements that are still open. Returns this writer. */
     def end_all() : xml_writer {
-        while(open_names.size().value > 0) {
+        while(open_names.size() > 0) {
             end();
         }
         return self;
@@ -373,7 +373,7 @@ class xml_writer {
 
     /** how many elements are open at the moment */
     def depth() : decimal {
-        return open_names.size().value;
+        return open_names.size();
     }
 
     /**
@@ -383,14 +383,14 @@ class xml_writer {
      * root element was written.
      */
     override def to_string() : string? {
-        if(open_names.size().value > 0) {
+        if(open_names.size() > 0) {
             throw new illegal_state_exception("xml: the element \"" + open_names.last() + "\" is still open");
         }
         if(!has_root) {
             throw new illegal_state_exception("xml: the document has no root element");
         }
         if(indent > 0) {
-            return buf.to_string()!! + "\n";
+            return buf.build() + "\n";
         }
         return buf.to_string();
     }
@@ -408,6 +408,6 @@ class xml_writer {
     static def escape(content: string) : string {
         helper := new xml_writer();
         helper.append_escaped(content, 0);
-        return helper.buf.to_string()!!;
+        return helper.buf.build();
     }
 }

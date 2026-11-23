@@ -93,7 +93,7 @@ def rebuild_with_labels(code: ir_function, removed: number_list, plan: thread_pl
     }
     made := new list<ir_instruction>();
     next : _int64 = 0;
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     for(i : _int64 = 0; i < total; i++) {
         if(next < removed.count && removed.at(next) == i) {
             next++;

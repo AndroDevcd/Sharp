@@ -18,7 +18,7 @@ def hex_of(buf: byte_buffer): string {
     for(i : decimal = 0; i < buf.size(); i++) {
         out.append(io_strings.int_to_hex(buf.byte_at(i), 2));
     }
-    return out.to_string()!!;
+    return out.build();
 }
 
 /** put a double and read it back */
@@ -294,11 +294,11 @@ def test_writer_reader() {
     test("string") { expect(input.read_string()).should_be("player one"); };
     test("empty string") { expect(input.read_string()).should_be(""); };
     back := input.read_string_list();
-    test("list size") { expect(back.size().value).should_be(3); };
+    test("list size") { expect(back.size()).should_be(3); };
     test("list 0") { expect(back.at(0)).should_be("a"); };
     test("list 1") { expect(back.at(1)).should_be(""); };
     test("list 2") { expect(back.at(2)).should_be("ccc"); };
-    test("empty list") { expect(input.read_string_list().size().value).should_be(0); };
+    test("empty list") { expect(input.read_string_list().size()).should_be(0); };
     bytes := input.read_bytes();
     test("bytes size") { expect(sizeof(bytes)).should_be(2); };
     test("bytes content") { expect(bytes[1]).should_be(8); };

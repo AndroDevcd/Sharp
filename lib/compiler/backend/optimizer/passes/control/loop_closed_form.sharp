@@ -369,7 +369,7 @@ class formula_code {
 
 /** the body of the plan's loop replaced by the formulas (the header and the jump back stay) */
 def put_formula(code: ir_function, graph: flow_graph, plan: formula_plan) {
-    total : _int64 = code.instructions.size().value as _int64;
+    total : _int64 = code.instructions.size();
     made_list := new list<ir_instruction>();
     for(i : _int64 = 0; i < plan.body_from; i++) { made_list.add(code.instructions.at(i)); }
     // (the labels of the body stay where they were: nothing jumps to them, and nothing is lost by keeping them)

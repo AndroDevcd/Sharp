@@ -1,5 +1,10 @@
 #!/bin/bash
-# TEST SHARP: builds the compiler, then runs the tests that say whether everything still works.   (Linux / WSL)
+# THE NUMBERED TESTS OF THE LINUX HALF: builds the compiler, then runs the tests that say whether
+# everything still works.   (Linux / WSL)
+#
+# START THE TESTS WITH  bash test.sh  AT THE TOP OF THE REPOSITORY: it speaks in parts (compiler, vm,
+# debugger ...), builds first, runs the Windows half too, and runs this script for the Linux half.
+# release.sh runs this one directly. The ways to start it alone:
 #
 #     bash build-scripts/test.sh              the SHORT set - about 5 minutes. After any ordinary change.
 #     bash build-scripts/test.sh full         every test - about an hour. Before a release that changed
@@ -31,12 +36,14 @@
 #     13  self-hosting: the compiler compiles itself, twice, to the same bytes  (tests/selfhost.sh) 20 min
 #     14  the editor's files: what the CLion plugin reads       (tests/ide.sh)                    1 min
 #     15  the native interface: Sharp calling C++               (tests/sni.sh)                    1 min
+#     16  the debugger: sdb is built and driven by a Sharp program   (lib/debugger/tests/run.sh)  4 min
 #
-# The SHORT set is 1 2 4 5 12 14 15. WHICH TESTS A CHANGE NEEDS beyond it:
+# The SHORT set is 1 2 4 5 12 14 15 16. WHICH TESTS A CHANGE NEEDS beyond it:
 #     the standard library ............ 8
 #     the compiler's analysis ......... 3 6
 #     code generation, the optimizer .. 7 8 11 13
 #     the VM (lib/runtime, lib/core) .. full
+#     the debugger (lib/debugger) ..... 16 is in the short set; on Windows: windows/sdb_tests.sh
 # When a full run fails at one test, fix the cause and rerun just that one (`only 9`) until it
 # passes - then run `full` once more.
 #
@@ -56,7 +63,7 @@
 # that passes with -nojit only.   WAYS="plain" bash build-scripts/test.sh only 8   runs one way (6 min).
 # What each case printed: ~/sharp_work/out/suite_runner/<way>/     (tests/suite/README.md: writing a case)
 source "$(dirname "$0")/internal/common.sh"
-SHORT=" 1 2 4 5 12 14 15 "
+SHORT=" 1 2 4 5 12 14 15 16 "
 MODE=short; FROM=1; ONLY="$SHORT"; RAN=""
 case "$1" in
   "")    ;;
@@ -173,6 +180,11 @@ test_15() { echo "== [15] the native interface (Sharp calls C++ built from the f
 out=$(bash "$T/sni.sh" 2>&1) || ok=0; echo "$out" | tail -20
 }
 
+test_16() { echo "== [16] the debugger (sdb is built from the VM's sources and lib/debugger, then started on small programs"
+echo "   by a Sharp program that types commands and reads the answers)"
+out=$(bash "$REPO/lib/debugger/tests/run.sh" 2>&1) || ok=0; echo "$out" | tail -20
+}
+
 
 # ---- run them: each test prints into a file of its own; the reports come out in number order at the end
 LOGS="$W/out/test_logs"; rm -rf "$LOGS"; mkdir -p "$LOGS"
@@ -187,7 +199,7 @@ run_one() {     # $1 = the test's number
     ) > "$LOGS/$1.txt" 2>&1
 }
 WANTED=""; ONE_BY_ONE=""
-for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
     want $n || continue
     case $n in 7|8|9|10) ONE_BY_ONE="$ONE_BY_ONE $n" ;; *) WANTED="$WANTED $n" ;; esac
 done
@@ -200,7 +212,7 @@ for n in $WANTED; do
 done
 wait
 
-for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
     [ -f "$LOGS/$n.txt" ] || continue
     cat "$LOGS/$n.txt"
     [ "$(cat "$LOGS/$n.result" 2>/dev/null)" = 1 ] || { ok=0; echo "   TEST $n FAILED   (its whole report: $LOGS/$n.txt)"; }

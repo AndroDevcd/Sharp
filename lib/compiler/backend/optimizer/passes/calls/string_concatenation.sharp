@@ -89,7 +89,7 @@ class append_twins {
     append_twins(layout: program_layout) {
         self->layout = layout;
         made = new list<function_layout>();
-        known = layout.functions.size().value as _int64;
+        known = layout.functions.size();
         twin_of = new _int64[known + 1];
         is_append = new _int64[known + 1];
         for(f : _int64 = 0; f < known; f++) {
@@ -133,7 +133,7 @@ class append_twins {
         code.slot_kinds.add_all(original.slot_kinds);
         code.fixed_slots = original.fixed_slots;
         code.label_count = original.label_count;
-        total : _int64 = original.instructions.size().value as _int64;
+        total : _int64 = original.instructions.size();
         changed : _int64 = 0;
         for(i : _int64 = 0; i < total; i++) {
             at := original.instructions.at(i);
@@ -197,7 +197,7 @@ def flatten_string_concatenation(layout: program_layout, chosen: list<function_l
     added : _int64 = 0;                         // how many of twins.made are in `chosen` already
     for(c : _int64 = 0; c < chosen.size(); c++) {
         code : ir_function = chosen.at(c).ir!!;
-        total : _int64 = code.instructions.size().value as _int64;
+        total : _int64 = code.instructions.size();
         graph : flow_graph? = null;
         live : liveness? = null;
         for(i : _int64 = 0; i < total; i++) {

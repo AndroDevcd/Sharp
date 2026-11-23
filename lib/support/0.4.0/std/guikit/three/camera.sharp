@@ -184,7 +184,7 @@ stable class camera {
             along[0] = aim_x - x;
             along[1] = aim_y - y;
             along[2] = aim_z - z;
-            length : decimal = square_root(along[0] * along[0] + along[1] * along[1] + along[2] * along[2]);
+            length : decimal = sqrt(along[0] * along[0] + along[1] * along[1] + along[2] * along[2]);
             if(length > 0) {
                 along[0] = along[0] / length;
                 along[1] = along[1] / length;
@@ -196,9 +196,9 @@ stable class camera {
         }
         round : decimal = heading * PI_VALUE / 180;
         down : decimal = tilt * PI_VALUE / 180;
-        along[0] = sin_of(round) * cos_of(down);
-        along[1] = 0 - sin_of(down);
-        along[2] = 0 - cos_of(round) * cos_of(down);
+        along[0] = sin(round) * cos(down);
+        along[1] = 0 - sin(down);
+        along[2] = 0 - cos(round) * cos(down);
         return along;
     }
 
@@ -258,11 +258,11 @@ stable class camera {
             y = y + along[1] * ahead * far;
             z = z + along[2] * ahead * far;
         } else {
-            x = x + sin_of(round) * ahead * far;
-            z = z - cos_of(round) * ahead * far;
+            x = x + sin(round) * ahead * far;
+            z = z - cos(round) * ahead * far;
         }
-        x = x + cos_of(round) * aside * far;
-        z = z + sin_of(round) * aside * far;
+        x = x + cos(round) * aside * far;
+        z = z + sin(round) * aside * far;
         if(mode == CAMERA_WALK && ground != null) {
             y = ground!!.height_at(x, z) + eye_height;
         }

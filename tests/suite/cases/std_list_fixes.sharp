@@ -19,7 +19,7 @@ def main(args: string[]) {
         more := new list<string>();
         more.add("c");
         letters.add_all(more);
-        test("add_all keeps what was in the list: size") { expect(letters.size().value).should_be(3); };
+        test("add_all keeps what was in the list: size") { expect(letters.size()).should_be(3); };
         test("add_all keeps what was in the list: first") { expect(letters.first()).should_be("a"); };
         test("add_all puts the new elements at the end") { expect(letters.last()).should_be("c"); };
 

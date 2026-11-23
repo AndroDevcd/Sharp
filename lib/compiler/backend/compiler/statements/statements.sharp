@@ -81,7 +81,7 @@ def analyse_statement(context: analysis_context, node: _int64, into: list<bound_
     if(context.statement_depth > ANALYSIS_NESTING_LIMIT) { throw new stack_overflow_exception("nested deeper than the analysis follows"); }
 
     kind : _int64 = context.tree.kinds!![node];
-    before : _int64 = into.size().value as _int64;
+    before : _int64 = into.size();
 
     if(kind == N_BLOCK) { into.add(analyse_block(context, node)); }
     else if(kind == N_VARIABLE) { declare_locals(context, node, into, null, 0); }

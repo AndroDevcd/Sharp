@@ -5,7 +5,7 @@ Three scripts do everything:
 | To | Run | Where | Time |
 |---|---|---|---|
 | build Sharp | `bash build-scripts/build.sh` | Linux / WSL | minutes the first time, then seconds |
-| test it | `bash build-scripts/test.sh` | Linux / WSL | 1 to 2 minutes |
+| test it | `bash test.sh` (at the top of the repository) | Git Bash on Windows, or Linux / WSL | 3 minutes; `full`: more than an hour |
 | make a release | `bash build-scripts/release.sh 0.7.1` | Git Bash on Windows | 25 minutes |
 
 Each script starts with a comment that says what it does, its options, and what it prints.
@@ -13,12 +13,13 @@ Each script starts with a comment that says what it does, its options, and what 
 ```
 build-scripts/
   build.sh       the VM and the compiler          (build.sh compiler = only the compiler, 10 seconds)
-  test.sh        the tests                        (test.sh full = all of them, 1 hour)
+  test.sh        the numbered tests of the Linux half: what the repository's test.sh runs (start THAT one)
   release.sh     build + test + pack the zip      (release.sh 0.7.1 install = also install it on this PC)
 
-  linux/         what only Linux does:    build_vm.sh   build_gui_library.sh   install_from_source.sh
-  windows/       what only Windows does:  build_vm.sh   build_gui_library.sh   install_release.sh
-                                          suite.sh  (the suite on the Windows VM, with the JIT and without)
+  linux/         what only Linux does:    build_vm.sh   build_sdb.sh   build_gui_library.sh   install_from_source.sh
+  windows/       what only Windows does:  build_vm.sh   build_sdb.sh   build_gui_library.sh   build_plugin.sh   install_release.sh
+                                          suite.sh      (the suite on the Windows VM, with the JIT and without)
+                                          sdb_tests.sh  (the debugger's tests on Windows)
   internal/      parts the three scripts use - nothing in it is run by hand
 
 tests/cffi/      calls to C (extern blocks), in seconds:
@@ -34,12 +35,19 @@ tests/cffi/      calls to C (extern blocks), in seconds:
 | Piece | Written in | Where | What it becomes |
 |---|---|---|---|
 | The VM | C++ | `lib/runtime`, `lib/core`, `main.cpp` | the program `sharp` (`sharp.exe`) |
+| The debugger | C++ | `lib/debugger` (with the VM's sources) | the program `sdb` (`sdb.exe`) |
 | The compiler | Sharp | `lib/compiler` | one file, `sharpc`, that the VM runs |
 | The standard library | Sharp | `lib/support/0.4.0` | shipped as source files |
 | The GUI's native part | C++ | `lib/support/0.4.0/std/guikit/platform/native` | `sharpgui.so` / `sharpgui.dll` |
 
-- **Only the VM (and the GUI library) differs per system**, so those are built once on Linux and
-  once on Windows. The compiler and the library are the same files everywhere.
+- **Only the VM, the debugger and the GUI library differ per system**, so those are built once on
+  Linux and once on Windows. The compiler and the library are the same files everywhere.
+- **The debugger is the VM**: the same sources, with `lib/debugger` compiled in and the hooks of
+  `lib/debugger/hooks.h` switched on (`linux/build_sdb.sh`, `windows/build_sdb.sh`).
+  [The sdb guide](../lib/debugger/doc/sdb.md) says how it is used and how it is made.
+- **The CLion / IntelliJ plugin** (`tools/clion-plugin`) is built by `windows/build_plugin.sh` and shipped in the
+  release's `clion-plugin/` folder, as the zip the IDE installs from disk. It has its own version
+  (`pluginVersion` in `tools/clion-plugin/gradle.properties`).
 - **The compiler compiles itself**: it is built by its own last good build. `build.sh` explains.
 
 ## What you need installed
@@ -79,19 +87,34 @@ Try it on a program:
 
 ## Test
 
+There is ONE command for every test, `test.sh` at the top of the repository:
+
 ```
-bash build-scripts/test.sh
+bash test.sh                      everything, the quick version (3 minutes)
+bash test.sh full                 everything, all of it (more than an hour)
+bash test.sh vm                   one part, quick;   bash test.sh vm full   all of it
+bash test.sh changed              the parts whose files changed since the last commit
+bash test.sh case lib_data_json   one case of the suite
+bash test.sh help                 everything it can do;   bash test.sh list   the parts and their times
 ```
 
-The last line is the answer: `TESTS: PASS (...)` or `TESTS: FAIL`. On FAIL, the test above it that
-reports failures names the cases.
-
-| What you changed | Run |
+| Part | Covers |
 |---|---|
-| anything | `test.sh` |
-| the standard library | also `test.sh only 8` (the suite: every case of `tests/suite` compiled and run) |
-| code generation or the optimizer | also `test.sh only 7 8 11 13` |
-| the VM, or before a big release | `test.sh full` |
+| `compiler` | reading and checking source, the error messages; full: code generation, self-hosting |
+| `library` | the standard library compiles; full: every case of the suite, run four ways |
+| `vm` | the suite run once, calls to C++; full: the suite four ways, the kind checks, the Windows VM |
+| `debugger` | sdb's tests; full: on Windows too |
+| `tools` | the command line, the files the editor reads; full: the CLion plugin's tests |
+| `programs` | the examples and the benchmarks |
+
+- From Git Bash it runs the Linux half inside WSL and the Windows half itself. From Linux or WSL it
+  runs the Linux half.
+- It builds first, so there is nothing to run before it.
+- The last lines give one result for each part, and for a failed part the command that runs it again.
+- A new kind of test is added to this script, so that there stays one way to test.
+
+Underneath, the Linux half is `build-scripts/test.sh`: numbered tests (`build-scripts/test.sh list`),
+which `release.sh` also runs.
 
 Tests run side by side: `TEST_GROUPS=<n>` says how many tests at once (default 4, `1` = one after the other) and
 `TEST_JOBS=<n>` how many compiles and programs inside each (default: one per core).
@@ -111,14 +134,15 @@ Tests run side by side: `TEST_GROUPS=<n>` says how many tests at once (default 4
    bash build-scripts/release.sh 0.7.1 install
    ```
 
-   It writes the number into the sources, builds both systems' halves, runs the short tests, packs
+   It writes the number into the sources, builds both systems' halves (the VM, the debugger, the
+   GUI library), runs the short tests, packs
    `releases/sharp-0.7.1.zip` and installs it on this PC. It stops at the first step that fails and
    says which.
 
    Without a number it releases the version the sources already say. Either way, when that
    version's zip already exists it asks `Replace it? [Y/n]` and only a typed `Y` goes on.
 
-3. **Open a new terminal** and try it: `sharp -V`, `sharpc -V`.
+3. **Open a new terminal** and try it: `sharp -V`, `sharpc -V`, `sdb -V`.
 
 4. **Commit and push**, the zip included. The script never does that for you.
 

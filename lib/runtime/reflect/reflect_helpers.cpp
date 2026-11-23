@@ -189,7 +189,7 @@ void set_number_field(sharp_object *instance, const string &name, double value) 
         number_slot(instance, field->address).i = decimal_to_integer(value);
 }
 
-/** set the `value` field of a number object (int, long, double ... - std/primatives.sharp) */
+/** set the `value` field of a number object (int, long, double ... - std/primitives/numbers.sharp) */
 void assign_numeric_class_field(sharp_object* o, double value) {
     set_number_field(o, "value", value);
 }

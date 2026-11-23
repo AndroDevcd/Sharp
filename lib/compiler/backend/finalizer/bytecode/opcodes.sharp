@@ -212,7 +212,7 @@ def split_names(text: string) : string[] {
         }
     }
     if(current.size() > 0) { names.add(current.build()); }
-    made := new string[names.size().value as _int64];
+    made := new string[names.size()];
     for(i : _int64 = 0; i < names.size(); i++) { made[i] = names.at(i); }
     return made;
 }
