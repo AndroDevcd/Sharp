@@ -34,7 +34,7 @@ program printed the same checked output: Sharp with and without `-O`, and C.
 | primes | up to 5000000 | 2.8 s | 0.54 s | 5.2 x | 1.00 s | 0.05 s | 11.5 x |
 
 Over the six, Sharp `-O` is 5.9 times C (geometric mean); in November's
-numbers it was about 23 times these C times.
+numbers it was about 26 times these C times.
 
 Peak memory with `-O`, November -> now: 12 -> 8 MB (`bench.b`), 13 -> 10 MB
 (`mandel.b`), 21 -> 33 MB (base64), 824 -> 225 MB (json), 81 -> 76 MB
