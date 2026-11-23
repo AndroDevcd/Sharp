@@ -13,7 +13,42 @@ SHARPC=<sharpc> SHARP=<sharp> LIB=<lib/support/0.4.0> OUT=<folder> ./run.sh O -O
 what the program measures around the work itself, as in the original
 benchmark. The json input has 131,072 entries (a quarter of the original).
 
-## Results
+`./run.sh c` runs the C programs that sit next to the Sharp ones (`bf.c`,
+`base64.c`, `json.c`, `matmul.c`, `primes.c`): the same work on the same
+input, timed the same way, without a runtime. C has no base64, JSON or hash
+map of its own: the first two are plain loops written in the file, and a
+node of the primes tree keeps its children in a ten-slot array.
+
+## Results, 2026-11-23: Sharp 0.5.8 (VM 4.0.9r19), and C
+
+x86-64 Linux under WSL2 (AMD Ryzen 7 9700X, 15 GB), one run each. Every
+program printed the same checked output: Sharp with and without `-O`, and C.
+
+| test | input | 2026-11-12, `-O` | now, `-O` | faster by | now, no `-O` | C (gcc -O3) | Sharp `-O` / C |
+|---|---|---|---|---|---|---|---|
+| brainfuck `bench.b` | - | 8.5 s | 3.59 s | 2.4 x | 8.53 s | 0.73 s | 4.9 x |
+| brainfuck `mandel.b` | - | 121.2 s | 70.88 s | 1.7 x | 100.11 s | 5.12 s | 13.8 x |
+| base64 | 131072 bytes x 8192 | 20.8 s | 4.36 s (encode 1.73, decode 2.63) | 4.8 x | 7.93 s | 0.76 s | 5.7 x |
+| json | 131072 entries | 6.6 s | 0.36 s | 18.6 x | 0.62 s | 0.13 s | 2.8 x |
+| matmul | 1500 x 1500 | 16.4 s | 4.55 s | 3.6 x | 13.04 s | 1.29 s | 3.5 x |
+| primes | up to 5000000 | 2.8 s | 0.54 s | 5.2 x | 1.00 s | 0.05 s | 11.5 x |
+
+Over the six, Sharp `-O` is 5.9 times C (geometric mean); in November's
+numbers it was about 23 times these C times.
+
+Peak memory with `-O`, November -> now: 12 -> 8 MB (`bench.b`), 13 -> 10 MB
+(`mandel.b`), 21 -> 33 MB (base64), 824 -> 225 MB (json), 81 -> 76 MB
+(matmul), 526 -> 319 MB (primes). C: 1, 2, 2, 168, 70 and 62 MB.
+
+What the month between the two columns changed: slot-form instructions,
+direct calls and numbers kept in registers by the JITs (0.5.3); json four
+times faster, text literals shared, files read in one block (0.5.4);
+per-thread allocation (after 0.5.4); the x64 JIT's register fixes (0.5.8).
+The two tests furthest from C are the ones made of calls on small objects
+(`mandel.b`: a recursive interpreter) and of hash maps (primes: C uses an
+array where Sharp uses `hash_map`).
+
+## Results, 2026-11-12
 
 x86-64 Linux under WSL2 (3 GB of memory), one run each, 2026-11-12. The
 checked output is the same in every column.
