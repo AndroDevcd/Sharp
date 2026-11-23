@@ -120,6 +120,11 @@ def compile_from_command_line(args: string[]) : int {
         add_project_files(files);
         // settings.json: the options of the project, and the library version it is built with
         process_settings();
+        // the project's tests folder: left out of the program, or (-tests) where the build starts
+        apply_tests_folder();
+    } else if(options.tests) {
+        error_with_help("-tests builds the tests of a PROJECT: there is no project here",
+                        "name the project (`-P <folder>`), or name the tests folder itself: `-testdir <folder>`");
     }
     // (-analysis and -ir show the last file of the program: noted before the library's files,
     //  which are added after it)
@@ -281,6 +286,7 @@ def exec_runtime(files: list<string>) : int {
     members_ms : decimal = now_ms() - stage_started;
 
     stage_started = now_ms();
+    whole_program.tests_folder = options.tests_dir;      // (which `main` the program starts at: main_function.sharp)
     if(count_errors(found) == 0) {
         bodies = analyse_bodies(whole_program, found);
     } else {

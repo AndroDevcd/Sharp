@@ -103,6 +103,7 @@ enum interrupt_flag
     OP_REFLECT_BOX = 0x62,           // pop: a function's number; the result of its call becomes an object
     OP_SIGNAL_WATCH = 0x63,          // ebx: which signal, ecx: 1 hear about it / 0 let it end the program again (sig_handler.h)
     OP_SIGNAL_TAKE = 0x64,           // ebx: how many milliseconds to wait; ebx: the signal that came, 0 for none
+    OP_PRINT_BYTES = 0x65,           // pop: an array of characters, printed whole; ebx: 1 for a line end after it
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

@@ -107,8 +107,20 @@ def log10(v: decimal): decimal { return math_call(v, 0, 0xc); }
  */
 def pow(base_value: decimal, exponent: decimal): decimal { return math_call(base_value, exponent, 0xd); }
 
-/** the square root; NaN for a negative number */
-def sqrt(v: decimal): decimal { return math_call(v, 0, 0xe); }
+/**
+ * The square root; NaN for a negative number. It is one instruction of the
+ * runtime (`dsqrt`: the processor's own square root), and with -O a call of
+ * this function becomes that instruction where it is written.
+ */
+def sqrt(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dsqrt ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
+}
 
 /** the smallest whole number that is >= v: ceil(2.1) is 3, ceil(-2.5) is -2 */
 def ceil(v: decimal): decimal { return math_call(v, 0, 0xf); }

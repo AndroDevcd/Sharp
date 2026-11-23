@@ -180,6 +180,7 @@ def build_asm_specs() {
     add_spec("popObj2", "6f E");            add_spec("swap", "70 E");
     add_spec("ldc", "71 C 0 1");
     add_spec("neg", "73 C 0 1");            add_spec("dneg", "7c C 0 1");
+    add_spec("dsqrt", "f1 C 0 1");
 }
 
 /**

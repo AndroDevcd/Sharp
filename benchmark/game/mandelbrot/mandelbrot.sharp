@@ -1,0 +1,51 @@
+mod main;
+
+/**
+ * mandelbrot - the Benchmarks Game.  The Mandelbrot set on [-1.5, 0.5] x
+ * [-1, 1] as an n x n black and white picture, written to the standard output
+ * as a portable bitmap (PBM, "P4"): one bit a point, each row filled up to a
+ * whole byte.
+ *
+ *      sharp mandelbrot <n>  > picture.pbm
+ */
+
+def main(args: string[]) {
+    n : _int64 = 200;
+    if(sizeof(args) > 0) { n = args[0].to_int(); }
+
+    row_bytes : _int64 = (n + 7) / 8;
+    row := new _int8[row_bytes];
+
+    print("P4\n" + n + " " + n + "\n");
+    for(y : _int64 = 0; y < n; y++) {
+        ci : decimal = 2.0 * y / n - 1.0;
+        bits : _int64 = 0;
+        at : _int64 = 0;
+        for(x : _int64 = 0; x < n; x++) {
+            cr : decimal = 2.0 * x / n - 1.5;
+            zr : decimal = 0;
+            zi : decimal = 0;
+            tr : decimal = 0;
+            ti : decimal = 0;
+            for(i : _int64 = 0; i < 50 && tr + ti <= 4.0; i++) {
+                zi = 2.0 * zr * zi + ci;
+                zr = tr - ti + cr;
+                tr = zr * zr;
+                ti = zi * zi;
+            }
+            bits = bits * 2;
+            if(tr + ti <= 4.0) { bits++; }
+            if(x % 8 == 7) {
+                row[at] = bits;
+                at++;
+                bits = 0;
+            }
+        }
+        if(n % 8 != 0) {
+            // the last byte of the row: the bits that are there, moved to its top
+            for(k : _int64 = n % 8; k < 8; k++) { bits = bits * 2; }
+            row[at] = bits;
+        }
+        print(row);
+    }
+}

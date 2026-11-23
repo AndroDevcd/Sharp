@@ -98,8 +98,8 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
         return DefaultExecutionResult(console, handler, *createActions(console, handler, executor))
     }
 
-    /** A test program that is run (not only built) reports its tests for the test view. */
-    private fun showsTests(): Boolean = configuration.fields.testProgram && !configuration.fields.buildOnly
+    /** A test program - or a project's tests - that is run (not only built) reports its tests for the test view. */
+    private fun showsTests(): Boolean = (configuration.fields.testProgram || configuration.fields.projectTests) && !configuration.fields.buildOnly
 
     /**
      * Everything a run needs before its process is started: the editors saved, the plan made, its
@@ -126,7 +126,10 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             compilerOptions = ParametersListUtil.parse(configuration.fields.compilerOptions ?: ""),
             // (a test program is told to report for the test view; under the debugger its console is the plain one)
             programArguments = ParametersListUtil.parse(configuration.fields.programArguments ?: "") +
-                (if (showsTests() && debugPort == null) listOf(SharpTestView.ARGUMENT) else emptyList()),
+                (if (showsTests() && debugPort == null) listOf(SharpTestView.ARGUMENT) else emptyList()) +
+                // (which of the project's tests: `-test-only <group>` or `-test-only "<group> > <test>"`, std.testing)
+                (if (configuration.fields.projectTests) configuration.testFilters().flatMap { listOf(SharpTestView.ONLY_ARGUMENT, it) } else emptyList()),
+            tests = configuration.fields.projectTests,
             workingDirectory = configuration.fields.workingDirectory ?: "",
             buildOnly = configuration.fields.buildOnly,
             unoptimizedCompiler = configuration.fields.unoptimizedCompiler,
@@ -175,6 +178,8 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             cxxCompiler: String = "",
             /** A debug run: the port the IDE listens on for sdb (sharp.ide.debug). Null: a plain run. */
             debugPort: Int? = null,
+            /** Build and run the project's TESTS (`sharpc -P -tests`: its tests folder with the program), not the program. */
+            tests: Boolean = false,
         ): RunPlan {
             // a debug run is built with -dbg (the names of variables and the source text the debugger
             // shows come from it) and is always run - by sdb, which is told where the IDE listens
@@ -189,6 +194,13 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             if (!Files.isDirectory(Paths.get(folder))) throw ExecutionException("The program folder does not exist: $folder")
 
             val project = SharpProjectFiles.read(folder)
+            if (tests) {
+                if (project == null) throw ExecutionException("The folder is not a Sharp project (it has no settings.json), so it has no tests folder: $folder")
+                if (!project.hasTests()) throw ExecutionException("The project has no tests: there is no folder `${project.testsFolder}` in $folder")
+                if (SharpToolchains.compareVersions(toolchain.version, SharpToolchains.FIRST_WITH_PROJECT_TESTS) < 0) {
+                    throw ExecutionException("A project's tests need Sharp ${SharpToolchains.FIRST_WITH_PROJECT_TESTS} or newer; installed is ${toolchain.version}")
+                }
+            }
             // which files the build reads: in project mode settings.json decides what is left out and what is added
             val settings = if (project != null) {
                 ProgramSettings(
@@ -215,8 +227,10 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             }
 
             val folderName = folder.substringAfterLast('/').ifEmpty { "program" }
-            val name = project?.name ?: folderName
-            val runFolder = Paths.get("$folder/build/.sharp-run")
+            val name = (project?.name ?: folderName) + (if (tests) " tests" else "")
+            // (the tests are a build of their own, with a stamp of their own: switching between the
+            //  program and its tests builds neither again)
+            val runFolder = Paths.get("$folder/build/.sharp-run" + (if (tests) "/tests" else ""))
             val filesList = runFolder.resolve("files.txt")
             val compiler = if (unoptimizedCompiler) {
                 toolchain.unoptimizedCompiler
@@ -227,10 +241,11 @@ class SharpRunState(environment: ExecutionEnvironment, private val configuration
             val output: String
             val compileArguments: List<CompileArgument>
             if (project != null) {
-                output = project.outputPath
+                output = if (tests) project.testsOutputPath else project.outputPath
                 // a project that names its libraries itself gets no other; else the standard library is added
                 compileArguments = listOf(CompileArgument.option("-P"), CompileArgument.path(folder)) +
-                    (if (project.externLibraries.isEmpty()) listOf(CompileArgument.option("-L"), CompileArgument.path(library)) else emptyList())
+                    (if (project.externLibraries.isEmpty()) listOf(CompileArgument.option("-L"), CompileArgument.path(library)) else emptyList()) +
+                    (if (tests) listOf(CompileArgument.option("-tests")) else emptyList())
             } else {
                 output = "$folder/build/$folderName"
                 compileArguments = listOf(

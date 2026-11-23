@@ -460,6 +460,10 @@ void Arm32Machine::decimal_jump_if(int left, int right, Cond how, bool holds, in
 /** (the processor converts 32-bit whole numbers only: C++ does it) */
 static double whole_to_decimal(int64_t value) { return (double) value; }
 
+void Arm32Machine::d_square_root(DReg to, DReg from) {
+    word(ALWAYS, 0x0EB10BC0u | ((uint32_t) d(to) << 12) | (uint32_t) d(from));         // vsqrt
+}
+
 void Arm32Machine::d_from_whole(DReg to, VReg from) {
     move(R0, lo(from));
     move(R1, hi(from));

@@ -15,13 +15,37 @@
 //
 void op_printf(Int interrupt) {
     dbl_printf((int)registers[EGX].i, registers[EBX].d, (int)registers[ECX].i);
+    console_output_written();
 }
 
 //
-// flush(): push whatever is buffered on stdout out to the terminal now.
+// flush(): what the program printed so far is out when this returns. (Nothing has to call it for
+// output to be seen: the VM flushes on its own, console_helper.h.)
 //
 void op_flush(Int interrupt) {
     cout << std::flush;
+    console_output_flush();
+}
+
+//
+// print_bytes(characters, line end): print a whole array of characters - a string's text - in one
+// go, and a line end after it when EBX is not 0. The array is popped off the stack; a null one (an
+// empty text is the null array) prints nothing. This is what print() and println() are made of:
+// one call for a line, where there used to be one instruction for every character.
+//
+void op_print_bytes(Int interrupt) {
+    auto task = thread_self->task;
+
+    auto text = pop_stack_object.o;
+    if(text != NULL && text->type <= type_var && text->data != NULL) {
+        if(element_size(text->type) == 1) {
+            fwrite(text->data, 1, text->size, stdout);
+        } else {
+            for(Int i = 0; i < text->size; i++) putc((char)integer_at(text, i), stdout);
+        }
+    }
+    if(registers[EBX].i != 0) putc('\n', stdout);
+    console_output_written();
 }
 
 //

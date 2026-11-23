@@ -106,6 +106,12 @@ def select_instruction(out: code_emitter, made: ir_instruction, context: selecti
         out.class_c(OP_SMOVR_2, REG_EBX, made.target);
         return;
     }
+    if(kind == IR_SQUARE_ROOT) {
+        out.class_c(OP_LOADL, REG_EBX, made.first);
+        out.class_c(OP_DSQRT, REG_EBX, REG_EBX);
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
     if(kind == IR_NOT) {
         if(made.detail != 1 && slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_NOT_S, made.target, made.first, 0); return; }
         out.class_c(OP_LOADL, REG_EBX, made.first);

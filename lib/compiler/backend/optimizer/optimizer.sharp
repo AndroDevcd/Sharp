@@ -126,6 +126,14 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
         report.append_twins = joined.twins.size();
         flattened = joined.sites;
     }
+    // ---- and std.math's sqrt is the VM's instruction, not a call (which no pass can see through)
+    roots : _int64 = 0;
+    if(settings.runs("math-instructions")) {
+        started : _int64 = now();
+        roots = use_math_instructions(layout, chosen);
+        report.took("math-instructions", started);
+        report.count("math-instructions", roots, 0);
+    }
     passes := new local_passes(settings);
     changed := new number_list();
     kept := new list<function_analyses>();       // per chosen function: its analyses, as the last pass left them
@@ -136,7 +144,7 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
         kept.add(analyses);
         changed.add(run_local_passes(analyses, passes, report));
     }
-    if(flattened > 0) { report.changed++; }     // (which functions' calls were redirected is not kept: at least one)
+    if(flattened > 0 || roots > 0) { report.changed++; }     // (which functions' calls were redirected is not kept: at least one)
 
     // ---- across functions: virtual calls whose one body can be worked out become direct calls, and
     // the small functions are inlined - in rounds, because each feeds the other: a call made direct
@@ -375,16 +383,29 @@ def optimize_program(layout: program_layout, settings: optimizer_settings) : opt
             code : ir_function = chosen.at(i).ir!!;
             before : _int64 = code.instructions.size();
             started : _int64 = now();
-            rotated : _int64 = rotate_loops(code);
+            rotation := rotate_loops(code, settings.runs("loop-guards") && settings.runs("loop-invariants"));
+            rotated : _int64 = rotation.rotated;
             report.took("loop-rotation", started);
             if(rotated > 0) {
                 report.count("loop-rotation", rotated, before - code.instructions.size());
+                report.count("loop-guards", rotation.guarded, 0);
                 // the code is the same, only in another order: what is left to do is the jump to the
                 // moved test that now lands right after itself, and the like
                 kept.at(i).changed();
                 if(passes.on[PASS_JUMPS] == 1) {
                     size : _int64 = code.instructions.size();
                     report.count("jump-cleanup", clean_up_jumps(kept.at(i)), size - code.instructions.size());
+                }
+                // a loop with a guard has a place in front of its body that is only reached when the
+                // body runs: what the body begins with can move there now (loop_rotation.sharp)
+                for(round : _int64 = 0; rotation.guarded > 0 && round < MAX_INVARIANT_ROUNDS; round++) {
+                    started = now();
+                    moved : _int64 = move_loop_invariants(kept.at(i));
+                    report.took("loop-invariants", started);
+                    if(moved == 0) { break; }
+                    report.count("loop-invariants", moved, 0);
+                    show_trace(passes, code, "loop-invariants (after the guards)");
+                    run_local_passes(kept.at(i), passes, report);
                 }
                 changed.replace(i, 1);
             }

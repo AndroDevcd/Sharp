@@ -33,6 +33,15 @@
 //       is asked to switch to another fiber: true when the thread must keep the
 //       fiber it runs (it is being stepped). The plain VM: always false.
 //
+//   SDB_BEFORE_PROGRAM_END(thread)
+//       at the top of the VM's shutdown() (vm_initializer.cpp): `thread` is
+//       about to end the program - main returned, or exit() was called - and
+//       will stop every other thread and wait for each to be gone. While the
+//       program is stopped that waits too, like everything else; and from then
+//       on no thread stops for the debugger any more, so that every thread can
+//       be ended. (Without it: a thread held at a breakpoint is never gone, and
+//       the thread ending the program waits for it for ever.)
+//
 
 #ifndef SHARP_DEBUGGER_HOOKS_H
 #define SHARP_DEBUGGER_HOOKS_H
@@ -51,17 +60,20 @@ extern volatile int sdb_attention;
 void sdb_before_instruction(sharp_thread *thread, fiber *task);
 uint64_t sdb_scheduler_time(uint64_t real);
 bool sdb_keeps_fiber(sharp_thread *thread);
+void sdb_before_program_end(sharp_thread *thread);
 
 #define SDB_BEFORE_INSTRUCTION(thread, task) \
     if(sdb_attention) { sdb_before_instruction(thread, task); }
 #define SDB_SCHEDULER_TIME(real) sdb_scheduler_time(real)
 #define SDB_KEEPS_FIBER(thread) sdb_keeps_fiber(thread)
+#define SDB_BEFORE_PROGRAM_END(thread) sdb_before_program_end(thread)
 
 #else
 
 #define SDB_BEFORE_INSTRUCTION(thread, task)
 #define SDB_SCHEDULER_TIME(real) (real)
 #define SDB_KEEPS_FIBER(thread) false
+#define SDB_BEFORE_PROGRAM_END(thread)
 
 #endif
 

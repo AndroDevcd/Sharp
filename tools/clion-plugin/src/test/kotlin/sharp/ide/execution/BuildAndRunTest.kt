@@ -264,6 +264,39 @@ class BuildAndRunTest {
     }
 
     @Test
+    fun aPlanForAProjectsTestsBuildsWithTestsAndRunsTheTestsProgram() {
+        val base = temp.newFolder("workspace")
+        touch(base, "shop/settings.json", "{ \"name\": \"shop\", \"output\": \"shop\" }")
+        touch(base, "shop/src/main.sharp", "mod main;\n")
+        touch(base, "shop/tests/shop_tests.sharp", "mod shop_tests;\n")
+        val home = temp.newFolder("new enough")
+        touch(home, "bin/sharp.exe")
+        touch(home, "lib/std/list.sharp")
+        touch(home, "compiler/sharpc-v0.5.7")
+        val toolchain = SharpToolchains.at(home.path)!!
+        val folder = File(base, "shop").path
+        fun messageOf(block: () -> Unit): String = try { block(); "" } catch (e: com.intellij.execution.ExecutionException) { e.message ?: "" }
+
+        val tests = SharpRunState.plan(toolchain, folder, base.path, emptyList(), "", emptyList(), listOf("-ide-tests"), "", false, false, true, tests = true)
+        assertTrue(tests.scriptText, tests.scriptText.contains(" -tests > "))
+        assertTrue(tests.scriptText, tests.scriptText.contains("\\build\\outputs\\shop_tests\" -ide-tests"))
+        assertTrue(tests.scriptText, tests.scriptText.contains("echo Compiling shop tests ..."))
+        assertTrue("a build of its own", ProgramFiles.normalise(tests.runFolder.toString()).endsWith("/shop/build/.sharp-run/tests"))
+
+        // the program of the same project is as before
+        val program = SharpRunState.plan(toolchain, folder, base.path, emptyList(), "", emptyList(), emptyList(), "", false, false, true)
+        assertTrue(!program.scriptText.contains("-tests") && program.scriptText.contains("\\build\\outputs\\shop\""))
+        assertTrue(ProgramFiles.normalise(program.runFolder.toString()).endsWith("/shop/build/.sharp-run"))
+
+        // what cannot work says why: an older Sharp, no tests folder, a folder that is no project
+        assertTrue(messageOf { SharpRunState.plan(fakeToolchain(), folder, base.path, emptyList(), "", emptyList(), emptyList(), "", false, false, true, tests = true) }.contains("need Sharp 0.5.7"))
+        File(base, "shop/tests").deleteRecursively()
+        assertTrue(messageOf { SharpRunState.plan(toolchain, folder, base.path, emptyList(), "", emptyList(), emptyList(), "", false, false, true, tests = true) }.contains("has no tests"))
+        touch(base, "plain/main.sharp", "mod main;\n")
+        assertTrue(messageOf { SharpRunState.plan(toolchain, File(base, "plain").path, base.path, emptyList(), "", emptyList(), emptyList(), "", false, false, true, tests = true) }.contains("not a Sharp project"))
+    }
+
+    @Test
     fun aPlanThatCannotWorkSaysWhy() {
         val base = temp.newFolder("project")
         val toolchain = fakeToolchain()

@@ -40,6 +40,8 @@ static const std::function<void()> *work_wanted = nullptr;      // sdb_run_on_he
 static bool work_done = false;
 static bool ended = false;
 static int exit_code = 0;
+// a thread is ending the program (sdb_before_program_end): nothing stops for the debugger any more
+static std::atomic<bool> program_ending(false);
 
 static std::vector<breakpoint> breakpoints;
 static int last_number = 0;
@@ -160,7 +162,10 @@ static void wait_until_let_go(sharp_thread *thread, fiber *task, stop_reason why
         mine.reason = why;
         mine.breakpoint = hit;
 
-        if(current_stop.thread == nullptr) {
+        if(program_ending.load()) {
+            // the program is being ended: this thread is about to be stopped for good, and whoever
+            // ends the program waits for that. It is not held, whatever it reached.
+        } else if(current_stop.thread == nullptr) {
             // the first to stop: the one the prompt reports. (A thread without a reason of its
             // own is first only when the program is held from its start, or was paused.)
             if(why == STOP_NONE) mine.reason = pause_wanted.load() ? STOP_PAUSED : STOP_LOADED;
@@ -180,7 +185,7 @@ static void wait_until_let_go(sharp_thread *thread, fiber *task, stop_reason why
         held_threads.push_back(thread);
         control_changed.notify_all();
         for(;;) {
-            control_changed.wait(lock, [] { return !holding.load() || work_wanted != nullptr; });
+            control_changed.wait(lock, [] { return !holding.load() || program_ending.load() || work_wanted != nullptr; });
             if(work_wanted == nullptr) break;
 
             // work for a thread of the program (sdb_run_on_held_thread): this one takes it. For as
@@ -218,7 +223,24 @@ void sdb_before_instruction(sharp_thread *thread, fiber *task) {
     if(why == STOP_NONE && stepping.load() == task && step_is_done(task)) why = STOP_AFTER_STEP;
 
     if(why == STOP_NONE && !holding.load()) return;
+    if(program_ending.load()) return;
     wait_until_let_go(thread, task, why, hit);
+}
+
+void sdb_before_program_end(sharp_thread *thread) {
+    // (a thread that waits here touches no objects: the collector need not wait for it)
+    if(thread != nullptr) tgc_enter_safe(thread);
+    {
+        std::unique_lock<std::mutex> lock(control_mut);
+        // a stop is being looked at: the program's end waits for `continue`, as an instruction
+        // would. (Only then: a program that is held but has not stopped anywhere - it could not
+        // be loaded, or a pause nobody answered - ends when it ends.)
+        control_changed.wait(lock, [] { return current_stop.thread == nullptr || !holding.load() || program_ending.load(); });
+        // from here every thread is let through, so that each can be ended
+        program_ending = true;
+        control_changed.notify_all();
+    }
+    if(thread != nullptr) tgc_leave_safe(thread);
 }
 
 bool sdb_keeps_fiber(sharp_thread *thread) {

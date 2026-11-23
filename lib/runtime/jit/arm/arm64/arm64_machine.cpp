@@ -335,6 +335,8 @@ void Arm64Machine::jump_if_decimal(Cond how, bool holds, int which) {
 
 void Arm64Machine::d_from_whole(DReg to, VReg from) { a.scvtf(d(to), v(from)); }
 
+void Arm64Machine::d_square_root(DReg to, DReg from) { a.fsqrt(d(to), d(from)); }
+
 // ---- working in the homes
 
 /** the register a local whole number is read from: its home, or `scratch` after loading it there */

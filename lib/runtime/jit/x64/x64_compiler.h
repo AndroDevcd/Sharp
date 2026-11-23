@@ -98,6 +98,7 @@ class X64Compiler : public JitCompiler {
 public:
     bool compileFunction(sharp_function* function, jit_compiled_function* output) override;
     void releaseCompiledFunction(jit_compiled_function* compiledFunc) override;
+    void dump_machine_code(sharp_function *function, const uint8_t *base, size_t size, jit_compiled_function *output);
 
 private:
     asmjit::JitRuntime runtime;     // owns the executable memory

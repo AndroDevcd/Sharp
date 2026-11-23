@@ -14,6 +14,7 @@
 static const interrupt_signature signatures[] = {
     // ---- console, numbers
     { OP_PRINTF,                "printf",               "egx:i ebx:d ecx:i",    "",             "" },
+    { OP_PRINT_BYTES,           "print_bytes",          "ebx:i",                "o",            "" },
     { OP_STRTOD,                "strtod",               "",                     "o",            "ebx:d" },
     { OP_STRTOL,                "strtol",               "",                     "i o",          "ebx:i" },
     // (egx is only read by the functions of two numbers, pow, atan2 ...: not checked)

@@ -305,6 +305,11 @@ public:
     static const uint8_t DJGE_K       = 0xee;
     static const uint8_t DJEQ_K       = 0xef;
     static const uint8_t DJNE_K       = 0xf0;
+    // ---- the square root -------------------------------------------------------
+    //      DSQRT a, b          regs[a] = sqrt(regs[b]), both decimals (not a number for a negative one)
+    // std.math's sqrt() is this one instruction: the processor has a square root of its
+    // own, and the JITs use it. (The other math functions go through `int 0x18`.)
+    static const uint8_t DSQRT        = 0xf1;
 
     enum instr_class {
         E_CLASS,

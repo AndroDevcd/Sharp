@@ -60,7 +60,36 @@ bool X64Compiler::compileFunction(sharp_function* function, jit_compiled_functio
     output->codeSize = holder.codeSize();
     output->originalFunction = function;
     output->isCompiled = true;
+    dump_machine_code(function, base, holder.codeSize(), output);
     return true;
+}
+
+/**
+ * FOR WORKING ON THE JIT: the machine code of one function, written to files.
+ *
+ *      SHARP_JIT_DUMP=advance sharp program        every compiled function whose full name has "advance" in it
+ *
+ * writes, into the current folder, `jit_<n>.bin` (the code, as it is in memory) and `jit_<n>.txt`
+ * (the function's name, and for every bytecode instruction where its machine code begins).
+ * Read the code with  objdump -D -b binary -m i386:x86-64 jit_<n>.bin
+ */
+void X64Compiler::dump_machine_code(sharp_function *function, const uint8_t *base, size_t size, jit_compiled_function *output) {
+    static const char *wanted = getenv("SHARP_JIT_DUMP");
+    if(wanted == nullptr || function->fullName.find(wanted) == string::npos) return;
+    static int number = 0;
+    string stem = "jit_" + to_string(number++);
+    if(FILE *code = fopen((stem + ".bin").c_str(), "wb")) {
+        fwrite(base, 1, size, code);
+        fclose(code);
+    }
+    if(FILE *map = fopen((stem + ".txt").c_str(), "w")) {
+        fprintf(map, "%s   (%zu bytes)\n", function->fullName.c_str(), size);
+        for(size_t pc = 0; pc < output->jumpTableSize; pc++) {
+            const uint8_t *at = reinterpret_cast<const uint8_t*>(output->jumpTable[pc]);
+            if(at >= base && at < base + size) fprintf(map, "pc %zu at 0x%zx\n", pc, (size_t)(at - base));
+        }
+        fclose(map);
+    }
 }
 
 void X64Compiler::releaseCompiledFunction(jit_compiled_function* compiledFunc) {

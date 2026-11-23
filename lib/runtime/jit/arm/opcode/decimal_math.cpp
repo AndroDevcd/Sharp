@@ -48,6 +48,11 @@ emit_result ArmGenerator::emit_decimal_math() {
             m.result_to_decimal(D0);
             store_decimal(triple3, D0);
             return emitted;
+        case Opcode::DSQRT:     // regs[a] = sqrt(regs[b]): the processor's own
+            load_decimal(D0, dual2);
+            m.d_square_root(D0, D0);
+            store_decimal(dual1, D0);
+            return emitted;
         case Opcode::DNEG:      // regs[a] = -regs[b]: flip the sign bit
             load_register(V0, dual2);
             m.v_flip_sign(V0);

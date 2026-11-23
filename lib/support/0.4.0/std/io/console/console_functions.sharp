@@ -62,57 +62,68 @@ def sys(str: string) : int {
     return result;
 }
 
+/**
+ * PRINTING. print() writes its value, println() the value and a line end.
+ *
+ * What is printed goes into a buffer of the runtime and reaches the screen (or
+ * the file, or the program that reads it) a few milliseconds later, in large
+ * pieces - at once when the program waits for input or ends. Nothing here
+ * flushes, and a program does not have to: flush() is for the rare case that
+ * the output must be out before the very next instruction.
+ *
+ * A text is handed to the runtime whole (`print_bytes`), a line end with it:
+ * println("...") is one step, however long the line.
+ */
 def print(data: _int8[]) {
-    print_chars(data);
+    print_bytes(data, 0);
 }
 
 def print(str: string) {
-    print_chars(str.data);
+    print_bytes(str.data, 0);
 }
 
 def println(data: decimal[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println(data: _int8[]) {
-    print_chars(data);
-    print_char('\n');
+    print_bytes(data, 1);
 }
 
 def println(data: _int16[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println(data: _int32[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println(data: _int64[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println(data: _uint8[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println(data: _uint16[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println(data: _uint32[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println(data: _uint64[]) {
     print_numbers(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def print(flag: bool) {
@@ -129,16 +140,15 @@ def print(data: decimal) {
 
 def println(data: decimal) {
     print_num(data);
-    print_char('\n');
+    print_line_end();
 }
 
 def println() {
-    print_char('\n');
+    print_line_end();
 }
 
 def println(e: _enum_) {
-    print_chars(e.name);
-    print_char('\n');
+    print_bytes(e.name, 1);
 }
 
 /** what read_line() remembers between two lines */
@@ -215,28 +225,26 @@ def read_raw_char() : char {
 }
 
 def println(str: string) {
-    print_chars(str.data);
-    print_char('\n');
+    print_bytes(str.data, 1);
 }
 
 def println(o: printable?) {
     str := o?.to_string();
 
     if(str == null) {
-        print_chars("null");
-    } else if(str?.data != null) {
-        print_chars(str?.data);
+        print_bytes("null".data, 1);
+    } else {
+        print_bytes(str?.data, 1);
     }
-    print_char('\n');
 }
 
 def print(o: printable?) {
     str := o?.to_string();
 
     if(str == null) {
-        print_chars("null");
-    } else if(str?.data != null) {
-        print_chars(str?.data);
+        print_bytes("null".data, 0);
+    } else {
+        print_bytes(str?.data, 0);
     }
 }
 
@@ -244,6 +252,10 @@ def print(data: double) {
     print_num(data);
 }
 
+/**
+ * Everything printed so far is out when this returns. Rarely needed: the
+ * runtime flushes on its own (see print above).
+ */
 def flush() {
     asm { int 0x34 }
 }
@@ -292,6 +304,25 @@ def memory_size(data: object[]) : _int64 {
     return result;
 }
 
+/**
+ * Hand a text to the runtime, which prints it whole; `line_end` 1: and a line
+ * end after it. A null array - the empty text - prints nothing.
+ */
+local def print_bytes(text: _int8[]?, line_end: _int64) {
+    asm {
+        pushl [text]
+        loadl ebx, [line_end]
+        int 0x65
+    }
+}
+
+local def print_line_end() {
+    asm {
+        movi ebx, 10
+        putc ebx
+    }
+}
+
 local def print_chars(str: char_array) {
     foreach(ch in str) {
         asm {
@@ -299,8 +330,6 @@ local def print_chars(str: char_array) {
             putc ebx
         }
     }
-
-    flush();
 }
 
 /**
@@ -315,8 +344,6 @@ local def print_num(val: double) {
         loadl ebx, [_val]
         dput ebx
     }
-
-    flush();
 }
 
 local def print_char(val: char) {
@@ -326,8 +353,6 @@ local def print_char(val: char) {
         loadl ebx, [_val]
         putc ebx
     }
-
-    flush();
 }
 
 local def print_numbers(str: char_array) {
@@ -360,8 +385,6 @@ local def print_numbers(str: char_array) {
         putc ebx
         putc egx
     }
-
-    flush();
 }
 
 // "[ 1, 2, 3 ]": the pieces every array of numbers is printed with
@@ -390,8 +413,6 @@ local def list_end() {
         putc ebx
         putc egx
     }
-
-    flush();
 }
 
 local def put_whole(value: _int64) {
@@ -485,8 +506,6 @@ local def print_chars(str: _int16[]) {
             putc ebx
         }
     }
-
-    flush();
 }
 
 /**

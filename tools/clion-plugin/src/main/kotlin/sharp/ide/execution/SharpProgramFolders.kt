@@ -165,8 +165,8 @@ class SetSharpProgramFolderAction : AnAction() {
 
 /**
  * Project view > right-click a folder > "New Sharp Project Here": the folder gets a settings.json
- * (name and output after the folder, `build` ignored), `src/main.sharp` when it holds no Sharp code
- * yet, and `build/`; it becomes the program folder, and main.sharp is opened. Nothing that is there
+ * (name and output after the folder, `build` ignored), `src/main.sharp` and a first test of it
+ * (`tests/main_tests.sharp`) when it holds no Sharp code yet, and `build/`; it becomes the program folder, and main.sharp is opened. Nothing that is there
  * already is overwritten; the entry is not offered for a folder that is a Sharp project.
  */
 class NewSharpProjectAction : AnAction() {
@@ -202,6 +202,11 @@ class NewSharpProjectAction : AnAction() {
                     val source = folder.findChild("src") ?: folder.createChildDirectory(this, "src")
                     main = source.createChildData(this, "main.sharp")
                     VfsUtil.saveText(main!!, SharpProjectFiles.newMainText())
+                    // ... and its first test, which the gutter's arrow beside it runs
+                    if (folder.findChild("tests") == null) {
+                        val tests = folder.createChildDirectory(this, "tests")
+                        VfsUtil.saveText(tests.createChildData(this, "main_tests.sharp"), SharpProjectFiles.newTestsText())
+                    }
                 }
             }
             return main
@@ -239,6 +244,8 @@ class SharpRunConfigurationProducer : LazyRunConfigurationProducer<SharpRunConfi
 
     override fun setupConfigurationFromContext(configuration: SharpRunConfiguration, context: ConfigurationContext, sourceElement: Ref<PsiElement>): Boolean {
         val file = context.location?.virtualFile ?: return false
+        // (a project's tests are run as tests: sharp.ide.testing.SharpTestRunProducer)
+        if (SharpProjectFiles.projectOfTest(file.path) != null) return false
         val folder = SharpProgramFolders.folderToRun(context.project, file) ?: return false
         configuration.fields.programFolder = folder
         configuration.name = SharpProjectFiles.read(folder)?.name ?: folder.substringAfterLast('/').ifEmpty { "Sharp program" }
@@ -247,6 +254,7 @@ class SharpRunConfigurationProducer : LazyRunConfigurationProducer<SharpRunConfi
 
     override fun isConfigurationFromContext(configuration: SharpRunConfiguration, context: ConfigurationContext): Boolean {
         val file = context.location?.virtualFile ?: return false
+        if (configuration.fields.projectTests || SharpProjectFiles.projectOfTest(file.path) != null) return false
         val folder = SharpProgramFolders.folderToRun(context.project, file) ?: return false
         return configuration.programFolderPath() == folder
     }

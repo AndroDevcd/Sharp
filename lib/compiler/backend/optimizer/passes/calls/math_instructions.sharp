@@ -1,0 +1,70 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * MATH INSTRUCTIONS: `sqrt(x)` is one instruction, not a call
+ *
+ *      call %5, std.math#__srt_global.sqrt(%4)     ->      square_root %5, %4
+ *
+ * The VM has an instruction for the square root (`dsqrt`, lib/core/opcode/
+ * opcode.h) and its JITs give it the processor's own. std.math's `sqrt` is
+ * that instruction in an `asm` block - and a function with an `asm` block is
+ * never inlined and is taken to do anything at all, so a loop that calls it
+ * pays for a call each round and keeps none of its field reads in front of
+ * it (loop_invariants.sharp). Here the call becomes the IR's `square_root`,
+ * which only computes: it can move, be shared, and go when nobody reads it.
+ *
+ * WHICH CALLS. A direct call of the function `sqrt` of the module std.math
+ * that takes one plain decimal and gives one - told by its name and by the
+ * kinds of the two slots. (The `sqrt` of the number objects is another
+ * function: it takes an object, and stays a call.)
+ *
+ * Runs first, on the code as generated, so every pass after it sees the
+ * instruction. Without -O the call stays a call, which is just as right.
+ *
+ *      C++ comparison: none (the C++ compiler has no such instruction).
+ */
+def use_math_instructions(layout: program_layout, chosen: list<function_layout>) : _int64 {
+    known : _int64 = layout.functions.size();
+    is_root := new _int64[known + 1];
+    any : _int64 = 0;
+    for(f : _int64 = 0; f < known; f++) {
+        function := layout.functions.at(f);
+        if(function.full_name == "std.math#__srt_global.sqrt" && function.is_static == 1 && function.parameter_count() == 1) {
+            is_root[f] = 1;
+            any = 1;
+        }
+    }
+    if(any == 0) { return 0; }
+
+    changed : _int64 = 0;
+    for(i : _int64 = 0; i < chosen.size(); i++) {
+        code : ir_function = chosen.at(i).ir!!;
+        for(at : _int64 = 0; at < code.instructions.size(); at++) {
+            made := code.instructions.at(at);
+            if(made.kind != IR_CALL || made.number != CALL_HOW_DIRECT || made.declaration == null || made.arguments == null) { continue; }
+            address : _int64 = made.declaration!!.address;
+            if(address < 0 || address >= known || is_root[address] == 0) { continue; }
+            if(made.target < 0 || made.arguments!!.count != 1) { continue; }
+            from : _int64 = made.arguments!!.at(0);
+            if(code.slot_kinds.at(from) != SLOT_DEC || code.slot_kinds.at(made.target) != SLOT_DEC) { continue; }
+
+            made.kind = IR_SQUARE_ROOT;
+            made.first = from;
+            made.number = 0;
+            made.second = 0 - 1;
+            made.detail = 0;
+            made.declaration = null;
+            made.arguments = null;
+            changed++;
+        }
+    }
+    return changed;
+}

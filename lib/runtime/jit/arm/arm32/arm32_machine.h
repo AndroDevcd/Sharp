@@ -48,6 +48,7 @@ public:
     void d_compare(VReg to, DReg left, DReg right, Cond how) override;
     void d_jump_if(DReg left, DReg right, Cond how, bool holds, int label) override;
     void d_from_whole(DReg to, VReg from) override;
+    void d_square_root(DReg to, DReg from) override;
 
     void p_constant(PReg to, uintptr_t value) override;
     void p_load(PReg to, PReg base, int32_t offset) override;

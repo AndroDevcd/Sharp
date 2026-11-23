@@ -277,7 +277,8 @@ void X64Generator::load_vm_registers_only() {
 // ---------------------------------------------------------------------------------
 
 static const x86::Gp WHOLE_HOME[SLOT_HOME_COUNT] = { x86::r8, x86::r9, x86::r10, x86::r11 };
-static const x86::Xmm DECIMAL_HOME[SLOT_HOME_COUNT] = { x86::xmm2, x86::xmm3, x86::xmm4, x86::xmm5 };
+static const x86::Xmm DECIMAL_HOME[10] = { x86::xmm2, x86::xmm3, x86::xmm4, x86::xmm5, x86::xmm6, x86::xmm7,
+                                             x86::xmm8, x86::xmm9, x86::xmm10, x86::xmm11 };
 
 int X64Generator::whole_home(Int slot) {
     for(int i = 0; i < wholeHomeCount; i++) if(wholeHomes[i] == slot) return i;
@@ -307,7 +308,11 @@ void X64Generator::sync_slot_home(Int slot) {
 x86::Gp X64Generator::slot_in_register(Int slot, const x86::Gp &scratch) {
     int home = whole_home(slot);
     if(home >= 0) return WHOLE_HOME[home];
-    a.mov(scratch, local_number(slot));         // (memory is right also for a slot with a decimal home)
+    // a slot with a decimal home: its bits from there, not from memory - the value was written a
+    // moment ago as a rule, and a load that has to wait for that store holds up everything after it
+    home = decimal_home(slot);
+    if(home >= 0) a.movq(scratch, DECIMAL_HOME[home]);
+    else a.mov(scratch, local_number(slot));
     return scratch;
 }
 
@@ -320,7 +325,9 @@ Operand X64Generator::slot_operand(Int slot) {
 x86::Xmm X64Generator::slot_in_decimal_register(Int slot, const x86::Xmm &scratch) {
     int home = decimal_home(slot);
     if(home >= 0) return DECIMAL_HOME[home];
-    a.movsd(scratch, local_number(slot));
+    home = whole_home(slot);                    // (the same the other way round)
+    if(home >= 0) a.movq(scratch, WHOLE_HOME[home]);
+    else a.movsd(scratch, local_number(slot));
     return scratch;
 }
 
@@ -499,7 +506,7 @@ void X64Generator::pick_slot_homes() {
         }
     }
 
-    for(int round = 0; round < 2 * SLOT_HOME_COUNT; round++) {
+    for(int round = 0; round < SLOT_HOME_COUNT + DECIMAL_HOME_COUNT; round++) {
         int best = -1;
         // a home saves a read per use and costs one per reload: it must be used clearly more often than
         // it is reloaded (and a slot named once gains nothing)
@@ -508,7 +515,7 @@ void X64Generator::pick_slot_homes() {
             const weight &w = weights[slot];
             double total = w.whole + w.decimal + w.either;
             bool asDecimal = w.decimal > w.whole;
-            if(asDecimal ? decimalHomeCount >= SLOT_HOME_COUNT : wholeHomeCount >= SLOT_HOME_COUNT) continue;
+            if(asDecimal ? decimalHomeCount >= DECIMAL_HOME_COUNT : wholeHomeCount >= SLOT_HOME_COUNT) continue;
             if(total > bestTotal) { bestTotal = total; best = (int)slot; }
         }
         if(best < 0) break;

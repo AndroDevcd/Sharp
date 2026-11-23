@@ -152,6 +152,16 @@ def add_library_path(libpath: string) {
    options.libraries.add(library_dir.absolute_path());
 }
 
+/** -testdir <folder>: the `main` in that folder is where the program starts; a `main` elsewhere is an ordinary function */
+def set_tests_directory(path: string) {
+   tests_folder := new file(path);
+   if(!tests_folder.exists() || !tests_folder.is_directory()) {
+      error_with_help("the tests folder `$path` does not exist",
+                      "-testdir names the folder that holds the tests and their `main`");
+   }
+   options.tests_dir = tests_folder.absolute_path();
+}
+
 /** -P <folder>: compile the project in that folder */
 def set_project_directory(path: string) {
    project_folder := new file(path);

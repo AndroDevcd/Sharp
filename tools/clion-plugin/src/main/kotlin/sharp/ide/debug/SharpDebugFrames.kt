@@ -61,7 +61,9 @@ class SharpExecutionStack(
     override fun computeStackFrames(firstFrameIndex: Int, container: XStackFrameContainer) {
         client.ask("frames", { it.addProperty("fiber", fiber) }) { answer ->
             if (!SdbClient.ok(answer)) {
+                // (the error alone does not end the list for the newer platform: it is ended, empty, as well)
                 container.errorOccurred(SdbClient.text(answer, "why"))
+                container.addStackFrames(emptyList(), true)
             } else {
                 val frames = framesOf(client, fiber, answer)
                 container.addStackFrames(frames.drop(firstFrameIndex), true)

@@ -74,6 +74,7 @@ typedef void (*interrupt_fn)(Int interrupt);
 // console_io.cpp - writing to and reading from the console, number parsing
 void op_printf(Int interrupt);
 void op_flush(Int interrupt);
+void op_print_bytes(Int interrupt);
 void op_kbhit(Int interrupt);
 void op_strtod(Int interrupt);
 void op_strtol(Int interrupt);

@@ -293,6 +293,19 @@ def main(args: string[]) {
             expect(two).should_contain("(thread 4, fiber 2)");
             expect(two).should_contain("first         running");
         };
+
+        // main returns while the worker is stopped at a breakpoint it reaches over and over: each
+        // `continue` lets main a little further, until it is at its end. The program's end then waits
+        // for the next `continue`, and after it no thread stops any more - the program ends.
+        // (It used to hang there: main waited for a worker that was held, and sdb for main.)
+        many := new string_builder();
+        many.append("break app#tick\n");
+        for(i : _int64 = 0; i < 400; i++) { many.append("continue\n"); }
+        ending := answers("main_ends_first.dbg", many.to_string()!!);
+        test("a program whose main returns while another thread is stopped ends, and sdb with it") {
+            expect(ending).should_contain("breakpoint 1: app#tick");
+            expect(ending).should_contain("the program ended with exit code 0");
+        };
     };
 
     tests("obfuscated programs") {

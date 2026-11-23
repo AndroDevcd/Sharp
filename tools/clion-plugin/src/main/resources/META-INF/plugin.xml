@@ -73,6 +73,13 @@
         <runConfigurationProducer implementation="sharp.ide.execution.SharpRunConfigurationProducer"/>
         <projectViewNodeDecorator implementation="sharp.ide.execution.SharpProgramFolderDecorator"/>
 
+        <!-- a project's tests: the green arrows beside tests, groups and functions in its tests folder, and what they run (sharp.ide.testing) -->
+        <runLineMarkerContributor language="Sharp" implementationClass="sharp.ide.testing.SharpTestRunLineMarker"/>
+        <runConfigurationProducer implementation="sharp.ide.testing.SharpTestRunProducer"/>
+
+        <!-- File > New > Project: "Sharp" makes the chosen folder a Sharp project with a run configuration -->
+        <directoryProjectGenerator implementation="sharp.ide.project.SharpProjectGenerator"/>
+
         <!-- debugging: the Debug button of a "Sharp Program" configuration, breakpoints in .sharp files (sharp.ide.debug; it drives sdb) -->
         <programRunner implementation="sharp.ide.debug.SharpDebugRunner"/>
         <xdebugger.breakpointType implementation="sharp.ide.debug.SharpLineBreakpointType"/>

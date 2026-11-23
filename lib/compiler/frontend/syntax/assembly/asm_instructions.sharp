@@ -204,6 +204,7 @@ def build_asm_table() : hash_map<string, string> {
     table.put("ldc", "RL");
     table.put("neg", "RR");
     table.put("dneg", "RR");
+    table.put("dsqrt", "RR");
     table.put(".", "");
     return table;
 }

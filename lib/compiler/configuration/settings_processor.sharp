@@ -50,6 +50,8 @@ import (
  *      target_api                  the version of the installed standard library ("0.4.0")
  *      warnings, enable_warnings, disable_warnings, warnings_as_errors, error_limit
  *      green_mode, magic_mode, compiler_debug_mode
+ *      tests_folder                        the folder that holds the project's tests ("tests"):
+ *                                          left out of the program, built with -tests (project.sharp)
  *      ignore_files, ignore_folders        -ignore, -ignoredir: a path inside the project,
  *                                          or else a path as written
  *      extern_lib, extern_libs             -L: likewise
@@ -287,6 +289,11 @@ def process_settings() {
 
                add_ignored_directory(project_path(val.as_string()));
             }
+         }
+
+         if((member = setting(obj, "tests_folder")) != null) {
+            require_type(member!!, json_value.kind_string);
+            options.tests_folder_name = member!!.as_string();
          }
 
          if((member = setting(obj, "extern_lib")) != null || (member = setting(obj, "extern_libs")) != null) {
@@ -548,6 +555,7 @@ def known_settings() : list<string> {
    names.add("extern_lib");             names.add("extern_libs");
    names.add("ignore_extern_files");    names.add("ignore_extern_folders");
    names.add("native");                 names.add("c_libraries");
+   names.add("tests_folder");
    return names;
 }
 

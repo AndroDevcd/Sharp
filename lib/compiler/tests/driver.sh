@@ -59,6 +59,10 @@
 #      settings.json, are warnings; a project without the library gets ONE error, E0962
 #  21. a module that is missing because `-ignoredir` left its file out: the E0303 says which file
 #      declares it and that it was left out (left_out_modules.sharp)
+#  22. THE TESTS OF A PROJECT (project.sharp): the `tests` folder is left out of the program;
+#      `-tests` builds program and tests together as <output>_tests and starts at the tests' main,
+#      which may call the program's own main; "tests_folder" names another folder; -tests without
+#      a tests folder, or without a project, is refused; -testdir does the same for listed files
 #
 # Prints one line per failure and a summary; exits 1 when anything failed.
 SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
@@ -184,8 +188,9 @@ exec "%s" "$@"
 chmod +x bin/sharp
 PATH="$WORK/bin:$PATH" compile run.txt src/hello.sharp -j 1 -L "$LIBRARY" -o run.exe -run
 if grep -q "^ran" run.txt && grep -q "^code generation: " run.txt; then pass; else fail "run" "-run did not start the program:" "$(tail -3 run.txt)"; fi
+# (-run needs no `sharp` on the PATH: the program is run by the runtime that runs the compiler)
 PATH="/usr/bin:/bin" compile run_no_runtime.txt src/hello.sharp -j 1 -L "$LIBRARY" -o run2.exe -run
-if grep -q "could not start the runtime" run_no_runtime.txt; then pass; else fail "run_no_runtime" "no message about the runtime that is not on the PATH:" "$(tail -2 run_no_runtime.txt)"; fi
+if grep -q "^ran" run_no_runtime.txt; then pass; else fail "run_no_runtime" "-run did not run the program without a runtime on the PATH:" "$(tail -2 run_no_runtime.txt)"; fi
 
 # ---- 11: projects
 compile new_project.txt --new-project demo
@@ -263,8 +268,7 @@ printf 'mod main;\ndef main() : int { return 3; }\n' > src/three.sharp
 printf 'mod main;\ndef main() { throw new exception("boom"); }\n' > src/boom.sharp
 PATH="$WORK/bin:$PATH" exits_with run_result 3 src/three.sharp -j 1 -L "$LIBRARY" -o three.exe -run
 PATH="$WORK/bin:$PATH" exits_with run_uncaught 1 src/boom.sharp -j 1 -L "$LIBRARY" -o boom.exe -run
-PATH="/usr/bin:/bin" exits_with run_no_runtime_code 1 src/hello.sharp -j 1 -L "$LIBRARY" -o run3.exe -run
-grep -q "not found" run_no_runtime_code.txt && fail "run_no_runtime_code" "the shell's own message got through" || pass
+PATH="/usr/bin:/bin" exits_with run_no_runtime_code 3 src/three.sharp -j 1 -L "$LIBRARY" -o run3.exe -run
 # 20. projects: an empty settings.json stops the build; a setting given twice and an -o that
 #     settings.json overrules are warnings; without the library: one E0962 and nothing else
 : > demo/settings.json
@@ -290,6 +294,60 @@ exits_with left_out_module 1 shop/app/main.sharp -L shop/model -L "$LIBRARY" -ig
 if grep -q "model/person.sharp\` declares module \`model\`, but it was left out of this build" left_out_module.txt; then pass; else fail "left_out_module" "the E0303 does not say the module's file was left out:" "$(grep -m1 -A8 'E0303' left_out_module.txt | grep 'note' | head -2)"; fi
 exits_with not_left_out 0 shop/app/main.sharp -L shop/model -L "$LIBRARY" -c
 grep -q "left out of this build" not_left_out.txt && fail "not_left_out" "a build that leaves nothing out talks about files left out" || pass
+# 22. the tests of a project
+# (a new project comes with a first test: built with -tests, it passes)
+compile new_project_tests.txt -P demo -L "$LIBRARY" -tests
+if [ -f demo/tests/main_tests.sharp ] && "$SHARP" demo/build/outputs/demo_tests 2>&1 | grep -q "all 1 tests passed"; then pass; else fail "new_project_tests" "the first test of a new project was not made, did not build or did not pass:" "$(tail -3 new_project_tests.txt)"; fi
+mkdir -p market/src market/tests
+printf '{ "output": "market", "extern_lib": [ "%s" ] }\n' "$LIBRARY" > market/settings.json
+printf 'mod main;
+def price(count: _int64) : _int64 { return count * 3; }
+def main() { println("the program"); }
+' > market/src/main.sharp
+printf 'mod market_tests;
+import (main)
+def main() { println("the tests: " + price(2)); main#main(); }
+' > market/tests/price_tests.sharp
+compile project_program.txt -P market
+if [ -f market/build/outputs/market ] && [ "$("$SHARP" market/build/outputs/market 2>&1 | head -1)" = "the program" ]; then pass; else fail "project_program" "the program of a project with a tests folder was not built, or is not the program:" "$(tail -3 project_program.txt)"; fi
+compile project_tests.txt -P market -tests
+if [ -f market/build/outputs/market_tests ] && [ "$("$SHARP" market/build/outputs/market_tests 2>&1 | tr '\n' '|')" = "the tests: 6|the program|" ]; then pass; else fail "project_tests" "-tests did not build market_tests, or it does not start at the tests' main:" "$(tail -3 project_tests.txt)"; fi
+# (the program is still the program after the tests were built)
+compile project_program_again.txt -P market
+if [ "$("$SHARP" market/build/outputs/market 2>&1 | head -1)" = "the program" ]; then pass; else fail "project_program_again" "after a tests build the program is no longer the program"; fi
+# two mains in the tests folder are two entry points
+printf 'mod more_tests;\ndef main() { }\n' > market/tests/second.sharp
+exits_with project_tests_two_mains 1 -P market -tests
+grep -q "error\[E0930\]" project_tests_two_mains.txt && pass || fail "project_tests_two_mains" "two mains in the tests folder are not E0930:" "$(grep "^error" project_tests_two_mains.txt | head -2)"
+rm market/tests/second.sharp
+# another folder name
+mv market/tests market/checks
+printf '{ "output": "market", "tests_folder": "checks", "extern_lib": [ "%s" ] }\n' "$LIBRARY" > market/settings.json
+compile project_tests_named.txt -P market -tests
+if [ "$("$SHARP" market/build/outputs/market_tests 2>&1 | head -1)" = "the tests: 6" ]; then pass; else fail "project_tests_named" "\"tests_folder\" was not used:" "$(tail -3 project_tests_named.txt)"; fi
+compile project_program_named.txt -P market
+if [ "$("$SHARP" market/build/outputs/market 2>&1 | head -1)" = "the program" ]; then pass; else fail "project_program_named" "the folder \"tests_folder\" names was not left out of the program:" "$(tail -3 project_program_named.txt)"; fi
+# -tests -run runs them; -test-only runs a part (the tests here print, they do not use std.testing: the
+# argument reaching the program is what is checked)
+printf 'mod market_tests;
+import (main, platform)
+def main() { given := program_arguments(); println("tests got " + sizeof(given) + (sizeof(given) == 2 ? ": " + given[0] + " " + given[1] : "")); }
+' > market/checks/price_tests.sharp
+PATH="$WORK/bin:$PATH" compile project_tests_run.txt -P market -tests -run
+grep -q "^tests got 0" project_tests_run.txt && pass || fail "project_tests_run" "-tests -run did not run the tests:" "$(tail -3 project_tests_run.txt)"
+PATH="$WORK/bin:$PATH" compile project_tests_run_only.txt -P market -tests -run -test-only "prices > two cost six"
+grep -q "^tests got 2: -test-only prices > two cost six" project_tests_run_only.txt && pass || fail "project_tests_run_only" "-test-only did not reach the tests:" "$(tail -3 project_tests_run_only.txt)"
+# no tests folder; no project
+printf '{ "output": "market", "extern_lib": [ "%s" ] }\n' "$LIBRARY" > market/settings.json
+exits_with project_no_tests 1 -P market -tests
+grep -q "the project has no tests" project_no_tests.txt && pass || fail "project_no_tests" "no message about the missing tests folder:" "$(head -2 project_no_tests.txt)"
+exits_with tests_without_project 1 market/src/main.sharp -L "$LIBRARY" -tests -c
+grep -q "there is no project here" tests_without_project.txt && pass || fail "tests_without_project" "no message for -tests without a project:" "$(head -2 tests_without_project.txt)"
+# -testdir: the same choice of main for files that are listed
+exits_with testdir_two_mains 1 market/src/main.sharp market/checks/price_tests.sharp -L "$LIBRARY" -c
+grep -q "error\[E0930\]" testdir_two_mains.txt && pass || fail "testdir_two_mains" "without -testdir the two mains are not E0930"
+compile testdir.txt market/src/main.sharp market/checks/price_tests.sharp -j 1 -L "$LIBRARY" -testdir market/checks -o testdir.exe
+if [ "$("$SHARP" testdir.exe 2>&1 | head -1)" = "tests got 0" ]; then pass; else fail "testdir" "-testdir did not make the tests' main the entry point:" "$(tail -3 testdir.txt)"; fi
 
 echo "driver tests: $passed passed, $failed failed   (work folder: $WORK)"
 [ "$failed" -eq 0 ]

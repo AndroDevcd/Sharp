@@ -17,6 +17,10 @@
  *     unoptimized compiler use the copy of the compiler that was built without the optimizer
  *     test program         the program is tests written with std.testing: Run shows them as a tree
  *                          of groups and tests instead of plain output (sharp.ide.testing)
+ *     project's tests      run the TESTS of the project in the program folder (its tests folder, built
+ *                          with the program by `sharpc -P -tests`), shown as that tree
+ *     only                 ... and of them only these: a group, or `group > test`; several with ` || `
+ *                          between them. The arrows in the gutter of a test file fill this in.
  *
  * The pieces, in the platform's terms:
  *
@@ -96,12 +100,17 @@ class SharpRunOptions : RunConfigurationOptions() {
     var unoptimizedCompiler by property(false)
     var alwaysRebuild by property(false)
     var testProgram by property(false)
+    var projectTests by property(false)
+    var testFilter by string("")
 }
 
 class SharpRunConfiguration(project: Project, factory: ConfigurationFactory, name: String) :
     RunConfigurationBase<SharpRunOptions>(project, factory, name) {
 
     val fields: SharpRunOptions get() = options as SharpRunOptions
+
+    /** What `only` names, one entry each (empty: every test). */
+    fun testFilters(): List<String> = splitFilters(fields.testFilter ?: "")
 
     /** The program folder as an absolute path with forward slashes ("" when not set). A relative one is below the project. */
     fun programFolderPath(): String {
@@ -128,6 +137,12 @@ class SharpRunConfiguration(project: Project, factory: ConfigurationFactory, nam
     }
 }
 
+/** Between two entries of a configuration's `only` field. */
+const val FILTER_SEPARATOR = " || "
+
+fun splitFilters(written: String): List<String> = written.split("||").map { it.trim() }.filter { it.isNotEmpty() }
+fun joinFilters(filters: List<String>): String = filters.joinToString(FILTER_SEPARATOR)
+
 /** The form of Edit Configurations: one row per field. */
 class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<SharpRunConfiguration>() {
     private val programFolder = TextFieldWithBrowseButton()
@@ -138,6 +153,8 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
     private val unoptimized = JBCheckBox("Use the compiler that was built without the optimizer (when the normal one misbehaves)")
     private val alwaysRebuild = JBCheckBox("Rebuild every time (off: compile again only when something the program is built from changed)")
     private val testProgram = JBCheckBox("Test program (std.testing): show the groups and their tests as a tree")
+    private val projectTests = JBCheckBox("Run the project's tests (its tests folder) instead of the program")
+    private val testFilter = JBTextField()
 
     override fun createEditor(): JComponent {
         programFolder.addBrowseFolderListener(project, FileChooserDescriptorFactory.createSingleFolderDescriptor().withTitle("Sharp Program Folder"))
@@ -151,6 +168,9 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
             .addLabeledComponent("Compiler options:", compilerOptions)
             .addLabeledComponent("Program arguments:", programArguments)
             .addLabeledComponent("Working directory:", workingDirectory)
+            .addComponent(projectTests)
+            .addLabeledComponent("Only:", testFilter)
+            .addTooltip("With the project's tests: a group, or `group > test`; several with ` || ` between them. Empty: every test.")
             .addComponent(testProgram)
             .addComponent(buildOnly)
             .addComponent(alwaysRebuild)
@@ -168,6 +188,8 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
         unoptimized.isSelected = fields.unoptimizedCompiler
         alwaysRebuild.isSelected = fields.alwaysRebuild
         testProgram.isSelected = fields.testProgram
+        projectTests.isSelected = fields.projectTests
+        testFilter.text = fields.testFilter ?: ""
     }
 
     override fun applyEditorTo(configuration: SharpRunConfiguration) {
@@ -180,5 +202,7 @@ class SharpRunSettingsEditor(private val project: Project) : SettingsEditor<Shar
         fields.unoptimizedCompiler = unoptimized.isSelected
         fields.alwaysRebuild = alwaysRebuild.isSelected
         fields.testProgram = testProgram.isSelected
+        fields.projectTests = projectTests.isSelected
+        fields.testFilter = testFilter.text.trim()
     }
 }

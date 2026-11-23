@@ -391,7 +391,8 @@ require( \
             &&DJLE_K, \
             &&DJGE_K, \
             &&DJEQ_K, \
-            &&DJNE_K \
+            &&DJNE_K, \
+            &&DSQRT \
         };
 
 #endif //SHARP_OPCODE_MACROS_H

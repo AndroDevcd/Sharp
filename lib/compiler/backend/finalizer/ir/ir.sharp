@@ -105,6 +105,9 @@ const IR_INT_IMMEDIATE    : _int64 = 41;    // d = a op `detail` on integers, `d
                                             // ARITH_SUB or ARITH_MUL). Only the optimizer makes it (backend/optimizer,
                                             // passes/values/immediates.sharp): the VM's iadd / iaddl take the constant in
                                             // the instruction itself, so `i = i + 1` is one instruction
+const IR_SQUARE_ROOT      : _int64 = 42;    // d = the square root of a, both decimals. Only the optimizer makes it
+                                            // (passes/calls/math_instructions.sharp) from a call of std.math's sqrt:
+                                            // the VM's `dsqrt`
 
 // A `try` statement adds no instruction of its own: its ranges are LABELS (ir_try in
 // ir_function.sharp), and the bytecode step turns them into the pcs of its try record.

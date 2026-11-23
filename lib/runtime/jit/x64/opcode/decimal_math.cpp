@@ -75,6 +75,10 @@ emit_result X64Generator::emit_decimal_math() {
             load_vm_registers();
             store_vm_register_decimal(triple3, xmm0);
             return emitted;
+        case Opcode::DSQRT:     // regs[a] = sqrt(regs[b]): the processor's own
+            a.sqrtsd(xmm0, vm_register_decimal(dual2, xmm0));
+            store_vm_register_decimal(dual1, xmm0);
+            return emitted;
         case Opcode::DNEG:      // regs[a] = -regs[b]: flip the sign bit
             load_vm_register(rax, dual2);
             a.btc(rax, 63);

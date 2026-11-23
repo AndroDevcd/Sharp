@@ -95,6 +95,9 @@ object SharpToolchains {
         )
     }
 
+    /** The first Sharp whose compiler knows a project's tests (`-tests`, `-testdir`) and whose std.testing runs a part of them. */
+    const val FIRST_WITH_PROJECT_TESTS = "0.5.7"
+
     /** `0.4.0` against `0.10.1`: number by number, a missing number counts as 0, anything that is not a number as -1. */
     fun compareVersions(a: String, b: String): Int {
         val left = a.split('.')

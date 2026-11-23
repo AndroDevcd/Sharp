@@ -90,6 +90,7 @@ def instruction_text(made: ir_instruction) : string {
     }
     if(kind == IR_NEGATE) { return "negate        " + slot_text(made.target) + ", " + slot_text(made.first); }
     if(kind == IR_NOT) { return "not           " + slot_text(made.target) + ", " + slot_text(made.first); }
+    if(kind == IR_SQUARE_ROOT) { return "square_root   " + slot_text(made.target) + ", " + slot_text(made.first); }
     if(kind == IR_SAME_OBJECT) {
         return "same_object   " + slot_text(made.target) + ", " + slot_text(made.first) + ", " + slot_text(made.second);
     }

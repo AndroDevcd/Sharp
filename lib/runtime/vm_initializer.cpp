@@ -15,9 +15,12 @@
 #include "jit/jit_compiler.h"
 #include "memory/tracing_collector.h"
 #include "memory/function_value.h"
+#include "console_helper.h"
+#include "../debugger/hooks.h"        // what the debugger build (sdb) adds; empty in the plain VM
 
 int initialize_virtual_machine()
 {
+    console_output_start();     // before anything is printed (console_helper.h)
     KeyPair<int, string> result;
     if((result = process_exe()).key != 0) {
         if(!result.value.empty())
@@ -90,6 +93,8 @@ int initialize_virtual_machine()
 
 recursive_mutex shutdownMut;
 void shutdown() {
+    // (SDB_BEFORE_PROGRAM_END: under the debugger the end of the program waits while the program is stopped)
+    SDB_BEFORE_PROGRAM_END(thread_self);
     bool destroySystem = false;
     {
         guard_mutex(shutdownMut) // prevent multiple threads from shutting down the vm
@@ -104,6 +109,7 @@ void shutdown() {
         destroy();
         vm.state = VM_TERMINATED;
     }
+    console_output_flush();     // what the program printed is out before the process ends
 }
 
 void destroy() {

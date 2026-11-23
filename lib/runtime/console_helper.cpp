@@ -9,6 +9,12 @@
 #include "multitasking/fiber/fiber.h"
 #include "reflect/reflect_helpers.h"
 #include <cstdint>
+#include <cstdio>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
 #if __has_include(<charconv>)
 #include <charconv>
 #endif
@@ -208,4 +214,60 @@ void dbl_printf(int format, double value, int precision) {
 
     copy_object(&push_stack_object, strObject);
     assign_string_field(strObject, str);
+}
+
+//
+// WHAT THE PROGRAM PRINTS, AND WHEN IT REACHES THE SCREEN (console_helper.h says what is promised)
+//
+// The thread below sleeps until something was printed, lets the program go on printing for a few
+// milliseconds, and flushes. Should something reach stdout that the VM did not write itself - C++
+// the program called - it is flushed too, a little later: the thread also wakes without being told.
+//
+namespace {
+    const int FLUSH_AFTER_MILLISECONDS = 5;         // after something was printed
+    const int FLUSH_ANYWAY_MILLISECONDS = 100;      // and whether or not the VM knows of anything
+
+    struct output_watch {
+        std::mutex lock;
+        std::condition_variable wake;
+        std::atomic<bool> pending{false};           // something was printed since the last flush
+    };
+
+    // (made with `new` and never deleted: it must outlive the thread that waits on it, and that
+    //  thread runs until the process is gone - a global object would be destroyed under it at exit)
+    output_watch *output = nullptr;
+
+    void flush_now_and_then() {
+        for(;;) {
+            {
+                std::unique_lock<std::mutex> held(output->lock);
+                output->wake.wait_for(held, std::chrono::milliseconds(FLUSH_ANYWAY_MILLISECONDS),
+                                      [] { return output->pending.load(); });
+            }
+            if(output->pending.load())
+                std::this_thread::sleep_for(std::chrono::milliseconds(FLUSH_AFTER_MILLISECONDS));
+            output->pending.store(false);
+            fflush(stdout);
+        }
+    }
+}
+
+void console_output_start() {
+    if(output != nullptr) return;
+    static char buffer[1 << 16];
+    setvbuf(stdout, buffer, _IOFBF, sizeof(buffer));
+    output = new output_watch();
+    std::thread(flush_now_and_then).detach();
+}
+
+void console_output_written() {
+    if(output == nullptr || output->pending.load(std::memory_order_relaxed)) return;
+    if(!output->pending.exchange(true)) {
+        std::lock_guard<std::mutex> held(output->lock);
+        output->wake.notify_one();
+    }
+}
+
+void console_output_flush() {
+    fflush(stdout);
 }

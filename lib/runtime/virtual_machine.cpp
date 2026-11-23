@@ -317,10 +317,12 @@ void main_vm_loop(sharp_function *frame)
                 branch
             PUT:
                 cout << regs[single_arg].i;
+                console_output_written();
                 branch
             PUTC:
                 TC(TC_REG_INT(single_arg))
-                printf("%c", (char)regs[single_arg].i);
+                putc((char)regs[single_arg].i, stdout);
+                console_output_written();
                 branch
             GET:
                 TC(TC_REG_INT(CMT) TC_RT(single_arg) = tk_int;)
@@ -840,10 +842,15 @@ void main_vm_loop(sharp_function *frame)
             DPUT:
                 TC(TC_REG_DEC(single_arg))
                 cout << natural_number(regs[single_arg].d);     // one way to write a number, everywhere (console_helper.cpp)
+                console_output_written();
                 branch
             I2D:    // integer -> decimal (nothing to do while both are stored as doubles)
                 TC(TC_REG_INT(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
                 regs[dual_arg1].d = (double)regs[dual_arg2].i;
+                branch
+            DSQRT:  // the square root of a decimal
+                TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_dec;)
+                regs[dual_arg1].d = sqrt(regs[dual_arg2].d);
                 branch
             D2I:    // decimal -> integer: the fraction is dropped (2.9 -> 2, -2.9 -> -2)
                 TC(TC_REG_DEC(dual_arg2) TC_RT(dual_arg1) = tk_int;)

@@ -195,6 +195,10 @@
       "$ref": "#/definitions/texts",
       "description": "Folders that are not part of the program, for example \"build\" (-ignoredir)."
     },
+    "tests_folder": {
+      "type": "string",
+      "description": "The folder that holds the project's tests, with a main of their own (default \"tests\"). It is left out of the program and built with it by -tests."
+    },
     "extern_lib": {
       "$ref": "#/definitions/texts",
       "description": "Folders of Sharp libraries the program is compiled with (-L). A project that names none gets the installed standard library."

@@ -60,7 +60,7 @@ class SharpDebugRunner : AsyncProgramRunner<RunnerSettings>() {
 
                 ApplicationManager.getApplication().invokeLater {
                     try {
-                        val session = XDebuggerManager.getInstance(environment.project).startSession(environment, object : XDebugProcessStarter() {
+                        result.setResult(startSession(environment, object : XDebugProcessStarter() {
                             override fun start(session: XDebugSession): XDebugProcess {
                                 val handler = ProcessHandlerFactory.getInstance().createColoredProcessHandler(command)
                                 ProcessTerminatedListener.attach(handler)      // "Process finished with exit code N"
@@ -69,8 +69,7 @@ class SharpDebugRunner : AsyncProgramRunner<RunnerSettings>() {
                                 client.start()
                                 return made
                             }
-                        })
-                        result.setResult(session.runContentDescriptor)
+                        }))
                     } catch (e: Throwable) {
                         client.close()
                         result.setError(e)
@@ -81,5 +80,42 @@ class SharpDebugRunner : AsyncProgramRunner<RunnerSettings>() {
             }
         }
         return result
+    }
+
+    /**
+     * Starts the session and gives what the Debug window shows it in.
+     *
+     * The platform has two ways to say this, by its version:
+     *
+     *     2026.1 and newer    XDebuggerManager.newSessionBuilder(starter).environment(env).startSession()
+     *                         -> a result that holds the session and its window
+     *     before              XDebuggerManager.startSession(env, starter), then session.runContentDescriptor
+     *
+     * The older way still works in the newer versions but logs an error there on every start
+     * ("RunContentDescriptor should not be used in split mode"). The plugin is built against a version
+     * that has only the older way, so the newer one is looked up by name: when all of it is there it is
+     * used, else the older way.
+     */
+    private fun startSession(environment: ExecutionEnvironment, starter: XDebugProcessStarter): RunContentDescriptor? {
+        val manager = XDebuggerManager.getInstance(environment.project)
+        val newer = try {
+            val builder = Class.forName("com.intellij.xdebugger.XDebugSessionBuilder")
+            val started = Class.forName("com.intellij.xdebugger.XSessionStartedResult")
+            listOf(
+                XDebuggerManager::class.java.getMethod("newSessionBuilder", XDebugProcessStarter::class.java),
+                builder.getMethod("environment", ExecutionEnvironment::class.java),
+                builder.getMethod("startSession"),
+                started.getMethod("getRunContentDescriptor"),
+            )
+        } catch (_: ReflectiveOperationException) {
+            null
+        }
+        if (newer == null) return manager.startSession(environment, starter).runContentDescriptor
+        try {
+            val builder = newer[1].invoke(newer[0].invoke(manager, starter), environment)
+            return newer[3].invoke(newer[2].invoke(builder)) as RunContentDescriptor?
+        } catch (e: java.lang.reflect.InvocationTargetException) {
+            throw e.targetException                           // what the start itself threw (an ExecutionException with its message)
+        }
     }
 }

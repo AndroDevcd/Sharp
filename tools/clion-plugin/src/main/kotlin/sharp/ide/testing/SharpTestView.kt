@@ -43,6 +43,9 @@ object SharpTestView {
     /** The argument a test program is started with to report for the test view. */
     const val ARGUMENT = "-ide-tests"
 
+    /** Before each entry of what to run: a group, or `group > test` (std.testing's `-test-only`). */
+    const val ONLY_ARGUMENT = "-test-only"
+
     /** The test view for this run, reading what `handler`'s process prints. */
     fun consoleFor(configuration: RunConfiguration, executor: Executor, handler: ProcessHandler): ConsoleView =
         SMTestRunnerConnectionUtil.createAndAttachConsole("Sharp", handler, SharpTestConsoleProperties(configuration, executor))

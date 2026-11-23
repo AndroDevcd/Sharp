@@ -74,6 +74,7 @@ def is_expression(code: ir_function, made: ir_instruction) : _int64 {
     if(made.target < 0) { return 0; }
     if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE
        || kind == IR_NEGATE || kind == IR_NOT || kind == IR_CONVERT || kind == IR_INT_IMMEDIATE || kind == IR_SAME_OBJECT
+       || kind == IR_SQUARE_ROOT
        || kind == IR_IS_NULL || kind == IR_IS || kind == IR_LENGTH || kind == IR_GET_FIELD || kind == IR_GET_STATIC
        || kind == IR_GET_ELEMENT) {
         return 1;

@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-22",
+  "note": "Sharp 0.5.7 (VM 4.0.8r19), before sqrt became an instruction and loops got guards. Only the Sharp rows of that run; chart.py shows them next to the new ones.",
+  "size": "full",
+  "runs": 1,
+  "languages": [
+    { "id": "sharp_O", "name": "Sharp -O", "version": "sharp 4.0.8r19" },
+    { "id": "sharp", "name": "Sharp", "version": "sharp 4.0.8r19" }
+  ],
+  "results": [
+    { "test": "nbody", "language": "sharp_O", "n": 50000000, "status": "ok", "seconds": 12.39, "cpu_seconds": null, "memory_mb": 7 },
+    { "test": "nbody", "language": "sharp", "n": 50000000, "status": "ok", "seconds": 16.96, "cpu_seconds": null, "memory_mb": 7 },
+    { "test": "spectralnorm", "language": "sharp_O", "n": 5500, "status": "ok", "seconds": 2.19, "cpu_seconds": null, "memory_mb": 7 },
+    { "test": "spectralnorm", "language": "sharp", "n": 5500, "status": "ok", "seconds": 9.57, "cpu_seconds": null, "memory_mb": 7 },
+    { "test": "fannkuchredux", "language": "sharp_O", "n": 12, "status": "ok", "seconds": 35.39, "cpu_seconds": null, "memory_mb": 7 },
+    { "test": "fannkuchredux", "language": "sharp", "n": 12, "status": "ok", "seconds": 52.22, "cpu_seconds": null, "memory_mb": 7 },
+    { "test": "binarytrees", "language": "sharp_O", "n": 21, "status": "ok", "seconds": 14.60, "cpu_seconds": null, "memory_mb": 1103 },
+    { "test": "binarytrees", "language": "sharp", "n": 21, "status": "ok", "seconds": 18.95, "cpu_seconds": null, "memory_mb": 1259 },
+    { "test": "mandelbrot", "language": "sharp_O", "n": 16000, "status": "ok", "seconds": 20.74, "cpu_seconds": null, "memory_mb": 8 },
+    { "test": "mandelbrot", "language": "sharp", "n": 16000, "status": "ok", "seconds": 43.39, "cpu_seconds": null, "memory_mb": 8 },
+    { "test": "fasta", "language": "sharp_O", "n": 25000000, "status": "ok", "seconds": 11.08, "cpu_seconds": null, "memory_mb": 17 },
+    { "test": "fasta", "language": "sharp", "n": 25000000, "status": "ok", "seconds": 13.44, "cpu_seconds": null, "memory_mb": 18 }
+  ]
+}

@@ -137,5 +137,5 @@ def stays_in_as(made: ir_instruction, k: _int64) : _int64 {
     // numbers are never objects: a number parameter read by arithmetic or a test "stays in" trivially
     return kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE
            || kind == IR_NEGATE || kind == IR_NOT || kind == IR_CONVERT || kind == IR_INT_IMMEDIATE || kind == IR_JUMP_IF
-           || kind == IR_JUMP_UNLESS || kind == IR_NEW_ARRAY;
+           || kind == IR_JUMP_UNLESS || kind == IR_NEW_ARRAY || kind == IR_SQUARE_ROOT;
 }

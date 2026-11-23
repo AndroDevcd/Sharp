@@ -122,6 +122,13 @@ const asmjit::x86::Gp HOME_CPU_REGISTER[HOME_COUNT] = { asmjit::x86::rsi, asmjit
 
 // ---- the homes of a function's own numbers (frame slots): four whole numbers, four decimals ----
 const int SLOT_HOME_COUNT = 4;
+// (decimals have more registers to live in where the system lets a function use them freely: on
+//  Windows xmm6 and up belong to the caller, and saving them would cost every entry and exit)
+#ifdef _WIN32
+const int DECIMAL_HOME_COUNT = 4;
+#else
+const int DECIMAL_HOME_COUNT = 10;
+#endif
 
 // ---- our slot in the machine frame (sections/entry.cpp) ----
 // (Three slots: with the return address a direct call takes 32 bytes of the thread's machine
@@ -257,7 +264,7 @@ private:
     // ---- LOCAL NUMBERS IN CPU REGISTERS: the slot homes (x64_generator.cpp) ----
     Int wholeHomes[SLOT_HOME_COUNT];        // the slots in r8 .. r11
     int wholeHomeCount = 0;
-    Int decimalHomes[SLOT_HOME_COUNT];      // the slots in xmm2 .. xmm5
+    Int decimalHomes[DECIMAL_HOME_COUNT];   // the slots in xmm2 .. xmm5 (.. xmm11 where there are ten)
     int decimalHomeCount = 0;
     void pick_slot_homes();                 // which slots, from the bytecode
     int whole_home(Int slot);               // which home (0 .. 3), -1: none

@@ -156,7 +156,9 @@ const OP_MOVOBJ_S        : _int64 = 0xdf;      //                               
 const OP_IAND_S          : _int64 = 0xe0;      // iand ior ixor ishl ishr              d, a; then the constant
 const OP_JLT_K           : _int64 = 0xe5;      // jlt jgt jle jge jeq jne              a, constant, sense; then the target
 const OP_DJLT_K          : _int64 = 0xeb;      // the same six for a decimal a
-const OP_LAST            : _int64 = 0xf0;
+const OP_DJNE_K          : _int64 = 0xf0;
+const OP_DSQRT           : _int64 = 0xf1;      // the square root of a decimal            r1 = sqrt(r2)
+const OP_LAST            : _int64 = 0xf1;
 const OP_ILL             : _int64 = 0xff;      // only as the opcode of invoke_delegate's second word
 
 // ---- the registers
@@ -193,7 +195,7 @@ def opcode_name(opcode: _int64) : string {
             + "jnz_s jz_s jnull_s isnull_s not_s mov8_s mov16_s mov32_s movu8_s movu16_s movu32_s "
             + "returnval_s returnobj_s iadd_s isub_s imul_s putobj_s movobj_s "
             + "iand_s ior_s ixor_s ishl_s ishr_s jlt_k jgt_k jle_k jge_k jeq_k jne_k "
-            + "djlt_k djgt_k djle_k djge_k djeq_k djne_k");
+            + "djlt_k djgt_k djle_k djge_k djeq_k djne_k dsqrt");
     }
     if(opcode < 0 || opcode >= sizeof(opcode_names)) { return "ill"; }
     return opcode_names!![opcode];
@@ -223,13 +225,13 @@ def is_two_words(opcode: _int64) : _int64 {
         || opcode == OP_NEWCLASSARRAY || (opcode >= 0x4f && opcode <= 0x53) || opcode == 0x5c || opcode == OP_ISTOREL
         || opcode == OP_INVOKE_DELEGATE || opcode == 0x66 || opcode == 0x6a || opcode == 0x75 || opcode == OP_SMOVR_4
         || (opcode >= 0x86 && opcode <= 0x89) || (opcode >= 0x8d && opcode <= 0x93) || is_slot_jump(opcode)
-        || (opcode >= OP_IADD_S && opcode < OP_PUTOBJ_S) || (opcode >= OP_IAND_S && opcode <= OP_LAST);
+        || (opcode >= OP_IADD_S && opcode < OP_PUTOBJ_S) || (opcode >= OP_IAND_S && opcode <= OP_DJNE_K);
 }
 
 /** is it one of the slot forms that compare and jump (its second word is the target)? */
 def is_slot_jump(opcode: _int64) : _int64 {
     return (opcode >= OP_JLT_S && opcode < OP_ALOAD8_S) || opcode == OP_JNZ_S || opcode == OP_JZ_S || opcode == OP_JNULL_S
-        || (opcode >= OP_JLT_K && opcode <= OP_LAST);
+        || (opcode >= OP_JLT_K && opcode <= OP_DJNE_K);
 }
 
 /** is it one of the instructions that call a function (the exception rules R1, R2 of codegen.md 4.7 are about them)? */
@@ -259,7 +261,7 @@ def register_number(name: string) : _int64 {
  * B and the target of a jump in the second word (the slot forms that jump),
  * I class B and a constant in the second word.
  */
-opcode_forms : string = "EDKDECDCCCCCCCCDBBBBBKKKKKEDDCEEECCCCDDDDDDDDEEDXXDCCEEDDDCDDBBCCCCCCEDEKDCCCCCKKKKKCECCCCCDXCKDEDDDGDKDDDKDCDEEECDCBKDDKBBBCDDCCCCCCCKKKKCCCKKKKXKKDCCCCCCCCCCCCCCCBBBBBBBBBBBBBBJJJJJJJJJJJJBBBBBBBBBBBBBBBBKKJBBBBBBBBDDIIIBBIIIIIJJJJJJJJJJJJ";
+opcode_forms : string = "EDKDECDCCCCCCCCDBBBBBKKKKKEDDCEEECCCCDDDDDDDDEEDXXDCCEEDDDCDDBBCCCCCCEDEKDCCCCCKKKKKCECCCCCDXCKDEDDDGDKDDDKDCDEEECDCBKDDKBBBCDDCCCCCCCKKKKCCCKKKKXKKDCCCCCCCCCCCCCCCBBBBBBBBBBBBBBJJJJJJJJJJJJBBBBBBBBBBBBBBBBKKJBBBBBBBBDDIIIBBIIIIIJJJJJJJJJJJJC";
 
 /** the form letter of an opcode ('?' for one the VM does not have) */
 def opcode_form(opcode: _int64) : _int64 {

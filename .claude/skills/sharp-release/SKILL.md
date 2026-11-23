@@ -51,7 +51,12 @@ Pitfalls that have bitten before:
 | `lib/compiler/**` or `lib/support/**` | the language version: patch + 1 (`0.4.3` -> `0.4.4`) |
 | only docs, tests, build scripts, the plugin | nothing: tell the user there is nothing to release |
 
-A minor or major language bump (`0.5.0`, `1.0.0`) only when the user asks for it.
+**The last number never rolls over.** It counts releases and goes as high as it needs to: after
+`0.5.9` comes `0.5.10`, then `0.5.11` ... `0.5.38` is a fine version. Do NOT go to `0.6.0` because
+the last number reached 9. The same holds for the VM's patch number (`4.0.9` -> `4.0.10`).
+
+The middle number means a BREAKING CHANGE, and it (like the first number: `1.0.0`) moves only when
+the user asks for it - never on your own judgment, also when a change does break programs.
 If the current version was never installed or handed to the user (it was bumped earlier in this same
 piece of work), keep it - do not bump twice for one release.
 

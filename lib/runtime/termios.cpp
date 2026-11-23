@@ -2,6 +2,7 @@
 // Created by BraxtonN on 7/10/2018.
 //
 #include "../../stdimports.h"
+#include "console_helper.h"
 #ifdef POSIX_
 #include <termios.h>
 #include <sys/ioctl.h>
@@ -128,6 +129,7 @@ char getche(void)
 //
 #ifdef POSIX_
 long long vm_read_key(bool echo) {
+    console_output_flush();     // what was printed is seen before the program waits for a key
     unsigned char ch = 0;
     initTermios(echo ? 1 : 0);
     bool got = read(0, &ch, 1) == 1;
@@ -138,6 +140,7 @@ long long vm_read_key(bool echo) {
 #include <conio.h>
 #include <io.h>
 long long vm_read_key(bool echo) {
+    console_output_flush();     // what was printed is seen before the program waits for a key
     if(_isatty(0)) return echo ? _getche() : _getch();
     unsigned char ch = 0;
     return _read(0, &ch, 1) == 1 ? (long long) ch : -1;

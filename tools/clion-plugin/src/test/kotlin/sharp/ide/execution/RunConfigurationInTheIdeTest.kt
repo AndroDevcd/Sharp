@@ -145,4 +145,36 @@ class RunConfigurationInTheIdeTest : BasePlatformTestCase() {
             base.deleteRecursively()
         }
     }
+
+    /** File > New > Project > Sharp: the generator is registered, fills the folder and leaves a run configuration for it, selected. */
+    fun testTheNewProjectWindowsSharpEntryMakesAProjectThatCanBeRun() {
+        val generator = com.intellij.openapi.extensions.ExtensionPointName.create<com.intellij.platform.DirectoryProjectGenerator<*>>("com.intellij.directoryProjectGenerator").extensionList
+            .filterIsInstance<sharp.ide.project.SharpProjectGenerator>().single()
+        assertEquals("Sharp", generator.name)
+        assertNotNull(generator.logo)
+
+        val base = Files.createTempDirectory("sharp-generated").toFile()
+        val runs = RunManager.getInstance(project)
+        try {
+            File(base, "first game").mkdirs()
+            val folder = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(File(base, "first game"))!!
+            generator.generateProject(project, folder, Any(), module)
+
+            assertTrue(File(base, "first game/settings.json").isFile)
+            assertTrue(File(base, "first game/src/main.sharp").readText().contains("def main(args: string[])"))
+            assertTrue(File(base, "first game/build").isDirectory)
+            val made = runs.allSettings.single { (it.configuration as? SharpRunConfiguration)?.programFolderPath() == ProgramFiles.normalise(folder.path) }
+            assertEquals("first_game", made.name)
+            assertSame("the new configuration is the one the Run button starts", made, runs.selectedConfiguration)
+
+            // a second time changes nothing: no second configuration, the files as they were
+            File(base, "first game/src/main.sharp").writeText("mod main;\n// mine\n")
+            sharp.ide.project.SharpProjectGenerator.fill(project, folder)
+            assertEquals(1, runs.allSettings.count { (it.configuration as? SharpRunConfiguration)?.programFolderPath() == ProgramFiles.normalise(folder.path) })
+            assertEquals("mod main;\n// mine\n", File(base, "first game/src/main.sharp").readText())
+        } finally {
+            runs.allSettings.filter { it.configuration is SharpRunConfiguration }.forEach { runs.removeConfiguration(it) }
+            base.deleteRecursively()
+        }
+    }
 }

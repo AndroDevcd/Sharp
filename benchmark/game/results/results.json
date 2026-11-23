@@ -1,0 +1,719 @@
+{
+  "date": "2026-11-23",
+  "machine": "AMD Ryzen 7 9700X 8-Core Processor, 16 threads, 15 GB, Linux 6.18.58.1-microsoft-standard-WSL2",
+  "size": "full",
+  "runs": 1,
+  "languages": [
+    {
+      "id": "c",
+      "name": "C (gcc)",
+      "version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "id": "rust",
+      "name": "Rust",
+      "version": "rustc 1.75.0 (82e1608df 2023-12-21) (built from a source tarball)"
+    },
+    {
+      "id": "go",
+      "name": "Go",
+      "version": "go version go1.22.2 linux/amd64"
+    },
+    {
+      "id": "java",
+      "name": "Java",
+      "version": "openjdk version 21.0.13.1 2026-11-17"
+    },
+    {
+      "id": "csharp",
+      "name": "C# (Mono)",
+      "version": "Mono JIT compiler version 6.8.0.105 (Debian 6.8.0.105+dfsg-3.6ubuntu2 Sun Mar 31"
+    },
+    {
+      "id": "node",
+      "name": "JavaScript (Node)",
+      "version": "v18.19.1"
+    },
+    {
+      "id": "pypy",
+      "name": "Python (PyPy)",
+      "version": "Python 3.9.18 (7.3.15+dfsg-1build3, Apr 01 2024, 03:12:48)"
+    },
+    {
+      "id": "luajit",
+      "name": "Lua (LuaJIT)",
+      "version": "LuaJIT 2.1.1703358377 -- Copyright (C) 2005-2023 Mike Pall. https://luajit.org/"
+    },
+    {
+      "id": "sharp_O",
+      "name": "Sharp -O",
+      "version": "sharp 4.0.9r19 build-3"
+    },
+    {
+      "id": "sharp",
+      "name": "Sharp",
+      "version": "sharp 4.0.9r19 build-3"
+    },
+    {
+      "id": "php",
+      "name": "PHP",
+      "version": "PHP 8.3.6 (cli) (built: Nov 18 2026 23:42:07) (NTS)"
+    },
+    {
+      "id": "lua",
+      "name": "Lua",
+      "version": "Lua 5.4.6  Copyright (C) 1994-2023 Lua.org, PUC-Rio"
+    }
+  ],
+  "results": [
+    {
+      "test": "nbody",
+      "language": "rust",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 1.98,
+      "cpu_seconds": 1.95,
+      "memory_mb": 2
+    },
+    {
+      "test": "nbody",
+      "language": "go",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 2.43,
+      "cpu_seconds": 2.41,
+      "memory_mb": 1
+    },
+    {
+      "test": "nbody",
+      "language": "java",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 1.92,
+      "cpu_seconds": 1.79,
+      "memory_mb": 45
+    },
+    {
+      "test": "nbody",
+      "language": "csharp",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 6.97,
+      "cpu_seconds": 6.74,
+      "memory_mb": 17
+    },
+    {
+      "test": "nbody",
+      "language": "node",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 2.85,
+      "cpu_seconds": 2.8,
+      "memory_mb": 54
+    },
+    {
+      "test": "nbody",
+      "language": "pypy",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 5.26,
+      "cpu_seconds": 5.18,
+      "memory_mb": 67
+    },
+    {
+      "test": "nbody",
+      "language": "luajit",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 3.98,
+      "cpu_seconds": 3.96,
+      "memory_mb": 2
+    },
+    {
+      "test": "nbody",
+      "language": "php",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 52.23,
+      "cpu_seconds": 52.45,
+      "memory_mb": 18
+    },
+    {
+      "test": "nbody",
+      "language": "lua",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 59.36,
+      "cpu_seconds": 59.41,
+      "memory_mb": 2
+    },
+    {
+      "test": "spectralnorm",
+      "language": "rust",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 0.91,
+      "cpu_seconds": 0.9,
+      "memory_mb": 2
+    },
+    {
+      "test": "spectralnorm",
+      "language": "go",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 0.94,
+      "cpu_seconds": 0.92,
+      "memory_mb": 1
+    },
+    {
+      "test": "spectralnorm",
+      "language": "java",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 0.96,
+      "cpu_seconds": 0.97,
+      "memory_mb": 43
+    },
+    {
+      "test": "spectralnorm",
+      "language": "csharp",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 4.84,
+      "cpu_seconds": 4.72,
+      "memory_mb": 17
+    },
+    {
+      "test": "spectralnorm",
+      "language": "node",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 1.18,
+      "cpu_seconds": 1.14,
+      "memory_mb": 52
+    },
+    {
+      "test": "spectralnorm",
+      "language": "pypy",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 1.24,
+      "cpu_seconds": 1.2,
+      "memory_mb": 62
+    },
+    {
+      "test": "spectralnorm",
+      "language": "luajit",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 0.95,
+      "cpu_seconds": 0.93,
+      "memory_mb": 2
+    },
+    {
+      "test": "spectralnorm",
+      "language": "php",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 33.14,
+      "cpu_seconds": 33.1,
+      "memory_mb": 18
+    },
+    {
+      "test": "spectralnorm",
+      "language": "lua",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 29.75,
+      "cpu_seconds": 29.77,
+      "memory_mb": 3
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "rust",
+      "n": 12,
+      "status": "ok",
+      "seconds": 20.38,
+      "cpu_seconds": 20.56,
+      "memory_mb": 2
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "go",
+      "n": 12,
+      "status": "ok",
+      "seconds": 21.14,
+      "cpu_seconds": 21.39,
+      "memory_mb": 1
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "java",
+      "n": 12,
+      "status": "ok",
+      "seconds": 20.35,
+      "cpu_seconds": 19.93,
+      "memory_mb": 44
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "csharp",
+      "n": 12,
+      "status": "ok",
+      "seconds": 34.73,
+      "cpu_seconds": 34.69,
+      "memory_mb": 16
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "node",
+      "n": 12,
+      "status": "ok",
+      "seconds": 22.35,
+      "cpu_seconds": 22.49,
+      "memory_mb": 51
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "pypy",
+      "n": 12,
+      "status": "ok",
+      "seconds": 39.03,
+      "cpu_seconds": 38.91,
+      "memory_mb": 67
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "luajit",
+      "n": 12,
+      "status": "ok",
+      "seconds": 48.3,
+      "cpu_seconds": 48.56,
+      "memory_mb": 2
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "php",
+      "n": 12,
+      "status": "ok",
+      "seconds": 262.77,
+      "cpu_seconds": 262.57,
+      "memory_mb": 18
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "lua",
+      "n": 12,
+      "status": "ok",
+      "seconds": 215.69,
+      "cpu_seconds": 215.76,
+      "memory_mb": 2
+    },
+    {
+      "test": "binarytrees",
+      "language": "rust",
+      "n": 21,
+      "status": "ok",
+      "seconds": 5.15,
+      "cpu_seconds": 5.05,
+      "memory_mb": 258
+    },
+    {
+      "test": "binarytrees",
+      "language": "go",
+      "n": 21,
+      "status": "ok",
+      "seconds": 9.29,
+      "cpu_seconds": 45.18,
+      "memory_mb": 201
+    },
+    {
+      "test": "binarytrees",
+      "language": "java",
+      "n": 21,
+      "status": "ok",
+      "seconds": 2.52,
+      "cpu_seconds": 3.05,
+      "memory_mb": 1689
+    },
+    {
+      "test": "binarytrees",
+      "language": "csharp",
+      "n": 21,
+      "status": "ok",
+      "seconds": 9.09,
+      "cpu_seconds": 13.15,
+      "memory_mb": 418
+    },
+    {
+      "test": "binarytrees",
+      "language": "node",
+      "n": 21,
+      "status": "ok",
+      "seconds": 9.2,
+      "cpu_seconds": 16.44,
+      "memory_mb": 1338
+    },
+    {
+      "test": "binarytrees",
+      "language": "pypy",
+      "n": 21,
+      "status": "ok",
+      "seconds": 25.28,
+      "cpu_seconds": 25.34,
+      "memory_mb": 733
+    },
+    {
+      "test": "binarytrees",
+      "language": "luajit",
+      "n": 21,
+      "status": "ok",
+      "seconds": 25.11,
+      "cpu_seconds": 25.21,
+      "memory_mb": 1624
+    },
+    {
+      "test": "binarytrees",
+      "language": "php",
+      "n": 21,
+      "status": "ok",
+      "seconds": 42.11,
+      "cpu_seconds": 41.88,
+      "memory_mb": 738
+    },
+    {
+      "test": "binarytrees",
+      "language": "lua",
+      "n": 21,
+      "status": "ok",
+      "seconds": 66.87,
+      "cpu_seconds": 67.08,
+      "memory_mb": 1044
+    },
+    {
+      "test": "mandelbrot",
+      "language": "rust",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 9.68,
+      "cpu_seconds": 9.49,
+      "memory_mb": 2
+    },
+    {
+      "test": "mandelbrot",
+      "language": "go",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 9.92,
+      "cpu_seconds": 9.75,
+      "memory_mb": 1
+    },
+    {
+      "test": "mandelbrot",
+      "language": "java",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 9.74,
+      "cpu_seconds": 9.59,
+      "memory_mb": 43
+    },
+    {
+      "test": "mandelbrot",
+      "language": "csharp",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 28.03,
+      "cpu_seconds": 28.05,
+      "memory_mb": 16
+    },
+    {
+      "test": "mandelbrot",
+      "language": "node",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 9.59,
+      "cpu_seconds": 9.41,
+      "memory_mb": 54
+    },
+    {
+      "test": "mandelbrot",
+      "language": "pypy",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 24.62,
+      "cpu_seconds": 24.74,
+      "memory_mb": 67
+    },
+    {
+      "test": "mandelbrot",
+      "language": "luajit",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 11.19,
+      "cpu_seconds": 10.98,
+      "memory_mb": 2
+    },
+    {
+      "test": "mandelbrot",
+      "language": "php",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 127.73,
+      "cpu_seconds": 127.66,
+      "memory_mb": 18
+    },
+    {
+      "test": "mandelbrot",
+      "language": "lua",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 80.18,
+      "cpu_seconds": 79.84,
+      "memory_mb": 2
+    },
+    {
+      "test": "fasta",
+      "language": "rust",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 2.23,
+      "cpu_seconds": 2.18,
+      "memory_mb": 2
+    },
+    {
+      "test": "fasta",
+      "language": "go",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 2.44,
+      "cpu_seconds": 2.39,
+      "memory_mb": 1
+    },
+    {
+      "test": "fasta",
+      "language": "java",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 2.65,
+      "cpu_seconds": 2.64,
+      "memory_mb": 45
+    },
+    {
+      "test": "fasta",
+      "language": "csharp",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 2.44,
+      "cpu_seconds": 2.95,
+      "memory_mb": 16
+    },
+    {
+      "test": "fasta",
+      "language": "node",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 2.6,
+      "cpu_seconds": 2.54,
+      "memory_mb": 52
+    },
+    {
+      "test": "fasta",
+      "language": "pypy",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 3.81,
+      "cpu_seconds": 3.72,
+      "memory_mb": 65
+    },
+    {
+      "test": "fasta",
+      "language": "luajit",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 4.87,
+      "cpu_seconds": 4.76,
+      "memory_mb": 2
+    },
+    {
+      "test": "fasta",
+      "language": "php",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 20.83,
+      "cpu_seconds": 20.36,
+      "memory_mb": 18
+    },
+    {
+      "test": "fasta",
+      "language": "lua",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 11.35,
+      "cpu_seconds": 11.8,
+      "memory_mb": 2
+    },
+    {
+      "test": "nbody",
+      "language": "c",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 1.96,
+      "cpu_seconds": 1.96,
+      "memory_mb": 1
+    },
+    {
+      "test": "nbody",
+      "language": "sharp_O",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 6.49,
+      "cpu_seconds": 6.64,
+      "memory_mb": 7
+    },
+    {
+      "test": "nbody",
+      "language": "sharp",
+      "n": 50000000,
+      "status": "ok",
+      "seconds": 12.06,
+      "cpu_seconds": 12.32,
+      "memory_mb": 7
+    },
+    {
+      "test": "spectralnorm",
+      "language": "c",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 0.89,
+      "cpu_seconds": 0.89,
+      "memory_mb": 2
+    },
+    {
+      "test": "spectralnorm",
+      "language": "sharp_O",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 2.15,
+      "cpu_seconds": 2.19,
+      "memory_mb": 7
+    },
+    {
+      "test": "spectralnorm",
+      "language": "sharp",
+      "n": 5500,
+      "status": "ok",
+      "seconds": 8.68,
+      "cpu_seconds": 8.87,
+      "memory_mb": 7
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "c",
+      "n": 12,
+      "status": "ok",
+      "seconds": 25.83,
+      "cpu_seconds": 25.16,
+      "memory_mb": 1
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "sharp_O",
+      "n": 12,
+      "status": "ok",
+      "seconds": 32.68,
+      "cpu_seconds": 34.09,
+      "memory_mb": 7
+    },
+    {
+      "test": "fannkuchredux",
+      "language": "sharp",
+      "n": 12,
+      "status": "ok",
+      "seconds": 50.56,
+      "cpu_seconds": 51.34,
+      "memory_mb": 7
+    },
+    {
+      "test": "binarytrees",
+      "language": "c",
+      "n": 21,
+      "status": "ok",
+      "seconds": 7.06,
+      "cpu_seconds": 6.97,
+      "memory_mb": 257
+    },
+    {
+      "test": "binarytrees",
+      "language": "sharp_O",
+      "n": 21,
+      "status": "ok",
+      "seconds": 13.9,
+      "cpu_seconds": 14.56,
+      "memory_mb": 1148
+    },
+    {
+      "test": "binarytrees",
+      "language": "sharp",
+      "n": 21,
+      "status": "ok",
+      "seconds": 18.64,
+      "cpu_seconds": 19.22,
+      "memory_mb": 1259
+    },
+    {
+      "test": "mandelbrot",
+      "language": "c",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 9.82,
+      "cpu_seconds": 9.67,
+      "memory_mb": 1
+    },
+    {
+      "test": "mandelbrot",
+      "language": "sharp_O",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 17.16,
+      "cpu_seconds": 17.43,
+      "memory_mb": 7
+    },
+    {
+      "test": "mandelbrot",
+      "language": "sharp",
+      "n": 16000,
+      "status": "ok",
+      "seconds": 34.07,
+      "cpu_seconds": 34.96,
+      "memory_mb": 7
+    },
+    {
+      "test": "fasta",
+      "language": "c",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 2.31,
+      "cpu_seconds": 2.28,
+      "memory_mb": 1
+    },
+    {
+      "test": "fasta",
+      "language": "sharp_O",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 2.84,
+      "cpu_seconds": 2.89,
+      "memory_mb": 7
+    },
+    {
+      "test": "fasta",
+      "language": "sharp",
+      "n": 25000000,
+      "status": "ok",
+      "seconds": 5.21,
+      "cpu_seconds": 5.28,
+      "memory_mb": 8
+    }
+  ],
+  "updated": "2026-11-23: c, sharp, sharp_O run again"
+}

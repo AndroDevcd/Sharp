@@ -117,6 +117,7 @@ public:
     virtual void d_load(DReg to, PReg base, int32_t offset) = 0;
     virtual void d_store(DReg from, PReg base, int32_t offset) = 0;
     virtual void d_operation(DOp op, DReg to, DReg left, DReg right) = 0;
+    virtual void d_square_root(DReg to, DReg from) = 0;
     virtual void d_compare(VReg to, DReg left, DReg right, Cond how) = 0;
     virtual void d_jump_if(DReg left, DReg right, Cond how, bool holds, int label) = 0;    // (not a number: "holds" only for NE)
     virtual void d_from_whole(DReg to, VReg from) = 0;                  // (double) of a 64-bit whole number

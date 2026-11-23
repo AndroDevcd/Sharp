@@ -53,6 +53,13 @@ import ( std.di, platform )
  * which failed and where each one is written. The test program itself is not
  * changed for it.
  *
+ * ONLY SOME OF THEM. `-test-only <which>` runs a part of the tests and passes
+ * the rest by without a word: a group by its name, or one test as
+ * "<group> > <test>". It may be given several times.
+ *
+ *      sharp basket_tests -test-only "a shopping basket"
+ *      sharp basket_tests -test-only "a shopping basket > a new basket is empty"
+ *
  * ONE TEST, ONE THING. Each test builds what it needs from scratch, does one
  * thing, and checks the result. Tests do not share objects and do not depend
  * on the order they run in - then a failing test points at exactly one thing.
@@ -93,6 +100,10 @@ stable class test_run {
     private static before : list<test_step> = new list<test_step>();   // the open group's before_each blocks
     private static after : list<test_step> = new list<test_step>();
 
+    // -test-only: what to run ("group", or "group > test"); empty: everything
+    private static only : list<string> = new list<string>();
+    private static only_read : _int64 = 0;
+
     // reporting for an editor (the argument -ide-tests): 0 not looked yet, 1 yes, 2 no
     private static for_editor : _int64 = 0;
     private static place_file : string = "";        // what find_place found last
@@ -104,6 +115,7 @@ stable class test_run {
         if(inside_group == 1) {
             throw new illegal_state_exception("`tests(\"" + name + "\") { ... }` was written inside another `tests { ... }`: groups do not nest - write them one after the other");
         }
+        if(!is_wanted(name, "")) { return; }       // -test-only names other tests: this group is passed by
         group_name = new string(name);
         inside_group = 1;
         before.clear();
@@ -169,6 +181,7 @@ stable class test_run {
 
     static def one(name: string, body: ()()) {
         must_be_in_group("test(\"" + name + "\") { ... }");
+        if(!is_wanted(group_name, name)) { return; }
         inside_test = 1;
         problem : string = "";
         went_wrong : _int64 = 0;
@@ -227,6 +240,32 @@ stable class test_run {
     }
 
     // ------------------------------------------------------------ reporting for an editor
+
+    /**
+     * Is this group (`test` ""), or this test of it, to be run? Everything is,
+     * unless the program was started with `-test-only`: then a group that is
+     * named, or holds a test that is named, and in it every test when the group
+     * itself is named, else the tests named.
+     */
+    private static def is_wanted(group: string, test: string) : bool {
+        if(only_read == 0) {
+            only_read = 1;
+            given : string[] = program_arguments();
+            for(i : _int64 = 0; i + 1 < sizeof(given); i++) {
+                if(given[i] == "-test-only") { only.add(given[i + 1]); }
+            }
+        }
+        if(only.size() == 0) { return true; }
+
+        for(i : _int64 = 0; i < only.size(); i++) {
+            named : string = only.at(i);
+            if(named == group) { return true; }                         // the whole group
+            if(index_of(named, group + " > ") != 0) { continue; }       // a test of another group
+            if(test.size() == 0) { return true; }                       // the group of a test that is named
+            if(named == group + " > " + test) { return true; }
+        }
+        return false;
+    }
 
     /** was the program started with -ide-tests? (looked up once) */
     private static def to_editor() : bool {

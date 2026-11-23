@@ -282,14 +282,17 @@ Int jit_rt_interrupt(Int flag) {
 
 void jit_rt_put_integer(Int value) {
     cout << value;
+    console_output_written();
 }
 
 void jit_rt_put_decimal(double value) {
     cout << natural_number(value);      // the same text the interpreter's DPUT prints (console_helper.cpp)
+    console_output_written();
 }
 
 void jit_rt_put_character(Int value) {
-    printf("%c", (char)value);
+    putc((char)value, stdout);
+    console_output_written();
 }
 
 Int jit_rt_get_character(Int echo) {

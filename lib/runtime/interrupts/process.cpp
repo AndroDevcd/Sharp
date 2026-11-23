@@ -37,6 +37,7 @@ void op_system(Int interrupt) {
     if(str != NULL && str->type <= type_var) {
         string cmd;
         populate_string(cmd, str);
+        console_output_flush();     // (the command writes to the same screen: ours first)
         gc_safe_region waitingForCommand;
         registers[CMT].i = system(cmd.c_str());
     } else

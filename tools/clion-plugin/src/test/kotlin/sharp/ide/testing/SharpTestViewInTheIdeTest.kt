@@ -88,4 +88,77 @@ class SharpTestViewInTheIdeTest : BasePlatformTestCase() {
         val copy = settings.createFactory().create().configuration as sharp.ide.execution.SharpRunConfiguration
         assertTrue(copy.fields.testProgram)
     }
+
+    /**
+     * The folder opened in the IDE HOLDS the Sharp project (workspace/shop/settings.json): the check
+     * after a save still takes it for a project - its tests are compiled with the program, and the
+     * compiler is told where they are. (They were left out: `tests` is a folder the plugin skips in
+     * a folder that is no project.)
+     */
+    fun testAProjectBelowTheOpenedFolderHasItsTestsChecked() {
+        val base = Files.createTempDirectory("sharp-nested-project").toFile()
+        val settings = project.getService(sharp.ide.settings.SharpProjectSettings::class.java)
+        val before = settings.state.sourceRoots.toMutableList()
+        try {
+            File(base, "shop").mkdirs()
+            val folder = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(File(base, "shop"))!!
+            sharp.ide.execution.NewSharpProjectAction.create(folder)
+            val workspace = sharp.ide.paths.ProgramFiles.normalise(base.path)
+            settings.state.sourceRoots = mutableListOf(workspace)
+
+            val files = sharp.ide.paths.ProgramFiles.list(settings.programSettings())
+            assertTrue(files.toString(), "$workspace/shop/src/main.sharp" in files)
+            assertTrue("the tests are checked too", "$workspace/shop/tests/main_tests.sharp" in files)
+            assertEquals("$workspace/shop/tests", settings.testsFolderOfProgram())
+
+            // a folder called tests that belongs to no project stays out
+            File(base, "tests").mkdirs()
+            File(base, "tests/loose.sharp").writeText("mod loose;\n")
+            File(base, "shop/settings.json").delete()
+            assertFalse("$workspace/tests/loose.sharp" in sharp.ide.paths.ProgramFiles.list(settings.programSettings()))
+            assertNull(settings.testsFolderOfProgram())
+        } finally {
+            settings.state.sourceRoots = before
+            base.deleteRecursively()
+        }
+    }
+
+    /**
+     * A project with a tests folder: the words of its test file get an arrow, each runs its own part of
+     * the project's tests; a file of the program gets none; a new project comes with its first test.
+     */
+    fun testTheArrowsOfATestFileRunTheirPartOfTheProjectsTests() {
+        val base = Files.createTempDirectory("sharp-test-arrows").toFile()
+        try {
+            File(base, "shop").mkdirs()
+            val folder = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(File(base, "shop"))!!
+            val main = sharp.ide.execution.NewSharpProjectAction.create(folder)!!
+            val tests = folder.findChild("tests")!!.findChild("main_tests.sharp")!!
+            val shop = sharp.ide.paths.ProgramFiles.normalise(folder.path)
+
+            val psi = com.intellij.psi.PsiManager.getInstance(project).findFile(tests)!!
+            val text = psi.text
+            fun choice(word: String) = SharpTestPlaces.choiceAt(psi.findElementAt(text.indexOf(word))!!)
+
+            val one = choice("test(\"the program greets\")")!!
+            assertEquals(shop, one.project.folder)
+            assertEquals(listOf("hello world > the program greets"), one.filters)
+            assertEquals("hello world > the program greets", one.title)
+            assertEquals(listOf("hello world"), choice("tests(\"hello world\")")!!.filters)
+            val all = SharpTestPlaces.choiceAt(psi.findElementAt(text.indexOf("def main()") + 4)!!)!!
+            assertEquals(emptyList<String>(), all.filters)
+            assertEquals("shop tests", all.title)
+            assertNull("a word that runs nothing", choice("expect("))
+            assertNotNull("the arrow itself", SharpTestRunLineMarker().getInfo(psi.findElementAt(text.indexOf("test(\"the program greets\")"))!!))
+
+            // the program's own file is not a test: no arrow, though it has a main
+            val program = com.intellij.psi.PsiManager.getInstance(project).findFile(main)!!
+            assertNull(SharpTestPlaces.choiceAt(program.findElementAt(program.text.indexOf("def main(") + 4)!!))
+            assertNull(sharp.ide.project.SharpProjectFiles.projectOfTest(main.path))
+            assertEquals(shop, sharp.ide.project.SharpProjectFiles.projectOfTest(tests.path)!!.folder)
+            assertEquals("the tests folder itself", shop, sharp.ide.project.SharpProjectFiles.projectOfTest(folder.findChild("tests")!!.path)!!.folder)
+        } finally {
+            base.deleteRecursively()
+        }
+    }
 }

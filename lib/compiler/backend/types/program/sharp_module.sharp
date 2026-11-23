@@ -165,6 +165,10 @@ class import_group {
 
 /** THE WHOLE PROGRAM: every module and every file */
 class sharp_program {
+    // the folder whose `main` is where the program starts (a tests build: -tests, -testdir);
+    // "" for an ordinary build, where the one global `main` is
+    tests_folder : string = "";
+
     modules := new name_table<sharp_module>();
     module_list := new list<sharp_module>();
     files := new list<sharp_file>();

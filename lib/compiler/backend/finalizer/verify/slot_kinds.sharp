@@ -84,6 +84,7 @@ def kinds_fit(code: ir_function, made: ir_instruction) : _int64 {
         if(made.detail == 1) { return holds(code, made.first, SLOT_DEC) && holds(code, made.target, SLOT_DEC); }
         return holds(code, made.first, SLOT_INT) && holds(code, made.target, SLOT_INT);
     }
+    if(kind == IR_SQUARE_ROOT) { return holds(code, made.first, SLOT_DEC) && holds(code, made.target, SLOT_DEC); }
     if(kind == IR_NOT) {
         if(made.detail == 1) { return holds(code, made.first, SLOT_DEC) && holds(code, made.target, SLOT_INT); }
         return holds(code, made.first, SLOT_INT) && holds(code, made.target, SLOT_INT);

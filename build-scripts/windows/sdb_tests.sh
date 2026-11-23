@@ -32,7 +32,7 @@ compile() {     # compile <output> <files and options...>
     [ -f "$OUT/$output" ] || { grep -E "error" -A4 "$OUT/$output.compile.txt" | head -20; echo "$output did not compile"; echo "WINDOWS SDB TESTS: FAIL"; exit 1; }
 }
 P="$ROOT/lib/debugger/tests/programs"
-for name in notebook values lambdas workers two_threads locks long_run fiber_values; do compile $name.dbg "$P/$name.sharp" -dbg; done
+for name in notebook values lambdas workers two_threads locks long_run fiber_values main_ends_first; do compile $name.dbg "$P/$name.sharp" -dbg; done
 compile twins.dbg "$P/twins/twins.sharp" "$P/twins/shop/notes.sharp" "$P/twins/school/notes.sharp" -dbg
 compile values_plain "$P/values.sharp"
 compile values_obf "$P/values.sharp" -dbg -obf

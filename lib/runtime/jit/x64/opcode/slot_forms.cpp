@@ -228,12 +228,19 @@ emit_result X64Generator::emit_slot_forms() {
         case Opcode::ASTORE8_S: case Opcode::ASTORE16_S: case Opcode::ASTORE32_S: case Opcode::ASTORE64_S:
             slot_element_or_throw(triple1, triple2);
             a.mov(rdx, x86::qword_ptr(rax, offsetof(sharp_object, data)));
-            a.mov(rax, local_number(triple3));      // (memory: right whichever kind of home the slot has)
-            switch(op) {
-                case Opcode::ASTORE8_S:  a.mov(x86::byte_ptr(rdx, rcx), x86::al); break;
-                case Opcode::ASTORE16_S: a.mov(x86::word_ptr(rdx, rcx, 1), x86::ax); break;
-                case Opcode::ASTORE32_S: a.mov(x86::dword_ptr(rdx, rcx, 2), x86::eax); break;
-                default:                 a.mov(x86::qword_ptr(rdx, rcx, 3), rax); break;
+            if(op == Opcode::ASTORE64_S && decimal_home(triple3) >= 0) {
+                // a decimal that is at home in a register: from there, straight into the array
+                a.movsd(x86::qword_ptr(rdx, rcx, 3), decimal_home_register(decimal_home(triple3)));
+                return emitted;
+            }
+            {
+                x86::Gp value = slot_in_register(triple3, rax);     // its home, or rax
+                switch(op) {
+                    case Opcode::ASTORE8_S:  a.mov(x86::byte_ptr(rdx, rcx), value.r8()); break;
+                    case Opcode::ASTORE16_S: a.mov(x86::word_ptr(rdx, rcx, 1), value.r16()); break;
+                    case Opcode::ASTORE32_S: a.mov(x86::dword_ptr(rdx, rcx, 2), value.r32()); break;
+                    default:                 a.mov(x86::qword_ptr(rdx, rcx, 3), value); break;
+                }
             }
             return emitted;
 

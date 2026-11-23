@@ -8,7 +8,8 @@
 #     bash test.sh changed              the parts whose files changed since the last commit, quick
 #     bash test.sh changed full         ... all of each
 #     bash test.sh case lib_data_json   one case of the suite (tests/suite/cases), compiled and run
-#     bash test.sh try app/main.sharp   any one file, compiled with what is in the repository now, and run
+#     bash test.sh try app/main.sharp   any one file - or a project folder - compiled with what is in the
+#                                       repository now, and run   (a folder: try shop -tests  builds its tests)
 #                                       (what follows the file goes to the program: try a.sharp --port 80)
 #     bash test.sh list                 the parts, what each one runs, how long it takes
 #     bash test.sh help                 this text
@@ -16,7 +17,7 @@
 # THE PARTS
 #     compiler    reading and checking source, the error messages; full: code generation, self-hosting
 #     library     the standard library compiles; full: every case of the suite, run four ways
-#     vm          the suite run once, calls to C++; full: the suite four ways, the kind checks, the Windows VM
+#     vm          the suite run once, calls to C++; full: the suite four ways, the kind checks, the ARM JIT under qemu, the Windows VM
 #     debugger    sdb driven by its own tests; full: on Windows too
 #     tools       the command line, the files the editor reads; full: the CLion plugin's tests
 #     programs    the examples and the benchmarks still compile and run
@@ -46,7 +47,7 @@ LOGS="$REPO/build/test"
 PARTS="compiler library vm debugger tools programs"
 # the numbered tests of build-scripts/test.sh behind each part (test 1, the compiler builds, always runs)
 quick_of() { case $1 in compiler) echo "4 5";; library) echo "2";; vm) echo "8 15";; debugger) echo "16";; tools) echo "12 14";; programs) echo "11";; esac; }
-full_of()  { case $1 in compiler) echo "4 5 6 7 13";; library) echo "2 3 8";; vm) echo "8 9 10 15";; debugger) echo "16";; tools) echo "12 14";; programs) echo "11";; esac; }
+full_of()  { case $1 in compiler) echo "4 5 6 7 13";; library) echo "2 3 8";; vm) echo "8 9 10 15 17";; debugger) echo "16";; tools) echo "12 14";; programs) echo "11";; esac; }
 # the Windows half of a part (full runs, and quick runs with the word `windows`)
 windows_of() { case $1 in vm) echo "the suite on the Windows VM";; debugger) echo "sdb on Windows";; tools) echo "the CLion plugin's tests";; esac; }
 

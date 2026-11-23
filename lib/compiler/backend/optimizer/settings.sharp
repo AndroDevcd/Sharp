@@ -66,6 +66,7 @@ def optimization_names() : list<string> {
     names.add("loop-formula");
     names.add("loop-unrolling");
     names.add("loop-rotation");
+    names.add("loop-guards");
     names.add("loop-registers");
     names.add("copy-coalescing");
     names.add("immediates");
@@ -80,6 +81,7 @@ def optimization_names() : list<string> {
     names.add("closure-elimination");
     names.add("escape-analysis");
     names.add("string-concatenation");
+    names.add("math-instructions");
     names.add("shared-literals");
     return names;
 }

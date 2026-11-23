@@ -27,6 +27,11 @@ import (
  *      E0930   a second entry point: two global functions of these forms
  *      W1015   a global `main` that is not one of the forms: it will not be run
  *
+ * A TESTS BUILD (`-tests`, `-testdir`: lib/compiler/project.sharp) is the
+ * program's files and its tests together, and both have a `main`. There the
+ * entry point is the `main` in the TESTS folder (`sharp_program.tests_folder`);
+ * a `main` anywhere else is an ordinary function, which a test may call.
+ *
  * A function called `main` inside a class is an ordinary function. No `main`
  * at all is not an analysis error (D18): the standard library on its own has
  * none. Building an executable without one is for code generation to refuse
@@ -58,10 +63,29 @@ def find_main_function(session: analysis_session, analysed: analysed_program) {
             if(function.name != "main" || function.owner != null || function.extends != null) { continue; }
             // `def main() { }` written twice is "declared twice" (E0331): that is the one mistake
             if(function.declared_twice == 1) { continue; }
+            // a tests build starts at the tests' main: the program's own is an ordinary function there
+            if(sizeof(prog.tests_folder.data) > 0 && !is_in_folder(function.unit.file, prog.tests_folder)) { continue; }
             consider_main(session, analysed, function);
         }
     }
     if(analysed.main_function != null) { prog.main_function = analysed.main_function; }
+}
+
+/** is the file in the folder (or below it)? Either slash separates folders; on Windows the letters' case does not count. */
+def is_in_folder(file_path: string, folder: string) : _int64 {
+    wide : _int64 = sizeof(folder.data);
+    if(sizeof(file_path.data) <= wide) { return 0; }
+    for(i : _int64 = 0; i < wide; i++) {
+        a : _int64 = file_path.data!![i];
+        b : _int64 = folder.data!![i];
+        if(a == 92) { a = 47; }
+        if(b == 92) { b = 47; }
+        if(a >= 65 && a <= 90) { a = a + 32; }
+        if(b >= 65 && b <= 90) { b = b + 32; }
+        if(a != b) { return 0; }
+    }
+    next : _int64 = file_path.data!![wide];
+    return next == 47 || next == 92;
 }
 
 /** one global function called `main`: the entry point, a second one (E0930), or not one at all (W1015) */

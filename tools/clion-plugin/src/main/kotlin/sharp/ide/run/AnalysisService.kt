@@ -42,6 +42,7 @@ import sharp.ide.index.IndexLoader
 import sharp.ide.index.RunIndex
 import sharp.ide.index.RunReadException
 import sharp.ide.paths.PathTranslator
+import sharp.ide.toolchain.SharpToolchains
 import sharp.ide.paths.ProgramFiles
 import sharp.ide.paths.ProgramLayout
 import sharp.ide.paths.ProgramSettings
@@ -141,10 +142,25 @@ class AnalysisService(private val project: Project) : Disposable {
         return fresh
     }
 
+
     // ---------------------------------------------------------------- the background task
 
+    /**
+     * The scheduler's `start`: `finished` MUST be called once for every call, or the scheduler waits
+     * for this run for ever and no later save starts one.
+     *
+     * So the hop to the UI thread is NOT given "drop this when the project is gone" (the platform's
+     * `expired` condition): a hop that is dropped runs nothing, also not `finished`. The project is
+     * looked at inside instead, and a run that cannot be made says it is over. (A project counts as
+     * gone for a moment between two tests of the plugin, too - that is how this was found: a run
+     * asked for by one test, due between two tests, left every later test without runs.)
+     */
     private fun startInBackground(finished: () -> Unit) {
-        ApplicationManager.getApplication().invokeLater({
+        ApplicationManager.getApplication().invokeLater {
+            if (project.isDisposed) {
+                finished()
+                return@invokeLater
+            }
             val task = object : Task.Backgroundable(project, "Sharp: analysing", true) {
                 override fun run(indicator: ProgressIndicator) {
                     try {
@@ -154,8 +170,24 @@ class AnalysisService(private val project: Project) : Disposable {
                     }
                 }
             }
-            ProgressManager.getInstance().run(task)
-        }, project.disposed)
+            try {
+                ProgressManager.getInstance().run(task)
+            } catch (e: Throwable) {
+                finished()                                    // (called twice does no harm: the scheduler takes the first)
+                throw e
+            }
+        }
+    }
+
+    /**
+     * `-testdir <folder>` when the program is a project with a tests folder: its tests are checked with
+     * the program (SharpProjectSettings.testsFolderOfProgram). Left out for an installed Sharp that
+     * does not know the option yet.
+     */
+    private fun testsFolderArguments(installedVersion: String?, translator: PathTranslator?): List<String> {
+        if (installedVersion != null && SharpToolchains.compareVersions(installedVersion, SharpToolchains.FIRST_WITH_PROJECT_TESTS) < 0) return emptyList()
+        val folder = project.service<SharpProjectSettings>().testsFolderOfProgram() ?: return emptyList()
+        return listOf("-testdir", translator?.toWsl(folder) ?: folder)
     }
 
     // ---------------------------------------------------------------- one run, start to end
@@ -197,7 +229,7 @@ class AnalysisService(private val project: Project) : Disposable {
             script = app.script,
             vm = toolchain?.vm ?: app.vm,
             compiler = toolchain?.compiler ?: app.compiler,
-            extraArguments = CommandTemplate.splitExtraArguments(projectState.extraArguments),
+            extraArguments = CommandTemplate.splitExtraArguments(projectState.extraArguments) + testsFolderArguments(toolchain?.version, translator),
             timeoutSeconds = app.timeoutSeconds,
             translator = translator,
             direct = toolchain != null,

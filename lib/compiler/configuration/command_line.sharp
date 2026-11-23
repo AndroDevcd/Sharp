@@ -196,6 +196,17 @@ def read_command_line(args: string[]) {
             set_project_directory(value_after(args, i, "the folder of the project"));
             i++;
         }
+        else if(arg == "-tests"){
+            options.tests = true;           // the project's tests, not the program (project.sharp)
+        }
+        else if(arg == "-test-only"){
+            options.tests_only.add(value_after(args, i, "the group, or \"group > test\", to run"));
+            i++;
+        }
+        else if(arg == "-testdir"){
+            set_tests_directory(value_after(args, i, "the folder that holds the tests"));
+            i++;
+        }
         else if(arg == "-wlib"){
             options.library_warnings = true;  // also the warnings located in the standard library
         }
@@ -421,6 +432,10 @@ def help() {
     println(              "    -ignore <file>    include a file to ignore"                                  );
     println(              "    -p                enable project mode compilation (the current folder)"      );
     println(              "    -P <path>         enable project mode compilation on a specific path"        );
+    println(              "    -tests            build the project's tests (its `tests` folder) with the program;" );
+    println(              "                      the tests' main is where it starts: build/outputs/<name>_tests" );
+    println(              "    -test-only <name> with -tests -run: run only this group, or \"group > test\" (may be repeated)" );
+    println(              "    -testdir <dir>    the folder whose main is where the program starts (an editor's check)" );
     println(              "    --new-project <name> create a new sharp project"                             );
     println(              "    --clean           flush the build cache and compile the project fresh"       );
     println(              "    -cache <folder>   folder for the build cache (default: <project>/build/cache)" );

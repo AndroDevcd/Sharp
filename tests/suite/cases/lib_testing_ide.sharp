@@ -84,6 +84,38 @@ def main(args: string[]) {
             expect(plain_said).should_contain("  FAIL  adding puts one in");
             expect(plain_said.find("##teamcity")).should_be(false);
         };
+
+        // ---- -test-only: a part of the tests
+        one_test := subprocess.run(program_path(), new string[] { "child", "-test-only", "a basket > it's empty [at first]" }, true);
+        one_said := one_test.read_all_text();
+        one_code : _int64 = one_test.wait();
+        one_test.close();
+        test("one test named: it alone is run") {
+            expect(one_said).should_contain("  ok    it's empty [at first]");
+            expect(one_said).should_contain("all 1 tests passed");
+            expect(one_said.find("adding puts one in")).should_be(false);
+            expect(one_said.find("second group")).should_be(false);
+            expect(one_code).should_be(0);
+        };
+
+        one_group := subprocess.run(program_path(), new string[] { "child", "-test-only", "second group", "-test-only", "a basket > something throws" }, true);
+        group_said := one_group.read_all_text();
+        one_group.wait();
+        one_group.close();
+        test("a group named, and a test of another: the group whole, the other group's one test") {
+            expect(group_said).should_contain("  ok    fine");
+            expect(group_said).should_contain("  FAIL  something throws");
+            expect(group_said).should_contain("1 failed, 1 passed (2 tests)");
+            expect(group_said.find("adding puts one in")).should_be(false);
+        };
+
+        nothing := subprocess.run(program_path(), new string[] { "child", "-test-only", "no such group" }, true);
+        nothing_said := nothing.read_all_text();
+        nothing.wait();
+        nothing.close();
+        test("a name that fits nothing runs nothing, and says so") {
+            expect(nothing_said).should_contain("no tests were run");
+        };
     };
     finish_tests("lib_testing_ide");
 }

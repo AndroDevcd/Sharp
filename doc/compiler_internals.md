@@ -613,6 +613,7 @@ Integer arithmetic (decimal twin in brackets)
 | `IMOD` a `+k` | `regs[a] %= k` |
 | `INC DEC` a  [`DINC DDEC`] | `regs[a] += 1`, `-= 1` |
 | `NEG` a, b  [`DNEG`] | `regs[a] = -regs[b]` |
+| `DSQRT` a, b | `regs[a] = sqrt(regs[b])`, decimals |
 | `NOT` a, b  [`DNOT`] | `regs[a] = regs[b] == 0` |
 | `LT GT LTE GTE` a, b  [`DLT DGT DLTE DGTE`] | `cmt = regs[a] ? regs[b]` (0 or 1, an integer) |
 | `TEST TNE` a, b  [`DTEST DTNE`] | `bmr = regs[a] == regs[b]`, `!=` |

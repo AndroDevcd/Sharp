@@ -55,7 +55,7 @@ class SharpProjectSettings(private val project: Project) : PersistentStateCompon
 
     /**
      * A plain copy of what ProgramFiles needs. Where a program folder is a Sharp PROJECT (it has a
-     * settings.json: sharp.ide.project), the file's ignored folders are left out as well and the
+     * settings.json: sharp.ide.project) - or holds one as a direct sub-folder - the file's ignored folders are left out as well and the
      * libraries it names are part of the program - so the editor checks what `sharpc -P` builds.
      */
     fun programSettings(): ProgramSettings {
@@ -67,11 +67,33 @@ class SharpProjectSettings(private val project: Project) : PersistentStateCompon
             installedLibrary = SharpApplicationSettings.getInstance().toolchain()?.library ?: "",
         )
         val roots = sharp.ide.paths.ProgramFiles.layoutOf(plain).sourceRoots
-        val projects = roots.mapNotNull { sharp.ide.project.SharpProjectFiles.read(it) }
+        val projects = roots.flatMap { sharp.ide.project.SharpProjectFiles.inOrBelow(it) }
         if (projects.isEmpty()) return plain
         val libraries = projects.flatMap { it.externLibraryFolders() }.filter { it !in roots }
-        val ignored = projects.flatMap { it.ignoredInsideProject() }.filter { it !in plain.excludedFolders }
-        if (libraries.isEmpty() && ignored.isEmpty()) return plain
-        return plain.copy(sourceRoots = roots + libraries, excludedFolders = plain.excludedFolders + ignored)
+        // (a project's tests folder is code the editor checks, whatever the plugin's own list of folders
+        //  to leave out says - `tests` is on it for folders that are not projects)
+        val testFolders = projects.filter { it.hasTests() }.map { it.testsFolder }
+        val excluded = plain.excludedFolders.filter { it !in testFolders }
+        val ignored = projects.flatMap { it.ignoredInsideProject() }.filter { it !in excluded }
+        if (libraries.isEmpty() && ignored.isEmpty() && excluded.size == plain.excludedFolders.size) return plain
+        return plain.copy(sourceRoots = roots + libraries, excludedFolders = excluded + ignored)
+    }
+
+    /**
+     * The tests folder of the program's project, when it has one: the check after a save compiles it
+     * with the program and tells the compiler so (`-testdir`), which makes the tests' `main` the
+     * entry point there and the program's own an ordinary function - not "a second main".
+     */
+    fun testsFolderOfProgram(): String? {
+        val plain = ProgramSettings(
+            baseDirectory = project.basePath ?: "",
+            sourceRoots = state.sourceRoots.toList(),
+            excludedFolders = state.excludedFolders.toList(),
+            libraryPath = state.libraryPath,
+            installedLibrary = SharpApplicationSettings.getInstance().toolchain()?.library ?: "",
+        )
+        return sharp.ide.paths.ProgramFiles.layoutOf(plain).sourceRoots
+            .flatMap { sharp.ide.project.SharpProjectFiles.inOrBelow(it) }
+            .firstOrNull { it.hasTests() }?.testsPath
     }
 }

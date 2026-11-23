@@ -39,20 +39,57 @@ import (
  * The backward `jump_if` is where the JIT takes over a hot loop (it accepts
  * `jmp`, `je`, `jne` going back: codegen.md 4.8).
  *
- *      C++ comparison: passes/pass_loop_rotation.cpp.
+ * WITH A GUARD (`with_guards`). Some loops get the test itself on the way in
+ * instead of the jump to it - the test is then written twice:
+ *
+ *      top:                                      <test>                  (once, on the way in:
+ *          <test>                                jump_unless %c, end      the GUARD)
+ *          jump_unless %c, end               body:
+ *          <body>                  ->            <body>
+ *          jump top                          top:
+ *      end:                                      <test>
+ *                                                jump_if %c, body
+ *                                            end:
+ *
+ * The instructions that run are the same ones in the same order: on the way
+ * in the test ran once before, and it runs once now. What is new is a PLACE:
+ * between the guard and `body`, which is reached exactly when the body is
+ * about to run for the first time. A field read the body begins with -
+ * `items` of `self.items[i]` - may raise (the object may be null), so it
+ * cannot go in front of a loop that may not run at all; it can go there.
+ * Loop-invariant code motion (loop_invariants.sharp) is run once more after
+ * this pass and moves it: for it the body's first block is now the block the
+ * loop begins with.
+ *
+ * A loop gets a guard only when that can help and costs little: its body
+ * begins - before anything that stores, calls, may raise or jumps - with a
+ * field read through an object the loop does not change, and its test is a
+ * few instructions that only compute (`wants_guard`). Every other loop is
+ * rotated as before.
+ *
+ *      C++ comparison: passes/pass_loop_rotation.cpp (without the guard).
  */
-def rotate_loops(code: ir_function) : _int64 {
-    rotated : _int64 = 0;
-    // one loop at a time; each rotation changes the positions, so the search starts again
-    for(round : _int64 = 0; round < 256; round++) {
-        if(rotate_one_loop(code) == 0) { return rotated; }
-        rotated++;
-    }
-    return rotated;
+class rotation_result {
+    rotated : _int64 = 0;               // loops rotated
+    guarded : _int64 = 0;               // how many of them got a guard
 }
 
-/** find one loop of the shape in the header and rotate it; 1 when one was found */
-def rotate_one_loop(code: ir_function) : _int64 {
+def rotate_loops(code: ir_function, with_guards: _int64) : rotation_result {
+    result := new rotation_result();
+    // (a function with a `try` gets no guards: loop-invariant code motion leaves it alone anyway)
+    if(code.tries.size() > 0) { with_guards = 0; }
+    // one loop at a time; each rotation changes the positions, so the search starts again
+    for(round : _int64 = 0; round < 256; round++) {
+        how : _int64 = rotate_one_loop(code, with_guards);
+        if(how == 0) { return result; }
+        result.rotated++;
+        if(how == 2) { result.guarded++; }
+    }
+    return result;
+}
+
+/** find one loop of the shape in the header and rotate it; 1 when one was found, 2 when it also got a guard */
+def rotate_one_loop(code: ir_function, with_guards: _int64) : _int64 {
     places := places_of_labels(code);
     facts := label_facts_of(code);
     count : _int64 = code.instructions.size();
@@ -67,8 +104,45 @@ def rotate_one_loop(code: ir_function) : _int64 {
         exit : _int64 = code.instructions.at(test_end).number;
         if(places.at(exit) <= back || !lands_right_after(code, places, back, exit)) { continue; }
         if(closes_a_range(code, facts, back)) { continue; }
-        rotate(code, top_place, test_end, back);
-        return 1;
+        guarded : _int64 = with_guards == 1 && wants_guard(code, top_place, test_end, back);
+        rotate(code, top_place, test_end, back, guarded);
+        return 1 + guarded;
+    }
+    return 0;
+}
+
+/** the most instructions a test may have to be written twice */
+const MAX_GUARD_INSTRUCTIONS : _int64 = 8;
+
+/**
+ * Is the loop one a guard helps (the top of the file says which)? The loop
+ * is the instructions from `top_place` (its label) to `back` (the jump back).
+ */
+def wants_guard(code: ir_function, top_place: _int64, test_end: _int64, back: _int64) : _int64 {
+    // the test: short, and it only computes
+    real : _int64 = 0;
+    for(i : _int64 = top_place + 1; i < test_end; i++) {
+        made := code.instructions.at(i);
+        if(made.kind == IR_LINE) { continue; }
+        if(has_effect(made)) { return 0; }
+        real++;
+    }
+    if(real > MAX_GUARD_INSTRUCTIONS) { return 0; }
+
+    // the body: what it begins with
+    for(i : _int64 = test_end + 1; i < back; i++) {
+        made := code.instructions.at(i);
+        if(made.kind == IR_LINE) { continue; }
+        if(made.kind == IR_GET_FIELD && made.first >= 0 && !writes_slot(code, top_place, back, made.first)) { return 1; }
+        if(made.kind == IR_LABEL || has_effect(made)) { return 0; }
+    }
+    return 0;
+}
+
+/** does an instruction from `from` to `to` write slot `slot`? */
+def writes_slot(code: ir_function, from: _int64, to: _int64, slot: _int64) : _int64 {
+    for(i : _int64 = from; i <= to; i++) {
+        if(slot_written(code.instructions.at(i)) == slot) { return 1; }
     }
     return 0;
 }
@@ -117,8 +191,11 @@ def starts_with_line(code: ir_function, index: _int64, end: _int64) : _int64 {
  *
  *      before ... | top: | test ... jump_unless %c, end | body ... | jump top | rest ...
  *      before ... | jump top | body: | body ... | top: | test ... jump_if %c, body | rest ...
+ *
+ * `guarded`: a copy of the test, with its jump to the exit, takes the place
+ * of `jump top`.
  */
-def rotate(code: ir_function, top_place: _int64, test_end: _int64, back: _int64) {
+def rotate(code: ir_function, top_place: _int64, test_end: _int64, back: _int64, guarded: _int64) {
     old := code.instructions;
     top_label := old.at(top_place);
     body_label : _int64 = code.label_count;
@@ -129,9 +206,14 @@ def rotate(code: ir_function, top_place: _int64, test_end: _int64, back: _int64)
 
     made := new list<ir_instruction>();
     for(i : _int64 = 0; i < top_place; i++) { made.add(old.at(i)); }
-    into_test := new ir_instruction(IR_JUMP);
-    into_test.number = top_label.number;
-    made.add(into_test);
+    if(guarded == 1) {
+        // the test once more, as it is written (its line marks too), ending in its jump to the exit
+        for(i : _int64 = top_place + 1; i <= test_end; i++) { made.add(copy_of_instruction(old.at(i))); }
+    } else {
+        into_test := new ir_instruction(IR_JUMP);
+        into_test.number = top_label.number;
+        made.add(into_test);
+    }
     placed := new ir_instruction(IR_LABEL);
     placed.number = body_label;
     made.add(placed);
