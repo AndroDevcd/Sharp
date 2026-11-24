@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sdb, the debugger - Sharp</title>
+<meta name="description" content="sdb, the Sharp debugger: breakpoints, variables, threads and fibers in the terminal.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="index.html">Home</a>
+      <a href="guide/index.html">Guide</a>
+      <a href="std/index.html">Library</a>
+      <a href="gui.html">GUI</a>
+      <a href="debugger.html" aria-current="page">Debugger</a>
+      <a href="performance.html">Performance</a>
+      <a href="install.html">Download</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="gui">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">sdb, the Sharp debugger</p>
+      <h1>See what your program is doing.</h1>
+      <p><code>sdb</code> runs a Sharp program and lets you stop it, look at it and change it. It comes with Sharp and works in any terminal.</p>
+    </div>
+
+    <div class="code wide"><pre>┌ output ────────────────────────────────────┐┌ long_run.sharp ─ app#spin ───────────────────────┐
+│ spinning                                   ││      9  def spin(turns: _int64) : _int64 {       │
+│                                            ││     10      total : _int64 = 0;                  │
+│                                            ││     11      for(i : _int64 = 0; i &lt; turns; i++) {│
+│                                            ││ <span class="s">→</span>   12          total += i % 7;                  │
+│                                            ││     13      }                                    │
+├ sdb ───────────────────────────────────────┤│ <span class="s">●</span>   14      return total;                        │
+│ <span class="k">(sdb)</span> break long_run.sharp:14              │├ locals ──────────────────────────────────────────┤
+│ breakpoint 1 at app#spin  long_run.sharp:14││ turns = <span class="n">4000000000</span>                               │
+│ <span class="k">(sdb)</span> continue                             ││ total = <span class="n">104796726</span>                                │
+│ paused: app#spin  long_run.sharp:12        ││ i     = <span class="n">34932244</span>                                 │
+│ <span class="k">(sdb)</span> █                                    │├ calls ───────────────────────────────────────────┤
+│                                            ││ * 0  app#spin  long_run.sharp:12                 │
+│                                            ││   1  app#main  long_run.sharp:23                 │
+└────────────────────────────────────────────┘└──────────────────────────────────────────────────┘
+ paused: app#spin  long_run.sharp:12   (thread 0, fiber 0)</pre></div>
+
+    <div class="pair top">
+      <div class="col">
+        <h2>Start it</h2>
+        <p>Build with <code>-dbg</code>, then run the program under <code>sdb</code>.</p>
+        <div class="code"><pre>$ sharpc notebook.sharp -dbg -o notebook
+$ sdb notebook</pre></div>
+        <h2>What you get</h2>
+        <ul class="plainlist">
+          <li>Your source, variables and call stack on screen while you step</li>
+          <li>Breakpoints by function, by file and line, or by line alone</li>
+          <li>Change a variable while the program is paused</li>
+          <li>Every thread and fiber, and what each is doing</li>
+          <li>Tab completion and breakpoints saved in <code>sdb.json</code></li>
+        </ul>
+      </div>
+      <div class="col">
+        <h2>The commands you'll use most</h2>
+        <div class="scroll"><table class="cmds">
+          <tr><td><code>break notebook.sharp:41</code></td><td>Stop when the line is reached</td></tr>
+          <tr><td><code>continue</code></td><td>Run to the next breakpoint, or the end</td></tr>
+          <tr><td><code>next</code></td><td>Run to the next line</td></tr>
+          <tr><td><code>into</code></td><td>Go into the function the line calls</td></tr>
+          <tr><td><code>out</code></td><td>Run until the function has returned</td></tr>
+          <tr><td><code>print &lt;name&gt;</code></td><td>What a variable, a field or an element holds</td></tr>
+          <tr><td><code>set &lt;name&gt; = &lt;value&gt;</code></td><td>Give it a new value</td></tr>
+          <tr><td><code>backtrace</code></td><td>The calls that led here</td></tr>
+          <tr><td><code>threads</code></td><td>Every thread and the fiber it runs</td></tr>
+        </table></div>
+        <div><a class="btn" href="sdb.html">Read the full sdb guide</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="site.js"></script>
+</body>
+</html>

@@ -17,10 +17,12 @@
     <span class="version">0.5.11</span>
     <nav class="main" aria-label="Site">
       <a href="index.html" aria-current="page">Home</a>
-      <a href="std/index.html">Standard library</a>
+      <a href="guide/index.html">Guide</a>
+      <a href="std/index.html">Library</a>
       <a href="gui.html">GUI</a>
-      <a href="projects.html">Projects</a>
-      <a href="install.html">Install</a>
+      <a href="debugger.html">Debugger</a>
+      <a href="performance.html">Performance</a>
+      <a href="install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
   </div>
@@ -33,8 +35,8 @@
         <h1>Dependency injection, mocks, tests and GUI apps, <em>all built in.</em></h1>
         <p class="lede">Sharp ships with the tools most projects have to piece together from third-party libraries. Programs compile with <code>sharpc</code> and run on the Sharp VM.</p>
         <div class="actions">
-          <a class="btn primary" href="install.html">Install Sharp 0.5.11</a>
-          <a class="btn" href="std/index.html">Read the library</a>
+          <a class="btn primary" href="install.html">Download Sharp 0.5.11</a>
+          <a class="btn" href="guide/index.html">Read the guide</a>
         </div>
         <div class="runs"><span>Runs on <b>Windows</b></span><span><b>Linux x86-64</b></span><span><b>Raspberry Pi</b> (ARM)</span></div>
       </div>
@@ -144,31 +146,15 @@ abs says 42</pre>
     </div>
   </section>
 
-  <section class="plain" id="speed">
+  <section class="plain">
     <div class="wrap">
-      <div class="perf">
-        <div class="claim">
+      <div class="fast">
+        <div class="big">2.2&times;</div>
+        <div class="col">
           <p class="eyebrow">Performance</p>
-          <h2>How fast is Sharp?</h2>
-          <div class="big">2.2&times;<small>the time of the fastest language, with <code>-O</code></small></div>
-          <p>With <code>-O</code>, Sharp is about as fast as LuaJIT and faster than PyPy and Mono. Without it, it is still several times faster than Lua and PHP.</p>
-          <p>Six Benchmarks Game programs per language, single-threaded. The fastest on each test is 1&times;; the score is the geometric mean.</p>
-          <div><a class="btn" href="benchmarks.html">Open the full chart</a></div>
-        </div>
-        <div class="bars" role="img" aria-label="Times the fastest program, lower is better: Java 1.0, Rust 1.1, C 1.3, Go 1.3, JavaScript 1.4, Sharp with -O 2.2, LuaJIT 2.3, PyPy 2.6, C# Mono 2.7, Sharp 3.9, Lua 15, PHP 17">
-          <div class="row" style="--v:1.0"><span class="name">Java</span><span class="track"><div class="fill"></div></span><span class="val">1.0&times;</span></div>
-          <div class="row" style="--v:1.1"><span class="name">Rust</span><span class="track"><div class="fill"></div></span><span class="val">1.1&times;</span></div>
-          <div class="row" style="--v:1.3"><span class="name">C (gcc)</span><span class="track"><div class="fill"></div></span><span class="val">1.3&times;</span></div>
-          <div class="row" style="--v:1.3"><span class="name">Go</span><span class="track"><div class="fill"></div></span><span class="val">1.3&times;</span></div>
-          <div class="row" style="--v:1.4"><span class="name">JavaScript (Node)</span><span class="track"><div class="fill"></div></span><span class="val">1.4&times;</span></div>
-          <div class="row sharp" style="--v:2.2"><span class="name">Sharp -O</span><span class="track"><div class="fill"></div></span><span class="val">2.2&times;</span></div>
-          <div class="row" style="--v:2.3"><span class="name">Lua (LuaJIT)</span><span class="track"><div class="fill"></div></span><span class="val">2.3&times;</span></div>
-          <div class="row" style="--v:2.6"><span class="name">Python (PyPy)</span><span class="track"><div class="fill"></div></span><span class="val">2.6&times;</span></div>
-          <div class="row" style="--v:2.7"><span class="name">C# (Mono)</span><span class="track"><div class="fill"></div></span><span class="val">2.7&times;</span></div>
-          <div class="row sharp" style="--v:3.9"><span class="name">Sharp</span><span class="track"><div class="fill"></div></span><span class="val">3.9&times;</span></div>
-          <div class="row" style="--v:15"><span class="name">Lua</span><span class="track"><div class="fill"></div></span><span class="val">15&times;</span></div>
-          <div class="row" style="--v:17"><span class="name">PHP</span><span class="track"><div class="fill"></div></span><span class="val">17&times;</span></div>
-          <p class="axis">Times slower than the fastest. Shorter is faster.</p>
+          <h2>About as fast as LuaJIT.</h2>
+          <p>On six Benchmarks Game programs, Sharp with <code>-O</code> takes 2.2 times as long as the fastest language. That is ahead of PyPy and Mono, and up to 160 times faster than Sharp was in 2020.</p>
+          <div><a class="btn" href="performance.html">See the numbers</a></div>
         </div>
       </div>
     </div>
@@ -206,8 +192,8 @@ $ sharp hello
         <h2>Tools included.</h2>
       </div>
       <div class="tools">
-        <article><h3>sdb, the debugger</h3><p>Breakpoints, threads and data inspection in the terminal.</p><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/debugger/doc/sdb.md">The sdb guide</a></article>
-        <article><h3>Benchmarks</h3><p>Time and memory for every test. Run them yourself with one script.</p><a href="benchmarks.html">See the chart</a></article>
+        <article><h3>sdb, the debugger</h3><p>Breakpoints, threads and data inspection in the terminal.</p><a href="debugger.html">See the debugger</a></article>
+        <article><h3>Benchmarks</h3><p>Time and memory for every test. Run them yourself with one script.</p><a href="performance.html">See the numbers</a></article>
         <article><h3>CLion plugin</h3><p>Syntax highlighting, project settings and run configurations for CLion.</p><a href="https://github.com/AndroDevcd/Sharp/tree/runtime-3.0.0_r8/tools/clion-plugin">Get the plugin</a></article>
       </div>
     </div>

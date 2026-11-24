@@ -1,5 +1,5 @@
 /* Layout: a steel-and-ink language site. Nothing is rounded: corners are square or cut on a diagonal, like the name.
-   One hot accent (cobalt) on cool neutrals; code always sits on an ink panel. site.css is shared by every page. */
+   One hot accent (cobalt) on cool neutrals; code always sits on an ink panel. Three views on the hash: home, library, install. */
 :root {
   --bg: #F5F7FA;
   --surface: #FFFFFF;
@@ -170,6 +170,36 @@ nav.main a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--
 .shot figcaption { font: 500 12px var(--mono); color: var(--muted); }
 @media (max-width: 860px) { .gui .pair { grid-template-columns: minmax(0, 1fr); } }
 
+/* ---- home: the short word on speed */
+.fast { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 36px; align-items: center; }
+.fast .big { font-family: var(--display); font-weight: 800; font-size: clamp(64px, 11vw, 132px); line-height: 1; color: var(--accent); }
+.fast .col { display: flex; flex-direction: column; gap: 10px; max-width: 60ch; }
+.fast h2 { font-size: clamp(26px, 3.4vw, 36px); font-weight: 700; }
+.fast p { color: var(--muted); }
+.fast code { font-size: 14px; }
+@media (max-width: 700px) { .fast { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
+
+/* ---- guide, debugger, download */
+.lib aside .eyebrow { margin: 6px 0 0; }
+.lib .mods li a { color: inherit; text-decoration: none; }
+.lib .summary code, .lib main > p code { font-size: 13.5px; background: var(--accent-soft); color: var(--ink); padding: 1px 5px; }
+.pager { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); font-weight: 600; }
+.pager a { text-decoration: none; }
+.code.wide pre { font-size: 12.5px; line-height: 1.35; }
+.gui .pair.top { align-items: start; }
+.plainlist { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; display: flex; flex-direction: column; gap: 6px; }
+table.cmds { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+table.cmds td, table.cmds th { padding: 8px 14px 8px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; color: var(--muted); }
+table.cmds th { font: 500 12px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+table.cmds td:first-child { color: var(--ink); white-space: nowrap; }
+table.cmds td code { font-size: 13px; }
+table.years td { font-variant-numeric: tabular-nums; }
+table.years td b { color: var(--accent); }
+.getit { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding: 22px; background: var(--surface); border: 1px solid var(--line); }
+.getit span { color: var(--muted); font-size: 15px; }
+.getit > a:last-child { font-weight: 600; margin-left: auto; }
+.btn.big { font-size: 17px; padding: 15px 30px 15px 22px; }
+
 /* ---- projects */
 .proj .wrap { padding-block: 40px 56px; display: flex; flex-direction: column; gap: 32px; }
 .proj h1 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 800; }
@@ -242,3 +272,15 @@ footer a { color: inherit; }
 .lib .mods li a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 @media (max-width: 860px) { .lib .wrap { grid-template-columns: minmax(0, 1fr); } }
 .lib h2.inside { border: 0; padding: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* ---- the guide and the sdb guide (made from Markdown by build_site.py) */
+.guide main { gap: 16px; }
+.guide main > p, .guide main li { max-width: 72ch; color: var(--muted); }
+.guide main h2 { margin-top: 14px; }
+.guide main h3 { font-size: 17px; font-weight: 700; margin-top: 8px; }
+.guide main h4 { font-size: 15px; font-weight: 700; }
+.guide main code { font-size: 13.5px; }
+.guide main p code, .guide main li code, .guide main td code { background: var(--accent-soft); color: var(--ink); padding: 1px 5px; }
+.guide .wrap.one { grid-template-columns: minmax(0, 1fr); max-width: 900px; }
+.guide .mods li a { white-space: normal; }
+.lib .mods li.on a { color: var(--ink); }

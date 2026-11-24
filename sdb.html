@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The sdb guide - Sharp</title>
+<meta name="description" content="Everything sdb, the Sharp debugger, can do.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="index.html">Home</a>
+      <a href="guide/index.html">Guide</a>
+      <a href="std/index.html">Library</a>
+      <a href="gui.html">GUI</a>
+      <a href="debugger.html" aria-current="page">Debugger</a>
+      <a href="performance.html">Performance</a>
+      <a href="install.html">Download</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib guide"><div class="wrap one">
+    <main>
+      <p class="crumbs"><a href="debugger.html">Debugger</a> / The sdb guide</p>
+      <h1>sdb, the Sharp debugger</h1>
+<p><code>sdb</code> runs a Sharp program and lets you stop it, look at it and change it: where it is, how it got there, what its variables hold, what every thread and fiber is doing.</p>
+<div class="code"><pre>sharpc notebook.sharp -dbg -o notebook      build the program with -dbg (and without -O)
+sdb notebook                                 debug it</pre></div>
+<ul class="plainlist"><li><a href="#starting">Starting</a></li><li><a href="#the-two-views">The two views</a></li><li><a href="#the-commands">The commands</a></li><li><a href="#naming-things">Naming things</a></li><li><a href="#threads-and-fibers">Threads and fibers</a></li><li><a href="#settings-sdbjson">Settings: sdb.json</a></li><li><a href="#what-the-build-of-a-program-decides">What the build of a program decides</a></li><li><a href="#driving-sdb-from-a-script-or-a-test">Driving sdb from a script or a test</a></li><li><a href="#how-sdb-is-built">How sdb is built</a></li><li><a href="#building-and-testing-sdb">Building and testing sdb</a></li></ul>
+<h2 id="starting">Starting</h2>
+<div class="code"><pre>sdb [options] program [the program&#x27;s arguments]
+sdb [options]                                       the program that sdb.json names</pre></div>
+<div class="scroll"><table class="cmds"><tr><th>Option</th><th>Meaning</th></tr><tr><td>(none)</td><td>Load the program and stop at its <code>main</code></td></tr><tr><td><code>-run</code></td><td>Start at once: stop only at a breakpoint, or at Ctrl+C</td></tr><tr><td><code>-b &lt;place&gt;</code></td><td>Set a breakpoint before the program starts; may be given more than once</td></tr><tr><td><code>-x &lt;file&gt;</code></td><td>Read commands from a file, then from the keyboard</td></tr><tr><td><code>-map &lt;file&gt;</code></td><td>The name map of a program built with <code>-obf</code> (default: <code>&lt;program&gt;.names</code> beside it)</td></tr><tr><td><code>-settings &lt;file&gt;</code></td><td>The settings file (default: <code>sdb.json</code> in the folder sdb is started in)</td></tr><tr><td><code>-plain</code></td><td>Text that scrolls, not the full-screen view</td></tr><tr><td><code>-V</code>, <code>-h</code></td><td>The version; this list</td></tr></table></div>
+<p>The VM&#x27;s own options (<code>-mem</code>, <code>-stack</code>, <code>-istack</code>, <code>-gclog</code>, <code>-gcstress</code>) may be given too.</p>
+<p><code>sdb -V</code> says which VM it is: <code>sdb 0.1.0 (sharp 4.0.6r19)</code>. A program is loaded by the VM inside sdb, so sdb and the compiler that built the program must be of the same release.</p>
+<h2 id="the-two-views">The two views</h2>
+<p><b>The full-screen view</b> is what a terminal of at least 100 by 20 gets:</p>
+<div class="code"><pre>┌ output ────────────────────────────────────┐┌ long_run.sharp ─ app#spin ───────────────────────┐
+│ spinning                                   ││      9  def spin(turns: _int64) : _int64 {       │
+│                                            ││     10      total : _int64 = 0;                  │
+│                                            ││     11      for(i : _int64 = 0; i &lt; turns; i++) {│
+│                                            ││ →   12          total += i % 7;                  │
+│                                            ││     13      }                                    │
+├ sdb ───────────────────────────────────────┤│ ●   14      return total;                        │
+│ (sdb) break long_run.sharp:14              │├ locals ──────────────────────────────────────────┤
+│ breakpoint 1 at app#spin  long_run.sharp:14││ turns = 4000000000                               │
+│ (sdb) continue                             ││ total = 104796726                                │
+│ paused: app#spin  long_run.sharp:12        ││ i     = 34932244                                 │
+│ (sdb) █                                    │├ calls ───────────────────────────────────────────┤
+│                                            ││ * 0  app#spin  long_run.sharp:12                 │
+│                                            ││   1  app#main  long_run.sharp:23                 │
+└────────────────────────────────────────────┘└──────────────────────────────────────────────────┘
+ paused: app#spin  long_run.sharp:12   (thread 0, fiber 0)</pre></div>
+<ul class="plainlist"><li><b>Left:</b> what the program prints, above; what you type and what sdb answers, below.</li><li><b>Right:</b> the source around the current line (<code>→</code> the line about to run, <code>●</code> a breakpoint), the variables that can be named there, and the calls that led there. All three follow <code>frame</code>, <code>thread</code> and <code>fiber</code>.</li><li><b>Last line:</b> why the program stopped, or that it is running.</li></ul>
+<div class="scroll"><table class="cmds"><tr><th>Key</th><th>Does</th></tr><tr><td>Enter</td><td>Give the line</td></tr><tr><td>Tab</td><td>Finish a command typed in part (<code>con</code> → <code>continue</code>); when several fit, they are listed</td></tr><tr><td>Left, Right</td><td>Move in the line; what you type goes in at the cursor. Ctrl+Left / Ctrl+Right: a word at a time</td></tr><tr><td>Home, End (Ctrl+A, Ctrl+E)</td><td>To the start, the end of the line</td></tr><tr><td>Backspace, Delete</td><td>Take away the character before, under the cursor. Ctrl+U: all before it; Ctrl+K: all after</td></tr><tr><td>Up, Down</td><td>The lines given before</td></tr><tr><td>PageUp, PageDown</td><td>Scroll the sdb box</td></tr><tr><td>Ctrl+L</td><td>Draw the screen again</td></tr><tr><td>Ctrl+D</td><td>On an empty line: quit</td></tr><tr><td>Ctrl+C</td><td>While the program runs: stop it where it is. Twice, when nothing stops: end sdb</td></tr></table></div>
+<p>While the program runs the keyboard is the program&#x27;s. When sdb ends the terminal comes back as it was, with the last of what the program printed.</p>
+<p><b>The plain view</b> is text that scrolls: one line for each stop, the same text every time. It is what a pipe, a commands file (<code>-x</code>), a small terminal and Windows get, and what <code>-plain</code> or <code>&quot;view&quot;: &quot;plain&quot;</code> in <code>sdb.json</code> ask for.</p>
+<div class="code"><pre>at the start of the program: app#main  notebook.sharp:43   (thread 0, fiber 0)
+-&gt;    43      println(&quot;loading notes...&quot;);
+(sdb) break app#fill
+breakpoint 1 at app#fill  notebook.sharp:35
+(sdb) continue
+loading notes...
+breakpoint 1: app#fill  notebook.sharp:35   (thread 0, fiber 0)
+-&gt;    35      added : _int64 = 0;</pre></div>
+<h2 id="the-commands">The commands</h2>
+<p><code>help</code> lists them by topic; <code>help &lt;topic&gt;</code> lists a topic&#x27;s commands; <code>help &lt;command&gt;</code> says all about one, with examples. The same texts, in short:</p>
+<h3 id="running">Running</h3>
+<div class="scroll"><table class="cmds"><tr><th>Command</th><th>Short</th><th>Does</th></tr><tr><td><code>continue</code></td><td><code>c</code></td><td>Run to the next breakpoint, or the end</td></tr><tr><td><code>next</code></td><td><code>n</code></td><td>Run to the next line; a function the line calls runs to its end</td></tr><tr><td><code>into</code></td><td><code>i</code></td><td>Run to the next line, going into a function the line calls (the library&#x27;s too)</td></tr><tr><td><code>out</code></td><td><code>o</code></td><td>Run until the function the program is in has returned</td></tr><tr><td><code>nexti</code></td><td><code>ni</code></td><td>One VM instruction; a function it calls runs to its end</td></tr><tr><td><code>intoi</code></td><td><code>ii</code></td><td>One VM instruction, going into a function it calls</td></tr><tr><td><code>quit</code></td><td><code>q</code></td><td>End the program and sdb</td></tr></table></div>
+<p><code>next</code> and <code>nexti</code> stay in the function; <code>into</code> and <code>intoi</code> enter what is called. A step moves the fiber that stopped; every other thread runs freely meanwhile.</p>
+<h3 id="breakpoints">Breakpoints</h3>
+<div class="scroll"><table class="cmds"><tr><th>Command</th><th>Does</th></tr><tr><td><code>break &lt;function&gt;</code></td><td>Stop when the function is entered: <code>break app#notebook.add</code></td></tr><tr><td><code>break &lt;file&gt;:&lt;line&gt;</code></td><td>Stop when the line is reached: <code>break notebook.sharp:41</code>. <code>.sharp</code> may be left out, and a function may stand for its file: <code>break notebook.add:41</code></td></tr><tr><td><code>break &lt;line&gt;</code></td><td>The number alone: that line of the file in view</td></tr><tr><td><code>breaks</code></td><td>List them, with their numbers</td></tr><tr><td><code>clear &lt;number&gt;</code> / <code>clear all</code></td><td>Take one away, or all</td></tr><tr><td><code>disable &lt;number&gt;</code> / <code>enable &lt;number&gt;</code> (or <code>all</code>)</td><td>Switch one off and on; it stays in the list</td></tr><tr><td><code>save</code></td><td>Write them into <code>sdb.json</code></td></tr></table></div>
+<p>A line that holds no code gets no breakpoint: sdb names the next line that does and moves nothing by itself.</p>
+<h3 id="looking-and-changing">Looking and changing</h3>
+<div class="scroll"><table class="cmds"><tr><th>Command</th><th>Short</th><th>Does</th></tr><tr><td><code>backtrace</code></td><td><code>bt</code></td><td>The calls that led here: frame 0 is where the program is</td></tr><tr><td><code>frame [&lt;number&gt;]</code></td><td><code>f</code></td><td>Look at one of those calls from now on</td></tr><tr><td><code>list [&lt;line&gt; | &lt;file&gt;:&lt;line&gt;]</code></td><td><code>l</code></td><td>The source around a line</td></tr><tr><td><code>locals</code></td><td></td><td>Every variable that can be named here, and what it holds</td></tr><tr><td><code>print &lt;path&gt;</code></td><td><code>p</code></td><td>What a variable, a field or an element holds</td></tr><tr><td><code>set &lt;path&gt; = &lt;value&gt;</code></td><td></td><td>Give it a new value</td></tr></table></div>
+<p>A <b>path</b> names a value the way the program writes it, and computes nothing:</p>
+<div class="code"><pre>print count               a local variable or a parameter
+print self                the object the function was called on
+print title               a field of that object
+print book.title          a field of another object
+print numbers[3]          an element of an array or of a list
+print numbers[i]          ... the number taken from a variable
+print limit               a static field of the function&#x27;s class, or a variable of its module
+print app#settings.limit  a static field of a named class
+print app#visits          a variable of a named module</pre></div>
+<p>What is shown:</p>
+<div class="code"><pre>count = 3                                              a number
+ready = true                                           a bool
+name = &quot;milk\tand bread&quot;                               a text
+nothing = null
+corner = app#point                                     an object: its fields follow, one a line
+  x = 3
+numbers = _int64[4] [10, 20, 30, 40]                   an array: its first 15 elements, then ...
+notes = std#list&lt;std#string&gt; (2) [&quot;milk&quot;, &quot;bread&quot;]     a list, the same</pre></div>
+<p><code>set</code> takes a number, <code>true</code> or <code>false</code>, a text in quotes, or <code>null</code>:</p>
+<div class="code"><pre>set count = 12
+set ready = false
+set name = &quot;bread&quot;
+set numbers[2] = 99
+set book.owner = null</pre></div>
+<p>A text may only be given where a text is held. sdb copies no objects (<code>set a = b</code> is not possible).</p>
+<p>A variable declared on the current line shows as &quot;not set yet&quot;: the line has not run. A variable a lambda uses and a <code>localized</code> variable are read where they really live, so they look like any other; a <code>localized</code> one is the looked-at fiber&#x27;s own.</p>
+<h3 id="threads-and-fibers">Threads and fibers</h3>
+<div class="scroll"><table class="cmds"><tr><th>Command</th><th>Short</th><th>Does</th></tr><tr><td><code>threads</code></td><td></td><td>Every thread, what it was doing, the fiber it runs</td></tr><tr><td><code>thread &lt;id&gt; [&lt;command&gt;]</code></td><td><code>t</code></td><td>Look at a thread; with a command, for that one command only</td></tr><tr><td><code>fibers [&lt;word&gt;] [&lt;page&gt;]</code></td><td></td><td>Every fiber, 20 to a page; a word narrows the list</td></tr><tr><td><code>fiber &lt;id&gt; [&lt;command&gt;]</code></td><td></td><td>Look at a fiber; with a command, for that one command only</td></tr></table></div>
+<h3 id="help">Help</h3>
+<p><code>help</code>, <code>help &lt;topic&gt;</code>, <code>help &lt;command&gt;</code>, and <code>keys</code> for the keys of the full-screen view.</p>
+<h2 id="naming-things">Naming things</h2>
+<ul class="plainlist"><li><b>A function</b> is named as stack traces name it: <code>module#class.function</code>, as in <code>app#notebook.add</code>. A function written outside any class is <code>app#fill</code>.</li><li><b>The end of a name is enough</b> when only one thing fits: <code>notebook.add</code>, or <code>add</code>. When several fit, sdb lists them with their whole names: copy the one you mean.</li><li><b>A file</b> is named by its name, or by enough of its path when two files share a name: <code>notes.sharp</code>, <code>shop/notes.sharp</code>. sdb shows files the same way.</li></ul>
+<h2 id="threads-and-fibers">Threads and fibers</h2>
+<p>A *thread* is an OS thread that runs Sharp code. A *fiber* is one flow of the program with its own stack: each thread&#x27;s own, and every coroutine. A fiber that waits is on no thread.</p>
+<p><b>When the program stops, every thread of the program stops.</b> The VM&#x27;s own threads (the garbage collector&#x27;s, the idle thread) never do. The state shown is what the thread or fiber was doing at that moment - holding the program writes nothing into them:</p>
+<div class="scroll"><table class="cmds"><tr><th>A thread is</th><th>Meaning</th></tr><tr><td><code>running</code></td><td>It was executing Sharp code</td></tr><tr><td><code>extern c++</code></td><td>Inside the VM&#x27;s C++ or a native function, waiting: the keyboard, a socket, a join</td></tr><tr><td><code>extern c++ (busy)</code></td><td>Inside C++ and still working: this one did not stop</td></tr><tr><td><code>waiting for a fiber</code></td><td>It has no fiber that can run</td></tr><tr><td><code>suspended</code>, <code>not started</code>, <code>finished</code></td><td></td></tr><tr><td><code>VM</code></td><td>One of the VM&#x27;s own</td></tr></table></div>
+<div class="scroll"><table class="cmds"><tr><th>A fiber is</th><th>Meaning</th></tr><tr><td><code>running on thread N</code></td><td></td></tr><tr><td><code>ready</code></td><td>It can run and waits for a thread</td></tr><tr><td><code>sleeping, N ms left</code></td><td>In <code>delay()</code></td></tr><tr><td><code>waiting for a lock that fiber N holds</code></td><td></td></tr><tr><td><code>suspended</code>, <code>not started</code>, <code>finished</code></td><td></td></tr></table></div>
+<ul class="plainlist"><li><b>The scheduler&#x27;s time stands still while the program is held.</b> A <code>delay(1000)</code> with 400 ms to go still has 400 ms to go after you looked around for a minute.</li><li><b>A stepped fiber keeps its thread:</b> the scheduler does not switch it out in the middle of a step.</li><li><b>Two threads that stop together</b> are reported one after the other.</li><li><b><code>where</code></b> in the lists is the nearest function of your program, not the library function a sleeping fiber is really in. <code>thread &lt;id&gt;</code> and <code>fiber &lt;id&gt;</code> show every call.</li><li><b><code>thread 4 backtrace</code></b>, <code>fiber 12 locals</code>: one command, looking there, and nothing else changes.</li></ul>
+<h2 id="settings-sdb-json">Settings: sdb.json</h2>
+<p>In the folder sdb is started in (or the file <code>-settings</code> names). It need not be there.</p>
+<div class="code"><pre>{
+    &quot;program&quot;: &quot;build/app&quot;,
+    &quot;arguments&quot;: [&quot;first&quot;, &quot;second&quot;],
+    &quot;run&quot;: false,
+    &quot;map_file&quot;: &quot;build/app.names&quot;,
+    &quot;view&quot;: &quot;full&quot;,
+    &quot;list_lines&quot;: 5,
+    &quot;save_breakpoints&quot;: false,
+    &quot;breakpoints&quot;: [&quot;app#notebook.add&quot;, &quot;notebook.sharp:41&quot;, &quot;(off) app#fill&quot;]
+}</pre></div>
+<div class="scroll"><table class="cmds"><tr><th>Setting</th><th>Meaning</th></tr><tr><td><code>program</code>, <code>arguments</code></td><td>The program to debug when the command line names none</td></tr><tr><td><code>run</code></td><td><code>true</code>: the same as <code>-run</code></td></tr><tr><td><code>map_file</code></td><td>The same as <code>-map</code></td></tr><tr><td><code>view</code></td><td><code>&quot;full&quot;</code> or <code>&quot;plain&quot;</code></td></tr><tr><td><code>list_lines</code></td><td>How many lines <code>list</code> shows above and below</td></tr><tr><td><code>save_breakpoints</code></td><td><code>true</code>: every <code>break</code>, <code>clear</code>, <code>disable</code> and <code>enable</code> writes the list at once</td></tr><tr><td><code>breakpoints</code></td><td>Set at the start. One saved with <code>(off) </code> in front is switched off</td></tr></table></div>
+<ul class="plainlist"><li>The command line wins over the file.</li><li><code>save</code> (or every change, with <code>save_breakpoints</code>) replaces only the <code>breakpoints</code> list; every other character of the file stays as it is.</li><li>A saved breakpoint that cannot be set any more is reported, not set, not moved, and kept in the file.</li><li>A name sdb does not know is an error that lists the settings.</li></ul>
+<h2 id="what-the-build-of-a-program-decides">What the build of a program decides</h2>
+<div class="scroll"><table class="cmds"><tr><th>Built</th><th>sdb can</th></tr><tr><td>with <code>-dbg</code>, without <code>-O</code></td><td>Everything</td></tr><tr><td>without <code>-dbg</code></td><td>Breakpoints, stepping, <code>backtrace</code>, static fields - but no local variables and no source text. Said once at the start</td></tr><tr><td>with <code>-O</code></td><td>The same: the optimizer removes and merges variables. Said once at the start</td></tr><tr><td>with <code>-obf</code>, its name map found</td><td>Everything the rows above allow. Names are the written ones, with the program&#x27;s own in brackets: <code>app#point (ad#br)</code></td></tr><tr><td>with <code>-obf</code>, no name map</td><td>Nothing: sdb does not open the program</td></tr></table></div>
+<p>With <code>-dbg</code> the compiler adds a section at the end of the executable that only sdb reads (<code>lib/compiler/backend/finalizer/output/debug_locals.sharp</code>): the name of every local variable, where it lives, the lines it can be named on, and which fields are bools. The VM itself never asks for it, and an executable built without <code>-dbg</code> and without <code>-obf</code> is byte for byte what it was.</p>
+<p>One thing to know: the compiler leaves out a field that no code of the program ever reads. Such a field is not in the executable, so <code>print</code> cannot show it.</p>
+<h2 id="driving-sdb-from-a-script-or-a-test">Driving sdb from a script or a test</h2>
+<p>The plain view is stable text, so a program can drive sdb:</p>
+<div class="code"><pre>sdb -x commands.txt program                  the commands of a file, then the keyboard
+printf &#x27;break app#fill\ncontinue\nlocals\nquit\n&#x27; | sdb program</pre></div>
+<ul class="plainlist"><li>A command that did not come from a keyboard is printed after the prompt, so the output reads as a transcript.</li><li>When the input ends, that is <code>quit</code>.</li><li>sdb&#x27;s exit code is the program&#x27;s, or 0 after <code>quit</code>, or 1 when it refused to start.</li></ul>
+<p>sdb&#x27;s own tests do exactly this, from Sharp: <code>lib/debugger/tests/sdb_tests.sharp</code> starts sdb with <code>std.system</code>&#x27;s <code>subprocess</code>, writes commands and checks the answers.</p>
+<h2 id="driving-sdb-from-an-editor-the-machine-mode">Driving sdb from an editor: the machine mode</h2>
+<p>An editor&#x27;s debugger does not read the plain view. It starts sdb in the machine mode:</p>
+<div class="code"><pre>sdb -machine &lt;port&gt; program [arguments]</pre></div>
+<ul class="plainlist"><li>The editor listens on a port of this computer and gives sdb its number. sdb connects to it.</li><li>The two exchange JSON, one object on a line each.</li><li>The program&#x27;s input and output stay the process&#x27;s own streams: the editor&#x27;s console shows them, and nothing of sdb&#x27;s is mixed in.</li><li>The editor can ask while the program runs: a new breakpoint, a pause.</li></ul>
+<p>The editor sends requests. Each has an <code>id</code> of the editor&#x27;s choosing; the answer carries it back with <code>&quot;ok&quot;: true</code>, or <code>&quot;ok&quot;: false</code> and <code>&quot;why&quot;</code>.</p>
+<div class="code"><pre>{&quot;id&quot;: 7, &quot;do&quot;: &quot;break&quot;, &quot;file&quot;: &quot;/home/me/app/notebook.sharp&quot;, &quot;line&quot;: 41}
+{&quot;id&quot;: 7, &quot;ok&quot;: true, &quot;number&quot;: 1, &quot;line&quot;: 41}</pre></div>
+<div class="scroll"><table class="cmds"><tr><th><code>do</code></th><th>With</th><th>The answer holds</th></tr><tr><td><code>start</code></td><td></td><td>(the program runs from its first instruction)</td></tr><tr><td><code>break</code></td><td><code>file</code>, <code>line</code></td><td><code>number</code>, <code>line</code>; refused: <code>why</code>, and <code>next</code>, the next line with code</td></tr><tr><td><code>clear</code></td><td><code>number</code></td><td></td></tr><tr><td><code>continue</code></td><td><code>fiber</code> (optional)</td><td></td></tr><tr><td><code>next</code>, <code>into</code>, <code>out</code></td><td><code>fiber</code> (optional: the one that stopped)</td><td></td></tr><tr><td><code>pause</code></td><td></td><td>(a <code>stopped</code> event follows)</td></tr><tr><td><code>threads</code></td><td></td><td><code>threads</code>: <code>id</code>, <code>name</code>, <code>state</code>, <code>fiber</code>, <code>stopped</code></td></tr><tr><td><code>frames</code></td><td><code>fiber</code></td><td><code>frames</code>: <code>index</code>, <code>function</code>, <code>file</code>, <code>line</code></td></tr><tr><td><code>variables</code></td><td><code>fiber</code>, <code>frame</code></td><td><code>variables</code>: <code>name</code>, <code>value</code>, <code>kind</code>, <code>parts</code>, <code>path</code></td></tr><tr><td><code>children</code></td><td><code>fiber</code>, <code>frame</code>, <code>path</code>, <code>from</code>, <code>count</code></td><td><code>variables</code>, <code>total</code></td></tr><tr><td><code>set</code></td><td><code>fiber</code>, <code>frame</code>, <code>path</code>, <code>value</code></td><td><code>value</code>: what it holds now</td></tr><tr><td><code>quit</code></td><td></td><td>(sdb ends, and the program with it)</td></tr></table></div>
+<p>sdb sends events by itself:</p>
+<div class="scroll"><table class="cmds"><tr><th>Event</th><th>Says</th></tr><tr><td><code>ready</code></td><td>The program is loaded and nothing has run: set breakpoints, then <code>start</code></td></tr><tr><td><code>stopped</code></td><td><code>reason</code> (<code>breakpoint</code>, <code>step</code>, <code>pause</code>, <code>start</code>), <code>number</code>, <code>thread</code>, <code>fiber</code>, <code>function</code>, <code>file</code>, <code>line</code>, <code>can_step</code></td></tr><tr><td><code>running</code></td><td>The program runs again</td></tr><tr><td><code>ended</code></td><td><code>code</code>: the program ran to its end</td></tr><tr><td><code>say</code></td><td><code>text</code>: sdb&#x27;s own words (the name map it found, a note about the build)</td></tr></table></div>
+<ul class="plainlist"><li>A <code>path</code> is what <code>print</code> takes. The editor hands back the path it was given, to open a variable or to set it.</li><li><code>parts</code> says whether a value can be opened. <code>children</code> gives an object&#x27;s fields, or the elements <code>from</code> to <code>from + count</code> of an array.</li><li>Lines are counted from 1. A file is named by its whole path.</li><li>The frames, the variables and <code>set</code> only answer while the program is stopped.</li></ul>
+<p>The CLion plugin (<code>tools/clion-plugin</code>, package <code>sharp.ide.debug</code>) drives sdb this way. <code>lib/debugger/machine/machine.h</code> is the reference.</p>
+<h2 id="how-sdb-is-built">How sdb is built</h2>
+<p>sdb is not a second VM. It is <b>the VM&#x27;s own sources with <code>lib/debugger</code> compiled in</b>:</p>
+<ul class="plainlist"><li>The VM includes one header of the debugger, <code>lib/debugger/hooks.h</code>. It defines a few hooks; built with <code>-DSHARP_DEBUGGER_</code> they call into the debugger, built without they are empty. The plain <code>sharp</code> holds no debugger code.</li><li>The hooks: before every instruction of the interpreter; the scheduler&#x27;s clock; whether a thread must keep its fiber.</li><li>sdb is built without the machine-code compiler: the interpreter runs everything, which is where the hooks are.</li></ul>
+<div class="scroll"><table class="cmds"><tr><th>Folder</th><th>Holds</th></tr><tr><td><code>hooks.h</code></td><td>The one header the VM includes</td></tr><tr><td><code>main.cpp</code></td><td>sdb&#x27;s command line; then the VM&#x27;s own start</td></tr><tr><td><code>control/</code></td><td>Holding threads, breakpoints, steps, the scheduler&#x27;s time, threads and fibers</td></tr><tr><td><code>symbols/</code></td><td>Functions, classes, lines, source text; the name map</td></tr><tr><td><code>values/</code></td><td>Finding, showing and setting values</td></tr><tr><td><code>commands/</code></td><td>The commands, one file per help topic</td></tr><tr><td><code>prompt/</code></td><td>The prompt&#x27;s loop; where sdb&#x27;s words go</td></tr><tr><td><code>view/</code></td><td>The full-screen view</td></tr><tr><td><code>settings/</code></td><td><code>sdb.json</code></td></tr><tr><td><code>machine/</code></td><td>The machine mode: an editor drives sdb</td></tr><tr><td><code>tests/</code></td><td>The test programs and <code>sdb_tests.sharp</code></td></tr></table></div>
+<p>A thread that must stop waits inside the hook, between two instructions. Nothing in the thread or its fiber is written, and to the garbage collector it counts as a thread that touches no objects. The prompt runs on a thread of its own.</p>
+<h2 id="building-and-testing-sdb">Building and testing sdb</h2>
+<div class="scroll"><table class="cmds"><tr><th></th><th>Linux / WSL</th><th>Windows (Git Bash)</th></tr><tr><td>Build</td><td><code>bash build-scripts/linux/build_sdb.sh</code></td><td><code>bash build-scripts/windows/build_sdb.sh</code></td></tr><tr><td>Test</td><td><code>bash lib/debugger/tests/run.sh</code> (test 16 of <code>test.sh</code>)</td><td><code>bash build-scripts/windows/sdb_tests.sh</code></td></tr></table></div>
+<p>A release builds sdb for both systems and installs it beside <code>sharp</code> (<code>build-scripts/release.sh</code>).</p>
+<p>The machine mode is tested from the CLion plugin: <code>SdbClientWithRealSdbTest</code> holds a whole session with the Windows <code>sdb.exe</code>. On Linux it has no automated test yet.</p>
+<p>The full-screen view has no automated test. It is checked by running sdb inside <code>tmux</code>, sending keys and reading the screen back (<code>tmux capture-pane -p</code>).</p>
+<h2 id="not-there-yet">Not there yet</h2>
+<ul class="plainlist"><li>The full-screen view on Windows (sdb uses the plain view there).</li><li>Assigning one object to another with <code>set</code>.</li><li>Evaluating expressions, and conditions on breakpoints.</li></ul>
+    </main>
+</div></div>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="site.js"></script>
+</body>
+</html>

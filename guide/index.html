@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install - Sharp guide</title>
+<meta name="description" content="The Sharp guide: Install.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../guide/index.html" aria-current="page">Guide</a>
+      <a href="../std/index.html">Library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../debugger.html">Debugger</a>
+      <a href="../performance.html">Performance</a>
+      <a href="../install.html">Download</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib guide"><div class="wrap">
+    <aside>
+      <p class="eyebrow">Guide</p>
+      <ul class="mods">
+        <li class="on"><a href="index.html">Install</a></li>
+        <li><a href="your-first-program.html">Your first program</a></li>
+        <li><a href="a-program-with-a-class.html">A program with a class</a></li>
+        <li><a href="a-tour-of-the-language.html">A tour of the language</a></li>
+        <li><a href="your-first-test.html">Your first test</a></li>
+        <li><a href="your-first-window.html">Your first window</a></li>
+        <li><a href="your-first-3d-scene.html">Your first 3D scene</a></li>
+        <li><a href="calling-a-c-library.html">Calling a C library</a></li>
+        <li><a href="where-to-go-next.html">Where to go next</a></li>
+        <li><a href="../projects.html">Projects</a></li>
+        <li><a href="../gui.html">GUI development</a></li>
+        <li><a href="../debugger.html">Debugging with sdb</a></li>
+      </ul>
+    </aside>
+    <main>
+      <p class="crumbs">Guide / 1 of 9</p>
+      <h1>Install</h1>
+<p>Download the newest <code>sharp-&lt;version&gt;.zip</code> from the <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/releases"><code>releases</code></a> folder and unpack the WHOLE archive (the installers need the folders next to them). <code>START-HERE.txt</code> inside says the same as below.</p>
+<p><b>Windows</b> - open the <code>windows</code> folder and double-click <code>win-install.cmd</code> (or run it in a terminal).</p>
+<p><b>Linux (64-bit x86)</b> - in a terminal, inside the unpacked folder:</p>
+<div class="code"><pre>bash linux/unix-install.sh</pre></div>
+<p><b>Raspberry Pi, or any other Linux</b> - the VM is built on the machine itself:</p>
+<div class="code"><pre>git clone https://github.com/AndroDevcd/Sharp.git
+cd Sharp
+bash build-scripts/linux/install_from_source.sh</pre></div>
+<p>The installer needs no administrator rights. It copies Sharp into your user folder (Windows: <code>%LOCALAPPDATA%\Sharp</code>, Linux: <code>~/.sharp</code>), adds it to your PATH, and then compiles and runs a small program to show that everything works.</p>
+<p><b>Open a NEW terminal afterwards</b> - a terminal that was already open does not see the new PATH. (A terminal inside an IDE sees it once the IDE itself is restarted.)</p>
+<p>To remove Sharp again: <code>win-uninstall.cmd</code> on Windows, <code>sh unix-uninstall.sh</code> on Linux.</p>
+      <div class="pager"><span></span><a href="your-first-program.html">Your first program &rarr;</a></div>
+    </main>
+</div></div>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

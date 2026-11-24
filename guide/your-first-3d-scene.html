@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your first 3D scene - Sharp guide</title>
+<meta name="description" content="The Sharp guide: Your first 3D scene.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../guide/index.html" aria-current="page">Guide</a>
+      <a href="../std/index.html">Library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../debugger.html">Debugger</a>
+      <a href="../performance.html">Performance</a>
+      <a href="../install.html">Download</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib guide"><div class="wrap">
+    <aside>
+      <p class="eyebrow">Guide</p>
+      <ul class="mods">
+        <li><a href="index.html">Install</a></li>
+        <li><a href="your-first-program.html">Your first program</a></li>
+        <li><a href="a-program-with-a-class.html">A program with a class</a></li>
+        <li><a href="a-tour-of-the-language.html">A tour of the language</a></li>
+        <li><a href="your-first-test.html">Your first test</a></li>
+        <li><a href="your-first-window.html">Your first window</a></li>
+        <li class="on"><a href="your-first-3d-scene.html">Your first 3D scene</a></li>
+        <li><a href="calling-a-c-library.html">Calling a C library</a></li>
+        <li><a href="where-to-go-next.html">Where to go next</a></li>
+        <li><a href="../projects.html">Projects</a></li>
+        <li><a href="../gui.html">GUI development</a></li>
+        <li><a href="../debugger.html">Debugging with sdb</a></li>
+      </ul>
+    </aside>
+    <main>
+      <p class="crumbs">Guide / 7 of 9</p>
+      <h1>Your first 3D scene</h1>
+<p>A scene is a widget, written the way a screen is: the block says what is in it.</p>
+<div class="code"><pre class="sharp">mod app;
+
+import (
+    std.guikit.*
+)
+
+def main() {
+    gui.run(&quot;Yard&quot;, 900, 600, { -&gt;
+        return scene {
+            camera().orbit();                                   // drag to look round, wheel to zoom
+            sun().from(0.6, 0.7, 0.4).shadows();
+            ground(30).texture(made_texture(&quot;grass&quot;, 1), 10);
+
+            cube(1).at(0, 0.5, 0).color(0xD63031FF).spin(40);
+            sphere(0.5).at(2, 0.5, 0).color(0xC0C8D0FF).shiny(0.9);
+            add(tree(7)).at(0 - 3, 0, 0 - 2);
+            group {                                             // a street lamp: moves as one thing
+                cylinder(0.06, 2.4).at(0, 1.2, 0).color(0x2D3436FF);
+                sphere(0.18).at(0, 2.5, 0).color(0xFFE9A0FF).glow(1);
+                lamp().at(0, 2.5, 0).reach(7);
+            }.at(3, 0, 2);
+        };
+    });
+}</pre></div>
+<ul class="plainlist"><li><b>Things</b> are made by words - <code>cube</code>, <code>sphere</code>, <code>cylinder</code>, <code>cone</code>, <code>ground</code>, <code>tree</code>, <code>pine</code>, <code>model(&quot;file.gltf&quot;)</code> - and what a thing is like is chained onto it: <code>.at(x, y, z)</code>, <code>.turn(degrees)</code>, <code>.scale(s)</code>, <code>.color(0xRRGGBBAA)</code>, <code>.texture(path)</code>, <code>.shiny(...)</code>, <code>.spin(...)</code>, <code>.click { ... }</code>.</li><li><b>The space</b>: x to the right, y up, z towards you; one unit is a metre.</li><li><b>Colours are numbers</b>: <code>0xD63031FF</code> is red, green, blue and alpha, two hex digits each. One kept in a variable needs its type written: <code>red : _int64 = 0xD63031FF;</code>.</li><li><b>Your own models</b> come from <code>.obj</code>, <code>.gltf</code> and <code>.glb</code> files; your own shapes from <code>mesh</code> (corners and triangles). <code>terrain</code> makes land from a height function and <code>scatter(thing, count)</code> strews copies over it.</li><li><b>Your own code</b> runs before every frame in <code>on_frame { f: frame -&gt; ... }</code> (the keys, the time passed), and ordinary widgets go over the scene with <code>hud { ... }</code>.</li></ul>
+<p><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/examples/gui/lantern_hunt"><code>examples/gui/lantern_hunt</code></a> is a complete small game built from these; <code>lib/support/0.4.0/std/guikit/words3d.sharp</code> lists every word.</p>
+<p>Scenes are drawn with OpenGL, which every PC has; on a Raspberry Pi it is OpenGL ES 2.</p>
+      <div class="pager"><a href="your-first-window.html">&larr; Your first window</a><a href="calling-a-c-library.html">Calling a C library &rarr;</a></div>
+    </main>
+</div></div>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>
