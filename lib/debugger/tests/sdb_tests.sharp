@@ -113,10 +113,23 @@ def main(args: string[]) {
         test("a line without code is refused and the next one named") {
             expect(said).should_contain("line 25 of notebook.sharp holds no code; the next line that does is 27");
         };
-        test("an unknown file") { expect(said).should_contain("no source file named `nofile.sharp`"); };
+        test("an unknown file") { expect(said).should_contain("no source file and no function named `nofile.sharp`"); };
         test("clear takes one away, and says when there is none") {
             expect(said).should_contain("breakpoint 1 is cleared");
             expect(said).should_contain("there is no breakpoint 9");
+        };
+
+        loose := answers("notebook.dbg", "break notebook:22\nbreak notebook.holds:22\nbreak app#fill\ncontinue\nbreak 37\nbreaks\nbreakpoint 3\nquit\n");
+        test("a file without `.sharp`") { expect(loose).should_contain("breakpoint 1 at app#notebook.add  notebook.sharp:22"); };
+        test("a function in place of the file: a line of the file it is written in") {
+            expect(loose).should_contain("breakpoint 2 at app#notebook.add  notebook.sharp:22");
+        };
+        test("a number alone is a line of the file in view, and is kept with the file's name") {
+            expect(loose).should_contain("breakpoint 4 at app#fill  notebook.sharp:37");
+            expect(loose).should_contain("notebook.sharp:37");
+        };
+        test("a word that goes on after a command is told which command") {
+            expect(loose).should_contain("no command `breakpoint`: did you mean `break`");
         };
 
         switched := answers("notebook.dbg", "break app#fill\nbreak app#notebook.holds\ndisable 1\nbreaks\ncontinue\nenable 1\ndisable 9\nbreaks\nquit\n");

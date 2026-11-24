@@ -44,26 +44,59 @@ static std::vector<code_place> places_of_function(const string &name) {
     return places;
 }
 
-/** the places of `break <file>:<line>`; empty (and the reason said) when there are none */
-static std::vector<code_place> places_of_line(const string &file, Int line) {
-    std::vector<code_place> places;
-    std::vector<Int> files = files_named(file);
+/** the file the looked-at call is in, or -1 (the program is not held, or the executable does not say) */
+static Int file_looked_at(debug_session &session) {
+    if(session.look == nullptr) return -1;
+    std::vector<code_place> stack = call_stack_of(session.look);
+    if(session.frame < 0 || session.frame >= (Int)stack.size() || stack[session.frame].function == nullptr) return -1;
+    return stack[session.frame].function->sourceFile;
+}
 
-    if(files.empty()) {
-        say("no source file named `" + file + "` in this program");
-        return places;
+/**
+ * The file `break <where>:<line>` means, or -1 (and the reason said). `where`
+ * is a file as sdb shows it (`notebook.sharp`, `shop/notes.sharp`), the same
+ * without `.sharp` (`notebook`), or a function - then it is the file that
+ * function is written in (`notebook.add:41`). Empty: the file being looked at.
+ */
+static Int file_of_line(debug_session &session, const string &where) {
+    if(where.empty()) {
+        Int file = file_looked_at(session);
+        if(file == -1) say("a line number alone means the file being looked at, and the program is not held anywhere yet: break <file>:<line>");
+        return file;
     }
+
+    std::vector<Int> files = files_named(where);
+    if(files.empty()) files = files_named(where + ".sharp");
     if(files.size() > 1) {
-        say("`" + file + "` fits more than one file - say more of its path:");
+        say("`" + where + "` fits more than one file - say more of its path:");
         for(Int one : files) say("  " + written_file(one));
-        return places;
+        return -1;
     }
+    if(files.size() == 1) return files[0];
 
+    // not a file: a function, and the line is one of its file
+    bool ambiguous = false;
+    std::vector<sharp_function*> functions = functions_named(where, ambiguous);
+    Int file = functions.empty() ? -1 : functions[0]->sourceFile;
+    for(sharp_function *function : functions) {
+        if(function->sourceFile != file) file = -1;
+    }
+    if(file != -1) return file;
+
+    string hint;
+    Int here = file_looked_at(session);
+    if(here != -1) hint = "  (the file in view is " + shown_file(here) + ": `break " + shown_file(here) + ":<line>`, or `break <line>` alone)";
+    say("no source file and no function named `" + where + "` in this program" + hint);
+    return -1;
+}
+
+/** the places of line `line` of `file`; empty (and the reason said) when there are none */
+static std::vector<code_place> places_of_line(Int file, Int line) {
     Int nextLine = -1;
-    places = places_at_line(files[0], line, nextLine);
+    std::vector<code_place> places = places_at_line(file, line, nextLine);
     if(places.empty()) {
         stringstream words;
-        words << "line " << line << " of " << shown_file(files[0]) << " holds no code";
+        words << "line " << line << " of " << shown_file(file) << " holds no code";
         if(nextLine != -1) words << "; the next line that does is " << nextLine;
         say(words.str());
     }
@@ -136,20 +169,27 @@ static command_result save_now(debug_session &session, const string &rest) {
 
 static command_result set_breakpoint(debug_session &session, const string &rest) {
     if(rest.empty()) {
-        say("break where?  break <function> (`break app#notebook.add`), or break <file>:<line> (`break notebook.sharp:41`)");
+        say("break where?  break <function> (`break app#notebook.add`), break <file>:<line> (`break notebook.sharp:41`), or break <line> in the file in view");
         return COMMAND_STAY;
     }
 
-    // `<file>:<line>` when what follows the last colon is a number
+    // a line when what follows the last colon is a number, or all of it is one (the file in view)
     std::vector<code_place> places;
     size_t colon = rest.find_last_of(':');
-    Int line = colon == string::npos ? -1 : number_in(rest.substr(colon + 1));
+    Int line = number_in(colon == string::npos ? rest : rest.substr(colon + 1));
+    string written = rest;
 
-    if(line != -1) places = places_of_line(rest.substr(0, colon), line);
+    if(line != -1) {
+        Int file = file_of_line(session, colon == string::npos ? "" : rest.substr(0, colon));
+        if(file == -1) return COMMAND_STAY;
+        places = places_of_line(file, line);
+        // kept as the file and the line, however it was typed: `break 45` means nothing in the next run
+        written = shown_file(file) + ":" + std::to_string(line);
+    }
     else places = places_of_function(rest);
     if(places.empty()) return COMMAND_STAY;
 
-    int number = sdb_add_breakpoint(places, rest);
+    int number = sdb_add_breakpoint(places, written);
     stringstream words;
     words << "breakpoint " << number << " at " << describe_place(places[0]);
     if(places.size() > 1) words << "  (and " << places.size() - 1 << " more: `breaks` lists them)";
@@ -254,6 +294,9 @@ void add_breakpoint_commands() {
         "\n"
         "    break notebook.sharp:41\n"
         "    break shop/notes.sharp:5    with enough of the path, when two files share a name\n"
+        "    break notebook:41           `.sharp` may be left out\n"
+        "    break notebook.add:41       a function instead of the file: line 41 of the file it is written in\n"
+        "    break 41                    the number alone: line 41 of the file in view (the source box)\n"
         "\n"
         "A line that holds no code (a comment, a blank line, a `}`) gets no breakpoint: sdb names\n"
         "the next line that does, and moves nothing by itself.\n"

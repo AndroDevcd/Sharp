@@ -73,7 +73,11 @@ sdb, so sdb and the compiler that built the program must be of the same release.
 
 | Key | Does |
 |---|---|
-| Enter, Backspace | Give the line; take a character away |
+| Enter | Give the line |
+| Tab | Finish a command typed in part (`con` → `continue`); when several fit, they are listed |
+| Left, Right | Move in the line; what you type goes in at the cursor. Ctrl+Left / Ctrl+Right: a word at a time |
+| Home, End (Ctrl+A, Ctrl+E) | To the start, the end of the line |
+| Backspace, Delete | Take away the character before, under the cursor. Ctrl+U: all before it; Ctrl+K: all after |
 | Up, Down | The lines given before |
 | PageUp, PageDown | Scroll the sdb box |
 | Ctrl+L | Draw the screen again |
@@ -123,7 +127,8 @@ fiber that stopped; every other thread runs freely meanwhile.
 | Command | Does |
 |---|---|
 | `break <function>` | Stop when the function is entered: `break app#notebook.add` |
-| `break <file>:<line>` | Stop when the line is reached: `break notebook.sharp:41` |
+| `break <file>:<line>` | Stop when the line is reached: `break notebook.sharp:41`. `.sharp` may be left out, and a function may stand for its file: `break notebook.add:41` |
+| `break <line>` | The number alone: that line of the file in view |
 | `breaks` | List them, with their numbers |
 | `clear <number>` / `clear all` | Take one away, or all |
 | `disable <number>` / `enable <number>` (or `all`) | Switch one off and on; it stays in the list |

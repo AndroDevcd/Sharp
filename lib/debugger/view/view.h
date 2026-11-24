@@ -37,10 +37,15 @@
 // sdb.json). Everything sdb says goes through say() (prompt.h) in both; a
 // command does not know which view shows its words.
 //
-// KEYS, while sdb has the keyboard: Enter gives the line; Backspace; Up and
-// Down walk through the lines given before; PageUp and PageDown scroll the sdb
-// box back and forth; Ctrl+L draws the screen again; Ctrl+D on an empty line
-// is `quit`.
+// KEYS, while sdb has the keyboard: Enter gives the line. Left and Right move
+// in it (Ctrl+Left / Ctrl+Right a word at a time, Home / End or Ctrl+A / Ctrl+E
+// to its ends) and what is typed goes in where the cursor is; Backspace and
+// Delete take the character before and under it, Ctrl+U everything before it,
+// Ctrl+K everything after. Tab finishes a command that is typed in part (and a
+// command or topic after `help`); when several fit, it writes as far as they
+// agree and lists them. Up and Down walk through the lines given before;
+// PageUp and PageDown scroll the sdb box back and forth; Ctrl+L draws the
+// screen again; Ctrl+D on an empty line is `quit`.
 //
 // Linux and other POSIX systems for now (termios); on Windows sdb uses the
 // plain view.

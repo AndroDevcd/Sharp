@@ -170,14 +170,49 @@ static string trimmed(const string &text) {
     return text.substr(from, to - from + 1);
 }
 
-command_result run_command(debug_session &session, const string &line) {
-    if(commands.empty()) {
-        add_running_commands();
-        add_breakpoint_commands();
-        add_looking_commands();
-        add_thread_commands();
-        add_help_command();
+/** every group's commands into the table, the first time they are asked for */
+static void know_the_commands() {
+    if(!commands.empty()) return;
+    add_running_commands();
+    add_breakpoint_commands();
+    add_looking_commands();
+    add_thread_commands();
+    add_help_command();
+}
+
+std::vector<string> completions_of(const string &text, size_t &from) {
+    know_the_commands();
+    std::vector<string> found;
+
+    size_t start = text.find_first_not_of(" \t");
+    if(start == string::npos) start = text.size();
+    from = text.find_last_of(" \t");
+    from = from == string::npos ? 0 : from + 1;
+
+    bool first_word = from <= start;
+    bool after_help = false;
+    if(!first_word) {
+        string before = trimmed(text.substr(0, from));
+        after_help = before == "help" || before == "h";
     }
+    if(!first_word && !after_help) return found;
+    if(first_word) from = start;
+
+    string begun = text.substr(from);
+    for(command &one : commands) {
+        if(one.name.compare(0, begun.size(), begun) == 0) found.push_back(one.name);
+    }
+    if(after_help) {
+        for(topic &one : topics) {
+            if(one.name.compare(0, begun.size(), begun) == 0
+               && std::find(found.begin(), found.end(), one.name) == found.end()) found.push_back(one.name);
+        }
+    }
+    return found;
+}
+
+command_result run_command(debug_session &session, const string &line) {
+    know_the_commands();
 
     string text = trimmed(line);
     if(text.empty()) return COMMAND_STAY;
@@ -192,6 +227,14 @@ command_result run_command(debug_session &session, const string &line) {
         }
     }
 
-    say("no command `" + word + "`: `help` lists them");
+    // a word that begins like a command, or goes on after one (`breakpoint`): those are named
+    string near;
+    for(command &one : commands) {
+        if(one.name.compare(0, word.size(), word) == 0 || word.compare(0, one.name.size(), one.name) == 0) {
+            near += (near.empty() ? "`" : ", `") + one.name + "`";
+        }
+    }
+    if(!near.empty()) say("no command `" + word + "`: did you mean " + near + "?   (`help` lists them all; Tab finishes a word)");
+    else say("no command `" + word + "`: `help` lists them");
     return COMMAND_STAY;
 }

@@ -59,6 +59,15 @@ void add_command(const string &topic, const string &name, const string &shortNam
 /** set the breakpoints the settings file keeps (once, before the program starts); says which could not be set */
 void set_saved_breakpoints(debug_session &session);
 
+/**
+ * What the Tab key can make of a line typed so far (`text`: the line up to the
+ * cursor): the words that start like its last word. That is a command while
+ * the first word is being typed, and a command or a topic after `help `;
+ * anywhere else there is nothing to offer. `from` is where that last word
+ * starts in `text`.
+ */
+std::vector<string> completions_of(const string &text, size_t &from);
+
 /** run one line as typed; an empty line does nothing, an unknown word says so */
 command_result run_command(debug_session &session, const string &line);
 

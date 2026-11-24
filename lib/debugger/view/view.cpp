@@ -66,6 +66,7 @@ static string output_unfinished;                    // ... and its last line, wh
 static std::deque<string> talk_lines;               // what was typed to sdb and what it answered
 static int scrolled_back = 0;                       // how many lines the sdb box is scrolled back (PageUp)
 static string typed;                                // the command being typed
+static size_t cursor = 0;                           // where in it the next character goes (a byte of `typed`, never inside a character)
 static std::vector<string> given;                   // the commands given before (Up / Down)
 static size_t given_at = 0;
 static string last_line;                            // the screen's last line: why the program stopped
@@ -287,7 +288,11 @@ static std::vector<string> compose(int columns, int lines) {
     std::deque<string> said = talk_lines;
     if(over) said.push_back("(press Enter to leave sdb)");
     else if(running) said.push_back("(the program is running: Ctrl+C stops it; what you type goes to it)");
-    else said.push_back("(sdb) " + typed + (scrolled_back == 0 ? "█" : ""));
+    else {
+        // the cursor: a block after the line, a bar between two characters of it
+        string mark = scrolled_back != 0 ? "" : cursor >= typed.size() ? "█" : "│";
+        said.push_back("(sdb) " + typed.substr(0, cursor) + mark + typed.substr(cursor));
+    }
 
     // (a line longer than its box goes on in the next row)
     printed = rows_of(printed, left - 3, output_inside);
@@ -540,7 +545,8 @@ void view_program_runs() {
 }
 
 /** the next key: a character, or one of the names below; 0 when a tenth of a second passed without one */
-enum { KEY_NONE = 0, KEY_UP = 1000, KEY_DOWN, KEY_PAGE_UP, KEY_PAGE_DOWN, KEY_END_OF_INPUT };
+enum { KEY_NONE = 0, KEY_UP = 1000, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_WORD_LEFT, KEY_WORD_RIGHT, KEY_HOME, KEY_END, KEY_DELETE,
+       KEY_PAGE_UP, KEY_PAGE_DOWN, KEY_END_OF_INPUT };
 
 static int next_key() {
     pollfd waiting = { STDIN_FILENO, POLLIN, 0 };
@@ -560,15 +566,68 @@ static int next_key() {
     }
     if(rest == "[A") return KEY_UP;
     if(rest == "[B") return KEY_DOWN;
+    if(rest == "[D") return KEY_LEFT;
+    if(rest == "[C") return KEY_RIGHT;
+    if(rest == "[1;5D" || rest == "b") return KEY_WORD_LEFT;       // Ctrl+Left (Alt+B on a terminal that sends that)
+    if(rest == "[1;5C" || rest == "f") return KEY_WORD_RIGHT;
+    if(rest == "[H" || rest == "[1~" || rest == "OH") return KEY_HOME;
+    if(rest == "[F" || rest == "[4~" || rest == "OF") return KEY_END;
+    if(rest == "[3~") return KEY_DELETE;
     if(rest == "[5~") return KEY_PAGE_UP;
     if(rest == "[6~") return KEY_PAGE_DOWN;
     return KEY_NONE;
 }
 
+// ---- the line being typed (screen_mut held)
+
+/** the start of the character before `at` */
+static size_t character_before(size_t at) {
+    if(at > 0) at--;
+    while(at > 0 && ((unsigned char)typed[at] & 0xC0) == 0x80) at--;
+    return at;
+}
+
+/** the start of the character after the one at `at` */
+static size_t character_after(size_t at) {
+    if(at < typed.size()) at++;
+    while(at < typed.size() && ((unsigned char)typed[at] & 0xC0) == 0x80) at++;
+    return at;
+}
+
+/** the line is `text` now, the cursor after it */
+static void line_becomes(const string &text) {
+    typed = text;
+    cursor = typed.size();
+}
+
+/** Tab: finish the word before the cursor, as far as the words that fit agree; several: list them */
+static void complete_the_word() {
+    size_t from = 0;
+    std::vector<string> fit = completions_of(typed.substr(0, cursor), from);
+    if(fit.empty()) return;
+
+    string common = fit[0];
+    for(const string &one : fit) {
+        size_t same = 0;
+        while(same < common.size() && same < one.size() && common[same] == one[same]) same++;
+        common.resize(same);
+    }
+    if(fit.size() == 1) common += " ";
+
+    if(common.size() > cursor - from) {
+        typed.replace(from, cursor - from, common);
+        cursor = from + common.size();
+    } else if(fit.size() > 1) {
+        string listed;
+        for(const string &one : fit) listed += (listed.empty() ? "" : "  ") + one;
+        keep(talk_lines, listed);
+    }
+}
+
 bool view_read_command(string &line) {
     {
         std::lock_guard<std::recursive_mutex> lock(screen_mut);
-        typed.clear();
+        line_becomes("");
         given_at = given.size();
     }
     draw();
@@ -585,19 +644,42 @@ bool view_read_command(string &line) {
             line = typed;
             keep(talk_lines, "(sdb) " + typed);
             if(!typed.empty() && (given.empty() || given.back() != typed)) given.push_back(typed);
-            typed.clear();
+            line_becomes("");
             scrolled_back = 0;
             draw();
             return true;
         } else if(key == 127 || key == 8) {
-            // one character: its last byte and the bytes that only continue it
-            while(!typed.empty() && ((unsigned char)typed.back() & 0xC0) == 0x80) typed.pop_back();
-            if(!typed.empty()) typed.pop_back();
+            size_t from = character_before(cursor);         // one character: all of its bytes
+            typed.erase(from, cursor - from);
+            cursor = from;
+        } else if(key == KEY_DELETE || (key == 4 && cursor < typed.size())) {
+            typed.erase(cursor, character_after(cursor) - cursor);
+        } else if(key == KEY_LEFT) {
+            cursor = character_before(cursor);
+        } else if(key == KEY_RIGHT) {
+            cursor = character_after(cursor);
+        } else if(key == KEY_WORD_LEFT) {
+            while(cursor > 0 && typed[cursor - 1] == ' ') cursor--;
+            while(cursor > 0 && typed[cursor - 1] != ' ') cursor--;
+        } else if(key == KEY_WORD_RIGHT) {
+            while(cursor < typed.size() && typed[cursor] == ' ') cursor++;
+            while(cursor < typed.size() && typed[cursor] != ' ') cursor++;
+        } else if(key == KEY_HOME || key == 1) {
+            cursor = 0;
+        } else if(key == KEY_END || key == 5) {
+            cursor = typed.size();
+        } else if(key == 21) {
+            typed.erase(0, cursor);                         // Ctrl+U: everything before the cursor
+            cursor = 0;
+        } else if(key == 11) {
+            typed.erase(cursor);                            // Ctrl+K: everything after it
+        } else if(key == '\t') {
+            complete_the_word();
         } else if(key == KEY_UP) {
-            if(given_at > 0) typed = given[--given_at];
+            if(given_at > 0) line_becomes(given[--given_at]);
         } else if(key == KEY_DOWN) {
-            if(given_at + 1 < given.size()) typed = given[++given_at];
-            else { given_at = given.size(); typed.clear(); }
+            if(given_at + 1 < given.size()) line_becomes(given[++given_at]);
+            else { given_at = given.size(); line_becomes(""); }
         } else if(key == KEY_PAGE_UP) {
             scrolled_back = std::min((int)talk_lines.size(), scrolled_back + 5);
         } else if(key == KEY_PAGE_DOWN) {
@@ -605,7 +687,8 @@ bool view_read_command(string &line) {
         } else if(key == 12) {
             on_screen.clear();                      // Ctrl+L: everything again
         } else if(key >= 32 && key < 256) {
-            typed += (char)key;
+            typed.insert(cursor, 1, (char)key);
+            cursor++;
         }
         draw();
     }
