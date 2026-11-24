@@ -25,6 +25,7 @@
 #include "../../core/thread_state.h"
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
 #include <cstring>
 #include <mutex>
 #include <thread>
@@ -178,22 +179,57 @@ static std::atomic<bool> fullRequested(false);     // the next collection must b
 static std::atomic<uInt> bytesSinceCollection(0);
 static std::atomic<uInt> objectsSinceCollection(0);
 static std::atomic<uInt> trigger(MB_TO_BYTES(8));
+static std::atomic<bool> youngRequested(false);    // the program asked for a minor one (tgc_request_young)
 static std::atomic<bool> lastCollectionLeftHeapFull(false);
 static uInt collections = 0;
 
+// What the program can ask about (tgc_fact). Written while the world is stopped, read by any thread.
+static std::atomic<uInt> collectionsDone(0);
+static std::atomic<uInt> fullCollectionsDone(0);
+static std::atomic<uInt> lastPauseMicros(0);
+static std::atomic<uInt> longestPauseMicros(0);
+static std::atomic<uInt> totalPauseMicros(0);
+
 bool tgc_pending() { return requested.load(std::memory_order_relaxed); }
+
+/** make the calling thread look at the request at its next safe point */
+static void notice_request_soon() {
+    sharp_thread *self = thread_self;
+    if(self != nullptr && !hasSignal(self->signal, tsig_gc))
+        set_gc_signal(self, true);
+}
 
 void tgc_request(bool force) {
     if(gc.state == SHUTDOWN || (gc.state == SLEEPING && !force))
         return;
 
     requested.store(true);
-    if(force) fullRequested.store(true);    // the program asked, or the memory limit is reached: look at everything
+    if(force) fullRequested.store(true);    // the program asked: look at everything
+    notice_request_soon();
+}
 
-    // make the calling thread look at the request at its next safe point
-    sharp_thread *self = thread_self;
-    if(self != nullptr && !hasSignal(self->signal, tsig_gc))
-        set_gc_signal(self, true);
+void tgc_request_young() {
+    if(gc.state == SHUTDOWN)
+        return;
+
+    youngRequested.store(true);
+    requested.store(true);
+    notice_request_soon();
+}
+
+Int tgc_fact(Int which) {
+    switch(which) {
+        case 0: return (Int)collectionsDone.load();
+        case 1: return (Int)fullCollectionsDone.load();
+        case 2: return (Int)lastPauseMicros.load();
+        case 3: return (Int)longestPauseMicros.load();
+        case 4: return (Int)totalPauseMicros.load();
+        case 5: {
+            if(thread_self != nullptr) count_uncounted_bytes(thread_self);
+            return (Int)bytesSinceCollection.load();
+        }
+        default: return -1;
+    }
 }
 
 /**
@@ -219,33 +255,141 @@ void tgc_note_object() {
         tgc_request();
 }
 
+// ---- out of memory (tracing_collector.h, OUT OF MEMORY)
+static std::atomic<bool> reserveOpen(false);    // an out of memory is being handled: allocations may use the reserve
+static std::atomic<bool> raisedOnce(false);     // ... and its one exception has been raised
+static std::atomic<bool> hookSet(false);        // the program has a hook for it (std.system, gc.on_out_of_memory)
+static std::atomic<bool> hookPending(false);    // ... which has to run before anything is raised
+static std::atomic<bool> hookRan(false);        // ... and has run for this out of memory
+static std::atomic<sharp_thread*> hookThread(nullptr);  // the thread that runs it: it never waits for itself
+static std::mutex hook_mut;
+static std::condition_variable hookChanged;
+static bool hookWanted = false;                 // guarded by hook_mut: a thread is waiting for the hook to run
+
+/** the memory past the limit that only the handling of an out of memory may use */
+static uInt memory_reserve() {
+    uInt part = gc.memoryLimit / 32;
+    return part < MB_TO_BYTES(4) ? part : MB_TO_BYTES(4);
+}
+
 /**
  * THE MEMORY LIMIT. A collection cannot run inside an allocation, so reaching
  * the limit cannot be answered with "collect now and try again" like before.
- * Instead:
+ * Instead, in NORMAL mode:
  *
- *   - over the limit for the first time: ask for a collection and let the
+ *   - over the limit for the first time: ask for a full collection and let the
  *     allocation through. The thread collects at its next safe point, a few
  *     instructions later.
  *   - still over the limit although a collection just ran (it could not free
- *     enough): out of memory.
- *   - more than a quarter over the limit (somebody allocates a lot without
+ *     enough), or more than a quarter over it (somebody allocates a lot without
  *     reaching a safe point): out of memory.
+ *
+ * In MANUAL mode nobody collects but the program. It did not, and the limit is
+ * reached: out of memory, at once.
+ *
+ * What "out of memory" is, is told in tracing_collector.h (OUT OF MEMORY): the
+ * reserve opens, the program's hook runs, one exception is raised, and only
+ * when the reserve is used up too the program ends.
+ *
+ * mayFail = false: only count (bytes that were allocated a while ago).
  */
-bool tgc_note_allocation(size_t bytes) {
+allocation_answer tgc_note_allocation(size_t bytes, bool mayFail) {
     uInt since = (bytesSinceCollection += bytes);
     if(since >= trigger.load(std::memory_order_relaxed))
         tgc_request();
+    if(!mayFail)
+        return allocation_fits;
 
-    uInt wanted = gc.managedBytes + bytes;
-    if(wanted >= gc.memoryLimit) {
-        tgc_request(true);  // even a sleeping collector wakes up for this
+    uInt inUse = gc.managedBytes;
+    uInt wanted = inUse + bytes;
+    if(wanted < gc.memoryLimit)
+        return allocation_fits;
 
-        if(lastCollectionLeftHeapFull.load() || wanted >= gc.memoryLimit + gc.memoryLimit / 4)
-            return false;
+    // memory came back under the limit since the last out of memory (an allocation that was simply
+    // too large took nothing): the reserve is whole, and this is a new one
+    if(reserveOpen.load() && inUse < gc.memoryLimit)
+        reserveOpen.store(false);
+
+    if(!reserveOpen.load()) {
+        if(gc.state != SLEEPING && !lastCollectionLeftHeapFull.load() && wanted < gc.memoryLimit + gc.memoryLimit / 4) {
+            tgc_request(true);
+            return allocation_fits;
+        }
+
+        raisedOnce.store(false);
+        hookRan.store(false);
+        reserveOpen.store(true);
     }
 
-    return true;
+    bool inReserve = wanted < gc.memoryLimit + memory_reserve();
+    if(inReserve && hookSet.load() && !hookRan.load()) {
+        // the hook first: this thread waits for it at its next safe point (tgc_safepoint)
+        hookPending.store(true);
+        notice_request_soon();
+        return allocation_fits;
+    }
+    if(!raisedOnce.exchange(true))
+        return allocation_raises;
+    return inReserve ? allocation_fits : allocation_is_fatal;
+}
+
+/** the hook is not waited for any longer, by anybody */
+static void release_hook_waiters() {
+    std::lock_guard<std::mutex> guard(hook_mut);
+    hookPending.store(false);
+    hookWanted = false;
+    hookChanged.notify_all();
+}
+
+void tgc_out_of_memory_is_fatal() {
+    release_hook_waiters();
+}
+
+/**
+ * The calling thread used the reserve and the program has a hook: wake the
+ * thread that runs it and wait until it is done. A safe region: the hook
+ * collects, and this thread counts as stopped for that.
+ */
+static void wait_for_memory_hook(sharp_thread *self) {
+    gc_safe_region blocked;
+    std::unique_lock<std::mutex> lock(hook_mut);
+    if(!hookPending.load()) return;
+
+    hookWanted = true;
+    hookChanged.notify_all();
+    while(hookPending.load() && hookSet.load() && vm.state == VM_RUNNING
+          && self->state != THREAD_KILLED && !hasSignal(self->signal, tsig_kill))
+        hookChanged.wait_for(lock, std::chrono::milliseconds(20));
+}
+
+Int tgc_memory_hook(Int command, Int millis) {
+    switch(command) {
+        case 0: {
+            hookSet.store(false);
+            release_hook_waiters();
+            return 0;
+        }
+        case 1: {
+            hookSet.store(true);
+            return 0;
+        }
+        case 2: {
+            hookThread.store(thread_self);      // who waits here is who runs the hook
+            gc_safe_region blocked;
+            std::unique_lock<std::mutex> lock(hook_mut);
+            hookChanged.wait_for(lock, std::chrono::milliseconds(millis > 0 ? millis : 0), []{ return hookWanted; });
+            if(!hookWanted) return 0;
+            hookWanted = false;
+            return 1;
+        }
+        case 3: {
+            // still over the limit: the hook did not help, and the next allocation is told so
+            hookRan.store(reserveOpen.load());
+            release_hook_waiters();
+            return 0;
+        }
+        default: return -1;
+    }
 }
 
 // ---------------------------------------------------------------------------------
@@ -336,9 +480,7 @@ static std::vector<sharp_object*> pending;     // marked, fields not followed ye
 static std::vector<object*> interiorPointers;  // task->ptr values that point into some object
 static bool minorCollection = false;           // this collection looks at young objects only
 
-static inline void mark(sharp_object *o) {
-    if(o == nullptr) return;
-
+static inline void mark_now(sharp_object *o) {
     // an old (or permanent) object is alive by definition in a minor collection,
     // and what it refers to is found through the remembered set instead
     if(minorCollection && GENERATION(o->info) != gc_normal) return;
@@ -351,6 +493,48 @@ static inline void mark(sharp_object *o) {
         if(o->type > type_var && o->node != nullptr)
             pending.push_back(o);
     }
+}
+
+/*
+ * WAITING FOR MEMORY, ONCE PER OBJECT. Marking reads the header of every object
+ * it reaches, and the objects of a large heap are not in the processor's cache:
+ * each read waited for memory, about 20 ns an object in a full collection.
+ * So an object that is reached is not looked at straight away. Its memory is
+ * asked for (a prefetch) and it waits in a short queue; by the time its turn
+ * comes - MARK_AHEAD objects later - the header has arrived.
+ *
+ *      (Cher, Hosking, Vijaykumar: "Software prefetching for mark-sweep
+ *       garbage collection", ASPLOS 2004. Java's and Go's collectors do the same.)
+ */
+#define MARK_AHEAD 16
+static sharp_object *reached[MARK_AHEAD];   // reached, their headers on the way; nullptr = an empty place
+static unsigned reachedAt = 0;
+
+static inline void mark(sharp_object *o) {
+    if(o == nullptr) return;
+
+    // (a minor collection looks at objects made a moment ago: they are in the cache still,
+    //  and the queue only cost time there - measured, 4% of a minor collection)
+    if(minorCollection) { mark_now(o); return; }
+
+    __builtin_prefetch(o);
+    sharp_object *due = reached[reachedAt];
+    reached[reachedAt] = o;
+    reachedAt = (reachedAt + 1) % MARK_AHEAD;
+    if(due != nullptr) mark_now(due);
+}
+
+/** look at every object still waiting in the queue; true when there was one */
+static bool mark_the_reached() {
+    bool any = false;
+    for(unsigned i = 0; i < MARK_AHEAD; i++) {
+        sharp_object *o = reached[i];
+        if(o == nullptr) continue;
+        reached[i] = nullptr;
+        mark_now(o);
+        any = true;
+    }
+    return any;
 }
 
 /** mark what the slots of `o` refer to */
@@ -373,11 +557,13 @@ static inline void mark_slots_of(sharp_object *o) {
 }
 
 static void mark_everything_reachable() {
-    while(!pending.empty()) {
-        sharp_object *o = pending.back();
-        pending.pop_back();
-        mark_slots_of(o);
-    }
+    do {
+        while(!pending.empty()) {
+            sharp_object *o = pending.back();
+            pending.pop_back();
+            mark_slots_of(o);
+        }
+    } while(mark_the_reached() || !pending.empty());
 }
 
 // ---------------------------------------------------------------------------------
@@ -809,9 +995,15 @@ static void collect(bool full) {
     liveAfterLast = live;
     if(full) liveAfterLastFull = live;
 
+    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - started).count();
+    collectionsDone++;
+    if(full) fullCollectionsDone++;
+    lastPauseMicros.store((uInt)micros);
+    totalPauseMicros += (uInt)micros;
+    if((uInt)micros > longestPauseMicros.load()) longestPauseMicros.store((uInt)micros);
+
     if(logging) {
-        auto micros = std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::steady_clock::now() - started).count();
         fprintf(stderr, "[gc %llu %s] freed %llu objects (%llu kb), %llu %s, heap %llu kb -> %llu kb, pause %lld us",
                 (unsigned long long)collections, full ? "full" : "minor", (unsigned long long)sweptObjects,
                 (unsigned long long)(sweptBytes / 1024),
@@ -841,16 +1033,24 @@ static bool full_collection_is_due() {
 
 /** Runs with world_mut held and every other thread stopped. */
 static void collect_now() {
-    bool full = full_collection_is_due();
+    // the program asked for a minor collection and nobody asked for a full one: a minor one it is,
+    // whatever the old objects have grown to
+    bool youngOnly = youngRequested.exchange(false) && !fullRequested.load();
+    bool full = !youngOnly && full_collection_is_due();
     collect(full);
 
     // "full" heap = the collection left less than 1/32 of the limit free
     uInt live = gc.managedBytes;
-    if(!full && live + gc.memoryLimit / 32 >= gc.memoryLimit) {
+    if(!full && !youngOnly && live + gc.memoryLimit / 32 >= gc.memoryLimit) {
         collect(true);      // the minor one was not enough: look at everything before giving up
         live = gc.managedBytes;
     }
-    lastCollectionLeftHeapFull.store(live + gc.memoryLimit / 32 >= gc.memoryLimit);
+    // (a minor one the program asked for says nothing about what a full one could free)
+    bool heapFull = live + gc.memoryLimit / 32 >= gc.memoryLimit;
+    if(!youngOnly || !heapFull) lastCollectionLeftHeapFull.store(heapFull);
+
+    // an out of memory is over when memory is back under the limit: the reserve is whole again
+    if(reserveOpen.load() && live < gc.memoryLimit) reserveOpen.store(false);
 
     // when to collect next (see section 3)
     uInt next = youngBudget;
@@ -872,6 +1072,10 @@ void tgc_safepoint() {
 
     set_gc_signal(self, false);
     count_uncounted_bytes(self);    // what this thread allocated is in the counters the collection reads
+
+    // out of memory, and the program has a hook for it: the hook runs before this thread goes on
+    if(hookPending.load() && self != hookThread.load())
+        wait_for_memory_hook(self);
 
     // Safe first, lock second (rule b): if another thread is collecting it is
     // waiting for exactly this flag while holding world_mut.

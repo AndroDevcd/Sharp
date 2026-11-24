@@ -38,7 +38,7 @@ import (
  *      your own            add(a mesh)             (three/mesh.sharp)
  *      land and plants     terrain  tree  pine  scatter
  *      the view            camera()  sun()  lamp()  sky  backdrop  fog  daylight
- *      code and widgets    on_frame { f -> ... }   hud { ... }
+ *      code and widgets    on_frame { f -> ... }   any widget, written in the block (hud { ... } groups them)
  *
  * Shapes of the same size share one copy on the graphics card, however often
  * the screen is rebuilt: writing cube(1) in a loop a thousand times makes a
@@ -282,9 +282,13 @@ def on_frame(what: (frame)()) {
     stage.the_scene("on_frame { ... }").each_frame(what);
 }
 
-/** ordinary widgets over the scene: a score, a health bar, buttons */
+/**
+ * ordinary widgets over the scene: a score, a health bar, buttons. Any widget written in
+ * scene { } is laid over the view already; this only keeps a group of them together.
+ */
 def hud(block: ()()) {
-    stage.the_scene("hud { ... }").over(block);
+    stage.the_scene("hud { ... }");
+    block();
 }
 
 // ==================================================================== textures by hand

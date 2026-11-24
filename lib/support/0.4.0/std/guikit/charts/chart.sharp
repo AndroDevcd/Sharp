@@ -1,0 +1,1728 @@
+mod std.guikit.charts;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * chart - numbers as bars and lines. Made with chart(...).
+ *
+ *      chart(modifier().fill_width().height(240)) {
+ *          bars("Sales", sales).corner(6);
+ *          line("Target", target).curved().dots(4);
+ *
+ *          x_axis(months);
+ *          y_axis().ticks(5);
+ *          grid_lines().dashed();
+ *          legend();
+ *          marker();
+ *      }.enter(motion.grow().stagger(0.04));
+ *
+ * WHAT GOES IN THE BLOCK
+ *
+ *   bars(...)  line(...)      the data: any number of each, drawn in the order written (series.sharp)
+ *   x_axis(...)  y_axis()     the words along the bottom and the numbers up the side (parts.sharp)
+ *   grid_lines()              level lines behind the marks
+ *   legend()                  the names of the series
+ *   marker()                  the place under the mouse is marked and its numbers are shown
+ *
+ * Each of them only works inside chart { }; written anywhere else it stops
+ * the program with an error that says so. Ordinary `if` and `for` work in
+ * the block, as in every block of this library.
+ *
+ * EACH OF THEM TAKES A BLOCK OF ITS OWN, and then what it would have written
+ * is built from widgets instead - any widgets, your composables too:
+ *
+ *      x_axis(months) { text(it.words).size(13); if(it.index == best) { chip("best"); } }
+ *      legend { text(it.name).color(it.tint!!); }
+ *      marker { text(months[it.index]).bold(); progress(share[it.index]); }
+ *      bars("Sales", sales) { if(it.value >= goal) { chip("goal"); } }
+ *
+ * AND ANY OTHER WIDGET CAN BE WRITTEN IN THE BLOCK. It is laid over the
+ * marks, where its modifier says in the chart's own terms:
+ *
+ *      chip("launch day", modifier().at(4, revenue[4]));       // over place 4, at that number's height
+ *      text("goal", modifier().at_value(8000));                // on the level of 8000
+ *      button("Details", modifier().at_place(11)) { open(); }; // over place 11, at the top
+ *
+ * (with no place said, it sits in the top left corner of the marks' area).
+ *
+ * AND ON THE CHART ITSELF
+ *
+ *   .stacked()                bars stand on top of each other instead of side by side
+ *   .range(low, high)         the numbers the y axis runs between (else: round numbers around the data)
+ *   .enter(motion)            how the marks appear (motion.sharp); a series can say its own
+ *   .change(motion)           how they get from old numbers to new ones
+ *   .on_select { i -> }       a place was clicked: i is its number, 0 the first
+ *   .hover(state)             keep a state at the place under the mouse (-1: none): anything on
+ *                             the screen can then follow what the chart is pointed at
+ *
+ * THE NUMBERS ARE PLAIN VALUES, not a state - like progress(fraction). When
+ * your state changes, build() runs again and makes a chart from the new
+ * numbers; the marks then glide from where they were to where they belong.
+ * One made with new numbers every second is a live chart.
+ *
+ * (Compose: Vico's CartesianChartHost with its layers. Android: MPAndroidChart's
+ * CombinedChart. HTML: Chart.js.)
+ *
+ * HOW IT WORKS
+ *
+ *   A chart is ONE widget that paints everything itself; the things said in
+ *   its block are not widgets but notes it keeps (chart.open is the chart
+ *   whose block is running, as scope.open is for containers).
+ *
+ *   Painting goes from numbers to pixels in three steps:
+ *
+ *     1. THE SCALE. The lowest and highest number are found (with bars: 0
+ *        is always in), and widened to round numbers so the y axis reads
+ *        0, 50, 100 and not 0, 47, 94. `y_of` turns a number into a place.
+ *     2. EVERY MARK AT REST. Place i of n is a slot of the width; a bar
+ *        fills its share of the slot, a point sits in the slot's middle
+ *        (with no bars in the chart, the points run from edge to edge).
+ *     3. THE MOTION. Each mark is handed to the motion with how far along
+ *        it is, and painted as the motion leaves it.
+ *
+ *   MOVING. Nothing here is a timer. The chart knows WHEN things began (a
+ *   series' `born`, the chart's `change_at`, in the host's clock) and works
+ *   out from the time of each frame where everything is; while something is
+ *   on its way it asks the host for another frame.
+ *
+ *   WIDGETS IN A CHART. Every place a chart writes words - the labels of
+ *   the axes, the legend, the marker's box, the marks themselves - can hold
+ *   widgets instead (the block of its word), and widgets written straight
+ *   into the chart's block are laid over the marks. Each is an ordinary
+ *   CHILD of the chart: built with the chart (make_views), so the reconciler
+ *   carries its memory across rebuilds like any other; measured in the
+ *   chart's measure, which is how the chart knows the room a row of labels
+ *   needs; and put in its place while PAINTING, where the places are worked
+ *   out anyway - they move with every frame of a motion, and layout is not
+ *   run for that. Only the marker's box is different: what it holds depends
+ *   on where the mouse is, so it is built when the mouse comes to a place
+ *   (tip_view).
+ *
+ *   NEW NUMBERS. A rebuild makes a NEW chart object. The reconciler hands it
+ *   the old one (adopt, below): the new chart takes over when each series
+ *   appeared, and - if the numbers differ - notes where every mark stands on
+ *   the screen at this moment as the place to glide from. So a change in the
+ *   middle of a change starts from wherever the marks are.
+ */
+stable class chart base widget : behavior, stateful, pointer_target, overlay_painter {
+    /** the chart whose block is running right now (null: none) */
+    static open : chart?;
+
+    private static palette : list<color>?;
+
+    private layers : list<chart_series> = new list<chart_series>();
+    private across : chart_axis?;               // the x axis, when one was said
+    private up : chart_axis?;                   // the y axis
+    private behind : chart_grid?;
+    private names : chart_legend?;
+    private pointing : chart_marker?;
+
+    private piled : _int64 = 0;                 // 1: bars on top of each other
+    private fixed : _int64 = 0;                 // 1: the program said the range
+    private fixed_low : decimal = 0;
+    private fixed_high : decimal = 1;
+    private entering : motion?;
+    private changing : motion = motion.glide();
+    private picked : (_int64)()?;
+
+    private bars_enter : motion = motion.grow().stagger(0.03);
+    private line_enter : motion = motion.draw_on();
+
+    // ---- moving (see MOVING, above)
+    private change_at : decimal = 0 - 1;        // when the glide to the present numbers began; -1: none is running
+    private old_low : decimal = 0;              // the scale the glide began from
+    private old_high : decimal = 1;
+    private painted_at : decimal = 0 - 1;       // the time of the last paint; -1: never painted
+    private low : decimal = 0;                  // the scale as it was last painted
+    private high : decimal = 1;
+
+    // ---- where things were last painted (the mouse is answered from these)
+    private plot_left : decimal = 0;
+    private plot_top : decimal = 0;
+    private plot_w : decimal = 1;
+    private plot_h : decimal = 1;
+    private places : _int64 = 0;                // how many places there are across
+    private centred : _int64 = 0;               // 1: a place is a slot and marks sit in its middle (there are bars)
+
+    private pen : chart_pen = new chart_pen();
+    private spot : mark = new mark();
+    private told : chart_hover = new chart_hover();     // what the marker's functions are told
+
+    // ---- the widgets in it (WIDGETS IN A CHART, above)
+    private x_views : list<view> = new list<view>();    // one for each place, when the x axis builds its labels
+    private y_views : list<view> = new list<view>();    // one for each number of the y axis
+    private key_views : list<view> = new list<view>();  // one for each named series, when the legend builds its entries
+    private loose : _int64 = 0;                         // the first so many children: widgets written straight into the block
+    private shown_mark : mark = new mark();             // the mark a series' block is told of
+    private tracked : state<_int64>?;                   // the state that follows the place under the mouse (hover)
+    private tip_view : view?;                           // what the marker's box holds right now
+    private tip_for : _int64 = 0 - 1;                   // the place it was built for
+
+    // the marker's box, when it is painted and not a widget, waits until the chart's widgets are
+    // painted (paint_over): the place it is for (-1: none), and what paint() knew about it
+    private late_hot : _int64 = 0 - 1;
+    private late_zero : decimal = 0;
+    private late_bars : _int64 = 0;
+
+    // the scale the numbers call for (find_scale): where the shown scale is, or is gliding to
+    private scale_low : decimal = 0;
+    private scale_high : decimal = 1;
+    private scale_step : decimal = 1;
+    private bar_series_count : _int64 = 0;
+    private card : chart_tip = new chart_tip();         // what the marker's box says
+    private sum_up : decimal[] = new decimal[0];        // stacked bars: how high the pile at each place is so far
+    private sum_down : decimal[] = new decimal[0];
+
+    chart() {
+        attach(self);
+        me.fill_w = 1;
+    }
+
+    // ================================================================ what the program says
+
+    /** run the block: what it says (bars, line, x_axis ...) is noted in this chart */
+    def content(block: ()()) : chart {
+        chart_before : chart? = open;
+        scope_before : view? = scope.open;
+        open = self;
+        scope.open = me;                        // a widget written in the block is the chart's own: laid over the marks (modifier().at)
+        block();
+        scope.open = scope_before;
+        open = chart_before;
+        loose = me.kid_count();
+        make_views();
+        return self;
+    }
+
+    /**
+     * Build the widgets of every part that asked for them (.view): each is
+     * made by running the part's block into a small container of its own,
+     * which becomes a child of the chart.
+     */
+    private def make_views() {
+        find_scale();
+        if(across != null && across!!.viewer != null) {
+            axis : chart_axis = across!!;
+            for(i : _int64 = 0; i < places; i++) {
+                label : axis_label = axis.dressed(i, 0, place_name(i));
+                x_views.add(holder(1, { -> axis.viewer!!(label); }));
+            }
+        }
+        make_y_views();
+        if(names != null && names!!.viewer != null) {
+            legend : chart_legend = names!!;
+            look : theme = gui.current_theme();
+            entry := new legend_entry();
+            series_count : _int64 = layers.size();
+            for(j : _int64 = 0; j < series_count; j++) {
+                if(layers.at(j).name == "") { continue; }
+                entry.index = j;
+                entry.name = layers.at(j).name;
+                entry.tint = tint_of(j, layers.at(j), look);
+                key_views.add(holder(0, { -> legend.viewer!!(entry); }));
+            }
+        }
+        series_count : _int64 = layers.size();
+        for(j : _int64 = 0; j < series_count; j++) {
+            series : chart_series = layers.at(j);
+            if(series.viewer == null) { continue; }
+            shown_mark.count = series.count;
+            shown_mark.is_bar = series.is_bars();
+            shown_mark.tint = tint_of(j, series, gui.current_theme());
+            for(i : _int64 = 0; i < series.count; i++) {
+                shown_mark.index = i;
+                shown_mark.value = series.values[i];
+                series.views.add(holder(1, { -> series.viewer!!(shown_mark); }));
+            }
+        }
+    }
+
+    /** the widgets of the y axis' numbers. Made again when the scale is changed after the block (stacked, range). */
+    private def make_y_views() {
+        count : _int64 = y_views.size();
+        for(i : _int64 = 0; i < count; i++) {
+            me.remove_kid(y_views.at(i));
+        }
+        y_views.clear();
+        if(up == null || up!!.viewer == null || places == 0) {
+            return;
+        }
+        axis : chart_axis = up!!;
+        first : decimal = (0 - num.whole(0 - scale_low / scale_step)) * scale_step;
+        tick : _int64 = 0;
+        for(v : decimal = first; v <= scale_high + scale_step / 2; v = v + scale_step) {
+            label : axis_label = axis.dressed(tick, v, written(v));
+            y_views.add(holder(0, { -> axis.viewer!!(label); }));
+            tick = tick + 1;
+        }
+    }
+
+    /**
+     * Run `fill` into a new container and make that a child of the chart:
+     * a row (upright 0), a column with its children in the middle (1) or a
+     * column with them at the left (2). It is not painted until paint()
+     * gives it a place.
+     */
+    private def holder(upright: _int64, fill: ()()) : view {
+        scope_before : view? = scope.open;
+        chart_before : chart? = open;
+        scope.open = null;                      // the container itself must not land in whatever is open
+        open = null;                            // (a chart made INSIDE the block opens itself)
+        box : view = me;
+        if(upright == 2) {
+            made := new column();
+            made.gap(4).content(fill);
+            box = made.node();
+        } else if(upright == 1) {
+            made := new column();
+            made.align(ALIGN_CENTER).gap(2).content(fill);
+            box = made.node();
+        } else {
+            made := new row();
+            made.gap(6).content(fill);
+            box = made.node();
+        }
+        scope.open = scope_before;
+        open = chart_before;
+        me.add_kid(box);
+        box.hidden = 1;
+        return box;
+    }
+
+    /** put a widget of the chart at (x, y), at the size it asked for, and let it be painted */
+    private def place(box: view, x: decimal, y: decimal) {
+        box.hidden = 0;
+        box.arrange(x, y, box.want_w, box.want_h);
+    }
+
+    /** the tallest (across 0) or widest (across 1) of some widgets */
+    private static def largest(boxes: list<view>, across: _int64) : decimal {
+        most : decimal = 0;
+        count : _int64 = boxes.size();
+        for(i : _int64 = 0; i < count; i++) {
+            size : decimal = boxes.at(i).want_h;
+            if(across == 1) { size = boxes.at(i).want_w; }
+            if(size > most) { most = size; }
+        }
+        return most;
+    }
+
+    /** the widget in the marker's box is not wanted any more: out of the tree, and its composables are told */
+    private def drop_tip() {
+        if(tip_view != null) {
+            me.remove_kid(tip_view!!);
+            reconciler.retire(tip_view!!);
+            tip_view = null;
+        }
+        tip_for = 0 - 1;
+    }
+
+    /**
+     * The chart whose block is running - or, outside any, an error that names
+     * what was written and where it belongs (as scope.inside does for tab(...)).
+     */
+    static def inside(written: string) : chart {
+        if(open == null) {
+            throw new illegal_state_exception("`" + written + "` only works inside `chart { ... }`");
+        }
+        return open!!;
+    }
+
+    def add(series: chart_series) { layers.add(series); }
+    def set_x_axis(axis: chart_axis) { across = axis; }
+    def set_y_axis(axis: chart_axis) { up = axis; }
+    def set_grid(grid: chart_grid) { behind = grid; }
+    def set_legend(legend: chart_legend) { names = legend; }
+    def set_marker(marker: chart_marker) { pointing = marker; }
+
+    /** bars stand on top of each other instead of side by side */
+    def stacked() : chart {
+        piled = 1;
+        find_scale();
+        make_y_views();
+        return self;
+    }
+
+    /** the numbers the y axis runs between */
+    def range(lowest: decimal, highest: decimal) : chart {
+        fixed = 1;
+        fixed_low = lowest;
+        fixed_high = highest;
+        find_scale();
+        make_y_views();
+        return self;
+    }
+
+    /** how the marks appear */
+    def enter(how: motion) : chart {
+        entering = how;
+        return self;
+    }
+
+    /** how the marks get from old numbers to new ones */
+    def change(how: motion) : chart {
+        changing = how;
+        return self;
+    }
+
+    /**
+     * Keep `target` at the place the mouse points at (0: the first; -1: none).
+     * It is an ordinary state, so whatever is built from it follows the mouse:
+     * a panel beside the chart, a second chart that lights up the same place.
+     *
+     *      pointed := state(0 - 1);
+     *      chart { ... }.hover(pointed);
+     *      if(pointed.value >= 0) { text("you are looking at " + months[pointed.value]); }
+     */
+    def hover(target: state<_int64>) : chart {
+        tracked = target;
+        return self;
+    }
+
+    /** run this when a place is clicked, with its number (0: the first) */
+    def on_select(action: (_int64)()) : chart {
+        picked = action;
+        return self;
+    }
+
+    // ================================================================ as a widget
+
+    override def kind() : string { return "chart"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        // the widgets in it may each be as big as they like, up to the chart's own room
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            me.kids.at(i).measure(0, max_w, 0, max_h);
+        }
+        me.content_w = 240;
+        me.content_h = 180;
+    }
+
+    override def arrange() {
+    }
+
+    override def pointer(what: _int64, x: decimal, y: decimal) {
+        if(what == POINTER_PRESS && picked != null) {
+            at : _int64 = place_at(x, y);
+            if(at >= 0) { picked!!(at); }
+        }
+    }
+
+    /**
+     * Take over from the chart this one replaces after a rebuild: when its
+     * series appeared, and - when the numbers are not the same - where every
+     * mark stands right now, as the place to glide from (NEW NUMBERS, above).
+     */
+    override def adopt(old: behavior) {
+        if(!(old is chart)) {
+            return;
+        }
+        before := old as chart;
+        if(before.painted_at < 0) {
+            return;                             // it never reached the screen: there is nothing to carry on from
+        }
+        now : decimal = before.painted_at;
+        if(ui_host.current != null) { now = ui_host.current!!.now; }
+
+        mine : _int64 = layers.size();
+        theirs : _int64 = before.layers.size();
+        differs : _int64 = 0;
+        if(mine != theirs) { differs = 1; }
+        for(j : _int64 = 0; j < mine && j < theirs; j++) {
+            fresh : chart_series = layers.at(j);
+            was : chart_series = before.layers.at(j);
+            if(fresh.is_bars() != was.is_bars()) { differs = 1; continue; }
+            fresh.born = was.born;
+            if(fresh.same_numbers(was) == 0) { differs = 1; }
+        }
+
+        if(differs == 0) {
+            // the same numbers: a glide that is running carries on as it was
+            for(j : _int64 = 0; j < mine; j++) {
+                layers.at(j).start = before.layers.at(j).start;
+            }
+            change_at = before.change_at;
+            old_low = before.old_low;
+            old_high = before.old_high;
+            return;
+        }
+
+        for(j : _int64 = 0; j < mine && j < theirs; j++) {
+            fresh : chart_series = layers.at(j);
+            was : chart_series = before.layers.at(j);
+            if(fresh.is_bars() != was.is_bars()) { continue; }
+            for(i : _int64 = 0; i < fresh.count; i++) {
+                if(i < was.count) {
+                    fresh.start[i] = was.value_at(i, before.change_part(now, i, was.count));
+                } else if(fresh.is_bars() == 1 || was.count == 0) {
+                    fresh.start[i] = 0;                         // a new bar grows from nothing
+                } else {
+                    fresh.start[i] = was.value_at(was.count - 1, 1);    // a new point of a line leaves from the line's old end
+                }
+            }
+        }
+        change_at = now;
+        old_low = before.low;
+        old_high = before.high;
+    }
+
+    /** how much of the glide to the present numbers mark i has done at time `now` (1: there is none, or it is over) */
+    def change_part(now: decimal, i: _int64, count: _int64) : decimal {
+        if(change_at < 0) { return 1; }
+        return changing.progress(now - change_at, i, count);
+    }
+
+    // ================================================================ numbers to pixels
+
+    /** where the number `v` is, down the screen */
+    private def y_of(v: decimal) : decimal {
+        return plot_top + plot_h - (v - low) / (high - low) * plot_h;
+    }
+
+    /** where the middle of place i is, across the screen (2.5: half way between the third and the fourth) */
+    private def x_of(i: decimal) : decimal {
+        if(centred == 1 || places < 2) {
+            return plot_left + plot_w * (i + 0.5) / places;
+        }
+        return plot_left + plot_w * i / (places - 1);
+    }
+
+    /** the place under a point of the window, or -1 when the point is not over the marks */
+    private def place_at(px: decimal, py: decimal) : _int64 {
+        if(places == 0 || px < plot_left - 4 || px > plot_left + plot_w + 4 || py < plot_top - 4 || py > plot_top + plot_h + 4) {
+            return 0 - 1;
+        }
+        at : _int64 = 0;
+        if(centred == 1 || places < 2) {
+            at = (px - plot_left) / (plot_w / places);
+        } else {
+            at = num.nearest((px - plot_left) / (plot_w / (places - 1)));
+        }
+        if(at < 0) { at = 0; }
+        if(at >= places) { at = places - 1; }
+        return at;
+    }
+
+    /** the colour of series number `index` when it was given none: the theme's own first, then a fixed row of others */
+    private def tint_of(index: _int64, series: chart_series, look: theme) : color {
+        if(series.tint != null) { return series.tint!!; }
+        if(index == 0) { return look.primary; }
+        if(palette == null) {
+            made := new list<color>();
+            made.add(new color(45, 190, 160, 255));
+            made.add(new color(245, 170, 60, 255));
+            made.add(new color(235, 95, 140, 255));
+            made.add(new color(150, 110, 245, 255));
+            made.add(new color(90, 200, 240, 255));
+            palette = made;
+        }
+        return palette!!.at((index - 1) % palette!!.size());
+    }
+
+    /** a colour as the one number the painter takes, `opacity` (0 .. 1) as solid as it is */
+    private static def ink(c: color, opacity: decimal) : _int64 {
+        if(opacity >= 1) { return c.packed; }
+        if(opacity < 0) { opacity = 0; }
+        alpha : _int64 = c.alpha * opacity;
+        return c.packed - c.alpha + alpha;
+    }
+
+    /** the colour `part` of the way from a to b, as the painter's number */
+    private static def between(a: color, b: color, part: decimal, opacity: decimal) : _int64 {
+        return gui.pack(a.red + (b.red - a.red) * part, a.green + (b.green - a.green) * part,
+                        a.blue + (b.blue - a.blue) * part, (a.alpha + (b.alpha - a.alpha) * part) * opacity);
+    }
+
+    /** how a number is written: the y axis' own way when it has one */
+    private def written(v: decimal) : string {
+        if(up != null && up!!.writer != null) { return up!!.writer!!(v); }
+        return chart_text.number(v);
+    }
+
+    /**
+     * A round distance between the numbers of the y axis, so that about
+     * `wanted` of them fit between low and high: 1, 2, 2.5 or 5 times a power of ten.
+     */
+    private static def round_step(lowest: decimal, highest: decimal, wanted: _int64) : decimal {
+        raw : decimal = (highest - lowest) / wanted;
+        if(raw <= 0) { return 1; }
+        size : decimal = 1;
+        while(size * 10 <= raw) { size = size * 10; }
+        while(size > raw) { size = size / 10; }
+        times : decimal = raw / size;               // 1 .. 10
+        if(times <= 1) { return size; }
+        if(times <= 2) { return 2 * size; }
+        if(times <= 2.5) { return 2.5 * size; }
+        if(times <= 5) { return 5 * size; }
+        return 10 * size;
+    }
+
+    /**
+     * The scale the numbers call for (scale_low, scale_high) and the distance
+     * between the numbers of the y axis (scale_step) - and, on the way, how
+     * many places and how many series of bars there are.
+     */
+    private def find_scale() {
+        series_count : _int64 = layers.size();
+        places = 0;
+        bar_series_count = 0;
+        for(j : _int64 = 0; j < series_count; j++) {
+            if(layers.at(j).count > places) { places = layers.at(j).count; }
+            if(layers.at(j).is_bars() == 1) { bar_series_count = bar_series_count + 1; }
+        }
+        wanted : _int64 = 5;
+        if(up != null) { wanted = up!!.wanted; }
+        scale_low = fixed_low;
+        scale_high = fixed_high;
+        scale_step = round_step(scale_low, scale_high, wanted);
+        if(fixed == 0) {
+            find_extent(bar_series_count);
+            scale_low = pen.lowest;
+            scale_high = pen.highest;
+            if(scale_high == scale_low) { scale_high = scale_low + 1; }
+            scale_step = round_step(scale_low, scale_high, wanted);
+            scale_low = num.whole(scale_low / scale_step) * scale_step;
+            scale_high = (0 - num.whole(0 - scale_high / scale_step)) * scale_step;
+        }
+        if(scale_high <= scale_low) { scale_high = scale_low + 1; }
+    }
+
+    // ================================================================ painting
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        look : theme = host.look;
+        now : decimal = host.now;
+        painted_at = now;
+        late_hot = 0 - 1;
+        moving : _int64 = 0;
+
+        // the widgets in it are painted only where this frame gives them a place
+        kid_count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < kid_count; i++) {
+            me.kids.at(i).hidden = 1;
+        }
+
+        // ---- how many places, and what kinds of series
+        series_count : _int64 = layers.size();
+        bar_count : _int64 = 0;
+        gap_part : decimal = 0.28;
+        labels_on_bars : _int64 = 0;
+        on_marks : decimal = 0;                     // the height of the tallest widget that stands on a mark
+        places = 0;
+        for(j : _int64 = 0; j < series_count; j++) {
+            series : chart_series = layers.at(j);
+            if(series.count > places) { places = series.count; }
+            if(series.is_bars() == 1) {
+                bars_here := series as bar_series;
+                if(bar_count == 0) { gap_part = bars_here.empty; }
+                if(bars_here.labelled == 1) { labels_on_bars = 1; }
+                bar_count = bar_count + 1;
+            }
+            if(series.born < 0) { series.born = now; }
+            if(series.viewer != null) { on_marks = num.larger(on_marks, largest(series.views, 0)); }
+        }
+        if(places == 0) {
+            return;
+        }
+        centred = 0;
+        if(bar_count > 0) { centred = 1; }
+
+        // ---- is a glide from old numbers running?
+        scale_part : decimal = 1;
+        if(change_at >= 0) {
+            if(now - change_at >= changing.total(places)) {
+                change_at = 0 - 1;
+            } else {
+                scale_part = changing.overall(now - change_at);
+                moving = 1;
+            }
+        }
+
+        // ---- 1. the scale
+        find_scale();
+        aim_low : decimal = scale_low;
+        aim_high : decimal = scale_high;
+        step : decimal = scale_step;
+        low = aim_low;
+        high = aim_high;
+        if(change_at >= 0) {
+            low = old_low + (aim_low - old_low) * scale_part;
+            high = old_high + (aim_high - old_high) * scale_part;
+            if(high <= low) { high = low + 1; }
+        }
+
+        // ---- the room for the marks: what is left when the axes and the legend have theirs
+        f : font = host.font_of(look.small_size);
+        quiet : color = look.text_dim;
+        left : decimal = me.inner_x() + 4;
+        top : decimal = me.inner_y() + 10;
+        right : decimal = me.inner_x() + me.inner_w() - 8;
+        bottom : decimal = me.inner_y() + me.inner_h() - 4;
+        legend_font : font = f;
+        under : decimal = 0;                        // the room the legend takes below the x axis' words
+        if(names != null) {
+            size : decimal = look.small_size;
+            if(names!!.pixels > 0) { size = names!!.pixels; }
+            legend_font = host.font_of(size, names!!.heavy);
+            tall : decimal = legend_font.line_height + 10;
+            if(names!!.boxed == 1) { tall = tall + 6; }
+            if(names!!.viewer != null) { tall = largest(key_views, 0) + 10; }
+            if(names!!.below == 1) {
+                under = tall;
+                bottom = bottom - tall;
+            } else {
+                top = top + tall;
+            }
+        }
+        if(labels_on_bars == 1) {
+            // a bar's number stands beyond its far end: above it, and below it for a bar under 0
+            top = top + f.line_height + 2;
+            if(aim_low < 0) { bottom = bottom - f.line_height - 2; }
+        }
+        if(on_marks > 0) {
+            top = top + on_marks + 2;
+            if(aim_low < 0 && bar_count > 0) { bottom = bottom - on_marks - 2; }
+        }
+        band : decimal = f.line_height;             // how tall the row of the x axis' labels is
+        if(across != null) {
+            if(across!!.viewer != null) { band = largest(x_views, 0); }
+            bottom = bottom - band - 8;
+        }
+        if(up != null) {
+            widest : decimal = 0;
+            if(up!!.viewer != null) {
+                widest = largest(y_views, 1);
+            } else {
+                for(v : decimal = aim_low; v <= aim_high + step / 2; v = v + step) {
+                    widest = num.larger(widest, f.width_of(written(v)));
+                }
+            }
+            left = left + widest + 10;
+        }
+        plot_left = left;
+        plot_top = top;
+        plot_w = num.larger(1, right - left);
+        plot_h = num.larger(1, bottom - top);
+
+        // where 0 is: bars stand on it. Outside the scale, it is the nearest edge.
+        zero : decimal = num.between(y_of(0), plot_top, plot_top + plot_h);
+
+        pointed : _int64 = 0 - 1;                   // the place the mouse points at
+        if(me.hovered == 1 && (pointing != null || tracked != null)) {
+            pointed = place_at(host.mouse_x, host.mouse_y);
+        }
+        if(tracked != null && tracked!!.peek() != pointed) {
+            tracked!!.value = pointed;              // whoever was built from the state is built again
+        }
+        hot : _int64 = 0 - 1;                       // ... as far as the marker is concerned: -1 without one
+        if(pointing != null) { hot = pointed; }
+        if(hot < 0) { drop_tip(); }
+
+        // ---- the level lines and the numbers of the y axis
+        first_tick : decimal = (0 - num.whole(0 - aim_low / step)) * step;
+        tick : _int64 = 0 - 1;
+        for(v : decimal = first_tick; v <= aim_high + step / 2; v = v + step) {
+            tick = tick + 1;
+            y : decimal = y_of(v);
+            if(y < plot_top - 0.5 || y > plot_top + plot_h + 0.5) { continue; }
+            if(behind != null) {
+                line_tint : color = look.border.with_alpha(110);
+                if(behind!!.tint != null) { line_tint = behind!!.tint!!; }
+                if(behind!!.broken == 1) {
+                    for(x : decimal = plot_left; x < plot_left + plot_w; x = x + 9) {
+                        pen.rect(x, num.nearest(y), num.smaller(5, plot_left + plot_w - x), 1, line_tint.packed);
+                    }
+                } else {
+                    pen.rect(plot_left, num.nearest(y), plot_w, 1, line_tint.packed);
+                }
+            }
+            if(up != null && up!!.viewer != null) {
+                if(tick < y_views.size()) {
+                    box : view = y_views.at(tick);
+                    place(box, plot_left - 10 - box.want_w, y - box.want_h / 2);
+                }
+            } else if(up != null) {
+                label : axis_label = up!!.dressed(tick, v, written(v));
+                if(label.hidden == 0) {
+                    number_tint : color = quiet;
+                    if(up!!.tint != null) { number_tint = up!!.tint!!; }
+                    if(label.tint != null) { number_tint = label.tint!!; }
+                    label_font : font = host.font_of(look.small_size, label.bold);
+                    p.text(label.words, plot_left - 10 - label_font.width_of(label.words), y - label_font.line_height / 2, label_font, number_tint);
+                }
+            }
+        }
+        pen.show_rects(p);
+
+        if(hot >= 0) {
+            paint_guide(p, hot, bar_count, look);
+        }
+
+        // ---- the bars
+        if(bar_count > 0) {
+            if(sizeof(sum_up) < places) {
+                sum_up = new decimal[places];
+                sum_down = new decimal[places];
+            }
+            for(i : _int64 = 0; i < places; i++) {
+                sum_up[i] = 0;
+                sum_down[i] = 0;
+            }
+            slot : decimal = plot_w / places;
+            group_w : decimal = slot * (1 - gap_part);
+            lanes : _int64 = bar_count;
+            if(piled == 1) { lanes = 1; }
+            lane_w : decimal = (group_w - 2 * (lanes - 1)) / lanes;
+            lane : _int64 = 0;
+            seen : _int64 = 0;
+            for(j : _int64 = 0; j < series_count; j++) {
+                if(layers.at(j).is_bars() == 0) { continue; }
+                series := layers.at(j) as bar_series;
+                seen = seen + 1;
+                rounded : _int64 = 1;
+                if(piled == 1 && seen < bar_count) { rounded = 0; }     // only the top of a pile is round
+                if(paint_bars(p, series, j, lane, lane_w, slot, group_w, zero, hot, rounded, f, look, now) == 1) { moving = 1; }
+                if(piled == 0) { lane = lane + 1; }
+            }
+        }
+
+        // the line the bars stand on
+        if(bar_count > 0 || across != null) {
+            p.rect(plot_left, num.nearest(zero), plot_w, 1, look.border);
+        }
+
+        // ---- the lines
+        for(j : _int64 = 0; j < series_count; j++) {
+            if(layers.at(j).is_bars() == 1) { continue; }
+            series := layers.at(j) as line_series;
+            if(paint_line(p, series, j, zero, look, now) == 1) { moving = 1; }
+        }
+
+        // ---- the widgets written straight into the block: each where its modifier says, in the chart's terms
+        for(i : _int64 = 0; i < loose && i < kid_count; i++) {
+            box : view = me.kids.at(i);
+            box_x : decimal = plot_left + 4;
+            box_y : decimal = plot_top + 4;
+            if(box.at_set == 1 || box.at_set == 3) {
+                box_x = x_of(box.at_across) - box.want_w / 2;           // over the place
+            }
+            if(box.at_set == 2 || box.at_set == 3) {
+                box_y = y_of(box.at_up) - box.want_h - 4;               // standing on the number's height
+            }
+            box_x = num.between(box_x, me.inner_x(), num.larger(me.inner_x(), me.inner_x() + me.inner_w() - box.want_w));
+            box_y = num.larger(me.inner_y(), box_y);
+            place(box, box_x, box_y);
+        }
+
+        // ---- the words of the x axis: as many as fit without running into each other
+        if(across != null) {
+            word_tint : color = quiet;
+            if(across!!.tint != null) { word_tint = across!!.tint!!; }
+            built : _int64 = 0;
+            if(across!!.viewer != null) { built = 1; }
+            widest : decimal = 0;
+            if(built == 1) {
+                widest = largest(x_views, 1);
+            } else {
+                for(i : _int64 = 0; i < places; i++) {
+                    widest = num.larger(widest, f.width_of(place_name(i)));
+                }
+            }
+            room : decimal = plot_w / places;
+            if(centred == 0 && places > 1) { room = plot_w / (places - 1); }
+            every : _int64 = 1;
+            while(room * every < widest + 10 && every < places) { every = every + 1; }
+            row_y : decimal = me.inner_y() + me.inner_h() - 5 - band - under;
+            for(i : _int64 = 0; i < places; i = i + every) {
+                if(built == 1) {
+                    if(i < x_views.size()) {
+                        box : view = x_views.at(i);
+                        place(box, num.between(x_of(i) - box.want_w / 2, me.inner_x(), num.larger(me.inner_x(), me.inner_x() + me.inner_w() - box.want_w)),
+                              row_y + band - box.want_h);         // standing on one line: a taller label grows upwards
+                    }
+                    continue;
+                }
+                label : axis_label = across!!.dressed(i, 0, place_name(i));
+                if(label.hidden == 1) { continue; }
+                label_font : font = host.font_of(look.small_size, label.bold);
+                label_tint : color = word_tint;
+                if(label.tint != null) { label_tint = label.tint!!; }
+                wide : decimal = label_font.width_of(label.words);
+                x : decimal = num.between(x_of(i) - wide / 2, me.inner_x(), me.inner_x() + me.inner_w() - wide);
+                // (measured from the chart's lower edge: numbers of bars under 0 may stand between the marks and these words)
+                p.text(label.words, x, row_y, label_font, label_tint);
+            }
+        }
+
+        // ---- the legend
+        if(names != null) {
+            y : decimal = me.inner_y() + 2;
+            if(names!!.boxed == 1) { y = y + 3; }
+            if(names!!.below == 1) { y = me.inner_y() + me.inner_h() - under + 6; }
+            paint_legend(p, names!!, legend_font, y, look);
+        }
+
+        if(hot >= 0) {
+            if(pointing!!.viewer != null) {
+                paint_marker(p, hot, zero, bar_count, f, look, now);    // its box is a widget: it must have its place before the widgets are painted
+            } else {
+                late_hot = hot;
+                late_zero = zero;
+                late_bars = bar_count;
+            }
+        }
+
+        if(moving == 1) {
+            host.request_frame();
+        }
+    }
+
+    /**
+     * After the chart's widgets are painted: the marker's box, so that no
+     * widget standing on a mark covers it.
+     */
+    override def paint_over(p: painter) {
+        if(late_hot < 0 || pointing == null) {
+            return;
+        }
+        host := ui_host.current!!;
+        paint_marker(p, late_hot, late_zero, late_bars, host.font_of(host.look.small_size), host.look, host.now);
+    }
+
+    /** the word under place i: the x axis' own, or the place's number counted from 1 */
+    private def place_name(i: _int64) : string {
+        if(across != null && i < across!!.words.size()) {
+            return across!!.words.at(i);
+        }
+        return "" + (i + 1);
+    }
+
+    /**
+     * The lowest and highest number the scale has to hold (left in the pen:
+     * lowest, highest). With bars, 0 is always in - a bar's length IS its
+     * number, so a scale that starts elsewhere would lie; a chart of only
+     * lines keeps close to its data. Bars that are piled count by the pile.
+     */
+    private def find_extent(bar_count: _int64) {
+        lowest : decimal = 0;
+        highest : decimal = 0;
+        found : _int64 = 0;
+        if(bar_count > 0) { found = 1; }
+
+        series_count : _int64 = layers.size();
+        if(piled == 1 && bar_count > 0) {
+            for(i : _int64 = 0; i < places; i++) {
+                above : decimal = 0;
+                below : decimal = 0;
+                for(j : _int64 = 0; j < series_count; j++) {
+                    series : chart_series = layers.at(j);
+                    if(series.is_bars() == 0 || i >= series.count) { continue; }
+                    if(series.values[i] >= 0) { above = above + series.values[i]; }
+                    else { below = below + series.values[i]; }
+                }
+                if(above > highest) { highest = above; }
+                if(below < lowest) { lowest = below; }
+            }
+        }
+        for(j : _int64 = 0; j < series_count; j++) {
+            series : chart_series = layers.at(j);
+            if(piled == 1 && series.is_bars() == 1) { continue; }
+            for(i : _int64 = 0; i < series.count; i++) {
+                v : decimal = series.values[i];
+                if(found == 0) {
+                    lowest = v;
+                    highest = v;
+                    found = 1;
+                }
+                if(v < lowest) { lowest = v; }
+                if(v > highest) { highest = v; }
+            }
+        }
+        pen.lowest = lowest;
+        pen.highest = highest;
+    }
+
+    /** the motion a series appears with: its own, else the chart's, else the usual one of its kind */
+    private def enter_of(series: chart_series) : motion {
+        if(series.entering != null) { return series.entering!!; }
+        if(entering != null) { return entering!!; }
+        if(series.is_bars() == 1) { return bars_enter; }
+        return line_enter;
+    }
+
+    /** paint one series of bars. Returns 1 while any of them is still on its way. */
+    private def paint_bars(p: painter, series: bar_series, number: _int64, lane: _int64, lane_w: decimal, slot: decimal,
+                           group_w: decimal, zero: decimal, hot: _int64, rounded: _int64, f: font, look: theme, now: decimal) : _int64 {
+        appear : motion = enter_of(series);
+        age : decimal = now - series.born;
+        moving : _int64 = 0;
+        if(age < appear.total(series.count)) { moving = 1; }
+        own : color = tint_of(number, series, look);
+
+        for(i : _int64 = 0; i < series.count; i++) {
+            v : decimal = series.value_at(i, change_part(now, i, series.count));
+
+            // from where to where the bar runs: from 0, or from the top of the pile so far
+            foot : decimal = 0;
+            if(piled == 1) {
+                if(v >= 0) { foot = sum_up[i]; sum_up[i] = foot + v; }
+                else { foot = sum_down[i]; sum_down[i] = foot + v; }
+            }
+            y_foot : decimal = y_of(foot);
+            y_head : decimal = y_of(foot + v);
+
+            m : mark = spot;
+            m.index = i;
+            m.count = series.count;
+            m.value = v;
+            m.is_bar = 1;
+            m.width = num.larger(1, num.nearest(lane_w));
+            if(series.wide > 0) { m.width = series.wide; }
+            m.x = num.nearest(plot_left + slot * i + (slot - group_w) / 2 + lane * (lane_w + 2) + (lane_w - m.width) / 2);
+            m.y = num.smaller(y_foot, y_head);
+            m.height = num.larger(y_foot, y_head) - m.y;
+            m.baseline = zero;
+            m.size = 0;
+            m.opacity = 1;
+            m.tint = own;
+            if(series.each_tint != null) { m.tint = series.each_tint!!(i, v); }
+            appear.shape(m, appear.progress(age, i, series.count));
+            if(hot >= 0 && i != hot && pointing!!.fading == 1) {
+                m.opacity = m.opacity * 0.35;       // a place is pointed at, and it is not this one
+            }
+            if(m.opacity <= 0) { continue; }
+
+            if(i < series.views.size()) {
+                // its widget rides at the bar's far end, as solid as the bar
+                box : view = series.views.at(i);
+                box.opacity = num.between(m.opacity, 0, 1);
+                box_y : decimal = m.y - box.want_h - 2;
+                if(v < 0) { box_y = m.y + m.height + 2; }
+                place(box, m.x + (m.width - box.want_w) / 2, box_y);
+            }
+
+            if(series.painter_of != null) {
+                series.painter_of!!(p, m);
+            } else {
+                paint_bar(p, series, m, v, rounded);
+                if(i == hot) {
+                    // the bar the mouse points at: the marker's highlight laid over it - a little lighter, unless it says otherwise
+                    over : color? = pointing!!.lit;
+                    if(over == null && pointing!!.fading == 0) { over = look.on_primary.with_alpha(40); }
+                    if(over != null) { p.rect(m.x, m.y, m.width, m.height, over!!); }
+                }
+            }
+
+            if(series.labelled == 1) {
+                words : string = written(series.values[i]);
+                y : decimal = m.y - f.line_height - 2;
+                if(v < 0) { y = m.y + m.height + 2; }
+                p.text(words, m.x + (m.width - f.width_of(words)) / 2, y, f, ink(look.text_dim, m.opacity));
+            }
+        }
+        return moving;
+    }
+
+    /**
+     * One bar. Its far end may be round and its near end - the one at the
+     * baseline - is always square: the box is painted LONGER than the bar by
+     * the corner's size, towards the baseline, and cut off where the bar ends.
+     */
+    private def paint_bar(p: painter, series: bar_series, m: mark, v: decimal, rounded: _int64) {
+        if(m.height <= 0) {
+            return;
+        }
+        radius : decimal = 0;
+        if(rounded == 1) { radius = num.smaller(series.round, num.smaller(m.width / 2, m.height)); }
+        box_y : decimal = m.y;
+        if(v < 0) { box_y = m.y - radius; }             // hangs below the baseline: its far end is the lower one
+        tint : color = m.tint!!;
+        blended : _int64 = 0;
+        if(series.far_tint != null && series.near_tint != null && series.each_tint == null) { blended = 1; }
+
+        if(blended == 0) {
+            if(radius > 0) { p.clip(m.x, m.y, m.width, m.height); }
+            p.rect(m.x, box_y, m.width, m.height + radius, radius, ink(tint, m.opacity));
+        } else {
+            // Of the box, only the round end is painted: the strips below are the rest of the bar.
+            // (Painted whole under the strips, a see-through bar would be twice as solid there.)
+            // The two meet on a whole pixel row, so that neither a gap nor a doubled row shows between them.
+            first : decimal = m.y;
+            last : decimal = m.y + m.height;
+            if(radius > 0) {
+                if(v < 0) {
+                    last = num.whole(m.y + m.height - radius);
+                    p.clip(m.x, last, m.width, m.y + m.height - last);
+                } else {
+                    first = 0 - num.whole(0 - (m.y + radius));
+                    p.clip(m.x, m.y, m.width, first - m.y);
+                }
+                p.rect(m.x, box_y, m.width, m.height + radius, radius, ink(tint, m.opacity));
+                p.unclip();
+                p.clip(m.x, m.y, m.width, m.height);
+            }
+            // the colours run into each other in level strips two pixels tall; the round end keeps the far colour
+            far : color = series.far_tint!!;
+            near : color = series.near_tint!!;
+            for(y : decimal = first; y < last; y = y + 2) {
+                part : decimal = (y - m.y) / m.height;      // 0 at the top of the bar, 1 at its bottom
+                if(v < 0) { part = 1 - part; }
+                pen.rect(m.x, y, m.width, num.smaller(2, last - y), between(far, near, part, m.opacity));
+            }
+            pen.show_rects(p);
+        }
+        if(series.edge > 0 && series.edge_tint != null) {
+            p.outline(m.x, box_y, m.width, m.height + radius, radius, series.edge, ink(series.edge_tint!!, m.opacity));
+        }
+        if(radius > 0) { p.unclip(); }
+    }
+
+    /** paint one line: its fill, the line itself, its dots. Returns 1 while it is still on its way. */
+    private def paint_line(p: painter, series: line_series, number: _int64, zero: decimal, look: theme, now: decimal) : _int64 {
+        count : _int64 = series.count;
+        if(count == 0) {
+            return 0;
+        }
+        appear : motion = enter_of(series);
+        age : decimal = now - series.born;
+        moving : _int64 = 0;
+        if(age < appear.total(count)) { moving = 1; }
+        own : color = tint_of(number, series, look);
+
+        // every point at rest, then as the motion leaves it
+        pen.points(count);
+        solid : decimal = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            m : mark = spot;
+            m.index = i;
+            m.count = count;
+            m.value = series.value_at(i, change_part(now, i, count));
+            m.is_bar = 0;
+            m.x = x_of(i);
+            m.y = y_of(m.value);
+            m.width = 0;
+            m.height = 0;
+            m.baseline = zero;
+            m.size = series.dot;
+            m.opacity = 1;
+            m.tint = own;
+            appear.shape(m, appear.progress(age, i, count));
+            pen.xs[i] = m.x;
+            pen.ys[i] = m.y;
+            pen.sizes[i] = m.size;
+            pen.solids[i] = num.between(m.opacity, 0, 1);
+            solid = solid + pen.solids[i];
+        }
+        solid = solid / count;                          // the line as a whole is as solid as its points are on average
+
+        // a line being drawn: only the part the pen has reached is uncovered
+        cut : _int64 = 0;
+        reached : decimal = plot_left + plot_w + 12;
+        if(appear.sweeps() == 1 && moving == 1) {
+            cut = 1;
+            reached = plot_left - 12 + (plot_w + 24) * appear.overall(age);
+            p.clip(plot_left - 12, plot_top - 12, (plot_w + 24) * appear.overall(age), plot_h + 24);
+        }
+
+        // its widgets stand above the points - those the pen has reached
+        if(series.viewer != null) {
+            for(i : _int64 = 0; i < count && i < series.views.size(); i++) {
+                if(pen.xs[i] > reached || pen.solids[i] <= 0) { continue; }
+                box : view = series.views.at(i);
+                box.opacity = pen.solids[i];
+                place(box, pen.xs[i] - box.want_w / 2, pen.ys[i] - box.want_h - series.dot - 5);
+            }
+        }
+
+        pen.trace(series.route, count);
+
+        if(series.filled == 1 && solid > 0) {
+            pen.fill_under(zero, own, 0.3 * solid);
+            pen.show_rects(p);
+        }
+        if(solid > 0) {
+            pen.stroke(series.broken, ink(own, solid));
+            pen.show_lines(p, series.thick);
+            if(series.route != LINE_CURVED && series.broken == 0 && series.thick > 2) {
+                // straight pieces meeting at an angle leave a notch on the outside: a round spot fills it
+                for(i : _int64 = 1; i < pen.path_n - 1; i++) {
+                    pen.circle(pen.path_x[i], pen.path_y[i], series.thick / 2, ink(own, solid));
+                }
+                pen.show_circles(p);
+            }
+        }
+
+        if(series.painter_of != null) {
+            for(i : _int64 = 0; i < count; i++) {
+                m : mark = spot;
+                m.index = i;
+                m.count = count;
+                m.value = series.values[i];
+                m.x = pen.xs[i];
+                m.y = pen.ys[i];
+                m.size = pen.sizes[i];
+                m.opacity = pen.solids[i];
+                m.tint = own;
+                series.painter_of!!(p, m);
+            }
+        } else if(series.dot > 0) {
+            for(i : _int64 = 0; i < count; i++) {
+                if(pen.solids[i] > 0 && pen.sizes[i] > 0) {
+                    pen.circle(pen.xs[i], pen.ys[i], pen.sizes[i], ink(own, pen.solids[i]));
+                }
+            }
+            pen.show_circles(p);
+        }
+
+        if(cut == 1) { p.unclip(); }
+        return moving;
+    }
+
+    /** the names of the series, each beside a sign in its colour, in one row at height `y` */
+    private def paint_legend(p: painter, legend: chart_legend, f: font, y: decimal, look: theme) {
+        if(legend.viewer != null) {
+            // the entries are widgets: only their places are decided here
+            count : _int64 = key_views.size();
+            if(count == 0) {
+                return;
+            }
+            all : decimal = legend.apart * (count - 1);
+            for(i : _int64 = 0; i < count; i++) { all = all + key_views.at(i).want_w; }
+            at : decimal = plot_left;
+            if(legend.sideways == ALIGN_CENTER) { at = plot_left + (plot_w - all) / 2; }
+            if(legend.sideways == ALIGN_END) { at = plot_left + plot_w - all; }
+            row_h : decimal = largest(key_views, 0);
+            for(i : _int64 = 0; i < count; i++) {
+                box : view = key_views.at(i);
+                place(box, at, y + (row_h - box.want_h) / 2);
+                at = at + box.want_w + legend.apart;
+            }
+            return;
+        }
+        series_count : _int64 = layers.size();
+        sign_w : decimal = 16;                      // the sign and the room after it
+        if(legend.mark_kind == LEGEND_LINE) { sign_w = 22; }
+        pad : decimal = 0;                          // the room inside a pill, left and right
+        if(legend.boxed == 1) { pad = 9; }
+
+        // how wide the row is: it may sit at the left, in the middle or at the right
+        wide : decimal = 0;
+        entries : _int64 = 0;
+        for(j : _int64 = 0; j < series_count; j++) {
+            if(layers.at(j).name == "") { continue; }
+            wide = wide + pad * 2 + sign_w + f.width_of(layers.at(j).name);
+            entries = entries + 1;
+        }
+        if(entries == 0) {
+            return;
+        }
+        wide = wide + legend.apart * (entries - 1);
+        x : decimal = plot_left;
+        if(legend.sideways == ALIGN_CENTER) { x = plot_left + (plot_w - wide) / 2; }
+        if(legend.sideways == ALIGN_END) { x = plot_left + plot_w - wide; }
+
+        words_tint : color = look.text_dim;
+        if(legend.tint != null) { words_tint = legend.tint!!; }
+        middle : decimal = y + f.line_height / 2;
+        for(j : _int64 = 0; j < series_count; j++) {
+            series : chart_series = layers.at(j);
+            if(series.name == "") { continue; }
+            own : color = tint_of(j, series, look);
+            name_w : decimal = f.width_of(series.name);
+            if(legend.boxed == 1) {
+                p.rect(x, y - 3, pad * 2 + sign_w + name_w, f.line_height + 6, (f.line_height + 6) / 2, look.surface_high);
+            }
+            x = x + pad;
+            if(legend.mark_kind == LEGEND_DOT) {
+                p.circle(x + 5, middle, 5, own);
+            } else if(legend.mark_kind == LEGEND_LINE) {
+                p.rect(x, middle - 1.5, 16, 3, 1.5, own);
+            } else {
+                p.rect(x, middle - 5, 10, 10, 3, own);
+            }
+            p.text(series.name, x + sign_w, y, f, words_tint);
+            x = x + sign_w + name_w + pad + legend.apart;
+        }
+    }
+
+    /**
+     * What marks the place the mouse points at BEHIND the marks: an upright
+     * line through it, or the whole place tinted (chart_marker.guide).
+     */
+    private def paint_guide(p: painter, hot: _int64, bar_count: _int64, look: theme) {
+        how : chart_marker = pointing!!;
+        which : _int64 = how.guide_kind;
+        if(which == GUIDE_AUTO) {
+            which = GUIDE_LINE;
+            if(bar_count > 0) { which = GUIDE_NONE; }       // the bar lights up instead
+        }
+        x : decimal = x_of(hot);
+        if(which == GUIDE_BAND) {
+            tint : color = look.text.with_alpha(18);
+            if(how.guide_tint != null) { tint = how.guide_tint!!; }
+            wide : decimal = plot_w / places;
+            if(centred == 0 && places > 1) { wide = plot_w / (places - 1); }
+            from : decimal = num.larger(plot_left, x - wide / 2);
+            to : decimal = num.smaller(plot_left + plot_w, x + wide / 2);
+            p.rect(from, plot_top, to - from, plot_h, 4, tint);
+        } else if(which == GUIDE_LINE) {
+            tint : color = look.text_dim.with_alpha(120);
+            if(how.guide_tint != null) { tint = how.guide_tint!!; }
+            if(how.broken == 1) {
+                for(y : decimal = plot_top; y < plot_top + plot_h; y = y + 8) {
+                    pen.rect(num.nearest(x), y, 1, num.smaller(4, plot_top + plot_h - y), tint.packed);
+                }
+                pen.show_rects(p);
+            } else {
+                p.rect(num.nearest(x), plot_top, 1, plot_h, tint);
+            }
+        }
+    }
+
+    /**
+     * What the mouse points at, ON TOP of the marks: a ring on every line's
+     * point there, and the box.
+     *
+     * What the box SAYS is a chart_tip: a heading and a line for each series,
+     * unless the marker's own function fills it (chart_marker.tip). Either
+     * way the box is measured from its lines here, and placed here - beside
+     * the mouse on the side that has the room, or above the place's highest
+     * mark - so nobody who styles or fills it works out a position.
+     */
+    private def paint_marker(p: painter, hot: _int64, zero: decimal, bar_count: _int64, f: font, look: theme, now: decimal) {
+        how : chart_marker = pointing!!;
+        host := ui_host.current!!;
+        x : decimal = x_of(hot);
+
+        told.index = hot;
+        told.name = place_name(hot);
+        told.x = x;
+        told.left = plot_left;
+        told.top = plot_top;
+        told.width = plot_w;
+        told.height = plot_h;
+        told.mouse_x = host.mouse_x;
+        told.mouse_y = host.mouse_y;
+
+        // the rings, the highest mark of the place, and the usual lines of the box
+        card.clear();
+        if(how.heading != null) { card.title(how.heading!!(hot)); }
+        else if(across != null) { card.title(told.name); }
+        series_count : _int64 = layers.size();
+        highest : decimal = plot_top + plot_h;
+        found : _int64 = 0;
+        for(j : _int64 = 0; j < series_count; j++) {
+            series : chart_series = layers.at(j);
+            if(hot >= series.count) { continue; }
+            own : color = tint_of(j, series, look);
+            y : decimal = y_of(series.value_at(hot, change_part(now, hot, series.count)));
+            if(series.is_bars() == 1 && piled == 1) { y = y_of(sum_up[hot]); }      // the top of the pile
+            if(y < highest) { highest = y; }
+            if(series.is_bars() == 0 && how.ring > 0) {
+                inside : color = look.on_primary;
+                if(how.ring_tint != null) { inside = how.ring_tint!!; }
+                p.circle(x, y, how.ring, own);
+                p.circle(x, y, how.ring / 2, inside);
+            }
+            words : string = written(series.values[hot]);
+            if(how.writer != null) { words = how.writer!!(series.values[hot]); }
+            if(series.name != "") { words = series.name + "  " + words; }
+            card.line(own, words);
+            found = found + 1;
+        }
+        if(found == 0) {
+            return;
+        }
+
+        if(how.painter_of != null) {
+            how.painter_of!!(p, told);
+            return;
+        }
+        back : color = look.surface_high;
+        edge : color = look.border;
+        words_tint : color = look.text;
+        if(how.back != null) { back = how.back!!; edge = how.back!!; }
+        if(how.edge != null) { edge = how.edge!!; }
+        if(how.ink != null) { words_tint = how.ink!!; }
+
+        if(how.viewer != null) {
+            // THE BOX IS A WIDGET: built for this place when the mouse comes to it, kept while it stays
+            if(tip_view == null || tip_for != hot) {
+                drop_tip();
+                tip_view = holder(2, { -> how.viewer!!(told); });
+                tip_for = hot;
+                reconciler.settle(tip_view!!, null);
+            }
+            box : view = tip_view!!;
+            box.pad_left = 10;
+            box.pad_right = 10;
+            box.pad_top = 8;
+            box.pad_bottom = 8;
+            if(how.boxed == 1) {
+                box.back = back;
+                box.border_w = 1;
+                box.border_c = edge;
+            }
+            box.measure(0, me.inner_w(), 0, me.inner_h());
+            box.corner = num.smaller(how.round, box.want_h / 2);
+            place(box, tip_x(x, box.want_w, how.over), tip_y(highest, box.want_h, how.over));
+            return;
+        }
+        if(how.boxed == 0) {
+            return;
+        }
+        if(how.filler != null) {
+            card.clear();
+            how.filler!!(told, card);
+        }
+        rows : _int64 = card.size();
+        if(rows == 0) {
+            return;
+        }
+
+        // ---- how big the box is
+        bold : font = host.font_of(look.small_size, 1);
+        box_w : decimal = 0;
+        for(i : _int64 = 0; i < rows; i++) {
+            wide : decimal = f.width_of(card.texts.at(i));
+            if(card.kind_at(i) == chart_tip.TITLE) { wide = bold.width_of(card.texts.at(i)); }
+            if(card.kind_at(i) == chart_tip.DOTTED) { wide = wide + 16; }
+            if(wide > box_w) { box_w = wide; }
+        }
+        pad : decimal = 10;
+        if(rows == 1) { pad = 12; }                 // one line alone: a label, with a little more room at its ends
+        box_w = box_w + pad * 2;
+        box_h : decimal = rows * (f.line_height + 3) + 9;
+        box_x : decimal = tip_x(x, box_w, how.over);
+        box_y : decimal = tip_y(highest, box_h, how.over);
+        radius : decimal = num.smaller(how.round, box_h / 2);
+
+        p.rect(box_x, box_y, box_w, box_h, radius, back);
+        p.outline(box_x, box_y, box_w, box_h, radius, 1, edge);
+        y : decimal = box_y + 6;
+        for(i : _int64 = 0; i < rows; i++) {
+            which : _int64 = card.kind_at(i);
+            if(which == chart_tip.TITLE) {
+                p.text(card.texts.at(i), box_x + pad, y, bold, words_tint);
+            } else if(which == chart_tip.DOTTED) {
+                p.circle(box_x + pad + 4, y + f.line_height / 2, 4, card.tints.at(i));
+                p.text(card.texts.at(i), box_x + pad + 16, y, f, words_tint);
+            } else {
+                p.text(card.texts.at(i), box_x + pad, y, f, words_tint);
+            }
+            y = y + f.line_height + 3;
+        }
+    }
+
+    /**
+     * Where the marker's box goes, across: over the place when it stands
+     * above the marks, else beside the place on the side that has the room -
+     * and never outside the chart.
+     */
+    private def tip_x(x: decimal, box_w: decimal, over: _int64) : decimal {
+        lowest : decimal = me.inner_x();
+        highest : decimal = num.larger(lowest, me.inner_x() + me.inner_w() - box_w);
+        if(over == 1) {
+            return num.between(x - box_w / 2, lowest, highest);
+        }
+        at : decimal = x + 14;
+        if(at + box_w > me.inner_x() + me.inner_w()) { at = x - 14 - box_w; }
+        return num.between(at, lowest, highest);
+    }
+
+    /** ... and down: just above the place's highest mark, or at the height of the mouse */
+    private def tip_y(highest_mark: decimal, box_h: decimal, over: _int64) : decimal {
+        if(over == 1) {
+            return num.larger(me.inner_y(), highest_mark - box_h - 14);
+        }
+        return num.between(ui_host.current!!.mouse_y - box_h - 10, me.inner_y(), num.larger(me.inner_y(), plot_top + plot_h - box_h));
+    }
+}
+
+/**
+ * chart_pen - the lists a chart fills and hands to the painter in one go.
+ *
+ * A curve is a few hundred short lines and a fill under it a few thousand
+ * small boxes; painted one call at a time they would cost far more to hand
+ * over than to paint (painter.sharp, "many shapes in one call"). The lists
+ * are kept between frames, so a chart that is moving makes nothing new.
+ *
+ * It also holds the POINTS of the line being painted (xs, ys) and the PATH
+ * through them (path_x, path_y): the same points for a straight line, many
+ * more for a curve.
+ */
+local stable class chart_pen {
+    lowest : decimal = 0;               // what find_extent found
+    highest : decimal = 0;
+
+    // the points of a line, as the motion left them
+    xs : decimal[] = new decimal[0];
+    ys : decimal[] = new decimal[0];
+    sizes : decimal[] = new decimal[0];
+    solids : decimal[] = new decimal[0];
+    private slopes : decimal[] = new decimal[0];
+
+    // the path through them
+    path_x : decimal[] = new decimal[64];
+    path_y : decimal[] = new decimal[64];
+    path_n : _int64 = 0;
+
+    private rx : decimal[] = new decimal[256];
+    private ry : decimal[] = new decimal[256];
+    private rw : decimal[] = new decimal[256];
+    private rh : decimal[] = new decimal[256];
+    private rc : _int64[] = new _int64[256];
+    private rects : _int64 = 0;
+
+    private ax : decimal[] = new decimal[256];
+    private ay : decimal[] = new decimal[256];
+    private bx : decimal[] = new decimal[256];
+    private by : decimal[] = new decimal[256];
+    private lc : _int64[] = new _int64[256];
+    private lines : _int64 = 0;
+
+    private cx : decimal[] = new decimal[64];
+    private cy : decimal[] = new decimal[64];
+    private cr : decimal[] = new decimal[64];
+    private cc : _int64[] = new _int64[64];
+    private circles : _int64 = 0;
+
+    private static const PIECES : _int64 = 10;      // straight pieces between two points of a curve
+    private static const DASH : decimal = 7;
+    private static const GAP : decimal = 5;
+
+    private static def longer(old: decimal[], room: _int64) : decimal[] {
+        made : decimal[] = new decimal[room];
+        count : _int64 = sizeof(old);
+        for(i : _int64 = 0; i < count; i++) { made[i] = old[i]; }
+        return made;
+    }
+
+    private static def longer(old: _int64[], room: _int64) : _int64[] {
+        made : _int64[] = new _int64[room];
+        count : _int64 = sizeof(old);
+        for(i : _int64 = 0; i < count; i++) { made[i] = old[i]; }
+        return made;
+    }
+
+    // ---------------------------------------------------------------- boxes, lines, circles
+
+    def rect(x: decimal, y: decimal, w: decimal, h: decimal, packed: _int64) {
+        if(rects == sizeof(rx)) {
+            room : _int64 = rects * 2;
+            rx = longer(rx, room);
+            ry = longer(ry, room);
+            rw = longer(rw, room);
+            rh = longer(rh, room);
+            rc = longer(rc, room);
+        }
+        rx[rects] = x;
+        ry[rects] = y;
+        rw[rects] = w;
+        rh[rects] = h;
+        rc[rects] = packed;
+        rects = rects + 1;
+    }
+
+    def show_rects(p: painter) {
+        if(rects > 0) { p.rects(rx, ry, rw, rh, rc, rects); }
+        rects = 0;
+    }
+
+    def line(x1: decimal, y1: decimal, x2: decimal, y2: decimal, packed: _int64) {
+        if(lines == sizeof(ax)) {
+            room : _int64 = lines * 2;
+            ax = longer(ax, room);
+            ay = longer(ay, room);
+            bx = longer(bx, room);
+            by = longer(by, room);
+            lc = longer(lc, room);
+        }
+        ax[lines] = x1;
+        ay[lines] = y1;
+        bx[lines] = x2;
+        by[lines] = y2;
+        lc[lines] = packed;
+        lines = lines + 1;
+    }
+
+    def show_lines(p: painter, thickness: decimal) {
+        if(lines > 0) { p.lines(ax, ay, bx, by, thickness, lc, lines); }
+        lines = 0;
+    }
+
+    def circle(x: decimal, y: decimal, radius: decimal, packed: _int64) {
+        if(circles == sizeof(cx)) {
+            room : _int64 = circles * 2;
+            cx = longer(cx, room);
+            cy = longer(cy, room);
+            cr = longer(cr, room);
+            cc = longer(cc, room);
+        }
+        cx[circles] = x;
+        cy[circles] = y;
+        cr[circles] = radius;
+        cc[circles] = packed;
+        circles = circles + 1;
+    }
+
+    def show_circles(p: painter) {
+        if(circles > 0) { p.circles(cx, cy, cr, cc, circles); }
+        circles = 0;
+    }
+
+    // ---------------------------------------------------------------- the path of a line
+
+    /** make room for the points of a line */
+    def points(count: _int64) {
+        if(sizeof(xs) < count) {
+            xs = new decimal[count];
+            ys = new decimal[count];
+            sizes = new decimal[count];
+            solids = new decimal[count];
+            slopes = new decimal[count];
+        }
+    }
+
+    private def to(x: decimal, y: decimal) {
+        if(path_n == sizeof(path_x)) {
+            path_x = longer(path_x, path_n * 2);
+            path_y = longer(path_y, path_n * 2);
+        }
+        path_x[path_n] = x;
+        path_y[path_n] = y;
+        path_n = path_n + 1;
+    }
+
+    /** lay the path through the first `count` points: straight, stepped or curved */
+    def trace(route: _int64, count: _int64) {
+        path_n = 0;
+        if(count == 0) {
+            return;
+        }
+        to(xs[0], ys[0]);
+        if(route == LINE_STEPPED) {
+            for(i : _int64 = 1; i < count; i++) {
+                to(xs[i], ys[i - 1]);
+                to(xs[i], ys[i]);
+            }
+            return;
+        }
+        if(route != LINE_CURVED || count < 3) {
+            for(i : _int64 = 1; i < count; i++) {
+                to(xs[i], ys[i]);
+            }
+            return;
+        }
+
+        // A CURVE THAT NEVER SWINGS PAST A POINT. Each point gets a slope; between
+        // two points the curve is the cubic that leaves the first with its slope
+        // and arrives at the second with its own (a Hermite spline). The slopes
+        // are chosen so the curve cannot rise above the higher or dip below the
+        // lower of two neighbours - a chart must not show a peak the numbers do
+        // not have: where the line turns (a peak, a valley) the slope is 0;
+        // elsewhere it is the harmonic mean of the slopes of the two straight
+        // pieces that meet there, which leans towards the flatter one.
+        // (Fritsch and Carlson's "monotone" cubic, 1980.)
+        for(i : _int64 = 0; i < count; i++) {
+            before : decimal = 0;
+            after : decimal = 0;
+            if(i > 0 && xs[i] != xs[i - 1]) { before = (ys[i] - ys[i - 1]) / (xs[i] - xs[i - 1]); }
+            if(i < count - 1 && xs[i + 1] != xs[i]) { after = (ys[i + 1] - ys[i]) / (xs[i + 1] - xs[i]); }
+            if(i == 0) { slopes[i] = after; }
+            else if(i == count - 1) { slopes[i] = before; }
+            else if(before * after <= 0) { slopes[i] = 0; }
+            else { slopes[i] = 2 * before * after / (before + after); }
+        }
+        for(i : _int64 = 0; i < count - 1; i++) {
+            wide : decimal = xs[i + 1] - xs[i];
+            for(k : _int64 = 1; k <= PIECES; k++) {
+                s : decimal = k;
+                s = s / PIECES;
+                s2 : decimal = s * s;
+                s3 : decimal = s2 * s;
+                y : decimal = (2 * s3 - 3 * s2 + 1) * ys[i] + (s3 - 2 * s2 + s) * wide * slopes[i]
+                            + (3 * s2 - 2 * s3) * ys[i + 1] + (s3 - s2) * wide * slopes[i + 1];
+                to(xs[i] + s * wide, y);
+            }
+        }
+    }
+
+    /** the path as lines of one colour: whole, or in dashes measured along it */
+    def stroke(broken: _int64, packed: _int64) {
+        if(broken == 0) {
+            for(i : _int64 = 1; i < path_n; i++) {
+                line(path_x[i - 1], path_y[i - 1], path_x[i], path_y[i], packed);
+            }
+            return;
+        }
+        drawing : _int64 = 1;               // in a dash (1) or in the gap after it (0)
+        left : decimal = DASH;              // how much of it is still to come
+        for(i : _int64 = 1; i < path_n; i++) {
+            dx : decimal = path_x[i] - path_x[i - 1];
+            dy : decimal = path_y[i] - path_y[i - 1];
+            long : decimal = sqrt(dx * dx + dy * dy);
+            if(long <= 0) { continue; }
+            at : decimal = 0;
+            while(at < long) {
+                take : decimal = left;
+                if(take > long - at) { take = long - at; }
+                if(drawing == 1) {
+                    line(path_x[i - 1] + dx * at / long, path_y[i - 1] + dy * at / long,
+                         path_x[i - 1] + dx * (at + take) / long, path_y[i - 1] + dy * (at + take) / long, packed);
+                }
+                at = at + take;
+                left = left - take;
+                if(left <= 0.001) {
+                    drawing = 1 - drawing;
+                    left = GAP;
+                    if(drawing == 1) { left = DASH; }
+                }
+            }
+        }
+    }
+
+    /**
+     * The area between the path and the level `zero`, as solid as `strength`
+     * (0 .. 1) at the path and fading to nothing at `zero`.
+     *
+     * It is made of upright columns two pixels wide, each cut into sixteen
+     * boxes that get fainter towards `zero` - enough of them that the eye sees
+     * one even fade and not steps. Plain boxes are painted pixel-exact
+     * (triangles get a soft edge, which would show as a seam between every
+     * two of them), so the columns join without a mark.
+     */
+    def fill_under(zero: decimal, tint: color, strength: decimal) {
+        if(path_n < 2) {
+            return;
+        }
+        bands : _int64 = 16;
+        piece : _int64 = 0;                 // the piece of the path the column is under
+        last : decimal = path_x[path_n - 1];
+        for(x : decimal = num.whole(path_x[0]); x < last; x = x + 2) {
+            middle : decimal = num.between(x + 1, path_x[0], last);
+            while(piece < path_n - 2 && path_x[piece + 1] < middle) { piece = piece + 1; }
+            y : decimal = path_y[piece];
+            run : decimal = path_x[piece + 1] - path_x[piece];
+            if(run > 0) { y = y + (path_y[piece + 1] - y) * (middle - path_x[piece]) / run; }
+
+            tall : decimal = (zero - y) / bands;        // below `zero` this is negative: the boxes then run upwards
+            for(k : _int64 = 0; k < bands; k++) {
+                alpha : _int64 = tint.alpha * strength * (1 - (k + 0.5) / bands);
+                box_y : decimal = y + tall * k;
+                box_h : decimal = tall;
+                if(tall < 0) {
+                    box_y = box_y + tall;
+                    box_h = 0 - tall;
+                }
+                rect(x, box_y, num.smaller(2, last - x), box_h, tint.packed - tint.alpha + alpha);
+            }
+        }
+    }
+}

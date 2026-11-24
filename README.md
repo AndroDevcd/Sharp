@@ -283,10 +283,32 @@ self.notes = std#list<std#string> (2) ["bread", "eggs"]
 
 In a terminal it opens full screen: your program's output and the prompt on the left; the source, the variables and the calls on the right. See [the sdb guide](lib/debugger/doc/sdb.md).
 
+## Performance
+
+Six programs of the [Benchmarks Game](benchmark/game), written the same plain single-threaded way in every language. For each test the fastest program is 1×; the number is the geometric mean over the six.
+
+| Language | Times the fastest |
+|---|---|
+| Java | 1.0× |
+| Rust | 1.1× |
+| C (gcc) | 1.3× |
+| Go | 1.3× |
+| JavaScript (Node) | 1.4× |
+| **Sharp `-O`** | **2.2×** |
+| Lua (LuaJIT) | 2.3× |
+| Python (PyPy) | 2.6× |
+| C# (Mono) | 2.7× |
+| **Sharp** | **3.9×** |
+| Lua | 15× |
+| PHP | 17× |
+
+The full picture is in [the chart](doc/benchmarks.html) (a page to open in a browser: every test as a dot, hover for the seconds and the memory) and in [the tables](benchmark/game/results/results.md). `bash benchmark/game/run.sh` measures it again on your machine.
+
 ## Documentation
 
 | Resource | What you'll find |
 |---|---|
+| [Benchmarks](doc/benchmarks.html) | Sharp next to ten other languages in the Benchmarks Game |
 | [Getting Started](GETTING_STARTED.md) | Your first program, classes, generics, null safety, tests and a window |
 | [Examples](examples) | Sample programs, [GUI apps](examples/gui), and [tests and mocks](examples/testing) |
 | [Language by example](tests/suite/cases) | Small, commented programs that each cover one feature |

@@ -20,6 +20,10 @@ import (
  *      else if(page.value == 1) { files(); }
  *      else { settings(); }
  *
+ * WITH A BLOCK, A TAB'S TITLE IS WIDGETS instead of words:
+ *
+ *      tab { text("Inbox"); badge(unread.value); }
+ *
  * The strip only CHOOSES: it writes the number of the clicked tab into the
  * state. Showing the right page for that number is ordinary code of yours, as
  * above. (Compose: TabRow + Tab. Android: TabLayout.)
@@ -91,11 +95,20 @@ stable class tab_strip base widget : behavior {
 /** one title in a tab strip. Made with tab(...), inside tabs { }. */
 stable class tab_item base widget : behavior {
     private words : string = "";
+    private face : view?;                   // the title built from widgets (the block form); null: the words are painted
 
     tab_item(title: string) {
         attach(self);
         words = title;
         me.on_click = { -> pick(); };
+    }
+
+    /** the title built from the widgets `title_of` makes, instead of words */
+    tab_item(title_of: ()()) {
+        attach(self);
+        me.on_click = { -> pick(); };
+        face = scope.lone_row(6, title_of);
+        me.add_kid(face!!);
     }
 
     /** the strip this tab is in */
@@ -112,12 +125,22 @@ stable class tab_item base widget : behavior {
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         host := ui_host.current!!;
+        if(face != null) {
+            face!!.measure(0, max_w, 0, max_h);
+            me.content_w = face!!.want_w + host.look.space * 4;
+            me.content_h = num.larger(host.look.control_height + 4, face!!.want_h + 8);
+            return;
+        }
         f : font = host.font_of(host.look.text_size);
         me.content_w = f.width_of(words) + host.look.space * 4;
         me.content_h = host.look.control_height + 4;
     }
 
     override def arrange() {
+        if(face != null) {
+            box : view = face!!;
+            box.arrange(me.x + (me.w - box.want_w) / 2, me.y + (me.h - box.want_h) / 2, box.want_w, box.want_h);
+        }
     }
 
     override def paint(p: painter) {
@@ -131,10 +154,12 @@ stable class tab_item base widget : behavior {
             p.rect(me.x, me.y, me.w, me.h - 1, t.text.with_alpha(14));
         }
 
-        f : font = host.font_of(t.text_size, chosen);           // the chosen tab's title is bold
-        ink : color = t.text_dim;
-        if(chosen == 1) { ink = t.primary; }
-        p.text(words, me.x + (me.w - f.width_of(words)) / 2, me.y + (me.h - f.line_height) / 2, f, ink);
+        if(face == null) {
+            f : font = host.font_of(t.text_size, chosen);       // the chosen tab's title is bold
+            ink : color = t.text_dim;
+            if(chosen == 1) { ink = t.primary; }
+            p.text(words, me.x + (me.w - f.width_of(words)) / 2, me.y + (me.h - f.line_height) / 2, f, ink);
+        }
 
         if(chosen == 1) {
             p.rect(me.x + 8, me.y + me.h - 3, me.w - 16, 3, 1.5, t.primary);

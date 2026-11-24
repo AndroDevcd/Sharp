@@ -39,6 +39,8 @@
 #     16  the debugger: sdb is built and driven by a Sharp program   (lib/debugger/tests/run.sh)  4 min
 #     17  the ARM JIT: the VM built for ARM 64 and 32, the -O cases of 8 run on it under qemu
 #         (needs 8; skipped where the cross compilers or qemu are not installed)  (internal/arm_suite.sh)  10 min
+#     18  collector stress: the programs of 8 with a collection every 40 objects   (needs 8)
+#         (internal/gc_stress.sh)                                                                 1 min
 #
 # The SHORT set is 1 2 4 5 12 14 15 16. WHICH TESTS A CHANGE NEEDS beyond it:
 #     the standard library ............ 8
@@ -191,6 +193,12 @@ test_17() { echo "== [17] the ARM JIT (the VM built for ARM 64 and 32 bit; the s
 out=$(bash "$REPO/build-scripts/internal/arm_suite.sh" 2>&1) || ok=0; echo "$out" | tail -25
 }
 
+test_18() { echo "== [18] collector stress (the programs test 8 built, with a collection after every 40 new objects:"
+echo "   an object the collector does not find is freed while in use, and shows at once)"
+out=$(bash "$REPO/build-scripts/internal/gc_stress.sh" $W/out/suite_runner/plain $W/out/suite_runner/O 2>&1) || ok=0; echo "$out" | tail -25
+out=$(VM_OPTIONS=-nojit bash "$REPO/build-scripts/internal/gc_stress.sh" $W/out/suite_runner/O 2>&1) || ok=0; echo "$out" | sed 's/^collector stress, O /collector stress, O -nojit /' | tail -25
+}
+
 
 # ---- run them: each test prints into a file of its own; the reports come out in number order at the end
 LOGS="$W/out/test_logs"; rm -rf "$LOGS"; mkdir -p "$LOGS"
@@ -205,9 +213,9 @@ run_one() {     # $1 = the test's number
     ) > "$LOGS/$1.txt" 2>&1
 }
 WANTED=""; ONE_BY_ONE=""
-for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do
+for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
     want $n || continue
-    case $n in 7|8|9|10|17) ONE_BY_ONE="$ONE_BY_ONE $n" ;; *) WANTED="$WANTED $n" ;; esac
+    case $n in 7|8|9|10|17|18) ONE_BY_ONE="$ONE_BY_ONE $n" ;; *) WANTED="$WANTED $n" ;; esac
 done
 GROUPS_AT_ONCE=${TEST_GROUPS:-4}
 echo "== running tests:$WANTED$ONE_BY_ONE   ($GROUPS_AT_ONCE tests at once, $TEST_JOBS jobs inside each)"
@@ -218,7 +226,7 @@ for n in $WANTED; do
 done
 wait
 
-for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do
+for n in 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
     [ -f "$LOGS/$n.txt" ] || continue
     cat "$LOGS/$n.txt"
     [ "$(cat "$LOGS/$n.result" 2>/dev/null)" = 1 ] || { ok=0; echo "   TEST $n FAILED   (its whole report: $LOGS/$n.txt)"; }

@@ -121,6 +121,9 @@ stable class modifier {
     private unseen : _int64 = 0 - 1;
     private enabled : _int64 = 0 - 1;
     private name : string = "";
+    private spot : _int64 = 0;              // a place in the parent's terms: 0 none, 1 across, 2 up, 3 both (at, below)
+    private spot_across : decimal = 0;
+    private spot_up : decimal = 0;
 
     // ------------------------------------------------------------ room around the content
 
@@ -512,6 +515,41 @@ stable class modifier {
         return self;
     }
 
+    // ------------------------------------------------------------ a place in the parent's own terms
+    //
+    // Some parents put their children where their CONTENT says, not in a row
+    // or a column. Inside chart { } any widget can be written, and these say
+    // where it belongs in the chart's terms - never in pixels:
+    //
+    //      chip("launch day", modifier().at(4, revenue[4]));       // over place 4, at that number's height
+    //      text("goal", modifier().at_value(8000));                // on the level of 8000, at the left
+    //      text("today", modifier().at_place(11));                 // over place 11, at the top
+    //
+    // (Compose: the modifiers a scope gives its children - Modifier.align in
+    // a Box, Modifier.weight in a Row.)
+
+    /** over place `place` (0 is the first; 2.5 is between the third and the fourth), at the height of `value` */
+    def at(place: decimal, value: decimal) : modifier {
+        spot = 3;
+        spot_across = place;
+        spot_up = value;
+        return self;
+    }
+
+    /** over place `place`, at the top */
+    def at_place(place: decimal) : modifier {
+        spot = 1;
+        spot_across = place;
+        return self;
+    }
+
+    /** on the level of `value`, at the left */
+    def at_value(value: decimal) : modifier {
+        spot = 2;
+        spot_up = value;
+        return self;
+    }
+
     // ------------------------------------------------------------ combining and applying
 
     /**
@@ -587,6 +625,11 @@ stable class modifier {
         if(unseen >= 0) { other.unseen = unseen; }
         if(enabled >= 0) { other.enabled = enabled; }
         if(name != "") { other.name = name; }
+        if(spot > 0) {
+            other.spot = spot;
+            other.spot_across = spot_across;
+            other.spot_up = spot_up;
+        }
     }
 
     /**
@@ -652,5 +695,10 @@ stable class modifier {
         if(unseen >= 0) { target.hidden = unseen; }
         if(enabled >= 0) { target.enabled = enabled; }
         if(name != "") { target.key = name; }
+        if(spot > 0) {
+            target.at_set = spot;
+            target.at_across = spot_across;
+            target.at_up = spot_up;
+        }
     }
 }

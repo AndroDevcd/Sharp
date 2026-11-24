@@ -15,9 +15,7 @@
 | Lua (LuaJIT) | 2.3 x | 2.1 x | 1.0 x | 10.0 x | 6 of 6 |
 | Python (PyPy) | 2.6 x | 2.2 x | 1.4 x | 10 x | 6 of 6 |
 | C# (Mono) | 2.7 x | 3.3 x | 1.1 x | 5.3 x | 6 of 6 |
-| Sharp -O (before) | 3.4 x | 3.7 x | 1.7 x | 6.5 x | 6 of 6 |
 | Sharp | 3.9 x | 4.3 x | 1.6 x | 8.9 x | 6 of 6 |
-| Sharp (before) | 6.0 x | 6.8 x | 2.6 x | 11 x | 6 of 6 |
 | Lua | 15 x | 19 x | 5.1 x | 33 x | 6 of 6 |
 | PHP | 17 x | 15 x | 9.3 x | 36 x | 6 of 6 |
 
@@ -35,8 +33,6 @@
 | Sharp -O | 6.09 | 3.2 x | 7 MB |
 | C# (Mono) | 6.97 | 3.6 x | 17 MB |
 | Sharp | 11.93 | 6.2 x | 7 MB |
-| Sharp -O (before) | 12.39 | 6.5 x | 7 MB |
-| Sharp (before) | 16.96 | 8.8 x | 7 MB |
 | PHP | 52.23 | 27 x | 18 MB |
 | Lua | 59.36 | 31 x | 2 MB |
 
@@ -52,10 +48,8 @@
 | JavaScript (Node) | 1.18 | 1.3 x | 52 MB |
 | Python (PyPy) | 1.24 | 1.4 x | 62 MB |
 | Sharp -O | 2.19 | 2.4 x | 7 MB |
-| Sharp -O (before) | 2.19 | 2.4 x | 7 MB |
 | C# (Mono) | 4.84 | 5.3 x | 17 MB |
 | Sharp | 8.08 | 8.9 x | 7 MB |
-| Sharp (before) | 9.57 | 11 x | 7 MB |
 | Lua | 29.75 | 33 x | 3 MB |
 | PHP | 33.14 | 36 x | 18 MB |
 
@@ -70,11 +64,9 @@
 | C (gcc) | 25.10 | 1.2 x | 1 MB |
 | Sharp -O | 33.13 | 1.6 x | 7 MB |
 | C# (Mono) | 34.73 | 1.7 x | 16 MB |
-| Sharp -O (before) | 35.39 | 1.7 x | 7 MB |
 | Python (PyPy) | 39.03 | 1.9 x | 67 MB |
 | Lua (LuaJIT) | 48.30 | 2.4 x | 2 MB |
 | Sharp | 49.99 | 2.5 x | 7 MB |
-| Sharp (before) | 52.22 | 2.6 x | 7 MB |
 | Lua | 215.69 | 11 x | 2 MB |
 | PHP | 262.77 | 13 x | 18 MB |
 
@@ -89,9 +81,7 @@
 | JavaScript (Node) | 9.20 | 3.7 x | 1338 MB |
 | Go | 9.29 | 3.7 x | 201 MB |
 | Sharp -O | 14.03 | 5.6 x | 1132 MB |
-| Sharp -O (before) | 14.60 | 5.8 x | 1103 MB |
 | Sharp | 18.71 | 7.4 x | 1344 MB |
-| Sharp (before) | 18.95 | 7.5 x | 1259 MB |
 | Lua (LuaJIT) | 25.11 | 10.0 x | 1624 MB |
 | Python (PyPy) | 25.28 | 10 x | 733 MB |
 | PHP | 42.11 | 17 x | 738 MB |
@@ -109,10 +99,8 @@
 | Lua (LuaJIT) | 11.19 | 1.2 x | 2 MB |
 | Sharp -O | 12.13 | 1.3 x | 7 MB |
 | Sharp | 15.74 | 1.6 x | 7 MB |
-| Sharp -O (before) | 20.74 | 2.2 x | 8 MB |
 | Python (PyPy) | 24.62 | 2.6 x | 67 MB |
 | C# (Mono) | 28.03 | 2.9 x | 16 MB |
-| Sharp (before) | 43.39 | 4.5 x | 8 MB |
 | Lua | 80.18 | 8.4 x | 2 MB |
 | PHP | 127.73 | 13 x | 18 MB |
 
@@ -130,9 +118,7 @@
 | Python (PyPy) | 3.81 | 1.7 x | 65 MB |
 | Lua (LuaJIT) | 4.87 | 2.2 x | 2 MB |
 | Sharp | 4.90 | 2.2 x | 8 MB |
-| Sharp -O (before) | 11.08 | 5.0 x | 17 MB |
 | Lua | 11.35 | 5.1 x | 2 MB |
-| Sharp (before) | 13.44 | 6.0 x | 18 MB |
 | PHP | 20.83 | 9.3 x | 18 MB |
 
 ## Versions
@@ -149,5 +135,3 @@
 - Sharp: sharp 4.0.10r19 build-3
 - PHP: PHP 8.3.6 (cli) (built: Nov 18 2026 23:42:07) (NTS)
 - Lua: Lua 5.4.6  Copyright (C) 1994-2023 Lua.org, PUC-Rio
-- Sharp -O (before): sharp 4.0.8r19
-- Sharp (before): sharp 4.0.8r19

@@ -43,6 +43,7 @@ void reserve_bytes(size_t bytes, bool unsafe = false) {
 
     // a thread that runs Sharp code counts for itself and tells the shared counters in batches
     // (ALLOCATING WITHOUT SHARED MEMORY, below)
+    size_t asked = bytes;
     sharp_thread *self = thread_self;
     if(self != nullptr && self->gcSafe == 0) {
         self->uncountedBytes += bytes;
@@ -51,10 +52,18 @@ void reserve_bytes(size_t bytes, bool unsafe = false) {
         self->uncountedBytes = 0;
     }
 
-    bool fits = tgc_note_allocation(bytes);
-    gc.managedBytes.fetch_add(bytes, std::memory_order_relaxed);
-    if(!fits)
-        throw vm_exception(vm.out_of_memory_except, "out of memory");
+    allocation_answer answer = tgc_note_allocation(bytes);
+    if(answer == allocation_fits) {
+        gc.managedBytes.fetch_add(bytes, std::memory_order_relaxed);
+        return;
+    }
+
+    // out of memory (tracing_collector.h). What was asked for now is not made and not counted;
+    // the rest of the batch was made a while ago.
+    gc.managedBytes.fetch_add(bytes - asked, std::memory_order_relaxed);
+    if(answer == allocation_raises) next_out_of_memory_can_be_caught();
+    else tgc_out_of_memory_is_fatal();
+    throw vm_exception(vm.out_of_memory_except, "out of memory");
 }
 
 /*
@@ -91,7 +100,7 @@ void count_uncounted_bytes(sharp_thread *thread) {
     uInt bytes = thread->uncountedBytes;
     if(bytes == 0) return;
     thread->uncountedBytes = 0;
-    tgc_note_allocation(bytes);
+    tgc_note_allocation(bytes, false);
     gc.managedBytes.fetch_add(bytes, std::memory_order_relaxed);
 }
 
@@ -218,7 +227,7 @@ void release_all_mutexes(fiber *task) {
 // Sleep / wake / kill (the program can ask for these: OP_GC_SLEEP ...)
 // ---------------------------------------------------------------------------------
 
-/** No collections until wake_gc(), except when the memory limit is reached. */
+/** Manual mode: no collections until wake_gc() but the ones the program asks for (tracing_collector.h). */
 void sedate_gc() {
     guard_mutex(gc_lock)
     if(gc.state == RUNNING)
@@ -276,7 +285,6 @@ gc_main(void *pVoid) {
     thread_self = (sharp_thread*)pVoid;
     TELEMETRY(telemetry_name_thread("garbage collector");)
     thread_self->state = THREAD_RUNNING;
-    gc.state = RUNNING;
     set_thread_priority(thread_self, THREAD_PRIORITY_LOW);
 
     try {
@@ -300,6 +308,9 @@ gc_main(void *pVoid) {
 }
 
 void gc_startup() {
+    // Here and not in gc_main: the helper thread may get going after the program's first
+    // instructions, and "running" written then undid a program that had just chosen manual mode.
+    gc.state = RUNNING;
     start_daemon_thread(
             gc_main,
             create_gc_thread()

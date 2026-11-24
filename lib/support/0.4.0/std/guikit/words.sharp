@@ -112,6 +112,7 @@ def menu(open: state<_int64>, block: ()()) : popup { return gui.menu(open, block
 
 /** inside menu { }: one choice; choosing it runs `action` and closes the menu */
 def menu_item(title: string, action: ()()) : row { return gui.menu_item(title, action); }
+def menu_item(title: string, look: modifier, action: ()()) : row { return gui.menu_item(title, look, action); }
 
 /** a card in the middle of the window, there while `open` is not 0 (overlay/popup.sharp) */
 def dialog(open: state<_int64>, block: ()()) : popup { return gui.dialog(open, block); }
@@ -130,9 +131,12 @@ def fab(words: string, look: modifier, action: ()()) : fab { return gui.fab(word
 /** a small rounded label - a tag, or with a block, a filter you click (widgets/display/chip.sharp) */
 def chip(words: string) : chip { return gui.chip(words); }
 def chip(words: string, action: ()()) : chip { return gui.chip(words, action); }
+def chip(words: string, look: modifier) : chip { return gui.chip(words, look); }
+def chip(words: string, look: modifier, action: ()()) : chip { return gui.chip(words, look, action); }
 
 /** a small filled dot with a count; nothing when the count is 0 */
 def badge(count: _int64) : badge { return gui.badge(count); }
+def badge(count: _int64, look: modifier) : badge { return gui.badge(count, look); }
 
 /**
  * the app's screens in one list, and the place they are shown; `start` is the route the app opens with
@@ -154,9 +158,15 @@ def tab<t base route>(title: string, content: (t)()) { gui.tab<t>(title, content
 
 /** the bar that switches between the app's tabs (navigation/nav_bar.sharp) */
 def nav_bar(nav: navigator) : nav_bar { return gui.nav_bar(nav); }
+def nav_bar(nav: navigator, look: modifier) : nav_bar { return gui.nav_bar(nav, look); }
 
 /** the bar across the top of a screen: its title, and a back button when there is a screen to go back to */
 def top_bar(title: string, nav: navigator) : row { return gui.top_bar(title, nav); }
+def top_bar(title: string, nav: navigator, look: modifier) : row { return gui.top_bar(title, nav, look); }
+
+/** ... with the screen's own buttons at its right end: top_bar("Inbox", nav) { button("New") { compose(); }; } */
+def top_bar(title: string, nav: navigator, actions: ()()) : row { return gui.top_bar(title, nav, actions); }
+def top_bar(title: string, nav: navigator, look: modifier, actions: ()()) : row { return gui.top_bar(title, nav, look, actions); }
 
 /** empty room that takes whatever is left over in a row or column: pushes things apart */
 def spacer() : spacer { return gui.spacer(); }
@@ -166,6 +176,7 @@ def gap(pixels: decimal) : spacer { return gui.gap(pixels); }
 
 /** a thin line between things (widgets/display/divider.sharp) */
 def divider() : divider { return gui.divider(); }
+def divider(look: modifier) : divider { return gui.divider(look); }
 
 // ==================================================================== showing things
 
@@ -191,6 +202,10 @@ def button(words: string, look: modifier, action: ()()) : button { return gui.bu
 def checkbox(words: string, value: state<_int64>) : checkbox { return gui.checkbox(words, value); }
 def checkbox(words: string, value: state<_int64>, look: modifier) : checkbox { return gui.checkbox(words, value, look); }
 
+/** ... its caption built from widgets: checkbox(agreed) { text("I agree to the"); text("terms").color(blue); } */
+def checkbox(value: state<_int64>, caption: ()()) : checkbox { return gui.checkbox(value, caption); }
+def checkbox(value: state<_int64>, look: modifier, caption: ()()) : checkbox { return gui.checkbox(value, look, caption); }
+
 /** an on/off switch, bound to a 0/1 state (widgets/input/toggle.sharp) */
 def toggle(value: state<_int64>) : toggle { return gui.toggle(value); }
 def toggle(value: state<_int64>, look: modifier) : toggle { return gui.toggle(value, look); }
@@ -212,6 +227,8 @@ def text(words: rich_text, look: modifier) : rich_label { return gui.text(words,
 /** content that grows open while `visible` is not 0 and shrinks away when it is 0 (animation/revealer.sharp) */
 def animated_show(visible: _int64, block: ()()) : revealer { return gui.animated_show(visible, block); }
 def animated_show(visible: _int64, how: _int64, block: ()()) : revealer { return gui.animated_show(visible, how, block); }
+def animated_show(visible: _int64, look: modifier, block: ()()) : revealer { return gui.animated_show(visible, look, block); }
+def animated_show(visible: _int64, how: _int64, look: modifier, block: ()()) : revealer { return gui.animated_show(visible, how, look, block); }
 
 /** a row that can be pushed off the screen sideways; `action` must take the item out of the list (gestures/swipe_row.sharp) */
 def swipe_to_dismiss(action: ()(), block: ()()) : swipe_row { return gui.swipe_to_dismiss(action, block); }
@@ -267,19 +284,87 @@ def text_field(value: state<string>, look: modifier) : text_field { return gui.t
 def radio(words: string, choice: state<_int64>, stands_for: _int64) : radio { return gui.radio(words, choice, stands_for); }
 def radio(words: string, choice: state<_int64>, stands_for: _int64, look: modifier) : radio { return gui.radio(words, choice, stands_for, look); }
 
+/** ... its caption built from widgets: radio(size, 2) { text("Large"); chip("popular"); } */
+def radio(choice: state<_int64>, stands_for: _int64, caption: ()()) : radio { return gui.radio(choice, stands_for, caption); }
+def radio(choice: state<_int64>, stands_for: _int64, look: modifier, caption: ()()) : radio { return gui.radio(choice, stands_for, look, caption); }
+
 /** a strip of titles that chooses a page: tabs(page) { tab("One"); tab("Two"); } (widgets/input/tabs.sharp) */
 def tabs(choice: state<_int64>, block: ()()) : tab_strip { return gui.tabs(choice, block); }
 def tabs(choice: state<_int64>, look: modifier, block: ()()) : tab_strip { return gui.tabs(choice, look, block); }
 
-/** inside tabs { }: one title */
+/** inside tabs { }: one title - words, or with a block the widgets it makes: tab { text("Inbox"); badge(3); } */
 def tab(title: string) : tab_item { return gui.tab(title); }
+def tab(title: string, look: modifier) : tab_item { return gui.tab(title, look); }
+def tab(title: ()()) : tab_item { return gui.tab(title); }
+def tab(look: modifier, title: ()()) : tab_item { return gui.tab(look, title); }
 
 /** pick one named choice from a drop-down menu: dropdown(choice) { option("A"); option("B"); } (widgets/input/dropdown.sharp) */
 def dropdown(choice: state<_int64>, block: ()()) : dropdown { return gui.dropdown(choice, block); }
 def dropdown(choice: state<_int64>, look: modifier, block: ()()) : dropdown { return gui.dropdown(choice, look, block); }
 
-/** inside dropdown { }: one choice */
+/** inside dropdown { }: one choice - words, or with a block the widgets it makes: option { text("Sweden"); } */
 def option(title: string) : menu_option { return gui.option(title); }
+def option(content: ()()) : menu_option { return gui.option(content); }
+
+// ==================================================================== charts
+
+/** numbers as bars and lines; the block says what is in it (charts/chart.sharp) */
+def chart(block: ()()) : chart { return gui.chart(block); }
+def chart(look: modifier, block: ()()) : chart { return gui.chart(look, block); }
+
+/**
+ * inside chart { }: a row of numbers as bars; with a name, the legend and the marker can say whose they are.
+ * With a block, the widgets it makes stand on every bar: bars(sales) { if(it.value > 90) { chip("top"); } }
+ */
+def bars(values: decimal[]) : bar_series { return gui.bars(values); }
+def bars(name: string, values: decimal[]) : bar_series { return gui.bars(name, values); }
+def bars(values: list<double>) : bar_series { return gui.bars(values); }
+def bars(name: string, values: list<double>) : bar_series { return gui.bars(name, values); }
+def bars(values: decimal[], on_each: (mark)()) : bar_series { return gui.bars(values, on_each); }
+def bars(name: string, values: decimal[], on_each: (mark)()) : bar_series { return gui.bars(name, values, on_each); }
+def bars(values: list<double>, on_each: (mark)()) : bar_series { return gui.bars(values, on_each); }
+def bars(name: string, values: list<double>, on_each: (mark)()) : bar_series { return gui.bars(name, values, on_each); }
+
+/** inside chart { }: a row of numbers as a line through its points. With a block, widgets stand above every point */
+def line(values: decimal[]) : line_series { return gui.line(values); }
+def line(name: string, values: decimal[]) : line_series { return gui.line(name, values); }
+def line(values: list<double>) : line_series { return gui.line(values); }
+def line(name: string, values: list<double>) : line_series { return gui.line(name, values); }
+def line(values: decimal[], on_each: (mark)()) : line_series { return gui.line(values, on_each); }
+def line(name: string, values: decimal[], on_each: (mark)()) : line_series { return gui.line(name, values, on_each); }
+def line(values: list<double>, on_each: (mark)()) : line_series { return gui.line(values, on_each); }
+def line(name: string, values: list<double>, on_each: (mark)()) : line_series { return gui.line(name, values, on_each); }
+
+/**
+ * inside chart { }: the words along the bottom and the numbers up the side (charts/parts.sharp).
+ * With a block, every label is built from widgets: x_axis(months) { text(it.words).size(13); }
+ */
+def x_axis() : chart_axis { return gui.x_axis(); }
+def x_axis(names: string[]) : chart_axis { return gui.x_axis(names); }
+def x_axis(names: list<string>) : chart_axis { return gui.x_axis(names); }
+def x_axis(label: (axis_label)()) : chart_axis { return gui.x_axis(label); }
+def x_axis(names: string[], label: (axis_label)()) : chart_axis { return gui.x_axis(names, label); }
+def x_axis(names: list<string>, label: (axis_label)()) : chart_axis { return gui.x_axis(names, label); }
+def y_axis() : chart_axis { return gui.y_axis(); }
+def y_axis(label: (axis_label)()) : chart_axis { return gui.y_axis(label); }
+
+/** inside chart { }: level lines behind the marks */
+def grid_lines() : chart_grid { return gui.grid_lines(); }
+
+/**
+ * inside chart { }: the names of the series; and the mark and numbers of the place under the mouse.
+ * With a block, each entry / the box is built from widgets: legend { text(it.name); }  marker { text(it.name); }
+ */
+def legend() : chart_legend { return gui.legend(); }
+def legend(entry: (legend_entry)()) : chart_legend { return gui.legend(entry); }
+def marker() : chart_marker { return gui.marker(); }
+def marker(box: (chart_hover)()) : chart_marker { return gui.marker(box); }
+
+/** one row of numbers as bars / as a line, with both axes and level lines: the whole chart in one word */
+def bar_chart(values: decimal[]) : chart { return gui.bar_chart(values); }
+def bar_chart(values: decimal[], look: modifier) : chart { return gui.bar_chart(values, look); }
+def line_chart(values: decimal[]) : chart { return gui.line_chart(values); }
+def line_chart(values: decimal[], look: modifier) : chart { return gui.line_chart(values, look); }
 
 // ==================================================================== drawing it yourself
 

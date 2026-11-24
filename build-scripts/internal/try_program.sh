@@ -12,8 +12,8 @@ source "$(dirname "$0")/common.sh"
 what=$1; shift
 case "$what" in /*) ;; *) what="$REPO/$what" ;; esac
 [ -e "$what" ] || { echo "no file or folder $what"; exit 2; }
-[ -x "$VM" ] || bash "$REPO/build-scripts/build.sh" > /dev/null
-bash "$REPO/build-scripts/build.sh" compiler > "$WORK/out/try_build.txt" 2>&1 || { tail -20 "$WORK/out/try_build.txt"; echo "the compiler does not build"; exit 1; }
+# (the VM too: a program that tries a change to the VM must not run on the VM of before it)
+bash "$REPO/build-scripts/build.sh" > "$WORK/out/try_build.txt" 2>&1 || { tail -20 "$WORK/out/try_build.txt"; echo "the VM or the compiler does not build"; exit 1; }
 OUT="$WORK/out/try"; mkdir -p "$OUT"
 
 if [ -d "$what" ]; then

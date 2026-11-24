@@ -35,6 +35,9 @@ import (
  *      lay things out      column  row  stack  wrap  grid  grid_fit  spacer  gap  divider
  *      scroll              scroll  scroll_row  lazy_column { item { }  items(n) { i -> } }
  *      show things         text  image  progress
+ *      show numbers        chart { bars(...)  line(...)  x_axis(...)  y_axis()  grid_lines()  legend()  marker() }
+ *                          each takes a block that builds it from widgets; any widget in the block: modifier().at(...)
+ *                          bar_chart(values)  line_chart(values)  motion (how the marks move)
  *      take input          button  checkbox  radio  toggle  slider  text_field
  *                          dropdown { option(...) }  tabs { tab(...) }
  *      float above         dialog(open) { }  menu(open) { menu_item(...) { } }  gui.toast(words)
@@ -87,6 +90,8 @@ import (
  *      std.guikit.widgets.display  label  picture  divider  progress_bar
  *      std.guikit.widgets.input    button  checkbox  radio  toggle  slider  text_field  dropdown  tabs
  *      std.guikit.widgets.drawing  canvas
+ *      std.guikit.charts           chart  bar_series  line_series (series.sharp)  the axes, grid, legend
+ *                                  and marker (parts.sharp)  motion (how the marks move)
  *
  *      std.guikit.animation        fader (fade in and out)  animated (a number that glides)
  *      std.guikit.overlay          popup (dialogs and menus float above the page)  menu
@@ -622,6 +627,12 @@ stable class gui {
         return line;
     }
 
+    static def menu_item(title: string, look: modifier, action: ()()) : row {
+        made := menu_item(title, action);
+        look.apply_to(made.node());
+        return made;
+    }
+
     /**
      * A short message at the bottom of the window that goes away by itself
      * after a few seconds: "Saved", "Copied". (Android: Toast / Snackbar.)
@@ -713,9 +724,27 @@ stable class gui {
         return new chip(words, action);
     }
 
+    static def chip(words: string, look: modifier) : chip {
+        made := new chip(words);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    static def chip(words: string, look: modifier, action: ()()) : chip {
+        made := new chip(words, action);
+        look.apply_to(made.node());
+        return made;
+    }
+
     /** a small filled dot with a count; nothing at all when the count is 0 (chip.sharp) */
     static def badge(count: _int64) : badge {
         return new badge(count);
+    }
+
+    static def badge(count: _int64, look: modifier) : badge {
+        made := new badge(count);
+        look.apply_to(made.node());
+        return made;
     }
 
     static def toast(words: string) {
@@ -839,11 +868,40 @@ stable class gui {
         return new nav_bar(nav);
     }
 
+    static def nav_bar(nav: navigator, look: modifier) : nav_bar {
+        made := new nav_bar(nav);
+        look.apply_to(made.node());
+        return made;
+    }
+
     /**
      * The bar across the top of a screen: its title, and a back button
-     * whenever there is a screen to go back to.
+     * whenever there is a screen to go back to. With a block, the widgets it
+     * makes sit at the bar's right end - the screen's own buttons:
+     *
+     *      top_bar("Inbox", nav) { button("New") { compose(); }; }
      */
     static def top_bar(title: string, nav: navigator) : row {
+        return top_bar_of(title, nav, null);
+    }
+
+    static def top_bar(title: string, nav: navigator, look: modifier) : row {
+        made := top_bar_of(title, nav, null);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    static def top_bar(title: string, nav: navigator, actions: ()()) : row {
+        return top_bar_of(title, nav, actions);
+    }
+
+    static def top_bar(title: string, nav: navigator, look: modifier, actions: ()()) : row {
+        made := top_bar_of(title, nav, actions);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    private static def top_bar_of(title: string, nav: navigator, actions: ()()?) : row {
         bar := new row();
         bar.gap(8);
         box : view = bar.node();
@@ -858,6 +916,10 @@ stable class gui {
                 gap(8);
             }
             text(title).size(20).bold();
+            if(actions != null) {
+                spacer();
+                actions!!();
+            }
         });
         return bar;
     }
@@ -880,6 +942,12 @@ stable class gui {
     /** a thin line between things (divider.sharp) */
     static def divider() : divider {
         return new divider();
+    }
+
+    static def divider(look: modifier) : divider {
+        made := new divider();
+        look.apply_to(made.node());
+        return made;
     }
 
     // ================================================================ showing things
@@ -933,6 +1001,17 @@ stable class gui {
     /** a box you tick, bound to a 0/1 state (checkbox.sharp) */
     static def checkbox(words: string, value: state<_int64>) : checkbox {
         return new checkbox(words, value);
+    }
+
+    /** ... the caption built from the widgets the block makes: checkbox(agreed) { text("I agree"); } */
+    static def checkbox(value: state<_int64>, caption: ()()) : checkbox {
+        return new checkbox(value, caption);
+    }
+
+    static def checkbox(value: state<_int64>, look: modifier, caption: ()()) : checkbox {
+        made := new checkbox(value, caption);
+        look.apply_to(made.node());
+        return made;
     }
 
     static def checkbox(words: string, value: state<_int64>, look: modifier) : checkbox {
@@ -1045,6 +1124,20 @@ stable class gui {
     /** the same, coming and going another way: SHOW_EXPAND, SHOW_FADE or SHOW_SLIDE */
     static def animated_show(visible: _int64, how: _int64, block: ()()) : revealer {
         made := new revealer(visible, how);
+        made.content(block);
+        return made;
+    }
+
+    static def animated_show(visible: _int64, look: modifier, block: ()()) : revealer {
+        made := new revealer(visible, SHOW_EXPAND);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    static def animated_show(visible: _int64, how: _int64, look: modifier, block: ()()) : revealer {
+        made := new revealer(visible, how);
+        look.apply_to(made.node());
         made.content(block);
         return made;
     }
@@ -1258,6 +1351,17 @@ stable class gui {
         return new radio(words, choice, stands_for);
     }
 
+    /** ... the caption built from the widgets the block makes: radio(size, 2) { text("Large"); } */
+    static def radio(choice: state<_int64>, stands_for: _int64, caption: ()()) : radio {
+        return new radio(choice, stands_for, caption);
+    }
+
+    static def radio(choice: state<_int64>, stands_for: _int64, look: modifier, caption: ()()) : radio {
+        made := new radio(choice, stands_for, caption);
+        look.apply_to(made.node());
+        return made;
+    }
+
     static def radio(words: string, choice: state<_int64>, stands_for: _int64, look: modifier) : radio {
         made := new radio(words, choice, stands_for);
         look.apply_to(made.node());
@@ -1278,10 +1382,27 @@ stable class gui {
         return made;
     }
 
-    /** inside tabs { }: one title */
+    /** inside tabs { }: one title - words, or with a block the widgets it makes: tab { text("Inbox"); badge(3); } */
     static def tab(title: string) : tab_item {
         scope.inside("tabs", "tab(...)", "tabs(state) { ... }");
         return new tab_item(title);
+    }
+
+    static def tab(title: string, look: modifier) : tab_item {
+        made := tab(title);
+        look.apply_to(made.node());
+        return made;
+    }
+
+    static def tab(title: ()()) : tab_item {
+        scope.inside("tabs", "tab { ... }", "tabs(state) { ... }");
+        return new tab_item(title);
+    }
+
+    static def tab(look: modifier, title: ()()) : tab_item {
+        made := tab(title);
+        look.apply_to(made.node());
+        return made;
     }
 
     /** pick one named choice from a menu that drops down: dropdown(choice) { option("A"); option("B"); } (dropdown.sharp) */
@@ -1295,22 +1416,26 @@ stable class gui {
         return made;
     }
 
-    /** inside dropdown { }: one choice */
+    /** inside dropdown { }: one choice - words, or with a block the widgets it makes: option { text("Sweden"); } */
     static def option(title: string) : menu_option {
         scope.inside("dropdown", "option(...)", "dropdown(state) { ... }");
         return new menu_option(title);
     }
 
-    /** run a dropdown's block and gather the words of the options it lists */
-    private static def options_of(block: ()()) : list<string> {
+    static def option(content: ()()) : menu_option {
+        scope.inside("dropdown", "option { ... }", "dropdown(state) { ... }");
+        return new menu_option(content);
+    }
+
+    /** run a dropdown's block and gather the options it lists */
+    private static def options_of(block: ()()) : list<menu_option> {
         gathered : view = scope.collect("dropdown", block);
-        titles := new list<string>();
+        choices := new list<menu_option>();
         count : _int64 = gathered.kid_count();
         for(i : _int64 = 0; i < count; i++) {
-            choice := gathered.kids.at(i).how as menu_option;
-            titles.add(choice.words);
+            choices.add(gathered.kids.at(i).how as menu_option);
         }
-        return titles;
+        return choices;
     }
 
     // ================================================================ drawing it yourself
@@ -1324,6 +1449,257 @@ stable class gui {
         made := new canvas(drawing);
         look.apply_to(made.node());
         return made;
+    }
+
+    // ================================================================ charts
+
+    /**
+     * Numbers as bars and lines (charts/chart.sharp). The block says what is in it:
+     *
+     *      chart(modifier().fill_width().height(240)) {
+     *          bars("Sales", sales);
+     *          line("Target", target).curved();
+     *          x_axis(months);
+     *          y_axis();
+     *      }
+     */
+    static def chart(block: ()()) : chart {
+        made := new chart();
+        made.content(block);
+        return made;
+    }
+
+    static def chart(look: modifier, block: ()()) : chart {
+        made := new chart();
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /**
+     * inside chart { }: a row of numbers as bars; with a name, the legend and the marker can say whose
+     * they are. With a block, the widgets it makes stand on every bar: `it` is the bar's mark (charts/series.sharp)
+     */
+    static def bars(values: decimal[]) : bar_series {
+        made := new bar_series("", values);
+        chart.inside("bars(...)").add(made);
+        return made;
+    }
+
+    static def bars(name: string, values: decimal[]) : bar_series {
+        made := new bar_series(name, values);
+        chart.inside("bars(...)").add(made);
+        return made;
+    }
+
+    static def bars(values: list<double>) : bar_series {
+        made := new bar_series("", values);
+        chart.inside("bars(...)").add(made);
+        return made;
+    }
+
+    static def bars(name: string, values: list<double>) : bar_series {
+        made := new bar_series(name, values);
+        chart.inside("bars(...)").add(made);
+        return made;
+    }
+
+    static def bars(values: decimal[], on_each: (mark)()) : bar_series {
+        made := bars(values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    static def bars(name: string, values: decimal[], on_each: (mark)()) : bar_series {
+        made := bars(name, values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    static def bars(values: list<double>, on_each: (mark)()) : bar_series {
+        made := bars(values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    static def bars(name: string, values: list<double>, on_each: (mark)()) : bar_series {
+        made := bars(name, values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    /**
+     * inside chart { }: a row of numbers as a line through its points. With a block, the widgets it
+     * makes stand above every point: `it` is the point's mark (charts/series.sharp)
+     */
+    static def line(values: decimal[]) : line_series {
+        made := new line_series("", values);
+        chart.inside("line(...)").add(made);
+        return made;
+    }
+
+    static def line(name: string, values: decimal[]) : line_series {
+        made := new line_series(name, values);
+        chart.inside("line(...)").add(made);
+        return made;
+    }
+
+    static def line(values: list<double>) : line_series {
+        made := new line_series("", values);
+        chart.inside("line(...)").add(made);
+        return made;
+    }
+
+    static def line(name: string, values: list<double>) : line_series {
+        made := new line_series(name, values);
+        chart.inside("line(...)").add(made);
+        return made;
+    }
+
+    static def line(values: decimal[], on_each: (mark)()) : line_series {
+        made := line(values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    static def line(name: string, values: decimal[], on_each: (mark)()) : line_series {
+        made := line(name, values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    static def line(values: list<double>, on_each: (mark)()) : line_series {
+        made := line(values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    static def line(name: string, values: list<double>, on_each: (mark)()) : line_series {
+        made := line(name, values);
+        made.viewer = on_each;
+        return made;
+    }
+
+    /**
+     * inside chart { }: the words along the bottom - one for each place, or 1, 2, 3 ... With a block,
+     * every label is built from the widgets it makes: `it` is the label (charts/parts.sharp)
+     */
+    static def x_axis() : chart_axis {
+        made := new chart_axis();
+        chart.inside("x_axis()").set_x_axis(made);
+        return made;
+    }
+
+    static def x_axis(names: string[]) : chart_axis {
+        return x_axis().name_places(names);
+    }
+
+    static def x_axis(names: list<string>) : chart_axis {
+        return x_axis().name_places(names);
+    }
+
+    static def x_axis(label: (axis_label)()) : chart_axis {
+        made := x_axis();
+        made.viewer = label;
+        return made;
+    }
+
+    static def x_axis(names: string[], label: (axis_label)()) : chart_axis {
+        made := x_axis().name_places(names);
+        made.viewer = label;
+        return made;
+    }
+
+    static def x_axis(names: list<string>, label: (axis_label)()) : chart_axis {
+        made := x_axis().name_places(names);
+        made.viewer = label;
+        return made;
+    }
+
+    /** inside chart { }: the numbers up the side: y_axis().ticks(4). With a block, each is built from widgets */
+    static def y_axis() : chart_axis {
+        made := new chart_axis();
+        chart.inside("y_axis()").set_y_axis(made);
+        return made;
+    }
+
+    static def y_axis(label: (axis_label)()) : chart_axis {
+        made := y_axis();
+        made.viewer = label;
+        return made;
+    }
+
+    /** inside chart { }: level lines behind the marks, one at each number of the y axis */
+    static def grid_lines() : chart_grid {
+        made := new chart_grid();
+        chart.inside("grid_lines()").set_grid(made);
+        return made;
+    }
+
+    /** inside chart { }: a coloured square and the name of every named series, above the marks */
+    static def legend() : chart_legend {
+        made := new chart_legend();
+        chart.inside("legend()").set_legend(made);
+        return made;
+    }
+
+    /** ... each entry built from the widgets the block makes: `it` is a legend_entry */
+    static def legend(entry: (legend_entry)()) : chart_legend {
+        made := legend();
+        made.viewer = entry;
+        return made;
+    }
+
+    /** inside chart { }: the place under the mouse is marked, and a small box says its numbers */
+    static def marker() : chart_marker {
+        made := new chart_marker();
+        chart.inside("marker()").set_marker(made);
+        return made;
+    }
+
+    /** ... the box built from the widgets the block makes: `it` is a chart_hover */
+    static def marker(box: (chart_hover)()) : chart_marker {
+        made := marker();
+        made.viewer = box;
+        return made;
+    }
+
+    /** one row of numbers as bars, with both axes and level lines: the whole chart in one word */
+    static def bar_chart(values: decimal[]) : chart {
+        return chart({ ->
+            bars(values);
+            x_axis();
+            y_axis();
+            grid_lines();
+        });
+    }
+
+    static def bar_chart(values: decimal[], look: modifier) : chart {
+        return chart(look, { ->
+            bars(values);
+            x_axis();
+            y_axis();
+            grid_lines();
+        });
+    }
+
+    /** one row of numbers as a line, with both axes and level lines */
+    static def line_chart(values: decimal[]) : chart {
+        return chart({ ->
+            line(values);
+            x_axis();
+            y_axis();
+            grid_lines();
+        });
+    }
+
+    static def line_chart(values: decimal[], look: modifier) : chart {
+        return chart(look, { ->
+            line(values);
+            x_axis();
+            y_axis();
+            grid_lines();
+        });
     }
 
     // ================================================================ colours

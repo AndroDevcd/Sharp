@@ -1,0 +1,110 @@
+mod main;
+import ( std.testing, std.guikit.* )
+
+/**
+ * The slots of the GUI library's widgets, as far as they can be tried
+ * without a window: a part of a widget that is words by default can be given
+ * as a block of widgets instead (a checkbox's caption, a tab's title, a
+ * dropdown's option, the right end of a top bar), and every widget takes a
+ * modifier. What they LOOK like is seen in examples/gui.
+ */
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_guikit_slots") {
+        test("a checkbox with a block: its caption is a row of the widgets the block made") {
+            agreed := gui.state(0);
+            made := checkbox(agreed) { text("I agree to the"); text("terms"); };
+            expect(made.node().kid_count()).should_be(1);
+            caption : view = made.node().kids.at(0);
+            expect(caption.how.kind()).should_be("row");
+            expect(caption.kid_count()).should_be(2);
+            expect(caption.kids.at(1).how.kind()).should_be("label");
+
+            made.node().click();
+            expect(agreed.value).should_be(1);
+            made.node().click();
+            expect(agreed.value).should_be(0);
+        };
+        test("a checkbox with words has no children, and still flips") {
+            agreed := gui.state(0);
+            made := checkbox("I agree", agreed);
+            expect(made.node().kid_count()).should_be(0);
+            made.node().click();
+            expect(agreed.value).should_be(1);
+        };
+        test("a radio with a block chooses its number") {
+            size := gui.state(0);
+            made := radio(size, 2) { text("Large"); chip("popular"); };
+            expect(made.node().kid_count()).should_be(1);
+            expect(made.node().kids.at(0).kid_count()).should_be(2);
+            made.node().click();
+            expect(size.value).should_be(2);
+        };
+        test("the widgets of a caption do not land in the container around the checkbox") {
+            flag := gui.state(0);
+            around := column {
+                checkbox(flag) { text("one"); text("two"); };
+                radio(flag, 1) { text("three"); };
+                text("after");
+            };
+            expect(around.node().kid_count()).should_be(3);
+            expect(around.node().kids.at(0).how.kind()).should_be("checkbox");
+            expect(around.node().kids.at(1).how.kind()).should_be("radio");
+            expect(around.node().kids.at(2).how.kind()).should_be("label");
+        };
+
+        test("a tab's title as words or as a block") {
+            page := gui.state(0);
+            strip := tabs(page) {
+                tab("One");
+                tab { text("Two"); badge(3); };
+                tab("Three", modifier().padding(6));
+            };
+            expect(strip.node().kid_count()).should_be(3);
+            expect(strip.node().kids.at(0).kid_count()).should_be(0);
+            second : view = strip.node().kids.at(1);
+            expect(second.how.kind()).should_be("tab");
+            expect(second.kid_count()).should_be(1);
+            expect(second.kids.at(0).kid_count()).should_be(2);
+            expect(strip.node().kids.at(2).pad_left).should_be(6);
+
+            second.click();
+            expect(page.value).should_be(1);
+        };
+        test("tab { } only works inside tabs { }") {
+            expect_throws<illegal_state_exception>() { tab { text("alone"); }; };
+            expect_throws<illegal_state_exception>() { option { text("alone"); }; };
+        };
+
+        test("a dropdown's options as words or as blocks") {
+            choice := gui.state(0);
+            built : _int64 = 0;
+            made := dropdown(choice) {
+                option("Small");
+                option { built = built + 1; text("Large"); chip("popular"); };
+            };
+            expect_not_null(made.node());
+            expect(built).should_be(0);         // an option's block runs where the option is shown, not where it is listed
+        };
+
+        test("a top bar with the screen's own buttons at its right end") {
+            nav := new navigator();
+            plain := top_bar("Inbox", nav);
+            with_buttons := top_bar("Inbox", nav) { button("New") { }; button("Find") { }; };
+            // a gap or a back button, the title - and then a spacer and the two buttons
+            expect(with_buttons.node().kid_count()).should_be(plain.node().kid_count() + 3);
+            expect(top_bar("Inbox", nav, modifier().padding(20)).node().pad_top).should_be(20);
+        };
+
+        test("the widgets that had no modifier form take one now") {
+            expect(badge(3, modifier().margin(5)).node().mar_left).should_be(5);
+            expect(divider(modifier().margin(7)).node().mar_top).should_be(7);
+            expect(chip("tag", modifier().padding(9)).node().pad_left).should_be(9);
+            expect(animated_show(1, modifier().padding(11)) { text("x"); }.node().pad_left).should_be(11);
+            expect(animated_show(1, SHOW_FADE, modifier().padding(12)) { text("x"); }.node().pad_left).should_be(12);
+            expect(nav_bar(new navigator(), modifier().padding(13)).node().pad_left).should_be(13);
+        };
+    };
+    finish_tests("lib_guikit_slots");
+}

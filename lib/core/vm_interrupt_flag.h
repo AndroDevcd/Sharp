@@ -104,6 +104,9 @@ enum interrupt_flag
     OP_SIGNAL_WATCH = 0x63,          // ebx: which signal, ecx: 1 hear about it / 0 let it end the program again (sig_handler.h)
     OP_SIGNAL_TAKE = 0x64,           // ebx: how many milliseconds to wait; ebx: the signal that came, 0 for none
     OP_PRINT_BYTES = 0x65,           // pop: an array of characters, printed whole; ebx: 1 for a line end after it
+    OP_GC_YOUNG = 0x66,              // ask for a minor collection, in either mode (memory/tracing_collector.h, MANUAL MODE)
+    OP_GC_FACT = 0x67,               // ebx: which number about the collector; ebx: the number (tgc_fact)
+    OP_MEMORY_HOOK = 0x68,           // ebx: a command of the out of memory hook, ecx: milliseconds; ebx: its answer (tgc_memory_hook)
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

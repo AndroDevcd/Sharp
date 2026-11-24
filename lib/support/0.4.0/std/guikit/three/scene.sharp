@@ -51,7 +51,16 @@ local stable class frame_code {
  *      backdrop(colour)        one flat colour instead of a sky
  *      fog(colour, from, to)   far things fade into it
  *      on_frame { f -> ... }   your code, run before every frame: move things, read the keys
- *      hud { ... }             ordinary widgets over the view
+ *
+ * AND ANY WIDGET WRITTEN IN THE BLOCK IS LAID OVER THE VIEW - a score, a
+ * health bar, buttons - like in every container of this library:
+ *
+ *      scene {
+ *          cube(1).spin(40);
+ *          text("Score: " + score.value, modifier().padding(16)).size(24);
+ *      }
+ *
+ * (hud { ... } groups such widgets in one place of the block; it adds nothing else.)
  *
  * EVERY FRAME the scene is drawn again by the graphics card (native/g3_core.cpp),
  * in one call, however much is in it. Things that only spin or bob cost the
@@ -110,12 +119,12 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         root = new thing();
         stage.open = open_before;
 
-        // run the block: things join the root, and camera() & co. speak to this scene.
-        // (Widgets made in the block belong nowhere - except inside hud { }.)
+        // run the block: things join the root, camera() & co. speak to this scene,
+        // and widgets made in it are the scene's children, laid over the view
         scene_before : scene? = stage.building;
         widgets_before : view? = scope.open;
         stage.building = self;
-        scope.open = null;
+        scope.open = me;
         stage.fill(root, block);
         scope.open = widgets_before;
         stage.building = scene_before;
@@ -130,12 +139,6 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
     /** your code, run before every frame is drawn */
     def each_frame(what: (frame)()) : scene {
         every_frame.add(new frame_code(what));
-        return self;
-    }
-
-    /** widgets over the view: made in the block, laid out over the scene's box */
-    def over(block: ()()) : scene {
-        scope.fill(me, block);
         return self;
     }
 

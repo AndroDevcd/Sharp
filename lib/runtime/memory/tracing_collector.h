@@ -85,6 +85,61 @@
 //      full=<percent>  a full collection when the old objects reach this much
 //                      of what the last full one left               (default 300)
 //
+// MANUAL MODE: THE PROGRAM DECIDES WHEN (std.system, gc)
+// ------------------------------------------------------
+// A program that cannot afford a pause at a moment it did not choose - a game
+// in the middle of a frame - switches the collector to MANUAL (gc.state ==
+// SLEEPING). Then no collection starts on its own: not after the young budget,
+// not when the old objects have grown, not at the memory limit. The program
+// collects where a pause does not matter (tgc_request(true): a full one,
+// tgc_request_young(): a minor one). If it never does, the limit is reached
+// and the allocation fails with "out of memory" - there is no rescue.
+// tgc_fact() is what it reads to decide: how many collections ran, how long
+// they took, how much was allocated since the last one.
+//
+//      C# comparison: GCSettings.LatencyMode and GC.TryStartNoGCRegion.
+//      Unity: GarbageCollector.GCMode.Manual. Go: debug.SetGCPercent(-1).
+//
+// OUT OF MEMORY: A RESERVE, A HOOK, ONE EXCEPTION
+// ----------------------------------------------
+// The memory limit (-mem) is what ordinary code may use. Past it lies a
+// RESERVE - a 32nd of the limit, 4 MB at most - that only the handling of an
+// out of memory may use: a handler that cannot make one object cannot print
+// a message or drop a cache.
+//
+//      0 --------------------- the limit ---- the limit + the reserve
+//          ordinary use                reserve
+//
+// An allocation that would cross the limit (and, in normal mode, that a full
+// collection could not make room for) OPENS the reserve. Then, in this order:
+//
+//   1. THE HOOK, when the program has one (gc.on_out_of_memory). The
+//      allocation goes through, into the reserve. At its next safe point the
+//      thread wakes the thread that runs the hook and waits for it. A hook
+//      that collects memory back under the limit ends it there: the reserve
+//      closes, the program goes on where it was, nothing was raised.
+//   2. ONE EXCEPTION, when there is no hook or the hook did not help: the next
+//      allocation over the limit fails with an out_of_memory_exception, which
+//      a try/catch takes like any other. Its handler has the reserve to work
+//      in.
+//   3. THE END, when the reserve is used up too. No third chance: the VM
+//      prints its memory report and stops, as it always did.
+//
+// So an out of memory cannot follow an out of memory without end: one hook
+// run, one exception, then the reserve runs out.
+//
+// IT IS OVER when a collection leaves memory under the limit again - there is
+// nothing to clear: the reserve is a line in the accounting, and what the
+// handler made are ordinary objects. An allocation that was simply too large
+// (a 2 GB array) takes nothing; the next out of memory is a new one.
+//
+// Not catchable: the operating system itself having no memory left (malloc
+// gave null). That ends the program as before.
+//
+//      Java comparison: OutOfMemoryError, with the same pre-made exception
+//      object (vm.memoryExcept). Java has no reserve, which is why catching
+//      it there is called unreliable.
+//
 // THE ROOTS (tracing_collector.cpp, mark_roots)
 // ---------------------------------------------
 //   - static fields of every class            vm.staticHeap
@@ -169,10 +224,26 @@ void tgc_unregister_thread(sharp_thread *thread);
 
 /**
  * Ask for a collection. It runs at the next safe point of a Sharp thread.
- * Ignored while the collector is asleep (sedate_gc) unless `force` is set, and
- * always ignored once it has been shut down.
+ * Ignored in manual mode (sedate_gc) unless `force` is set - the program asks -
+ * and always ignored once the collector has been shut down. A forced one is a
+ * full collection.
  */
 void tgc_request(bool force = false);
+
+/** The program asks for a MINOR collection, in either mode. */
+void tgc_request_young();
+
+/**
+ * A number about the collector, for the program (OP_GC_FACT):
+ *      0   collections so far, minor and full
+ *      1   full collections so far
+ *      2   how long the last collection took, in microseconds
+ *      3   the longest one
+ *      4   all of them together
+ *      5   bytes allocated since the last collection
+ * -1 for a number that does not exist.
+ */
+Int tgc_fact(Int which);
 
 /**
  * Make an object permanent: never freed, and a root (everything it refers to
@@ -185,12 +256,32 @@ bool tgc_pending();
 /** Called by the garbage collector thread: make sure a pending request is noticed. */
 void tgc_nudge();
 
+/** What the collector says to an allocation (OUT OF MEMORY, above). */
+enum allocation_answer {
+    allocation_fits,        // go on
+    allocation_raises,      // it fails with an out of memory exception the program can catch
+    allocation_is_fatal     // it fails, and the reserve is used up: the program ends
+};
+
 /**
  * Called by reserve_bytes() for every allocation of managed memory. Decides
- * whether it is time to ask for a collection. Returns false if the allocation
- * must fail with "out of memory".
+ * whether it is time to ask for a collection, and whether the allocation
+ * fits. mayFail = false only counts: the answer is always allocation_fits.
  */
-bool tgc_note_allocation(size_t bytes);
+allocation_answer tgc_note_allocation(size_t bytes, bool mayFail = true);
+
+/** An allocation was answered allocation_is_fatal: nobody waits for the program's hook any longer. */
+void tgc_out_of_memory_is_fatal();
+
+/**
+ * The program's out of memory hook (OP_MEMORY_HOOK; std.system, gc.on_out_of_memory):
+ *      0   there is no hook any more
+ *      1   there is a hook
+ *      2   wait up to `millis` for an out of memory; 1 = run the hook now
+ *          (the thread that calls this is the one that runs the hook)
+ *      3   the hook has run
+ */
+Int tgc_memory_hook(Int command, Int millis);
 
 /** Called by push_object(): one more object exists. */
 void tgc_note_object();

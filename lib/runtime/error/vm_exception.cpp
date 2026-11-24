@@ -115,17 +115,28 @@ void fill_stack_trace(string &output, std::list<KeyPair<Int, Int>> frameInfo) {
     }
 }
 
+// An out of memory ends the program - unless the allocation that raises it said just before that
+// this one can be caught (memory/tracing_collector.h, OUT OF MEMORY).
+static thread_local bool catchableOutOfMemory = false;
+
+void next_out_of_memory_can_be_caught() {
+    catchableOutOfMemory = true;
+}
+
 void vm_exception::push_exception() {
     TELEMETRY_COUNT(tm_exceptions_thrown)
     sharp_thread *thread = thread_self;
     if(thread != NULL && !err.internal) {
 
         if(err.handlingClass == vm.out_of_memory_except) {
+            bool fatal = !catchableOutOfMemory;
+            catchableOutOfMemory = false;
 
-            print_memory_diagnostics();
+            if(fatal) print_memory_diagnostics();
             if(thread->task != NULL && thread->task != NULL) {
                 /*
-                 * If there is no memory we exit
+                 * The exception object was made when the VM started: there may be
+                 * no memory for one now.
                  */
                 guard_mutex(thread->mut);
                 copy_object(&thread->task->exceptionObject, &vm.memoryExcept);
@@ -148,7 +159,8 @@ void vm_exception::push_exception() {
                 }
             }
 
-            sendSignal(thread->signal, tsig_kill, 1);
+            // If there is no memory left at all we exit
+            if(fatal) sendSignal(thread->signal, tsig_kill, 1);
             return;
         }
 
@@ -219,5 +231,11 @@ void print_thrown_exception() {
         sendSignal(thread->signal, tsig_except, 0);
         cout << endl << (exceptionClass != NULL ? exceptionClass->name : "") << " ("
              << (message != NULL ? read_string_value(message->o) : "") << ")\n";
+
+        // nobody caught an out of memory: what memory looked like
+        // (one that stopped the thread at once has printed it already: push_exception)
+        if(exceptionClass != NULL && exceptionClass->guid == vm.out_of_memory_except->guid
+           && !hasSignal(thread->signal, tsig_kill))
+            print_memory_diagnostics();
     }
 }

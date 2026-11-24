@@ -60,6 +60,17 @@ stable class view {
      */
     key : string = "";
 
+    /**
+     * A place in the PARENT'S own terms, for a parent that puts its children
+     * where its content says rather than in a row or a column: in a chart, the
+     * place across and the number up (modifier().at(4, 80)). What the two
+     * numbers mean is the parent's business; other parents ignore them.
+     * at_set: 0 nothing said, 1 only across, 2 only up, 3 both.
+     */
+    at_set : _int64 = 0;
+    at_across : decimal = 0;
+    at_up : decimal = 0;
+
     // ------------------------------------------------------------ the box model (set by modifiers)
     pad_left : decimal = 0;
     pad_top : decimal = 0;

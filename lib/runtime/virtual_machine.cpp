@@ -1300,6 +1300,12 @@ bool catch_exception() {
     Int pc = current_pc;
     sharp_class *handlingClass = vm.classes + CLASS(task->exceptionObject.o->info);
 
+    // The thread is being stopped (an out of memory with nothing left to handle it in): nothing
+    // catches this. A handler found here would take the exception away and be stopped one
+    // instruction later, and the program would end as if nothing had gone wrong.
+    if(hasSignal(thread->signal, tsig_kill))
+        return false;
+
     /**
      * This is the core code for the exception system, Its made to be as lightweight as possible.
      * Majority of the work, such as ensuring that all finally blocks are executed within a given

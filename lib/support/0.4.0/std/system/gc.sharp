@@ -1,0 +1,380 @@
+mod std.system;
+
+import ( std.io )
+
+/**
+ * How the garbage collector decides when to run.
+ *
+ *      normal      on its own, when memory is needed. What every program starts with.
+ *      manual      only when the program asks (gc.collect(), gc.collect_young()).
+ */
+enum gc_mode {
+    normal,
+    manual
+};
+
+/**
+ * THE GARBAGE COLLECTOR: when it runs, and what it has been doing
+ *
+ * A collection stops the program for a moment. Most programs never notice.
+ * One that draws a picture sixty times a second does: a pause in the middle
+ * of a frame is a frame that comes late. Such a program takes the decision
+ * for itself:
+ *
+ *      gc.set_mode(gc_mode.manual);        // from here on nothing is collected ...
+ *      while(playing) {
+ *          draw_a_frame();
+ *      }
+ *      gc.collect();                       // ... until the program says so
+ *      gc.set_mode(gc_mode.normal);
+ *
+ * or for one piece of code only, with the mode put back afterwards whatever
+ * happens in it:
+ *
+ *      gc.during(gc_mode.manual) {
+ *          play_the_level();
+ *      };
+ *
+ * MANUAL MEANS MANUAL. Nothing is freed until the program collects. If it
+ * never does, memory fills up to the limit (`sharp -mem`, a quarter of the
+ * machine's memory when not given) and the next `new` is out of memory.
+ * There is no rescue collection. So a program in manual mode watches what
+ * it uses and collects where a pause costs nothing:
+ *
+ *      if(gc.pressure() > 0.8) { gc.collect(); }           // between two levels
+ *      if(gc.allocated_since_collection() > 4 * 1024 * 1024) { gc.collect_young(); }
+ *
+ * OUT OF MEMORY, in either mode, is not the end at once. Past the limit lies
+ * a small reserve (a 32nd of the limit, 4 MB at most) that ordinary code can
+ * never use; it is there so that what answers an out of memory has room to
+ * work in. Three things happen, in this order:
+ *
+ *   1. THE HOOK, when the program has one:
+ *
+ *          gc.on_out_of_memory({ ->
+ *              textures.drop_unused();
+ *              gc.collect();
+ *          });
+ *
+ *      The thread that ran out waits; the hook runs on a thread of its own
+ *      (`memory watcher`, like the hooks of `signals`), so it is ordinary
+ *      code. When it has brought memory back under the limit the program
+ *      goes on exactly where it was - nothing was thrown, nothing unwound.
+ *   2. ONE EXCEPTION, when there is no hook or it did not help: the next
+ *      `new` throws an out_of_memory_exception, for a try/catch to take:
+ *
+ *          try {
+ *              level = load_level(name);
+ *          } catch(none_left: out_of_memory_exception) {
+ *              cache.clear();
+ *              gc.collect();
+ *          }
+ *
+ *   3. THE END, when the reserve is used up as well: by a handler that needed
+ *      more than the reserve, or by a program that caught the exception and
+ *      went on without freeing anything. The VM prints what memory looked
+ *      like and the program ends. There is no third chance, so an out of
+ *      memory can never follow an out of memory without end.
+ *
+ * It is over as soon as a collection leaves memory under the limit: the
+ * reserve is whole again for the next time. gc.collect() and
+ * gc.collect_young() make no objects themselves and always work.
+ *
+ * A hook must not wait for a lock that a thread which ran out is holding:
+ * that thread waits for the hook. An exception a hook throws ends that hook,
+ * is printed, and the hooks after it still run.
+ *
+ * TWO KINDS OF COLLECTION
+ *      gc.collect_young()      looks at what was made since the last collection.
+ *                              Short: its cost follows what is new, not everything alive.
+ *      gc.collect()            looks at everything. It frees what a young one cannot
+ *                              (objects that lived long and then died), and takes longer
+ *                              the more is alive.
+ * Both work in either mode, and both are done when the call returns.
+ *
+ * THREADS. The mode belongs to the whole program, not to the thread that set
+ * it, and every function here may be called from any thread. When blocks of
+ * gc.during() run at the same time on several threads and ask for different
+ * modes, manual wins for as long as one manual block runs - it is the one
+ * that promised "no pause in here".
+ *
+ *      C# comparison: GCSettings.LatencyMode and GC.TryStartNoGCRegion; Unity's
+ *      GarbageCollector.GCMode.Manual. Go: debug.SetGCPercent(-1). Lua:
+ *      collectgarbage("stop"). Go's collector still steps in at its memory
+ *      limit; here manual mode is out of memory instead. Java: an
+ *      OutOfMemoryError can be caught too, but with no reserve to handle it in.
+ */
+class gc {
+    /* the numbers the VM answers gc_fact (int 0x67) with */
+    private static const COLLECTIONS : _int64 = 0;
+    private static const FULL_COLLECTIONS : _int64 = 1;
+    private static const LAST_PAUSE : _int64 = 2;
+    private static const LONGEST_PAUSE : _int64 = 3;
+    private static const TOTAL_PAUSE : _int64 = 4;
+    private static const ALLOCATED : _int64 = 5;
+
+    private static guard : string = "gc mode";          // locked while the mode is worked out and changed
+    private static chosen : gc_mode = gc_mode.normal;   // what set_mode() said last
+    private static manual_blocks : _int64 = 0;          // blocks of during(manual) that are running
+    private static normal_blocks : _int64 = 0;          // ... of during(normal)
+
+    /* what the VM's memory_hook (int 0x68) is told */
+    private static const HOOK_FORGET : _int64 = 0;
+    private static const HOOK_WATCH : _int64 = 1;
+    private static const HOOK_WAIT : _int64 = 2;
+    private static const HOOK_DONE : _int64 = 3;
+
+    private static hooks : list<gc_hook> = new list<gc_hook>();
+    private static hooks_guard : string = "gc hooks";   // locked while the hooks are changed
+    private static watcher : thread?;
+
+    /** the mode the collector is in now */
+    static def mode() : gc_mode {
+        state : _int64 = 0;
+        asm {
+            int 0x9
+            smovr2 [state], cmt
+        }
+        if(state == 1) { return gc_mode.manual; }
+        return gc_mode.normal;
+    }
+
+    /** change the mode for the whole program, until it is changed again */
+    static def set_mode(mode: gc_mode) {
+        lock(guard) {
+            chosen = mode;
+            apply();
+        }
+    }
+
+    /**
+     * Run `block` with the collector in `mode`, and put things back as they
+     * were when the block is done - also when it throws: the mode is put
+     * back first, then the exception goes on to whoever catches it.
+     */
+    static def during(mode: gc_mode, block: ()()) {
+        enter(mode);
+        try {
+            block();
+        } catch(problem: throwable) {
+            leave(mode);
+            throw problem;
+        }
+        leave(mode);
+    }
+
+    /** collect now, looking at everything */
+    static def collect() {
+        asm {
+            int 0x3
+        }
+    }
+
+    /** collect now, looking only at what was made since the last collection */
+    static def collect_young() {
+        asm {
+            int 0x66
+        }
+    }
+
+    /**
+     * Run `hook` when the program runs out of memory, before anything is
+     * thrown. Several hooks run in the order they were added.
+     */
+    static def on_out_of_memory(hook: ()()) {
+        lock(hooks_guard) {
+            hooks.add(new gc_hook(hook));
+            if(watcher == null) {
+                watcher = new thread("memory watcher", 1, gc.wait_for_out_of_memory);
+                watcher!!.start();
+            }
+        }
+        memory_hook(HOOK_WATCH, 0);
+    }
+
+    /** take every hook away: out of memory throws at once again */
+    static def forget_hooks() {
+        lock(hooks_guard) {
+            hooks.clear();
+        }
+        memory_hook(HOOK_FORGET, 0);
+    }
+
+    /** the watcher thread: wait for an out of memory, run the hooks, tell the VM they are done */
+    private static def wait_for_out_of_memory(args: object[]) : int {
+        while(true) {
+            if(memory_hook(HOOK_WAIT, 200) == 1) {
+                // (no copy of the list, no lock: memory is what there is least of right now)
+                for(i : _int64 = 0; i < hooks.size(); i++) {
+                    try {
+                        hooks.at(i).run();
+                    } catch(problem: throwable) {
+                        println("an out of memory hook threw: " + problem.get_message());
+                    }
+                }
+                memory_hook(HOOK_DONE, 0);
+            }
+        }
+        return 0;
+    }
+
+    private static def memory_hook(command: _int64, millis: _int64) : _int64 {
+        answer : _int64 = 0;
+        asm {
+            loadl ebx, [command]
+            loadl ecx, [millis]
+            int 0x68
+            smovr2 [answer], ebx
+        }
+        return answer;
+    }
+
+    /** bytes of memory the program's objects take now */
+    static def memory_in_use() : _int64 {
+        bytes : _int64 = 0;
+        asm {
+            int 0x1f
+            smovr2 [bytes], cmt
+        }
+        return bytes;
+    }
+
+    /** the most bytes they may take: a `new` past this is out of memory */
+    static def memory_limit() : _int64 {
+        bytes : _int64 = 0;
+        asm {
+            int 0x1e
+            smovr2 [bytes], cmt
+        }
+        return bytes;
+    }
+
+    /** how full memory is: 0 is empty, 1 is at the limit */
+    static def pressure() : decimal {
+        limit : decimal = memory_limit();
+        if(limit <= 0) { return 0; }
+        return memory_in_use() / limit;
+    }
+
+    /** bytes of new objects made since the last collection, of either kind */
+    static def allocated_since_collection() : _int64 {
+        return fact(ALLOCATED);
+    }
+
+    /** how many collections have run since the program started, young and full */
+    static def collections() : _int64 {
+        return fact(COLLECTIONS);
+    }
+
+    /** how many of them looked at everything */
+    static def full_collections() : _int64 {
+        return fact(FULL_COLLECTIONS);
+    }
+
+    /** how long the last collection stopped the program, in milliseconds */
+    static def last_pause() : decimal {
+        return fact(LAST_PAUSE) / 1000.0;
+    }
+
+    /** the longest any collection stopped it, in milliseconds */
+    static def longest_pause() : decimal {
+        return fact(LONGEST_PAUSE) / 1000.0;
+    }
+
+    /** how long all collections together stopped it, in milliseconds */
+    static def total_pause() : decimal {
+        return fact(TOTAL_PAUSE) / 1000.0;
+    }
+
+    /** everything above in one object, as it is now */
+    static def stats() : gc_stats {
+        now := new gc_stats();
+        now.mode = mode();
+        now.memory_in_use = memory_in_use();
+        now.memory_limit = memory_limit();
+        now.allocated_since_collection = allocated_since_collection();
+        now.collections = collections();
+        now.full_collections = full_collections();
+        now.last_pause = last_pause();
+        now.longest_pause = longest_pause();
+        now.total_pause = total_pause();
+        return now;
+    }
+
+    private static def enter(mode: gc_mode) {
+        lock(guard) {
+            if(mode == gc_mode.manual) { manual_blocks++; }
+            else { normal_blocks++; }
+            apply();
+        }
+    }
+
+    private static def leave(mode: gc_mode) {
+        lock(guard) {
+            if(mode == gc_mode.manual) { manual_blocks--; }
+            else { normal_blocks--; }
+            apply();
+        }
+    }
+
+    /** put the collector in the mode the running blocks and set_mode() add up to (`guard` is held) */
+    private static def apply() {
+        wanted : gc_mode = chosen;
+        if(manual_blocks > 0) { wanted = gc_mode.manual; }
+        else if(normal_blocks > 0) { wanted = gc_mode.normal; }
+
+        if(wanted == gc_mode.manual) {
+            asm {
+                int 0x6
+            }
+        } else {
+            asm {
+                int 0x7
+            }
+        }
+    }
+
+    private static def fact(which: _int64) : _int64 {
+        number : _int64 = 0;
+        asm {
+            loadl ebx, [which]
+            int 0x67
+            smovr2 [number], ebx
+        }
+        return number;
+    }
+}
+
+/** one hook of `gc` (a function value cannot be the element of a list by itself) */
+class gc_hook {
+    private work : ()();
+
+    gc_hook(work: ()()) {
+        self->work = work;
+    }
+
+    def run() {
+        todo : ()() = work;
+        todo();
+    }
+}
+
+/** what the collector has been doing, at the moment gc.stats() was called */
+class gc_stats {
+    mode : gc_mode = gc_mode.normal;
+    memory_in_use : _int64 = 0;                 // bytes
+    memory_limit : _int64 = 0;
+    allocated_since_collection : _int64 = 0;
+    collections : _int64 = 0;
+    full_collections : _int64 = 0;
+    last_pause : decimal = 0;                   // milliseconds
+    longest_pause : decimal = 0;
+    total_pause : decimal = 0;
+
+    /** how full memory was: 0 is empty, 1 is at the limit */
+    def pressure() : decimal {
+        if(memory_limit <= 0) { return 0; }
+        limit : decimal = memory_limit;
+        return memory_in_use / limit;
+    }
+}

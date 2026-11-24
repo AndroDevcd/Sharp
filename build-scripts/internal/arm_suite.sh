@@ -20,7 +20,7 @@
 source "$(dirname "$0")/common.sh"
 WAY=${WAY:-O}
 CASES=$WORK/out/suite_runner/$WAY
-STARTS_ITSELF=" lib_system_subprocess lib_system_signals lib_testing_ide lib_io_print_is_seen "
+STARTS_ITSELF=" lib_system_subprocess lib_system_signals lib_system_gc_limit lib_testing_ide lib_io_print_is_seen "
 
 which=""
 case "$1" in 64|32) which=$1; shift ;; esac

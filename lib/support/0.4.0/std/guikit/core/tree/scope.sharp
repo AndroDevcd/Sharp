@@ -80,6 +80,25 @@ stable class scope {
     }
 
     /**
+     * Run `block` into a ROW of its own that belongs to nothing yet, and hand
+     * the row's box back: the widgets the block made sit in it side by side,
+     * `space` pixels apart.
+     *
+     * For a widget that takes a block for one PART of itself - the caption
+     * of a checkbox, the title of a tab: it makes the part with this, adds
+     * the box as its child and gives it a place in its own arrange().
+     */
+    static def lone_row(space: decimal, block: ()()) : view {
+        before : view? = open;
+        open = null;                            // the row itself must not land in whatever is open
+        made := new row();
+        made.gap(space);
+        open = before;
+        made.content(block);
+        return made.node();
+    }
+
+    /**
      * SOME THINGS ONLY MAKE SENSE INSIDE ONE PARTICULAR PARENT: tab(...) inside
      * tabs { }, item / items inside lazy_column { }, option(...) inside
      * dropdown { }. Such a function calls this first. It hands back the open

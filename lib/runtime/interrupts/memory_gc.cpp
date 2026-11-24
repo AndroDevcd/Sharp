@@ -16,14 +16,31 @@ void op_gc_explicit(Int interrupt) {
     tgc_request(true);
 }
 
-// gc_sleep(): stop the collector from running until woken.
+// gc_sleep(): manual mode - the collector only runs when the program asks.
 void op_gc_sleep(Int interrupt) {
     sedate_gc();
 }
 
-// gc_wakeup(): let the collector run again.
+// gc_wakeup(): let the collector run on its own again.
 void op_gc_wakeup(Int interrupt) {
     wake_gc();
+}
+
+// gc_young(): ask for a minor collection, in either mode. Like gc_explicit it
+// runs at the next safe point, right after this instruction.
+void op_gc_young(Int interrupt) {
+    tgc_request_young();
+}
+
+// memory_hook(command, millis): the program's out of memory hook (tgc_memory_hook).
+// The command in EBX, the time to wait in ECX; the answer in EBX.
+void op_memory_hook(Int interrupt) {
+    registers[EBX].i = tgc_memory_hook(registers[EBX].i, registers[ECX].i);
+}
+
+// gc_fact(which): a number about the collector (tgc_fact), in and out through EBX.
+void op_gc_fact(Int interrupt) {
+    registers[EBX].i = tgc_fact(registers[EBX].i);
 }
 
 // gc_kill(): shut the collector thread down (used while the VM is ending).

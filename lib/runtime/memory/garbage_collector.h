@@ -55,7 +55,7 @@ enum collection_generation
 enum gc_state
 {
     RUNNING,    // collections happen when memory is needed
-    SLEEPING,   // put to sleep by the program: only collects when the memory limit is reached
+    SLEEPING,   // manual mode: only collects when the program asks; the memory limit is "out of memory"
     SHUTDOWN    // killed by the program or the VM is exiting: never collects
 };
 

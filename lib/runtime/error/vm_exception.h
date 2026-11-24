@@ -61,6 +61,9 @@ public:
     string message, stackTrace;
 };
 
+/** The out of memory raised next on this thread can be caught by the program (vm_exception.cpp). */
+void next_out_of_memory_can_be_caught();
+
 class vm_exception : public std::runtime_error {
 public:
     vm_exception(const char *msg, bool internal = false);

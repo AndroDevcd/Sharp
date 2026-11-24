@@ -15,6 +15,11 @@ import (
  *          option("Large");
  *      }
  *
+ * WITH A BLOCK, AN OPTION IS WIDGETS instead of words - in the list, and in
+ * the closed box while it is the chosen one:
+ *
+ *      option { image("flags/se.png", modifier().size(18, 12)); text("Sweden"); }
+ *
  * Closed, it is a box showing the chosen option. A click opens the list under
  * it (above it, when there is no room below); choosing an option writes its
  * number into the state and closes the list; a click anywhere else, or
@@ -37,23 +42,29 @@ import (
  * making your own compound widget.
  */
 stable class dropdown base composable {
-    private titles : list<string>;
+    private choices : list<menu_option>;
     private bound : state<_int64>;
     private open := state(0);
 
-    dropdown(choice: state<_int64>, options: list<string>) {
+    dropdown(choice: state<_int64>, options: list<menu_option>) {
         bound = choice;
-        titles = options;
+        choices = options;
+    }
+
+    /** what option `index` shows: its words, or the widgets its block makes, side by side */
+    private def face_of(index: _int64, look: modifier) {
+        choice : menu_option = choices.at(index);
+        if(choice.fill != null) {
+            row(look) { choice.fill!!(); }.gap(6);
+        } else {
+            text(choice.words, look).max_lines(1);
+        }
     }
 
     override def build() : element {
         t : theme = ui_host.current!!.look;
-        count : _int64 = titles.size();
-
-        shown : string = "";
-        if(bound.value >= 0 && bound.value < count) {
-            shown = titles.at(bound.value);
-        }
+        count : _int64 = choices.size();
+        chosen : _int64 = bound.value;
 
         edge : color = t.border;
         if(open.value == 1) { edge = t.primary; }
@@ -63,7 +74,8 @@ stable class dropdown base composable {
 
         return stack(modifier().fill_width()) {
             row(box) {
-                text(shown, modifier().grow(1)).max_lines(1);
+                if(chosen >= 0 && chosen < count) { face_of(chosen, modifier().grow(1)); }
+                else { spacer(); }
                 // the little arrow: two short lines, drawn rather than typed so it needs no special letter
                 canvas(modifier().size(12, 12)) { p: painter, f: frame ->
                     p.line(1, 4, 6, 9, 1.5, t.text_dim);
@@ -96,7 +108,7 @@ stable class dropdown base composable {
             look.background(t.primary.with_alpha(60));
         }
         row(look) {
-            text(titles.at(index));
+            face_of(index, modifier());
         };
     }
 
@@ -109,15 +121,22 @@ stable class dropdown base composable {
 }
 
 /**
- * One choice of a dropdown, as written in its block: option("Small"). It only
- * carries its words to the dropdown that collects it; it is never shown itself.
+ * One choice of a dropdown, as written in its block: option("Small"), or
+ * option { ... } with widgets. It only carries its words - or the block that
+ * makes its widgets - to the dropdown that collects it; it is never shown itself.
  */
 stable class menu_option base widget : behavior {
     words : string = "";
+    fill : ()()?;                           // makes the option's widgets (the block form); null: the words are shown
 
     menu_option(title: string) {
         attach(self);
         words = title;
+    }
+
+    menu_option(make: ()()) {
+        attach(self);
+        fill = make;
     }
 
     override def kind() : string { return "option"; }

@@ -8,8 +8,8 @@
 #     TAIL=<n>   how many of the last lines to show (default 15)
 source "$(dirname "$0")/common.sh"
 option=""; [ "$1" = "-O" ] && { option="-O"; shift; }
-[ -x "$VM" ] || bash "$REPO/build-scripts/build.sh" > /dev/null
-bash "$REPO/build-scripts/build.sh" compiler > "$WORK/out/case_build.txt" 2>&1 || { tail -20 "$WORK/out/case_build.txt"; echo "the compiler does not build"; exit 1; }
+# (the VM too: a case that tests a change to the VM must not run on the VM of before it)
+bash "$REPO/build-scripts/build.sh" > "$WORK/out/case_build.txt" 2>&1 || { tail -20 "$WORK/out/case_build.txt"; echo "the VM or the compiler does not build"; exit 1; }
 OUT="$WORK/out/cases"; mkdir -p "$OUT"
 ok=1
 for name in "$@"; do

@@ -32,6 +32,9 @@ static const interrupt_signature signatures[] = {
 
     // ---- garbage collector, memory
     { OP_GC_STATE,              "gc_state",             "",                     "",             "cmt:i" },
+    { OP_GC_FACT,               "gc_fact",              "ebx:i",                "",             "ebx:i" },
+    // (ecx, the time to wait, is only read by one of its commands: not checked)
+    { OP_MEMORY_HOOK,           "memory_hook",          "ebx:i",                "",             "ebx:i" },
     { OP_MEMORY_LIMIT,          "memory_limit",         "",                     "",             "cmt:i" },
     { OP_MEMORY,                "memory",               "",                     "",             "cmt:i" },
     { OP_SIZEOF,                "sizeof",               "",                     "o",            "ebx:i" },

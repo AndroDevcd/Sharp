@@ -5,6 +5,8 @@
 #     bash build-scripts/release.sh 0.7.1             release version 0.7.1 - about 25 minutes
 #     bash build-scripts/release.sh 0.7.1 install     the same, then installs it on this PC
 #     bash build-scripts/release.sh                   release the version the sources already say
+#     bash build-scripts/release.sh 0.7.1 notests     without step 2, the tests: only for a release that changed
+#                                                     nothing but the standard library, and you say so yourself
 #
 # THE VERSION NUMBER is the language version (the compiler and the standard library); the zip is
 # named after it. Given a number, this script writes it into the three places of the sources that
@@ -40,13 +42,14 @@ REPO=$(cd "$HERE/.." && pwd)
 CONFIGURATION="$REPO/lib/compiler/configuration/configuration.sharp"
 OPTIONS="$REPO/lib/compiler/configuration/options.sharp"
 
-# ---- the arguments: a version number and/or `install`, in any order
-VERSION=""; INSTALL=0
+# ---- the arguments: a version number, `install` and/or `notests`, in any order
+VERSION=""; INSTALL=0; TESTS=1
 for argument in "$@"; do
     case "$argument" in
         install) INSTALL=1 ;;
+        notests) TESTS=0 ;;
         [0-9]*.[0-9]*.[0-9]*) VERSION="$argument" ;;
-        *) echo "release.sh: unknown argument '$argument'   (a version like 0.7.1, and/or: install)"; exit 2 ;;
+        *) echo "release.sh: unknown argument '$argument'   (a version like 0.7.1, and/or: install, notests)"; exit 2 ;;
     esac
 done
 [[ -z "$VERSION" || "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "release.sh: '$VERSION' is not a version number (three numbers: 0.7.1)"; exit 2; }
@@ -104,7 +107,8 @@ step() {   # step <number> <where> <script> [arguments]
     [ $code = 0 ] || { echo ""; echo "RELEASE STOPPED at step $n ($script): fix what it reports above and run release.sh again"; exit 1; }
 }
 step 1 wsl     build.sh
-step 2 wsl     test.sh
+if [ $TESTS = 1 ]; then step 2 wsl test.sh
+else echo ""; echo "======== 2 of 10: test.sh   SKIPPED (notests): this release was not tested"; fi
 step 3 wsl     internal/release_compilers.sh
 step 4 wsl     linux/build_gui_library.sh
 step 5 wsl     internal/build_sdb.sh
