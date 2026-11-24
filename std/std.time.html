@@ -1,0 +1,1114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.time - Sharp standard library</title>
+<meta name="description" content="The std.time module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li class="on"><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.time</p>
+<h1>std.time <small>module</small></h1>
+<p class="contents"><a href="#calendar">calendar</a> <a href="#clock">clock</a> <a href="#date">date</a> <a href="#date_time">date_time</a> <a href="#date_time_exception">date_time_exception</a> <a href="#date_time_fields">date_time_fields</a> <a href="#date_time_formatter">date_time_formatter</a> <a href="#day_of_week">day_of_week</a> <a href="#deadline">deadline</a> <a href="#duration">duration</a> <a href="#fixed_clock">fixed_clock</a> <a href="#instant">instant</a> <a href="#interval_timer">interval_timer</a> <a href="#manual_clock">manual_clock</a> <a href="#month">month</a> <a href="#offset_clock">offset_clock</a> <a href="#offset_date_time">offset_date_time</a> <a href="#period">period</a> <a href="#rate_limiter">rate_limiter</a> <a href="#stopwatch">stopwatch</a> <a href="#system_clock">system_clock</a> <a href="#time_math">time_math</a> <a href="#time_of_day">time_of_day</a> <a href="#time_text_reader">time_text_reader</a> <a href="#time_text_writer">time_text_writer</a> <a href="#zone_offset">zone_offset</a> <a href="#functions">functions</a></p>
+<section class="type" id="calendar">
+<h2><span class="kind">class</span> calendar</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/calendar/calendar.sharp">source</a></p>
+<p>Calendar helpers that build on <code>date</code>: laying out a month for printing, finding &quot;the 3rd Monday of the month&quot;, the date of Easter, and counting in business days. Everything is a static function; the class has no state.</p>
+<div class="code"><pre class="sharp">calendar.nth_weekday_of_month(2024, 11, day_of_week.thursday, 4)   // 2024-11-28 (US Thanksgiving)
+calendar.easter(2024)                                              // 2024-03-31
+calendar.plus_business_days(date.of(2024, 3, 1), 1)                // Friday -&gt; Monday 2024-03-04
+println(calendar.month_text(2024, 2, day_of_week.monday));</pre></div>
+<p>&quot;Business day&quot; here means Monday to Friday. Public holidays differ by country and year and are not built in; the functions with a <code>holidays</code> parameter take the dates to skip from the caller.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="calendar.business_days_between"><div class="sig">static def <b>business_days_between</b>(start: date, end: date): decimal</div><p>How many business days lie in the range from <code>start</code> (included) up to <code>end</code> (NOT included). Negative when <code>end</code> is before <code>start</code>.</p>
+<div class="code"><pre class="sharp">Monday .. the next Monday -&gt; 5        Friday .. Monday -&gt; 1        Saturday .. Monday -&gt; 0</pre></div>
+<p>Whole weeks count 5 each; the remaining 0-6 days are checked one by one.</p></div>
+<div class="fn" id="calendar.business_days_between-2"><div class="sig">static def <b>business_days_between</b>(start: date, end: date, holidays: date[]): decimal</div><p>As business_days_between(start, end), not counting the dates in <code>holidays</code>. A holiday that falls on a weekend, lies outside the range, or is listed twice makes no difference.</p></div>
+<div class="fn" id="calendar.count_weekday_in_month"><div class="sig">static def <b>count_weekday_in_month</b>(year: decimal, month_number: decimal, weekday: day_of_week): decimal</div><p>how many times <code>weekday</code> occurs in a month: 4 or 5</p></div>
+<div class="fn" id="calendar.date_of_iso_week"><div class="sig">static def <b>date_of_iso_week</b>(week_year: decimal, week: decimal, weekday: day_of_week): date</div><p>The date of ISO week <code>week</code> (1 .. 52/53), day <code>weekday</code>, of ISO week-based year <code>week_year</code> - the inverse of date.iso_week(). Week 1 is the week that contains 4 January.</p>
+<p>@throws date_time_exception when that year has no such week</p></div>
+<div class="fn" id="calendar.easter"><div class="sig">static def <b>easter</b>(year: decimal): date</div><p>The date of Easter Sunday in the Gregorian calendar, as celebrated by the Western churches: the first Sunday after the first full moon on or after 21 March, by the church&#x27;s tables.</p>
+<p>Algorithm: the &quot;anonymous Gregorian algorithm&quot; (also called the Meeus/Jones/Butcher algorithm), first printed in Nature in 1876 and given in Jean Meeus, &quot;Astronomical Algorithms&quot;, chapter 8. With all divisions dropping their fraction:</p>
+<div class="code"><pre class="sharp">a = year mod 19          b = year / 100        c = year mod 100
+d = b / 4                e = b mod 4           f = (b + 8) / 25
+g = (b - f + 1) / 3      h = (19a + b - d - g + 15) mod 30
+i = c / 4                k = c mod 4
+l = (32 + 2e + 2i - h - k) mod 7
+m = (a + 11h + 22l) / 451
+month = (h + l - 7m + 114) / 31
+day   = (h + l - 7m + 114) mod 31 + 1</pre></div>
+<p>2024 -&gt; 31 March, 2025 -&gt; 20 April, 2000 -&gt; 23 April, 1961 -&gt; 2 April.</p>
+<p>@throws date_time_exception when <code>year</code> is before 1583 (the first Easter of the Gregorian calendar) or after 999,999</p></div>
+<div class="fn" id="calendar.full_years_between"><div class="sig">static def <b>full_years_between</b>(from: date, on: date): decimal</div><p>Completed years from <code>from</code> to <code>on</code> - an age: someone born on <code>from</code> is this many years old on <code>on</code>. A person born on 29 February has their birthday on 1 March in years that are not leap years. Negative when <code>on</code> is before <code>from</code>.</p></div>
+<div class="fn" id="calendar.is_business_day"><div class="sig">static def <b>is_business_day</b>(day: date): bool</div><p>true when <code>day</code> is Monday to Friday</p></div>
+<div class="fn" id="calendar.is_business_day-2"><div class="sig">static def <b>is_business_day</b>(day: date, holidays: date[]): bool</div><p>true when <code>day</code> is Monday to Friday and is not one of <code>holidays</code></p></div>
+<div class="fn" id="calendar.is_weekend"><div class="sig">static def <b>is_weekend</b>(day: date): bool</div><p>true when <code>day</code> is a Saturday or Sunday</p></div>
+<div class="fn" id="calendar.last_weekday_of_month"><div class="sig">static def <b>last_weekday_of_month</b>(year: decimal, month_number: decimal, weekday: day_of_week): date</div><p>the last <code>weekday</code> of a month: nth_weekday_of_month(year, month, weekday, -1)</p></div>
+<div class="fn" id="calendar.month_grid"><div class="sig">static def <b>month_grid</b>(year: decimal, month_number: decimal, week_start: day_of_week): decimal[]</div><p>The days of a month laid out as a calendar sheet: an array of 42 numbers = 6 rows of 7 columns, row after row. Column 0 is <code>week_start</code> (day_of_week.monday for an ISO/European sheet, day_of_week.sunday for a US one). A cell holds the day of the month, or 0 where the sheet is blank (before the 1st and after the last day). Six rows are always returned; the last one or two may be all zeros.</p>
+<p>February 2024, weeks starting on Monday: 0  0  0  1  2  3  4 5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29  0  0  0 0  0  0  0  0  0  0</p>
+<p>@throws date_time_exception when year or month is out of range</p></div>
+<div class="fn" id="calendar.month_text"><div class="sig">static def <b>month_text</b>(year: decimal, month_number: decimal, week_start: day_of_week): string</div><p>A month as text, the way the Unix <code>cal</code> program prints it: a centred title, a line of two-letter day names starting with <code>week_start</code>, then one line per week with the day numbers right-aligned in columns three characters apart. Lines are separated by &quot;\n&quot;; there is no newline after the last line and no line has spaces at its end.</p>
+<div class="code"><pre class="sharp">   February 2024
+Mo Tu We Th Fr Sa Su
+          1  2  3  4
+ 5  6  7  8  9 10 11
+12 13 14 15 16 17 18
+19 20 21 22 23 24 25
+26 27 28 29</pre></div>
+<p>@throws date_time_exception when year or month is out of range</p></div>
+<div class="fn" id="calendar.next_business_day"><div class="sig">static def <b>next_business_day</b>(day: date): date</div><p>the first business day after <code>day</code> (never <code>day</code> itself)</p></div>
+<div class="fn" id="calendar.nth_weekday_of_month"><div class="sig">static def <b>nth_weekday_of_month</b>(year: decimal, month_number: decimal, weekday: day_of_week, n: decimal): date</div><p>The <code>n</code>-th <code>weekday</code> of a month: n = 1 is the first, 2 the second ... Negative n counts from the end: -1 is the last, -2 the one before.</p>
+<div class="code"><pre class="sharp">nth_weekday_of_month(2024, 5, day_of_week.monday, -1)   // 2024-05-27, the last Monday of May</pre></div>
+<p>@throws date_time_exception when n is 0, or the month has no such day (a 5th Monday in a month with four Mondays), or year/month are out of range</p></div>
+<div class="fn" id="calendar.orthodox_easter"><div class="sig">static def <b>orthodox_easter</b>(year: decimal): date</div><p>The date of Easter Sunday as celebrated by the Eastern Orthodox churches, given as a date of the (Gregorian) calendar this library uses. Orthodox Easter is computed in the JULIAN calendar.</p>
+<p>Algorithm: Meeus&#x27; Julian Easter algorithm (&quot;Astronomical Algorithms&quot;, chapter 8):</p>
+<div class="code"><pre class="sharp">a = year mod 4     b = year mod 7     c = year mod 19
+d = (19c + 15) mod 30
+e = (2a + 4b - d + 34) mod 7
+month = (d + e + 114) / 31
+day   = (d + e + 114) mod 31 + 1          (a Julian calendar date)</pre></div>
+<p>The Julian date is then moved to the Gregorian calendar by adding the difference between the two calendars, which is year/100 - year/400 - 2 days (13 days from 1900 to 2099).</p>
+<p>2024 -&gt; 5 May, 2025 -&gt; 20 April (the same day as Western Easter), 2016 -&gt; 1 May.</p>
+<p>@throws date_time_exception when <code>year</code> is before 1583 or after 999,999</p></div>
+<div class="fn" id="calendar.plus_business_days"><div class="sig">static def <b>plus_business_days</b>(start: date, count: decimal): date</div><p>The date <code>count</code> business days after <code>start</code> (before, when negative). <code>start</code> itself is never counted; with count 0 the result is <code>start</code> unchanged, even when it is a weekend.</p>
+<div class="code"><pre class="sharp">Friday + 1 -&gt; Monday        Saturday + 1 -&gt; Monday        Monday - 1 -&gt; Friday</pre></div>
+<p>Whole weeks are skipped arithmetically (5 business days = 7 calendar days), the remaining 0-4 days are stepped one at a time.</p></div>
+<div class="fn" id="calendar.plus_business_days-2"><div class="sig">static def <b>plus_business_days</b>(start: date, count: decimal, holidays: date[]): date</div><p>As plus_business_days(start, count), also skipping every date in <code>holidays</code>. Steps one day at a time, so the cost grows with <code>count</code>.</p></div>
+<div class="fn" id="calendar.previous_business_day"><div class="sig">static def <b>previous_business_day</b>(day: date): date</div><p>the last business day before <code>day</code> (never <code>day</code> itself)</p></div>
+<div class="fn" id="calendar.weeks_in_month"><div class="sig">static def <b>weeks_in_month</b>(year: decimal, month_number: decimal, week_start: day_of_week): decimal</div><p>How many rows of <code>month_grid</code> are actually used by the month: 4 (a 28-day February starting on the first column), 5 or 6.</p></div>
+</div>
+</section>
+<section class="type" id="clock">
+<h2><span class="kind">interface</span> clock</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/clock.sharp">source</a></p>
+<p>Something that knows what time it is.</p>
+<p>Code that needs the current time should ask a <code>clock</code> it was given instead of calling instant.now() directly. In the program the clock is <code>system_clock.instance</code>; in a test it is a <code>manual_clock</code> or <code>fixed_clock</code> that the test sets and advances, so the test gives the same result every time and never has to wait.</p>
+<div class="code"><pre class="sharp">def is_expired(c: clock, expires: instant): decimal {
+    return c.now() &gt;= expires;
+}</pre></div>
+<p><code>stopwatch</code>, <code>deadline</code>, <code>rate_limiter</code> and <code>interval_timer</code> all take their time from a clock for exactly this reason.</p>
+<p>Implementations: system_clock, fixed_clock, manual_clock, offset_clock.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="clock.now"><div class="sig">def <b>now</b>(): instant</div><p>the current moment according to this clock</p></div>
+</div>
+</section>
+<section class="type" id="date">
+<h2><span class="kind">class</span> date</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/date.sharp">source</a></p>
+<p>A calendar date without a time of day and without a time zone: year, month and day, e.g. 2024-02-29.</p>
+<p>The calendar is the PROLEPTIC GREGORIAN calendar (ISO-8601): today&#x27;s leap year rule is applied to every year, also to years before the calendar was introduced in 1582, and there is a year 0 (which is 1 BC) and negative years. Years from -999,999 to 999,999 are supported.</p>
+<p>Dates are immutable: every &quot;plus&quot;, &quot;minus&quot; or &quot;with&quot; returns a new date.</p>
+<p>Epoch days ---------- Much of the arithmetic works on the EPOCH DAY: the number of days since 1970-01-01, which is day 0 (1969-12-31 is -1, 2000-01-01 is 10957). The conversions between year/month/day and the epoch day are Howard Hinnant&#x27;s <code>days_from_civil</code> and <code>civil_from_days</code> (http://howardhinnant.github.io/date_algorithms.html). They are exact whole-number formulas with no loops and no tables, valid for every year in the supported range.</p>
+<div class="code"><pre class="sharp">d := date.of(2024, 2, 29);
+d.day_of_week()              // day_of_week.thursday
+d.plus_years(1)              // 2025-02-28   (clamped to the end of the month)
+d.plus_days(1).to_string()   // &quot;2024-03-01&quot;
+d.to_epoch_day()             // 19782
+date.parse(&quot;2000-01-01&quot;) &lt; d // 1</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>min_year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>max_year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>epoch</code></td><td><code>date</code></td><td>1970-01-01, epoch day 0</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="date.at_start_of_day"><div class="sig">def <b>at_start_of_day</b>(): date_time</div><p>this date at 00:00:00</p></div>
+<div class="fn" id="date.at_time"><div class="sig">def <b>at_time</b>(time_part: time_of_day): date_time</div><p>this date at the given time of day</p></div>
+<div class="fn" id="date.at_time-2"><div class="sig">def <b>at_time</b>(hour: decimal, minute: decimal, second: decimal): date_time</div><p>This date at hour:minute:second. @throws date_time_exception when a field is out of range</p></div>
+<div class="fn" id="date.compare_to"><div class="sig">def <b>compare_to</b>(other: date): decimal</div><p>-1 when this date is before <code>other</code>, 0 when it is the same day, 1 when after</p></div>
+<div class="fn" id="date.day"><div class="sig">def <b>day</b>(): decimal</div><p>the day of the month: 1 .. 31</p></div>
+<div class="fn" id="date.day_of_week"><div class="sig">def <b>day_of_week</b>(): day_of_week</div><p>The day of the week. 1970-01-01 (epoch day 0) was a Thursday, so the ISO number is floor_mod(epoch_day + 3, 7) + 1.</p></div>
+<div class="fn" id="date.day_of_year"><div class="sig">def <b>day_of_year</b>(): decimal</div><p>the day of the year: 1 (1 January) .. 365, or 366 in a leap year</p></div>
+<div class="fn" id="date.days_in_month"><div class="sig">static def <b>days_in_month</b>(year: decimal, month_number: decimal): decimal</div><p>How many days month <code>month_number</code> (1-12) of <code>year</code> has: 28 .. 31. @throws date_time_exception when the month is not 1 .. 12</p></div>
+<div class="fn" id="date.days_in_year"><div class="sig">static def <b>days_in_year</b>(year: decimal): decimal</div><p>366 for a leap year, otherwise 365</p></div>
+<div class="fn" id="date.days_until"><div class="sig">def <b>days_until</b>(other: date): decimal</div><p>The number of days from this date to <code>other</code>: positive when <code>other</code> is later. date.of(2024, 1, 1).days_until(date.of(2024, 3, 1)) is 60.</p></div>
+<div class="fn" id="date.first_day_of_month"><div class="sig">def <b>first_day_of_month</b>(): date</div><p>the 1st of this date&#x27;s month</p></div>
+<div class="fn" id="date.first_day_of_year"><div class="sig">def <b>first_day_of_year</b>(): date</div><p>1 January of this date&#x27;s year</p></div>
+<div class="fn" id="date.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for equal dates</p></div>
+<div class="fn" id="date.is_after"><div class="sig">def <b>is_after</b>(other: date): bool</div></div>
+<div class="fn" id="date.is_before"><div class="sig">def <b>is_before</b>(other: date): bool</div></div>
+<div class="fn" id="date.is_leap_year"><div class="sig">static def <b>is_leap_year</b>(year: decimal): bool</div><p>true when <code>year</code> is a leap year (has a 29 February). Gregorian rule: divisible by 4, except the century years, unless divisible by 400. 2024 and 2000 are leap years; 2023, 1900 and 2100 are not.</p></div>
+<div class="fn" id="date.is_leap_year-2"><div class="sig">def <b>is_leap_year</b>(): bool</div><p>true when this date&#x27;s year is a leap year</p></div>
+<div class="fn" id="date.iso_week"><div class="sig">def <b>iso_week</b>(): decimal</div><p>The ISO-8601 week number: 1 .. 53.</p>
+<p>ISO weeks start on Monday, and week 1 is the week that contains the first Thursday of the year (equivalently: the week with 4 January). The first days of January can therefore belong to week 52 or 53 of the year before, and the last days of December to week 1 of the next year; <code>iso_week_year()</code> tells which year the week belongs to.</p>
+<p>Formula: week = floor((day_of_year - weekday + 10) / 7) with weekday 1 = Monday .. 7 = Sunday. A result of 0 means the last week of the previous year; a result of 53 in a year that has only 52 weeks means week 1 of the next year.</p>
+<div class="code"><pre class="sharp">2021-01-03 -&gt; week 53 (of 2020)      2024-12-30 -&gt; week 1 (of 2025)</pre></div></div>
+<div class="fn" id="date.iso_week_year"><div class="sig">def <b>iso_week_year</b>(): decimal</div><p>the year the ISO week of this date belongs to (see <code>iso_week</code>): the year, or one before/after it</p></div>
+<div class="fn" id="date.iso_weeks_in_year"><div class="sig">static def <b>iso_weeks_in_year</b>(year: decimal): decimal</div><p>How many ISO weeks <code>year</code> has: 53 when 1 January is a Thursday, or a Wednesday in a leap year; otherwise 52.</p></div>
+<div class="fn" id="date.last_day_of_month"><div class="sig">def <b>last_day_of_month</b>(): date</div><p>the last day of this date&#x27;s month (28, 29, 30 or 31)</p></div>
+<div class="fn" id="date.last_day_of_year"><div class="sig">def <b>last_day_of_year</b>(): date</div><p>31 December of this date&#x27;s year</p></div>
+<div class="fn" id="date.length_of_month"><div class="sig">def <b>length_of_month</b>(): decimal</div><p>how many days this date&#x27;s month has: 28 .. 31</p></div>
+<div class="fn" id="date.length_of_year"><div class="sig">def <b>length_of_year</b>(): decimal</div><p>how many days this date&#x27;s year has: 365 or 366</p></div>
+<div class="fn" id="date.minus"><div class="sig">def <b>minus</b>(amount: period): date</div><p>this date minus a period: years and months first, then days</p></div>
+<div class="fn" id="date.minus_days"><div class="sig">def <b>minus_days</b>(days: decimal): date</div></div>
+<div class="fn" id="date.minus_months"><div class="sig">def <b>minus_months</b>(months: decimal): date</div></div>
+<div class="fn" id="date.minus_weeks"><div class="sig">def <b>minus_weeks</b>(weeks: decimal): date</div></div>
+<div class="fn" id="date.minus_years"><div class="sig">def <b>minus_years</b>(years: decimal): date</div></div>
+<div class="fn" id="date.month_of_year"><div class="sig">def <b>month_of_year</b>(): month</div><p>the month as a <code>month</code> object (for its name, length ...)</p></div>
+<div class="fn" id="date.month_value"><div class="sig">def <b>month_value</b>(): decimal</div><p>the month as a number: 1 (January) .. 12 (December)</p></div>
+<div class="fn" id="date.next"><div class="sig">def <b>next</b>(target: day_of_week): date</div><p>the first date AFTER this one that falls on <code>target</code> (never this date itself)</p></div>
+<div class="fn" id="date.next_or_same"><div class="sig">def <b>next_or_same</b>(target: day_of_week): date</div><p>this date when it falls on <code>target</code>, otherwise the first date after it that does</p></div>
+<div class="fn" id="date.of"><div class="sig">static def <b>of</b>(year: decimal, month_number: decimal, day: decimal): date</div><p>The date with the given year, month (1-12) and day of the month.</p>
+<p>@throws date_time_exception when the year is outside -999,999 .. 999,999, the month is not 1 .. 12, or the day does not exist in that month (31 April, 29 February in a year that is not a leap year)</p></div>
+<div class="fn" id="date.of_epoch_day"><div class="sig">static def <b>of_epoch_day</b>(epoch_day: decimal): date</div><p>The date that is <code>epoch_day</code> days after 1970-01-01 (before, when negative).</p>
+<p>Algorithm: Howard Hinnant&#x27;s civil_from_days. The calendar repeats every 400 years = 146,097 days (an &quot;era&quot;). Shifting the day count by 719,468 makes day 0 the 1st of March of year 0, so that the leap day is the LAST day of the (March-based) year and needs no special case:</p>
+<p>z   = epoch_day + 719468 era = floor(z / 146097) doe = z - era * 146097                                  day of era   0 .. 146096 yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365   year of era  0 .. 399 doy = doe - (365*yoe + yoe/4 - yoe/100)                 day of the March-based year 0 .. 365 mp  = (5*doy + 2) / 153                                 month, 0 = March .. 11 = February day = doy - (153*mp + 2)/5 + 1 month = mp &lt; 10 ? mp + 3 : mp - 9 year  = yoe + era*400, plus 1 when month is January or February (every division drops its fraction)</p>
+<p>@throws date_time_exception when the result is outside the supported years</p></div>
+<div class="fn" id="date.of_month"><div class="sig">static def <b>of_month</b>(year: decimal, in_month: month, day: decimal): date</div><p>as of(year, number, day) with the month given as a <code>month</code> object: date.of_month(2024, month.february, 29)</p></div>
+<div class="fn" id="date.of_year_day"><div class="sig">static def <b>of_year_day</b>(year: decimal, day_of_year: decimal): date</div><p>The date that is day number <code>day_of_year</code> of <code>year</code>: 1 is 1 January, 32 is 1 February, 365 or 366 is 31 December.</p>
+<p>@throws date_time_exception when the day is not 1 .. 365 (366 in a leap year)</p></div>
+<div class="fn" id="date.operator_"><div class="sig">def <b>operator!=</b>(other: date): bool</div></div>
+<div class="fn" id="date.operator_-2"><div class="sig">def <b>operator+</b>(amount: period): date</div><p>date + period, as <code>plus</code></p></div>
+<div class="fn" id="date.operator_-3"><div class="sig">def <b>operator-</b>(amount: period): date</div><p>date - period, as <code>minus</code></p></div>
+<div class="fn" id="date.operator_-4"><div class="sig">def <b>operator&lt;</b>(other: date): bool</div></div>
+<div class="fn" id="date.operator_-5"><div class="sig">def <b>operator&lt;=</b>(other: date): bool</div></div>
+<div class="fn" id="date.operator_-6"><div class="sig">def <b>operator==</b>(other: date): bool</div></div>
+<div class="fn" id="date.operator_-7"><div class="sig">def <b>operator&gt;</b>(other: date): bool</div></div>
+<div class="fn" id="date.operator_-8"><div class="sig">def <b>operator&gt;=</b>(other: date): bool</div></div>
+<div class="fn" id="date.parse"><div class="sig">static def <b>parse</b>(text: string): date</div><p>Reads a date in the form <code>to_string</code> writes: <code>YYYY-MM-DD</code>, with an optional &#x27;+&#x27; or &#x27;-&#x27; before the year (required for years with more than four digits): &quot;2024-02-29&quot;, &quot;-0044-03-15&quot;, &quot;+12345-01-01&quot;.</p>
+<p>@throws date_time_exception when the text has another shape or names a date that does not exist (&quot;2023-02-29&quot;)</p></div>
+<div class="fn" id="date.plus"><div class="sig">def <b>plus</b>(amount: period): date</div><p>This date plus a period: first the years and months are added together (with end-of-month clamping), then the days - the order java.time uses.</p></div>
+<div class="fn" id="date.plus_days"><div class="sig">def <b>plus_days</b>(days: decimal): date</div><p>The date <code>days</code> days later (earlier when negative). @throws date_time_exception when the result leaves the supported years</p></div>
+<div class="fn" id="date.plus_months"><div class="sig">def <b>plus_months</b>(months: decimal): date</div><p>The date <code>months</code> months later (earlier when negative). The day of the month is kept when it exists in the new month, otherwise it is clamped to that month&#x27;s last day: 31 January + 1 month is 28 (or 29) February.</p>
+<p>@throws date_time_exception when the result leaves the supported years</p></div>
+<div class="fn" id="date.plus_weeks"><div class="sig">def <b>plus_weeks</b>(weeks: decimal): date</div><p>the date <code>weeks</code> weeks (7 days each) later</p></div>
+<div class="fn" id="date.plus_years"><div class="sig">def <b>plus_years</b>(years: decimal): date</div><p>The date <code>years</code> years later (earlier when negative). 29 February becomes 28 February when the new year is not a leap year.</p>
+<p>@throws date_time_exception when the result leaves the supported years</p></div>
+<div class="fn" id="date.previous"><div class="sig">def <b>previous</b>(target: day_of_week): date</div><p>the last date BEFORE this one that falls on <code>target</code> (never this date itself)</p></div>
+<div class="fn" id="date.previous_or_same"><div class="sig">def <b>previous_or_same</b>(target: day_of_week): date</div><p>this date when it falls on <code>target</code>, otherwise the last date before it that does</p></div>
+<div class="fn" id="date.quarter"><div class="sig">def <b>quarter</b>(): decimal</div><p>the quarter of the year: 1 (January-March) .. 4 (October-December)</p></div>
+<div class="fn" id="date.read_from"><div class="sig">static def <b>read_from</b>(r: time_text_reader): date</div><p>reads <code>YYYY-MM-DD</code> at the cursor of <code>r</code> and leaves the cursor after it (shared with date_time)</p></div>
+<div class="fn" id="date.to_epoch_day"><div class="sig">def <b>to_epoch_day</b>(): decimal</div><p>The number of days from 1970-01-01 to this date (negative before it).</p>
+<p>Algorithm: Howard Hinnant&#x27;s days_from_civil. The year is made to start in March so the leap day comes last:</p>
+<p>y   = year, minus 1 when month is January or February era = floor(y / 400) yoe = y - era * 400                                    year of era 0 .. 399 doy = (153 * (month &gt; 2 ? month - 3 : month + 9) + 2) / 5 + day - 1 doe = yoe*365 + yoe/4 - yoe/100 + doy                  day of era 0 .. 146096 result = era * 146097 + doe - 719468 (every division drops its fraction; 719468 is the number of days from 0000-03-01 to 1970-01-01)</p></div>
+<div class="fn" id="date.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>The ISO-8601 form <code>YYYY-MM-DD</code>: &quot;2024-02-29&quot;, &quot;0033-04-03&quot;. Years outside 0 .. 9999 follow the ISO extended form: more than four digits get a &#x27;+&#x27; (&quot;+12345-01-01&quot;), negative years a &#x27;-&#x27; (&quot;-0044-03-15&quot;).</p></div>
+<div class="fn" id="date.today"><div class="sig">static def <b>today</b>(): date</div><p>today&#x27;s date in UTC, read from the system clock</p></div>
+<div class="fn" id="date.today-2"><div class="sig">static def <b>today</b>(source: clock, offset: zone_offset): date</div><p>the date it is at <code>offset</code> from UTC according to <code>source</code> (a clock a test can control)</p></div>
+<div class="fn" id="date.until"><div class="sig">def <b>until</b>(other: date): period</div><p>the years, months and days from this date to <code>other</code> - see period.between</p></div>
+<div class="fn" id="date.with_day"><div class="sig">def <b>with_day</b>(day: decimal): date</div><p>The same year and month with another day of the month. @throws date_time_exception when that day does not exist in the month</p></div>
+<div class="fn" id="date.with_day_of_year"><div class="sig">def <b>with_day_of_year</b>(day_of_year: decimal): date</div><p>The same year with another day of the year (1 .. 365/366). @throws date_time_exception when the day is out of range for the year</p></div>
+<div class="fn" id="date.with_month"><div class="sig">def <b>with_month</b>(month_number: decimal): date</div><p>The same year and day in another month (1-12); the day is clamped to the length of that month. @throws date_time_exception when the month is not 1 .. 12</p></div>
+<div class="fn" id="date.with_year"><div class="sig">def <b>with_year</b>(year: decimal): date</div><p>the same month and day in another year; 29 February is clamped to 28 when needed</p></div>
+<div class="fn" id="date.write_to"><div class="sig">def <b>write_to</b>(w: time_text_writer)</div><p>appends the <code>YYYY-MM-DD</code> form to <code>w</code> (shared with date_time)</p></div>
+<div class="fn" id="date.write_year"><div class="sig">static def <b>write_year</b>(w: time_text_writer, year: decimal)</div><p>the year the ISO way: at least 4 digits, &#x27;+&#x27; when more, &#x27;-&#x27; when negative</p></div>
+<div class="fn" id="date.year"><div class="sig">def <b>year</b>(): decimal</div><p>the year, e.g. 2024 (0 is 1 BC, negative years are earlier)</p></div>
+</div>
+</section>
+<section class="type" id="date_time">
+<h2><span class="kind">class</span> date_time</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/date_time.sharp">source</a></p>
+<p>A date together with a time of day, without a time zone: e.g. 2024-02-29T13:45:30 (&quot;local date-time&quot; in java.time and kotlin).</p>
+<p>It is what a calendar and a wall clock show somewhere, but it does not say WHERE, so on its own it is not a point on the time line. Combine it with a <code>zone_offset</code> (<code>at_offset</code>, <code>to_instant</code>) to get one.</p>
+<p>Unlike <code>time_of_day</code>, arithmetic here carries over midnight into the date: 2024-02-28T23:30 plus 1 hour is 2024-02-29T00:30.</p>
+<p>Precision: the date and the time are kept as a <code>date</code> and a <code>time_of_day</code>, so everything is exact to the nanosecond; nothing is ever stored as one big nanosecond count (which a <code>decimal</code> could not hold - see <code>instant</code>).</p>
+<p>Values are immutable.</p>
+<div class="code"><pre class="sharp">dt := date_time.of(2024, 2, 28, 23, 30, 0);
+dt.plus_hours(1).to_string()                 // &quot;2024-02-29T00:30:00&quot;
+dt.to_epoch_second(zone_offset.utc)          // 1709163000
+date_time.parse(&quot;1999-12-31T23:59:59&quot;).plus_seconds(1).year()   // 2000</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="date_time.at_offset"><div class="sig">def <b>at_offset</b>(offset: zone_offset): offset_date_time</div><p>this date and time labelled with <code>offset</code> (the fields stay the same)</p></div>
+<div class="fn" id="date_time.compare_to"><div class="sig">def <b>compare_to</b>(other: date_time): decimal</div><p>-1 when this date-time is before <code>other</code>, 0 when equal, 1 when after</p></div>
+<div class="fn" id="date_time.day"><div class="sig">def <b>day</b>(): decimal</div><p>the day of the month 1 .. 31</p></div>
+<div class="fn" id="date_time.day_of_week"><div class="sig">def <b>day_of_week</b>(): day_of_week</div></div>
+<div class="fn" id="date_time.day_of_year"><div class="sig">def <b>day_of_year</b>(): decimal</div></div>
+<div class="fn" id="date_time.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for equal values</p></div>
+<div class="fn" id="date_time.hour"><div class="sig">def <b>hour</b>(): decimal</div></div>
+<div class="fn" id="date_time.is_after"><div class="sig">def <b>is_after</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.is_before"><div class="sig">def <b>is_before</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.minus"><div class="sig">def <b>minus</b>(amount: duration): date_time</div><p>this date and time minus an exact amount of time</p></div>
+<div class="fn" id="date_time.minus-2"><div class="sig">def <b>minus</b>(amount: period): date_time</div><p>this date and time minus a calendar amount; the time of day is kept</p></div>
+<div class="fn" id="date_time.minus_days"><div class="sig">def <b>minus_days</b>(days: decimal): date_time</div></div>
+<div class="fn" id="date_time.minus_hours"><div class="sig">def <b>minus_hours</b>(hours: decimal): date_time</div></div>
+<div class="fn" id="date_time.minus_minutes"><div class="sig">def <b>minus_minutes</b>(minutes: decimal): date_time</div></div>
+<div class="fn" id="date_time.minus_months"><div class="sig">def <b>minus_months</b>(months: decimal): date_time</div></div>
+<div class="fn" id="date_time.minus_nanos"><div class="sig">def <b>minus_nanos</b>(nanos: decimal): date_time</div></div>
+<div class="fn" id="date_time.minus_seconds"><div class="sig">def <b>minus_seconds</b>(seconds: decimal): date_time</div></div>
+<div class="fn" id="date_time.minus_weeks"><div class="sig">def <b>minus_weeks</b>(weeks: decimal): date_time</div></div>
+<div class="fn" id="date_time.minus_years"><div class="sig">def <b>minus_years</b>(years: decimal): date_time</div></div>
+<div class="fn" id="date_time.minute"><div class="sig">def <b>minute</b>(): decimal</div></div>
+<div class="fn" id="date_time.month_of_year"><div class="sig">def <b>month_of_year</b>(): month</div><p>the month as a <code>month</code> object</p></div>
+<div class="fn" id="date_time.month_value"><div class="sig">def <b>month_value</b>(): decimal</div><p>the month as a number 1 .. 12</p></div>
+<div class="fn" id="date_time.nano"><div class="sig">def <b>nano</b>(): decimal</div><p>the fraction of the second in nanoseconds: 0 .. 999,999,999</p></div>
+<div class="fn" id="date_time.now"><div class="sig">static def <b>now</b>(): date_time</div><p>the current date and time in UTC, read from the system clock</p></div>
+<div class="fn" id="date_time.now-2"><div class="sig">static def <b>now</b>(source: clock, offset: zone_offset): date_time</div><p>the date and time at <code>offset</code> from UTC according to <code>source</code> (a clock a test can control)</p></div>
+<div class="fn" id="date_time.of"><div class="sig">static def <b>of</b>(day: date, at: time_of_day): date_time</div><p>the given date at the given time of day</p></div>
+<div class="fn" id="date_time.of-2"><div class="sig">static def <b>of</b>(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal, second: decimal, nano: decimal): date_time</div><p>year-month-day hour:minute:second.nano @throws date_time_exception when a field is out of range or the day does not exist in the month (see date.of and time_of_day.of)</p></div>
+<div class="fn" id="date_time.of-3"><div class="sig">static def <b>of</b>(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal, second: decimal): date_time</div><p>year-month-day hour:minute:second (ranges as above)</p></div>
+<div class="fn" id="date_time.of-4"><div class="sig">static def <b>of</b>(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal): date_time</div><p>year-month-day hour:minute:00 (ranges as above)</p></div>
+<div class="fn" id="date_time.of_epoch_second"><div class="sig">static def <b>of_epoch_second</b>(epoch_second: decimal, nano: decimal, offset: zone_offset): date_time</div><p>The local date and time at <code>offset</code> when it is <code>epoch_second</code> seconds (plus <code>nano</code> nanoseconds, 0 .. 999,999,999) after 1970-01-01T00:00:00Z.</p>
+<p>Method: add the offset to get &quot;local seconds&quot;, then split with FLOOR division into days (86,400 s each) and the second of the day, so that moments before 1970 land on the right day.</p>
+<p>@throws date_time_exception when <code>nano</code> is out of range or the date leaves the supported years</p></div>
+<div class="fn" id="date_time.of_instant"><div class="sig">static def <b>of_instant</b>(moment: instant, offset: zone_offset): date_time</div><p>the local date and time at <code>offset</code> at the moment <code>moment</code></p></div>
+<div class="fn" id="date_time.operator_"><div class="sig">def <b>operator!=</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.operator_-2"><div class="sig">def <b>operator+</b>(amount: duration): date_time</div><p>date_time + duration, as <code>plus</code></p></div>
+<div class="fn" id="date_time.operator_-3"><div class="sig">def <b>operator-</b>(amount: duration): date_time</div><p>date_time - duration, as <code>minus</code></p></div>
+<div class="fn" id="date_time.operator_-4"><div class="sig">def <b>operator&lt;</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.operator_-5"><div class="sig">def <b>operator&lt;=</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.operator_-6"><div class="sig">def <b>operator==</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.operator_-7"><div class="sig">def <b>operator&gt;</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.operator_-8"><div class="sig">def <b>operator&gt;=</b>(other: date_time): bool</div></div>
+<div class="fn" id="date_time.parse"><div class="sig">static def <b>parse</b>(text: string): date_time</div><p>Reads <code>YYYY-MM-DDTHH:MM[:SS[.fraction]]</code>. The separator may be &#x27;T&#x27;, &#x27;t&#x27; or a single space: &quot;2024-02-29T13:45:30&quot;, &quot;2024-02-29 13:45&quot;.</p>
+<p>@throws date_time_exception when the text has another shape or a field is out of range</p></div>
+<div class="fn" id="date_time.plus"><div class="sig">def <b>plus</b>(amount: duration): date_time</div><p>this date and time plus an exact amount of time, carrying into the date</p></div>
+<div class="fn" id="date_time.plus-2"><div class="sig">def <b>plus</b>(amount: period): date_time</div><p>this date and time plus a calendar amount (years and months, then days); the time of day is kept</p></div>
+<div class="fn" id="date_time.plus_days"><div class="sig">def <b>plus_days</b>(days: decimal): date_time</div><p>calendar days later; the time of day is kept</p></div>
+<div class="fn" id="date_time.plus_hours"><div class="sig">def <b>plus_hours</b>(hours: decimal): date_time</div><p><code>hours</code> hours later (earlier when negative), carrying into the date</p></div>
+<div class="fn" id="date_time.plus_minutes"><div class="sig">def <b>plus_minutes</b>(minutes: decimal): date_time</div><p><code>minutes</code> minutes later (earlier when negative), carrying into the date</p></div>
+<div class="fn" id="date_time.plus_months"><div class="sig">def <b>plus_months</b>(months: decimal): date_time</div><p>months later with end-of-month clamping (see date.plus_months); the time of day is kept</p></div>
+<div class="fn" id="date_time.plus_nanos"><div class="sig">def <b>plus_nanos</b>(nanos: decimal): date_time</div><p><code>nanos</code> nanoseconds later (earlier when negative), carrying into seconds and the date</p></div>
+<div class="fn" id="date_time.plus_seconds"><div class="sig">def <b>plus_seconds</b>(seconds: decimal): date_time</div><p><code>seconds</code> seconds later (earlier when negative), carrying into the date</p></div>
+<div class="fn" id="date_time.plus_weeks"><div class="sig">def <b>plus_weeks</b>(weeks: decimal): date_time</div></div>
+<div class="fn" id="date_time.plus_years"><div class="sig">def <b>plus_years</b>(years: decimal): date_time</div><p>years later, 29 February clamped to 28 when needed; the time of day is kept</p></div>
+<div class="fn" id="date_time.read_from"><div class="sig">static def <b>read_from</b>(r: time_text_reader): date_time</div><p>reads a date-time at the cursor of <code>r</code> and leaves the cursor after it</p></div>
+<div class="fn" id="date_time.second"><div class="sig">def <b>second</b>(): decimal</div></div>
+<div class="fn" id="date_time.to_date"><div class="sig">def <b>to_date</b>(): date</div><p>the date part</p></div>
+<div class="fn" id="date_time.to_epoch_second"><div class="sig">def <b>to_epoch_second</b>(offset: zone_offset): decimal</div><p>Seconds from 1970-01-01T00:00:00Z to this date and time when it is read at <code>offset</code>: epoch_day * 86400 + second_of_day - offset seconds. Negative before 1970. The fraction of the second is not included (it is <code>nano()</code>).</p></div>
+<div class="fn" id="date_time.to_instant"><div class="sig">def <b>to_instant</b>(offset: zone_offset): instant</div><p>the point on the time line this date and time is at <code>offset</code></p></div>
+<div class="fn" id="date_time.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>ISO-8601: the date, a &#x27;T&#x27;, the time: &quot;2024-02-29T13:45:30&quot;, &quot;2024-02-29T13:45:30.500&quot; (fraction as 3, 6 or 9 digits when present).</p></div>
+<div class="fn" id="date_time.to_time"><div class="sig">def <b>to_time</b>(): time_of_day</div><p>the time-of-day part</p></div>
+<div class="fn" id="date_time.truncated_to_days"><div class="sig">def <b>truncated_to_days</b>(): date_time</div><p>this date at 00:00:00</p></div>
+<div class="fn" id="date_time.truncated_to_hours"><div class="sig">def <b>truncated_to_hours</b>(): date_time</div><p>this date-time with minutes, seconds and fraction set to 0</p></div>
+<div class="fn" id="date_time.truncated_to_minutes"><div class="sig">def <b>truncated_to_minutes</b>(): date_time</div><p>this date-time with seconds and fraction set to 0</p></div>
+<div class="fn" id="date_time.truncated_to_seconds"><div class="sig">def <b>truncated_to_seconds</b>(): date_time</div><p>this date-time with the fraction of the second removed</p></div>
+<div class="fn" id="date_time.until"><div class="sig">def <b>until</b>(other: date_time): duration</div><p>The exact time from this date-time to <code>other</code> (both read at the same offset): positive when <code>other</code> is later.</p></div>
+<div class="fn" id="date_time.with_date"><div class="sig">def <b>with_date</b>(day: date): date_time</div><p>the same time of day on another date</p></div>
+<div class="fn" id="date_time.with_time"><div class="sig">def <b>with_time</b>(at: time_of_day): date_time</div><p>the same date at another time of day</p></div>
+<div class="fn" id="date_time.write_to"><div class="sig">def <b>write_to</b>(w: time_text_writer)</div><p>appends the ISO form to <code>w</code> (shared with offset_date_time and instant)</p></div>
+<div class="fn" id="date_time.year"><div class="sig">def <b>year</b>(): decimal</div></div>
+</div>
+</section>
+<section class="type" id="date_time_exception">
+<h2><span class="kind">class</span> date_time_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/date_time_exception.sharp">source</a></p>
+<p>Thrown by every class in std.time when a value is out of range (month 13, 30 February, hour 24 ...), when text cannot be parsed as a date, time, duration, period or offset, or when a formatter pattern is not valid.</p>
+<div class="code"><pre class="sharp">try {
+    d := date.of(2023, 2, 29);
+} catch(e: date_time_exception) {
+    println(e.get_message());   // &quot;day 29 is not valid for 2023-02 (1-28)&quot;
+}</pre></div>
+<p>It derives directly from <code>exception</code>, so <code>catch(e: exception)</code> catches it as well.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="date_time_exception.date_time_exception"><div class="sig">public <b>date_time_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="date_time_fields">
+<h2><span class="kind">class</span> date_time_fields</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/date_time_fields.sharp">source</a></p>
+<p>The raw result of parsing text with a <code>date_time_formatter</code>: the fields that were found in the text, before they are combined into a value.</p>
+<p>A pattern decides which fields exist. &quot;yyyy-MM-dd&quot; produces year, month and day and nothing else; &quot;HH:mm&quot; produces hour and minute. This class records which fields were present (<code>has_...</code>) and builds the value types from them (<code>to_date</code>, <code>to_time</code>, <code>to_date_time</code>, <code>to_offset_date_time</code>), throwing a clear date_time_exception when a needed field is missing or the fields contradict each other.</p>
+<p>Most code never sees this class: date_time_formatter.parse_date(text) and its siblings call it internally. Use <code>date_time_formatter.parse(text)</code> to get the fields themselves, e.g. to accept input that may or may not carry a time.</p>
+<p>Resolution rules ---------------- date    year + month + day of month, or year + day of year. When the text also contained a day of the week (E, e), an ISO week (w), a week-based year (Y) or a quarter (Q), it must agree with the date (&quot;Mon 2024-02-29&quot; is rejected: that day was a Thursday). time    hour of day (H); or hour 1-12 (h) together with AM/PM (a). Minute, second and fraction default to 0 when the pattern has none. offset  as written (X, x or Z).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>has_year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_month</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>month_value</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_day</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>day</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_day_of_year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>day_of_year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_day_of_week</code></td><td><code>decimal</code></td><td>ISO day of week 1 (Monday) ..</td></tr><tr><td><code>day_of_week_value</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_iso_week</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>iso_week</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_iso_week_year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>iso_week_year</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_quarter</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>quarter</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_hour</code></td><td><code>decimal</code></td><td>hour 0 ..</td></tr><tr><td><code>hour</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_hour_12</code></td><td><code>decimal</code></td><td>hour 1 ..</td></tr><tr><td><code>hour_12</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_am_pm</code></td><td><code>decimal</code></td><td>from a: 0 = AM, 1 = PM</td></tr><tr><td><code>pm</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_minute</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>minute</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_second</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>second</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_nano</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>nano</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>has_offset</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>offset</code></td><td><code>zone_offset</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="date_time_fields.date_time_fields"><div class="sig"><b>date_time_fields</b>(text: string)</div><p>an empty field set for a parse of <code>text</code></p></div>
+<div class="fn" id="date_time_fields.has_date"><div class="sig">def <b>has_date</b>(): bool</div><p>true when the fields are enough to build a date</p></div>
+<div class="fn" id="date_time_fields.has_time"><div class="sig">def <b>has_time</b>(): bool</div><p>true when the fields are enough to build a time of day</p></div>
+<div class="fn" id="date_time_fields.to_date"><div class="sig">def <b>to_date</b>(): date</div><p>The date the fields describe. @throws date_time_exception when year/month/day (or year/day of year) are not all present, name a day that does not exist, or disagree with a parsed day of week, week number or quarter</p></div>
+<div class="fn" id="date_time_fields.to_date_time"><div class="sig">def <b>to_date_time</b>(): date_time</div><p>Date and time together. When the pattern had no time fields at all the time is 00:00:00, so a date-only text can be read as a date_time. @throws date_time_exception as <code>to_date</code> and <code>to_time</code></p></div>
+<div class="fn" id="date_time_fields.to_instant"><div class="sig">def <b>to_instant</b>(): instant</div><p>The moment on the time line. @throws date_time_exception as <code>to_offset_date_time</code></p></div>
+<div class="fn" id="date_time_fields.to_offset_date_time"><div class="sig">def <b>to_offset_date_time</b>(): offset_date_time</div><p>Date, time and offset together. @throws date_time_exception when the text had no offset, or as <code>to_date_time</code></p></div>
+<div class="fn" id="date_time_fields.to_time"><div class="sig">def <b>to_time</b>(): time_of_day</div><p>The time of day the fields describe. @throws date_time_exception when there is no hour, a 12-hour value without AM/PM, H and h/a that disagree, or a field out of range</p></div>
+</div>
+</section>
+<section class="type" id="date_time_formatter">
+<h2><span class="kind">class</span> date_time_formatter</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/date_time_formatter.sharp">source</a></p>
+<p>Formats dates and times as text, and parses text back, following a PATTERN such as &quot;yyyy-MM-dd HH:mm:ss&quot; - the pattern language of java.time.format.DateTimeFormatter / kotlin, reduced to what works without locale data (names are English).</p>
+<p>Pattern letters --------------- The NUMBER of letters matters: it sets the width, or chooses between a number and a name.</p>
+<p>y      year                    yyyy -&gt; 2024   yy -&gt; 24   y -&gt; 2024 (no padding) M      month                   M -&gt; 2   MM -&gt; 02   MMM -&gt; Feb   MMMM -&gt; February d      day of month            d -&gt; 9   dd -&gt; 09 D      day of year             D -&gt; 60  DDD -&gt; 060 E      day of week, name       E, EE, EEE -&gt; Thu     EEEE -&gt; Thursday e      day of week, number     1 (Monday) .. 7 (Sunday) w      ISO week of the year    w -&gt; 9   ww -&gt; 09 Y      ISO week-based year     YYYY -&gt; 2024  (the year the ISO week belongs to) Q      quarter                 1 .. 4 H      hour 0-23               H -&gt; 7   HH -&gt; 07 h      hour 1-12               h -&gt; 7   hh -&gt; 07 a      AM / PM m      minute                  m -&gt; 5   mm -&gt; 05 s      second                  s -&gt; 5   ss -&gt; 05 S      fraction of second      as many digits as letters: SSS -&gt; 250  (1 to 9 letters) n      nanosecond of second    n -&gt; 250000000 X      offset, &quot;Z&quot; for UTC     X -&gt; +02 or +0530   XX -&gt; +0200   XXX -&gt; +02:00 x      offset, never &quot;Z&quot;       x -&gt; +00            xx -&gt; +0000   xxx -&gt; +00:00 Z      offset                  +0200 &#x27;...&#x27;  literal text            &#x27;T&#x27;  &#x27;at&#x27;  (&#x27;&#x27; is one quote character)</p>
+<p>Every other character that is not a letter (space, - : . , /) stands for itself. A letter that is not in the table is an error, so that a typo in a pattern is found at once.</p>
+<p>Formatting ---------- <code>format</code> accepts a date, time_of_day, date_time, offset_date_time or instant (an instant is shown in UTC). A pattern letter that needs something the value does not have (HH for a <code>date</code>, X for a <code>date_time</code>) throws a date_time_exception.</p>
+<p>Parsing ------- <code>parse_date</code>, <code>parse_time</code>, <code>parse_date_time</code>, <code>parse_offset_date_time</code> and <code>parse_instant</code> read text that has the shape of the pattern; <code>parse</code> returns the raw <code>date_time_fields</code>. - a numeric field written with TWO OR MORE letters must have exactly that many digits (so &quot;yyyyMMdd&quot; can split &quot;20240229&quot;); written with ONE letter it takes as many digits as there are, up to its maximum - <code>yy</code> reads a year 2000-2099 - names (MMM, EEEE, AM/PM) are matched without regard to case - literal text must match exactly; the whole input must be consumed - an offset is read in any of the forms zone_offset.parse accepts - redundant fields must agree (see date_time_fields)</p>
+<p>A formatter is immutable and can be shared and reused.</p>
+<div class="code"><pre class="sharp">f := date_time_formatter.of_pattern(&quot;EEE, d MMM yyyy HH:mm&quot;);
+f.format(date_time.of(2024, 2, 29, 13, 5))        // &quot;Thu, 29 Feb 2024 13:05&quot;
+f.parse_date_time(&quot;Thu, 29 Feb 2024 13:05&quot;)       // 2024-02-29T13:05:00
+date_time_formatter.iso_date().parse_date(&quot;2000-01-01&quot;)</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="date_time_formatter.basic_iso_date"><div class="sig">static def <b>basic_iso_date</b>(): date_time_formatter</div><p>&quot;yyyyMMdd&quot;, the ISO basic date without separators, e.g. 20240229</p></div>
+<div class="fn" id="date_time_formatter.format"><div class="sig">def <b>format</b>(value: date): string</div><p>Formats a date. The pattern may only use date letters. @throws date_time_exception when the pattern contains a time or offset letter</p></div>
+<div class="fn" id="date_time_formatter.format-2"><div class="sig">def <b>format</b>(value: time_of_day): string</div><p>Formats a time of day. The pattern may only use time letters. @throws date_time_exception when the pattern contains a date or offset letter</p></div>
+<div class="fn" id="date_time_formatter.format-3"><div class="sig">def <b>format</b>(value: date_time): string</div><p>Formats a date and time. @throws date_time_exception when the pattern contains an offset letter</p></div>
+<div class="fn" id="date_time_formatter.format-4"><div class="sig">def <b>format</b>(value: offset_date_time): string</div><p>formats a date and time with its offset; every pattern letter is allowed</p></div>
+<div class="fn" id="date_time_formatter.format-5"><div class="sig">def <b>format</b>(value: instant): string</div><p>formats a moment as its UTC date and time (offset letters print UTC)</p></div>
+<div class="fn" id="date_time_formatter.iso_date"><div class="sig">static def <b>iso_date</b>(): date_time_formatter</div><p>&quot;yyyy-MM-dd&quot;, e.g. 2024-02-29</p></div>
+<div class="fn" id="date_time_formatter.iso_date_time"><div class="sig">static def <b>iso_date_time</b>(): date_time_formatter</div><p>&quot;yyyy-MM-dd&#x27;T&#x27;HH:mm:ss&quot;, e.g. 2024-02-29T13:45:30</p></div>
+<div class="fn" id="date_time_formatter.iso_offset_date_time"><div class="sig">static def <b>iso_offset_date_time</b>(): date_time_formatter</div><p>&quot;yyyy-MM-dd&#x27;T&#x27;HH:mm:ssXXX&quot;, e.g. 2024-02-29T13:45:30+02:00 or ...Z</p></div>
+<div class="fn" id="date_time_formatter.iso_offset_date_time_millis"><div class="sig">static def <b>iso_offset_date_time_millis</b>(): date_time_formatter</div><p>&quot;yyyy-MM-dd&#x27;T&#x27;HH:mm:ss.SSSXXX&quot;: ISO with milliseconds, e.g. 2024-02-29T13:45:30.250Z</p></div>
+<div class="fn" id="date_time_formatter.iso_ordinal_date"><div class="sig">static def <b>iso_ordinal_date</b>(): date_time_formatter</div><p>&quot;yyyy-DDD&quot;, the ISO ordinal date (year and day of year), e.g. 2024-060</p></div>
+<div class="fn" id="date_time_formatter.iso_time"><div class="sig">static def <b>iso_time</b>(): date_time_formatter</div><p>&quot;HH:mm:ss&quot;, e.g. 13:45:30</p></div>
+<div class="fn" id="date_time_formatter.iso_week_date"><div class="sig">static def <b>iso_week_date</b>(): date_time_formatter</div><p>&quot;YYYY-&#x27;W&#x27;ww-e&quot;, the ISO week date, e.g. 2024-W09-4 (format only: a week date cannot be parsed back)</p></div>
+<div class="fn" id="date_time_formatter.of_pattern"><div class="sig">static def <b>of_pattern</b>(pattern: string): date_time_formatter</div><p>A formatter for <code>pattern</code> (see the class comment for the letters). @throws date_time_exception when the pattern contains an unknown letter, too many letters of one kind (e.g. &quot;ddd&quot;), or a quote that is not closed</p></div>
+<div class="fn" id="date_time_formatter.parse"><div class="sig">def <b>parse</b>(text: string): date_time_fields</div><p>Reads <code>text</code> according to the pattern and returns the fields found, not yet combined into a value (see date_time_fields).</p>
+<p>@throws date_time_exception when the text does not have the shape of the pattern; the message names the text and the index</p></div>
+<div class="fn" id="date_time_formatter.parse_date"><div class="sig">def <b>parse_date</b>(text: string): date</div><p>Parses a date. The pattern must supply year, month and day (or year and day of year). @throws date_time_exception when the text does not match the pattern or does not hold a complete, existing date</p></div>
+<div class="fn" id="date_time_formatter.parse_date_time"><div class="sig">def <b>parse_date_time</b>(text: string): date_time</div><p>Parses a date and time. A pattern without any time letters gives the date at 00:00:00. @throws date_time_exception as parse_date and parse_time</p></div>
+<div class="fn" id="date_time_formatter.parse_instant"><div class="sig">def <b>parse_instant</b>(text: string): instant</div><p>Parses a moment on the time line (the pattern needs X, x or Z). @throws date_time_exception as parse_offset_date_time</p></div>
+<div class="fn" id="date_time_formatter.parse_offset_date_time"><div class="sig">def <b>parse_offset_date_time</b>(text: string): offset_date_time</div><p>Parses a date and time with an offset (the pattern needs X, x or Z). @throws date_time_exception as parse_date_time, or when there is no offset</p></div>
+<div class="fn" id="date_time_formatter.parse_time"><div class="sig">def <b>parse_time</b>(text: string): time_of_day</div><p>Parses a time of day. The pattern must supply the hour (H, or h with a). @throws date_time_exception when the text does not match the pattern or a field is out of range</p></div>
+<div class="fn" id="date_time_formatter.pattern"><div class="sig">def <b>pattern</b>(): string</div><p>the pattern this formatter was created with</p></div>
+<div class="fn" id="date_time_formatter.rfc_1123"><div class="sig">static def <b>rfc_1123</b>(): date_time_formatter</div><p>&quot;EEE, d MMM yyyy HH:mm:ss &#x27;GMT&#x27;&quot;, the date format of HTTP headers and e-mail (RFC 1123), e.g. Thu, 29 Feb 2024 13:45:30 GMT. The value formatted must already be in UTC - the pattern prints &quot;GMT&quot; literally.</p></div>
+<div class="fn" id="date_time_formatter.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>the pattern, as <code>pattern()</code></p></div>
+</div>
+</section>
+<section class="type" id="day_of_week">
+<h2><span class="kind">class</span> day_of_week</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/day_of_week.sharp">source</a></p>
+<p>One of the seven days of the week.</p>
+<p>The days are numbered the ISO-8601 way: Monday is 1 and Sunday is 7. There are exactly seven objects, one per day, reachable as <code>day_of_week.monday</code> ... <code>day_of_week.sunday</code> or through <code>day_of_week.of(number)</code>. Because there is only ever one object per day, two values can be compared with <code>==</code>.</p>
+<p>(It is a class and not an <code>enum</code> because an enum cannot have functions such as <code>plus</code> or <code>short_name</code>.)</p>
+<div class="code"><pre class="sharp">d := date.of(2000, 1, 1).day_of_week();   // day_of_week.saturday
+d.value()            // 6
+d.name()             // &quot;Saturday&quot;
+d.short_name()       // &quot;Sat&quot;
+d.plus(2)            // day_of_week.monday
+d.is_weekend()       // 1</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>monday</code></td><td><code>day_of_week</code></td><td></td></tr><tr><td><code>tuesday</code></td><td><code>day_of_week</code></td><td></td></tr><tr><td><code>wednesday</code></td><td><code>day_of_week</code></td><td></td></tr><tr><td><code>thursday</code></td><td><code>day_of_week</code></td><td></td></tr><tr><td><code>friday</code></td><td><code>day_of_week</code></td><td></td></tr><tr><td><code>saturday</code></td><td><code>day_of_week</code></td><td></td></tr><tr><td><code>sunday</code></td><td><code>day_of_week</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="day_of_week.abbreviations"><div class="sig">static def <b>abbreviations</b>(): string[]</div><p>the three letter names, Monday first (used by the formatter)</p></div>
+<div class="fn" id="day_of_week.days_until"><div class="sig">def <b>days_until</b>(other: day_of_week): decimal</div><p>How many days forward it is from this day to the next <code>other</code>: 0 .. 6. monday.days_until(wednesday) is 2, wednesday.days_until(monday) is 5.</p></div>
+<div class="fn" id="day_of_week.is_weekend"><div class="sig">def <b>is_weekend</b>(): bool</div><p>true for Saturday and Sunday</p></div>
+<div class="fn" id="day_of_week.minus"><div class="sig">def <b>minus</b>(days: decimal): day_of_week</div><p>the day <code>days</code> days earlier (see <code>plus</code>)</p></div>
+<div class="fn" id="day_of_week.name"><div class="sig">def <b>name</b>(): string</div><p>the full English name: &quot;Monday&quot; .. &quot;Sunday&quot;</p></div>
+<div class="fn" id="day_of_week.names"><div class="sig">static def <b>names</b>(): string[]</div><p>the full names, Monday first (used by the formatter)</p></div>
+<div class="fn" id="day_of_week.of"><div class="sig">static def <b>of</b>(n: decimal): day_of_week</div><p>The day with ISO number <code>n</code>: 1 = Monday ... 7 = Sunday. @throws date_time_exception when <code>n</code> is not 1 .. 7</p></div>
+<div class="fn" id="day_of_week.parse"><div class="sig">static def <b>parse</b>(text: string): day_of_week</div><p>The day whose full name (&quot;Monday&quot;) or three letter name (&quot;Mon&quot;) is <code>text</code>, ignoring upper and lower case. @throws date_time_exception when it is not the name of a day</p></div>
+<div class="fn" id="day_of_week.plus"><div class="sig">def <b>plus</b>(days: decimal): day_of_week</div><p>The day <code>days</code> days later; negative numbers go back. The week wraps around: sunday.plus(1) is monday, monday.plus(-1) is sunday.</p></div>
+<div class="fn" id="day_of_week.short_name"><div class="sig">def <b>short_name</b>(): string</div><p>the three letter English name: &quot;Mon&quot; .. &quot;Sun&quot;</p></div>
+<div class="fn" id="day_of_week.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>the full name, as <code>name()</code></p></div>
+<div class="fn" id="day_of_week.value"><div class="sig">def <b>value</b>(): decimal</div><p>the ISO number: 1 (Monday) .. 7 (Sunday)</p></div>
+<div class="fn" id="day_of_week.values"><div class="sig">static def <b>values</b>(): day_of_week[]</div><p>all seven days in order, Monday first</p></div>
+</div>
+</section>
+<section class="type" id="deadline">
+<h2><span class="kind">class</span> deadline</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/deadline.sharp">source</a></p>
+<p>A moment by which something must be finished, with the questions one asks about it: has it passed, how much time is left, how late are we.</p>
+<p>A deadline is the right thing to pass down through several calls that share one time budget: each of them asks <code>remaining()</code> and uses at most that, instead of each getting its own full timeout.</p>
+<p>A deadline does not wait and starts no thread; it only compares its moment with a <code>clock</code>. With no clock given that is the system clock; tests pass a <code>manual_clock</code>. Deadlines are immutable.</p>
+<div class="code"><pre class="sharp">limit := deadline.after(duration.of_seconds(30));
+while(!limit.has_passed()) {
+    if(try_once()) { break; }
+}</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="deadline.after"><div class="sig">static def <b>after</b>(amount: duration): deadline</div><p>a deadline <code>amount</code> from now on the system clock (already passed when <code>amount</code> is zero or negative)</p></div>
+<div class="fn" id="deadline.after-2"><div class="sig">static def <b>after</b>(amount: duration, time_source: clock): deadline</div><p>a deadline <code>amount</code> after the current time of <code>time_source</code></p></div>
+<div class="fn" id="deadline.at"><div class="sig">st<b>at</b>ic def at(at_moment: instant): deadline</div><p>a deadline at the moment <code>at</code>, judged by the system clock</p></div>
+<div class="fn" id="deadline.at-2"><div class="sig">st<b>at</b>ic def at(at_moment: instant, time_source: clock): deadline</div><p>a deadline at the moment <code>at_moment</code>, judged by <code>time_source</code></p></div>
+<div class="fn" id="deadline.check"><div class="sig">def <b>check</b>(what: string)</div><p>Throws when the deadline has passed, otherwise does nothing - a one-line check for the top of a loop. @throws date_time_exception &quot;deadline exceeded by &lt;time&gt;: &lt;what&gt;&quot;</p></div>
+<div class="fn" id="deadline.earliest"><div class="sig">def <b>earliest</b>(other: deadline): deadline</div><p>whichever of this deadline and <code>other</code> comes first (this one when they are at the same moment)</p></div>
+<div class="fn" id="deadline.expires_at"><div class="sig">def <b>expires_at</b>(): instant</div><p>the moment the deadline is at</p></div>
+<div class="fn" id="deadline.extended_by"><div class="sig">def <b>extended_by</b>(amount: duration): deadline</div><p>a new deadline that is <code>amount</code> later than this one (earlier when negative), on the same clock</p></div>
+<div class="fn" id="deadline.has_passed"><div class="sig">def <b>has_passed</b>(): bool</div><p>1 once the clock has reached the deadline (now &gt;= the deadline moment)</p></div>
+<div class="fn" id="deadline.overdue_by"><div class="sig">def <b>overdue_by</b>(): duration</div><p>how long ago the deadline passed; <code>duration.zero</code> while it has not</p></div>
+<div class="fn" id="deadline.remaining"><div class="sig">def <b>remaining</b>(): duration</div><p>The time left until the deadline; <code>duration.zero</code> once it has passed (never negative - use <code>overdue_by()</code> for how late it is).</p></div>
+<div class="fn" id="deadline.remaining_millis"><div class="sig">def <b>remaining_millis</b>(): decimal</div><p><code>remaining()</code> in whole milliseconds, for APIs that take a timeout in ms</p></div>
+<div class="fn" id="deadline.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;deadline at 2024-02-29T12:00:00Z&quot;</p></div>
+</div>
+</section>
+<section class="type" id="duration">
+<h2><span class="kind">class</span> duration</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/duration.sharp">source</a></p>
+<p>An amount of time: &quot;2 hours 30 minutes&quot;, &quot;1.5 seconds&quot;, &quot;-10 milliseconds&quot;.</p>
+<p>A duration is not tied to a calendar. It is a length measured in seconds, so a day is always exactly 86,400 seconds. For amounts in calendar units (months, years) use <code>period</code>.</p>
+<p>How the value is stored - and why --------------------------------- A <code>decimal</code> holds whole numbers exactly only up to 2^53 (about 9.0e15). In nanoseconds that is just 104 days, so a single nanosecond count cannot hold a long duration without losing its low digits. A duration therefore keeps TWO numbers, the same way java.time.Duration does:</p>
+<div class="code"><pre class="sharp">seconds   whole seconds, may be negative        (exact up to 2^53 s = 285 million years)
+nanos     nanoseconds on top of that, 0 .. 999,999,999  (never negative)</pre></div>
+<p>The value is always seconds + nanos / 1e9. A negative duration has negative seconds and a positive nano adjustment: -0.5 s is stored as seconds = -1, nanos = 500,000,000.</p>
+<p>Durations are immutable: every operation returns a new duration.</p>
+<div class="code"><pre class="sharp">d := duration.of_minutes(90) + duration.of_seconds(30);
+d.to_minutes()        // 90
+d.to_string()         // &quot;1h 30m 30s&quot;
+d.to_iso_string()     // &quot;PT1H30M30S&quot;
+duration.parse(&quot;PT1.5S&quot;) == duration.of_millis(1500)   // true</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>nanos_per_second</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>nanos_per_milli</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>nanos_per_micro</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>seconds_per_minute</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>seconds_per_hour</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>seconds_per_day</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>zero</code></td><td><code>duration</code></td><td>a duration of no time at all</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="duration.abs"><div class="sig">def <b>abs</b>(): duration</div><p>the length without its sign</p></div>
+<div class="fn" id="duration.between"><div class="sig">static def <b>between</b>(start: instant, end: instant): duration</div><p>The time from <code>start</code> to <code>end</code>: positive when <code>end</code> is later, negative when it is earlier. Exact to the nanosecond.</p></div>
+<div class="fn" id="duration.compare_to"><div class="sig">def <b>compare_to</b>(other: duration): decimal</div><p>-1 when this duration is shorter than <code>other</code>, 0 when equal, 1 when longer</p></div>
+<div class="fn" id="duration.divided_by"><div class="sig">def <b>divided_by</b>(divisor: decimal): duration</div><p>This duration divided into <code>divisor</code> equal parts, rounded DOWN to the nanosecond. <code>divisor</code> must be a whole number that is not 0.</p>
+<p>Method (long division in two steps so nothing leaves the exact range): q   = floor(seconds / divisor)           whole seconds of the answer rem = seconds - q * divisor              0 .. divisor-1 seconds left over nanos of the answer = floor((rem * 1e9 + nanos) / divisor) <code>rem * 1e9</code> is exact while the divisor is below 9,000,000 in size.</p>
+<p>@throws date_time_exception when <code>divisor</code> is 0 or not a whole number</p></div>
+<div class="fn" id="duration.divided_by-2"><div class="sig">def <b>divided_by</b>(other: duration): decimal</div><p>How many times <code>other</code> fits into this duration, as a number with a fraction: 90 min / 1 h == 1.5. The two durations are turned into fractional seconds first, so the result has ordinary <code>decimal</code> precision (15-16 digits).</p>
+<p>@throws date_time_exception when <code>other</code> is zero</p></div>
+<div class="fn" id="duration.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for equal durations</p></div>
+<div class="fn" id="duration.hours_part"><div class="sig">def <b>hours_part</b>(): decimal</div><p>the hours left after taking out the whole days: 0 .. 23</p></div>
+<div class="fn" id="duration.is_negative"><div class="sig">def <b>is_negative</b>(): bool</div><p>true when the duration is less than zero</p></div>
+<div class="fn" id="duration.is_positive"><div class="sig">def <b>is_positive</b>(): bool</div><p>true when the duration is greater than zero</p></div>
+<div class="fn" id="duration.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when the duration is exactly zero</p></div>
+<div class="fn" id="duration.millis_part"><div class="sig">def <b>millis_part</b>(): decimal</div><p>the milliseconds left after taking out the whole seconds: 0 .. 999</p></div>
+<div class="fn" id="duration.minus"><div class="sig">def <b>minus</b>(other: duration): duration</div><p>this duration minus <code>other</code></p></div>
+<div class="fn" id="duration.minutes_part"><div class="sig">def <b>minutes_part</b>(): decimal</div><p>the minutes left after taking out the whole hours: 0 .. 59</p></div>
+<div class="fn" id="duration.multiplied_by"><div class="sig">def <b>multiplied_by</b>(factor: decimal): duration</div><p>This duration <code>factor</code> times. <code>factor</code> must be a whole number (it may be negative). The nanosecond part is multiplied on its own, which is exact as long as the factor is below 9,000,000 in size (999,999,999 * 9,000,000 is still under 2^53).</p>
+<p>@throws date_time_exception when <code>factor</code> is not a whole number</p></div>
+<div class="fn" id="duration.nanos"><div class="sig">def <b>nanos</b>(): decimal</div><p>the nanoseconds stored on top of <code>seconds()</code>: 0 .. 999,999,999</p></div>
+<div class="fn" id="duration.nanos_part"><div class="sig">def <b>nanos_part</b>(): decimal</div><p>the nanoseconds left after taking out the whole seconds: 0 .. 999,999,999</p></div>
+<div class="fn" id="duration.negated"><div class="sig">def <b>negated</b>(): duration</div><p>the same length with the opposite sign</p></div>
+<div class="fn" id="duration.of_days"><div class="sig">static def <b>of_days</b>(days: decimal): duration</div><p><code>days</code> days of exactly 24 hours each (whole number)</p></div>
+<div class="fn" id="duration.of_hours"><div class="sig">static def <b>of_hours</b>(hours: decimal): duration</div><p><code>hours</code> hours (whole number)</p></div>
+<div class="fn" id="duration.of_micros"><div class="sig">static def <b>of_micros</b>(micros: decimal): duration</div><p><code>micros</code> microseconds (whole number, may be negative)</p></div>
+<div class="fn" id="duration.of_millis"><div class="sig">static def <b>of_millis</b>(millis: decimal): duration</div><p><code>millis</code> milliseconds (whole number, may be negative)</p></div>
+<div class="fn" id="duration.of_minutes"><div class="sig">static def <b>of_minutes</b>(minutes: decimal): duration</div><p><code>minutes</code> minutes (whole number)</p></div>
+<div class="fn" id="duration.of_nanos"><div class="sig">static def <b>of_nanos</b>(nanos: decimal): duration</div><p><code>nanos</code> nanoseconds (whole number, may be negative). Because the argument is a <code>decimal</code> it is exact only below 2^53 ns (about 104 days).</p></div>
+<div class="fn" id="duration.of_seconds"><div class="sig">static def <b>of_seconds</b>(seconds: decimal, nano_adjustment: decimal): duration</div><p>A duration of <code>seconds</code> whole seconds plus <code>nano_adjustment</code> nanoseconds. The adjustment may be any whole number, also negative or more than a second; it is carried into the seconds: of_seconds(3, -1) is 2.999999999 s.</p>
+<p>@throws date_time_exception when an argument is not a whole number below 2^53</p></div>
+<div class="fn" id="duration.of_seconds-2"><div class="sig">static def <b>of_seconds</b>(seconds: decimal): duration</div><p>A duration of <code>seconds</code> seconds. A fraction is allowed and kept to the nanosecond: of_seconds(1.5) is 1 s 500,000,000 ns. (A <code>decimal</code> has about 15-16 significant digits, so a fraction on a huge second count is not exact - pass whole seconds and nanoseconds separately for that.)</p></div>
+<div class="fn" id="duration.operator_"><div class="sig">def <b>operator!=</b>(other: duration): bool</div></div>
+<div class="fn" id="duration.operator_-2"><div class="sig">def <b>operator*</b>(factor: decimal): duration</div></div>
+<div class="fn" id="duration.operator_-3"><div class="sig">def <b>operator+</b>(other: duration): duration</div></div>
+<div class="fn" id="duration.operator_-4"><div class="sig">def <b>operator-</b>(other: duration): duration</div></div>
+<div class="fn" id="duration.operator_-5"><div class="sig">def <b>operator/</b>(divisor: decimal): duration</div></div>
+<div class="fn" id="duration.operator_-6"><div class="sig">def <b>operator&lt;</b>(other: duration): bool</div></div>
+<div class="fn" id="duration.operator_-7"><div class="sig">def <b>operator&lt;=</b>(other: duration): bool</div></div>
+<div class="fn" id="duration.operator_-8"><div class="sig">def <b>operator==</b>(other: duration): bool</div></div>
+<div class="fn" id="duration.operator_-9"><div class="sig">def <b>operator&gt;</b>(other: duration): bool</div></div>
+<div class="fn" id="duration.operator_-10"><div class="sig">def <b>operator&gt;=</b>(other: duration): bool</div></div>
+<div class="fn" id="duration.parse"><div class="sig">static def <b>parse</b>(text: string): duration</div><p>Reads a duration from text. Two forms are understood, upper and lower case alike:</p>
+<p>1. ISO-8601, what <code>to_iso_string</code> writes: <code>[-+]P[nD][T[nH][nM][n[.f]S]]</code> &quot;PT1H2M3.5S&quot;  &quot;P2DT12H&quot;  &quot;PT-1H-30M&quot;  &quot;-PT1H30M&quot;  &quot;PT0.001S&quot; A sign before the P negates the whole value; each number may also have its own sign. A day is 24 hours. At least one part must be present. The fraction (after &#x27;.&#x27; or &#x27;,&#x27;) may have 1-9 digits and is only allowed on the seconds.</p>
+<p>2. The readable form, what <code>to_string</code> writes: numbers followed by a unit, separated by optional spaces, with an optional leading &#x27;-&#x27;: &quot;1h 2m 3.5s&quot;  &quot;2d 12h&quot;  &quot;-1h 30m&quot;  &quot;250ms&quot;  &quot;10us&quot;  &quot;5ns&quot;  &quot;0s&quot; Units: d, h, m, s, ms, us, ns. Only <code>s</code> may have a fraction.</p>
+<p>@throws date_time_exception when the text is neither form</p></div>
+<div class="fn" id="duration.plus"><div class="sig">def <b>plus</b>(other: duration): duration</div><p>this duration plus <code>other</code></p></div>
+<div class="fn" id="duration.plus_days"><div class="sig">def <b>plus_days</b>(days: decimal): duration</div></div>
+<div class="fn" id="duration.plus_hours"><div class="sig">def <b>plus_hours</b>(hours: decimal): duration</div></div>
+<div class="fn" id="duration.plus_millis"><div class="sig">def <b>plus_millis</b>(millis: decimal): duration</div></div>
+<div class="fn" id="duration.plus_minutes"><div class="sig">def <b>plus_minutes</b>(minutes: decimal): duration</div></div>
+<div class="fn" id="duration.plus_nanos"><div class="sig">def <b>plus_nanos</b>(nanos: decimal): duration</div></div>
+<div class="fn" id="duration.plus_seconds"><div class="sig">def <b>plus_seconds</b>(seconds: decimal): duration</div></div>
+<div class="fn" id="duration.seconds"><div class="sig">def <b>seconds</b>(): decimal</div><p>The whole-seconds part as it is stored: rounded DOWN, so it is -1 for -0.5 s. Together with <code>nanos()</code> it is the exact value. For &quot;how many seconds, fraction dropped&quot; use <code>to_seconds()</code>.</p></div>
+<div class="fn" id="duration.seconds_part"><div class="sig">def <b>seconds_part</b>(): decimal</div><p>the seconds left after taking out the whole minutes: 0 .. 59</p></div>
+<div class="fn" id="duration.to_days"><div class="sig">def <b>to_days</b>(): decimal</div><p>whole days of 24 hours</p></div>
+<div class="fn" id="duration.to_fractional_seconds"><div class="sig">def <b>to_fractional_seconds</b>(): decimal</div><p>the duration in seconds with its fraction: 1500 ms -&gt; 1.5 (ordinary <code>decimal</code> precision)</p></div>
+<div class="fn" id="duration.to_hours"><div class="sig">def <b>to_hours</b>(): decimal</div><p>whole hours</p></div>
+<div class="fn" id="duration.to_iso_string"><div class="sig">def <b>to_iso_string</b>(): string</div><p>The ISO-8601 form used by java.time and kotlin: <code>PT</code> followed by hours, minutes and seconds, each left out when zero. Days are not used (48 hours is &quot;PT48H&quot;). The fraction has no trailing zeros.</p>
+<div class="code"><pre class="sharp">&quot;PT0S&quot;   &quot;PT45S&quot;   &quot;PT1H2M3.5S&quot;   &quot;PT48H&quot;   &quot;PT0.001S&quot;</pre></div>
+<p>For a negative duration every part carries its own &#x27;-&#x27;, as java.time prints it: -90 minutes is &quot;PT-1H-30M&quot;, -0.5 s is &quot;PT-0.5S&quot;.</p></div>
+<div class="fn" id="duration.to_micros"><div class="sig">def <b>to_micros</b>(): decimal</div><p>whole microseconds. Exact while the result is below 2^53 (285 years).</p></div>
+<div class="fn" id="duration.to_millis"><div class="sig">def <b>to_millis</b>(): decimal</div><p>whole milliseconds. Exact while the result is below 2^53 (285,000 years).</p></div>
+<div class="fn" id="duration.to_minutes"><div class="sig">def <b>to_minutes</b>(): decimal</div><p>whole minutes</p></div>
+<div class="fn" id="duration.to_nanos"><div class="sig">def <b>to_nanos</b>(): decimal</div><p>The whole duration in nanoseconds. The result is a <code>decimal</code>, so it is exact only while it is below 2^53 ns (about 104 days); beyond that the last digits are rounded. Use <code>seconds()</code> and <code>nanos()</code> to stay exact.</p></div>
+<div class="fn" id="duration.to_seconds"><div class="sig">def <b>to_seconds</b>(): decimal</div><p>whole seconds (unlike <code>seconds()</code> this is -0 for -0.5 s, not -1)</p></div>
+<div class="fn" id="duration.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>A short readable form with the units d, h, m and s; units that are zero are left out, the fraction of a second has no trailing zeros:</p>
+<div class="code"><pre class="sharp">&quot;0s&quot;   &quot;45s&quot;   &quot;1h 2m 3.5s&quot;   &quot;2d 12h&quot;   &quot;0.001s&quot;   &quot;-1h 30m&quot;</pre></div>
+<p>A negative duration is the positive text with one &#x27;-&#x27; in front. <code>duration.parse</code> reads this form back.</p></div>
+<div class="fn" id="duration.with_nanos"><div class="sig">def <b>with_nanos</b>(nanos: decimal): duration</div><p>A copy with the nanosecond part replaced. @throws date_time_exception when <code>nanos</code> is not 0 .. 999,999,999</p></div>
+<div class="fn" id="duration.with_seconds"><div class="sig">def <b>with_seconds</b>(seconds: decimal): duration</div><p>a copy with the whole-seconds part replaced (the nanosecond part is kept)</p></div>
+</div>
+</section>
+<section class="type" id="fixed_clock">
+<h2><span class="kind">class</span> fixed_clock</h2>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/fixed_clock.sharp">source</a></p>
+<p>A clock that always shows the same moment.</p>
+<p>For tests and for code that must treat a whole operation as happening &quot;at one time&quot; (take the time once, wrap it in a fixed_clock, hand that around). It is immutable; use <code>manual_clock</code> for a clock a test can move.</p>
+<div class="code"><pre class="sharp">c := new fixed_clock(instant.parse(&quot;2024-02-29T12:00:00Z&quot;));
+c.now().to_string()      // always &quot;2024-02-29T12:00:00Z&quot;</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="fixed_clock.fixed_clock"><div class="sig"><b>fixed_clock</b>(at: instant)</div><p>a clock that is stopped at <code>at</code></p></div>
+<div class="fn" id="fixed_clock.now"><div class="sig">override def <b>now</b>(): instant</div><p>the moment the clock was created with, every time</p></div>
+</div>
+</section>
+<section class="type" id="instant">
+<h2><span class="kind">class</span> instant</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/instant.sharp">source</a></p>
+<p>A single point on the UTC time line, independent of any calendar or time zone - the thing a timestamp stores.</p>
+<p>How the value is stored - and why --------------------------------- The obvious representation, &quot;nanoseconds since 1970&quot;, does not fit in a <code>decimal</code>: a <code>decimal</code> holds whole numbers exactly only up to 2^53 (about 9.0e15) and the present is about 1.7e18 ns after 1970, so the last digits would be rounded away (the spacing between neighbouring <code>decimal</code> values at that size is 256 ns). An instant therefore keeps TWO numbers, like java.time.Instant:</p>
+<div class="code"><pre class="sharp">epoch_second   whole seconds since 1970-01-01T00:00:00Z, negative before  (exact)
+nano           nanoseconds within that second, 0 .. 999,999,999           (exact)</pre></div>
+<p>All arithmetic and comparison work on the pair and are exact to the nanosecond. Only <code>now()</code> is limited by the runtime: vm.time_in_nanoseconds hands the system clock over as one <code>decimal</code>, so the reading itself is already rounded to a multiple of 256 ns (and Windows clocks tick in 100 ns steps).</p>
+<p>The clock behind <code>now()</code> is the SYSTEM clock: it can jump when the operating system corrects the time. The runtime offers no monotonic clock.</p>
+<p>The supported range is the range of <code>date</code>: years -999,999 to 999,999. Instants are immutable.</p>
+<div class="code"><pre class="sharp">t := instant.of_epoch_second(1709211600);
+t.to_string()                                   // &quot;2024-02-29T13:00:00Z&quot;
+(t + duration.of_hours(11)).to_string()         // &quot;2024-03-01T00:00:00Z&quot;
+instant.parse(&quot;1970-01-01T00:00:01.5Z&quot;).to_epoch_milli()   // 1500</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>epoch</code></td><td><code>instant</code></td><td>1970-01-01T00:00:00Z</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="instant.at_offset"><div class="sig">def <b>at_offset</b>(offset: zone_offset): offset_date_time</div><p>the UTC date and time of this instant at <code>offset</code></p></div>
+<div class="fn" id="instant.compare_to"><div class="sig">def <b>compare_to</b>(other: instant): decimal</div><p>-1 when this instant is before <code>other</code>, 0 when it is the same moment, 1 when after</p></div>
+<div class="fn" id="instant.epoch_second"><div class="sig">def <b>epoch_second</b>(): decimal</div><p>whole seconds since 1970-01-01T00:00:00Z, rounded down (negative before 1970)</p></div>
+<div class="fn" id="instant.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for equal instants</p></div>
+<div class="fn" id="instant.is_after"><div class="sig">def <b>is_after</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.is_before"><div class="sig">def <b>is_before</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.minus"><div class="sig">def <b>minus</b>(amount: duration): instant</div><p>this instant moved back by <code>amount</code></p></div>
+<div class="fn" id="instant.minus_millis"><div class="sig">def <b>minus_millis</b>(millis: decimal): instant</div></div>
+<div class="fn" id="instant.minus_nanos"><div class="sig">def <b>minus_nanos</b>(nanos: decimal): instant</div></div>
+<div class="fn" id="instant.minus_seconds"><div class="sig">def <b>minus_seconds</b>(seconds: decimal): instant</div></div>
+<div class="fn" id="instant.nano"><div class="sig">def <b>nano</b>(): decimal</div><p>nanoseconds after <code>epoch_second()</code>: 0 .. 999,999,999</p></div>
+<div class="fn" id="instant.now"><div class="sig">static def <b>now</b>(): instant</div><p>The current moment according to the system clock (<code>system_clock</code>). See the class comment for its resolution and the fact that it can jump.</p></div>
+<div class="fn" id="instant.of_epoch_milli"><div class="sig">static def <b>of_epoch_milli</b>(epoch_milli: decimal): instant</div><p>The instant <code>epoch_milli</code> milliseconds after the epoch (before it when negative) - the timestamp format of Java, JavaScript and <code>utc_mills()</code>. @throws date_time_exception when it is not a whole number below 2^53</p></div>
+<div class="fn" id="instant.of_epoch_second"><div class="sig">static def <b>of_epoch_second</b>(epoch_second: decimal): instant</div><p>The instant <code>epoch_second</code> seconds after 1970-01-01T00:00:00Z (before it when negative). @throws date_time_exception when it is not a whole number below 2^53</p></div>
+<div class="fn" id="instant.of_epoch_second-2"><div class="sig">static def <b>of_epoch_second</b>(epoch_second: decimal, nano_adjustment: decimal): instant</div><p><code>epoch_second</code> seconds after the epoch plus <code>nano_adjustment</code> nanoseconds. The adjustment may be negative or larger than a second; it is carried into the seconds: (10, -1) is 9.999999999 s. @throws date_time_exception when an argument is not a whole number below 2^53</p></div>
+<div class="fn" id="instant.operator_"><div class="sig">def <b>operator!=</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.operator_-2"><div class="sig">def <b>operator+</b>(amount: duration): instant</div><p>instant + duration, as <code>plus</code></p></div>
+<div class="fn" id="instant.operator_-3"><div class="sig">def <b>operator-</b>(amount: duration): instant</div><p>instant - duration, as <code>minus</code></p></div>
+<div class="fn" id="instant.operator_-4"><div class="sig">def <b>operator&lt;</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.operator_-5"><div class="sig">def <b>operator&lt;=</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.operator_-6"><div class="sig">def <b>operator==</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.operator_-7"><div class="sig">def <b>operator&gt;</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.operator_-8"><div class="sig">def <b>operator&gt;=</b>(other: instant): bool</div></div>
+<div class="fn" id="instant.parse"><div class="sig">static def <b>parse</b>(text: string): instant</div><p>Reads an ISO-8601 date-time with an offset and returns the moment it names: &quot;2024-02-29T13:00:00Z&quot;, &quot;2024-02-29T15:00:00+02:00&quot; (the same moment), &quot;1969-12-31T23:59:59.5Z&quot;.</p>
+<p>@throws date_time_exception when the text has another shape (the offset is required) or a field is out of range</p></div>
+<div class="fn" id="instant.plus"><div class="sig">def <b>plus</b>(amount: duration): instant</div><p>this instant moved forward by <code>amount</code> (back when it is negative)</p></div>
+<div class="fn" id="instant.plus_millis"><div class="sig">def <b>plus_millis</b>(millis: decimal): instant</div></div>
+<div class="fn" id="instant.plus_nanos"><div class="sig">def <b>plus_nanos</b>(nanos: decimal): instant</div></div>
+<div class="fn" id="instant.plus_seconds"><div class="sig">def <b>plus_seconds</b>(seconds: decimal): instant</div></div>
+<div class="fn" id="instant.to_epoch_milli"><div class="sig">def <b>to_epoch_milli</b>(): decimal</div><p>Whole milliseconds since the epoch, rounded down: epoch_second * 1000 + nano / 1,000,000. Exact (the result stays below 2^53 for the whole supported range).</p></div>
+<div class="fn" id="instant.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>ISO-8601 in UTC: &quot;2024-02-29T13:00:00Z&quot;, with the fraction as 3, 6 or 9 digits when there is one: &quot;1970-01-01T00:00:00.001Z&quot;.</p></div>
+<div class="fn" id="instant.truncated_to_millis"><div class="sig">def <b>truncated_to_millis</b>(): instant</div><p>this instant rounded down to a whole millisecond</p></div>
+<div class="fn" id="instant.truncated_to_seconds"><div class="sig">def <b>truncated_to_seconds</b>(): instant</div><p>this instant with the fraction of the second removed</p></div>
+<div class="fn" id="instant.until"><div class="sig">def <b>until</b>(other: instant): duration</div><p>the time from this instant to <code>other</code>: positive when <code>other</code> is later. Exact.</p></div>
+</div>
+</section>
+<section class="type" id="interval_timer">
+<h2><span class="kind">class</span> interval_timer</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/interval_timer.sharp">source</a></p>
+<p>Tells when it is time to do something again: &quot;every 5 seconds&quot;.</p>
+<p>It does not call anything and starts no thread. A loop that runs anyway (a game loop, a polling loop, a server tick) asks it:</p>
+<div class="code"><pre class="sharp">autosave := new interval_timer(duration.of_minutes(5));
+while(running) {
+    handle_input();
+    if(autosave.poll()) { save(); }
+}</pre></div>
+<p>The due times lie on a fixed grid: start + period, start + 2 * period, ... A late poll does not shift the grid, so the timer does not drift. When the loop was away for several periods, <code>poll()</code> returns HOW MANY periods have passed since the last successful poll (so the caller can catch up, or simply treat any non-zero value as &quot;due&quot;), and the next due time is the next grid point in the future.</p>
+<p>The time comes from a <code>clock</code> (system clock by default, <code>manual_clock</code> in tests). Not synchronised.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="interval_timer.interval_timer"><div class="sig"><b>interval_timer</b>(every: duration)</div><p>A timer on the system clock that first becomes due one <code>every</code> from now. @throws date_time_exception when <code>every</code> is not longer than zero</p></div>
+<div class="fn" id="interval_timer.interval_timer-2"><div class="sig"><b>interval_timer</b>(every: duration, time_source: clock)</div><p>as above, reading the time from <code>time_source</code></p></div>
+<div class="fn" id="interval_timer.fired_count"><div class="sig">def <b>fired_count</b>(): decimal</div><p>the total number of periods <code>poll()</code> has reported since the timer was created or reset</p></div>
+<div class="fn" id="interval_timer.is_due"><div class="sig">def <b>is_due</b>(): bool</div><p>true when at least one period has passed since the last successful <code>poll()</code>; does not change the timer</p></div>
+<div class="fn" id="interval_timer.next_due_at"><div class="sig">def <b>next_due_at</b>(): instant</div><p>the moment the timer next becomes due (already in the past when it is due now)</p></div>
+<div class="fn" id="interval_timer.period_duration"><div class="sig">def <b>period_duration</b>(): duration</div><p>the length of one period</p></div>
+<div class="fn" id="interval_timer.poll"><div class="sig">def <b>poll</b>(): decimal</div><p>How many whole periods have become due since the last successful poll: 0 when it is not time yet, otherwise 1 or more. A non-zero result moves the next due time to the first grid point after &quot;now&quot;.</p></div>
+<div class="fn" id="interval_timer.reset"><div class="sig">def <b>reset</b>(): interval_timer</div><p>starts the grid again from now: next due one period from the current time, count back to 0</p></div>
+<div class="fn" id="interval_timer.time_until_due"><div class="sig">def <b>time_until_due</b>(): duration</div><p>the time until the timer is next due; <code>duration.zero</code> when it is due now</p></div>
+</div>
+</section>
+<section class="type" id="manual_clock">
+<h2><span class="kind">class</span> manual_clock</h2>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/manual_clock.sharp">source</a></p>
+<p>A clock that only moves when it is told to - the clock to use in tests.</p>
+<p>It starts at a chosen moment and stays there until <code>advance</code> or <code>set_time</code> is called, so code that measures time (a stopwatch, a deadline, a rate limiter) can be tested exactly and without sleeping:</p>
+<div class="code"><pre class="sharp">c := new manual_clock(instant.of_epoch_second(1000));
+watch := stopwatch.started(c);
+c.advance(duration.of_millis(1500));
+watch.elapsed().to_millis()      // exactly 1500</pre></div>
+<p>It may also be told to tick by itself: with <code>auto_advance(step)</code> every call of <code>now()</code> moves the clock forward by <code>step</code> AFTER returning the current moment, which is handy for code that reads the clock in a loop.</p>
+<p>This is the one class in std.time that is not immutable. It does no locking: when several threads share it, they must synchronise themselves.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="manual_clock.manual_clock"><div class="sig"><b>manual_clock</b>()</div><p>a clock standing at 1970-01-01T00:00:00Z</p></div>
+<div class="fn" id="manual_clock.manual_clock-2"><div class="sig"><b>manual_clock</b>(start: instant)</div><p>a clock standing at <code>start</code></p></div>
+<div class="fn" id="manual_clock.advance"><div class="sig">def <b>advance</b>(amount: duration): manual_clock</div><p>Moves the clock by <code>amount</code>. A negative amount moves it back, which is how a test imitates the system clock being corrected.</p></div>
+<div class="fn" id="manual_clock.advance_millis"><div class="sig">def <b>advance_millis</b>(millis: decimal): manual_clock</div><p>moves the clock forward by <code>millis</code> milliseconds (back when negative)</p></div>
+<div class="fn" id="manual_clock.advance_seconds"><div class="sig">def <b>advance_seconds</b>(seconds: decimal): manual_clock</div><p>moves the clock forward by <code>seconds</code> whole seconds (back when negative)</p></div>
+<div class="fn" id="manual_clock.auto_advance"><div class="sig">def <b>auto_advance</b>(tick: duration): manual_clock</div><p>From now on every <code>now()</code> moves the clock forward by <code>tick</code> after returning. Pass duration.zero to switch it off again.</p></div>
+<div class="fn" id="manual_clock.now"><div class="sig">override def <b>now</b>(): instant</div><p>the moment the clock currently stands at (then it ticks by the auto-advance step, if one is set)</p></div>
+<div class="fn" id="manual_clock.peek"><div class="sig">def <b>peek</b>(): instant</div><p>the moment the clock stands at, WITHOUT counting as a read and without auto-advancing</p></div>
+<div class="fn" id="manual_clock.read_count"><div class="sig">def <b>read_count</b>(): decimal</div><p>how many times <code>now()</code> has been called</p></div>
+<div class="fn" id="manual_clock.set_time"><div class="sig">def <b>set_time</b>(at: instant): manual_clock</div><p>puts the clock at <code>at</code></p></div>
+</div>
+</section>
+<section class="type" id="month">
+<h2><span class="kind">class</span> month</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/month.sharp">source</a></p>
+<p>One of the twelve months of the year, numbered 1 (January) .. 12 (December).</p>
+<p>There are exactly twelve objects, reachable as <code>month.january</code> ... <code>month.december</code> or through <code>month.of(number)</code>, so two values can be compared with <code>==</code>.</p>
+<div class="code"><pre class="sharp">m := month.of(2);
+m.name()             // &quot;February&quot;
+m.short_name()       // &quot;Feb&quot;
+m.length(1)          // 29  (in a leap year)
+m.plus(11)           // month.january
+m.quarter()          // 1</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>january</code></td><td><code>month</code></td><td></td></tr><tr><td><code>february</code></td><td><code>month</code></td><td></td></tr><tr><td><code>march</code></td><td><code>month</code></td><td></td></tr><tr><td><code>april</code></td><td><code>month</code></td><td></td></tr><tr><td><code>may</code></td><td><code>month</code></td><td></td></tr><tr><td><code>june</code></td><td><code>month</code></td><td></td></tr><tr><td><code>july</code></td><td><code>month</code></td><td></td></tr><tr><td><code>august</code></td><td><code>month</code></td><td></td></tr><tr><td><code>september</code></td><td><code>month</code></td><td></td></tr><tr><td><code>october</code></td><td><code>month</code></td><td></td></tr><tr><td><code>november</code></td><td><code>month</code></td><td></td></tr><tr><td><code>december</code></td><td><code>month</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="month.abbreviations"><div class="sig">static def <b>abbreviations</b>(): string[]</div><p>the three letter names, January first (used by the formatter)</p></div>
+<div class="fn" id="month.first_day_of_year"><div class="sig">def <b>first_day_of_year</b>(leap_year: decimal): decimal</div><p>The day of the year (1 .. 366) on which this month starts: 1 for January, 32 for February, 60 or (leap year) 61 for March ...</p></div>
+<div class="fn" id="month.length"><div class="sig">def <b>length</b>(leap_year: decimal): decimal</div><p>How many days the month has: 31, 30, or for February 28 - or 29 when <code>leap_year</code> is not 0.</p></div>
+<div class="fn" id="month.max_length"><div class="sig">def <b>max_length</b>(): decimal</div><p>the longest the month can be: 29 for February, otherwise its length</p></div>
+<div class="fn" id="month.min_length"><div class="sig">def <b>min_length</b>(): decimal</div><p>the shortest the month can be: 28 for February, otherwise its length</p></div>
+<div class="fn" id="month.minus"><div class="sig">def <b>minus</b>(months: decimal): month</div><p>the month <code>months</code> months earlier (see <code>plus</code>)</p></div>
+<div class="fn" id="month.name"><div class="sig">def <b>name</b>(): string</div><p>the full English name: &quot;January&quot; .. &quot;December&quot;</p></div>
+<div class="fn" id="month.names"><div class="sig">static def <b>names</b>(): string[]</div><p>the full names, January first (used by the formatter)</p></div>
+<div class="fn" id="month.of"><div class="sig">static def <b>of</b>(n: decimal): month</div><p>The month with number <code>n</code>: 1 = January ... 12 = December. @throws date_time_exception when <code>n</code> is not 1 .. 12</p></div>
+<div class="fn" id="month.parse"><div class="sig">static def <b>parse</b>(text: string): month</div><p>The month whose full name (&quot;March&quot;) or three letter name (&quot;Mar&quot;) is <code>text</code>, ignoring upper and lower case. @throws date_time_exception when it is not the name of a month</p></div>
+<div class="fn" id="month.plus"><div class="sig">def <b>plus</b>(months: decimal): month</div><p>The month <code>months</code> months later; negative numbers go back. The year wraps around: december.plus(1) is january.</p></div>
+<div class="fn" id="month.quarter"><div class="sig">def <b>quarter</b>(): decimal</div><p>the quarter of the year the month is in: 1 (Jan-Mar) .. 4 (Oct-Dec)</p></div>
+<div class="fn" id="month.short_name"><div class="sig">def <b>short_name</b>(): string</div><p>the three letter English name: &quot;Jan&quot; .. &quot;Dec&quot;</p></div>
+<div class="fn" id="month.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>the full name, as <code>name()</code></p></div>
+<div class="fn" id="month.value"><div class="sig">def <b>value</b>(): decimal</div><p>the number of the month: 1 .. 12</p></div>
+<div class="fn" id="month.values"><div class="sig">static def <b>values</b>(): month[]</div><p>all twelve months in order, January first</p></div>
+</div>
+</section>
+<section class="type" id="offset_clock">
+<h2><span class="kind">class</span> offset_clock</h2>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/offset_clock.sharp">source</a></p>
+<p>A clock that shows another clock&#x27;s time shifted by a fixed amount.</p>
+<p>Useful for running code &quot;as if it were tomorrow&quot; on top of the real clock, or for modelling a machine whose clock is wrong by a known amount:</p>
+<div class="code"><pre class="sharp">tomorrow := new offset_clock(system_clock.instance, duration.of_days(1));
+behind   := new offset_clock(base, duration.of_seconds(-30));</pre></div>
+<p>It is immutable; the clock underneath keeps running (or not) as before.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="offset_clock.offset_clock"><div class="sig"><b>offset_clock</b>(source: clock, shift_by: duration)</div><p>a clock that shows <code>source</code> plus <code>shift_by</code> (a negative duration shows an earlier time)</p></div>
+<div class="fn" id="offset_clock.now"><div class="sig">override def <b>now</b>(): instant</div><p>the underlying clock&#x27;s current moment plus the shift</p></div>
+<div class="fn" id="offset_clock.shift_amount"><div class="sig">def <b>shift_amount</b>(): duration</div><p>the amount this clock is ahead of the underlying one</p></div>
+</div>
+</section>
+<section class="type" id="offset_date_time">
+<h2><span class="kind">class</span> offset_date_time</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/offset_date_time.sharp">source</a></p>
+<p>A date and time together with its offset from UTC: e.g. 2024-02-29T15:00:00+02:00.</p>
+<p>Where a <code>date_time</code> only says what the calendar and clock show, this also says how far that clock is ahead of UTC, which makes it a definite point on the time line (<code>to_instant</code>). The same instant can be written with any offset: 15:00+02:00, 13:00Z and 08:00-05:00 are one moment.</p>
+<p>Equality and ordering --------------------- The comparison operators (<code>==</code>, <code>&lt;</code> ...) and <code>compare_to</code> compare the INSTANT, so 15:00+02:00 == 13:00Z is true. Use <code>same_fields</code> to ask whether both the local date-time and the offset are identical.</p>
+<p>Only fixed offsets exist - there is no time-zone database, so there are no daylight saving transitions: adding a duration never changes the offset.</p>
+<p>Values are immutable.</p>
+<div class="code"><pre class="sharp">a := offset_date_time.parse(&quot;2024-02-29T15:00:00+02:00&quot;);
+a.to_instant().epoch_second()                           // 1709211600
+a.with_offset_same_instant(zone_offset.utc).to_string() // &quot;2024-02-29T13:00:00Z&quot;</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="offset_date_time.compare_to"><div class="sig">def <b>compare_to</b>(other: offset_date_time): decimal</div><p>-1 when this moment is before <code>other</code>, 0 when it is the same moment, 1 when after</p></div>
+<div class="fn" id="offset_date_time.day"><div class="sig">def <b>day</b>(): decimal</div></div>
+<div class="fn" id="offset_date_time.day_of_week"><div class="sig">def <b>day_of_week</b>(): day_of_week</div></div>
+<div class="fn" id="offset_date_time.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for values that are the same moment</p></div>
+<div class="fn" id="offset_date_time.hour"><div class="sig">def <b>hour</b>(): decimal</div></div>
+<div class="fn" id="offset_date_time.is_after"><div class="sig">def <b>is_after</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.is_before"><div class="sig">def <b>is_before</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.minus"><div class="sig">def <b>minus</b>(amount: duration): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.minus-2"><div class="sig">def <b>minus</b>(amount: period): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.minute"><div class="sig">def <b>minute</b>(): decimal</div></div>
+<div class="fn" id="offset_date_time.month_value"><div class="sig">def <b>month_value</b>(): decimal</div></div>
+<div class="fn" id="offset_date_time.nano"><div class="sig">def <b>nano</b>(): decimal</div></div>
+<div class="fn" id="offset_date_time.now"><div class="sig">static def <b>now</b>(): offset_date_time</div><p>the current moment in UTC, read from the system clock</p></div>
+<div class="fn" id="offset_date_time.now-2"><div class="sig">static def <b>now</b>(source: clock, offset: zone_offset): offset_date_time</div><p>the current moment of <code>source</code> (a clock a test can control) as shown at <code>offset</code></p></div>
+<div class="fn" id="offset_date_time.of"><div class="sig">static def <b>of</b>(local_date_time: date_time, offset: zone_offset): offset_date_time</div><p>the local date and time <code>local_date_time</code> as seen at <code>offset</code></p></div>
+<div class="fn" id="offset_date_time.of-2"><div class="sig">static def <b>of</b>(day: date, at: time_of_day, offset: zone_offset): offset_date_time</div><p>the given date and time of day as seen at <code>offset</code></p></div>
+<div class="fn" id="offset_date_time.of-3"><div class="sig">static def <b>of</b>(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal, second: decimal, nano: decimal, offset: zone_offset): offset_date_time</div><p>year-month-day hour:minute:second.nano at <code>offset</code>. @throws date_time_exception when a field is out of range</p></div>
+<div class="fn" id="offset_date_time.of_instant"><div class="sig">static def <b>of_instant</b>(moment: instant, offset: zone_offset): offset_date_time</div><p>the moment <code>moment</code> as a clock at <code>offset</code> shows it</p></div>
+<div class="fn" id="offset_date_time.offset"><div class="sig">def <b>offset</b>(): zone_offset</div><p>the offset from UTC</p></div>
+<div class="fn" id="offset_date_time.operator_"><div class="sig">def <b>operator!=</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.operator_-2"><div class="sig">def <b>operator+</b>(amount: duration): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.operator_-3"><div class="sig">def <b>operator-</b>(amount: duration): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.operator_-4"><div class="sig">def <b>operator&lt;</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.operator_-5"><div class="sig">def <b>operator&lt;=</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.operator_-6"><div class="sig">def <b>operator==</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.operator_-7"><div class="sig">def <b>operator&gt;</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.operator_-8"><div class="sig">def <b>operator&gt;=</b>(other: offset_date_time): bool</div></div>
+<div class="fn" id="offset_date_time.parse"><div class="sig">static def <b>parse</b>(text: string): offset_date_time</div><p>Reads <code>YYYY-MM-DDTHH:MM[:SS[.fraction]]</code> followed by an offset (&quot;Z&quot;, &quot;+02:00&quot;, &quot;-0530&quot; ... see zone_offset.parse).</p>
+<p>@throws date_time_exception when the text has another shape, the offset is missing, or a field is out of range</p></div>
+<div class="fn" id="offset_date_time.plus"><div class="sig">def <b>plus</b>(amount: duration): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.plus-2"><div class="sig">def <b>plus</b>(amount: period): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.plus_days"><div class="sig">def <b>plus_days</b>(days: decimal): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.plus_hours"><div class="sig">def <b>plus_hours</b>(hours: decimal): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.plus_minutes"><div class="sig">def <b>plus_minutes</b>(minutes: decimal): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.plus_months"><div class="sig">def <b>plus_months</b>(months: decimal): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.plus_seconds"><div class="sig">def <b>plus_seconds</b>(seconds: decimal): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.plus_years"><div class="sig">def <b>plus_years</b>(years: decimal): offset_date_time</div></div>
+<div class="fn" id="offset_date_time.same_fields"><div class="sig">def <b>same_fields</b>(other: offset_date_time): bool</div><p>true when the local date-time AND the offset are both the same</p></div>
+<div class="fn" id="offset_date_time.second"><div class="sig">def <b>second</b>(): decimal</div></div>
+<div class="fn" id="offset_date_time.to_date"><div class="sig">def <b>to_date</b>(): date</div><p>the local date</p></div>
+<div class="fn" id="offset_date_time.to_date_time"><div class="sig">def <b>to_date_time</b>(): date_time</div><p>the local date and time, without the offset</p></div>
+<div class="fn" id="offset_date_time.to_epoch_second"><div class="sig">def <b>to_epoch_second</b>(): decimal</div><p>whole seconds from 1970-01-01T00:00:00Z to this moment (negative before)</p></div>
+<div class="fn" id="offset_date_time.to_instant"><div class="sig">def <b>to_instant</b>(): instant</div><p>the point on the time line: local date-time minus the offset</p></div>
+<div class="fn" id="offset_date_time.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>ISO-8601: the local date-time followed by the offset (&quot;Z&quot; for UTC): &quot;2024-02-29T15:00:00+02:00&quot;, &quot;2024-02-29T13:00:00Z&quot;.</p></div>
+<div class="fn" id="offset_date_time.to_time"><div class="sig">def <b>to_time</b>(): time_of_day</div><p>the local time of day</p></div>
+<div class="fn" id="offset_date_time.until"><div class="sig">def <b>until</b>(other: offset_date_time): duration</div><p>the exact time from this moment to <code>other</code> (the offsets may differ)</p></div>
+<div class="fn" id="offset_date_time.with_offset_same_instant"><div class="sig">def <b>with_offset_same_instant</b>(offset: zone_offset): offset_date_time</div><p>The SAME MOMENT shown at another offset: the local fields change. 15:00+02:00 becomes 13:00Z, or 08:00-05:00.</p></div>
+<div class="fn" id="offset_date_time.with_offset_same_local"><div class="sig">def <b>with_offset_same_local</b>(offset: zone_offset): offset_date_time</div><p>The SAME LOCAL FIELDS labelled with another offset: the moment changes. 15:00+02:00 becomes 15:00Z, which is two hours later.</p></div>
+<div class="fn" id="offset_date_time.year"><div class="sig">def <b>year</b>(): decimal</div></div>
+</div>
+</section>
+<section class="type" id="period">
+<h2><span class="kind">class</span> period</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/period.sharp">source</a></p>
+<p>An amount of time in calendar units: years, months and days, e.g. &quot;1 year, 2 months and 3 days&quot;.</p>
+<p>Unlike a <code>duration</code>, a period has no fixed length in seconds: adding &quot;1 month&quot; to a date moves it to the same day of the next month, however many days that is. The three fields are independent whole numbers and each may be negative; &quot;14 months&quot; and &quot;1 year 2 months&quot; are different periods until <code>normalized()</code> is called. Days are never converted into months because a month has no fixed number of days.</p>
+<p>Periods are immutable.</p>
+<div class="code"><pre class="sharp">p := period.between(date.of(2020, 1, 15), date.of(2024, 3, 1));
+p.to_string()                      // &quot;P4Y1M15D&quot;
+date.of(2024, 1, 31) + period.of_months(1)    // 2024-02-29
+period.of(0, 14, 0).normalized()   // P1Y2M</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>zero</code></td><td><code>period</code></td><td>a period of nothing</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="period.between"><div class="sig">static def <b>between</b>(start: date, end: date): period</div><p>The years, months and days from <code>start</code> to <code>end</code>, such that <code>start.plus(result)</code> is <code>end</code>. The result is negative in every field when <code>end</code> is before <code>start</code>. Months are always -11 .. 11.</p>
+<p>Method (the one java.time.LocalDate.until uses): count the whole months between the two dates; when the day of the month of <code>end</code> is before that of <code>start</code> the last month is not complete, so take one month off and count the remaining days from <code>start</code> moved forward by the whole months.</p>
+<div class="code"><pre class="sharp">2024-01-31 -&gt; 2024-03-01   P1M1D   (31 Jan + 1 month = 29 Feb, + 1 day)
+2020-02-29 -&gt; 2021-02-28   P11M30D
+2024-03-15 -&gt; 2024-01-10   P-2M-5D</pre></div></div>
+<div class="fn" id="period.days"><div class="sig">def <b>days</b>(): decimal</div></div>
+<div class="fn" id="period.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for equal periods</p></div>
+<div class="fn" id="period.is_negative"><div class="sig">def <b>is_negative</b>(): bool</div><p>true when at least one of the three fields is negative</p></div>
+<div class="fn" id="period.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when all three fields are 0</p></div>
+<div class="fn" id="period.minus"><div class="sig">def <b>minus</b>(other: period): period</div><p>field by field difference</p></div>
+<div class="fn" id="period.months"><div class="sig">def <b>months</b>(): decimal</div></div>
+<div class="fn" id="period.multiplied_by"><div class="sig">def <b>multiplied_by</b>(factor: decimal): period</div><p>Every field multiplied by <code>factor</code> (a whole number, may be negative). @throws date_time_exception when <code>factor</code> is not a whole number</p></div>
+<div class="fn" id="period.negated"><div class="sig">def <b>negated</b>(): period</div><p>every field with the opposite sign</p></div>
+<div class="fn" id="period.normalized"><div class="sig">def <b>normalized</b>(): period</div><p>The same amount with the months brought into -11 .. 11 by moving whole dozens into the years, and years and months given the same sign: 14 months -&gt; 1 year 2 months; 1 year -1 month -&gt; 11 months; -1 year 3 months -&gt; -9 months. The days are left alone.</p></div>
+<div class="fn" id="period.of"><div class="sig">static def <b>of</b>(years: decimal, months: decimal, days: decimal): period</div><p>A period of <code>years</code> years, <code>months</code> months and <code>days</code> days. Each may be negative; nothing is normalised (of(0, 14, 0) stays 14 months). @throws date_time_exception when an argument is not a whole number</p></div>
+<div class="fn" id="period.of_days"><div class="sig">static def <b>of_days</b>(days: decimal): period</div></div>
+<div class="fn" id="period.of_months"><div class="sig">static def <b>of_months</b>(months: decimal): period</div></div>
+<div class="fn" id="period.of_weeks"><div class="sig">static def <b>of_weeks</b>(weeks: decimal): period</div><p>a period of <code>weeks</code> weeks, stored as weeks * 7 days</p></div>
+<div class="fn" id="period.of_years"><div class="sig">static def <b>of_years</b>(years: decimal): period</div></div>
+<div class="fn" id="period.operator_"><div class="sig">def <b>operator!=</b>(other: period): bool</div></div>
+<div class="fn" id="period.operator_-2"><div class="sig">def <b>operator*</b>(factor: decimal): period</div></div>
+<div class="fn" id="period.operator_-3"><div class="sig">def <b>operator+</b>(other: period): period</div></div>
+<div class="fn" id="period.operator_-4"><div class="sig">def <b>operator-</b>(other: period): period</div></div>
+<div class="fn" id="period.operator_-5"><div class="sig">def <b>operator==</b>(other: period): bool</div><p>1 when all three fields are the same. Periods are compared field by field without normalising: 12 months is NOT equal to 1 year.</p></div>
+<div class="fn" id="period.parse"><div class="sig">static def <b>parse</b>(text: string): period</div><p>Reads an ISO-8601 period: <code>[-+]P[nY][nM][nW][nD]</code>, upper or lower case. Each number may have its own sign, a sign before the P negates all fields, and weeks are turned into days (n * 7, added to the D field):</p>
+<div class="code"><pre class="sharp">&quot;P1Y2M3D&quot;   &quot;P2W&quot;  (14 days)   &quot;P1W3D&quot;  (10 days)   &quot;-P1Y&quot;   &quot;P-1Y2M&quot;</pre></div>
+<p>@throws date_time_exception when the text has another shape, has no field at all (&quot;P&quot;), or has the fields out of order</p></div>
+<div class="fn" id="period.plus"><div class="sig">def <b>plus</b>(other: period): period</div><p>field by field sum: years + years, months + months, days + days</p></div>
+<div class="fn" id="period.plus_days"><div class="sig">def <b>plus_days</b>(days: decimal): period</div></div>
+<div class="fn" id="period.plus_months"><div class="sig">def <b>plus_months</b>(months: decimal): period</div></div>
+<div class="fn" id="period.plus_years"><div class="sig">def <b>plus_years</b>(years: decimal): period</div></div>
+<div class="fn" id="period.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>The ISO-8601 form: &#x27;P&#x27;, then each field that is not zero with its letter: &quot;P1Y2M3D&quot;, &quot;P14M&quot;, &quot;P-1Y-2D&quot;. A zero period is &quot;P0D&quot;.</p></div>
+<div class="fn" id="period.to_total_months"><div class="sig">def <b>to_total_months</b>(): decimal</div><p>years * 12 + months: the period&#x27;s years and months as one number of months</p></div>
+<div class="fn" id="period.with_days"><div class="sig">def <b>with_days</b>(days: decimal): period</div><p>a copy with the days replaced</p></div>
+<div class="fn" id="period.with_months"><div class="sig">def <b>with_months</b>(months: decimal): period</div><p>a copy with the months replaced</p></div>
+<div class="fn" id="period.with_years"><div class="sig">def <b>with_years</b>(years: decimal): period</div><p>a copy with the years replaced</p></div>
+<div class="fn" id="period.years"><div class="sig">def <b>years</b>(): decimal</div></div>
+</div>
+</section>
+<section class="type" id="rate_limiter">
+<h2><span class="kind">class</span> rate_limiter</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/rate_limiter.sharp">source</a></p>
+<p>Limits how often something may happen: at most <code>permits</code> times per <code>window</code>, e.g. 5 requests per second.</p>
+<p>It never waits and starts no thread. The caller asks <code>try_acquire()</code> before doing the thing; the answer is 1 (&quot;go ahead&quot;, one permit is used up) or 0 (&quot;not now&quot;). <code>time_until_available()</code> says how long to wait.</p>
+<p>Algorithm: TOKEN BUCKET ----------------------- Picture a bucket that holds at most <code>permits</code> tokens and starts full. Each allowed action takes one token out. Tokens drip back in at a steady rate of one every <code>window / permits</code> (5 per second = one every 200 ms) until the bucket is full again. So a burst of up to <code>permits</code> actions is allowed at once, and over a long time the rate cannot exceed permits per window.</p>
+<p>To stay exact the bucket does not store a fractional token count. It stores how many whole tokens it has and the moment <code>refilled_at</code> up to which dripping has been accounted for; on each call the whole number of drip intervals since then is added and <code>refilled_at</code> moves forward by exactly that many intervals, so no time is lost to rounding.</p>
+<p>The time comes from a <code>clock</code> (system clock by default, a <code>manual_clock</code> in tests). The class is not synchronised: share it between threads only under a lock.</p>
+<div class="code"><pre class="sharp">limiter := new rate_limiter(5, duration.of_seconds(1));
+if(limiter.try_acquire()) { send_request(); }</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="rate_limiter.rate_limiter"><div class="sig"><b>rate_limiter</b>(permits: decimal, window: duration)</div><p>At most <code>permits</code> per <code>window</code>, on the system clock. Starts full. @throws date_time_exception when <code>permits</code> is not a whole number of at least 1, or <code>window</code> is not longer than zero, or the window is so short that one permit would take less than a nanosecond</p></div>
+<div class="fn" id="rate_limiter.rate_limiter-2"><div class="sig"><b>rate_limiter</b>(permits: decimal, window: duration, time_source: clock)</div><p>as above, reading the time from <code>time_source</code></p></div>
+<div class="fn" id="rate_limiter.available"><div class="sig">def <b>available</b>(): decimal</div><p>how many permits could be taken right now: 0 .. the bucket size</p></div>
+<div class="fn" id="rate_limiter.interval"><div class="sig">def <b>interval</b>(): duration</div><p>the time it takes for one permit to come back: window / permits</p></div>
+<div class="fn" id="rate_limiter.permits_per_window"><div class="sig">def <b>permits_per_window</b>(): decimal</div><p>the most permits that can be saved up (the <code>permits</code> the limiter was created with)</p></div>
+<div class="fn" id="rate_limiter.time_until_available"><div class="sig">def <b>time_until_available</b>(): duration</div><p>how long until one permit is available; <code>duration.zero</code> when one is available now</p></div>
+<div class="fn" id="rate_limiter.time_until_available-2"><div class="sig">def <b>time_until_available</b>(count: decimal): duration</div><p>How long until <code>count</code> permits are available at once; <code>duration.zero</code> when they are available now. @throws date_time_exception when <code>count</code> is not a whole number in 1 .. the bucket size</p></div>
+<div class="fn" id="rate_limiter.try_acquire"><div class="sig">def <b>try_acquire</b>(): bool</div><p>takes one permit when one is available; returns true when it did, false when the caller must not proceed</p></div>
+<div class="fn" id="rate_limiter.try_acquire-2"><div class="sig">def <b>try_acquire</b>(count: decimal): bool</div><p>Takes <code>count</code> permits at once when that many are available (all or nothing); returns true when it did. @throws date_time_exception when <code>count</code> is not a whole number in 1 .. the bucket size</p></div>
+</div>
+</section>
+<section class="type" id="stopwatch">
+<h2><span class="kind">class</span> stopwatch</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/stopwatch.sharp">source</a></p>
+<p>Measures elapsed time: start it, stop it, read how long it ran.</p>
+<p>A stopwatch can be stopped and started again; the time adds up, like the stopwatch on a phone. <code>lap()</code> records the time since the previous lap (or since the start) without stopping.</p>
+<p>The time comes from a <code>clock</code>. With no argument that is the system clock; a test passes a <code>manual_clock</code> and gets exact, repeatable numbers.</p>
+<p>How it stays exact: the stopwatch keeps the INSTANT it was started at and computes <code>duration.between(started_at, clock.now())</code>. Both are stored as seconds + nanoseconds, so the subtraction is exact. For one block of code, <code>measure_time { ... }</code> (measure.sharp) does the starting and stopping.</p>
+<p>NOTE: the system clock is not monotonic (see <code>system_clock</code>). When it is set back while a stopwatch runs the raw difference would be negative; the stopwatch reports zero for that stretch instead of a negative time.</p>
+<div class="code"><pre class="sharp">watch := stopwatch.started();
+do_work();
+println(&quot;took &quot; + watch.elapsed().to_string());     // e.g. &quot;took 1.25s&quot;</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="stopwatch.stopwatch"><div class="sig"><b>stopwatch</b>()</div><p>a stopped stopwatch on the system clock, showing zero</p></div>
+<div class="fn" id="stopwatch.stopwatch-2"><div class="sig"><b>stopwatch</b>(time_source: clock)</div><p>a stopped stopwatch that reads <code>time_source</code>, showing zero</p></div>
+<div class="fn" id="stopwatch.elapsed"><div class="sig">def <b>elapsed</b>(): duration</div><p>The total time measured so far: all finished runs plus, when running, the current one. Can be read at any time, running or stopped.</p></div>
+<div class="fn" id="stopwatch.elapsed_millis"><div class="sig">def <b>elapsed_millis</b>(): decimal</div><p><code>elapsed()</code> in whole milliseconds</p></div>
+<div class="fn" id="stopwatch.is_running"><div class="sig">def <b>is_running</b>(): bool</div><p>1 while the stopwatch is measuring</p></div>
+<div class="fn" id="stopwatch.lap"><div class="sig">def <b>lap</b>(): duration</div><p>Records a lap: returns the time measured since the previous <code>lap()</code> (or since the stopwatch started from zero) and remembers it. The stopwatch keeps running. Only time during which the stopwatch was running counts.</p></div>
+<div class="fn" id="stopwatch.lap_at"><div class="sig">def <b>lap_at</b>(index: decimal): duration</div><p>The time of lap number <code>index</code> (0 is the first lap). @throws out_of_bounds_exception when there is no such lap</p></div>
+<div class="fn" id="stopwatch.lap_count"><div class="sig">def <b>lap_count</b>(): decimal</div><p>how many laps have been recorded since the last reset</p></div>
+<div class="fn" id="stopwatch.laps"><div class="sig">def <b>laps</b>(): duration[]</div><p>all recorded lap times in order, as a new array (empty when there are none)</p></div>
+<div class="fn" id="stopwatch.reset"><div class="sig">def <b>reset</b>(): stopwatch</div><p>stops the stopwatch (when running), sets it back to zero and forgets all laps</p></div>
+<div class="fn" id="stopwatch.restart"><div class="sig">def <b>restart</b>(): stopwatch</div><p><code>reset()</code> followed by <code>start()</code>: measuring begins again from zero</p></div>
+<div class="fn" id="stopwatch.start"><div class="sig">def <b>start</b>(): stopwatch</div><p>Starts (or continues) measuring. The time already measured is kept. @throws illegal_state_exception when the stopwatch is already running</p></div>
+<div class="fn" id="stopwatch.started"><div class="sig">static def <b>started</b>(): stopwatch</div><p>a new stopwatch on the system clock that is already running</p></div>
+<div class="fn" id="stopwatch.started-2"><div class="sig">static def <b>started</b>(time_source: clock): stopwatch</div><p>a new stopwatch on <code>time_source</code> that is already running</p></div>
+<div class="fn" id="stopwatch.stop"><div class="sig">def <b>stop</b>(): duration</div><p>Stops measuring and returns the total elapsed time. The stopwatch keeps that time and can be started again to add to it. @throws illegal_state_exception when the stopwatch is not running</p></div>
+<div class="fn" id="stopwatch.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>the elapsed time in readable form, e.g. &quot;1.25s&quot; (see duration.to_string)</p></div>
+</div>
+</section>
+<section class="type" id="system_clock">
+<h2><span class="kind">class</span> system_clock</h2>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/system_clock.sharp">source</a></p>
+<p>The real clock: the operating system&#x27;s time, read through the runtime&#x27;s nanosecond clock (vm.time_in_nanoseconds, nanoseconds since 1970-01-01T00:00:00Z).</p>
+<p>Things to know about it ----------------------- - It is the SYSTEM (&quot;wall&quot;) clock. It can jump forwards or backwards when the operating system corrects the time (NTP, a user changing the clock). The runtime has no monotonic clock, so elapsed times measured with it (<code>stopwatch</code>, measure_time) can occasionally be wrong by the size of such a correction, or even negative. - The runtime returns the reading as one <code>decimal</code>. A <code>decimal</code> holds whole numbers exactly only up to 2^53; the reading is about 1.7e18, where neighbouring <code>decimal</code> values are 256 ns apart. The reading is therefore only good to about a quarter of a microsecond. <code>now()</code> splits it into whole seconds and nanoseconds at once (see below) so nothing more is lost afterwards.</p>
+<p>There is one shared object: <code>system_clock.instance</code>.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>instance</code></td><td><code>system_clock</code></td><td>the one system clock; it has no state, so everybody can share it</td></tr><tr><td><code>local_second</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>local_minute</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>local_hour</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>local_day</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>local_month</code></td><td><code>_int64</code></td><td>0 is January</td></tr><tr><td><code>local_year</code></td><td><code>_int64</code></td><td>years since 1900</td></tr><tr><td><code>local_week_day</code></td><td><code>_int64</code></td><td>0 is Sunday</td></tr><tr><td><code>local_year_day</code></td><td><code>_int64</code></td><td>0 is the first of January</td></tr><tr><td><code>local_daylight_saving</code></td><td><code>_int64</code></td><td>above 0 while daylight saving time is in force</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="system_clock.local_field"><div class="sig">static def <b>local_field</b>(which: _int64): decimal</div><p>one field of the local time right now: <code>system_clock.local_field(system_clock.local_hour)</code></p></div>
+<div class="fn" id="system_clock.micros"><div class="sig">def <b>micros</b>(): decimal</div><p>microseconds since 1970-01-01T00:00:00Z right now</p></div>
+<div class="fn" id="system_clock.millis"><div class="sig">def <b>millis</b>(): decimal</div><p>milliseconds since 1970-01-01T00:00:00Z right now (the same value as std <code>utc_mills()</code>)</p></div>
+<div class="fn" id="system_clock.nanos"><div class="sig">def <b>nanos</b>(): decimal</div><p>nanoseconds since 1970-01-01T00:00:00Z right now (the same value as std <code>nano_time()</code>), good to about 256 of them</p></div>
+<div class="fn" id="system_clock.now"><div class="sig">override def <b>now</b>(): instant</div><p>The current moment.</p>
+<p>The split: <code>%</code> works on the whole-number value, so <code>reading % 1e9</code> is the exact nanosecond-of-second of the (already rounded) reading, and <code>reading - that</code> is an exact multiple of 1e9 which divides without a fraction. No intermediate value is rounded.</p></div>
+</div>
+</section>
+<section class="type" id="time_math">
+<h2><span class="kind">class</span> time_math</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/time_math.sharp">source</a></p>
+<p>Small whole-number helpers shared by the classes in std.time.</p>
+<p>Why they are needed ------------------- <code>decimal</code> is a 64-bit floating point number. Whole numbers are exact up to 2^53 (9,007,199,254,740,992), <code>/</code> keeps the fraction (7 / 2 == 3.5) and <code>%</code> first drops the fraction of both sides and then gives the remainder with the sign of the LEFT side, like C (-7 % 3 == -1).</p>
+<p>Calendar arithmetic needs FLOOR division instead: the day before 1970-01-01 is day -1 and belongs to the week, month and year that came before, not to a mirrored copy of the ones after. floor_div and floor_mod round towards negative infinity:</p>
+<div class="code"><pre class="sharp">floor_div(-7, 3) == -3      floor_mod(-7, 3) == 2      (-3 * 3 + 2 == -7)
+floor_div( 7, 3) ==  2      floor_mod( 7, 3) == 1</pre></div>
+<p>All functions expect whole numbers whose size is below 2^53.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>max_exact</code></td><td><code>decimal</code></td><td>the largest whole number a <code>decimal</code> holds exactly: 2^53</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="time_math.abs"><div class="sig">static def <b>abs</b>(n: decimal): decimal</div><p>the size of <code>n</code> without its sign</p></div>
+<div class="fn" id="time_math.check_range"><div class="sig">static def <b>check_range</b>(what: string, value: decimal, min: decimal, max: decimal)</div><p>Makes sure <code>value</code> is a whole number in min .. max (both included).</p>
+<p>@throws date_time_exception &quot;&lt;what&gt; must be &lt;min&gt; to &lt;max&gt; but was &lt;value&gt;&quot;</p></div>
+<div class="fn" id="time_math.check_whole"><div class="sig">static def <b>check_whole</b>(what: string, value: decimal)</div><p>Makes sure <code>value</code> is a whole number that a <code>decimal</code> can hold exactly.</p>
+<p>@throws date_time_exception when it has a fraction or is 2^53 or more in size</p></div>
+<div class="fn" id="time_math.compare"><div class="sig">static def <b>compare</b>(a: decimal, b: decimal): decimal</div><p>-1 when a is less than b, 0 when they are equal, 1 when a is greater</p></div>
+<div class="fn" id="time_math.floor_div"><div class="sig">static def <b>floor_div</b>(a: decimal, b: decimal): decimal</div><p>a / b rounded DOWN (towards negative infinity). <code>b</code> must be greater than 0. The remainder is taken off first, so the division itself has no fraction and the result is exact.</p></div>
+<div class="fn" id="time_math.floor_mod"><div class="sig">static def <b>floor_mod</b>(a: decimal, b: decimal): decimal</div><p>The remainder of a / b that is never negative: a value in 0 .. b-1. <code>b</code> must be greater than 0.</p></div>
+<div class="fn" id="time_math.fraction_of"><div class="sig">static def <b>fraction_of</b>(n: decimal): decimal</div><p>the part of <code>n</code> after the decimal point, with the sign of n: 2.75 -&gt; 0.75</p></div>
+<div class="fn" id="time_math.is_whole"><div class="sig">static def <b>is_whole</b>(n: decimal): bool</div><p>true when <code>n</code> has no fraction</p></div>
+<div class="fn" id="time_math.number_text"><div class="sig">static def <b>number_text</b>(n: decimal): string</div><p>A number as text for error messages: whole numbers as <code>whole_text</code>, others with up to 9 digits after the point (2.5 -&gt; &quot;2.5&quot;).</p></div>
+<div class="fn" id="time_math.trunc"><div class="sig">static def <b>trunc</b>(n: decimal): decimal</div><p>drops the fraction of <code>n</code> (rounds towards zero): 2.9 -&gt; 2, -2.9 -&gt; -2</p></div>
+<div class="fn" id="time_math.trunc_div"><div class="sig">static def <b>trunc_div</b>(a: decimal, b: decimal): decimal</div><p>a / b with the fraction dropped (rounded towards zero), b greater than 0</p></div>
+<div class="fn" id="time_math.whole_text"><div class="sig">static def <b>whole_text</b>(n: decimal): string</div><p>The digits of a whole number as text, without the &quot;.0000&quot; that <code>&quot;&quot; + number</code> prints: 42 -&gt; &quot;42&quot;, -7 -&gt; &quot;-7&quot;. A fraction is dropped.</p></div>
+</div>
+</section>
+<section class="type" id="time_of_day">
+<h2><span class="kind">class</span> time_of_day</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/time_of_day.sharp">source</a></p>
+<p>A time as shown by a wall clock, without a date and without a time zone: hour, minute, second and nanosecond, e.g. 13:45:30.5.</p>
+<p>Range: 00:00:00.000000000 (midnight) to 23:59:59.999999999. There is no 24:00 and no leap second (second 60).</p>
+<p>Arithmetic WRAPS AROUND midnight: 23:00 plus 2 hours is 01:00, and 00:10 minus 20 minutes is 23:50. Use <code>date_time</code> when the change of day matters. Values are immutable: every operation returns a new time.</p>
+<p>A time of day is at most 86,400 * 1e9 = 8.64e13 nanoseconds, far below 2^53, so the whole value fits in one <code>decimal</code> exactly (<code>to_nano_of_day</code>).</p>
+<div class="code"><pre class="sharp">t := time_of_day.of(13, 45, 30);
+t.plus_hours(12)            // 01:45:30
+t.to_second_of_day()        // 49530
+t.to_string()               // &quot;13:45:30&quot;
+time_of_day.parse(&quot;07:05:00.250&quot;).nano()   // 250000000</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>nanos_per_second</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>seconds_per_day</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>nanos_per_day</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>midnight</code></td><td><code>time_of_day</code></td><td>00:00:00, the start of the day</td></tr><tr><td><code>noon</code></td><td><code>time_of_day</code></td><td>12:00:00</td></tr><tr><td><code>min</code></td><td><code>time_of_day</code></td><td>the earliest time: 00:00:00</td></tr><tr><td><code>max</code></td><td><code>time_of_day</code></td><td>the latest time: 23:59:59.999999999</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="time_of_day.at_date"><div class="sig">def <b>at_date</b>(day: date): date_time</div><p>this time on the given date</p></div>
+<div class="fn" id="time_of_day.compare_to"><div class="sig">def <b>compare_to</b>(other: time_of_day): decimal</div><p>-1 when this time is earlier in the day than <code>other</code>, 0 when equal, 1 when later</p></div>
+<div class="fn" id="time_of_day.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for equal times</p></div>
+<div class="fn" id="time_of_day.hour"><div class="sig">def <b>hour</b>(): decimal</div><p>0 .. 23</p></div>
+<div class="fn" id="time_of_day.hour_12"><div class="sig">def <b>hour_12</b>(): decimal</div><p>the hour on a 12-hour clock: 12, 1, 2 ... 11 (midnight and noon are 12)</p></div>
+<div class="fn" id="time_of_day.is_after"><div class="sig">def <b>is_after</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.is_before"><div class="sig">def <b>is_before</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.is_pm"><div class="sig">def <b>is_pm</b>(): bool</div><p>1 from 12:00 on (PM), 0 before noon (AM)</p></div>
+<div class="fn" id="time_of_day.milli"><div class="sig">def <b>milli</b>(): decimal</div><p>the fraction of the second in whole milliseconds: 0 .. 999</p></div>
+<div class="fn" id="time_of_day.minus"><div class="sig">def <b>minus</b>(amount: duration): time_of_day</div><p>this time minus a duration, wrapping around midnight</p></div>
+<div class="fn" id="time_of_day.minus_hours"><div class="sig">def <b>minus_hours</b>(hours: decimal): time_of_day</div></div>
+<div class="fn" id="time_of_day.minus_minutes"><div class="sig">def <b>minus_minutes</b>(minutes: decimal): time_of_day</div></div>
+<div class="fn" id="time_of_day.minus_nanos"><div class="sig">def <b>minus_nanos</b>(nanos: decimal): time_of_day</div></div>
+<div class="fn" id="time_of_day.minus_seconds"><div class="sig">def <b>minus_seconds</b>(seconds: decimal): time_of_day</div></div>
+<div class="fn" id="time_of_day.minute"><div class="sig">def <b>minute</b>(): decimal</div><p>0 .. 59</p></div>
+<div class="fn" id="time_of_day.nano"><div class="sig">def <b>nano</b>(): decimal</div><p>the fraction of the second in nanoseconds: 0 .. 999,999,999</p></div>
+<div class="fn" id="time_of_day.now"><div class="sig">static def <b>now</b>(): time_of_day</div><p>the current time of day in UTC, read from the system clock</p></div>
+<div class="fn" id="time_of_day.now-2"><div class="sig">static def <b>now</b>(source: clock, offset: zone_offset): time_of_day</div><p>the time of day at <code>offset</code> from UTC according to <code>source</code> (a clock a test can control)</p></div>
+<div class="fn" id="time_of_day.of"><div class="sig">static def <b>of</b>(hour: decimal, minute: decimal, second: decimal, nano: decimal): time_of_day</div><p>hour:minute:second.nano @throws date_time_exception when hour is not 0 .. 23, minute or second not 0 .. 59, or nano not 0 .. 999,999,999</p></div>
+<div class="fn" id="time_of_day.of-2"><div class="sig">static def <b>of</b>(hour: decimal, minute: decimal, second: decimal): time_of_day</div><p>hour:minute:second with no fraction (ranges as above)</p></div>
+<div class="fn" id="time_of_day.of-3"><div class="sig">static def <b>of</b>(hour: decimal, minute: decimal): time_of_day</div><p>hour:minute:00 (ranges as above)</p></div>
+<div class="fn" id="time_of_day.of_nano_of_day"><div class="sig">static def <b>of_nano_of_day</b>(nano_of_day: decimal): time_of_day</div><p>The time that is <code>nano_of_day</code> nanoseconds after midnight. @throws date_time_exception when it is not 0 .. 86,399,999,999,999</p></div>
+<div class="fn" id="time_of_day.of_second_of_day"><div class="sig">static def <b>of_second_of_day</b>(second_of_day: decimal): time_of_day</div><p>The time that is <code>second_of_day</code> seconds after midnight. @throws date_time_exception when it is not 0 .. 86,399</p></div>
+<div class="fn" id="time_of_day.operator_"><div class="sig">def <b>operator!=</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.operator_-2"><div class="sig">def <b>operator+</b>(amount: duration): time_of_day</div><p>time + duration, as <code>plus</code> (wraps around midnight)</p></div>
+<div class="fn" id="time_of_day.operator_-3"><div class="sig">def <b>operator-</b>(amount: duration): time_of_day</div><p>time - duration, as <code>minus</code> (wraps around midnight)</p></div>
+<div class="fn" id="time_of_day.operator_-4"><div class="sig">def <b>operator&lt;</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.operator_-5"><div class="sig">def <b>operator&lt;=</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.operator_-6"><div class="sig">def <b>operator==</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.operator_-7"><div class="sig">def <b>operator&gt;</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.operator_-8"><div class="sig">def <b>operator&gt;=</b>(other: time_of_day): bool</div></div>
+<div class="fn" id="time_of_day.parse"><div class="sig">static def <b>parse</b>(text: string): time_of_day</div><p>Reads <code>HH:MM</code>, <code>HH:MM:SS</code> or <code>HH:MM:SS.fraction</code> (1 to 9 fraction digits, after &#x27;.&#x27; or &#x27;,&#x27;): &quot;13:45&quot;, &quot;13:45:30&quot;, &quot;07:05:00.25&quot;.</p>
+<p>@throws date_time_exception when the text has another shape or a field is out of range (&quot;24:00&quot;, &quot;12:60&quot;)</p></div>
+<div class="fn" id="time_of_day.plus"><div class="sig">def <b>plus</b>(amount: duration): time_of_day</div><p>This time plus a duration, wrapping around midnight; whole days in the duration have no effect (10:00 plus 25 hours is 11:00).</p></div>
+<div class="fn" id="time_of_day.plus_hours"><div class="sig">def <b>plus_hours</b>(hours: decimal): time_of_day</div><p><code>hours</code> hours later (earlier when negative), wrapping around midnight</p></div>
+<div class="fn" id="time_of_day.plus_minutes"><div class="sig">def <b>plus_minutes</b>(minutes: decimal): time_of_day</div><p><code>minutes</code> minutes later (earlier when negative), wrapping around midnight</p></div>
+<div class="fn" id="time_of_day.plus_nanos"><div class="sig">def <b>plus_nanos</b>(nanos: decimal): time_of_day</div><p><code>nanos</code> nanoseconds later (earlier when negative), wrapping around midnight. The argument is reduced modulo one day first, so any whole number below 2^53 is fine.</p></div>
+<div class="fn" id="time_of_day.plus_seconds"><div class="sig">def <b>plus_seconds</b>(seconds: decimal): time_of_day</div><p><code>seconds</code> seconds later (earlier when negative), wrapping around midnight</p></div>
+<div class="fn" id="time_of_day.read_from"><div class="sig">static def <b>read_from</b>(r: time_text_reader): time_of_day</div><p>reads a time at the cursor of <code>r</code> and leaves the cursor after it (shared with date_time)</p></div>
+<div class="fn" id="time_of_day.second"><div class="sig">def <b>second</b>(): decimal</div><p>0 .. 59</p></div>
+<div class="fn" id="time_of_day.to_nano_of_day"><div class="sig">def <b>to_nano_of_day</b>(): decimal</div><p>nanoseconds since midnight: 0 .. 86,399,999,999,999 (exact)</p></div>
+<div class="fn" id="time_of_day.to_second_of_day"><div class="sig">def <b>to_second_of_day</b>(): decimal</div><p>whole seconds since midnight: 0 .. 86,399 (the fraction is dropped)</p></div>
+<div class="fn" id="time_of_day.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p><code>HH:MM:SS</code>, followed by the fraction when there is one, as 3, 6 or 9 digits (the fewest that lose nothing): &quot;13:45:30&quot;, &quot;07:05:00.250&quot;, &quot;00:00:00.000001&quot;, &quot;23:59:59.999999999&quot;.</p></div>
+<div class="fn" id="time_of_day.truncated_to_hours"><div class="sig">def <b>truncated_to_hours</b>(): time_of_day</div><p>this time with minutes, seconds and fraction set to 0</p></div>
+<div class="fn" id="time_of_day.truncated_to_minutes"><div class="sig">def <b>truncated_to_minutes</b>(): time_of_day</div><p>this time with seconds and fraction set to 0</p></div>
+<div class="fn" id="time_of_day.truncated_to_seconds"><div class="sig">def <b>truncated_to_seconds</b>(): time_of_day</div><p>this time with the fraction of the second removed</p></div>
+<div class="fn" id="time_of_day.until"><div class="sig">def <b>until</b>(other: time_of_day): duration</div><p>The time from this time to <code>other</code> on the same day: positive when <code>other</code> is later, negative when it is earlier (no wrapping: 23:00 until 01:00 is -22 hours).</p></div>
+<div class="fn" id="time_of_day.with_hour"><div class="sig">def <b>with_hour</b>(hour: decimal): time_of_day</div><p>@throws date_time_exception when <code>hour</code> is not 0 .. 23</p></div>
+<div class="fn" id="time_of_day.with_minute"><div class="sig">def <b>with_minute</b>(minute: decimal): time_of_day</div><p>@throws date_time_exception when <code>minute</code> is not 0 .. 59</p></div>
+<div class="fn" id="time_of_day.with_nano"><div class="sig">def <b>with_nano</b>(nano: decimal): time_of_day</div><p>@throws date_time_exception when <code>nano</code> is not 0 .. 999,999,999</p></div>
+<div class="fn" id="time_of_day.with_second"><div class="sig">def <b>with_second</b>(second: decimal): time_of_day</div><p>@throws date_time_exception when <code>second</code> is not 0 .. 59</p></div>
+<div class="fn" id="time_of_day.write_to"><div class="sig">def <b>write_to</b>(w: time_text_writer)</div><p>appends the <code>HH:MM:SS[.fff]</code> form to <code>w</code> (shared with date_time)</p></div>
+</div>
+</section>
+<section class="type" id="time_text_reader">
+<h2><span class="kind">class</span> time_text_reader</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/time_text_reader.sharp">source</a></p>
+<p>A cursor over a string, used by every <code>parse</code> function in std.time.</p>
+<p>It reads from left to right and remembers where it is. The read functions throw a date_time_exception that names the text and the position when the text is not what they were asked to read, so the parsers built on it stay short and all report errors the same way:</p>
+<div class="code"><pre class="sharp">r := new time_text_reader(&quot;2024-02-29&quot;, &quot;date&quot;);
+year : decimal = r.read_digits(4, 4);      // 2024
+r.expect(&#x27;-&#x27;);
+month : decimal = r.read_digits(2, 2);     // 2
+...
+r.expect_end();</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="time_text_reader.time_text_reader"><div class="sig"><b>time_text_reader</b>(text: string, what: string)</div></div>
+<div class="fn" id="time_text_reader.accept"><div class="sig">def <b>accept</b>(ch: decimal): bool</div><p>consumes the next character when it is <code>ch</code>; returns true when it did</p></div>
+<div class="fn" id="time_text_reader.accept_ignore_case"><div class="sig">def <b>accept_ignore_case</b>(ch: decimal): bool</div><p>Like <code>accept</code> but upper and lower case letters are the same (<code>ch</code> may be given in either case).</p></div>
+<div class="fn" id="time_text_reader.accept_word"><div class="sig">def <b>accept_word</b>(words: string[]): decimal</div><p>Tries each of <code>words</code> at the cursor, ignoring upper/lower case, and consumes the first one that matches. Returns its index, or -1 when none matches (nothing is consumed then). Put longer words first when one is the start of another.</p></div>
+<div class="fn" id="time_text_reader.at_digit"><div class="sig">def <b>at_digit</b>(): bool</div><p>true when the next character is a digit 0-9</p></div>
+<div class="fn" id="time_text_reader.at_end"><div class="sig">def <b>at_end</b>(): bool</div><p>true when every character has been read</p></div>
+<div class="fn" id="time_text_reader.count_digits"><div class="sig">def <b>count_digits</b>(): decimal</div><p>how many digits follow from the cursor on, without consuming them</p></div>
+<div class="fn" id="time_text_reader.expect"><div class="sig">def <b>expect</b>(ch: decimal)</div><p>The next character must be <code>ch</code>. @throws date_time_exception when it is something else or the text has ended</p></div>
+<div class="fn" id="time_text_reader.expect_end"><div class="sig">def <b>expect_end</b>()</div><p>Nothing may be left to read. @throws date_time_exception when there are characters after the parsed value</p></div>
+<div class="fn" id="time_text_reader.failure"><div class="sig">def <b>failure</b>(reason: string): date_time_exception</div><p>Builds the exception every parser throws: <code>cannot parse &lt;what&gt; &quot;&lt;text&gt;&quot;: &lt;reason&gt; at index &lt;n&gt;</code>.</p></div>
+<div class="fn" id="time_text_reader.index"><div class="sig">def <b>index</b>(): decimal</div><p>index of the next character (0 at the start)</p></div>
+<div class="fn" id="time_text_reader.is_digit"><div class="sig">static def <b>is_digit</b>(ch: decimal): bool</div><p>true when <code>ch</code> is one of the characters &#x27;0&#x27; .. &#x27;9&#x27;</p></div>
+<div class="fn" id="time_text_reader.is_letter"><div class="sig">static def <b>is_letter</b>(ch: decimal): bool</div><p>true when <code>ch</code> is a letter a-z or A-Z</p></div>
+<div class="fn" id="time_text_reader.lower"><div class="sig">static def <b>lower</b>(ch: decimal): decimal</div><p>the lower case form of an upper case letter A-Z; anything else unchanged</p></div>
+<div class="fn" id="time_text_reader.next"><div class="sig">def <b>next</b>(): decimal</div><p>Consumes and returns the next character. @throws date_time_exception at the end of the text</p></div>
+<div class="fn" id="time_text_reader.peek"><div class="sig">def <b>peek</b>(): decimal</div><p>the next character without consuming it, or 0 at the end</p></div>
+<div class="fn" id="time_text_reader.peek_at"><div class="sig">def <b>peek_at</b>(ahead: decimal): decimal</div><p>the character <code>ahead</code> places after the next one without consuming, or 0 past the end</p></div>
+<div class="fn" id="time_text_reader.read_digits"><div class="sig">def <b>read_digits</b>(min_digits: decimal, max_digits: decimal): decimal</div><p>Reads a whole number that is not negative: at least <code>min_digits</code> and at most <code>max_digits</code> digits (it stops at <code>max_digits</code> even when more digits follow, which is what makes &quot;20240229&quot; readable as 4 + 2 + 2).</p>
+<p>@throws date_time_exception when fewer than <code>min_digits</code> digits are found</p></div>
+<div class="fn" id="time_text_reader.read_fraction_as_nanos"><div class="sig">def <b>read_fraction_as_nanos</b>(min_digits: decimal, max_digits: decimal): decimal</div><p>Reads the digits of a fraction (the part after a &#x27;.&#x27; or &#x27;,&#x27;) and scales them to nanoseconds: &quot;5&quot; -&gt; 500,000,000, &quot;000001&quot; -&gt; 1,000. Between <code>min_digits</code> and <code>max_digits</code> (at most 9) digits are read.</p>
+<p>@throws date_time_exception when fewer than <code>min_digits</code> digits are found</p></div>
+<div class="fn" id="time_text_reader.remaining"><div class="sig">def <b>remaining</b>(): decimal</div><p>how many characters are left</p></div>
+<div class="fn" id="time_text_reader.seek"><div class="sig">def <b>seek</b>(new_position: decimal)</div><p>moves the cursor back (or forward) to an index returned by <code>index()</code></p></div>
+</div>
+</section>
+<section class="type" id="time_text_writer">
+<h2><span class="kind">class</span> time_text_writer</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/time_text_writer.sharp">source</a></p>
+<p>A small text buffer used by std.time to build its strings: characters are appended to a byte array that grows by doubling, and <code>text()</code> copies the used part into a string.</p>
+<p>It exists because numbers have to be written as plain digits (&quot;7&quot;, &quot;07&quot;, &quot;2024&quot;) and <code>&quot;&quot; + number</code> prints a <code>decimal</code> with sixteen decimals. Nothing in here knows about dates; it only knows digits, padding and fractions.</p>
+<div class="code"><pre class="sharp">w := new time_text_writer();
+w.put_padded(7, 2);          // &quot;07&quot;
+w.put(&#x27;:&#x27;);
+w.put_padded(30, 2);         // &quot;07:30&quot;
+s := w.text();</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="time_text_writer.put"><div class="sig">def <b>put</b>(ch: _int8): time_text_writer</div><p>appends one character</p></div>
+<div class="fn" id="time_text_writer.put_fraction"><div class="sig">def <b>put_fraction</b>(nanos: decimal, fixed_digits: decimal): time_text_writer</div><p>Appends the digits of a fraction of a second.</p>
+<p><code>nanos</code> is 0 .. 999,999,999. With <code>fixed_digits</code> of 1 .. 9 exactly that many leading digits are written (500,000,000 with 3 -&gt; &quot;500&quot;). With <code>fixed_digits</code> 0 the trailing zeros are dropped and at least one digit is written (500,000,000 -&gt; &quot;5&quot;, 120,000 -&gt; &quot;00012&quot;).</p></div>
+<div class="fn" id="time_text_writer.put_iso_fraction"><div class="sig">def <b>put_iso_fraction</b>(nanos: decimal): time_text_writer</div><p>Appends the fraction of a second the way ISO-8601 output in java.time does: nothing when <code>nanos</code> is 0, otherwise a &#x27;.&#x27; followed by 3, 6 or 9 digits - the shortest of the three that loses nothing (500,000,000 -&gt; &quot;.500&quot;, 1,000 -&gt; &quot;.000001&quot;, 1 -&gt; &quot;.000000001&quot;).</p></div>
+<div class="fn" id="time_text_writer.put_number"><div class="sig">def <b>put_number</b>(n: decimal): time_text_writer</div><p>Appends a whole number in decimal, with a leading &#x27;-&#x27; when it is negative: 0 -&gt; &quot;0&quot;, 2024 -&gt; &quot;2024&quot;, -5 -&gt; &quot;-5&quot;. A fraction is ignored. Exact for sizes below 2^53.</p></div>
+<div class="fn" id="time_text_writer.put_padded"><div class="sig">def <b>put_padded</b>(n: decimal, width: decimal): time_text_writer</div><p>Appends a whole number that is not negative, with zeros in front until it is at least <code>width</code> digits long: (7, 2) -&gt; &quot;07&quot;, (123, 2) -&gt; &quot;123&quot;.</p></div>
+<div class="fn" id="time_text_writer.put_text"><div class="sig">def <b>put_text</b>(s: string): time_text_writer</div><p>appends every character of <code>s</code> (nothing for an empty string)</p></div>
+<div class="fn" id="time_text_writer.size"><div class="sig">def <b>size</b>(): decimal</div><p>how many characters have been written</p></div>
+<div class="fn" id="time_text_writer.text"><div class="sig">def <b>text</b>(): string</div><p>a new string holding everything written so far (&quot;&quot; when nothing was)</p></div>
+</div>
+</section>
+<section class="type" id="zone_offset">
+<h2><span class="kind">class</span> zone_offset</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/zone_offset.sharp">source</a></p>
+<p>A fixed difference from UTC, such as +02:00 or -05:30.</p>
+<p>The offset is how far a local clock is AHEAD of UTC: at offset +02:00 a local clock shows 14:00 when it is 12:00 UTC. Offsets from -18:00 to +18:00 are accepted (the same limit java.time uses), with a resolution of one second.</p>
+<p>LIMITATION: the runtime has no time-zone database, so there are no named zones (&quot;Europe/Berlin&quot;) and no daylight saving rules. An offset is just a constant number of seconds. <code>zone_offset.system_default()</code> gives the offset the operating system uses right now, which is correct for the current moment but not necessarily for dates in another season.</p>
+<p>Offsets are immutable.</p>
+<div class="code"><pre class="sharp">plus2 := zone_offset.of_hours(2);
+plus2.to_string()                      // &quot;+02:00&quot;
+zone_offset.parse(&quot;-05:30&quot;).total_seconds()   // -19800
+zone_offset.utc.to_string()            // &quot;Z&quot;</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>max_seconds</code></td><td><code>decimal</code></td><td>the largest offset in either direction: 18 hours</td></tr><tr><td><code>utc</code></td><td><code>zone_offset</code></td><td>UTC itself: an offset of zero, written &quot;Z&quot;</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="zone_offset.compare_to"><div class="sig">def <b>compare_to</b>(other: zone_offset): decimal</div><p>Orders offsets by their size: -1 when this offset is further west (smaller) than <code>other</code>, 0 when equal, 1 when further east.</p></div>
+<div class="fn" id="zone_offset.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash that is the same for equal offsets</p></div>
+<div class="fn" id="zone_offset.hours"><div class="sig">def <b>hours</b>(): decimal</div><p>the hours part with the sign of the offset: -5 for -05:30</p></div>
+<div class="fn" id="zone_offset.is_utc"><div class="sig">def <b>is_utc</b>(): bool</div><p>true when this is UTC (offset zero)</p></div>
+<div class="fn" id="zone_offset.minutes"><div class="sig">def <b>minutes</b>(): decimal</div><p>the minutes part with the sign of the offset: -30 for -05:30</p></div>
+<div class="fn" id="zone_offset.of_hours"><div class="sig">static def <b>of_hours</b>(hours: decimal): zone_offset</div><p>An offset of whole hours: of_hours(2) is +02:00, of_hours(-5) is -05:00. @throws date_time_exception when <code>hours</code> is not -18 .. 18</p></div>
+<div class="fn" id="zone_offset.of_hours_minutes"><div class="sig">static def <b>of_hours_minutes</b>(hours: decimal, minutes: decimal): zone_offset</div><p>An offset of hours and minutes. Both must have the same sign (or be zero): of_hours_minutes(5, 30) is +05:30, of_hours_minutes(-5, -30) is -05:30, of_hours_minutes(0, -30) is -00:30.</p>
+<p>@throws date_time_exception when hours is not -18 .. 18, minutes not -59 .. 59, the signs differ, or the total is beyond 18 hours</p></div>
+<div class="fn" id="zone_offset.of_total_seconds"><div class="sig">static def <b>of_total_seconds</b>(total_seconds: decimal): zone_offset</div><p>The offset that is <code>total_seconds</code> seconds ahead of UTC (behind when negative). @throws date_time_exception when it is not a whole number in -64,800 .. 64,800 (18 hours)</p></div>
+<div class="fn" id="zone_offset.operator_"><div class="sig">def <b>operator!=</b>(other: zone_offset): bool</div></div>
+<div class="fn" id="zone_offset.operator_-2"><div class="sig">def <b>operator==</b>(other: zone_offset): bool</div></div>
+<div class="fn" id="zone_offset.parse"><div class="sig">static def <b>parse</b>(text: string): zone_offset</div><p>Reads an offset. Accepted: &quot;Z&quot; or &quot;z&quot; (UTC), and a &#x27;+&#x27; or &#x27;-&#x27; followed by <code>H</code>, <code>HH</code>, <code>HH:MM</code>, <code>HHMM</code>, <code>HH:MM:SS</code> or <code>HHMMSS</code>: &quot;+2&quot;, &quot;+02&quot;, &quot;+02:00&quot;, &quot;-0530&quot;, &quot;+01:00:30&quot;.</p>
+<p>@throws date_time_exception when the text has another shape, minutes or seconds are above 59, or the offset is beyond 18 hours</p></div>
+<div class="fn" id="zone_offset.read_from"><div class="sig">static def <b>read_from</b>(r: time_text_reader): zone_offset</div><p>reads an offset at the cursor of <code>r</code> and leaves the cursor after it (shared with offset_date_time)</p></div>
+<div class="fn" id="zone_offset.seconds"><div class="sig">def <b>seconds</b>(): decimal</div><p>the seconds part with the sign of the offset (0 for all offsets in real use)</p></div>
+<div class="fn" id="zone_offset.system_default"><div class="sig">static def <b>system_default</b>(): zone_offset</div><p>The offset the operating system currently applies to local time.</p>
+<p>The runtime can report the local calendar fields (system_clock.local_field) and the UTC clock, but not the offset itself, so it is measured: the local date and time are rebuilt from the calendar fields and compared with the UTC date and time read from the nanosecond clock. The fields are read one call at a time, so the reading is repeated until the local &quot;seconds&quot; field is the same before and after (no second ticked over in between), and the difference is rounded to the nearest minute.</p>
+<p>It reflects the offset in force NOW (including daylight saving when it is active); there is no way to ask for the offset of another date.</p></div>
+<div class="fn" id="zone_offset.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>The ISO-8601 identifier: &quot;Z&quot; for UTC, otherwise <code>+HH:MM</code> or <code>-HH:MM</code>, with <code>:SS</code> added only when the seconds are not zero: &quot;+02:00&quot;, &quot;-05:30&quot;, &quot;+01:00:30&quot;.</p></div>
+<div class="fn" id="zone_offset.total_seconds"><div class="sig">def <b>total_seconds</b>(): decimal</div><p>seconds ahead of UTC: +02:00 is 7200, -05:30 is -19800</p></div>
+<div class="fn" id="zone_offset.write_to"><div class="sig">def <b>write_to</b>(w: time_text_writer, with_colon: decimal, z_for_utc: decimal)</div><p>Appends the offset to <code>w</code> as sign, two-digit hours and two-digit minutes (and seconds when not zero). <code>with_colon</code> 1 gives &quot;+02:00&quot;, 0 gives &quot;+0200&quot;; with <code>z_for_utc</code> 1 a zero offset is written as &quot;Z&quot;, otherwise as &quot;+00:00&quot; / &quot;+0000&quot;. Used by to_string and the formatter.</p></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="measure_millis"><div class="sig">def <b>measure_millis</b>(block: ()()) : decimal</div><p>how long the block took in whole milliseconds</p></div>
+<div class="fn" id="measure_time"><div class="sig">def <b>measure_time</b>(block: ()()) : duration</div><p>HOW LONG A PIECE OF CODE TAKES</p>
+<div class="code"><pre class="sharp">took := measure_time { sort(items); };
+println(&quot;sorting took &quot; + took.to_string());        // &quot;sorting took 1.25s&quot;
+took.to_millis()                                    // the same as a number</pre></div>
+<div class="code"><pre class="sharp">ms := measure_millis { sort(items); };              // the number at once</pre></div>
+<p>What comes back is a <code>duration</code>, so no unit has to be chosen beforehand: to_millis(), to_micros(), to_nanos() and to_fractional_seconds() read it in any of them.</p>
+<p>The time is the system clock&#x27;s (see <code>system_clock</code>: good to about a quarter of a microsecond, and it can jump when the operating system corrects the time). For several readings of one run, or laps, use a <code>stopwatch</code>.</p>
+<div class="code"><pre class="sharp">Kotlin comparison: measureTime { } and measureTimeMillis { }.</pre></div></div>
+<div class="fn" id="measure_time-2"><div class="sig">def <b>measure_time</b>(time_source: clock, block: ()()) : duration</div><p>as measure_time(block), by the clock given: a test hands over a <code>manual_clock</code> and gets exact numbers</p></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

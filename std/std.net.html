@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.net - Sharp standard library</title>
+<meta name="description" content="The std.net module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li class="on"><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.net</p>
+<h1>std.net <small>module</small></h1>
+<p class="contents"><a href="#connection">connection</a> <a href="#datagram">datagram</a> <a href="#dns">dns</a> <a href="#fake_http">fake_http</a> <a href="#http">http</a> <a href="#http_client">http_client</a> <a href="#http_engine">http_engine</a> <a href="#http_error">http_error</a> <a href="#http_exception">http_exception</a> <a href="#http_exchange">http_exchange</a> <a href="#http_headers">http_headers</a> <a href="#http_hook">http_hook</a> <a href="#http_line">http_line</a> <a href="#http_log">http_log</a> <a href="#http_part">http_part</a> <a href="#http_request">http_request</a> <a href="#http_request_hook">http_request_hook</a> <a href="#http_response">http_response</a> <a href="#http_response_hook">http_response_hook</a> <a href="#http_route">http_route</a> <a href="#http_server">http_server</a> <a href="#http_server_worker">http_server_worker</a> <a href="#http_service">http_service</a> <a href="#http_status_exception">http_status_exception</a> <a href="#http_text">http_text</a> <a href="#http_timeout">http_timeout</a> <a href="#http_types">http_types</a> <a href="#openssl">openssl</a> <a href="#posix_sockets">posix_sockets</a> <a href="#schannel">schannel</a> <a href="#socket_address">socket_address</a> <a href="#socket_exception">socket_exception</a> <a href="#socket_system">socket_system</a> <a href="#socket_time">socket_time</a> <a href="#socket_timeout">socket_timeout</a> <a href="#tcp_server">tcp_server</a> <a href="#tcp_socket">tcp_socket</a> <a href="#tls_exception">tls_exception</a> <a href="#tls_socket">tls_socket</a> <a href="#udp_posix">udp_posix</a> <a href="#udp_socket">udp_socket</a> <a href="#udp_windows">udp_windows</a> <a href="#url">url</a> <a href="#web_message">web_message</a> <a href="#web_socket">web_socket</a> <a href="#web_socket_exception">web_socket_exception</a> <a href="#web_socket_turn">web_socket_turn</a> <a href="#windows_sockets">windows_sockets</a></p>
+<section class="type" id="connection">
+<h2><span class="kind">interface</span> connection</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/connection.sharp">source</a></p>
+<p>A CONNECTION: one end of a conversation in bytes, whatever carries it</p>
+<p>tcp_socket (plain) and tls_socket (encrypted) are both one, so code written against <code>connection</code> - the HTTP client, a line protocol of your own - works over either:</p>
+<div class="code"><pre class="sharp">def greet(line: connection) {
+    line.write(hello, sizeof(hello));
+    answer := line.read(4096);
+}</pre></div>
+<p>The three things every connection does:</p>
+<div class="code"><pre class="sharp">read(most)          wait for bytes and return them: at least one, at most `most`.
+                    An EMPTY array: the other side has closed and all it sent was read.
+write(data, count)  send the first `count` bytes of `data`, all of them
+close()             close this end; twice does nothing</pre></div>
+<div class="code"><pre class="sharp">Java comparison: the InputStream and OutputStream of a java.net.Socket.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="connection.close"><div class="sig">def <b>close</b>()</div></div>
+<div class="fn" id="connection.read"><div class="sig">def <b>read</b>(most: _int64) : _int8[]</div></div>
+<div class="fn" id="connection.write"><div class="sig">def <b>write</b>(data: _int8[], count: _int64) : _int64</div></div>
+</div>
+</section>
+<section class="type" id="datagram">
+<h2><span class="kind">class</span> datagram</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/udp.sharp">source</a></p>
+<p>NETWORKING WITHOUT CONNECTIONS (UDP), and looking up names (DNS)</p>
+<div class="code"><pre class="sharp">// one side
+ear := udp_socket.bind(9000);                   // listen on port 9000
+got := ear.receive();                           // waits for a datagram
+print(got.text() + &quot; from &quot; + got.host + &quot;:&quot; + got.port + &quot;\n&quot;);
+ear.send_text(got.host, got.port, &quot;pong&quot;);      // answer where it came from</pre></div>
+<div class="code"><pre class="sharp">// the other
+mouth := udp_socket.open();                     // any free port
+mouth.send_text(&quot;192.168.1.20&quot;, 9000, &quot;ping&quot;);
+answer := mouth.set_timeout(1000).receive();</pre></div>
+<p>TCP is a connection: everything arrives, in order, or the connection breaks. UDP sends single DATAGRAMS - a block of bytes to an address - with no connection and no promise: one may be lost, come twice, or come out of order, and nobody says so. In return there is no setup and no waiting, which is what games, voice, sensors and &quot;who is on this network?&quot; broadcasts want. A datagram arrives whole or not at all; keep them under about 1200 bytes and they travel in one piece.</p>
+<div class="code"><pre class="sharp">udp_socket.open()                   a socket on any free port
+udp_socket.bind(port)               ... on that port, reachable from other machines
+udp_socket.bind(port, true)         ... from this machine only
+send(host, port, bytes)   send_text(host, port, text)
+receive()                           the next datagram (waits; socket_timeout after set_timeout&#x27;s time)
+allow_broadcast()                   may send to &quot;255.255.255.255&quot;: everyone on the local network
+port()   close()</pre></div>
+<div class="code"><pre class="sharp">dns.lookup(&quot;example.com&quot;)           every address (version 4) the name has, as texts
+dns.first(&quot;example.com&quot;)            the first of them</pre></div>
+<div class="code"><pre class="sharp">Java comparison: DatagramSocket / DatagramPacket, InetAddress.getAllByName.</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>data</code></td><td><code>_int8[]</code></td><td></td></tr><tr><td><code>host</code></td><td><code>string</code></td><td>the address it came from</td></tr><tr><td><code>port</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="datagram.datagram"><div class="sig"><b>datagram</b>(data: _int8[], host: string, port: _int64)</div></div>
+<div class="fn" id="datagram.size"><div class="sig">def <b>size</b>() : _int64</div></div>
+<div class="fn" id="datagram.text"><div class="sig">def <b>text</b>() : string</div></div>
+</div>
+</section>
+<section class="type" id="dns">
+<h2><span class="kind">class</span> dns</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/udp.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="dns.first"><div class="sig">static def <b>first</b>(host: string) : string</div></div>
+<div class="fn" id="dns.lookup"><div class="sig">static def <b>lookup</b>(host: string) : list&lt;string&gt;</div><p>Every internet address (version 4) of a name, as texts like &quot;93.184.216.34&quot;. An address given as a text comes back as it is. Throws socket_exception when the name has none.</p></div>
+</div>
+</section>
+<section class="type" id="fake_http">
+<h2><span class="kind">class</span> fake_http</h2>
+<p class="meta"><code>: http_engine</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http.sharp">source</a></p>
+<p>A SERVER THAT IS NOT THERE: for tests of code that talks HTTP</p>
+<div class="code"><pre class="sharp">fake := new fake_http();
+fake.answer(&quot;GET&quot;, &quot;/users/octocat&quot;, 200, &quot;{\&quot;name\&quot;:\&quot;The Octocat\&quot;}&quot;);
+fake.answer(&quot;POST&quot;, &quot;/session&quot;, 401, &quot;{\&quot;error\&quot;:\&quot;wrong password\&quot;}&quot;);</pre></div>
+<div class="code"><pre class="sharp">hub := new github();
+hub.use(fake);                              // or http.use(fake) for http.GET(...)
+me := hub.user(&quot;octocat&quot;);                  // answered here: nothing leaves the program</pre></div>
+<div class="code"><pre class="sharp">fake.asked.size()                           // the requests that came, in order ...
+fake.last().headers.find(&quot;Authorization&quot;)   // ... and what the last one carried</pre></div>
+<p>A request is answered by the LAST rule whose method is the same and whose path is the end of the request&#x27;s path (&quot;/users/octocat&quot; answers https://api.github.com/users/octocat); nothing fits: 404.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>asked</code></td><td><code>list&lt;http_request&gt;</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="fake_http.answer"><div class="sig">def <b>answer</b>(method: string, path: string, status: _int64, body: string) : fake_http</div><p>from now on answer <code>method</code> requests whose path ends with <code>path</code> like this</p></div>
+<div class="fn" id="fake_http.answer-2"><div class="sig">def <b>answer</b>(method: string, path: string, made: http_response) : fake_http</div></div>
+<div class="fn" id="fake_http.last"><div class="sig">def <b>last</b>() : http_request</div><p>the request that came last. Throws illegal_state_exception when none has.</p></div>
+<div class="fn" id="fake_http.send"><div class="sig">override def <b>send</b>(request: http_request) : http_response</div></div>
+</div>
+</section>
+<section class="type" id="http">
+<h2><span class="kind">class</span> http</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http.sharp">source</a></p>
+<p>HTTP IN ONE LINE</p>
+<div class="code"><pre class="sharp">page := http.GET(&quot;https://example.com/&quot;).text();</pre></div>
+<div class="code"><pre class="sharp">answer := http.POST(&quot;https://httpbin.org/post&quot;) {
+    it.header(&quot;X-Trace&quot;, &quot;abc&quot;);
+    it.json(&quot;hello&quot;, &quot;world&quot;);
+};
+print(answer.status + &quot; &quot; + answer.json().member(&quot;json&quot;).string_or(&quot;hello&quot;, &quot;?&quot;));</pre></div>
+<p>GET, POST, PUT, PATCH, DELETE and HEAD, each with and without a block. In the block <code>it</code> is the request: what it can be told is listed in http_request.sharp. (The verbs are in capitals, as HTTP writes them: <code>get</code> is a word the language keeps for itself.)</p>
+<p>The answer comes back whatever its status; answer.ok() tells, and answer.require_ok() throws http_status_exception when it is not 200 to 299. No answer at all - no network, an unknown host, a bad certificate, a timeout - is an http_exception.</p>
+<p>For a server you talk to in many places, describe it once as an http_service (http_service.sharp).</p>
+<div class="code"><pre class="sharp">Java comparison: OkHttp&#x27;s client.newCall(request).execute();
+Python: requests.get(url) and requests.post(url, json=...).</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http.DELETE"><div class="sig">static def <b>DELETE</b>(address: string) : http_response</div></div>
+<div class="fn" id="http.DELETE-2"><div class="sig">static def <b>DELETE</b>(address: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http.GET"><div class="sig">static def <b>GET</b>(address: string) : http_response</div></div>
+<div class="fn" id="http.GET-2"><div class="sig">static def <b>GET</b>(address: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http.HEAD"><div class="sig">static def <b>HEAD</b>(address: string) : http_response</div></div>
+<div class="fn" id="http.HEAD-2"><div class="sig">static def <b>HEAD</b>(address: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http.PATCH"><div class="sig">static def <b>PATCH</b>(address: string) : http_response</div></div>
+<div class="fn" id="http.PATCH-2"><div class="sig">static def <b>PATCH</b>(address: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http.POST"><div class="sig">static def <b>POST</b>(address: string) : http_response</div></div>
+<div class="fn" id="http.POST-2"><div class="sig">static def <b>POST</b>(address: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http.PUT"><div class="sig">static def <b>PUT</b>(address: string) : http_response</div></div>
+<div class="fn" id="http.PUT-2"><div class="sig">static def <b>PUT</b>(address: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http.ask"><div class="sig">static def <b>ask</b>(method: string, address: string, extras: (http_request)()) : http_response</div><p>any method (&quot;OPTIONS&quot;, &quot;PROPFIND&quot; ...), with a block</p></div>
+<div class="fn" id="http.engine"><div class="sig">static def <b>engine</b>() : http_engine</div><p>the engine these functions (and every http_service that was not given one) send through</p></div>
+<div class="fn" id="http.send"><div class="sig">static def <b>send</b>(asked: http_request) : http_response</div></div>
+<div class="fn" id="http.use"><div class="sig">static def <b>use</b>(other: http_engine)</div><p>send through this engine from now on: a client with other settings, or a fake_http in a test</p></div>
+</div>
+</section>
+<section class="type" id="http_client">
+<h2><span class="kind">class</span> http_client</h2>
+<p class="meta"><code>: http_engine</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_client.sharp">source</a></p>
+<p>THE HTTP CLIENT: sends requests over the network (HTTP/1.1, http and https)</p>
+<p>Most programs never make one: http.GET(...) and every http_service use a shared one. Make your own to give it other settings:</p>
+<div class="code"><pre class="sharp">client := new http_client();
+client.wait = 5000;                 // milliseconds of silence before a request gives up (30000)
+client.most_redirects = 3;          // &quot;go there instead&quot; answers followed per request (10)
+client.agent = &quot;my-app/1.0&quot;;        // the User-Agent header
+answer := client.send(new http_request(&quot;GET&quot;, &quot;https://example.com/&quot;));</pre></div>
+<p>WHAT IT DOES FOR YOU - https: the connection is a tls_socket, so the server&#x27;s certificate is checked (tls.sharp); - connections are KEPT and used again: the second request to a server does not connect (or do the TLS handshake) again. A kept connection the server has closed meanwhile is noticed and the request sent anew; - redirects are followed (301, 302, 303, 307, 308), the way a browser does: 303 - and a POST that gets 301 or 302 - goes on as a GET, 307 and 308 repeat the request as it was. Authorization is not carried to another server; - bodies in pieces (&quot;chunked&quot;) are put together; - it tells servers it reads compressed answers (gzip) and unpacks them: text and json usually travel at a fifth of their size.</p>
+<p>WHAT IT THROWS: http_exception when there is no answer (http_timeout when the server was silent too long). An answer is returned whatever its status - 404 and 500 are answers; require_ok() turns them into http_status_exception.</p>
+<p>One client can be used by several threads at once: each request has a connection to itself.</p>
+<p>Not done: HTTP/2, proxies, cookies kept between requests.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>wait</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>most_redirects</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>agent</code></td><td><code>string</code></td><td></td></tr><tr><td><code>keep</code></td><td><code>bool</code></td><td>keep connections for the next request to the same server</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_client.close"><div class="sig">def <b>close</b>()</div><p>close the connections that are kept for later</p></div>
+<div class="fn" id="http_client.send"><div class="sig">override def <b>send</b>(asked: http_request) : http_response</div></div>
+</div>
+</section>
+<section class="type" id="http_engine">
+<h2><span class="kind">interface</span> http_engine</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_response.sharp">source</a></p>
+<p>WHAT SENDS A REQUEST AND BRINGS BACK THE ANSWER</p>
+<p>http_client does it over the network. A test hands a service an engine of its own instead (fake_http), and nothing leaves the program.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_engine.send"><div class="sig">def <b>send</b>(asked: http_request) : http_response</div></div>
+</div>
+</section>
+<section class="type" id="http_error">
+<h2><span class="kind">class</span> http_error</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_server.sharp">source</a></p>
+<p>AN HTTP SERVER: routes, written the way the client&#x27;s are</p>
+<div class="code"><pre class="sharp">class user { id : _int64 = 0; name : string = &quot;&quot;; }
+class new_user { name : string = &quot;&quot;; }</pre></div>
+<div class="code"><pre class="sharp">server := new http_server();</pre></div>
+<div class="code"><pre class="sharp">server.GET(&quot;/hello&quot;) { it.text(&quot;hello&quot;); };</pre></div>
+<div class="code"><pre class="sharp">server.GET(&quot;/users/{id}&quot;) {
+    found := users.find(it.number(&quot;id&quot;));
+    if(found == null) { throw new http_error(404, &quot;no such user&quot;); }
+    it.json(found!!);                               // an object of yours, as json
+};</pre></div>
+<div class="code"><pre class="sharp">server.POST(&quot;/users&quot;) {
+    wanted := it.body&lt;new_user&gt;();                  // the json body, as an object of yours
+    it.status(201).json(users.add(wanted.name));
+};</pre></div>
+<div class="code"><pre class="sharp">server.files(&quot;/static&quot;, &quot;public&quot;);                  // GET /static/app.js  -&gt;  the file public/app.js
+server.socket(&quot;/live&quot;) { ... };                     // a websocket (`it` is a web_socket)
+server.serve(8080);                                 // runs until stop()</pre></div>
+<p>A ROUTE is a method and a path; a part in braces takes whatever stands there (&quot;/users/{id}&quot; answers /users/7 and /users/ann). The block runs for each request with <code>it</code>, an http_exchange: the request to read and the answer to give.</p>
+<p>READ THE REQUEST                         GIVE THE ANSWER it.method()   it.path()                  it.text(&quot;...&quot;)          plain text it.path(&quot;id&quot;)    a part in braces        it.html(&quot;...&quot;) it.number(&quot;id&quot;)  ... as a number         it.json(object)         an object, a list, a json_value it.query(&quot;q&quot;)    ?q=...  (null: none)    it.bytes(data, type) it.header(&quot;x&quot;)   (null: none)            it.file(new file(...)) it.body_text()   it.body_bytes()         it.redirect(&quot;/login&quot;) it.body_json()   a json_value            it.status(201)          (before the body; 200 without it) it.body&lt;t&gt;()     an object of t          it.header(&quot;X-Name&quot;, &quot;value&quot;) it.remote()      who is asking           (nothing at all answers 204, &quot;done, no content&quot;)</p>
+<p>WHEN A HANDLER THROWS: http_error(status, message) is answered with that status and {&quot;error&quot;: message}; anything else is a 500, printed with where it happened. No route for the path: 404; a route, but not for that method: 405.</p>
+<div class="code"><pre class="sharp">server.before { ... }       runs before every handler; when it answers (say 401) the handler is skipped
+server.after { ... }        runs after it, the answer still open to change (a header for all)
+server.start(8080)          serve in the background and return the port (0: any free port)
+server.start(8080, true)    ... for this machine only (127.0.0.1)
+server.serve(8080)          serve and wait
+server.stop()
+server.workers = 32;        requests served at the same time (16)</pre></div>
+<p>Each request runs on one of the server&#x27;s threads, several at once: what handlers share has to be guarded (lock, an atomic, a database).</p>
+<p>This is plain HTTP/1.1. For https put a reverse proxy in front (Caddy, nginx), which is how servers are run anyway.</p>
+<div class="code"><pre class="sharp">Java comparison: Javalin / Spark - app.get(&quot;/users/{id}&quot;, ctx -&gt; ...);
+Python: Flask&#x27;s @app.get(&quot;/users/&lt;id&gt;&quot;); JavaScript: Express.</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>status</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_error.http_error"><div class="sig">public <b>http_error</b>(status: _int64, message: string) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="http_exception">
+<h2><span class="kind">class</span> http_exception</h2>
+<p class="meta"><code>base io_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_response.sharp">source</a></p>
+<p>A request did not get an answer: the host is unknown, nothing accepts the connection, the certificate is wrong, the server was silent for too long (http_timeout), or what came back is not HTTP.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_exception.http_exception"><div class="sig">public <b>http_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="http_exchange">
+<h2><span class="kind">class</span> http_exchange</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_server.sharp">source</a></p>
+<p>one request and the answer to it</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_exchange.http_exchange"><div class="sig"><b>http_exchange</b>(verb: string, where: string, asked: string, headers: http_headers, body: _int8[], from: string)</div></div>
+<div class="fn" id="http_exchange.answered_body"><div class="sig">def <b>answered_body</b>() : _int8[]</div></div>
+<div class="fn" id="http_exchange.answered_headers"><div class="sig">def <b>answered_headers</b>() : http_headers</div></div>
+<div class="fn" id="http_exchange.answered_status"><div class="sig">def <b>answered_status</b>() : _int64</div></div>
+<div class="fn" id="http_exchange.body"><div class="sig">def <b>body</b>&lt;t&gt;() : t</div><p>the json body as an object of t (json.sharp); http_error 400 when it does not fit</p></div>
+<div class="fn" id="http_exchange.body_bytes"><div class="sig">def <b>body_bytes</b>() : _int8[]</div></div>
+<div class="fn" id="http_exchange.body_json"><div class="sig">def <b>body_json</b>() : json_value</div><p>the body as json; http_error 400 when it is not json</p></div>
+<div class="fn" id="http_exchange.body_text"><div class="sig">def <b>body_text</b>() : string</div></div>
+<div class="fn" id="http_exchange.bytes"><div class="sig">def <b>bytes</b>(data: _int8[]?, type: string)</div></div>
+<div class="fn" id="http_exchange.captured"><div class="sig">def <b>captured</b>(name: string, value: string)</div><p>(for the server: the route that fits says what stood at its braces)</p></div>
+<div class="fn" id="http_exchange.file"><div class="sig">def <b>file</b>(source: file)</div><p>a file; what it is is told by its ending (.html, .png ...). http_error 404 when it is not there.</p></div>
+<div class="fn" id="http_exchange.header"><div class="sig">def <b>header</b>(name: string) : string?</div></div>
+<div class="fn" id="http_exchange.header-2"><div class="sig">def <b>header</b>(name: string, value: string) : http_exchange</div></div>
+<div class="fn" id="http_exchange.headers"><div class="sig">def <b>headers</b>() : http_headers</div></div>
+<div class="fn" id="http_exchange.html"><div class="sig">def <b>html</b>(value: string)</div></div>
+<div class="fn" id="http_exchange.is_answered"><div class="sig">def <b>is_answered</b>() : bool</div></div>
+<div class="fn" id="http_exchange.json"><div class="sig">def <b>json</b>(source: object?)</div><p>an object of yours, a list, an array or a json_value, as json</p></div>
+<div class="fn" id="http_exchange.method"><div class="sig">def <b>method</b>() : string</div></div>
+<div class="fn" id="http_exchange.number"><div class="sig">def <b>number</b>(name: string) : decimal</div><p>{name} of the route as a number; http_error 400 when it is not one</p></div>
+<div class="fn" id="http_exchange.path"><div class="sig">def <b>path</b>() : string</div><p>the path as it was asked for, without the query: &quot;/users/7&quot;</p></div>
+<div class="fn" id="http_exchange.path-2"><div class="sig">def <b>path</b>(name: string) : string</div><p>what stood at {name} of the route. Throws illegal_argument_exception when the route has no such part.</p></div>
+<div class="fn" id="http_exchange.query"><div class="sig">def <b>query</b>(name: string) : string?</div><p>?name=value of the address; null when it has none</p></div>
+<div class="fn" id="http_exchange.query_or"><div class="sig">def <b>query_or</b>(name: string, fallback: string) : string</div></div>
+<div class="fn" id="http_exchange.redirect"><div class="sig">def <b>redirect</b>(to: string)</div><p>&quot;go there instead&quot; (302)</p></div>
+<div class="fn" id="http_exchange.remote"><div class="sig">def <b>remote</b>() : string</div><p>the address of who is asking</p></div>
+<div class="fn" id="http_exchange.status"><div class="sig">def <b>status</b>(number: _int64) : http_exchange</div></div>
+<div class="fn" id="http_exchange.text"><div class="sig">def <b>text</b>(value: string)</div></div>
+</div>
+</section>
+<section class="type" id="http_headers">
+<h2><span class="kind">class</span> http_headers</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_headers.sharp">source</a></p>
+<p>THE HEADERS of a request or a response: names with values, in order</p>
+<div class="code"><pre class="sharp">headers.put(&quot;Accept&quot;, &quot;application/json&quot;);      // the one value of that name
+headers.add(&quot;Set-Cookie&quot;, &quot;a=1&quot;);               // one more of that name
+type := headers.find(&quot;content-type&quot;);           // null when there is none</pre></div>
+<p>Names are found whatever their capitals (&quot;Content-Type&quot; is &quot;content-type&quot;), and sent as they were written. A name may be there more than once (add); find() gives the first, all() every one.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_headers.add"><div class="sig">def <b>add</b>(name: string, value: string) : http_headers</div><p>one more value of that name (what is there stays)</p></div>
+<div class="fn" id="http_headers.all"><div class="sig">def <b>all</b>(name: string) : list&lt;string&gt;</div><p>every value of that name, in order</p></div>
+<div class="fn" id="http_headers.copy_all"><div class="sig">def <b>copy_all</b>() : http_headers</div></div>
+<div class="fn" id="http_headers.find"><div class="sig">def <b>find</b>(name: string) : string?</div><p>the (first) value of that name; null when there is none</p></div>
+<div class="fn" id="http_headers.find_or"><div class="sig">def <b>find_or</b>(name: string, fallback: string) : string</div><p>the (first) value of that name, or <code>fallback</code></p></div>
+<div class="fn" id="http_headers.has"><div class="sig">def <b>has</b>(name: string) : bool</div></div>
+<div class="fn" id="http_headers.name_at"><div class="sig">def <b>name_at</b>(index: _int64) : string</div></div>
+<div class="fn" id="http_headers.put"><div class="sig">def <b>put</b>(name: string, value: string) : http_headers</div><p>make this the one value of that name</p></div>
+<div class="fn" id="http_headers.remove"><div class="sig">def <b>remove</b>(name: string) : http_headers</div><p>take every value of that name out</p></div>
+<div class="fn" id="http_headers.set_all"><div class="sig">def <b>set_all</b>(other: http_headers) : http_headers</div><p>set every header of <code>other</code> here (a name <code>other</code> has replaces the one here)</p></div>
+<div class="fn" id="http_headers.size"><div class="sig">def <b>size</b>() : _int64</div><p>how many there are (a name that is there twice counts twice)</p></div>
+<div class="fn" id="http_headers.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>&quot;Name: value&quot; lines, as they are sent</p></div>
+<div class="fn" id="http_headers.value_at"><div class="sig">def <b>value_at</b>(index: _int64) : string</div></div>
+</div>
+</section>
+<section class="type" id="http_hook">
+<h2><span class="kind">class</span> http_hook</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_server.sharp">source</a></p>
+
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>run</code></td><td><code>(http_exchange)()</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_hook.http_hook"><div class="sig"><b>http_hook</b>(run: (http_exchange)())</div></div>
+</div>
+</section>
+<section class="type" id="http_line">
+<h2><span class="kind">class</span> http_line</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_client.sharp">source</a></p>
+<p>one connection to a server, and the bytes read from it that were not used yet</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>wire</code></td><td><code>connection</code></td><td></td></tr><tr><td><code>origin</code></td><td><code>string</code></td><td></td></tr><tr><td><code>reusable</code></td><td><code>bool</code></td><td>can the next request use it (the server keeps it open, and the answer was read to its end)?</td></tr><tr><td><code>arrived</code></td><td><code>bool</code></td><td>has anything arrived since it was taken for a request?</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_line.http_line"><div class="sig"><b>http_line</b>(wire: connection, plain: tcp_socket?, secure: tls_socket?, origin: string)</div></div>
+<div class="fn" id="http_line.close"><div class="sig">def <b>close</b>()</div></div>
+<div class="fn" id="http_line.read_exactly"><div class="sig">def <b>read_exactly</b>(count: _int64) : _int8[]</div></div>
+<div class="fn" id="http_line.read_line"><div class="sig">def <b>read_line</b>() : string?</div><p>the next line, without its end; null when the server closed before any of it came</p></div>
+<div class="fn" id="http_line.read_rest"><div class="sig">def <b>read_rest</b>() : _int8[]</div><p>everything until the server closes</p></div>
+<div class="fn" id="http_line.set_timeout"><div class="sig">def <b>set_timeout</b>(milliseconds: _int64)</div></div>
+<div class="fn" id="http_line.shown"><div class="sig">static def <b>shown</b>(text: string) : string</div><p>a line for an error message: its first 60 characters, nothing unprintable</p></div>
+</div>
+</section>
+<section class="type" id="http_log">
+<h2><span class="kind">class</span> http_log</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_service.sharp">source</a></p>
+<p>how much log(...) of an http_service prints</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>none</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>basic</code></td><td><code>_int64</code></td><td>one line per request and one per answer</td></tr><tr><td><code>headers</code></td><td><code>_int64</code></td><td>and their headers</td></tr><tr><td><code>body</code></td><td><code>_int64</code></td><td>and their bodies</td></tr></table></div>
+</section>
+<section class="type" id="http_part">
+<h2><span class="kind">class</span> http_part</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_request.sharp">source</a></p>
+<p>one part of a form in parts: a plain value, or a file with its name and what it is</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>file_name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>type</code></td><td><code>string</code></td><td></td></tr><tr><td><code>data</code></td><td><code>_int8[]?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_part.http_part"><div class="sig"><b>http_part</b>(name: string, file_name: string, type: string, data: _int8[]?)</div></div>
+<div class="fn" id="http_part.join"><div class="sig">static def <b>join</b>(parts: list&lt;http_part&gt;, edge: string) : _int8[]</div><p>the parts as one body, each between lines of <code>--edge</code></p></div>
+</div>
+</section>
+<section class="type" id="http_request">
+<h2><span class="kind">class</span> http_request</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_request.sharp">source</a></p>
+<p>ONE REQUEST, being put together</p>
+<div class="code"><pre class="sharp">asked := new http_request(&quot;POST&quot;, &quot;https://api.shop.example/v2/products/{id}/photo&quot;);
+asked.path(&quot;id&quot;, 7)                     // fills {id} in the address
+     .query(&quot;size&quot;, &quot;large&quot;)            // ...?size=large
+     .header(&quot;Accept&quot;, &quot;application/json&quot;)
+     .bearer(token)                     // Authorization: Bearer ...
+     .json(&quot;caption&quot;, &quot;front view&quot;);    // the body: {&quot;caption&quot;:&quot;front view&quot;}</pre></div>
+<p>Every word returns the request, so they chain; in the block of http.POST(...) { } the request is <code>it</code>, and in an http_service the same words are written bare.</p>
+<p>THE ADDRESS path(name, value)       replaces {name} in the address, encoded so that it stays one part of the path query(name, value)      one &quot;name=value&quot; after the &quot;?&quot;. A null value leaves it out.</p>
+<p>THE HEADERS header(name, value)     set one (a second call with the name replaces it) accept(type)            Accept bearer(token)           Authorization: Bearer token basic(user, password)   Authorization: Basic ...</p>
+<p>THE BODY - one of: body(text)              the text as it is (Content-Type text/plain unless set) body(text, type)        the text, and what it is (&quot;application/xml&quot;) body(bytes, type)       bytes body(json_value)        a json value json(name, value)       a json object, one member per call form(name, value)       a form, as a browser sends one (name=value&amp;name=value) part(name, value)       a form in parts (multipart/form-data), which can carry files: part(name, file, type)      a file, sent with its name and what it is (&quot;image/jpeg&quot;)</p>
+<p>OTHER timeout(milliseconds)   give up when the server is silent for this long follow_redirects(false) hand back a &quot;go there instead&quot; answer as it is</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>method</code></td><td><code>string</code></td><td></td></tr><tr><td><code>address</code></td><td><code>string</code></td><td></td></tr><tr><td><code>headers</code></td><td><code>http_headers</code></td><td></td></tr><tr><td><code>wait</code></td><td><code>_int64</code></td><td>milliseconds; below 0: what the client has set</td></tr><tr><td><code>redirects</code></td><td><code>bool</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_request.http_request"><div class="sig"><b>http_request</b>(method: string, address: string)</div></div>
+<div class="fn" id="http_request.accept"><div class="sig">def <b>accept</b>(type: string) : http_request</div></div>
+<div class="fn" id="http_request.basic"><div class="sig">def <b>basic</b>(user: string, password: string) : http_request</div></div>
+<div class="fn" id="http_request.bearer"><div class="sig">def <b>bearer</b>(token: string) : http_request</div></div>
+<div class="fn" id="http_request.body"><div class="sig">def <b>body</b>(text: string) : http_request</div></div>
+<div class="fn" id="http_request.body-2"><div class="sig">def <b>body</b>(text: string, type: string) : http_request</div></div>
+<div class="fn" id="http_request.body-3"><div class="sig">def <b>body</b>(data: _int8[], type: string) : http_request</div></div>
+<div class="fn" id="http_request.body-4"><div class="sig">def <b>body</b>(value: json_value) : http_request</div></div>
+<div class="fn" id="http_request.follow_redirects"><div class="sig">def <b>follow_redirects</b>(yes: bool) : http_request</div></div>
+<div class="fn" id="http_request.form"><div class="sig">def <b>form</b>(name: string, value: string) : http_request</div></div>
+<div class="fn" id="http_request.form-2"><div class="sig">def <b>form</b>(name: string, value: decimal) : http_request</div></div>
+<div class="fn" id="http_request.has_body"><div class="sig">def <b>has_body</b>() : bool</div></div>
+<div class="fn" id="http_request.header"><div class="sig">def <b>header</b>(name: string, value: string) : http_request</div></div>
+<div class="fn" id="http_request.json"><div class="sig">def <b>json</b>(name: string, value: string) : http_request</div></div>
+<div class="fn" id="http_request.json-2"><div class="sig">def <b>json</b>(name: string, value: decimal) : http_request</div></div>
+<div class="fn" id="http_request.json-3"><div class="sig">def <b>json</b>(name: string, value: bool) : http_request</div></div>
+<div class="fn" id="http_request.json-4"><div class="sig">def <b>json</b>(name: string, value: json_value) : http_request</div></div>
+<div class="fn" id="http_request.part"><div class="sig">def <b>part</b>(name: string, value: string) : http_request</div></div>
+<div class="fn" id="http_request.part-2"><div class="sig">def <b>part</b>(name: string, source: file, type: string) : http_request</div><p>a file as one part of the form; <code>type</code> is what it is (&quot;image/jpeg&quot;, &quot;application/pdf&quot;)</p></div>
+<div class="fn" id="http_request.path"><div class="sig">def <b>path</b>(name: string, value: string) : http_request</div></div>
+<div class="fn" id="http_request.path-2"><div class="sig">def <b>path</b>(name: string, value: decimal) : http_request</div></div>
+<div class="fn" id="http_request.query"><div class="sig">def <b>query</b>(name: string, value: string?) : http_request</div></div>
+<div class="fn" id="http_request.query-2"><div class="sig">def <b>query</b>(name: string, value: decimal) : http_request</div></div>
+<div class="fn" id="http_request.query-3"><div class="sig">def <b>query</b>(name: string, value: bool) : http_request</div></div>
+<div class="fn" id="http_request.resolved_address"><div class="sig">def <b>resolved_address</b>() : string</div><p>The address as it will be asked for: {names} filled, the query added. Throws illegal_argument_exception when a {name} was given no value or the result is not a web address.</p></div>
+<div class="fn" id="http_request.resolved_body"><div class="sig">def <b>resolved_body</b>() : _int8[]?</div><p>The body as the bytes that are sent (null: the request has none), and what they are, in <code>headers</code> as Content-Type - unless the request set a Content-Type of its own.</p></div>
+<div class="fn" id="http_request.timeout"><div class="sig">def <b>timeout</b>(milliseconds: _int64) : http_request</div></div>
+<div class="fn" id="http_request.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+</div>
+</section>
+<section class="type" id="http_request_hook">
+<h2><span class="kind">class</span> http_request_hook</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_service.sharp">source</a></p>
+
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>run</code></td><td><code>(http_request)()</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_request_hook.http_request_hook"><div class="sig"><b>http_request_hook</b>(run: (http_request)())</div></div>
+</div>
+</section>
+<section class="type" id="http_response">
+<h2><span class="kind">class</span> http_response</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_response.sharp">source</a></p>
+<p>WHAT THE SERVER ANSWERED</p>
+<div class="code"><pre class="sharp">answer := http.GET(&quot;https://api.github.com/users/octocat&quot;);</pre></div>
+<div class="code"><pre class="sharp">answer.status           200
+answer.ok()             true for 200 to 299
+answer.text()           the body as a text
+answer.json()           the body as a json_value
+answer.bytes()          the body as it came
+answer.header(&quot;content-type&quot;)       one header (null when it is not there)
+answer.save_to(new file(&quot;a.pdf&quot;))   the body into a file
+answer.require_ok()     the answer itself, or http_status_exception when it is not 200 to 299</pre></div>
+<p>The whole body is here by the time you have the response: it was read off the connection, which is free for the next request.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>status</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>reason</code></td><td><code>string</code></td><td>the words after the number in the first line (&quot;OK&quot;, &quot;Not Found&quot;)</td></tr><tr><td><code>headers</code></td><td><code>http_headers</code></td><td></td></tr><tr><td><code>address</code></td><td><code>string</code></td><td>the address that answered: the one asked for, or where its redirects led</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_response.http_response"><div class="sig"><b>http_response</b>(status: _int64, reason: string)</div></div>
+<div class="fn" id="http_response.bytes"><div class="sig">def <b>bytes</b>() : _int8[]</div></div>
+<div class="fn" id="http_response.header"><div class="sig">def <b>header</b>(name: string) : string?</div></div>
+<div class="fn" id="http_response.json"><div class="sig">def <b>json</b>() : json_value</div><p>the body as json. Throws json_exception when it is not json.</p></div>
+<div class="fn" id="http_response.ok"><div class="sig">def <b>ok</b>() : bool</div><p>did the server say it worked (200 to 299)?</p></div>
+<div class="fn" id="http_response.require_ok"><div class="sig">def <b>require_ok</b>() : http_response</div><p>this response when it is 200 to 299; http_status_exception otherwise</p></div>
+<div class="fn" id="http_response.save_to"><div class="sig">def <b>save_to</b>(target: file)</div><p>write the body into <code>target</code> (made, or replaced)</p></div>
+<div class="fn" id="http_response.set_body"><div class="sig">def <b>set_body</b>(data: _int8[]?) : http_response</div><p>(for the client, and for a fake server in a test)</p></div>
+<div class="fn" id="http_response.set_text"><div class="sig">def <b>set_text</b>(text: string) : http_response</div></div>
+<div class="fn" id="http_response.text"><div class="sig">def <b>text</b>() : string</div></div>
+<div class="fn" id="http_response.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+</div>
+</section>
+<section class="type" id="http_response_hook">
+<h2><span class="kind">class</span> http_response_hook</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_service.sharp">source</a></p>
+
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>run</code></td><td><code>(http_response)()</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_response_hook.http_response_hook"><div class="sig"><b>http_response_hook</b>(run: (http_response)())</div></div>
+</div>
+</section>
+<section class="type" id="http_route">
+<h2><span class="kind">class</span> http_route</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_server.sharp">source</a></p>
+<p>one route: a method, the parts of its path, and what runs for it</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>method</code></td><td><code>string</code></td><td></td></tr><tr><td><code>parts</code></td><td><code>list&lt;string&gt;</code></td><td></td></tr><tr><td><code>handler</code></td><td><code>(http_exchange)()</code></td><td></td></tr><tr><td><code>socket_handler</code></td><td><code>(web_socket)()</code></td><td></td></tr><tr><td><code>is_socket</code></td><td><code>bool</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_route.http_route"><div class="sig"><b>http_route</b>(method: string, parts: list&lt;string&gt;)</div></div>
+<div class="fn" id="http_route.fits"><div class="sig">def <b>fits</b>(path: list&lt;string&gt;, into: http_exchange?) : bool</div><p>does the path (in parts) fit? When it does, what stood at the braces goes into <code>into</code>.</p></div>
+</div>
+</section>
+<section class="type" id="http_server">
+<h2><span class="kind">class</span> http_server</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_server.sharp">source</a></p>
+
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>workers</code></td><td><code>_int64</code></td><td>how many requests are served at the same time</td></tr><tr><td><code>idle_wait</code></td><td><code>_int64</code></td><td>milliseconds a connection may stay silent between requests before it is closed</td></tr><tr><td><code>most_body</code></td><td><code>_int64</code></td><td>the largest body a request may have, in bytes</td></tr><tr><td><code>show_errors</code></td><td><code>bool</code></td><td>print what a handler threw (the message and where)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_server.DELETE"><div class="sig">def <b>DELETE</b>(route: string, handler: (http_exchange)())</div></div>
+<div class="fn" id="http_server.GET"><div class="sig">def <b>GET</b>(route: string, handler: (http_exchange)())</div></div>
+<div class="fn" id="http_server.PATCH"><div class="sig">def <b>PATCH</b>(route: string, handler: (http_exchange)())</div></div>
+<div class="fn" id="http_server.POST"><div class="sig">def <b>POST</b>(route: string, handler: (http_exchange)())</div></div>
+<div class="fn" id="http_server.PUT"><div class="sig">def <b>PUT</b>(route: string, handler: (http_exchange)())</div></div>
+<div class="fn" id="http_server.accept_loop"><div class="sig">def <b>accept_loop</b>()</div><p>one of the server&#x27;s threads: connections, one after the other, until the server stops</p></div>
+<div class="fn" id="http_server.add"><div class="sig">def <b>add</b>(method: string, route: string, handler: (http_exchange)())</div><p>a route for any method (&quot;OPTIONS&quot; ...)</p></div>
+<div class="fn" id="http_server.after"><div class="sig">def <b>after</b>(hook: (http_exchange)())</div></div>
+<div class="fn" id="http_server.before"><div class="sig">def <b>before</b>(hook: (http_exchange)())</div></div>
+<div class="fn" id="http_server.files"><div class="sig">def <b>files</b>(prefix: string, folder: string)</div><p>serve the files of <code>folder</code> under <code>prefix</code>: files(&quot;/static&quot;, &quot;public&quot;) answers /static/css/a.css with public/css/a.css</p></div>
+<div class="fn" id="http_server.is_running"><div class="sig">def <b>is_running</b>() : bool</div></div>
+<div class="fn" id="http_server.port"><div class="sig">def <b>port</b>() : _int64</div><p>the port being listened on; 0 when the server is not running</p></div>
+<div class="fn" id="http_server.serve"><div class="sig">def <b>serve</b>(port: _int64)</div><p>serve and wait: returns when stop() is called (by a handler, or another thread)</p></div>
+<div class="fn" id="http_server.socket"><div class="sig">def <b>socket</b>(route: string, handler: (web_socket)())</div><p>a websocket at that path: the block runs for each one that connects, and the websocket is closed when it ends</p></div>
+<div class="fn" id="http_server.start"><div class="sig">def <b>start</b>(port: _int64) : _int64</div><p>serve in the background; returns the port (which says what it is when 0 - any free one - was asked for)</p></div>
+<div class="fn" id="http_server.start-2"><div class="sig">def <b>start</b>(port: _int64, local_only: bool) : _int64</div></div>
+<div class="fn" id="http_server.stop"><div class="sig">def <b>stop</b>()</div><p>Stop: no new connections, and the open ones are closed - a request in the middle of being answered loses its connection.</p></div>
+</div>
+</section>
+<section class="type" id="http_server_worker">
+<h2><span class="kind">class</span> http_server_worker</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_server.sharp">source</a></p>
+<p>what a thread of the server runs</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_server_worker.work"><div class="sig">static def <b>work</b>(args: object[]) : int</div></div>
+</div>
+</section>
+<section class="type" id="http_service">
+<h2><span class="kind">class</span> http_service</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_service.sharp">source</a></p>
+<p>A SERVER YOU TALK TO, DESCRIBED ONCE</p>
+<div class="code"><pre class="sharp">class user { login : string = &quot;&quot;; name : string = &quot;&quot;; public_repos : _int64 = 0; }
+class repo { name : string = &quot;&quot;; stargazers_count : _int64 = 0; }</pre></div>
+<div class="code"><pre class="sharp">class github base http_service {
+    github() {
+        base_url(&quot;https://api.github.com&quot;);
+        header(&quot;Accept&quot;, &quot;application/vnd.github+json&quot;);
+    }</pre></div>
+<div class="code"><pre class="sharp">def user(name: string) : user {
+    return GET&lt;user&gt;(&quot;/users/{name}&quot;) { path(&quot;name&quot;, name); };
+}</pre></div>
+<div class="code"><pre class="sharp">    def repos(name: string, page: _int64) : list&lt;repo&gt; {
+        return GET&lt;list&lt;repo&gt; &gt;(&quot;/users/{name}/repos&quot;) { path(&quot;name&quot;, name); query(&quot;page&quot;, page); };
+    }
+}</pre></div>
+<div class="code"><pre class="sharp">hub := new github();
+print(hub.user(&quot;octocat&quot;).name);</pre></div>
+<p>Each function of the service is one line: the VERB is the function called (GET, POST, PUT, PATCH, DELETE - in capitals, as HTTP writes them), the type in &lt;...&gt; is what the json answer is turned into (json.sharp: any class of yours, list&lt;t&gt;, a generic class like page&lt;product&gt;), and the block says what goes into the request. The rest of the program calls hub.user(&quot;octocat&quot;) and never sees HTTP.</p>
+<p>IN THE BLOCK (each is explained in http_request.sharp) path(name, value)       fills {name} of the route query(name, value)      ?name=value (a null value leaves it out) header(name, value)     bearer(token)   basic(user, password)   accept(type) send(object)            the body: an object of yours, as json json(name, value)       the body: a json object, member by member form(name, value)       the body: a form part(name, value)       part(name, file, type)      the body: a form in parts, with files body(text)   body(text, type)   body(bytes, type)   body(json_value) timeout(milliseconds)</p>
+<p>IN THE CONSTRUCTOR - for every request of the service base_url(address)       what every route is appended to header(...) bearer(...) basic(...) accept(...) timeout(...)     the same words: outside a block they are for all requests retry(times, wait)      try again (after <code>wait</code> ms, then twice that ...) when there is no answer or the server says 502, 503 or 504 - only for requests that are safe to repeat (GET, HEAD, PUT, DELETE) before { ... }          runs on every request before it is sent (<code>it</code> is the request): add a token after { ... }           runs on every answer (<code>it</code> is the response): notice a 401 log(http_log.basic)     print each request and answer: basic (one line each), headers, body use(engine)             send through another engine: a client with other settings, a fake_http in a test</p>
+<p>WHAT COMES BACK GET&lt;t&gt;(route) { }           an object of t. A status that is not 200 to 299 throws http_status_exception. GET_or_null&lt;t&gt;(route) { }   the same, and null when the server says 404 GET(route) { }              the http_response itself (text(), bytes(), save_to(file)), also only for 200 to 299 and the same for POST, PUT, PATCH and DELETE. A request that gets no answer throws http_exception (http_response.sharp).</p>
+<p>A service may be used by several threads at once.</p>
+<div class="code"><pre class="sharp">Java comparison: a Retrofit interface - @GET(&quot;/users/{name}&quot;) User user(@Path(&quot;name&quot;) String name);
+here the annotation is the call and the parameter annotations are the block.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_service.DELETE"><div class="sig">def <b>DELETE</b>&lt;t&gt;(route: string) : t</div></div>
+<div class="fn" id="http_service.DELETE-2"><div class="sig">def <b>DELETE</b>&lt;t&gt;(route: string, extras: (http_request)()) : t</div></div>
+<div class="fn" id="http_service.DELETE-3"><div class="sig">def <b>DELETE</b>(route: string) : http_response</div></div>
+<div class="fn" id="http_service.DELETE-4"><div class="sig">def <b>DELETE</b>(route: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http_service.GET"><div class="sig">def <b>GET</b>&lt;t&gt;(route: string) : t</div></div>
+<div class="fn" id="http_service.GET-2"><div class="sig">def <b>GET</b>&lt;t&gt;(route: string, extras: (http_request)()) : t</div></div>
+<div class="fn" id="http_service.GET-3"><div class="sig">def <b>GET</b>(route: string) : http_response</div></div>
+<div class="fn" id="http_service.GET-4"><div class="sig">def <b>GET</b>(route: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http_service.GET_or_null"><div class="sig">def <b>GET_or_null</b>&lt;t&gt;(route: string) : t?</div><p>as GET&lt;t&gt;, and null when the server says 404: &quot;there is no such thing&quot; as a value, not an exception</p></div>
+<div class="fn" id="http_service.GET_or_null-2"><div class="sig">def <b>GET_or_null</b>&lt;t&gt;(route: string, extras: (http_request)()) : t?</div></div>
+<div class="fn" id="http_service.HEAD"><div class="sig">def <b>HEAD</b>(route: string) : http_response</div></div>
+<div class="fn" id="http_service.HEAD-2"><div class="sig">def <b>HEAD</b>(route: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http_service.PATCH"><div class="sig">def <b>PATCH</b>&lt;t&gt;(route: string) : t</div></div>
+<div class="fn" id="http_service.PATCH-2"><div class="sig">def <b>PATCH</b>&lt;t&gt;(route: string, extras: (http_request)()) : t</div></div>
+<div class="fn" id="http_service.PATCH-3"><div class="sig">def <b>PATCH</b>(route: string) : http_response</div></div>
+<div class="fn" id="http_service.PATCH-4"><div class="sig">def <b>PATCH</b>(route: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http_service.POST"><div class="sig">def <b>POST</b>&lt;t&gt;(route: string) : t</div></div>
+<div class="fn" id="http_service.POST-2"><div class="sig">def <b>POST</b>&lt;t&gt;(route: string, extras: (http_request)()) : t</div></div>
+<div class="fn" id="http_service.POST-3"><div class="sig">def <b>POST</b>(route: string) : http_response</div></div>
+<div class="fn" id="http_service.POST-4"><div class="sig">def <b>POST</b>(route: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http_service.PUT"><div class="sig">def <b>PUT</b>&lt;t&gt;(route: string) : t</div></div>
+<div class="fn" id="http_service.PUT-2"><div class="sig">def <b>PUT</b>&lt;t&gt;(route: string, extras: (http_request)()) : t</div></div>
+<div class="fn" id="http_service.PUT-3"><div class="sig">def <b>PUT</b>(route: string) : http_response</div></div>
+<div class="fn" id="http_service.PUT-4"><div class="sig">def <b>PUT</b>(route: string, extras: (http_request)()) : http_response</div></div>
+<div class="fn" id="http_service.accept"><div class="sig">def <b>accept</b>(type: string)</div></div>
+<div class="fn" id="http_service.after"><div class="sig">def <b>after</b>(hook: (http_response)())</div></div>
+<div class="fn" id="http_service.base_url"><div class="sig">def <b>base_url</b>(address: string)</div></div>
+<div class="fn" id="http_service.basic"><div class="sig">def <b>basic</b>(user: string, password: string)</div></div>
+<div class="fn" id="http_service.bearer"><div class="sig">def <b>bearer</b>(token: string)</div></div>
+<div class="fn" id="http_service.before"><div class="sig">def <b>before</b>(hook: (http_request)())</div></div>
+<div class="fn" id="http_service.body"><div class="sig">def <b>body</b>(text: string)</div></div>
+<div class="fn" id="http_service.body-2"><div class="sig">def <b>body</b>(text: string, type: string)</div></div>
+<div class="fn" id="http_service.body-3"><div class="sig">def <b>body</b>(data: _int8[], type: string)</div></div>
+<div class="fn" id="http_service.body-4"><div class="sig">def <b>body</b>(value: json_value)</div></div>
+<div class="fn" id="http_service.form"><div class="sig">def <b>form</b>(name: string, value: string)</div></div>
+<div class="fn" id="http_service.form-2"><div class="sig">def <b>form</b>(name: string, value: decimal)</div></div>
+<div class="fn" id="http_service.header"><div class="sig">def <b>header</b>(name: string, value: string)</div></div>
+<div class="fn" id="http_service.json"><div class="sig">def <b>json</b>(name: string, value: string)</div></div>
+<div class="fn" id="http_service.json-2"><div class="sig">def <b>json</b>(name: string, value: decimal)</div></div>
+<div class="fn" id="http_service.json-3"><div class="sig">def <b>json</b>(name: string, value: bool)</div></div>
+<div class="fn" id="http_service.json-4"><div class="sig">def <b>json</b>(name: string, value: json_value)</div></div>
+<div class="fn" id="http_service.log"><div class="sig">def <b>log</b>(level: _int64)</div></div>
+<div class="fn" id="http_service.part"><div class="sig">def <b>part</b>(name: string, value: string)</div></div>
+<div class="fn" id="http_service.part-2"><div class="sig">def <b>part</b>(name: string, source: file, type: string)</div></div>
+<div class="fn" id="http_service.path"><div class="sig">def <b>path</b>(name: string, value: string)</div></div>
+<div class="fn" id="http_service.path-2"><div class="sig">def <b>path</b>(name: string, value: decimal)</div></div>
+<div class="fn" id="http_service.query"><div class="sig">def <b>query</b>(name: string, value: string?)</div></div>
+<div class="fn" id="http_service.query-2"><div class="sig">def <b>query</b>(name: string, value: decimal)</div></div>
+<div class="fn" id="http_service.query-3"><div class="sig">def <b>query</b>(name: string, value: bool)</div></div>
+<div class="fn" id="http_service.retry"><div class="sig">def <b>retry</b>(times: _int64, wait: _int64)</div></div>
+<div class="fn" id="http_service.send"><div class="sig">def <b>send</b>(source: object)</div><p>the body: an object of yours (or a list of them), written as json (json.sharp)</p></div>
+<div class="fn" id="http_service.timeout"><div class="sig">def <b>timeout</b>(milliseconds: _int64)</div></div>
+<div class="fn" id="http_service.use"><div class="sig">def <b>use</b>(other: http_engine)</div></div>
+</div>
+</section>
+<section class="type" id="http_status_exception">
+<h2><span class="kind">class</span> http_status_exception</h2>
+<p class="meta"><code>base http_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_response.sharp">source</a></p>
+<p>The server answered, and its answer is not &quot;it worked&quot; (200 to 299): 404 not found, 401 not allowed, 500 the server failed ...</p>
+<div class="code"><pre class="sharp">catch(failed: http_status_exception) {
+    print(&quot;the shop said &quot; + failed.status + &quot;: &quot; + failed.body_text());
+}</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>response</code></td><td><code>http_response</code></td><td></td></tr><tr><td><code>status</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="http_status_exception.http_status_exception"><div class="sig">public <b>http_status_exception</b>(response: http_response) -&gt; base(describe(response))</div></div>
+<div class="fn" id="http_status_exception.body_text"><div class="sig">def <b>body_text</b>() : string</div><p>what the server wrote about it (often a json object that says what was wrong)</p></div>
+</div>
+</section>
+<section class="type" id="http_text">
+<h2><span class="kind">class</span> http_text</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_request.sharp">source</a></p>
+<p>small conversions the http classes share</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_text.boundary"><div class="sig">static def <b>boundary</b>() : string</div><p>a text that will not turn up inside what a form in parts carries</p></div>
+<div class="fn" id="http_text.of_bool"><div class="sig">static def <b>of_bool</b>(value: bool) : string</div></div>
+<div class="fn" id="http_text.of_number"><div class="sig">static def <b>of_number</b>(value: decimal) : string</div><p>7 for 7.0, 7.5 for 7.5: a number as it is written in an address or a form</p></div>
+</div>
+</section>
+<section class="type" id="http_timeout">
+<h2><span class="kind">class</span> http_timeout</h2>
+<p class="meta"><code>base http_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_response.sharp">source</a></p>
+<p>the server did not answer within the request&#x27;s timeout</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_timeout.http_timeout"><div class="sig">public <b>http_timeout</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="http_types">
+<h2><span class="kind">class</span> http_types</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/http_server.sharp">source</a></p>
+<p>what a file is, by the ending of its name</p>
+<h3>Functions</h3><div>
+<div class="fn" id="http_types.of_name"><div class="sig">static def <b>of_name</b>(name: string) : string</div></div>
+<div class="fn" id="http_types.reason"><div class="sig">static def <b>reason</b>(status: _int64) : string</div><p>the words that go with a status</p></div>
+</div>
+</section>
+<section class="type" id="openssl">
+<h2><span class="kind">class</span> openssl</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tls.sharp">source</a></p>
+<p>OpenSSL: the part with the connections (libssl) and the part with the error texts (libcrypto)</p>
+</section>
+<section class="type" id="posix_sockets">
+<h2><span class="kind">class</span> posix_sockets</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/system_sockets.sharp">source</a></p>
+
+</section>
+<section class="type" id="schannel">
+<h2><span class="kind">class</span> schannel</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tls.sharp">source</a></p>
+<p>SChannel: Windows&#x27; TLS, and the socket calls with addresses where tcp_socket has arrays</p>
+</section>
+<section class="type" id="socket_address">
+<h2><span class="kind">class</span> socket_address</h2>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/system_sockets.sharp">source</a></p>
+<p>struct sockaddr_in: an internet address (version 4) and a port, both in network byte order</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>c_bytes</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>family</code></td><td><code>c_ushort</code></td><td></td></tr><tr><td><code>port</code></td><td><code>c_ushort</code></td><td></td></tr><tr><td><code>address</code></td><td><code>c_uint</code></td><td></td></tr><tr><td><code>zero</code></td><td><code>c_char[]</code></td><td></td></tr></table></div>
+</section>
+<section class="type" id="socket_exception">
+<h2><span class="kind">class</span> socket_exception</h2>
+<p class="meta"><code>base io_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tcp.sharp">source</a></p>
+<p>NETWORKING: connections between programs (TCP)</p>
+<div class="code"><pre class="sharp">// a client
+connection := tcp_socket.connect(&quot;example.com&quot;, 80);
+connection.write_text(&quot;GET / HTTP/1.0\r\nHost: example.com\r\n\r\n&quot;);
+page := connection.read_all_text();
+connection.close();</pre></div>
+<div class="code"><pre class="sharp">// a server
+server := new tcp_server(8080);
+while(true) {
+    guest := server.accept();                   // waits for someone to connect
+    guest.write_text(&quot;hello\n&quot;);
+    guest.close();
+}</pre></div>
+<p>A tcp_socket is one end of a connection: what is written at one end is read at the other, in order, nothing lost. A tcp_server waits on a port for others to connect and hands out a tcp_socket for each.</p>
+<p>WAITING. connect, accept, read and write wait until they are done - a read until at least one byte has arrived or the other side has closed. Other threads go on meanwhile, so a server usually gives each guest a thread of its own. set_timeout(ms) makes read and write give up after that long (socket_timeout).</p>
+<p>WHEN SOMETHING GOES WRONG - nobody listens there, the name is unknown, the connection broke - a socket_exception says what the system said.</p>
+<p>Addresses are internet version 4 (&quot;93.184.216.34&quot;, or a name that has such an address); nothing is encrypted.</p>
+<p>All of it is Sharp: the system&#x27;s socket functions are called directly (system_sockets.sharp).</p>
+<div class="code"><pre class="sharp">Java comparison: java.net.Socket and ServerSocket; Python: socket.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="socket_exception.socket_exception"><div class="sig">public <b>socket_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="socket_system">
+<h2><span class="kind">class</span> socket_system</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tcp.sharp">source</a></p>
+<p>what tcp_socket and tcp_server share: the system&#x27;s calls, whichever system it is</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>NONE</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="socket_system.address"><div class="sig">static def <b>address</b>(host_address: _int64, port: _int64) : socket_address</div><p>an address the system&#x27;s calls take: this host (0: every address of this machine) and port</p></div>
+<div class="fn" id="socket_system.address_of"><div class="sig">static def <b>address_of</b>(host: string) : _int64</div><p>The internet address of <code>host</code> - &quot;127.0.0.1&quot; or a name - as the network carries it. Throws socket_exception when the name has none.</p></div>
+<div class="fn" id="socket_system.address_text"><div class="sig">static def <b>address_text</b>(address: _int64) : string</div><p>&quot;93.184.216.34&quot; from an address as the network carries it</p></div>
+<div class="fn" id="socket_system.close"><div class="sig">static def <b>close</b>(handle: _int64)</div></div>
+<div class="fn" id="socket_system.describe"><div class="sig">static def <b>describe</b>(code: _int64) : string</div></div>
+<div class="fn" id="socket_system.is_windows"><div class="sig">static def <b>is_windows</b>() : bool</div></div>
+<div class="fn" id="socket_system.last_code"><div class="sig">static def <b>last_code</b>() : _int64</div><p>the number of the last error of this thread&#x27;s socket calls</p></div>
+<div class="fn" id="socket_system.last_error"><div class="sig">static def <b>last_error</b>() : string</div><p>the last error in words</p></div>
+<div class="fn" id="socket_system.network_port"><div class="sig">static def <b>network_port</b>(port: _int64) : _int64</div><p>the port as the network carries it: its two bytes the other way round</p></div>
+<div class="fn" id="socket_system.open"><div class="sig">static def <b>open</b>() : _int64</div><p>a new TCP socket; throws when the system has none to give</p></div>
+<div class="fn" id="socket_system.start"><div class="sig">static def <b>start</b>()</div><p>Winsock wants to be started once</p></div>
+<div class="fn" id="socket_system.timed_out"><div class="sig">static def <b>timed_out</b>(code: _int64) : bool</div><p>was the last error &quot;it took too long&quot;?</p></div>
+</div>
+</section>
+<section class="type" id="socket_time">
+<h2><span class="kind">class</span> socket_time</h2>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/system_sockets.sharp">source</a></p>
+<p>struct timeval: seconds and microseconds (for a socket&#x27;s timeouts on Linux)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>seconds</code></td><td><code>c_long</code></td><td></td></tr><tr><td><code>microseconds</code></td><td><code>c_long</code></td><td></td></tr></table></div>
+</section>
+<section class="type" id="socket_timeout">
+<h2><span class="kind">class</span> socket_timeout</h2>
+<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tcp.sharp">source</a></p>
+<p>a read or a write took longer than the socket&#x27;s timeout</p>
+<h3>Functions</h3><div>
+<div class="fn" id="socket_timeout.socket_timeout"><div class="sig">public <b>socket_timeout</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="tcp_server">
+<h2><span class="kind">class</span> tcp_server</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tcp.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="tcp_server.tcp_server"><div class="sig"><b>tcp_server</b>(port: _int64)</div><p>Listen on <code>port</code> of this machine (0: any port that is free - port() says which). Throws socket_exception when the port is taken or not allowed (below 1024 needs rights on most systems).</p></div>
+<div class="fn" id="tcp_server.tcp_server-2"><div class="sig"><b>tcp_server</b>(port: _int64, local_only: bool)</div><p>... reachable only from this machine itself (&quot;127.0.0.1&quot;) when <code>local_only</code></p></div>
+<div class="fn" id="tcp_server.accept"><div class="sig">def <b>accept</b>() : tcp_socket</div><p>Wait until someone connects and return the connection to them. Throws socket_exception when the server is closed (also by another thread, while this one waits here).</p></div>
+<div class="fn" id="tcp_server.close"><div class="sig">def <b>close</b>()</div><p>stop listening. Connections already handed out stay open.</p></div>
+<div class="fn" id="tcp_server.is_open"><div class="sig">def <b>is_open</b>() : bool</div></div>
+<div class="fn" id="tcp_server.port"><div class="sig">def <b>port</b>() : _int64</div><p>the port this server listens on</p></div>
+</div>
+</section>
+<section class="type" id="tcp_socket">
+<h2><span class="kind">class</span> tcp_socket</h2>
+<p class="meta"><code>: connection</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tcp.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="tcp_socket.close"><div class="sig">override def <b>close</b>()</div><p>close this end; the other side then reads &quot;closed&quot;. Closing twice does nothing.</p></div>
+<div class="fn" id="tcp_socket.connect"><div class="sig">static def <b>connect</b>(host: string, port: _int64) : tcp_socket</div><p>Connect to <code>port</code> of <code>host</code> (a name, or an address like &quot;127.0.0.1&quot;). Throws socket_exception when the host is unknown or nothing accepts the connection, and illegal_argument_exception for a port that is not 1 to 65535.</p></div>
+<div class="fn" id="tcp_socket.host"><div class="sig">def <b>host</b>() : string</div><p>the host this is connected to: the name it was connected with, or the address of a guest</p></div>
+<div class="fn" id="tcp_socket.is_open"><div class="sig">def <b>is_open</b>() : bool</div><p>is this end still open? (close() was not called; the other side may be gone all the same)</p></div>
+<div class="fn" id="tcp_socket.of_accepted"><div class="sig">static def <b>of_accepted</b>(handle: _int64, other_side: string, other_port: _int64) : tcp_socket</div><p>(for tcp_server.accept)</p></div>
+<div class="fn" id="tcp_socket.port"><div class="sig">def <b>port</b>() : _int64</div><p>the port at the other side</p></div>
+<div class="fn" id="tcp_socket.read"><div class="sig">override def <b>read</b>(most: _int64) : _int8[]</div><p>Wait for bytes to arrive and return them: at least one and at most <code>most</code>. An EMPTY array means the other side has closed the connection and everything it sent has been read.</p></div>
+<div class="fn" id="tcp_socket.read_all"><div class="sig">def <b>read_all</b>() : _int8[]</div><p>read until the other side closes: everything it sent</p></div>
+<div class="fn" id="tcp_socket.read_all_text"><div class="sig">def <b>read_all_text</b>() : string</div><p>read until the other side closes, as a text</p></div>
+<div class="fn" id="tcp_socket.read_exactly"><div class="sig">def <b>read_exactly</b>(count: _int64) : _int8[]</div><p>Read exactly <code>count</code> bytes, waiting for as many rounds as it takes. Throws socket_exception when the other side closes before that many came.</p></div>
+<div class="fn" id="tcp_socket.read_line"><div class="sig">def <b>read_line</b>() : string?</div><p>Read one line: the text up to the next &quot;\n&quot; (which is not part of it; a &quot;\r&quot; in front of it is dropped too). Null when the other side has closed and nothing is left. Reads a byte at a time, so it never takes more than the line: for a few lines of a conversation, not for megabytes.</p></div>
+<div class="fn" id="tcp_socket.read_text"><div class="sig">def <b>read_text</b>(most: _int64) : string</div><p>read as read() does, as a text (&quot;&quot; when the other side has closed)</p></div>
+<div class="fn" id="tcp_socket.set_timeout"><div class="sig">def <b>set_timeout</b>(milliseconds: _int64) : tcp_socket</div><p>Give up a read or a write that takes longer than this (0: wait for as long as it takes, which is how a socket starts out).</p></div>
+<div class="fn" id="tcp_socket.system_handle"><div class="sig">def <b>system_handle</b>() : _int64</div><p>the system&#x27;s own number for this socket (for code that calls the system itself: tls_socket)</p></div>
+<div class="fn" id="tcp_socket.write"><div class="sig">def <b>write</b>(data: _int8[]) : _int64</div><p>Send all of <code>data</code>. Returns how many bytes that was. Throws socket_exception when the connection is broken, socket_timeout when it took longer than the timeout.</p></div>
+<div class="fn" id="tcp_socket.write-2"><div class="sig">override def <b>write</b>(data: _int8[], count: _int64) : _int64</div><p>send the first <code>count</code> bytes of <code>data</code></p></div>
+<div class="fn" id="tcp_socket.write_text"><div class="sig">def <b>write_text</b>(text: string) : _int64</div><p>send a text, as its bytes</p></div>
+</div>
+</section>
+<section class="type" id="tls_exception">
+<h2><span class="kind">class</span> tls_exception</h2>
+<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tls.sharp">source</a></p>
+<p>ENCRYPTED CONNECTIONS (TLS - what the &quot;s&quot; of https is)</p>
+<div class="code"><pre class="sharp">line := tls_socket.connect(&quot;example.com&quot;, 443);
+line.write_text(&quot;GET / HTTP/1.0\r\nHost: example.com\r\n\r\n&quot;);
+page := line.read_all_text();
+line.close();</pre></div>
+<p>A tls_socket is a tcp_socket whose bytes nobody in between can read or change, and whose other side has PROVEN to be the host that was asked for: connect() checks the server&#x27;s certificate against the certificates this machine trusts and against the host&#x27;s name, and throws tls_exception when either is wrong. Reading and writing are as on a tcp_socket.</p>
+<p>WHO DOES THE ENCRYPTING: the operating system&#x27;s own TLS, so there is nothing to install and the trusted certificates are the system&#x27;s -</p>
+<div class="code"><pre class="sharp">Windows     SChannel (secur32.dll)
+Linux       OpenSSL (libssl, which every distribution has)</pre></div>
+<p>TLS 1.2 or newer. All of it is Sharp: the two libraries are called directly (the extern blocks below).</p>
+<div class="code"><pre class="sharp">tls_socket.connect(host, port)      connect and start TLS
+tls_socket.over(socket, host)       start TLS on a socket that is connected already
+tls_socket.trust_everyone(true)     do NOT check certificates (a test server of your own; never in real use)</pre></div>
+<div class="code"><pre class="sharp">Java comparison: javax.net.ssl.SSLSocket; Python: ssl.wrap_socket.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="tls_exception.tls_exception"><div class="sig">public <b>tls_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="tls_socket">
+<h2><span class="kind">class</span> tls_socket</h2>
+<p class="meta"><code>: connection</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/tls.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="tls_socket.close"><div class="sig">override def <b>close</b>()</div><p>close this end (after telling the other side). Closing twice does nothing.</p></div>
+<div class="fn" id="tls_socket.connect"><div class="sig">static def <b>connect</b>(host: string, port: _int64) : tls_socket</div><p>Connect to <code>port</code> of <code>host</code> (443 for https) and start TLS. Throws socket_exception when the connection cannot be made, and tls_exception when the server&#x27;s certificate is not one this machine trusts, is not for <code>host</code>, or the two sides cannot agree on how to encrypt.</p></div>
+<div class="fn" id="tls_socket.host"><div class="sig">def <b>host</b>() : string</div><p>the host this is connected to</p></div>
+<div class="fn" id="tls_socket.is_open"><div class="sig">def <b>is_open</b>() : bool</div></div>
+<div class="fn" id="tls_socket.over"><div class="sig">static def <b>over</b>(wire: tcp_socket, host: string) : tls_socket</div><p>Start TLS on a socket that is connected already; <code>host</code> is the name the server&#x27;s certificate has to be for. The socket is this tls_socket&#x27;s from now on: use and close the tls_socket only. When the start fails the socket is closed.</p></div>
+<div class="fn" id="tls_socket.port"><div class="sig">def <b>port</b>() : _int64</div></div>
+<div class="fn" id="tls_socket.read"><div class="sig">override def <b>read</b>(most: _int64) : _int8[]</div><p>Wait for bytes to arrive and return them: at least one and at most <code>most</code>. An EMPTY array means the other side has closed the connection and everything it sent has been read.</p></div>
+<div class="fn" id="tls_socket.read_all"><div class="sig">def <b>read_all</b>() : _int8[]</div><p>read until the other side closes: everything it sent</p></div>
+<div class="fn" id="tls_socket.read_all_text"><div class="sig">def <b>read_all_text</b>() : string</div><p>read until the other side closes, as a text</p></div>
+<div class="fn" id="tls_socket.read_exactly"><div class="sig">def <b>read_exactly</b>(count: _int64) : _int8[]</div><p>read exactly <code>count</code> bytes; socket_exception when the other side closes before that many came</p></div>
+<div class="fn" id="tls_socket.read_text"><div class="sig">def <b>read_text</b>(most: _int64) : string</div><p>read as read() does, as a text (&quot;&quot; when the other side has closed)</p></div>
+<div class="fn" id="tls_socket.set_timeout"><div class="sig">def <b>set_timeout</b>(milliseconds: _int64) : tls_socket</div><p>give up a read or a write that takes longer than this (0: wait as long as it takes)</p></div>
+<div class="fn" id="tls_socket.trust_everyone"><div class="sig">static def <b>trust_everyone</b>(yes: bool)</div><p>true: connections made from now on do NOT check the server&#x27;s certificate - anyone can then pretend to be the server. For a test server with a certificate of your own making, nothing else.</p></div>
+<div class="fn" id="tls_socket.write"><div class="sig">def <b>write</b>(data: _int8[]) : _int64</div><p>send all of <code>data</code>; returns how many bytes that was</p></div>
+<div class="fn" id="tls_socket.write-2"><div class="sig">override def <b>write</b>(data: _int8[], count: _int64) : _int64</div><p>send the first <code>count</code> bytes of <code>data</code></p></div>
+<div class="fn" id="tls_socket.write_text"><div class="sig">def <b>write_text</b>(text: string) : _int64</div><p>send a text, as its bytes</p></div>
+</div>
+</section>
+<section class="type" id="udp_posix">
+<h2><span class="kind">class</span> udp_posix</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/udp.sharp">source</a></p>
+<p>the two calls tcp does not need, per system (the rest are in system_sockets.sharp)</p>
+</section>
+<section class="type" id="udp_socket">
+<h2><span class="kind">class</span> udp_socket</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/udp.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="udp_socket.allow_broadcast"><div class="sig">def <b>allow_broadcast</b>() : udp_socket</div><p>let this socket send to a broadcast address (&quot;255.255.255.255&quot;: every machine of the local network)</p></div>
+<div class="fn" id="udp_socket.bind"><div class="sig">static def <b>bind</b>(port: _int64) : udp_socket</div></div>
+<div class="fn" id="udp_socket.bind-2"><div class="sig">static def <b>bind</b>(port: _int64, local_only: bool) : udp_socket</div></div>
+<div class="fn" id="udp_socket.close"><div class="sig">def <b>close</b>()</div></div>
+<div class="fn" id="udp_socket.is_open"><div class="sig">def <b>is_open</b>() : bool</div></div>
+<div class="fn" id="udp_socket.open"><div class="sig">static def <b>open</b>() : udp_socket</div></div>
+<div class="fn" id="udp_socket.port"><div class="sig">def <b>port</b>() : _int64</div></div>
+<div class="fn" id="udp_socket.receive"><div class="sig">def <b>receive</b>() : datagram</div><p>wait for the next datagram. Throws socket_timeout when a timeout is set and none came.</p></div>
+<div class="fn" id="udp_socket.send"><div class="sig">def <b>send</b>(host: string, port: _int64, data: _int8[]?) : _int64</div><p>send one datagram to <code>port</code> of <code>host</code>; returns the bytes sent. Throws socket_exception when the system refuses it.</p></div>
+<div class="fn" id="udp_socket.send_text"><div class="sig">def <b>send_text</b>(host: string, port: _int64, text: string) : _int64</div></div>
+<div class="fn" id="udp_socket.set_timeout"><div class="sig">def <b>set_timeout</b>(milliseconds: _int64) : udp_socket</div><p>receive() gives up after this long (0: waits for as long as it takes)</p></div>
+</div>
+</section>
+<section class="type" id="udp_windows">
+<h2><span class="kind">class</span> udp_windows</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/udp.sharp">source</a></p>
+
+</section>
+<section class="type" id="url">
+<h2><span class="kind">class</span> url</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/url.sharp">source</a></p>
+<p>A WEB ADDRESS, taken apart</p>
+<div class="code"><pre class="sharp">where := url.parse(&quot;https://api.shop.example:8443/v2/products?q=lamp#top&quot;);</pre></div>
+<div class="code"><pre class="sharp">where.scheme    &quot;https&quot;
+where.host      &quot;api.shop.example&quot;
+where.port      8443            (80 for http and 443 for https when the address has none)
+where.path      &quot;/v2/products&quot;  (&quot;/&quot; when the address has none)
+where.query     &quot;q=lamp&quot;        (&quot;&quot; when the address has none; the &quot;#top&quot; is dropped:
+                                 it is for the reader of the page, a server never sees it)</pre></div>
+<p>resolve() answers what a link on that page means: &quot;/login&quot;, &quot;next?page=2&quot; and &quot;https://other.example/&quot; are all turned into whole addresses, the way a browser does (a server&#x27;s redirect is such a link).</p>
+<p>An address has to say &quot;http://&quot; or &quot;https://&quot; and name a host; anything else is an illegal_argument_exception. Host names and version-4 addresses (&quot;127.0.0.1&quot;); not &quot;[::1]&quot;.</p>
+<div class="code"><pre class="sharp">Java comparison: java.net.URI; Python: urllib.parse.urlsplit.</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>scheme</code></td><td><code>string</code></td><td></td></tr><tr><td><code>host</code></td><td><code>string</code></td><td></td></tr><tr><td><code>port</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>path</code></td><td><code>string</code></td><td></td></tr><tr><td><code>query</code></td><td><code>string</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="url.has_usual_port"><div class="sig">def <b>has_usual_port</b>() : bool</div><p>is the port the one the scheme has anyway (80, 443)?</p></div>
+<div class="fn" id="url.host_and_port"><div class="sig">def <b>host_and_port</b>() : string</div><p>what a request&#x27;s Host header says: the host, and the port when it is not the usual one</p></div>
+<div class="fn" id="url.is_secure"><div class="sig">def <b>is_secure</b>() : bool</div></div>
+<div class="fn" id="url.origin"><div class="sig">def <b>origin</b>() : string</div><p>&quot;https://api.shop.example:8443&quot;: the server, without a path</p></div>
+<div class="fn" id="url.parse"><div class="sig">static def <b>parse</b>(text: string) : url</div></div>
+<div class="fn" id="url.resolve"><div class="sig">def <b>resolve</b>(link: string) : url</div></div>
+<div class="fn" id="url.target"><div class="sig">def <b>target</b>() : string</div><p>what a request&#x27;s first line asks for: the path, and the query when there is one</p></div>
+<div class="fn" id="url.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+</div>
+</section>
+<section class="type" id="web_message">
+<h2><span class="kind">class</span> web_message</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/web_socket.sharp">source</a></p>
+<p>one message: text or bytes</p>
+<h3>Functions</h3><div>
+<div class="fn" id="web_message.web_message"><div class="sig"><b>web_message</b>(data: _int8[], textual: bool)</div></div>
+<div class="fn" id="web_message.bytes"><div class="sig">def <b>bytes</b>() : _int8[]</div></div>
+<div class="fn" id="web_message.is_text"><div class="sig">def <b>is_text</b>() : bool</div></div>
+<div class="fn" id="web_message.size"><div class="sig">def <b>size</b>() : _int64</div></div>
+<div class="fn" id="web_message.text"><div class="sig">def <b>text</b>() : string</div></div>
+</div>
+</section>
+<section class="type" id="web_socket">
+<h2><span class="kind">class</span> web_socket</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/web_socket.sharp">source</a></p>
+
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>close_code</code></td><td><code>_int64</code></td><td>why the other side closed (1000: done, 1001: going away ...); 0 while open or when it said nothing</td></tr><tr><td><code>close_reason</code></td><td><code>string</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="web_socket.accept_for"><div class="sig">static def <b>accept_for</b>(key: string) : string</div><p>what a server answers to a key: proof that it read the request as a websocket&#x27;s</p></div>
+<div class="fn" id="web_socket.close"><div class="sig">def <b>close</b>()</div><p>say goodbye (&quot;done&quot;) and close. Closing twice does nothing.</p></div>
+<div class="fn" id="web_socket.close-2"><div class="sig">def <b>close</b>(code: _int64, reason: string)</div></div>
+<div class="fn" id="web_socket.connect"><div class="sig">static def <b>connect</b>(address: string) : web_socket</div></div>
+<div class="fn" id="web_socket.connect-2"><div class="sig">static def <b>connect</b>(address: string, extras: (http_request)()) : web_socket</div></div>
+<div class="fn" id="web_socket.is_open"><div class="sig">def <b>is_open</b>() : bool</div></div>
+<div class="fn" id="web_socket.of_server"><div class="sig">static def <b>of_server</b>(line: http_line) : web_socket</div><p>(for http_server) a websocket on a connection whose opening request was answered</p></div>
+<div class="fn" id="web_socket.ping"><div class="sig">def <b>ping</b>()</div></div>
+<div class="fn" id="web_socket.receive"><div class="sig">def <b>receive</b>() : web_message?</div><p>Wait for the next message. Null: the other side has closed (close_code and close_reason say why). Throws socket_timeout when a timeout is set and nothing came, web_socket_exception when what came is not a websocket&#x27;s.</p></div>
+<div class="fn" id="web_socket.receive_text"><div class="sig">def <b>receive_text</b>() : string?</div><p>the next message as text; null when the other side has closed</p></div>
+<div class="fn" id="web_socket.send"><div class="sig">def <b>send</b>(text: string)</div><p>send one text message</p></div>
+<div class="fn" id="web_socket.send_bytes"><div class="sig">def <b>send_bytes</b>(data: _int8[]?)</div><p>send one message of bytes</p></div>
+<div class="fn" id="web_socket.set_timeout"><div class="sig">def <b>set_timeout</b>(milliseconds: _int64) : web_socket</div></div>
+</div>
+</section>
+<section class="type" id="web_socket_exception">
+<h2><span class="kind">class</span> web_socket_exception</h2>
+<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/web_socket.sharp">source</a></p>
+<p>WEBSOCKETS: a connection both sides can send on at any time, in whole messages</p>
+<div class="code"><pre class="sharp">chat := web_socket.connect(&quot;wss://chat.example/room/7&quot;);
+chat.send(&quot;hello&quot;);                         // a text message
+while(true) {
+    message := chat.receive();              // waits for the next one; null: the other side closed
+    if(message == null) { break; }
+    print(message!!.text() + &quot;\n&quot;);
+}
+chat.close();</pre></div>
+<p>HTTP answers once per request. A websocket starts as an HTTP request (&quot;may we switch?&quot;) and from then on is a two-way pipe of MESSAGES: what one side sends as one message arrives as one message, however large, text or bytes. It is what chats, live dashboards and games use.</p>
+<div class="code"><pre class="sharp">web_socket.connect(address)             &quot;ws://...&quot; (plain) or &quot;wss://...&quot; (encrypted, the server&#x27;s certificate checked)
+web_socket.connect(address) { ... }     with a block for the opening request (`it` is an http_request: headers, a token)
+send(text)   send_bytes(data)           one message
+receive()                               the next message (web_message), null when the other side has closed
+receive_text()                          the next message as text, null when closed
+ping()                                  &quot;are you there?&quot; - answered by the other side without the program seeing it
+set_timeout(ms)                         receive() gives up after this long (socket_timeout); 0: waits for ever
+close()   close(code, reason)           say goodbye and close (1000 is &quot;done&quot;)</pre></div>
+<p>A server takes websockets on a route of an http_server: server.socket(&quot;/room/{id}&quot;) { ... } (http_server.sharp).</p>
+<p>Pings from the other side are answered by receive(), so a program that wants to stay connected keeps calling it. One thread may receive while another sends.</p>
+<div class="code"><pre class="sharp">Java comparison: java.net.http.WebSocket; JavaScript: new WebSocket(url).</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="web_socket_exception.web_socket_exception"><div class="sig">public <b>web_socket_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="web_socket_turn">
+<h2><span class="kind">class</span> web_socket_turn</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/http/web_socket.sharp">source</a></p>
+<p>what two threads that send on one websocket take turns on</p>
+</section>
+<section class="type" id="windows_sockets">
+<h2><span class="kind">class</span> windows_sockets</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/net/system_sockets.sharp">source</a></p>
+
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

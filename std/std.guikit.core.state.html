@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.core.state - Sharp standard library</title>
+<meta name="description" content="The std.guikit.core.state module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="on sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.core.state</p>
+<h1>std.guikit.core.state <small>module</small></h1>
+<p class="contents"><a href="#built_by">built_by</a> <a href="#change_hook">change_hook</a> <a href="#composable">composable</a> <a href="#reconciler">reconciler</a> <a href="#state">state</a> <a href="#state_cell">state_cell</a> <a href="#state_list">state_list</a></p>
+<section class="type" id="built_by">
+<h2><span class="kind">class</span> built_by</h2>
+<p class="meta"><code>base composable</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/composable.sharp">source</a></p>
+<p>A composable made from a function instead of a class - for a screen whose state lives outside it (gui.state):</p>
+<div class="code"><pre class="sharp">count := gui.state(0);
+gui.run(&quot;Counter&quot;, 360, 240, { -&gt;
+    return gui.button(&quot;clicked &quot; + count.value, { -&gt; count.value += 1; });
+});</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="built_by.built_by"><div class="sig"><b>built_by</b>(maker: ()(element))</div></div>
+<div class="fn" id="built_by.build"><div class="sig">override def <b>build</b>() : element</div></div>
+</div>
+</section>
+<section class="type" id="change_hook">
+<h2><span class="kind">class</span> change_hook</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state.sharp">source</a></p>
+<p>a function to run when a state changes, wrapped so it can be kept in a list</p>
+<h3>Functions</h3><div>
+<div class="fn" id="change_hook.change_hook"><div class="sig"><b>change_hook</b>(what: ()())</div></div>
+<div class="fn" id="change_hook.run"><div class="sig">def <b>run</b>()</div></div>
+</div>
+</section>
+<section class="type" id="composable">
+<h2><span class="kind">class</span> composable</h2>
+<p class="meta"><code>: element, behavior, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/composable.sharp">source</a></p>
+<p>composable - a piece of screen you write yourself: some state, and a build() that turns that state into widgets.</p>
+<div class="code"><pre class="sharp">class counter base composable {
+    count := state(0);</pre></div>
+<div class="code"><pre class="sharp">    override def build() : element {
+        return gui.column().gap(12).center()
+            .add(gui.text(&quot;count: &quot; + count.value).size(28))
+            .add(gui.row().gap(8)
+                .add(gui.button(&quot;-&quot;, { -&gt; count.value -= 1; }))
+                .add(gui.button(&quot;+&quot;, { -&gt; count.value += 1; })));
+    }
+}</pre></div>
+<div class="code"><pre class="sharp">gui.run(&quot;Counter&quot;, 360, 240, new counter());</pre></div>
+<p>build() describes what the screen looks like RIGHT NOW. It is called again whenever one of this composable&#x27;s states changes - you never update the screen by hand. Keep build() free of side effects: it only reads state and returns widgets; things happen in the click handlers.</p>
+<p>A composable is itself an element, so composables nest like any widget:</p>
+<div class="code"><pre class="sharp">gui.column().add(new counter()).add(new counter())      // two independent counters</pre></div>
+<p>PASSING THINGS IN: give your composable a constructor and keep what it was given in fields; build() reads them. (Compose calls these parameters, React &quot;props&quot;.)</p>
+<p>(The name is <code>composable</code> because <code>component</code> is a word the Sharp language keeps for itself.)</p>
+<p>HOW IT WORKS INSIDE</p>
+<p>A composable has its own view in the tree with exactly one child: whatever build() returned. For layout and painting it is invisible - it measures as its child and places its child over itself.</p>
+<p>When a state that this composable&#x27;s build() read changes, the state calls invalidate(), which puts the composable on the host&#x27;s list; before the next frame the host calls rebuild(): build() runs again, and the reconciler settles the new widgets in, carrying over what the old ones remembered (reconciler.sharp). While build() runs, the host&#x27;s <code>building</code> points at this composable - that is how a state knows who is reading it (state.sharp).</p>
+<p>When a PARENT rebuilds, its build() makes this composable again - a NEW object with states at their starting values. The reconciler pairs the new object with the old one and the new one adopts the old states&#x27; values (adopt, below). From then on the old object forwards to the new one (<code>replaced_by</code>), in case a click handler still holds it.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>me</code></td><td><code>view</code></td><td></td></tr><tr><td><code>waiting</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="composable.composable"><div class="sig"><b>composable</b>()</div></div>
+<div class="fn" id="composable.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div><p>The old composable at this place in the tree hands over: each of my states takes the value of the old state made at the same position, and the old object forwards to me from now on.</p></div>
+<div class="fn" id="composable.animated"><div class="sig">def <b>animated</b>(first: decimal) : animated</div><p>A number that glides to new values instead of jumping (animated.sharp): <code>width := animated(0);</code> then width.go(240, 0.25) and read width.value. Remembered with the composable like a state.</p></div>
+<div class="fn" id="composable.appeared"><div class="sig">def <b>appeared</b>()</div><p>the composable is on the screen now (the reconciler calls this after building it; a second call does nothing)</p></div>
+<div class="fn" id="composable.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="composable.build"><div class="sig">def <b>build</b>() : element</div><p>What this piece of screen looks like right now. You write this.</p></div>
+<div class="fn" id="composable.built"><div class="sig">def <b>built</b>() : view?</div><p>the child that build() last produced (null before the first build)</p></div>
+<div class="fn" id="composable.every"><div class="sig">def <b>every</b>(seconds: decimal, action: ()())</div><p>run this every <code>seconds</code>, for as long as the composable is on the screen</p></div>
+<div class="fn" id="composable.invalidate"><div class="sig">def <b>invalidate</b>()</div><p>&quot;build me again before the next frame&quot; - called by a state my build() read, when it changes</p></div>
+<div class="fn" id="composable.is_replaced"><div class="sig">def <b>is_replaced</b>() : _int64</div><p>has a newer object taken this one&#x27;s place (after a parent rebuilt)?</p></div>
+<div class="fn" id="composable.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="composable.left"><div class="sig">def <b>left</b>()</div><p>the composable is gone from the screen for good (the reconciler calls this)</p></div>
+<div class="fn" id="composable.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="composable.node"><div class="sig">override def <b>node</b>() : view</div></div>
+<div class="fn" id="composable.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="composable.rebuild"><div class="sig">def <b>rebuild</b>(before: view?)</div><p>Run build() and settle the result in as this composable&#x27;s one child. <code>before</code> is the child it replaces (null the first time): the new widgets take over what the old ones remembered.</p></div>
+<div class="fn" id="composable.state"><div class="sig">def <b>state</b>(first: _int64) : state&lt;_int64&gt;</div><p>A value this composable&#x27;s screen depends on (see state&lt;t&gt;). Call it in a field&#x27;s start value: <code>count := state(0);</code> - a whole number here; the functions below make decimal, text and any-object states.</p>
+<p>A state made here is REMEMBERED with the composable: when a parent rebuilds and makes this composable again, the new object&#x27;s states take the old values (adopt, below). Make them in the same order every time - as field start values, not inside an <code>if</code>.</p></div>
+<div class="fn" id="composable.state-2"><div class="sig">def <b>state</b>(first: decimal) : state&lt;decimal&gt;</div><p>a decimal state: <code>volume := state(0.5);</code></p></div>
+<div class="fn" id="composable.state-3"><div class="sig">def <b>state</b>(first: string) : state&lt;string&gt;</div><p>a text state: <code>name := state(&quot;&quot;);</code></p></div>
+<div class="fn" id="composable.state_of"><div class="sig">def <b>state_of</b>&lt;t&gt;(first: t) : state&lt;t&gt;</div><p>A state holding any other kind of value - an object, a list: <code>items := state_of(new list&lt;todo&gt;());</code>. After changing something INSIDE the object, call items.touch() so the screen follows.</p></div>
+<div class="fn" id="composable.when_gone"><div class="sig">def <b>when_gone</b>(action: ()())</div><p>run this once, when the composable is gone from the screen for good</p></div>
+<div class="fn" id="composable.when_shown"><div class="sig">def <b>when_shown</b>(action: ()())</div><p>run this once, when the composable first appears on the screen</p></div>
+</div>
+</section>
+<section class="type" id="reconciler">
+<h2><span class="kind">class</span> reconciler</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/reconciler.sharp">source</a></p>
+<p>reconciler - settles freshly built widgets into the tree, carrying over what the widgets they replace had remembered.</p>
+<p>THE PROBLEM: build() makes NEW widget objects every time. If the screen simply swapped to the new tree, everything that lives in the widgets and not in your state would reset on every change: the list would jump back to the top, the text cursor would vanish, the focused field would lose focus, a nested counter would forget its count.</p>
+<p>THE ANSWER: walk the old tree and the new tree side by side. Where a new widget sits in the place of an old widget OF THE SAME KIND, the new one takes over the old one&#x27;s memory:</p>
+<div class="code"><pre class="sharp">old tree                 new tree
+column                   column            same kind  -&gt; carry over
+  text &quot;count: 1&quot;          text &quot;count: 2&quot;   same kind  -&gt; carry over (nothing to carry)
+  scroller (at 240px)      scroller          same kind  -&gt; scroll position carried
+    ...                      ...
+  button                   checkbox          different  -&gt; the checkbox starts fresh</pre></div>
+<p>&quot;The same place&quot; is the same position among the siblings - or, for widgets that were given a key (modifier().key(&quot;row-17&quot;)), the sibling with the same key, so a reordered list keeps each row&#x27;s memory with the row.</p>
+<p>What &quot;memory&quot; is, is up to each widget: it implements <code>stateful</code> and copies what it wants in adopt(old). The reconciler itself carries the things every view has: is the mouse over it, is it pressed, does it have the focus.</p>
+<p>Composables are where it recurses in an interesting way: a new composable first adopts the old one&#x27;s STATES (so its build() sees the remembered values), then builds, then its result is settled against the old result.</p>
+<p>(React calls this &quot;reconciliation&quot;; Compose does the equivalent with its slot table. This one is deliberately the simple version: the NEW tree always becomes the live tree, and only memory moves across.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="reconciler.retire"><div class="sig">static def <b>retire</b>(old: view)</div><p><code>old</code> is a subtree that is not on the screen any more. Every composable in it whose place was NOT taken by a new object is gone for good: it is told (composable.left), and so is everything it had built.</p>
+<p>A composable that WAS replaced carries on in its new object; what it had built was handed to the new object&#x27;s rebuild, which retires the leftovers of that itself - so the walk stops there.</p></div>
+<div class="fn" id="reconciler.settle"><div class="sig">static def <b>settle</b>(fresh: view, before: view?)</div><p>Make <code>fresh</code> (a subtree that was just built) ready to live in the tree. <code>before</code> is the subtree it replaces, or null when nothing was there.</p></div>
+</div>
+</section>
+<section class="type" id="state">
+<h2><span class="kind">class</span> state&lt;t&gt;</h2>
+<p class="meta"><code>: state_cell</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state.sharp">source</a></p>
+<p>state&lt;t&gt; - a value the screen depends on.</p>
+<div class="code"><pre class="sharp">count := state(0);                       // inside a composable</pre></div>
+<div class="code"><pre class="sharp">gui.text(&quot;count: &quot; + count.value)        // read it while building the screen
+count.value = count.value + 1;           // change it: the screen rebuilds by itself
+count.value += 1;                        // the same</pre></div>
+<p>That is the whole idea of a declarative UI: you never reach into the screen to change a label. You change the STATE, and the part of the screen that was built from it is built again.</p>
+<p><code>value</code> is a property (a field with a getter and a setter): reading it hands back what is held; writing it stores the new value and tells the screen. Compose comparison: mutableStateOf(0) and its .value. React: useState.</p>
+<p>WHO REBUILDS: exactly the composables that READ the state while building.</p>
+<p>The getter looks at which composable&#x27;s build() is running right now (ui_host.building) and writes it down as a reader. The setter tells every reader to build again, and forgets them - they sign up again when their build() reads the state anew.</p>
+<p>So it does not matter where a state was made. A state made at the top of the app and read only by one small composable deep inside rebuilds only that one. A state nobody reads while building rebuilds nothing. (Compose does this with its &quot;snapshot&quot; read tracking - Composition.recordReadOf; this is the same idea in its simplest form.)</p>
+<p>THREE THINGS TO KNOW (they come from how Sharp treats values): - A yes/no state is a number: state(0) / state(1), tested with <code>flag.value == 1</code>. (A <code>bool</code> variable is a shared object in Sharp; numbers are plain values.) - A text state hands you ITS string. Build a new text and assign it (name.value = name.value + &quot;!&quot;); do not change the string you were handed in place, or the screen will not know. - Changing something INSIDE an object held by a state (a field of it, an item of a list) does not go through the setter. Call touch() afterwards.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>held</code></td><td><code>t</code></td><td>the value itself</td></tr><tr><td><code>value</code></td><td><code>t</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="state.state"><div class="sig"><b>state</b>(first: t)</div></div>
+<div class="fn" id="state.on_change"><div class="sig">def <b>on_change</b>(action: ()())</div><p>Run <code>action</code> every time the value changes. This is for LOGIC that must follow a state - saving it, passing it on. A screen never needs it: a screen reads the state while it is built and is built again by itself.</p></div>
+<div class="fn" id="state.peek"><div class="sig">def <b>peek</b>() : t</div></div>
+<div class="fn" id="state.restore"><div class="sig">def <b>restore</b>(kept: t)</div><p>put a value in without telling anybody: for the value a saved state had in its file (saved.sharp)</p></div>
+<div class="fn" id="state.take_from"><div class="sig">override def <b>take_from</b>(other: state_cell)</div><p>Take over the value of the cell this one replaces (see state_cell). Only from a cell of the very same type: a cell of another type is ignored, and this one keeps its starting value.</p></div>
+<div class="fn" id="state.touch"><div class="sig">def <b>touch</b>()</div><p>&quot;I changed something inside the value&quot; - for a list or object held by the state, after adding to it or changing a field: rebuild as if the state had been assigned.</p></div>
+</div>
+</section>
+<section class="type" id="state_cell">
+<h2><span class="kind">interface</span> state_cell</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state.sharp">source</a></p>
+<p>What a composable knows about each of its states without knowing the type inside: that it can take over the value of the state it replaces.</p>
+<p>WHY THIS EXISTS: when a screen is rebuilt, a parent&#x27;s build() makes its child composables AGAIN - new objects, with new states at their starting values. The reconciler pairs each new composable with the old one it replaces and has every new state take the old state&#x27;s value, in the order they were made. So the counter keeps counting although its object is new. (React keeps hook state by call order in the same way; Compose keeps <code>remember</code>ed values by position in its slot table.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="state_cell.take_from"><div class="sig">def <b>take_from</b>(other: state_cell)</div></div>
+</div>
+</section>
+<section class="type" id="state_list">
+<h2><span class="kind">class</span> state_list&lt;t&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state_list.sharp">source</a></p>
+<p>state_list - a list the screen watches: add, remove or move an item and every screen that showed the list is built again.</p>
+<div class="code"><pre class="sharp">tasks := state_list&lt;task&gt;();</pre></div>
+<div class="code"><pre class="sharp">tasks.add(task(&quot;Write the notes&quot;));         // the screen follows
+tasks.remove(done_one);
+tasks.move(0, 3);</pre></div>
+<div class="code"><pre class="sharp">for(i : _int64 = 0; i &lt; tasks.size(); i++) { task_row(tasks.at(i)); }</pre></div>
+<p>WHY NOT state&lt;list&lt;t&gt;&gt;: a state only notices that it was given a NEW value. Adding to the list it already holds changes nothing it can see, so the screen would stay as it was (unless you remember to call touch()). This class does the remembering: every function that changes the list announces it.</p>
+<p>Changing something INSIDE an item (task.done = 1) is still invisible to the list - it holds the same item as before. Say so with changed():</p>
+<div class="code"><pre class="sharp">t.done = 1;
+tasks.changed();</pre></div>
+<p>(Compose: mutableStateListOf / SnapshotStateList.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="state_list.add"><div class="sig">def <b>add</b>(item: t)</div></div>
+<div class="fn" id="state_list.at"><div class="sig">def <b>at</b>(index: _int64) : t</div><p>the item at <code>index</code> (0 is the first)</p></div>
+<div class="fn" id="state_list.changed"><div class="sig">def <b>changed</b>()</div><p>something INSIDE an item changed: the screens that show the list are built again</p></div>
+<div class="fn" id="state_list.clear"><div class="sig">def <b>clear</b>()</div></div>
+<div class="fn" id="state_list.index_of"><div class="sig">def <b>index_of</b>(item: t) : _int64</div><p>where <code>item</code> is in the list, or -1 when it is not in it</p></div>
+<div class="fn" id="state_list.insert"><div class="sig">def <b>insert</b>(index: _int64, item: t)</div><p>put <code>item</code> in at <code>index</code>, moving the ones from there on down by one</p></div>
+<div class="fn" id="state_list.is_empty"><div class="sig">def <b>is_empty</b>() : _int64</div><p>1 when the list has no items</p></div>
+<div class="fn" id="state_list.move"><div class="sig">def <b>move</b>(from: _int64, to: _int64)</div><p>take the item at <code>from</code> out and put it back in at <code>to</code>: what dragging a row to a new place does</p></div>
+<div class="fn" id="state_list.on_change"><div class="sig">def <b>on_change</b>(action: ()())</div><p>run <code>action</code> after every change (for logic that follows the list - saving it)</p></div>
+<div class="fn" id="state_list.remove"><div class="sig">def <b>remove</b>(item: t) : _int64</div><p>take <code>item</code> out. Gives 1 when it was in the list.</p></div>
+<div class="fn" id="state_list.remove_at"><div class="sig">def <b>remove_at</b>(index: _int64)</div></div>
+<div class="fn" id="state_list.replace_all"><div class="sig">def <b>replace_all</b>(items: list&lt;t&gt;)</div><p>replace everything with the items of <code>items</code> (what loading from a file or a server ends with)</p></div>
+<div class="fn" id="state_list.restore"><div class="sig">def <b>restore</b>(items: list&lt;t&gt;)</div><p>the items, put in without telling anybody: for what a saved list had in its file (saved.sharp)</p></div>
+<div class="fn" id="state_list.size"><div class="sig">def <b>size</b>() : _int64</div><p>how many items</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

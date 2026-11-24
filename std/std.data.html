@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.data - Sharp standard library</title>
+<meta name="description" content="The std.data module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li class="on"><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.data</p>
+<h1>std.data <small>module</small></h1>
+<p class="contents"><a href="#base64">base64</a> <a href="#csv_exception">csv_exception</a> <a href="#csv_reader">csv_reader</a> <a href="#csv_row">csv_row</a> <a href="#csv_writer">csv_writer</a> <a href="#hex">hex</a> <a href="#ini_file">ini_file</a> <a href="#ini_section">ini_section</a> <a href="#json">json</a> <a href="#json_exception">json_exception</a> <a href="#json_member_order">json_member_order</a> <a href="#json_objects">json_objects</a> <a href="#json_parser">json_parser</a> <a href="#json_value">json_value</a> <a href="#json_writer">json_writer</a> <a href="#sql_exception">sql_exception</a> <a href="#sql_row">sql_row</a> <a href="#sql_statement">sql_statement</a> <a href="#sql_value">sql_value</a> <a href="#sqlite">sqlite</a> <a href="#sqlite_library">sqlite_library</a> <a href="#url_codec">url_codec</a> <a href="#xml_writer">xml_writer</a></p>
+<section class="type" id="base64">
+<h2><span class="kind">class</span> base64</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/encoding/base64.sharp">source</a></p>
+<p>Base64: writes any bytes with 64 harmless characters (A-Z a-z 0-9 and two more), three bytes becoming four characters. Used wherever binary data has to travel as text: e-mail attachments, data in JSON or XML, tokens.</p>
+<div class="code"><pre class="sharp">base64.encode(&quot;hello&quot;)              &quot;aGVsbG8=&quot;
+base64.decode(&quot;aGVsbG8=&quot;)           &quot;hello&quot;
+base64.encode_url(&quot;\xfb\xff&quot;)       &quot;-_8&quot;       (URL safe, no padding)</pre></div>
+<p>Two alphabets (RFC 4648): - standard: the two extra characters are &#x27;+&#x27; and &#x27;/&#x27;, and the text is padded with &#x27;=&#x27; to a multiple of four characters - URL safe: &#x27;-&#x27; and &#x27;_&#x27; instead, which need no escaping in URLs and file names; written without padding</p>
+<p>Strings stand for bytes here: every character of the input of encode() is one byte (0..255), and decode() gives a string whose characters are the decoded bytes (it may contain any byte, including 0). The _bytes variants take and give byte arrays instead.</p>
+<p>Decoding accepts both alphabets, with or without padding, and skips line breaks, spaces and tabs (encoded data is often wrapped into lines). Anything else throws parse_exception.</p>
+<p>Everything is static.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="base64.decode"><div class="sig">static def <b>decode</b>(text: string) : string</div><p>The bytes that <code>text</code> encodes, as a string with one character per byte. Both alphabets are accepted, padding is optional, white space is skipped. &quot;&quot; gives &quot;&quot;.</p>
+<p>Throws parse_exception when the text contains a character that is not Base64, has padding in the middle, has a length that no input produces (one character left over), or ends in bits that are not zero.</p></div>
+<div class="fn" id="base64.decode_bytes"><div class="sig">static def <b>decode_bytes</b>(text: string) : _int8[]?</div><p>The bytes that <code>text</code> encodes as an array; null when it encodes no bytes at all. Accepts and throws like decode().</p></div>
+<div class="fn" id="base64.encode"><div class="sig">static def <b>encode</b>(data: string) : string</div><p>the bytes of <code>data</code> (one per character) in standard Base64 with &#x27;=&#x27; padding; &quot;&quot; gives &quot;&quot;</p></div>
+<div class="fn" id="base64.encode_bytes"><div class="sig">static def <b>encode_bytes</b>(bytes: _int8[]?) : string</div><p><code>bytes</code> in standard Base64 with &#x27;=&#x27; padding; null gives &quot;&quot;</p></div>
+<div class="fn" id="base64.encode_lines"><div class="sig">static def <b>encode_lines</b>(data: string, line_length: _int64) : string</div><p>Standard Base64 broken into lines of <code>line_length</code> characters with &quot;\r\n&quot; between them (MIME uses 76, PEM files 64). No line break at the end. Throws illegal_argument_exception when line_length is below 4.</p></div>
+<div class="fn" id="base64.encode_url"><div class="sig">static def <b>encode_url</b>(data: string) : string</div><p>the bytes of <code>data</code> in URL safe Base64 (&#x27;-&#x27; and &#x27;_&#x27;), without padding</p></div>
+<div class="fn" id="base64.encode_url_bytes"><div class="sig">static def <b>encode_url_bytes</b>(bytes: _int8[]?) : string</div><p><code>bytes</code> in URL safe Base64 (&#x27;-&#x27; and &#x27;_&#x27;), without padding; null gives &quot;&quot;</p></div>
+<div class="fn" id="base64.is_valid"><div class="sig">static def <b>is_valid</b>(text: string) : bool</div><p>true when decode(text) would succeed</p></div>
+</div>
+</section>
+<section class="type" id="csv_exception">
+<h2><span class="kind">class</span> csv_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/csv/csv_exception.sharp">source</a></p>
+<p>Thrown by csv_reader for text that is not well formed CSV: a quoted field that is never closed, or text directly behind the closing quote of a field (&quot;ab&quot;c). Also thrown by csv_writer and csv_reader for settings that cannot work (a separator that is a quote or a line end).</p>
+<p><code>line</code> is the line of the text where the problem is (counting from 1, and counting the line breaks inside quoted fields too), <code>column</code> the place in that line (from 1). Both are -1 when the error is not about a place in a text. The message already contains them.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>line</code></td><td><code>decimal</code></td><td>line of the problem, counting from 1, or -1</td></tr><tr><td><code>column</code></td><td><code>decimal</code></td><td>place within the line, counting from 1, or -1</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="csv_exception.csv_exception"><div class="sig">public <b>csv_exception</b>(message: string) -&gt; base(message)</div><p>an error that is not about a place in a text</p></div>
+<div class="fn" id="csv_exception.csv_exception-2"><div class="sig">public <b>csv_exception</b>(message: string, line: decimal, column: decimal) -&gt; base(message)</div><p>an error at a known place; <code>message</code> should already mention the place</p></div>
+</div>
+</section>
+<section class="type" id="csv_reader">
+<h2><span class="kind">class</span> csv_reader</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/csv/csv_reader.sharp">source</a></p>
+<p>Reads CSV (comma separated values) text: rows of fields.</p>
+<div class="code"><pre class="sharp">rows := csv_reader.parse(&quot;name,age\nAda,36\n\&quot;Smith, John\&quot;,41\n&quot;);
+rows.at(2).at(0)                  // Smith, John   (rows: list&lt;csv_row&gt;)</pre></div>
+<div class="code"><pre class="sharp">reader := new csv_reader(new file(&quot;people.csv&quot;).read_text());
+reader.set_separator(&#x27;;&#x27;);
+header := reader.read_header();
+while(reader.has_next()) {
+    row := reader.next_row();
+    name := row.at(reader.column_index(&quot;name&quot;));
+}</pre></div>
+<p>The format (RFC 4180, with the usual freedoms): - a row ends at a line end: &quot;\n&quot;, &quot;\r\n&quot; or &quot;\r&quot;; the last row does not need one - fields are separated by the separator: &#x27;,&#x27; unless set_separator() says otherwise (&#x27;;&#x27; and tab are common) - a field may be put in double quotes; then it can contain separators, line ends and - written twice - double quotes: &quot;say &quot;&quot;hi&quot;&quot;&quot; is say &quot;hi&quot;. Outside quotes nothing is special but separator and line end: a quote in the middle of an unquoted field is kept as it is, and spaces around fields are part of the fields (see set_trim()). - rows may have different numbers of fields - an empty line is skipped (see set_skip_empty_lines()); a line with only separators is a row of empty fields</p>
+<p>A row is a csv_row. Malformed text throws csv_exception with the line and column: a quoted field that is never closed, or text right behind a closing quote.</p>
+<p>The whole text is in memory; rows are taken from it one by one. Configure the reader before reading the first row. Not thread safe.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="csv_reader.csv_reader"><div class="sig"><b>csv_reader</b>(text: string)</div><p>a reader for the CSV text <code>text</code> (null or &quot;&quot; is a text without rows)</p></div>
+<div class="fn" id="csv_reader.column_index"><div class="sig">def <b>column_index</b>(name: string) : decimal</div><p>The position (from 0) of the column called <code>name</code> in the header that read_header() read, or -1 when there is no such column. Names are compared exactly (case matters). Throws illegal_state_exception when read_header() was not called.</p></div>
+<div class="fn" id="csv_reader.get_rows_read"><div class="sig">def <b>get_rows_read</b>() : decimal</div><p>how many rows have been read so far (the header counts as one)</p></div>
+<div class="fn" id="csv_reader.has_next"><div class="sig">def <b>has_next</b>() : bool</div><p>true when there is another row to read</p></div>
+<div class="fn" id="csv_reader.next_fields"><div class="sig">def <b>next_fields</b>() : list&lt;string&gt;</div><p>The fields of the next row as a plain list. Throws illegal_state_exception when there are no more rows and csv_exception when the row is malformed.</p></div>
+<div class="fn" id="csv_reader.next_row"><div class="sig">def <b>next_row</b>() : csv_row</div><p>The next row. When read_header() was called before, the row knows the column names (csv_row.field). Throws illegal_state_exception when there are no more rows (ask has_next() first) and csv_exception when the row is malformed.</p></div>
+<div class="fn" id="csv_reader.parse"><div class="sig">static def <b>parse</b>(text: string) : list&lt;csv_row&gt;</div><p>all rows of <code>text</code>, with the default settings (comma, double quote). Throws csv_exception for malformed text.</p></div>
+<div class="fn" id="csv_reader.parse-2"><div class="sig">static def <b>parse</b>(text: string, separator: decimal) : list&lt;csv_row&gt;</div><p>all rows of <code>text</code> with the fields separated by <code>separator</code>. Throws csv_exception for malformed text or an impossible separator.</p></div>
+<div class="fn" id="csv_reader.parse_file"><div class="sig">static def <b>parse_file</b>(source: file) : list&lt;csv_row&gt;</div><p>All rows of the file <code>source</code>, with the default settings. Throws io_exception when the file does not exist or is a directory, csv_exception for malformed text.</p></div>
+<div class="fn" id="csv_reader.read_all"><div class="sig">def <b>read_all</b>() : list&lt;csv_row&gt;</div><p>All rows that have not been read yet. An empty list when there are none. Throws csv_exception when a row is malformed.</p></div>
+<div class="fn" id="csv_reader.read_header"><div class="sig">def <b>read_header</b>() : list&lt;string&gt;</div><p>Read the next row as the header: the names of the columns. They are remembered for column_index(). Returns the names. Throws illegal_state_exception when there is no row to read, csv_exception when it is malformed.</p></div>
+<div class="fn" id="csv_reader.set_quote"><div class="sig">def <b>set_quote</b>(ch: decimal) : csv_reader</div><p>Use the character <code>ch</code> instead of the double quote to enclose fields (the single quote is sometimes used). Returns this reader. Throws csv_exception when <code>ch</code> is the separator or a line end.</p></div>
+<div class="fn" id="csv_reader.set_separator"><div class="sig">def <b>set_separator</b>(ch: decimal) : csv_reader</div><p>Separate fields at the character <code>ch</code> instead of the comma. Returns this reader. Throws csv_exception when <code>ch</code> is the quote character or a line end.</p></div>
+<div class="fn" id="csv_reader.set_skip_empty_lines"><div class="sig">def <b>set_skip_empty_lines</b>(enabled: bool) : csv_reader</div><p>skip lines without any character (true, the default) or report them as a row with one empty field (false). Returns this reader.</p></div>
+<div class="fn" id="csv_reader.set_trim"><div class="sig">def <b>set_trim</b>(enabled: bool) : csv_reader</div><p>Remove spaces and tabs around unquoted fields (true) or keep fields exactly as written (false, the default). Quoted fields are never trimmed, but spaces between a quote and the separator are then allowed. Returns this reader.</p></div>
+</div>
+</section>
+<section class="type" id="csv_row">
+<h2><span class="kind">class</span> csv_row</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/csv/csv_row.sharp">source</a></p>
+<p>One row of CSV data: its fields in order, and - when the reader read a header - the names of the columns, so that a field can be asked for by name.</p>
+<div class="code"><pre class="sharp">row := reader.next_row();
+row.at(0)                 // the first field
+row.field(&quot;email&quot;)        // the field in the column called &quot;email&quot;
+row.size()                // how many fields this row has</pre></div>
+<p>Rows of one file may have different numbers of fields. A row can also be built by hand to give to a csv_writer:</p>
+<div class="code"><pre class="sharp">row := new csv_row();
+row.add(&quot;Ada&quot;).add(&quot;36&quot;);</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="csv_row.csv_row"><div class="sig"><b>csv_row</b>()</div><p>a row without fields</p></div>
+<div class="fn" id="csv_row.csv_row-2"><div class="sig"><b>csv_row</b>(fields: list&lt;string&gt;)</div><p>a row with the given fields (the list is used as it is, not copied)</p></div>
+<div class="fn" id="csv_row.csv_row-3"><div class="sig"><b>csv_row</b>(fields: list&lt;string&gt;, header: list&lt;string&gt;?)</div><p>a row with the given fields that belongs to the header <code>header</code></p></div>
+<div class="fn" id="csv_row.add"><div class="sig">def <b>add</b>(field: string) : csv_row</div><p>add a field at the end; returns this row so calls can be chained</p></div>
+<div class="fn" id="csv_row.at"><div class="sig">def <b>at</b>(index: decimal) : string</div><p>The field at position <code>index</code> (0 is the first). Throws out_of_bounds_exception when the row has no such field.</p></div>
+<div class="fn" id="csv_row.at_or"><div class="sig">def <b>at_or</b>(index: decimal, fallback: string) : string</div><p>the field at position <code>index</code>, or <code>fallback</code> when the row is shorter than that</p></div>
+<div class="fn" id="csv_row.column_index"><div class="sig">def <b>column_index</b>(name: string) : decimal</div><p>the position of the column called <code>name</code> in the header, or -1 (also when there is no header)</p></div>
+<div class="fn" id="csv_row.field"><div class="sig">def <b>field</b>(name: string) : string</div><p>The field in the column called <code>name</code>. Throws csv_exception when no header was read, the header has no such column, or this row is too short to have that column.</p></div>
+<div class="fn" id="csv_row.fields"><div class="sig">def <b>fields</b>() : list&lt;string&gt;</div><p>the fields as a list (the list of this row itself: changing it changes the row)</p></div>
+<div class="fn" id="csv_row.has_field"><div class="sig">def <b>has_field</b>(name: string) : bool</div><p>true when the header has a column <code>name</code> and this row is long enough to have a field in it</p></div>
+<div class="fn" id="csv_row.size"><div class="sig">def <b>size</b>() : decimal</div><p>the number of fields</p></div>
+<div class="fn" id="csv_row.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>the fields joined with &quot;, &quot; - for messages and debugging, not valid CSV (see csv_writer)</p></div>
+</div>
+</section>
+<section class="type" id="csv_writer">
+<h2><span class="kind">class</span> csv_writer</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/csv/csv_writer.sharp">source</a></p>
+<p>Writes CSV (comma separated values) text: rows of fields, quoted where needed so that a csv_reader with the same settings reads back exactly the same fields.</p>
+<div class="code"><pre class="sharp">out := new csv_writer();
+out.write_field(&quot;name&quot;).write_field(&quot;age&quot;).end_row();
+out.write_field(&quot;Smith, John&quot;).write_number(41).end_row();
+out.to_string()        // name,age\n&quot;Smith, John&quot;,41\n
+out.save(new file(&quot;people.csv&quot;));</pre></div>
+<div class="code"><pre class="sharp">text := csv_writer.format(rows);      // rows: list&lt;csv_row&gt;</pre></div>
+<p>A field is put in quotes when it contains the separator, a quote, a line end, or starts or ends with a space or tab (so that readers which trim do not change it); a quote inside is written twice. set_always_quote(true) quotes every field.</p>
+<p>Rows end with &quot;\n&quot; unless set_line_end() says otherwise (&quot;\r\n&quot; is what the CSV standard and Excel use).</p>
+<p>The text is collected in memory. Not thread safe.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="csv_writer.csv_writer"><div class="sig"><b>csv_writer</b>()</div><p>a writer with the default settings: comma, double quote, &quot;\n&quot;</p></div>
+<div class="fn" id="csv_writer.clear"><div class="sig">def <b>clear</b>()</div><p>forget everything written; the settings stay</p></div>
+<div class="fn" id="csv_writer.end_row"><div class="sig">def <b>end_row</b>() : csv_writer</div><p>Finish the current row: write the line end. A row without fields is written as an empty line (which a reader skips by default). Returns this writer.</p></div>
+<div class="fn" id="csv_writer.format"><div class="sig">static def <b>format</b>(rows: list&lt;csv_row&gt;) : string</div><p>the CSV text for <code>rows</code> with the default settings</p></div>
+<div class="fn" id="csv_writer.format-2"><div class="sig">static def <b>format</b>(rows: list&lt;csv_row&gt;, separator: decimal) : string</div><p>the CSV text for <code>rows</code> with the fields separated by <code>separator</code>. Throws csv_exception for an impossible separator.</p></div>
+<div class="fn" id="csv_writer.get_rows_written"><div class="sig">def <b>get_rows_written</b>() : decimal</div><p>how many rows have been finished so far</p></div>
+<div class="fn" id="csv_writer.save"><div class="sig">def <b>save</b>(target: file)</div><p>Replace the content of the file <code>target</code> with everything written so far. Throws io_exception when the file cannot be written.</p></div>
+<div class="fn" id="csv_writer.set_always_quote"><div class="sig">def <b>set_always_quote</b>(enabled: bool) : csv_writer</div><p>put every field in quotes (true) or only those that need it (false, the default). Returns this writer.</p></div>
+<div class="fn" id="csv_writer.set_line_end"><div class="sig">def <b>set_line_end</b>(ending: string) : csv_writer</div><p>end rows with <code>ending</code> (&quot;\n&quot; by default; &quot;\r\n&quot; for the standard form). Returns this writer.</p></div>
+<div class="fn" id="csv_writer.set_quote"><div class="sig">def <b>set_quote</b>(ch: decimal) : csv_writer</div><p>Enclose fields with the character <code>ch</code> instead of the double quote. Returns this writer. Throws csv_exception when <code>ch</code> is the separator or a line end.</p></div>
+<div class="fn" id="csv_writer.set_separator"><div class="sig">def <b>set_separator</b>(ch: decimal) : csv_writer</div><p>Separate fields with the character <code>ch</code> instead of the comma. Returns this writer. Throws csv_exception when <code>ch</code> is the quote character or a line end.</p></div>
+<div class="fn" id="csv_writer.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>everything written so far (a row that was started but not ended is included as far as it got)</p></div>
+<div class="fn" id="csv_writer.write_field"><div class="sig">def <b>write_field</b>(field: string) : csv_writer</div><p>Add a field to the current row, with a separator in front when it is not the first, quoted when needed. Returns this writer so calls can be chained.</p></div>
+<div class="fn" id="csv_writer.write_number"><div class="sig">def <b>write_number</b>(value: decimal) : csv_writer</div><p>add a number as a field, written the short way (&quot;3&quot;, &quot;0.5&quot;). Returns this writer.</p></div>
+<div class="fn" id="csv_writer.write_row"><div class="sig">def <b>write_row</b>(fields: list&lt;string&gt;) : csv_writer</div><p>Write a whole row: all strings of <code>fields</code>, then the line end. A row that was started with write_field() is finished first. Returns this writer.</p></div>
+<div class="fn" id="csv_writer.write_row-2"><div class="sig">def <b>write_row</b>(row: csv_row) : csv_writer</div><p>write a whole row: all fields of <code>row</code>, then the line end. Returns this writer.</p></div>
+<div class="fn" id="csv_writer.write_rows"><div class="sig">def <b>write_rows</b>(rows: list&lt;csv_row&gt;) : csv_writer</div><p>write every row of <code>rows</code> with write_row(). Returns this writer.</p></div>
+</div>
+</section>
+<section class="type" id="hex">
+<h2><span class="kind">class</span> hex</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/encoding/hex.sharp">source</a></p>
+<p>Hexadecimal: bytes written as two digits each (0-9, a-f), and the classic &quot;hex dump&quot; for looking at binary data.</p>
+<div class="code"><pre class="sharp">hex.encode(&quot;Hi!&quot;)                 &quot;486921&quot;
+hex.decode(&quot;486921&quot;)              &quot;Hi!&quot;
+hex.from_number(255, 4)           &quot;00ff&quot;
+hex.to_number(&quot;ff&quot;)               255
+hex.dump(&quot;Hello, world! 123&quot;)
+    00000000  48 65 6c 6c 6f 2c 20 77  6f 72 6c 64 21 20 31 32  |Hello, world! 12|
+    00000010  33                                                |3|</pre></div>
+<p>Strings stand for bytes here: every character of the input of encode() and dump() is one byte, and decode() gives a string whose characters are the decoded bytes. The _bytes variants take and give byte arrays.</p>
+<p>Everything is static. Malformed input throws parse_exception.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="hex.decode"><div class="sig">static def <b>decode</b>(text: string) : string</div><p>The bytes that the hexadecimal text encodes, as a string with one character per byte. Upper and lower case digits are accepted; spaces, tabs, line ends and the characters &#x27;:&#x27; and &#x27;-&#x27; between bytes are skipped, so &quot;48 69 21&quot;, &quot;48:69:21&quot; and &quot;486921&quot; all work. An optional &quot;0x&quot; at the very beginning is skipped too.</p>
+<p>Throws parse_exception for any other character and for an odd number of digits.</p></div>
+<div class="fn" id="hex.decode_bytes"><div class="sig">static def <b>decode_bytes</b>(text: string) : _int8[]?</div><p>the bytes that the hexadecimal text encodes as an array; null when there are none. Accepts and throws like decode().</p></div>
+<div class="fn" id="hex.dump"><div class="sig">static def <b>dump</b>(data: string) : string</div><p>A hex dump of the bytes of <code>data</code>: 16 bytes per line, each line with the offset of its first byte (8 hexadecimal digits), the bytes as two digits each (an extra space after the eighth), and the same bytes as text between &#x27;|&#x27; - printable ASCII as it is, everything else as &#x27;.&#x27;. Every line ends with &quot;\n&quot;. &quot;&quot; gives &quot;&quot;.</p></div>
+<div class="fn" id="hex.dump_bytes"><div class="sig">static def <b>dump_bytes</b>(bytes: _int8[]?) : string</div><p>a hex dump of <code>bytes</code> (see dump()); null gives &quot;&quot;</p></div>
+<div class="fn" id="hex.encode"><div class="sig">static def <b>encode</b>(data: string) : string</div><p>the bytes of <code>data</code> (one per character) as lower case hexadecimal, two digits per byte; &quot;&quot; gives &quot;&quot;</p></div>
+<div class="fn" id="hex.encode_bytes"><div class="sig">static def <b>encode_bytes</b>(bytes: _int8[]?) : string</div><p><code>bytes</code> as lower case hexadecimal; null gives &quot;&quot;</p></div>
+<div class="fn" id="hex.encode_separated"><div class="sig">static def <b>encode_separated</b>(data: string, separator: decimal) : string</div><p>The bytes of <code>data</code> as lower case hexadecimal with the character <code>separator</code> between the bytes: encode_separated(&quot;Hi!&quot;, &#x27;:&#x27;) gives &quot;48:69:21&quot; (the way network addresses and fingerprints are written).</p></div>
+<div class="fn" id="hex.encode_upper"><div class="sig">static def <b>encode_upper</b>(data: string) : string</div><p>the bytes of <code>data</code> as upper case hexadecimal</p></div>
+<div class="fn" id="hex.from_number"><div class="sig">static def <b>from_number</b>(value: decimal, min_digits: decimal) : string</div><p>A whole number from 0 to 2^53 in lower case hexadecimal, padded with zeros on the left to at least <code>min_digits</code> digits (0 for no padding): from_number(255, 0) is &quot;ff&quot;, from_number(255, 4) is &quot;00ff&quot;. Throws illegal_argument_exception for a negative number.</p></div>
+<div class="fn" id="hex.is_valid"><div class="sig">static def <b>is_valid</b>(text: string) : bool</div><p>true when decode(text) would succeed</p></div>
+<div class="fn" id="hex.to_number"><div class="sig">static def <b>to_number</b>(text: string) : decimal</div><p>The value of a hexadecimal number: &quot;ff&quot;, &quot;FF&quot; and &quot;0xff&quot; give 255. Exact up to 2^53 (13 digits and a bit). Throws parse_exception for &quot;&quot;, for other characters, and for more than 16 digits.</p></div>
+</div>
+</section>
+<section class="type" id="ini_file">
+<h2><span class="kind">class</span> ini_file</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/config/ini_file.sharp">source</a></p>
+<p>Settings in the INI format: sections with &quot;key = value&quot; lines.</p>
+<div class="code"><pre class="sharp">; comment
+name = demo</pre></div>
+<div class="code"><pre class="sharp">[server]
+host = localhost
+port = 8080
+debug = yes</pre></div>
+<div class="code"><pre class="sharp">config := ini_file.load(new file(&quot;app.ini&quot;));
+host := config.value_or(&quot;server&quot;, &quot;host&quot;, &quot;127.0.0.1&quot;);
+port := config.number_or(&quot;server&quot;, &quot;port&quot;, 80);
+if(config.bool_or(&quot;server&quot;, &quot;debug&quot;, false)) { ... }
+config.put(&quot;server&quot;, &quot;port&quot;, &quot;9090&quot;);
+config.save(new file(&quot;app.ini&quot;));</pre></div>
+<p>The format as it is read: - &quot;[name]&quot; starts a section; entries before the first one belong to the section &quot;&quot; (the global section) - &quot;key = value&quot; (or &quot;key: value&quot;) is an entry; white space around key and value is removed; the value may be empty and may contain &#x27;=&#x27; - a value in double quotes keeps its spaces, and \&quot; \\ \n \t inside it are escapes: path = &quot;  C:\\dir  &quot; - lines starting with &#x27;;&#x27; or &#x27;#&#x27; are comments, empty lines are skipped - a section that appears twice is one section; a key that appears twice keeps the last value - anything else throws parse_exception with the line number: a line without &#x27;=&#x27; or &#x27;:&#x27;, an entry without a key, &quot;[name&quot; without &#x27;]&#x27;</p>
+<p>Section names and keys are compared exactly (case matters). Everything is kept in the order it first appeared, and written back in that order. Comments are not kept: save() writes the entries only. Values are strings; number_or() and bool_or() interpret them.</p>
+<p>Not thread safe.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="ini_file.ini_file"><div class="sig"><b>ini_file</b>()</div><p>settings without any entry</p></div>
+<div class="fn" id="ini_file.bool_or"><div class="sig">def <b>bool_or</b>(section_name: string, key: string, fallback: bool) : bool</div><p>The value of <code>key</code> in the section <code>section_name</code> as a boolean, or <code>fallback</code> when the entry does not exist. true / yes / on / 1 mean true and false / no / off / 0 mean false, in any case. Throws parse_exception when the entry exists but is none of these.</p></div>
+<div class="fn" id="ini_file.find"><div class="sig">def <b>find</b>(section_name: string, key: string) : string?</div><p>the value of <code>key</code> in the section <code>section_name</code>, or null when the section or the key does not exist</p></div>
+<div class="fn" id="ini_file.has"><div class="sig">def <b>has</b>(section_name: string, key: string) : bool</div><p>true when the section <code>section_name</code> has an entry <code>key</code></p></div>
+<div class="fn" id="ini_file.has_section"><div class="sig">def <b>has_section</b>(name: string) : bool</div><p>true when there is a section <code>name</code> (&quot;&quot; is the global section, which exists once it has an entry)</p></div>
+<div class="fn" id="ini_file.keys"><div class="sig">def <b>keys</b>(name: string) : list&lt;string&gt;</div><p>the keys of the section <code>name</code> in order; an empty list when there is no such section</p></div>
+<div class="fn" id="ini_file.load"><div class="sig">static def <b>load</b>(source: file) : ini_file</div><p>The settings in the file <code>source</code>. Throws io_exception when the file does not exist or is a directory, parse_exception for a malformed line.</p></div>
+<div class="fn" id="ini_file.number_or"><div class="sig">def <b>number_or</b>(section_name: string, key: string, fallback: decimal) : decimal</div><p>The value of <code>key</code> in the section <code>section_name</code> as a number, or <code>fallback</code> when the entry does not exist. Throws number_format_exception when the entry exists but is not a number (&quot;12&quot;, &quot;-0.5&quot;, &quot;1e3&quot; are; &quot;&quot;, &quot;abc&quot;, &quot;12px&quot; are not).</p></div>
+<div class="fn" id="ini_file.parse"><div class="sig">static def <b>parse</b>(text: string) : ini_file</div><p>The settings in the INI text <code>text</code>. Throws parse_exception for a malformed line.</p></div>
+<div class="fn" id="ini_file.put"><div class="sig">def <b>put</b>(section_name: string, key: string, value: string) : ini_file</div><p>Set <code>key</code> in the section <code>section_name</code> to <code>value</code>, creating the section when needed. Returns these settings so calls can be chained. Throws illegal_argument_exception when the key is empty or contains &#x27;=&#x27;, &#x27;:&#x27; or a line end, starts with &#x27;[&#x27;, &#x27;;&#x27; or &#x27;#&#x27;, or when the section name contains &#x27;]&#x27; or a line end (such entries could not be read back).</p></div>
+<div class="fn" id="ini_file.put_bool"><div class="sig">def <b>put_bool</b>(section_name: string, key: string, value: bool) : ini_file</div><p>set <code>key</code> in the section <code>section_name</code> to &quot;true&quot; or &quot;false&quot;. Returns these settings. Throws like put().</p></div>
+<div class="fn" id="ini_file.put_number"><div class="sig">def <b>put_number</b>(section_name: string, key: string, value: decimal) : ini_file</div><p>set <code>key</code> in the section <code>section_name</code> to a number, written the short way (&quot;8080&quot;, &quot;0.5&quot;). Returns these settings. Throws like put().</p></div>
+<div class="fn" id="ini_file.read_text"><div class="sig">def <b>read_text</b>(text: string)</div><p>Add the entries of the INI text <code>text</code> to these settings (entries that exist already are replaced). Throws parse_exception for a malformed line; the entries of the lines before it have been added then.</p></div>
+<div class="fn" id="ini_file.remove"><div class="sig">def <b>remove</b>(section_name: string, key: string) : bool</div><p>remove <code>key</code> from the section <code>section_name</code>; returns true when there was such an entry. An emptied section stays.</p></div>
+<div class="fn" id="ini_file.remove_section"><div class="sig">def <b>remove_section</b>(name: string) : bool</div><p>remove the section <code>name</code> with all its entries; returns true when there was one</p></div>
+<div class="fn" id="ini_file.save"><div class="sig">def <b>save</b>(target: file)</div><p>Replace the content of the file <code>target</code> with to_string(). Throws io_exception when the file cannot be written.</p></div>
+<div class="fn" id="ini_file.section"><div class="sig">def <b>section</b>(name: string) : ini_section?</div><p>the section <code>name</code> with its entries, or null when there is none. Changing the section changes these settings.</p></div>
+<div class="fn" id="ini_file.sections"><div class="sig">def <b>sections</b>() : list&lt;string&gt;</div><p>the names of all sections in order (&quot;&quot; for the global section, when it has entries)</p></div>
+<div class="fn" id="ini_file.size"><div class="sig">def <b>size</b>() : decimal</div><p>the number of entries in all sections together</p></div>
+<div class="fn" id="ini_file.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>The settings as INI text: the global entries first, then every section as &quot;[name]&quot; followed by its &quot;key = value&quot; lines, with an empty line between sections. Values that need it are written in double quotes. parse() of this text gives the same settings.</p></div>
+<div class="fn" id="ini_file.value_or"><div class="sig">def <b>value_or</b>(section_name: string, key: string, fallback: string) : string</div><p>the value of <code>key</code> in the section <code>section_name</code>, or <code>fallback</code> when the section or the key does not exist</p></div>
+</div>
+</section>
+<section class="type" id="ini_section">
+<h2><span class="kind">class</span> ini_section</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/config/ini_section.sharp">source</a></p>
+<p>One section of an ini_file: a name and its &quot;key = value&quot; entries, in the order they were added. A key occurs once; putting it again replaces the value. Keys are compared exactly (case matters).</p>
+<p>Programs normally go through ini_file (find, put, ...); a section object is handy to walk over all entries of a section:</p>
+<div class="code"><pre class="sharp">section := config.section(&quot;server&quot;);
+for(i : decimal = 0; i &lt; section.size(); i++) {
+    println(section.key_at(i) + &quot; -&gt; &quot; + section.value_at(i));
+}</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="ini_section.ini_section"><div class="sig"><b>ini_section</b>(name: string)</div><p>an empty section called <code>name</code> (&quot;&quot; is the section for entries before the first [header])</p></div>
+<div class="fn" id="ini_section.find"><div class="sig">def <b>find</b>(key: string) : string?</div><p>the value of the entry <code>key</code>, or null when there is none</p></div>
+<div class="fn" id="ini_section.has"><div class="sig">def <b>has</b>(key: string) : bool</div><p>true when the section has an entry <code>key</code></p></div>
+<div class="fn" id="ini_section.key_at"><div class="sig">def <b>key_at</b>(index: decimal) : string</div><p>the key of the entry at position <code>index</code> (0 is the first). Throws out_of_bounds_exception when there is no such entry.</p></div>
+<div class="fn" id="ini_section.keys"><div class="sig">def <b>keys</b>() : list&lt;string&gt;</div><p>the keys of all entries in order (a new list)</p></div>
+<div class="fn" id="ini_section.name"><div class="sig">def <b>name</b>() : string</div><p>the name of the section, without the brackets</p></div>
+<div class="fn" id="ini_section.put"><div class="sig">def <b>put</b>(key: string, value: string)</div><p>set the entry <code>key</code> to <code>value</code>: an existing entry keeps its place, a new one goes to the end</p></div>
+<div class="fn" id="ini_section.remove"><div class="sig">def <b>remove</b>(key: string) : bool</div><p>remove the entry <code>key</code>; returns true when there was one</p></div>
+<div class="fn" id="ini_section.size"><div class="sig">def <b>size</b>() : decimal</div><p>the number of entries</p></div>
+<div class="fn" id="ini_section.value_at"><div class="sig">def <b>value_at</b>(index: decimal) : string</div><p>the value of the entry at position <code>index</code>. Throws out_of_bounds_exception when there is no such entry.</p></div>
+</div>
+</section>
+<section class="type" id="json">
+<h2><span class="kind">class</span> json</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/json/json.sharp">source</a></p>
+<p>JSON AND YOUR OWN CLASSES</p>
+<div class="code"><pre class="sharp">class address { street : string = &quot;&quot;; city : string = &quot;&quot;; }</pre></div>
+<div class="code"><pre class="sharp">class user {
+    name : string = &quot;&quot;;
+    age : _int64 = 0;
+    admin : bool = false;
+    home : address?;
+    tags : list&lt;string&gt; = new list&lt;string&gt;();
+    photo_url : string?;
+}</pre></div>
+<div class="code"><pre class="sharp">someone := json.to&lt;user&gt;(&quot;{\&quot;name\&quot;:\&quot;ann\&quot;,\&quot;age\&quot;:31,\&quot;home\&quot;:{\&quot;city\&quot;:\&quot;Oslo\&quot;},\&quot;tags\&quot;:[\&quot;a\&quot;,\&quot;b\&quot;]}&quot;);
+someone.home!!.city                     // &quot;Oslo&quot;</pre></div>
+<div class="code"><pre class="sharp">everyone := json.to&lt;list&lt;user&gt; &gt;(text);     // a json array
+text := json.of(someone);                   // {&quot;name&quot;:&quot;ann&quot;,&quot;age&quot;:31,&quot;admin&quot;:false, ...}</pre></div>
+<p>A json object fills an object FIELD BY FIELD, by name. Nothing is written per class: no annotations, no from_json().</p>
+<div class="code"><pre class="sharp">json                field
+&quot;text&quot;              string
+12, 1.5             any number type (_int64, decimal, int, long, double ...); &quot;12&quot; in quotes is read too
+true, false         bool, boolean
+{ ... }             a class of yours - filled the same way, as deep as it goes
+[ ... ]             list&lt;T&gt;, T[] (T any of the above), a number array (_int64[], decimal[] ...)
+&quot;text&quot;              _int8[]: the characters (and json.of writes an _int8[] as a text)
+anything            json_value: the value as it is, for parts without a fixed shape
+null, or missing    the field keeps what its constructor gave it</pre></div>
+<p>NAMES. A member is looked for under the field&#x27;s name, and then under the name as most web APIs write it: the field <code>photo_url</code> is filled by &quot;photo_url&quot; or by &quot;photoUrl&quot;. Members no field has are skipped. json.of() writes the field&#x27;s name as it is.</p>
+<p>WHAT A CLASS NEEDS: a constructor without parameters (which every class without a written constructor has). It runs first, so a field&#x27;s written value is what stays when the json does not mention it.</p>
+<p>NOT READ YET: enums, hash maps (declare such a part as json_value), and fields of the type <code>object</code>. json.of() writes an enum as its name.</p>
+<p>A value of the wrong kind - a text where the field is a number, an array where it is an object - is a json_exception that says where: &quot;user.home.city: expected a string, found a number&quot;.</p>
+<div class="code"><pre class="sharp">json.to&lt;t&gt;(text)            an object of t from json text
+json.value_to&lt;t&gt;(value)     ... from a json_value that is parsed already
+json.fill(object, value)    fill an object you made
+json.of(object)             json text of an object, a list or an array
+json.value_of(object)       ... as a json_value
+json.pretty(object)         ... as text over several lines
+json.parse(text)            a json_value (the same as json_parser.parse)</pre></div>
+<p>How it is done: std.reflect (reflect.sharp).</p>
+<div class="code"><pre class="sharp">Java comparison: Gson&#x27;s gson.fromJson(text, User.class) and toJson(user);
+Kotlin: Json.decodeFromString&lt;User&gt;(text).</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="json.fill"><div class="sig">static def <b>fill</b>(target: object, value: json_value)</div><p>fill <code>target</code> (an object of a class of yours, or a list) from a json object (or array)</p></div>
+<div class="fn" id="json.of"><div class="sig">static def <b>of</b>(source: object?) : string</div></div>
+<div class="fn" id="json.parse"><div class="sig">static def <b>parse</b>(text: string) : json_value</div></div>
+<div class="fn" id="json.pretty"><div class="sig">static def <b>pretty</b>(source: object?) : string</div></div>
+<div class="fn" id="json.to"><div class="sig">static def <b>to</b>&lt;t&gt;(text: string) : t</div></div>
+<div class="fn" id="json.value_of"><div class="sig">static def <b>value_of</b>(source: object?) : json_value</div></div>
+<div class="fn" id="json.value_to"><div class="sig">static def <b>value_to</b>&lt;t&gt;(value: json_value) : t</div></div>
+</div>
+</section>
+<section class="type" id="json_exception">
+<h2><span class="kind">class</span> json_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/json/json_exception.sharp">source</a></p>
+<p>Thrown by the JSON classes: by json_parser for text that is not valid JSON, by json_value when a value is used as something it is not (asking a string for its number, a missing member, an index outside an array), and by json_writer for a number JSON cannot express (NaN, infinity).</p>
+<p>For a parse error the place is recorded: <code>position</code> is the index of the offending character in the text (from 0), <code>line</code> and <code>column</code> count from 1. The message already contains them, e.g.</p>
+<div class="code"><pre class="sharp">expected &#x27;,&#x27; or &#x27;}&#x27; but found &#x27;]&#x27; at line 3, column 14</pre></div>
+<p>For the other errors all three are -1.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>position</code></td><td><code>decimal</code></td><td>index in the text of the character that is wrong (from 0), or -1 when the error is not about text</td></tr><tr><td><code>line</code></td><td><code>decimal</code></td><td>line of that character, counting from 1, or -1</td></tr><tr><td><code>column</code></td><td><code>decimal</code></td><td>place of that character in its line, counting from 1, or -1</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="json_exception.json_exception"><div class="sig">public <b>json_exception</b>(message: string) -&gt; base(message)</div><p>an error that is not about a place in a text</p></div>
+<div class="fn" id="json_exception.json_exception-2"><div class="sig">public <b>json_exception</b>(message: string, position: decimal, line: decimal, column: decimal) -&gt; base(message)</div><p>a parse error at a known place; <code>message</code> should already mention the place</p></div>
+</div>
+</section>
+<section class="type" id="json_member_order">
+<h2><span class="kind">class</span> json_member_order</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/json/json_member_order.sharp">source</a></p>
+<p>Helper of json_writer: the order in which the entries of one array or object are written - as they are, or, for an object when keys are sorted, by name. Programs do not need this class.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="json_member_order.json_member_order"><div class="sig"><b>json_member_order</b>(container: json_value, sorted: decimal)</div></div>
+<div class="fn" id="json_member_order.position_of"><div class="sig">def <b>position_of</b>(n: decimal) : decimal</div><p>which entry of the container is written as number <code>n</code></p></div>
+</div>
+</section>
+<section class="type" id="json_objects">
+<h2><span class="kind">class</span> json_objects</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/json/json.sharp">source</a></p>
+<p>how json.to / json.of work: objects made and read through std.reflect</p>
+<h3>Functions</h3><div>
+<div class="fn" id="json_objects.fill_top"><div class="sig">static def <b>fill_top</b>(target: object, value: json_value)</div></div>
+<div class="fn" id="json_objects.value_of"><div class="sig">static def <b>value_of</b>(source: object?, depth: _int64) : json_value</div></div>
+</div>
+</section>
+<section class="type" id="json_parser">
+<h2><span class="kind">class</span> json_parser</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/json/json_parser.sharp">source</a></p>
+<p>Turns JSON text into a json_value.</p>
+<div class="code"><pre class="sharp">doc := json_parser.parse(&quot;{\&quot;ok\&quot;: true, \&quot;items\&quot;: [1, 2, 3]}&quot;);
+doc := json_parser.parse_file(new file(&quot;config.json&quot;));</pre></div>
+<p>The whole of JSON (RFC 8259) is accepted and nothing else: - objects, arrays, strings, numbers, true, false, null, nested in any way - string escapes: \&quot; \\ \/ \b \f \n \r \t and \uXXXX. Strings in this language are sequences of bytes, so a \uXXXX character is stored as its UTF-8 bytes (1 to 4 of them; two escapes that form a surrogate pair give one character). Characters that are written directly in the text are kept byte for byte. - white space (space, tab, line ends) between the parts - an object that names a member twice keeps the last value</p>
+<p>Not accepted, as the standard says: comments, a comma after the last element, single quotes, numbers like 01 / .5 / +1 / 1. / NaN, line breaks and other control characters inside strings, a \u escape that is half of a surrogate pair, and anything but white space after the value.</p>
+<p>Text that is not valid JSON throws json_exception. Its message says what was expected, what was found and where (line and column from 1); the exception also carries position, line and column as numbers.</p>
+<p>The parser does not use recursion: nesting depth is limited only by set_max_depth() (1000 levels by default), which exists so that a hostile text of a million &#x27;[&#x27; cannot use up the memory.</p>
+<p>parse() and parse_file() are static shortcuts; make a json_parser object to change the depth limit. A parser object can be used again and again. Not thread safe.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="json_parser.get_max_depth"><div class="sig">def <b>get_max_depth</b>() : _int64</div><p>the nesting depth this parser allows</p></div>
+<div class="fn" id="json_parser.is_valid"><div class="sig">static def <b>is_valid</b>(text: string) : bool</div><p>true when <code>text</code> is valid JSON (the value itself is thrown away)</p></div>
+<div class="fn" id="json_parser.parse"><div class="sig">static def <b>parse</b>(text: string) : json_value</div><p>parse <code>text</code> with the default settings. Throws json_exception when it is not valid JSON.</p></div>
+<div class="fn" id="json_parser.parse_file"><div class="sig">static def <b>parse_file</b>(source: file) : json_value</div><p>Parse the content of the file <code>source</code> with the default settings. Throws io_exception when the file does not exist or is a directory, json_exception when its content is not valid JSON.</p></div>
+<div class="fn" id="json_parser.parse_text"><div class="sig">def <b>parse_text</b>(text: string) : json_value</div><p>Parse <code>text</code> and return its value. Throws json_exception when the text is not valid JSON or nested deeper than the limit.</p></div>
+<div class="fn" id="json_parser.set_max_depth"><div class="sig">def <b>set_max_depth</b>(depth: _int64) : json_parser</div><p>Allow arrays and objects to be nested at most <code>depth</code> levels deep (a plain value has depth 0, [1] has depth 1, [[1]] depth 2). Returns this parser. Throws illegal_argument_exception when depth is negative.</p></div>
+</div>
+</section>
+<section class="type" id="json_value">
+<h2><span class="kind">class</span> json_value</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/json/json_value.sharp">source</a></p>
+<p>One JSON value: null, a boolean, a number, a string, an array of values or an object (names with values). A whole JSON document is a json_value whose arrays and objects hold more json_values.</p>
+<p>Reading:</p>
+<div class="code"><pre class="sharp">doc := json_parser.parse(&quot;{\&quot;name\&quot;: \&quot;Ada\&quot;, \&quot;tags\&quot;: [\&quot;a\&quot;, \&quot;b\&quot;], \&quot;age\&quot;: 36}&quot;);
+name := doc.member(&quot;name&quot;).as_string();          // &quot;Ada&quot;
+age := doc.number_or(&quot;age&quot;, 0);                  // 36
+second := doc.member(&quot;tags&quot;).at(1).as_string();  // &quot;b&quot;
+missing := doc.find(&quot;email&quot;);                    // null</pre></div>
+<p>Building:</p>
+<div class="code"><pre class="sharp">doc := json_value.new_object();
+doc.put_string(&quot;name&quot;, &quot;Ada&quot;).put_number(&quot;age&quot;, 36);
+tags := json_value.new_array();
+tags.add_string(&quot;a&quot;).add_string(&quot;b&quot;);
+doc.put(&quot;tags&quot;, tags);
+text := doc.to_string();     // {&quot;name&quot;:&quot;Ada&quot;,&quot;age&quot;:36,&quot;tags&quot;:[&quot;a&quot;,&quot;b&quot;]}</pre></div>
+<p>One class is used for all six kinds; kind() / is_...() tell which one a value is. Using a value as the wrong kind (as_number() on a string, at() on an object, ...) throws json_exception.</p>
+<p>Objects keep their members in the order they were added, and a name occurs only once: putting a name again replaces its value.</p>
+<p>The names an object hands out (key_at(), keys()) are COPIES: strings can be changed in place, and the stored name may be shared with other objects of the same document (the parser makes each name once).</p>
+<p>Numbers are native numbers (decimal): whole numbers are exact up to 2^53.</p>
+<p>Arrays and objects are changed in place and are shared, not copied, when put into another value (deep_copy() makes an independent copy). Do not put a value into itself: writing or comparing such a structure never ends. Not thread safe.</p>
+<p>(<code>get</code> and <code>set</code> are keywords of the language, which is why the functions are called at / member / find and put / put_at.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>kind_null</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind_bool</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind_number</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind_string</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind_array</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind_object</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="json_value.add"><div class="sig">def <b>add</b>(value: json_value?) : json_value</div><p>Add <code>value</code> at the end of this array (null adds a JSON null). Returns this array so calls can be chained. Throws json_exception when this is not an array.</p></div>
+<div class="fn" id="json_value.add_bool"><div class="sig">def <b>add_bool</b>(value: bool) : json_value</div><p>add a boolean at the end of this array; returns this array. Throws json_exception when this is not an array.</p></div>
+<div class="fn" id="json_value.add_null"><div class="sig">def <b>add_null</b>() : json_value</div><p>add a null at the end of this array; returns this array. Throws json_exception when this is not an array.</p></div>
+<div class="fn" id="json_value.add_number"><div class="sig">def <b>add_number</b>(value: decimal) : json_value</div><p>add a number at the end of this array; returns this array. Throws json_exception when this is not an array.</p></div>
+<div class="fn" id="json_value.add_string"><div class="sig">def <b>add_string</b>(value: string) : json_value</div><p>add a string at the end of this array; returns this array. Throws json_exception when this is not an array.</p></div>
+<div class="fn" id="json_value.as_bool"><div class="sig">def <b>as_bool</b>() : bool</div><p>the value of a boolean. Throws json_exception when this is not a boolean.</p></div>
+<div class="fn" id="json_value.as_int"><div class="sig">def <b>as_int</b>() : decimal</div><p>The value of a number that has to be whole (a count, an index, an id). Throws json_exception when this is not a number or has a fraction (2.5), is NaN or infinite.</p></div>
+<div class="fn" id="json_value.as_number"><div class="sig">def <b>as_number</b>() : decimal</div><p>the value of a number. Throws json_exception when this is not a number.</p></div>
+<div class="fn" id="json_value.as_string"><div class="sig">def <b>as_string</b>() : string</div><p>the text of a string. Throws json_exception when this is not a string.</p></div>
+<div class="fn" id="json_value.at"><div class="sig">def <b>at</b>(index: decimal) : json_value</div><p>The element at <code>index</code> of this array (0 is the first). Throws json_exception when this is not an array or the index is not in 0 .. size() - 1.</p></div>
+<div class="fn" id="json_value.at_path"><div class="sig">def <b>at_path</b>(steps: string) : json_value?</div><p>Follow a path of member names and array indexes down from this value: &quot;server.ports[0]&quot; is member &quot;server&quot;, then its member &quot;ports&quot;, then element 0. Names are separated by periods, indexes are written in square brackets; a path may start with an index (&quot;[2].name&quot;). An empty path gives this value.</p>
+<p>Returns null when the path leads nowhere: a member is missing, an index is outside its array, or a step is tried on a value of the wrong kind. (Member names that contain &#x27;.&#x27; or &#x27;[&#x27; cannot be reached this way; use member().)</p>
+<p>Throws json_exception when the path itself is malformed (&quot;a..b&quot;, &quot;a[x]&quot;, &quot;a[1&quot;).</p></div>
+<div class="fn" id="json_value.bool_or"><div class="sig">def <b>bool_or</b>(name: string, fallback: bool) : bool</div><p>The value of the boolean member <code>name</code>, or <code>fallback</code> when there is no such member or it is not a boolean. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.clear"><div class="sig">def <b>clear</b>()</div><p>Remove all elements of an array or all members of an object. Throws json_exception for the other kinds.</p></div>
+<div class="fn" id="json_value.deep_copy"><div class="sig">def <b>deep_copy</b>() : json_value</div><p>An independent copy of this value and of everything in it: changing the copy does not change the original. Works without recursion.</p></div>
+<div class="fn" id="json_value.equals_value"><div class="sig">def <b>equals_value</b>(other: json_value?) : bool</div><p>True when <code>other</code> is the same JSON: the same kind and value, arrays with equal elements in the same order, objects with the same names and equal values - the order of the members does not matter. Numbers compare by value (1 equals 1.0). null is equal to nothing.</p>
+<p>Works without recursion, so deeply nested values are fine.</p></div>
+<div class="fn" id="json_value.find"><div class="sig">def <b>find</b>(name: string) : json_value?</div><p>The value of the member <code>name</code>, or null (no object at all) when this object has no such member. A member whose value is a JSON null gives a json_value for which is_null() is true. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.has"><div class="sig">def <b>has</b>(name: string) : bool</div><p>true when this object has a member <code>name</code> (also when its value is null). Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.insert_at"><div class="sig">def <b>insert_at</b>(index: decimal, value: json_value) : json_value</div><p>Insert <code>value</code> in front of the element at <code>index</code> of this array (index == size() adds at the end). Returns this array. Throws json_exception when this is not an array or the index is not in 0 .. size().</p></div>
+<div class="fn" id="json_value.is_array"><div class="sig">def <b>is_array</b>() : bool</div></div>
+<div class="fn" id="json_value.is_bool"><div class="sig">def <b>is_bool</b>() : bool</div></div>
+<div class="fn" id="json_value.is_empty"><div class="sig">def <b>is_empty</b>() : bool</div><p>true for an array without elements or an object without members. Throws json_exception for the other kinds.</p></div>
+<div class="fn" id="json_value.is_null"><div class="sig">def <b>is_null</b>() : bool</div></div>
+<div class="fn" id="json_value.is_number"><div class="sig">def <b>is_number</b>() : bool</div></div>
+<div class="fn" id="json_value.is_object"><div class="sig">def <b>is_object</b>() : bool</div></div>
+<div class="fn" id="json_value.is_string"><div class="sig">def <b>is_string</b>() : bool</div></div>
+<div class="fn" id="json_value.key_at"><div class="sig">def <b>key_at</b>(index: decimal) : string</div><p>The name of the member at position <code>index</code> (0 is the first that was added). Together with value_at() this walks an object without making a list. The name is a copy: changing it does not change the object. Throws json_exception when this is not an object or the index is not in 0 .. size() - 1.</p></div>
+<div class="fn" id="json_value.keys"><div class="sig">def <b>keys</b>() : list&lt;string&gt;</div><p>The member names of this object in the order the members were added (a new list; changing it does not change the object). Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.kind"><div class="sig">def <b>kind</b>() : _int64</div><p>the kind of this value: one of json_value.kind_null, kind_bool, kind_number, kind_string, kind_array, kind_object</p></div>
+<div class="fn" id="json_value.kind_name"><div class="sig">def <b>kind_name</b>() : string</div><p>the kind as a word: &quot;null&quot;, &quot;boolean&quot;, &quot;number&quot;, &quot;string&quot;, &quot;array&quot; or &quot;object&quot;</p></div>
+<div class="fn" id="json_value.member"><div class="sig">def <b>member</b>(name: string) : json_value</div><p>The value of the member <code>name</code>, which has to exist. Throws json_exception when this is not an object or has no such member.</p></div>
+<div class="fn" id="json_value.new_array"><div class="sig">static def <b>new_array</b>() : json_value</div><p>a new, empty array</p></div>
+<div class="fn" id="json_value.new_object"><div class="sig">static def <b>new_object</b>() : json_value</div><p>a new, empty object</p></div>
+<div class="fn" id="json_value.number_or"><div class="sig">def <b>number_or</b>(name: string, fallback: decimal) : decimal</div><p>The value of the number member <code>name</code>, or <code>fallback</code> when there is no such member or it is not a number. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.of_bool"><div class="sig">static def <b>of_bool</b>(value: bool) : json_value</div><p>a new boolean value</p></div>
+<div class="fn" id="json_value.of_null"><div class="sig">static def <b>of_null</b>() : json_value</div><p>a new null value</p></div>
+<div class="fn" id="json_value.of_number"><div class="sig">static def <b>of_number</b>(value: decimal) : json_value</div><p>A new number value. NaN and infinities can be stored but JSON has no way to write them: json_writer throws for them.</p></div>
+<div class="fn" id="json_value.of_string"><div class="sig">static def <b>of_string</b>(value: string) : json_value</div><p>a new string value (a null string becomes &quot;&quot;)</p></div>
+<div class="fn" id="json_value.put"><div class="sig">def <b>put</b>(name: string, value: json_value?) : json_value</div><p>Set the member <code>name</code> of this object to <code>value</code> (null stores a JSON null). A member with that name is replaced and keeps its place; a new one is added at the end. Returns this object so calls can be chained. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.put_at"><div class="sig">def <b>put_at</b>(index: decimal, value: json_value?) : json_value</div><p>Replace the element at <code>index</code> of this array (null stores a JSON null). Returns the element that was there. Throws json_exception when this is not an array or the index is not in 0 .. size() - 1.</p></div>
+<div class="fn" id="json_value.put_bool"><div class="sig">def <b>put_bool</b>(name: string, value: bool) : json_value</div><p>set the member <code>name</code> to a boolean; returns this object. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.put_null"><div class="sig">def <b>put_null</b>(name: string) : json_value</div><p>set the member <code>name</code> to null; returns this object. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.put_number"><div class="sig">def <b>put_number</b>(name: string, value: decimal) : json_value</div><p>set the member <code>name</code> to a number; returns this object. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.put_string"><div class="sig">def <b>put_string</b>(name: string, value: string) : json_value</div><p>set the member <code>name</code> to a string; returns this object. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.remove"><div class="sig">def <b>remove</b>(name: string) : bool</div><p>Remove the member <code>name</code>. Returns true when there was one. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.remove_at"><div class="sig">def <b>remove_at</b>(index: decimal) : json_value</div><p>Remove the element at <code>index</code> of this array and return it; the elements behind it move up. Throws json_exception when this is not an array or the index is not in 0 .. size() - 1.</p></div>
+<div class="fn" id="json_value.shared_key_at"><div class="sig">def <b>shared_key_at</b>(index: decimal) : string</div><p>The name of the member at position <code>index</code> WITHOUT a copy, for code that only reads it (json_writer). The string is the stored one and may be shared with other objects: never change it. Throws json_exception when this is not an object or the index is not in 0 .. size() - 1.</p></div>
+<div class="fn" id="json_value.size"><div class="sig">def <b>size</b>() : _int64</div><p>The number of elements of an array or of members of an object. Throws json_exception for the other kinds.</p></div>
+<div class="fn" id="json_value.string_or"><div class="sig">def <b>string_or</b>(name: string, fallback: string) : string</div><p>The text of the string member <code>name</code>, or <code>fallback</code> when there is no such member or it is not a string. Throws json_exception when this is not an object.</p></div>
+<div class="fn" id="json_value.to_pretty_string"><div class="sig">def <b>to_pretty_string</b>() : string</div><p>This value as JSON text for people: one member or element per line, indented by 2 spaces per level. Throws json_exception when a number in it is NaN or infinite.</p></div>
+<div class="fn" id="json_value.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>This value as compact JSON text, without any white space: {&quot;a&quot;:[1,2],&quot;b&quot;:null}. See json_writer for indented output and options. Throws json_exception when a number in it is NaN or infinite.</p></div>
+<div class="fn" id="json_value.value_at"><div class="sig">def <b>value_at</b>(index: decimal) : json_value</div><p>The element at position <code>index</code> of an array, or the value of the member at that position of an object. Throws json_exception for the other kinds and when the index is not in 0 .. size() - 1.</p></div>
+</div>
+</section>
+<section class="type" id="json_writer">
+<h2><span class="kind">class</span> json_writer</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/json/json_writer.sharp">source</a></p>
+<p>Turns a json_value into JSON text.</p>
+<div class="code"><pre class="sharp">json_writer.to_compact(doc)        {&quot;name&quot;:&quot;Ada&quot;,&quot;tags&quot;:[&quot;a&quot;,&quot;b&quot;]}
+json_writer.to_pretty(doc)         one member / element per line, 2 spaces per level</pre></div>
+<div class="code"><pre class="sharp">w := new json_writer();
+w.set_indent(4).set_sort_keys(true).set_ascii_only(true);
+text := w.write(doc);
+w.write_file(doc, new file(&quot;out.json&quot;));</pre></div>
+<p>Options (all off by default): - set_indent(n): n &gt; 0 writes for people - every member and element on its own line, n spaces per level, a space after each colon; empty arrays and objects stay &quot;[]&quot; and &quot;{}&quot;. 0 writes compact text without any white space. - set_sort_keys(true): members are written sorted by name instead of in the order they were added, so equal objects give equal text. - set_ascii_only(true): characters outside ASCII are written as \uXXXX escapes (the bytes of the string are read as UTF-8), so the text survives any channel. Otherwise they are written as they are.</p>
+<p>Strings are always escaped as JSON demands: the double quote, the back slash and control characters.</p>
+<p>Numbers are written as short as possible while reading back as the same number (io_strings.number_to_string). NaN and infinite numbers cannot be written in JSON: write() throws json_exception for them.</p>
+<p>What a json_parser reads from the text written here is equal (json_value.equals_value) to the value that was written.</p>
+<p>The writer does not use recursion, so deeply nested values are fine. A writer object can be used again and again. Not thread safe.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="json_writer.quote"><div class="sig">static def <b>quote</b>(text: string) : string</div><p>the JSON text for a single string, with the quotes: quote(&quot;a\&quot;b&quot;) gives &quot;a\&quot;b&quot; with the back slash in the text</p></div>
+<div class="fn" id="json_writer.set_ascii_only"><div class="sig">def <b>set_ascii_only</b>(enabled: bool) : json_writer</div><p>write characters outside ASCII as \uXXXX escapes (true) or as they are (false). Returns this writer.</p></div>
+<div class="fn" id="json_writer.set_indent"><div class="sig">def <b>set_indent</b>(spaces: decimal) : json_writer</div><p>Indent by <code>spaces</code> spaces per level (0 = compact text). Returns this writer. Throws illegal_argument_exception when spaces is negative.</p></div>
+<div class="fn" id="json_writer.set_sort_keys"><div class="sig">def <b>set_sort_keys</b>(enabled: bool) : json_writer</div><p>write the members of objects sorted by name (true) or in the order they were added (false). Returns this writer.</p></div>
+<div class="fn" id="json_writer.to_compact"><div class="sig">static def <b>to_compact</b>(value: json_value) : string</div><p><code>value</code> as compact JSON text. Throws json_exception for NaN or infinite numbers.</p></div>
+<div class="fn" id="json_writer.to_pretty"><div class="sig">static def <b>to_pretty</b>(value: json_value) : string</div><p><code>value</code> as JSON text indented by 2 spaces per level. Throws json_exception for NaN or infinite numbers.</p></div>
+<div class="fn" id="json_writer.write"><div class="sig">def <b>write</b>(value: json_value) : string</div><p>The JSON text of <code>value</code> with the options of this writer. Throws json_exception when a number in it is NaN or infinite.</p></div>
+<div class="fn" id="json_writer.write_file"><div class="sig">def <b>write_file</b>(value: json_value, target: file)</div><p>Replace the content of the file <code>target</code> with the JSON text of <code>value</code>, followed by a line end when the text is indented. Throws json_exception for NaN or infinite numbers, io_exception when the file cannot be written.</p></div>
+</div>
+</section>
+<section class="type" id="sql_exception">
+<h2><span class="kind">class</span> sql_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/sql/sqlite.sharp">source</a></p>
+<p>A DATABASE IN A FILE (SQLite)</p>
+<div class="code"><pre class="sharp">db := sqlite.open(&quot;app.db&quot;);                    // made when it is not there; sqlite.memory() for one that is not kept
+db.run(&quot;create table if not exists users (id integer primary key, name text, age integer, admin integer)&quot;);</pre></div>
+<div class="code"><pre class="sharp">db.sql(&quot;insert into users (name, age) values (?, ?)&quot;).with(&quot;ann&quot;).with(31).run();
+id := db.last_id();</pre></div>
+<div class="code"><pre class="sharp">class user { id : _int64 = 0; name : string = &quot;&quot;; age : _int64 = 0; admin : bool = false; }</pre></div>
+<div class="code"><pre class="sharp">adults := db.sql(&quot;select * from users where age &gt;= ?&quot;).with(18).all&lt;user&gt;();    // list&lt;user&gt;
+ann := db.sql(&quot;select * from users where id = ?&quot;).with(id).first&lt;user&gt;();       // user? (null: no such row)
+count := db.sql(&quot;select count(*) from users&quot;).number();</pre></div>
+<div class="code"><pre class="sharp">db.transaction {                                // all of it, or - when it throws - none of it
+    db.sql(&quot;update users set age = age + 1 where id = ?&quot;).with(id).run();
+    db.sql(&quot;insert into log (what) values (?)&quot;).with(&quot;birthday&quot;).run();
+};
+db.close();</pre></div>
+<p>SQLite is a whole SQL database as a library: no server, the database is one file. It is on every Linux and inside Windows 10 and later, so there is nothing to install, and it is called directly from Sharp (the extern block below).</p>
+<p>VALUES GO IN WITH <code>?</code>, never pasted into the SQL text: .with(value) gives the next <code>?</code> its value - a text, a number, true / false, bytes, or with_null(). That is what makes &quot;Robert&#x27;); drop table users; --&quot; a name and not a disaster.</p>
+<p>ROWS COME OUT all&lt;t&gt;() / first&lt;t&gt;()   as objects of a class of yours: a column fills the field of its name (<code>created_at</code> fills created_at or createdAt), as json fills objects (json.sharp) rows()                  as sql_row: row.text(&quot;name&quot;), row.number(&quot;age&quot;), row.is_null(&quot;x&quot;), by name or position each { ... }            one row at a time (<code>it</code> is the row), for results too large to hold number() / text()       the first column of the first row</p>
+<p>WHAT GOES WRONG - a mistake in the SQL, a constraint, a locked file - is a sql_exception with SQLite&#x27;s own message.</p>
+<p>One connection can be used by several threads; they take turns.</p>
+<div class="code"><pre class="sharp">Java comparison: JDBC with a PreparedStatement; Python: sqlite3.connect(...).execute(sql, params).</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sql_exception.sql_exception"><div class="sig">public <b>sql_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="sql_row">
+<h2><span class="kind">class</span> sql_row</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/sql/sqlite.sharp">source</a></p>
+<p>ONE ROW of a result: its values by column name or by position (0 = first)</p>
+<div class="code"><pre class="sharp">row.text(&quot;name&quot;)    row.number(&quot;age&quot;)   row.flag(&quot;admin&quot;)   row.bytes(&quot;photo&quot;)   row.is_null(&quot;email&quot;)
+row.text_at(0)      row.number_at(1)    row.size()          row.name_at(0)</pre></div>
+<p>A value is given as what is asked for: number() of a text column reads the number in the text, text() of a number writes it out; of null they give 0 and &quot;&quot;. A column that is not in the result is a sql_exception.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="sql_row.sql_row"><div class="sig"><b>sql_row</b>(names: string[], cells: sql_value[])</div></div>
+<div class="fn" id="sql_row.bytes"><div class="sig">def <b>bytes</b>(name: string) : _int8[]?</div></div>
+<div class="fn" id="sql_row.flag"><div class="sig">def <b>flag</b>(name: string) : bool</div></div>
+<div class="fn" id="sql_row.has"><div class="sig">def <b>has</b>(name: string) : bool</div></div>
+<div class="fn" id="sql_row.is_null"><div class="sig">def <b>is_null</b>(name: string) : bool</div></div>
+<div class="fn" id="sql_row.is_null_at"><div class="sig">def <b>is_null_at</b>(index: _int64) : bool</div></div>
+<div class="fn" id="sql_row.name_at"><div class="sig">def <b>name_at</b>(index: _int64) : string</div></div>
+<div class="fn" id="sql_row.number"><div class="sig">def <b>number</b>(name: string) : decimal</div></div>
+<div class="fn" id="sql_row.number_at"><div class="sig">def <b>number_at</b>(index: _int64) : decimal</div></div>
+<div class="fn" id="sql_row.size"><div class="sig">def <b>size</b>() : _int64</div></div>
+<div class="fn" id="sql_row.text"><div class="sig">def <b>text</b>(name: string) : string</div></div>
+<div class="fn" id="sql_row.text_at"><div class="sig">def <b>text_at</b>(index: _int64) : string</div></div>
+<div class="fn" id="sql_row.to_json"><div class="sig">def <b>to_json</b>() : json_value</div><p>the row as a json object: a member per column</p></div>
+<div class="fn" id="sql_row.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+</div>
+</section>
+<section class="type" id="sql_statement">
+<h2><span class="kind">class</span> sql_statement</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/sql/sqlite.sharp">source</a></p>
+<p>ONE SQL STATEMENT with its values: made by db.sql(text), given a value for each <code>?</code> with .with(...), and then run in one of these ways:</p>
+<div class="code"><pre class="sharp">run()           for insert, update, delete: how many rows it changed
+rows()          every row, as a list of sql_row
+all&lt;t&gt;()        every row, as objects of t
+first&lt;t&gt;()      the first row as an object of t; null when there is none
+first_row()     the first row as an sql_row; null when there is none
+each { }        the block once per row (`it` is the row)
+number()        the first column of the first row as a number (0 when there is no row)
+text()          ... as a text (&quot;&quot; when there is no row)</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sql_statement.sql_statement"><div class="sig"><b>sql_statement</b>(database: sqlite, text: string)</div></div>
+<div class="fn" id="sql_statement.all"><div class="sig">def <b>all</b>&lt;t&gt;() : list&lt;t&gt;</div></div>
+<div class="fn" id="sql_statement.each"><div class="sig">def <b>each</b>(work: (sql_row)())</div><p>the block once per row, in order; the rows are not all held at once</p></div>
+<div class="fn" id="sql_statement.first"><div class="sig">def <b>first</b>&lt;t&gt;() : t?</div></div>
+<div class="fn" id="sql_statement.first_row"><div class="sig">def <b>first_row</b>() : sql_row?</div></div>
+<div class="fn" id="sql_statement.number"><div class="sig">def <b>number</b>() : decimal</div></div>
+<div class="fn" id="sql_statement.rows"><div class="sig">def <b>rows</b>() : list&lt;sql_row&gt;</div></div>
+<div class="fn" id="sql_statement.run"><div class="sig">def <b>run</b>() : _int64</div></div>
+<div class="fn" id="sql_statement.text"><div class="sig">def <b>text</b>() : string</div></div>
+<div class="fn" id="sql_statement.with"><div class="sig">def <b>with</b>(value: string) : sql_statement</div></div>
+<div class="fn" id="sql_statement.with-2"><div class="sig">def <b>with</b>(value: decimal) : sql_statement</div></div>
+<div class="fn" id="sql_statement.with-3"><div class="sig">def <b>with</b>(value: bool) : sql_statement</div></div>
+<div class="fn" id="sql_statement.with_bytes"><div class="sig">def <b>with_bytes</b>(value: _int8[]?) : sql_statement</div></div>
+<div class="fn" id="sql_statement.with_null"><div class="sig">def <b>with_null</b>() : sql_statement</div></div>
+</div>
+</section>
+<section class="type" id="sql_value">
+<h2><span class="kind">class</span> sql_value</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/sql/sqlite.sharp">source</a></p>
+<p>one value going into a statement or coming out of a row</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>NOTHING</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>WHOLE</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>NUMBER</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>TEXT</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>BYTES</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>number</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bytes</code></td><td><code>_int8[]?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sql_value.of_bytes"><div class="sig">static def <b>of_bytes</b>(value: _int8[]?) : sql_value</div></div>
+<div class="fn" id="sql_value.of_number"><div class="sig">static def <b>of_number</b>(value: decimal) : sql_value</div></div>
+<div class="fn" id="sql_value.of_text"><div class="sig">static def <b>of_text</b>(value: string) : sql_value</div></div>
+</div>
+</section>
+<section class="type" id="sqlite">
+<h2><span class="kind">class</span> sqlite</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/sql/sqlite.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="sqlite.changed"><div class="sig">def <b>changed</b>() : _int64</div><p>how many rows the last insert, update or delete changed</p></div>
+<div class="fn" id="sqlite.close"><div class="sig">def <b>close</b>()</div><p>close the database. Closing twice does nothing.</p></div>
+<div class="fn" id="sqlite.has_table"><div class="sig">def <b>has_table</b>(name: string) : bool</div><p>is there a table of that name?</p></div>
+<div class="fn" id="sqlite.is_open"><div class="sig">def <b>is_open</b>() : bool</div></div>
+<div class="fn" id="sqlite.last_error"><div class="sig">def <b>last_error</b>() : string</div><p>SQLite&#x27;s words for what went wrong last</p></div>
+<div class="fn" id="sqlite.last_id"><div class="sig">def <b>last_id</b>() : _int64</div><p>the id SQLite gave the row that was inserted last (its &quot;integer primary key&quot;)</p></div>
+<div class="fn" id="sqlite.memory"><div class="sig">static def <b>memory</b>() : sqlite</div><p>a database in memory: gone when it is closed. For tests, and for data that need not be kept.</p></div>
+<div class="fn" id="sqlite.open"><div class="sig">static def <b>open</b>(path: string) : sqlite</div><p>open the database in that file; it is made when it is not there</p></div>
+<div class="fn" id="sqlite.run"><div class="sig">def <b>run</b>(text: string) : _int64</div><p>Run SQL that needs no values and gives no rows: &quot;create table ...&quot;, &quot;delete from log&quot;. Several statements separated by <code>;</code> are run one after the other. Returns how many rows the last one changed.</p></div>
+<div class="fn" id="sqlite.sql"><div class="sig">def <b>sql</b>(text: string) : sql_statement</div><p>one statement, to be given its values and run: db.sql(&quot;...&quot;).with(v).run() / all&lt;t&gt;() / rows() ...</p></div>
+<div class="fn" id="sqlite.system_handle"><div class="sig">def <b>system_handle</b>() : pointer</div><p>(for sql_statement)</p></div>
+<div class="fn" id="sqlite.transaction"><div class="sig">def <b>transaction</b>(work: ()())</div><p>Everything the block does to the database happens together, or - when the block throws - not at all (and the exception goes on). A transaction inside a transaction is part of the outer one.</p></div>
+<div class="fn" id="sqlite.version"><div class="sig">static def <b>version</b>() : string</div><p>the version of the SQLite library in use (&quot;3.45.1&quot;)</p></div>
+</div>
+</section>
+<section class="type" id="sqlite_library">
+<h2><span class="kind">class</span> sqlite_library</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/sql/sqlite.sharp">source</a></p>
+<p>SQLite&#x27;s C functions</p>
+<h3>Functions</h3><div>
+<div class="fn" id="sqlite_library.find"><div class="sig">static def <b>find</b>()</div><p>say where the library is: winsqlite3.dll is part of Windows; Linux has libsqlite3.so.0</p></div>
+</div>
+</section>
+<section class="type" id="url_codec">
+<h2><span class="kind">class</span> url_codec</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/encoding/url_codec.sharp">source</a></p>
+<p>Percent encoding for URLs, and building and taking apart query strings.</p>
+<div class="code"><pre class="sharp">url_codec.encode(&quot;a b&amp;c=d/e&quot;)          &quot;a%20b%26c%3Dd%2Fe&quot;
+url_codec.decode(&quot;a%20b%26c&quot;)          &quot;a b&amp;c&quot;
+url_codec.encode_form(&quot;a b&quot;)           &quot;a+b&quot;</pre></div>
+<div class="code"><pre class="sharp">keys := new list&lt;string&gt;();   values := new list&lt;string&gt;();
+keys.add(&quot;q&quot;); values.add(&quot;sharp lang&quot;);
+keys.add(&quot;page&quot;); values.add(&quot;2&quot;);
+url_codec.build_query(keys, values)    &quot;q=sharp+lang&amp;page=2&quot;</pre></div>
+<div class="code"><pre class="sharp">keys = new list&lt;string&gt;(); values = new list&lt;string&gt;();
+url_codec.parse_query(&quot;q=sharp+lang&amp;page=2&quot;, keys, values);
+url_codec.query_value(&quot;q=sharp+lang&amp;page=2&quot;, &quot;q&quot;)    &quot;sharp lang&quot;</pre></div>
+<p>Percent encoding (RFC 3986): letters, digits and - . _ ~ are written as they are, every other byte as &#x27;%&#x27; and two hexadecimal digits. Strings are sequences of bytes, so a character outside ASCII is encoded byte by byte (text in UTF-8 gives the usual result, e.g. &quot;%C3%A9&quot;).</p>
+<p>The &quot;form&quot; variants are for query strings and HTML form data (application/x-www-form-urlencoded): a space is written as &#x27;+&#x27;, and &#x27;+&#x27; is read as a space.</p>
+<p>A query string keeps its pairs in order and may repeat a key, so pairs are passed as two lists of the same length (keys and values) rather than a map.</p>
+<p>Everything is static. Malformed input (&#x27;%&#x27; without two hexadecimal digits) throws parse_exception.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="url_codec.build_query"><div class="sig">static def <b>build_query</b>(keys: list&lt;string&gt;, values: list&lt;string&gt;) : string</div><p>A query string from pairs: &quot;key=value&amp;key2=value2&quot;, keys and values form-encoded, in the order of the lists. The result has no &#x27;?&#x27; in front. Empty lists give &quot;&quot;. Throws illegal_argument_exception when the two lists do not have the same length.</p></div>
+<div class="fn" id="url_codec.decode"><div class="sig">static def <b>decode</b>(text: string) : string</div><p>The text with every %XX replaced by the byte it stands for. A &#x27;+&#x27; stays a &#x27;+&#x27; (see decode_form). Characters that would not have needed encoding are accepted as they are. Throws parse_exception for a &#x27;%&#x27; that is not followed by two hexadecimal digits.</p></div>
+<div class="fn" id="url_codec.decode_form"><div class="sig">static def <b>decode_form</b>(text: string) : string</div><p>Like decode() but a &#x27;+&#x27; becomes a space: for query strings and HTML form data. Throws parse_exception for a &#x27;%&#x27; that is not followed by two hexadecimal digits.</p></div>
+<div class="fn" id="url_codec.encode"><div class="sig">static def <b>encode</b>(text: string) : string</div><p><code>text</code> percent encoded so that it can be one piece of a URL (a path segment, a query key or value): everything but letters, digits and - . _ ~ becomes %XX (upper case digits). A space becomes &quot;%20&quot;.</p></div>
+<div class="fn" id="url_codec.encode_form"><div class="sig">static def <b>encode_form</b>(text: string) : string</div><p>like encode() but a space becomes &#x27;+&#x27;: the encoding of query strings and HTML form data</p></div>
+<div class="fn" id="url_codec.encode_path"><div class="sig">static def <b>encode_path</b>(text: string) : string</div><p>Like encode() but &#x27;/&#x27; is kept, for encoding a whole path at once: encode_path(&quot;/my files/a&amp;b.txt&quot;) gives &quot;/my%20files/a%26b.txt&quot;.</p></div>
+<div class="fn" id="url_codec.parse_query"><div class="sig">static def <b>parse_query</b>(query: string, keys: list&lt;string&gt;, values: list&lt;string&gt;) : decimal</div><p>Take a query string apart: for every &quot;key=value&quot; piece (pieces are separated by &#x27;&amp;&#x27; or &#x27;;&#x27;) the decoded key is added to <code>keys</code> and the decoded value to <code>values</code>. A piece without &#x27;=&#x27; is a key with the value &quot;&quot;; empty pieces (&quot;a=1&amp;&amp;b=2&quot;) are skipped. One &#x27;?&#x27; at the very beginning is skipped, and when the text is a whole URL only the part behind its first &#x27;?&#x27; and before a &#x27;#&#x27; is read (a &#x27;?&#x27; that comes after the first &#x27;=&#x27; or &#x27;&amp;&#x27; belongs to a value). Returns the number of pairs added. Throws parse_exception for a malformed %XX.</p></div>
+<div class="fn" id="url_codec.query_value"><div class="sig">static def <b>query_value</b>(query: string, key: string) : string?</div><p>The decoded value of the first pair with the key <code>key</code> in a query string (or URL, see parse_query), or null when there is no such key. Throws parse_exception for a malformed %XX.</p></div>
+</div>
+</section>
+<section class="type" id="xml_writer">
+<h2><span class="kind">class</span> xml_writer</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/data/xml/xml_writer.sharp">source</a></p>
+<p>Writes well formed XML, element by element.</p>
+<div class="code"><pre class="sharp">xml := new xml_writer();
+xml.set_indent(2);
+xml.declaration();
+xml.start(&quot;library&quot;).attribute(&quot;city&quot;, &quot;Oslo&quot;);
+xml.start(&quot;book&quot;).attribute(&quot;id&quot;, &quot;1&quot;);
+xml.element(&quot;title&quot;, &quot;Tom &amp; Jerry&quot;);
+xml.end();
+xml.start(&quot;empty&quot;).end();
+xml.end();
+xml.to_string()</pre></div>
+<div class="code"><pre class="sharp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;
+&lt;library city=&quot;Oslo&quot;&gt;
+  &lt;book id=&quot;1&quot;&gt;
+    &lt;title&gt;Tom &amp;amp; Jerry&lt;/title&gt;
+  &lt;/book&gt;
+  &lt;empty/&gt;
+&lt;/library&gt;</pre></div>
+<p>The writer keeps track of the open elements, so the output is always properly nested: start() opens an element, end() closes the innermost open one, and to_string() refuses to give out a document with elements still open. What cannot be well formed XML is rejected right away with an exception: names with illegal characters, an attribute given twice, attributes after content, a second root element, text outside the root.</p>
+<p>Escaping is done for you: &amp; &lt; &gt; in text; &amp; &lt; &gt; &quot; and line ends and tabs in attribute values. Characters XML does not allow at all (control characters other than tab and line ends) throw illegal_argument_exception. Text is otherwise written byte for byte (so UTF-8 stays UTF-8).</p>
+<p>Layout: with set_indent(n), n &gt; 0, every element starts on its own line, indented n spaces per level - except inside an element that has text, whose content stays on one line so that no white space is added to the text. Without indent everything is written in one line.</p>
+<p>Every function that adds something returns the writer, so calls can be chained. Not thread safe.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="xml_writer.xml_writer"><div class="sig"><b>xml_writer</b>()</div><p>a writer with nothing written; no indentation</p></div>
+<div class="fn" id="xml_writer.attribute"><div class="sig">def <b>attribute</b>(name: string, value: string) : xml_writer</div><p>Add an attribute to the element that was just started: writes name=&quot;value&quot; with the value escaped. Returns this writer. Throws illegal_state_exception when no start tag is open (content was already written, or no element was started) or the element has this attribute already; illegal_argument_exception for an invalid name or a value with a character XML does not allow.</p></div>
+<div class="fn" id="xml_writer.attribute_number"><div class="sig">def <b>attribute_number</b>(name: string, value: decimal) : xml_writer</div><p>add an attribute whose value is a number, written the short way (&quot;3&quot;, &quot;0.5&quot;). Returns this writer. Throws like attribute().</p></div>
+<div class="fn" id="xml_writer.cdata"><div class="sig">def <b>cdata</b>(content: string) : xml_writer</div><p>Add text to the innermost open element as a CDATA section, in which nothing needs escaping: &lt;![CDATA[ ... ]]&gt;. Handy for text full of &lt; and &amp;, like code. The one sequence a CDATA section cannot contain, &quot;]]&gt;&quot;, is split over two sections. Returns this writer. Throws illegal_state_exception when no element is open.</p></div>
+<div class="fn" id="xml_writer.comment"><div class="sig">def <b>comment</b>(content: string) : xml_writer</div><p>Add a comment: &lt;!-- content --&gt;. Allowed anywhere, also before and after the root element. Returns this writer. Throws illegal_argument_exception when the content contains &quot;--&quot; or ends with &quot;-&quot; (XML does not allow that in a comment).</p></div>
+<div class="fn" id="xml_writer.declaration"><div class="sig">def <b>declaration</b>() : xml_writer</div><p>Write the XML declaration &lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;. It has to be the very first thing. Throws illegal_state_exception when something was written already.</p></div>
+<div class="fn" id="xml_writer.depth"><div class="sig">def <b>depth</b>() : decimal</div><p>how many elements are open at the moment</p></div>
+<div class="fn" id="xml_writer.element"><div class="sig">def <b>element</b>(name: string, content: string) : xml_writer</div><p>a whole element with text and nothing else: start(name), text(content), end(). Returns this writer. Throws like those.</p></div>
+<div class="fn" id="xml_writer.end"><div class="sig">def <b>end</b>() : xml_writer</div><p>Close the innermost open element: writes &lt;/name&gt;, or turns an element without content into &lt;name/&gt;. Returns this writer. Throws illegal_state_exception when no element is open.</p></div>
+<div class="fn" id="xml_writer.end_all"><div class="sig">def <b>end_all</b>() : xml_writer</div><p>close all elements that are still open. Returns this writer.</p></div>
+<div class="fn" id="xml_writer.escape"><div class="sig">static def <b>escape</b>(content: string) : string</div><p>the text of <code>content</code> with &amp; &lt; &gt; escaped, as it would appear between tags: escape(&quot;a&lt;b&quot;) gives &quot;a&amp;lt;b&quot;</p></div>
+<div class="fn" id="xml_writer.save"><div class="sig">def <b>save</b>(target: file)</div><p>Replace the content of the file <code>target</code> with the finished document. Throws illegal_state_exception like to_string(), io_exception when the file cannot be written.</p></div>
+<div class="fn" id="xml_writer.set_indent"><div class="sig">def <b>set_indent</b>(spaces: decimal) : xml_writer</div><p>Indent nested elements by <code>spaces</code> spaces per level and put them on lines of their own (0 = everything in one line). Call it before writing anything. Returns this writer. Throws illegal_argument_exception when spaces is negative.</p></div>
+<div class="fn" id="xml_writer.start"><div class="sig">def <b>start</b>(name: string) : xml_writer</div><p>Open an element: writes &lt;name. Attributes can be added until content follows. Returns this writer. Throws illegal_argument_exception for an invalid name and illegal_state_exception for a second root element.</p></div>
+<div class="fn" id="xml_writer.text"><div class="sig">def <b>text</b>(content: string) : xml_writer</div><p>Add text to the innermost open element, escaped. Empty text adds nothing. Returns this writer. Throws illegal_state_exception when no element is open and illegal_argument_exception for a character XML does not allow.</p></div>
+<div class="fn" id="xml_writer.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>The finished document as text (with a line end at the end when indenting). Throws illegal_state_exception when elements are still open or no root element was written.</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

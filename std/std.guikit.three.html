@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.three - Sharp standard library</title>
+<meta name="description" content="The std.guikit.three module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="on sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.three</p>
+<h1>std.guikit.three <small>module</small></h1>
+<p class="contents"><a href="#camera">camera</a> <a href="#lamp">lamp</a> <a href="#mesh">mesh</a> <a href="#plant">plant</a> <a href="#plants">plants</a> <a href="#scattering">scattering</a> <a href="#scene">scene</a> <a href="#shape_store">shape_store</a> <a href="#shapes">shapes</a> <a href="#stage">stage</a> <a href="#sun">sun</a> <a href="#terrain">terrain</a> <a href="#thing">thing</a> <a href="#constants">constants</a></p>
+<section class="type" id="camera">
+<h2><span class="kind">class</span> camera</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/camera.sharp">source</a></p>
+<p>camera - the eye a scene is seen through. Inside a scene:</p>
+<div class="code"><pre class="sharp">camera().at(0, 2, 6).look_at(0, 1, 0);          // stands here, looks there
+camera().at(x, y, z).facing(heading, tilt);     // stands here, looks this way
+camera().orbit();                               // drag to look round the scene, wheel to zoom
+camera().walk(land);                            // a person walking over the land</pre></div>
+<p>A scene that says nothing about its camera gets one that stands back far enough to see everything in it.</p>
+<p>DIRECTIONS: a heading is degrees round the up axis - 0 looks along -z, 90 along +x, like a compass seen from above. The tilt is degrees DOWN (below 0: up).</p>
+<p>THE THREE THAT MOVE BY THEMSELVES</p>
+<div class="code"><pre class="sharp">orbit()     the mouse dragged turns the eye round a point - the middle of the scene, or
+            the point given - and the wheel moves it closer or away. For looking AT
+            something: a model, a product, a board.
+walk()      W A S D or the arrow keys walk (left and right arrows turn), dragging the
+            mouse looks round. With walk(land) the eye stays a person&#x27;s height above
+            the land. For being IN a world.
+fly()       like walk, but forward is wherever the eye looks - up included.</pre></div>
+<p>Each keeps where it has got to when the screen is rebuilt.</p>
+<p>(three.js: PerspectiveCamera + OrbitControls / PointerLockControls. Godot: Camera3D.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>heading</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>tilt</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>aimed</code></td><td><code>bool</code></td><td>looks at a point (look_at) instead of along heading and tilt</td></tr><tr><td><code>aim_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>aim_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>aim_z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>wide</code></td><td><code>decimal</code></td><td>how much it takes in, top to bottom, in degrees</td></tr><tr><td><code>nearest</code></td><td><code>decimal</code></td><td>nothing nearer than this is drawn ...</td></tr><tr><td><code>furthest</code></td><td><code>decimal</code></td><td>... or further than this</td></tr><tr><td><code>mode</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>placed</code></td><td><code>bool</code></td><td>the program said where it stands (else: far enough back to see it all)</td></tr><tr><td><code>round_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>round_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>round_z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>round_set</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>away</code></td><td><code>decimal</code></td><td>0: far enough to see everything</td></tr><tr><td><code>pace</code></td><td><code>decimal</code></td><td>metres a second</td></tr><tr><td><code>eye_height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>ground</code></td><td><code>thing?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="camera.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : camera</div></div>
+<div class="fn" id="camera.continue_from"><div class="sig">def <b>continue_from</b>(old: camera)</div><p>take over where a camera of the screen before had got to (the scene calls this on a rebuild)</p></div>
+<div class="fn" id="camera.dragged"><div class="sig">def <b>dragged</b>(dx: decimal, dy: decimal)</div><p>the mouse was dragged this far, in pixels</p></div>
+<div class="fn" id="camera.facing"><div class="sig">def <b>facing</b>(degrees: decimal, down: decimal) : camera</div><p>look this way: degrees round (0 along -z, 90 along +x), and degrees down</p></div>
+<div class="fn" id="camera.fly"><div class="sig">def <b>fly</b>() : camera</div><p>like walk, but forward is wherever it looks</p></div>
+<div class="fn" id="camera.height"><div class="sig">def <b>height</b>(metres: decimal) : camera</div><p>how high the eye is above the land when walking</p></div>
+<div class="fn" id="camera.lens"><div class="sig">def <b>lens</b>(degrees: decimal) : camera</div><p>how much it takes in, top to bottom, in degrees: 60 is natural, 30 a long lens, 90 a wide one</p></div>
+<div class="fn" id="camera.look_at"><div class="sig">def <b>look_at</b>(px: decimal, py: decimal, pz: decimal) : camera</div><p>look at this point, wherever the camera stands</p></div>
+<div class="fn" id="camera.looks_along"><div class="sig">def <b>looks_along</b>() : decimal[]</div><p>the way it looks, as a direction of length 1: [x, y, z]</p></div>
+<div class="fn" id="camera.orbit"><div class="sig">def <b>orbit</b>() : camera</div><p>drag to look round the middle of the scene, wheel to come closer</p></div>
+<div class="fn" id="camera.orbit-2"><div class="sig">def <b>orbit</b>(px: decimal, py: decimal, pz: decimal, distance: decimal) : camera</div><p>the same round a point of your own, starting <code>distance</code> metres from it</p></div>
+<div class="fn" id="camera.sees"><div class="sig">def <b>sees</b>(near: decimal, far: decimal) : camera</div><p>draw only what is between <code>near</code> and <code>far</code> metres from the eye</p></div>
+<div class="fn" id="camera.settle_orbit"><div class="sig">def <b>settle_orbit</b>()</div><p>orbit: put the eye where its heading, tilt and distance say</p></div>
+<div class="fn" id="camera.speed"><div class="sig">def <b>speed</b>(metres_a_second: decimal) : camera</div><p>how fast it walks or flies, in metres a second</p></div>
+<div class="fn" id="camera.stepped"><div class="sig">def <b>stepped</b>(f: frame) : bool</div><p>walk or fly for <code>step</code> seconds by the keys that are held; true when it moved</p></div>
+<div class="fn" id="camera.walk"><div class="sig">def <b>walk</b>() : camera</div><p>walk with the keys, look with the mouse, at the height the camera was put</p></div>
+<div class="fn" id="camera.walk-2"><div class="sig">def <b>walk</b>(land: thing) : camera</div><p>the same with the eye a person&#x27;s height above this land</p></div>
+<div class="fn" id="camera.wheeled"><div class="sig">def <b>wheeled</b>(turn: decimal) : bool</div><p>the wheel was turned; true when the camera used it</p></div>
+</div>
+</section>
+<section class="type" id="lamp">
+<h2><span class="kind">class</span> lamp</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/lights.sharp">source</a></p>
+<p>lamp - a light at a place, reaching a few metres round it: a street lamp, a fire, a torch.</p>
+<div class="code"><pre class="sharp">lamp().at(0, 3, 0).reach(8).color(0xFFE9A0FF);</pre></div>
+<p>Made inside a group, its place is the group&#x27;s (the lamp of a street lamp moves with the post). The four lamps nearest the camera light the scene; a scene may have as many as it likes.</p>
+<p>(three.js: PointLight. Godot: OmniLight3D.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>tinted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>far</code></td><td><code>decimal</code></td><td>how many metres it reaches</td></tr><tr><td><code>bright</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>on</code></td><td><code>thing?</code></td><td>the group it hangs in (null: the scene itself)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="lamp.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : lamp</div></div>
+<div class="fn" id="lamp.color"><div class="sig">def <b>color</b>(packed: _int64) : lamp</div></div>
+<div class="fn" id="lamp.reach"><div class="sig">def <b>reach</b>(metres: decimal) : lamp</div></div>
+<div class="fn" id="lamp.strength"><div class="sig">def <b>strength</b>(amount: decimal) : lamp</div></div>
+</div>
+</section>
+<section class="type" id="mesh">
+<h2><span class="kind">class</span> mesh</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/mesh.sharp">source</a></p>
+<p>mesh - a shape you make yourself: corners in space and triangles between them.</p>
+<div class="code"><pre class="sharp">wall := new mesh();
+a := wall.corner(0, 0, 0);
+b := wall.corner(4, 0, 0);
+c := wall.corner(4, 3, 0);
+d := wall.corner(0, 3, 0);
+wall.quad(a, b, c, d);
+wall.texture(&quot;assets/brick.png&quot;);</pre></div>
+<div class="code"><pre class="sharp">scene { add(wall); };</pre></div>
+<p>EVERYTHING 3D IS A MESH underneath: cube, sphere, terrain and tree build one with exactly the functions below, and a model file is read into several. So whatever they can show, a mesh of your own can.</p>
+<p>A CORNER has a place, and may have three more things:</p>
+<div class="code"><pre class="sharp">a facing            which way the surface looks there (nx, ny, nz). Light is worked
+                    out from it. Leave it out and smooth() works one out for you
+a texture point     where of the texture is at this corner: (0, 0) its top left,
+                    (1, 1) its bottom right; beyond 1 the texture repeats
+a colour            multiplied into the surface there (tint): shade a model by hand,
+                    or colour land by its height, without any texture</pre></div>
+<p>A TRIANGLE names three corners COUNTER-CLOCKWISE as seen from the side that shows. Its back is not drawn (a closed shape never shows a back) - unless the mesh is two_sided().</p>
+<p>THE SPACE: x to the right, y UP, z towards you; a unit is a metre.</p>
+<p>WHAT IT IS MADE OF, for the whole mesh: color, texture, shiny, glow, and two_sided / cut_out / see_through / unlit.</p>
+<p>A MESH THAT CHANGES (water, a trail, a morphing shape): change the lists - points, normals, uvs, tints - or clear() and build again, then say changed(). It is sent to the graphics card again before the next frame.</p>
+<p>A shape of several materials is several meshes: body.also(glass).</p>
+<p>(three.js: BufferGeometry + Material. Godot: ArrayMesh / SurfaceTool.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>points</code></td><td><code>decimal[]</code></td><td>x y z for every corner</td></tr><tr><td><code>normals</code></td><td><code>decimal[]</code></td><td>its facing: nx ny nz</td></tr><tr><td><code>uvs</code></td><td><code>decimal[]</code></td><td>its texture point: u v</td></tr><tr><td><code>tints</code></td><td><code>_int64[]</code></td><td>its colour, 0xRRGGBBAA</td></tr><tr><td><code>faces</code></td><td><code>_int32[]</code></td><td>three corner numbers for every triangle</td></tr><tr><td><code>corner_count</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>face_count</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>paint</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>picture</code></td><td><code>_int64</code></td><td>its texture&#x27;s id (0: none)</td></tr><tr><td><code>shine</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>light</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>both_sides</code></td><td><code>bool</code></td><td>two_sided()</td></tr><tr><td><code>holes</code></td><td><code>bool</code></td><td>cut_out()</td></tr><tr><td><code>blended</code></td><td><code>bool</code></td><td>see_through()</td></tr><tr><td><code>plain</code></td><td><code>bool</code></td><td>unlit()</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="mesh.mesh"><div class="sig"><b>mesh</b>()</div></div>
+<div class="fn" id="mesh.add"><div class="sig">def <b>add</b>(other: mesh) : mesh</div><p>every corner and triangle of another mesh, added to this one (the other is not changed). Returns this mesh.</p></div>
+<div class="fn" id="mesh.also"><div class="sig">def <b>also</b>(other: mesh) : mesh</div><p>one more part of the same model, with a material of its own: trunk.also(leaves). Returns this mesh.</p></div>
+<div class="fn" id="mesh.changed"><div class="sig">def <b>changed</b>()</div><p>the lists were changed by hand: send them to the graphics card again before the next frame</p></div>
+<div class="fn" id="mesh.clear"><div class="sig">def <b>clear</b>()</div><p>forget every corner and triangle, to build the shape again (the lists are kept)</p></div>
+<div class="fn" id="mesh.color"><div class="sig">def <b>color</b>(packed: _int64) : mesh</div><p>its colour, 0xRRGGBBAA; with a texture, the colour the texture is tinted with (white: as it is)</p></div>
+<div class="fn" id="mesh.corner"><div class="sig">def <b>corner</b>(x: decimal, y: decimal, z: decimal) : _int64</div><p>a new corner at (x, y, z); gives its number. Its facing is worked out by smooth().</p></div>
+<div class="fn" id="mesh.corner-2"><div class="sig">def <b>corner</b>(x: decimal, y: decimal, z: decimal, nx: decimal, ny: decimal, nz: decimal) : _int64</div><p>a new corner with its facing</p></div>
+<div class="fn" id="mesh.corner-3"><div class="sig">def <b>corner</b>(x: decimal, y: decimal, z: decimal, nx: decimal, ny: decimal, nz: decimal, u: decimal, v: decimal) : _int64</div><p>a new corner with its facing and its point of the texture</p></div>
+<div class="fn" id="mesh.cut_out"><div class="sig">def <b>cut_out</b>() : mesh</div><p>the see-through pixels of its texture are holes: leaves, a fence, a grate. (Also seen from both sides.)</p></div>
+<div class="fn" id="mesh.faceted"><div class="sig">def <b>faceted</b>() : mesh</div><p>give every triangle corners of its own, all facing the way the triangle does: the surface then shows its facets - the cut-gem, &quot;low-poly&quot; look.</p></div>
+<div class="fn" id="mesh.glow"><div class="sig">def <b>glow</b>(amount: decimal) : mesh</div><p>how much of its own colour it gives off whatever the light: 0 none, 1 fully (a lamp, a screen, lava)</p></div>
+<div class="fn" id="mesh.moved"><div class="sig">def <b>moved</b>(dx: decimal, dy: decimal, dz: decimal) : mesh</div><p>move every corner</p></div>
+<div class="fn" id="mesh.quad"><div class="sig">def <b>quad</b>(a: _int64, b: _int64, c: _int64, d: _int64)</div><p>a four-cornered face (two triangles), counter-clockwise as seen from the side that shows</p></div>
+<div class="fn" id="mesh.ready"><div class="sig">def <b>ready</b>() : _int64</div><p>the model this mesh is on the graphics card: sent the first time it is asked for, and again after it changed. (The framework asks; a program needs this only to hand the model to something that takes model ids.)</p></div>
+<div class="fn" id="mesh.see_through"><div class="sig">def <b>see_through</b>() : mesh</div><p>see-through, mixed with what is behind it: glass, water, smoke</p></div>
+<div class="fn" id="mesh.send"><div class="sig">def <b>send</b>(into: _int64)</div><p>put this mesh on the card as a part of that model (its own part number is kept for the next time)</p></div>
+<div class="fn" id="mesh.shiny"><div class="sig">def <b>shiny</b>(amount: decimal) : mesh</div><p>how strongly it shows the sun&#x27;s glint: 0 chalk .. 1 polished</p></div>
+<div class="fn" id="mesh.smooth"><div class="sig">def <b>smooth</b>() : mesh</div><p>work out every corner&#x27;s facing from the triangles that meet at it: the surface then looks rounded. Corners made without a facing get this by themselves; call it yourself after moving corners by hand.</p></div>
+<div class="fn" id="mesh.stretched"><div class="sig">def <b>stretched</b>(sx: decimal, sy: decimal, sz: decimal) : mesh</div><p>stretch along each axis (1: unchanged). Facings are worked out again by smooth() when the stretch is uneven.</p></div>
+<div class="fn" id="mesh.texture"><div class="sig">def <b>texture</b>(path: string) : mesh</div><p>a picture laid over it by the corners&#x27; texture points</p></div>
+<div class="fn" id="mesh.texture-2"><div class="sig">def <b>texture</b>(id: _int64) : mesh</div><p>a texture that is already loaded or made (texture ids come from three.texture_of and three.make_texture)</p></div>
+<div class="fn" id="mesh.texture_point"><div class="sig">def <b>texture_point</b>(corner: _int64, u: decimal, v: decimal)</div><p>where of the texture is at this corner</p></div>
+<div class="fn" id="mesh.tint"><div class="sig">def <b>tint</b>(corner: _int64, packed: _int64)</div><p>this corner&#x27;s own colour (0xRRGGBBAA), multiplied into the surface there</p></div>
+<div class="fn" id="mesh.triangle"><div class="sig">def <b>triangle</b>(a: _int64, b: _int64, c: _int64)</div><p>a triangle between three corners, counter-clockwise as seen from the side that shows</p></div>
+<div class="fn" id="mesh.turned"><div class="sig">def <b>turned</b>(yaw: decimal, pitch: decimal, roll: decimal) : mesh</div><p>turn round (0, 0, 0), in degrees, as a thing is turned: heading, then nose up, then rolled</p></div>
+<div class="fn" id="mesh.two_sided"><div class="sig">def <b>two_sided</b>() : mesh</div><p>seen from the back too (a leaf, a flag, a sheet of paper)</p></div>
+<div class="fn" id="mesh.unlit"><div class="sig">def <b>unlit</b>() : mesh</div><p>its own colour whatever the light</p></div>
+</div>
+</section>
+<section class="type" id="plant">
+<h2><span class="kind">class</span> plant</h2>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/plant.sharp">source</a></p>
+<p>plant - a tree, grown by the program: a trunk that tapers and leans, limbs that branch and reach up, and foliage on them.</p>
+<div class="code"><pre class="sharp">oak := tree(7);                 // a broad-leaved tree; another number, another tree
+fir := pine(3);                 // a conifer</pre></div>
+<div class="code"><pre class="sharp">scene {
+    add(oak).at(4, 0, 0 - 2);
+    scatter(fir, 2000).on(land).between(2, 60);        // a forest of it
+}</pre></div>
+<p>HOW A TREE IS MADE (the way games make them): the WOOD is real shape - tubes of bark, thinner with every branching. The LEAVES are not: no machine draws a hundred thousand leaves. Each spray of leaves is one flat card with a picture of leaves on it, see-through between them; a few dozen cards, facing all ways and lit as if they were the outside of one round crown, read as a tree. A whole tree is about a thousand triangles.</p>
+<p>It needs no picture files: the bark and the leaves are textures the library draws itself. Your own go on with</p>
+<div class="code"><pre class="sharp">tree(7).bark(&quot;assets/oak_bark.jpg&quot;).leaves(&quot;assets/oak_leaves.png&quot;);</pre></div>
+<p>(a leaf picture: a spray of leaves on a see-through background, spreading from the middle; for a pine: a twig with its base at the bottom edge).</p>
+<p>The same number always grows the same tree, and every tree(7) shares one shape on the graphics card: a forest costs a tree.</p>
+<p>FAR AWAY a tree is drawn from a much simpler shape (<code>simple</code>: about seventy triangles); scatter(...) switches to it by itself.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>wood</code></td><td><code>mesh</code></td><td>trunk and limbs</td></tr><tr><td><code>foliage</code></td><td><code>mesh</code></td><td>the leaf cards</td></tr><tr><td><code>simple</code></td><td><code>plant?</code></td><td>the same tree with far fewer triangles, for far away</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="plant.plant"><div class="sig"><b>plant</b>(trunk: mesh, crown: mesh)</div></div>
+<div class="fn" id="plant.bark"><div class="sig">def <b>bark</b>(path: string) : plant</div><p>your own bark: a picture that repeats, laid round the trunk and limbs</p></div>
+<div class="fn" id="plant.leaves"><div class="sig">def <b>leaves</b>(path: string) : plant</div><p>your own leaves: a spray of leaves (or a twig of needles) on a see-through background</p></div>
+</div>
+</section>
+<section class="type" id="plants">
+<h2><span class="kind">class</span> plants</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/plant.sharp">source</a></p>
+<p>plants - the trees already grown, by kind and seed: tree(7) asked for a second time (the screen was rebuilt) gets the shape of the first.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="plants.grown"><div class="sig">static def <b>grown</b>(kind: string, seed: decimal, full: bool) : plant</div><p>a tree of this kind (&quot;tree&quot;, &quot;pine&quot;) and seed, full or simple: grown now, or the one grown before</p></div>
+<div class="fn" id="plants.whole"><div class="sig">static def <b>whole</b>(kind: string, seed: decimal) : plant</div><p>the tree with its simple version attached: what tree(...) and pine(...) hand out</p></div>
+</div>
+</section>
+<section class="type" id="scattering">
+<h2><span class="kind">class</span> scattering</h2>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/terrain.sharp">source</a></p>
+<p>scattering - many copies of one thing, strewn about: a forest, rocks on a slope, grass, a crowd of crates.</p>
+<div class="code"><pre class="sharp">pine := tree(7);
+scene {
+    add(land);
+    scatter(pine, 3000).on(land).between(1, 40);       // where the land is 1 to 40 metres high
+    scatter(rock, 200).within(0, 0, 100, 100);         // or just over an area
+}</pre></div>
+<p>However many there are, the scene hands them to the graphics card as ONE thing, and only the copies in view are drawn. Each copy stands at a place of its own, turned its own way and at its own size - always the same ones for the same seed, so a forest does not move when the screen is rebuilt.</p>
+<div class="code"><pre class="sharp">on(land)                on this land, each copy at the land&#x27;s height
+between(low, high)      only where the land is between these heights
+slopes(most)            only where it is no steeper than this (trees do not stand on cliffs)
+within(x0, z0, x1, z1)  only inside this area (else: the whole land)
+clear_of(x, z, radius)  none within this far of a point: a clearing, a path, where the player starts
+sizes(smallest, largest)    each copy&#x27;s size, picked between these (1: the thing&#x27;s own)
+seed(n)                 another arrangement
+far(cheaper, 80)        beyond 80 metres draw this simpler thing in its place</pre></div>
+<p>(three.js: InstancedMesh. Godot: MultiMeshInstance3D.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>original</code></td><td><code>thing</code></td><td></td></tr><tr><td><code>wanted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>land</code></td><td><code>thing?</code></td><td></td></tr><tr><td><code>lowest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>highest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>steepest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>area_set</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>x0</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z0</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>x1</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z1</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>smallest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>largest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>arrangement</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>cheaper</code></td><td><code>thing?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="scattering.scattering"><div class="sig"><b>scattering</b>(of: thing, how_many: _int64)</div></div>
+<div class="fn" id="scattering.between"><div class="sig">def <b>between</b>(low: decimal, high: decimal) : scattering</div></div>
+<div class="fn" id="scattering.clear_of"><div class="sig">def <b>clear_of</b>(px: decimal, pz: decimal, radius: decimal) : scattering</div><p>keep the ground within <code>radius</code> metres of (px, pz) clear (up to sixteen such places)</p></div>
+<div class="fn" id="scattering.far"><div class="sig">def <b>far</b>(simpler: thing, from: decimal) : scattering</div><p>beyond <code>from</code> metres draw <code>simpler</code> in the original&#x27;s place</p></div>
+<div class="fn" id="scattering.on"><div class="sig">def <b>on</b>(ground: thing) : scattering</div></div>
+<div class="fn" id="scattering.place_copies"><div class="sig">def <b>place_copies</b>()</div><p>work out where the copies stand (once), and which models they show</p></div>
+<div class="fn" id="scattering.seed"><div class="sig">def <b>seed</b>(n: decimal) : scattering</div></div>
+<div class="fn" id="scattering.sizes"><div class="sig">def <b>sizes</b>(least: decimal, most: decimal) : scattering</div></div>
+<div class="fn" id="scattering.slopes"><div class="sig">def <b>slopes</b>(most: decimal) : scattering</div></div>
+<div class="fn" id="scattering.within"><div class="sig">def <b>within</b>(from_x: decimal, from_z: decimal, to_x: decimal, to_z: decimal) : scattering</div></div>
+</div>
+</section>
+<section class="type" id="scene">
+<h2><span class="kind">class</span> scene</h2>
+<p class="meta"><code>base widget : behavior, pointer_target, wheel_target, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/scene.sharp">source</a></p>
+<p>scene - a 3D view: a widget like any other, with a world in it.</p>
+<div class="code"><pre class="sharp">scene {
+    cube(1).texture(&quot;assets/crate.png&quot;).spin(40);
+}</pre></div>
+<div class="code"><pre class="sharp">scene(modifier().grow(1).fill_height()) {
+    camera().orbit();
+    sun().from(0.8, 0.5, 0.3).shadows();
+    ground(20).texture(&quot;assets/concrete.png&quot;, 8);
+    model(&quot;assets/car.obj&quot;).color(paint.value);
+}</pre></div>
+<p>IT WORKS LIKE A COLUMN DOES: the block runs, and what it makes belongs to the scene - things (cube, sphere, model, group ...) in the order the lines run, with ordinary <code>if</code> and <code>for</code> deciding what is there. When a state the block read changes, the screen is built again and the scene shows the new world. Its box (size, place in the layout) comes from the modifier, like every widget&#x27;s.</p>
+<p>WHAT A SCENE HAS BESIDES THINGS</p>
+<div class="code"><pre class="sharp">camera()    the eye (camera.sharp)                 - else: far enough back to see everything
+sun()       the light (lights.sharp)               - else: a high sun, no shadows
+lamp()      lights at a place
+sky(top, horizon)       the colours of the sky     - else: a clear day
+backdrop(colour)        one flat colour instead of a sky
+fog(colour, from, to)   far things fade into it
+on_frame { f -&gt; ... }   your code, run before every frame: move things, read the keys</pre></div>
+<p>AND ANY WIDGET WRITTEN IN THE BLOCK IS LAID OVER THE VIEW - a score, a health bar, buttons - like in every container of this library:</p>
+<div class="code"><pre class="sharp">scene {
+    cube(1).spin(40);
+    text(&quot;Score: &quot; + score.value, modifier().padding(16)).size(24);
+}</pre></div>
+<p>(hud { ... } groups such widgets in one place of the block; it adds nothing else.)</p>
+<p>EVERY FRAME the scene is drawn again by the graphics card (native/g3_core.cpp), in one call, however much is in it. Things that only spin or bob cost the program nothing; what on_frame changes is handed over again.</p>
+<p>(three.js / react-three-fiber: Canvas + Scene. Godot: SubViewport with a world. SwiftUI: RealityView.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>root</code></td><td><code>thing</code></td><td>everything in the scene is inside it</td></tr><tr><td><code>eye</code></td><td><code>camera</code></td><td></td></tr><tr><td><code>light</code></td><td><code>sun</code></td><td></td></tr><tr><td><code>lamps</code></td><td><code>list&lt;lamp&gt;</code></td><td></td></tr><tr><td><code>sky_shown</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>sky_top</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>sky_horizon</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>sky_below</code></td><td><code>_int64</code></td><td>what shows under the horizon where no ground is</td></tr><tr><td><code>behind</code></td><td><code>_int64</code></td><td>the colour behind everything when there is no sky (backdrop)</td></tr><tr><td><code>sky_light</code></td><td><code>_int64</code></td><td>the light from the sky on what faces up ...</td></tr><tr><td><code>ground_light</code></td><td><code>_int64</code></td><td>... and from the ground on what faces down</td></tr><tr><td><code>fog_color</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>fog_from</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>fog_to</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>drawn</code></td><td><code>_int64</code></td><td>the triangles the last frame sent to the graphics card</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="scene.scene"><div class="sig"><b>scene</b>(block: ()())</div></div>
+<div class="fn" id="scene.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
+<div class="fn" id="scene.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="scene.each_frame"><div class="sig">def <b>each_frame</b>(what: (frame)()) : scene</div><p>your code, run before every frame is drawn</p></div>
+<div class="fn" id="scene.hit_point"><div class="sig">def <b>hit_point</b>() : decimal[]</div><p>where in the world the last click or under(...) hit: [x, y, z]</p></div>
+<div class="fn" id="scene.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="scene.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="scene.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="scene.pointer"><div class="sig">override def <b>pointer</b>(what: _int64, px: decimal, py: decimal)</div></div>
+<div class="fn" id="scene.still"><div class="sig">def <b>still</b>() : scene</div><p>draw only when the rest of the screen does: for a scene in which nothing moves by itself</p></div>
+<div class="fn" id="scene.under"><div class="sig">def <b>under</b>(px: decimal, py: decimal) : thing?</div><p>the thing under a point of the window that answers to clicks: the nearest one hit, or the group around it that does (a click on a wheel is a click on the car). null: none.</p></div>
+<div class="fn" id="scene.wheel"><div class="sig">override def <b>wheel</b>(dx: decimal, dy: decimal) : _int64</div></div>
+</div>
+</section>
+<section class="type" id="shape_store">
+<h2><span class="kind">class</span> shape_store</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/shape_store.sharp">source</a></p>
+<p>shape_store - one copy of every shape the words make.</p>
+<p>A screen is built again whenever its state changes, and every build runs cube(1), sphere(0.5) ... again. The THINGS are new each time (they are a few numbers); the SHAPE on the graphics card is not: the words ask here first, by a name that says exactly which shape (&quot;cube 1 1 1&quot;).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="shape_store.find"><div class="sig">static def <b>find</b>(name: string) : _int64</div><p>the model kept under this name (0: none yet)</p></div>
+<div class="fn" id="shape_store.keep"><div class="sig">static def <b>keep</b>(name: string, shape: mesh) : _int64</div><p>put a mesh on the graphics card and keep its model under this name; gives the model</p></div>
+<div class="fn" id="shape_store.thing_of"><div class="sig">static def <b>thing_of</b>(id: _int64) : thing</div><p>a new thing that shows this model</p></div>
+</div>
+</section>
+<section class="type" id="shapes">
+<h2><span class="kind">class</span> shapes</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/shapes.sharp">source</a></p>
+<p>shapes - the meshes behind the words cube, sphere, cylinder, ground ...</p>
+<p>Each function makes a NEW mesh, with facings and texture points, which you may change like any mesh before it is shown: stretch it, turn it, tint its corners, add it into a bigger one.</p>
+<div class="code"><pre class="sharp">roof := shapes.cylinder(2.2, 0, 1.2, 4).turned(45, 0, 0).moved(0, 3, 0);    // a pyramid
+hut := shapes.cube(3, 2.4, 3).moved(0, 1.2, 0).add(roof);
+scene { add(hut).texture(&quot;assets/planks.png&quot;); };</pre></div>
+<p>(The words - cube(1), sphere(0.5) - keep one copy of each size on the graphics card and hand out things that show it: for the same shape many times, use the words.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="shapes.card"><div class="sig">static def <b>card</b>(w: decimal, h: decimal) : mesh</div><p>an upright sheet <code>w</code> wide and <code>h</code> high, standing on (0, 0, 0) and facing you: for a picture, a sign, a leaf</p></div>
+<div class="fn" id="shapes.cube"><div class="sig">static def <b>cube</b>(w: decimal, h: decimal, d: decimal) : mesh</div><p>a box <code>w</code> wide, <code>h</code> high and <code>d</code> deep round (0, 0, 0); the texture is on every side</p></div>
+<div class="fn" id="shapes.cylinder"><div class="sig">static def <b>cylinder</b>(bottom: decimal, top: decimal, height: decimal, sides: _int64) : mesh</div><p>a cylinder standing on the y axis, <code>height</code> high round (0, 0, 0), with <code>sides</code> flat sides: <code>bottom</code> its radius at the bottom, <code>top</code> at the top. A cone when one of them is 0; four sides make a pyramid or a pillar.</p></div>
+<div class="fn" id="shapes.plane"><div class="sig">static def <b>plane</b>(w: decimal, d: decimal, across: _int64, along: _int64) : mesh</div><p>flat ground: <code>w</code> by <code>d</code> metres round (0, 0, 0), facing up, cut into <code>across</code> by <code>along</code> squares (1 and 1 is enough for a floor; more lets light from lamps fall off smoothly across it).</p></div>
+<div class="fn" id="shapes.ring"><div class="sig">static def <b>ring</b>(radius: decimal, thickness: decimal, around: _int64, sides: _int64) : mesh</div><p>a ring lying flat round (0, 0, 0): <code>radius</code> from the middle to the middle of the tube, the tube <code>thickness</code> in radius, <code>around</code> pieces round the ring and <code>sides</code> round the tube.</p></div>
+<div class="fn" id="shapes.sphere"><div class="sig">static def <b>sphere</b>(radius: decimal, around: _int64, down: _int64) : mesh</div><p>a ball round (0, 0, 0): <code>around</code> pieces round its middle and <code>down</code> bands from top to bottom. 24 and 16 look round; fewer, and faceted(), make a rock.</p></div>
+</div>
+</section>
+<section class="type" id="stage">
+<h2><span class="kind">class</span> stage</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/thing.sharp">source</a></p>
+<p>stage - what makes the nested way of writing a scene work, exactly as <code>scope</code> does for widgets (core/tree/scope.sharp):</p>
+<div class="code"><pre class="sharp">scene {
+    cube(1).at(0, 0.5, 0);                  // lands in the scene ...
+    group {
+        sphere(0.3).at(0, 2, 0);            // ... these land in the group ...
+        cylinder(0.1, 2);
+    }.at(4, 0, 0);                          // ... and move with it
+}</pre></div>
+<p>There is one &quot;open&quot; thing at any moment: a scene or a group whose block is running. Every thing, the moment it is made, joins the open one. With nothing open, a new thing belongs to nothing yet - keep it in a variable and add(...) it inside a scene later.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>open</code></td><td><code>thing?</code></td><td>the scene or group whose block is running right now (null: none)</td></tr><tr><td><code>building</code></td><td><code>scene?</code></td><td>the scene whose block is running (null: none): what camera(), sun(), sky(), fog() and on_frame speak to</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="stage.adopt"><div class="sig">static def <b>adopt</b>(fresh: thing)</div></div>
+<div class="fn" id="stage.fill"><div class="sig">static def <b>fill</b>(into: thing, block: ()())</div><p>run <code>block</code> with <code>into</code> as the open thing, then put back whichever was open before</p></div>
+<div class="fn" id="stage.the_scene"><div class="sig">static def <b>the_scene</b>(written: string) : scene</div><p>the scene being built, for a word that only makes sense inside one</p></div>
+</div>
+</section>
+<section class="type" id="sun">
+<h2><span class="kind">class</span> sun</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/lights.sharp">source</a></p>
+<p>sun - the one light that reaches everywhere in a scene, from one direction.</p>
+<div class="code"><pre class="sharp">sun().from(0.8, 0.3, -0.5);                 // low in the east
+sun().from(-0.4, 0.8, 0.5).shadows();       // high, and things throw shadows
+sun().color(0xFFD9A0FF).strength(1.2);      // warm evening light</pre></div>
+<p>from(x, y, z) is the direction the light comes FROM: (0, 1, 0) is straight overhead, a small y is a low sun and long shadows.</p>
+<p>A scene always has a sun (a high one from the front left, without shadows, until it is told otherwise). It also shows in the sky as a disc.</p>
+<p>SHADOWS cost drawing the scene a second time, from the sun; shadows(reach) says how far from the eye they are drawn - 60 metres unless told. Things beyond it are lit but throw none.</p>
+<p>(three.js: DirectionalLight. Godot: DirectionalLight3D.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>tinted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>bright</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>shadowed</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>shadow_reach</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sun.color"><div class="sig">def <b>color</b>(packed: _int64) : sun</div></div>
+<div class="fn" id="sun.from"><div class="sig">def <b>from</b>(px: decimal, py: decimal, pz: decimal) : sun</div></div>
+<div class="fn" id="sun.shadows"><div class="sig">def <b>shadows</b>() : sun</div></div>
+<div class="fn" id="sun.shadows-2"><div class="sig">def <b>shadows</b>(reach: decimal) : sun</div><p>shadows up to this many metres from the eye</p></div>
+<div class="fn" id="sun.strength"><div class="sig">def <b>strength</b>(amount: decimal) : sun</div><p>1 is daylight; 0 puts it out (a night scene lit by lamps)</p></div>
+</div>
+</section>
+<section class="type" id="terrain">
+<h2><span class="kind">class</span> terrain</h2>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/terrain.sharp">source</a></p>
+<p>terrain - land: ground whose height you give as a function of where it is.</p>
+<div class="code"><pre class="sharp">land := terrain(320, { x: decimal, z: decimal -&gt; return hills(x, z); });
+land.texture(&quot;assets/grass.png&quot;, 60);</pre></div>
+<div class="code"><pre class="sharp">scene {
+    add(land);
+    camera().walk(land);                        // the eye stays above it
+    model(&quot;assets/cabin.obj&quot;).at(160, land.height_at(160, 150), 150);
+}</pre></div>
+<p>The land is a square of <code>size</code> metres with one corner at (0, 0, 0), running towards +x and +z. It is made ONCE, when terrain(...) is called - keep it in a variable outside the screen&#x27;s build, and add(...) it in the scene: making land asks your function for a height at every corner of its grid (129 x 129 of them unless you say how finely to cut it).</p>
+<p>height_at(x, z) answers from the grid, quickly, so it can be asked every frame for a character&#x27;s feet. (Outside the land it answers the nearest edge.)</p>
+<p>colored(...) paints the land by what it is - height and steepness - with no texture at all, or together with one:</p>
+<div class="code"><pre class="sharp">land.colored({ height: decimal, steep: decimal -&gt;
+    if(steep &gt; 0.6) { return 0x6D675FFF; }      // rock
+    if(height &gt; 40) { return 0xE4E8ECFF; }      // snow
+    return 0x5E7740FF;                          // grass
+});</pre></div>
+<p>(Godot: HeightMapShape3D / a terrain plugin. three.js: PlaneGeometry with its heights moved.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>side</code></td><td><code>decimal</code></td><td>metres along one edge</td></tr><tr><td><code>squares</code></td><td><code>_int64</code></td><td>squares along one edge</td></tr><tr><td><code>heights</code></td><td><code>decimal[]</code></td><td>the height at every corner of the grid, row after row along z</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="terrain.terrain"><div class="sig"><b>terrain</b>(size: decimal, cells: _int64, rise: (decimal, decimal)(decimal))</div></div>
+<div class="fn" id="terrain.colored"><div class="sig">def <b>colored</b>(paint: (decimal, decimal)(_int64)) : terrain</div><p>paint the land: your function is asked for a colour (0xRRGGBBAA) at every corner of the grid, given the height there and how steep it is (as steep_at). Returns the land.</p></div>
+<div class="fn" id="terrain.land_height"><div class="sig">def <b>land_height</b>(px: decimal, pz: decimal) : decimal</div><p>how high the land is at (px, pz) of the scene</p></div>
+<div class="fn" id="terrain.steep_at"><div class="sig">def <b>steep_at</b>(px: decimal, pz: decimal) : decimal</div><p>how steep the land is at (px, pz): 0 flat, 1 rising a metre for every metre across, more for a cliff</p></div>
+</div>
+</section>
+<section class="type" id="thing">
+<h2><span class="kind">class</span> thing</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/thing.sharp">source</a></p>
+<p>thing - anything that stands in a scene: a shape, a model from a file, a group of other things.</p>
+<p>You rarely write <code>thing</code> itself. The words make them - cube, sphere, model, group, terrain, tree ... - and everything about how a thing sits and looks is chained onto it, the way a text&#x27;s size is chained onto a text:</p>
+<div class="code"><pre class="sharp">model(&quot;assets/car.obj&quot;).at(0, 0, -4).turn(30).color(0xD63031FF);</pre></div>
+<p>WHERE IT IS at(x, y, z)             its place: x to the right, y UP, z towards you; a unit is a metre turn(heading)           degrees round the up axis: 0 faces along -z, 90 along +x turn(heading, pitch, roll)      ... then nose up, then rolled scale(s)                1: its own size A thing inside a group is placed, turned and scaled RELATIVE to the group.</p>
+<p>HOW IT LOOKS color(0xRRGGBBAA)       its colour (a texture is tinted by it; an alpha below FF makes it see-through) texture(path)           a picture over it;  texture(path, 40): laid 40 times across shiny(0 .. 1)           how strongly it glints glow(0 .. 1)            how much of its colour it gives off by itself</p>
+<p>MOVING BY ITSELF (worked out on the graphics side: costs the program nothing) spin(40)                degrees a second round the up axis bob(0.2, 2)             up and down, this far, this fast</p>
+<p>CLICKS use the names a view&#x27;s modifier uses: click { ... }           double_click { ... }            right_click { ... }</p>
+<p>A thing you keep in a variable can be changed at any time - in on_frame, from a button, from a timer - and the scene shows it:</p>
+<div class="code"><pre class="sharp">ship.turn_by(90 * f.step);
+ship.forward(12 * f.step);</pre></div>
+<p>(three.js: Object3D / Mesh. Godot: Node3D.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>model</code></td><td><code>_int64</code></td><td>what it looks like: a model on the graphics card (0: only a group)</td></tr><tr><td><code>shape</code></td><td><code>mesh?</code></td><td>the mesh it was made from, when it was: sent again when it changes</td></tr><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>heading</code></td><td><code>decimal</code></td><td>degrees</td></tr><tr><td><code>pitch</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>roll</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>spin_heading</code></td><td><code>decimal</code></td><td>degrees a second</td></tr><tr><td><code>spin_pitch</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>spin_roll</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bob_height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bob_rate</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>tinted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>picture</code></td><td><code>_int64</code></td><td>a texture over the model&#x27;s own (0: the model&#x27;s)</td></tr><tr><td><code>repeats</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>shine</code></td><td><code>decimal</code></td><td>below 0: the model&#x27;s own</td></tr><tr><td><code>light</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>own_shader</code></td><td><code>_int64</code></td><td>its own pixel code (shader): 0, the library&#x27;s</td></tr><tr><td><code>hidden</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>faces_eye</code></td><td><code>bool</code></td><td>always turned towards the camera (billboard)</td></tr><tr><td><code>shadowless</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>plain</code></td><td><code>bool</code></td><td>unlit</td></tr><tr><td><code>deaf</code></td><td><code>bool</code></td><td>clicks go through it</td></tr><tr><td><code>kids</code></td><td><code>list&lt;thing&gt;?</code></td><td></td></tr><tr><td><code>parent</code></td><td><code>thing?</code></td><td></td></tr><tr><td><code>copies</code></td><td><code>_int64</code></td><td>many copies of the model (scatter): the id of their places</td></tr><tr><td><code>far_model</code></td><td><code>_int64</code></td><td>... and the cheaper model the far ones are drawn with</td></tr><tr><td><code>far_from</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>on_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>on_double_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>on_right_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>slot</code></td><td><code>_int64</code></td><td>its number in the scene, as last packed (scene.sharp)</td></tr><tr><td><code>changes</code></td><td><code>_int64</code></td><td>counted up by everything that changes a thing: a scene packs itself again when it has moved on</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="thing.thing"><div class="sig"><b>thing</b>()</div></div>
+<div class="fn" id="thing.add"><div class="sig">def <b>add</b>(kid: thing) : thing</div><p>put another thing into this one: it is then placed, turned and scaled relative to it. Returns this thing.</p></div>
+<div class="fn" id="thing.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : thing</div></div>
+<div class="fn" id="thing.back"><div class="sig">def <b>back</b>(distance: decimal) : thing</div></div>
+<div class="fn" id="thing.bob"><div class="sig">def <b>bob</b>(height: decimal, rate: decimal) : thing</div><p>floating up and down: <code>height</code> metres each way, <code>rate</code> turns of the wave a second times 6.28</p></div>
+<div class="fn" id="thing.click"><div class="sig">def <b>click</b>(what: ()()) : thing</div><p>what happens when it is clicked (the same word a view&#x27;s modifier uses)</p></div>
+<div class="fn" id="thing.color"><div class="sig">def <b>color</b>(packed: _int64) : thing</div></div>
+<div class="fn" id="thing.distance_to"><div class="sig">def <b>distance_to</b>(other: thing) : decimal</div><p>how far from another thing, middle to middle, in metres (both in the same scene or group)</p></div>
+<div class="fn" id="thing.double_click"><div class="sig">def <b>double_click</b>(what: ()()) : thing</div></div>
+<div class="fn" id="thing.empty"><div class="sig">def <b>empty</b>() : thing</div><p>take every thing out of it</p></div>
+<div class="fn" id="thing.face_camera"><div class="sig">def <b>face_camera</b>() : thing</div><p>always turned towards the camera: a name tag, a far-off tree drawn as a picture</p></div>
+<div class="fn" id="thing.forward"><div class="sig">def <b>forward</b>(distance: decimal) : thing</div><p>this far the way it faces (below 0: backwards)</p></div>
+<div class="fn" id="thing.glow"><div class="sig">def <b>glow</b>(amount: decimal) : thing</div></div>
+<div class="fn" id="thing.height_at"><div class="sig">def <b>height_at</b>(px: decimal, pz: decimal) : decimal</div><p>how high the ground of this thing is at (px, pz) of the scene. Land (terrain) answers from its heights; any other thing is flat ground at its own height.</p></div>
+<div class="fn" id="thing.hide"><div class="sig">def <b>hide</b>() : thing</div></div>
+<div class="fn" id="thing.move_by"><div class="sig">def <b>move_by</b>(dx: decimal, dy: decimal, dz: decimal) : thing</div></div>
+<div class="fn" id="thing.no_shadow"><div class="sig">def <b>no_shadow</b>() : thing</div><p>throws no shadow (a cloud, a beam of light)</p></div>
+<div class="fn" id="thing.prepare"><div class="sig">def <b>prepare</b>()</div><p>the scene is about to hand this thing to the graphics card: make what it needs (scattered copies get their places here)</p></div>
+<div class="fn" id="thing.reach"><div class="sig">def <b>reach</b>() : decimal[]?</div><p>the upright box round it where it stands: low x y z, high x y z (null: nothing to measure)</p></div>
+<div class="fn" id="thing.remove"><div class="sig">def <b>remove</b>(kid: thing) : thing</div></div>
+<div class="fn" id="thing.right_click"><div class="sig">def <b>right_click</b>(what: ()()) : thing</div></div>
+<div class="fn" id="thing.scale"><div class="sig">def <b>scale</b>(s: decimal) : thing</div></div>
+<div class="fn" id="thing.scale-2"><div class="sig">def <b>scale</b>(sx: decimal, sy: decimal, sz: decimal) : thing</div></div>
+<div class="fn" id="thing.shader"><div class="sig">def <b>shader</b>(code: string) : thing</div><p>your own last word on every pixel of it, in the graphics card&#x27;s language (GLSL) - the way out when no setting does what you want, as canvas is in 2D. The code is one function; it is handed the colour the library worked out (texture, light, shadow) and returns the colour to show:</p>
+<div class="code"><pre class="sharp">cube(2).shader(&quot;vec3 look(vec3 color, vec3 normal, vec3 place, vec2 at, float time) {&quot;
+             + &quot;    float stripe = step(0.5, fract(place.y * 4.0 + time));&quot;
+             + &quot;    return mix(color, vec3(1.0, 0.8, 0.2), stripe * 0.6);&quot;
+             + &quot;}&quot;);</pre></div>
+<p>normal: which way the surface faces; place: where in the world the pixel is; at: its point of the texture; time: seconds since the window opened. A mistake in the code stops the program with what the graphics card said.</p></div>
+<div class="fn" id="thing.shiny"><div class="sig">def <b>shiny</b>(amount: decimal) : thing</div></div>
+<div class="fn" id="thing.show"><div class="sig">def <b>show</b>() : thing</div></div>
+<div class="fn" id="thing.shown"><div class="sig">def <b>shown</b>(yes: bool) : thing</div><p>shown or not, by a condition: door.shown(open.value)</p></div>
+<div class="fn" id="thing.sideways"><div class="sig">def <b>sideways</b>(distance: decimal) : thing</div><p>this far to its right (below 0: to its left)</p></div>
+<div class="fn" id="thing.spin"><div class="sig">def <b>spin</b>(degrees_a_second: decimal) : thing</div><p>turning round the up axis, this many degrees a second</p></div>
+<div class="fn" id="thing.spin-2"><div class="sig">def <b>spin</b>(heading_rate: decimal, pitch_rate: decimal, roll_rate: decimal) : thing</div></div>
+<div class="fn" id="thing.texture"><div class="sig">def <b>texture</b>(path: string) : thing</div></div>
+<div class="fn" id="thing.texture-2"><div class="sig">def <b>texture</b>(path: string, times: decimal) : thing</div><p>a picture laid <code>times</code> times across it (a floor of tiles, a field of grass)</p></div>
+<div class="fn" id="thing.texture-3"><div class="sig">def <b>texture</b>(id: _int64) : thing</div><p>a texture that is already loaded or made, by its id</p></div>
+<div class="fn" id="thing.texture-4"><div class="sig">def <b>texture</b>(id: _int64, times: decimal) : thing</div></div>
+<div class="fn" id="thing.touches"><div class="sig">def <b>touches</b>(other: thing) : bool</div><p>do the two things touch? Each is taken as the box round its model, at its place and size (a turned thing as the upright box that holds it). Right for things that are next to each other in the same scene or group.</p></div>
+<div class="fn" id="thing.turn"><div class="sig">def <b>turn</b>(degrees: decimal) : thing</div><p>degrees round the up axis: 0 faces along -z, 90 along +x</p></div>
+<div class="fn" id="thing.turn-2"><div class="sig">def <b>turn</b>(degrees: decimal, nose_up: decimal, rolled: decimal) : thing</div><p>heading, then nose up by <code>nose_up</code> degrees, then rolled</p></div>
+<div class="fn" id="thing.turn_by"><div class="sig">def <b>turn_by</b>(degrees: decimal) : thing</div></div>
+<div class="fn" id="thing.unclickable"><div class="sig">def <b>unclickable</b>() : thing</div><p>clicks go through it to what is behind</p></div>
+<div class="fn" id="thing.unlit"><div class="sig">def <b>unlit</b>() : thing</div><p>its own colour whatever the light</p></div>
+</div>
+</section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>CAMERA_FLY</code></td><td><code>_int64</code></td><td><code>3</code></td><td>the same, moving the way it looks</td></tr><tr><td><code>CAMERA_ORBIT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>drag to look round a point, wheel to come closer</td></tr><tr><td><code>CAMERA_STILL</code></td><td><code>_int64</code></td><td><code>0</code></td><td>where the program puts it</td></tr><tr><td><code>CAMERA_WALK</code></td><td><code>_int64</code></td><td><code>2</code></td><td>keys to walk, drag to look; feet on the ground</td></tr><tr><td><code>LAMP_NUMBERS</code></td><td><code>_int64</code></td><td><code>8</code></td><td></td></tr><tr><td><code>LOOK_NUMBERS</code></td><td><code>_int64</code></td><td><code>32</code></td><td></td></tr><tr><td><code>MADE_BLENDED</code></td><td><code>_int64</code></td><td><code>4</code></td><td>see-through, mixed with what is behind it (glass, water)</td></tr><tr><td><code>MADE_CUT_OUT</code></td><td><code>_int64</code></td><td><code>2</code></td><td>the see-through pixels of its texture are holes (leaves, a fence)</td></tr><tr><td><code>MADE_TWO_SIDED</code></td><td><code>_int64</code></td><td><code>1</code></td><td>seen from the back too</td></tr><tr><td><code>MADE_UNLIT</code></td><td><code>_int64</code></td><td><code>8</code></td><td>its own colour whatever the light (a sign, a flame)</td></tr><tr><td><code>NODE_NUMBERS</code></td><td><code>_int64</code></td><td><code>26</code></td><td></td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

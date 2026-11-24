@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.layout.flow - Sharp standard library</title>
+<meta name="description" content="The std.guikit.layout.flow module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="on sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.layout.flow</p>
+<h1>std.guikit.layout.flow <small>module</small></h1>
+<p class="contents"><a href="#column">column</a> <a href="#flex">flex</a> <a href="#row">row</a> <a href="#spacer">spacer</a> <a href="#wrap">wrap</a> <a href="#constants">constants</a></p>
+<section class="type" id="column">
+<h2><span class="kind">class</span> column</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/layout/flow/column.sharp">source</a></p>
+<p>column - children stacked top to bottom.</p>
+<div class="code"><pre class="sharp">column(modifier().padding(16)) {
+    text(&quot;Title&quot;).size(24);
+    text(&quot;some words underneath&quot;);
+    button(&quot;OK&quot;) { save(); };
+}.gap(12)</pre></div>
+<p>.gap(n)          room between the children .align(how)      how children sit ACROSS the column: ALIGN_START (left, the default), ALIGN_CENTER, ALIGN_END (right), ALIGN_STRETCH .justify(how)    where the children go when the column is taller than they need: JUSTIFY_START (top, the default), JUSTIFY_CENTER, JUSTIFY_END, JUSTIFY_BETWEEN .center()        both in the middle</p>
+<p>A child takes leftover height with modifier().grow(1) or .fill_height(); a spacer (gui.spacer()) is the usual way to push things apart. All the placing is done by the shared algorithm in flex.sharp; a column is that algorithm going DOWN. (Compose: Column. CSS: flex-direction: column. Android: a vertical LinearLayout.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="column.column"><div class="sig"><b>column</b>()</div></div>
+<div class="fn" id="column.add"><div class="sig">def <b>add</b>(child: element) : column</div><p>put a widget (or one of your composables) at the bottom of the column</p></div>
+<div class="fn" id="column.align"><div class="sig">def <b>align</b>(how: _int64) : column</div><p>how children sit across the column: ALIGN_START, ALIGN_CENTER, ALIGN_END, ALIGN_STRETCH</p></div>
+<div class="fn" id="column.animate_items"><div class="sig">def <b>animate_items</b>() : column</div><p>When children are added, removed or change places, the others GLIDE to where they now belong, and a new child fades in. Give the children keys (modifier().key(...)) so the framework knows which is which. (glide.sharp. Compose: Modifier.animateItem.)</p></div>
+<div class="fn" id="column.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="column.center"><div class="sig">def <b>center</b>() : column</div><p>children in the middle, both ways</p></div>
+<div class="fn" id="column.content"><div class="sig">def <b>content</b>(block: ()()) : column</div><p>The nested way to fill the column: every widget made inside the block becomes a child, top to bottom, in the order the lines run. Ordinary <code>if</code> and <code>for</code> work inside it.</p>
+<div class="code"><pre class="sharp">column(modifier().padding(16)).gap(12).content {
+    text(&quot;Title&quot;).size(24);
+    for(i : _int64 = 1; i &lt;= 3; i++) { text(&quot;line &quot; + i); }
+    button(&quot;OK&quot;) { save(); };
+}</pre></div>
+<p>column { ... } is the short form when no settings come first. (How a widget &quot;knows&quot; it belongs here: scope.sharp.)</p></div>
+<div class="fn" id="column.gap"><div class="sig">def <b>gap</b>(pixels: decimal) : column</div></div>
+<div class="fn" id="column.justify"><div class="sig">def <b>justify</b>(how: _int64) : column</div><p>where children go when there is height to spare: JUSTIFY_START, _CENTER, _END, _BETWEEN</p></div>
+<div class="fn" id="column.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="column.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="column.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="column.reorderable"><div class="sig">def <b>reorderable</b>(moved: (_int64, _int64)()) : column</div><p>The children can be dragged into a new order: hold a row to pick it up, drag, let go. <code>moved</code> is called with where it was and where it is now (counted among the children on the screen); it must change the list the screen is built from. Children glide as with animate_items(). (reorder.sharp)</p></div>
+</div>
+</section>
+<section class="type" id="flex">
+<h2><span class="kind">class</span> flex</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/layout/flow/flex.sharp">source</a></p>
+<p>flex - the ONE algorithm behind both gui.row() and gui.column().</p>
+<p>A row and a column are the same thing turned 90 degrees, so the layout is written once in terms of two directions:</p>
+<div class="code"><pre class="sharp">MAIN  direction: the way children follow each other (down, in a column)
+CROSS direction: the other one                      (across, in a column)</pre></div>
+<p>and <code>sideways</code> (1 for a row) says which is which. The small functions at the bottom (main_of, cross_of, measure_kid) read &quot;the main size&quot; of a view without the algorithm caring whether that is its width or its height.</p>
+<p>MEASURE decides every size, in this order (the order Compose&#x27;s Row/Column uses - RowColumnMeasurePolicy - and for the same reasons):</p>
+<p>1. Children WITHOUT a share are measured first, each offered the room the ones before it left. Measuring these first is what keeps a child with a share from eating the room of a fixed child that comes after it (a growing text before a button must not squeeze the button out). 2. The room that is left is split among the children WITH a share (.grow(n), or filling along the main direction), in proportion. Each is measured ONCE, told its exact main size - so a text that wraps works out its height for the width it really gets. The split is done on running totals, so the rounding of one child is made up by the next and the shares add up to the room exactly. 3. The container is as big across as its biggest child. 4. With ALIGN_STRETCH, children are then measured once more, told to be exactly that big across.</p>
+<p>When the main direction is unlimited (a column inside a scroller), there is no &quot;leftover room&quot; to share: a share is ignored and the child is simply its natural size.</p>
+<p>ARRANGE only decides positions: where the run of children starts and how much extra room goes between them (<code>justify</code>), and where each child sits across (<code>align</code>).</p>
+<p>(CSS flexbox with flex-grow, Android&#x27;s LinearLayout with layout_weight: the same idea. LinearLayout measures weighted children twice; telling them their exact size up front, as here, needs only one measure each.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="flex.arrange"><div class="sig">static def <b>arrange</b>(me: view, sideways: _int64, gap: decimal, align: _int64, justify: _int64)</div><p>the container <code>me</code> has its final box: put the children at their places in it</p></div>
+<div class="fn" id="flex.measure"><div class="sig">static def <b>measure</b>(me: view, sideways: _int64, gap: decimal, align: _int64, min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div><p>the container <code>me</code> measures its children; sets me.content_w / content_h</p></div>
+</div>
+</section>
+<section class="type" id="row">
+<h2><span class="kind">class</span> row</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/layout/flow/row.sharp">source</a></p>
+<p>row - children side by side, left to right.</p>
+<div class="code"><pre class="sharp">gui.row().gap(8)
+    .add(gui.text(&quot;Name&quot;))
+    .add(gui.spacer())                       // pushes the button to the right edge
+    .add(gui.button(&quot;Edit&quot;, { -&gt; edit(); }))</pre></div>
+<p>.gap(n)          room between the children .align(how)      how children sit ACROSS the row: ALIGN_START (top), ALIGN_CENTER (the default: things on a line look right centred), ALIGN_END (bottom), ALIGN_STRETCH .justify(how)    where the children go when the row is wider than they need: JUSTIFY_START (left, the default), JUSTIFY_CENTER, JUSTIFY_END, JUSTIFY_BETWEEN .center()        both in the middle</p>
+<p>A child takes leftover width with modifier().grow(1) or .fill_width(). All the placing is done by the shared algorithm in flex.sharp; a row is that algorithm going SIDEWAYS. (Compose: Row. CSS: flex-direction: row. Android: a horizontal LinearLayout.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="row.row"><div class="sig"><b>row</b>()</div></div>
+<div class="fn" id="row.add"><div class="sig">def <b>add</b>(child: element) : row</div><p>put a widget (or one of your composables) at the right end of the row</p></div>
+<div class="fn" id="row.align"><div class="sig">def <b>align</b>(how: _int64) : row</div><p>how children sit across the row: ALIGN_START, ALIGN_CENTER, ALIGN_END, ALIGN_STRETCH</p></div>
+<div class="fn" id="row.animate_items"><div class="sig">def <b>animate_items</b>() : row</div><p>When children are added, removed or change places, the others GLIDE to where they now belong, and a new child fades in. Give the children keys (modifier().key(...)) so the framework knows which is which. (glide.sharp. Compose: Modifier.animateItem.)</p></div>
+<div class="fn" id="row.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="row.center"><div class="sig">def <b>center</b>() : row</div><p>children in the middle, both ways</p></div>
+<div class="fn" id="row.content"><div class="sig">def <b>content</b>(block: ()()) : row</div><p>The nested way to fill the row: every widget made inside the block becomes a child, left to right, in the order the lines run.</p>
+<div class="code"><pre class="sharp">gui.row().gap(8).content {
+    gui.text(&quot;Name&quot;);
+    gui.spacer();
+    gui.button(&quot;Edit&quot;) { edit(); };
+}</pre></div>
+<p>gui.row { ... } is the short form when no settings come first. (How a widget &quot;knows&quot; it belongs here: scope.sharp.)</p></div>
+<div class="fn" id="row.gap"><div class="sig">def <b>gap</b>(pixels: decimal) : row</div></div>
+<div class="fn" id="row.justify"><div class="sig">def <b>justify</b>(how: _int64) : row</div><p>where children go when there is width to spare: JUSTIFY_START, _CENTER, _END, _BETWEEN</p></div>
+<div class="fn" id="row.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="row.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="row.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+</div>
+</section>
+<section class="type" id="spacer">
+<h2><span class="kind">class</span> spacer</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/layout/flow/spacer.sharp">source</a></p>
+<p>spacer - empty room.</p>
+<div class="code"><pre class="sharp">gui.row().add(title).add(gui.spacer()).add(close_button)     // pushes them apart
+gui.column().add(a).add(gui.gap(24)).add(b)                  // exactly 24 pixels between</pre></div>
+<p>gui.spacer() takes all the leftover room of the row or column it is in (it is a child with grow(1) and nothing to paint). gui.gap(n) is a fixed amount of room. (Compose: Spacer. CSS: a flex: 1 div.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="spacer.spacer"><div class="sig"><b>spacer</b>()</div></div>
+<div class="fn" id="spacer.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="spacer.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="spacer.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="spacer.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+</div>
+</section>
+<section class="type" id="wrap">
+<h2><span class="kind">class</span> wrap</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/layout/flow/wrap.sharp">source</a></p>
+<p>wrap - children side by side like words in a paragraph: when the line is full, the next child starts a new line.</p>
+<div class="code"><pre class="sharp">wrap {
+    for(i : _int64 = 0; i &lt; tags.size(); i++) { tag_chip(tags.at(i)); }
+}.gap(8)</pre></div>
+<p>Unlike a grid, the children keep their OWN widths - a short tag takes little room, a long one more - so it is the layout for tags, chips, a toolbar that should fold onto a second line in a narrow window.</p>
+<p>.gap(n)      room between children on a line, and between lines</p>
+<p>Each line is as tall as its tallest child, and shorter children sit in the middle of the line. (Android: FlexboxLayout with flexWrap. Compose: FlowRow. CSS: flex-wrap: wrap.)</p>
+<p>HOW IT WORKS: one walk over the children, keeping a pen position. A child that does not fit on the current line (and is not the first on it) moves the pen to the start of the next line. measure() does the walk to learn how tall the whole thing is; arrange() does the same walk again to place the children - the same code (<code>flow</code>), so the two can never disagree.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="wrap.wrap"><div class="sig"><b>wrap</b>()</div></div>
+<div class="fn" id="wrap.add"><div class="sig">def <b>add</b>(child: element) : wrap</div><p>put a widget after the ones already there</p></div>
+<div class="fn" id="wrap.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="wrap.content"><div class="sig">def <b>content</b>(block: ()()) : wrap</div><p>the nested way to fill it: every widget made in the block follows the one before (scope.sharp)</p></div>
+<div class="fn" id="wrap.gap"><div class="sig">def <b>gap</b>(pixels: decimal) : wrap</div><p>room between children on a line, and between lines, in pixels</p></div>
+<div class="fn" id="wrap.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="wrap.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="wrap.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+</div>
+</section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>ALIGN_CENTER</code></td><td><code>_int64</code></td><td><code>1</code></td><td></td></tr><tr><td><code>ALIGN_END</code></td><td><code>_int64</code></td><td><code>2</code></td><td>at the end: right in a column, bottom in a row</td></tr><tr><td><code>ALIGN_START</code></td><td><code>_int64</code></td><td><code>0</code></td><td>at the start: left in a column, top in a row</td></tr><tr><td><code>ALIGN_STRETCH</code></td><td><code>_int64</code></td><td><code>3</code></td><td>made as wide (column) / tall (row) as the container</td></tr><tr><td><code>JUSTIFY_BETWEEN</code></td><td><code>_int64</code></td><td><code>3</code></td><td>first at the start, last at the end, equal gaps between</td></tr><tr><td><code>JUSTIFY_CENTER</code></td><td><code>_int64</code></td><td><code>1</code></td><td>packed in the middle</td></tr><tr><td><code>JUSTIFY_END</code></td><td><code>_int64</code></td><td><code>2</code></td><td>packed at the end</td></tr><tr><td><code>JUSTIFY_START</code></td><td><code>_int64</code></td><td><code>0</code></td><td>packed at the start, leftover room after</td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.compress - Sharp standard library</title>
+<meta name="description" content="The std.compress module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li class="on"><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.compress</p>
+<h1>std.compress <small>module</small></h1>
+<p class="contents"><a href="#checksums">checksums</a> <a href="#compress_exception">compress_exception</a> <a href="#deflate">deflate</a> <a href="#deflate_tables">deflate_tables</a> <a href="#deflater">deflater</a> <a href="#gzip">gzip</a> <a href="#huffman_codes">huffman_codes</a> <a href="#inflater">inflater</a> <a href="#zip_archive">zip_archive</a> <a href="#zip_builder">zip_builder</a> <a href="#zip_entry">zip_entry</a> <a href="#zlib">zlib</a></p>
+<section class="type" id="checksums">
+<h2><span class="kind">class</span> checksums</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/gzip.sharp">source</a></p>
+<p>numbers of 2 and 4 bytes with the low byte first, as the containers write them (their checksums are hashing.crc32 and hashing.adler32)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="checksums.get16"><div class="sig">static def <b>get16</b>(data: _int8[], at: _int64) : _int64</div></div>
+<div class="fn" id="checksums.get32"><div class="sig">static def <b>get32</b>(data: _int8[], at: _int64) : _int64</div></div>
+<div class="fn" id="checksums.put16"><div class="sig">static def <b>put16</b>(data: _int8[], at: _int64, value: _int64)</div></div>
+<div class="fn" id="checksums.put32"><div class="sig">static def <b>put32</b>(data: _int8[], at: _int64, value: _int64)</div></div>
+</div>
+</section>
+<section class="type" id="compress_exception">
+<h2><span class="kind">class</span> compress_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p>DEFLATE: the compression inside gzip, zip, png and https</p>
+<div class="code"><pre class="sharp">small := deflate.compress(bytes);
+same := deflate.decompress(small);</pre></div>
+<p>This is the bare compressed stream. Files and the network wrap it: gzip (gzip.sharp) adds a header and a checksum, zlib a shorter one, a zip archive (zip.sharp) keeps many files, each deflated. Use those unless a format asks for the bare stream.</p>
+<p>HOW IT WORKS, in two steps:</p>
+<p>1. Repeats are replaced by &quot;the same as &lt;length&gt; bytes, &lt;distance&gt; bytes back&quot; (LZ77): <code>abcabcabc</code> is <code>abc</code> and then &quot;6 bytes from 3 back&quot;. A repeat can reach 32768 bytes back and be 3 to 258 bytes long. 2. What is left - plain bytes, lengths and distances - is written in codes of different lengths, the frequent ones short (Huffman codes).</p>
+<p>decompress() reads every stream the format allows (stored, fixed and dynamic codes). compress() finds repeats with a table of where each three bytes were last seen and writes the format&#x27;s FIXED codes: a little larger than what zlib makes (it builds codes for each block), read by everything.</p>
+<p>Written in Sharp: nothing to install on any system. Megabytes take a moment; for a great deal of data call the system&#x27;s zlib through extern.</p>
+<p>Throws compress_exception when data to decompress is damaged or cut off.</p>
+<div class="code"><pre class="sharp">Java comparison: java.util.zip.Inflater / Deflater (with nowrap); Python: zlib with wbits=-15.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="compress_exception.compress_exception"><div class="sig">public <b>compress_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="deflate">
+<h2><span class="kind">class</span> deflate</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="deflate.compress"><div class="sig">static def <b>compress</b>(data: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="deflate.decompress"><div class="sig">static def <b>decompress</b>(data: _int8[]?) : _int8[]</div></div>
+</div>
+</section>
+<section class="type" id="deflate_tables">
+<h2><span class="kind">class</span> deflate_tables</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p>the tables both directions share: the lengths and distances a code stands for, and how many more bits follow it</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>length_base</code></td><td><code>_int64[]</code></td><td></td></tr><tr><td><code>length_extra</code></td><td><code>_int64[]</code></td><td></td></tr><tr><td><code>distance_base</code></td><td><code>_int64[]</code></td><td></td></tr><tr><td><code>distance_extra</code></td><td><code>_int64[]</code></td><td></td></tr></table></div>
+</section>
+<section class="type" id="deflater">
+<h2><span class="kind">class</span> deflater</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p>compression: repeats found through a table of where each three bytes were seen, written in the fixed codes</p>
+<h3>Functions</h3><div>
+<div class="fn" id="deflater.deflater"><div class="sig"><b>deflater</b>(data: _int8[]?)</div></div>
+<div class="fn" id="deflater.run"><div class="sig">def <b>run</b>() : _int8[]</div></div>
+</div>
+</section>
+<section class="type" id="gzip">
+<h2><span class="kind">class</span> gzip</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/gzip.sharp">source</a></p>
+<p>GZIP: compressed data as files and web servers carry it</p>
+<div class="code"><pre class="sharp">small := gzip.compress(bytes);                      // what `gzip file` writes: the content of a .gz file
+same := gzip.decompress(small);</pre></div>
+<div class="code"><pre class="sharp">gzip.compress_text(&quot;a long text ...&quot;)               // from and to texts
+gzip.decompress_text(bytes)
+gzip.compress_file(new file(&quot;log.txt&quot;), new file(&quot;log.txt.gz&quot;));
+gzip.decompress_file(new file(&quot;log.txt.gz&quot;), new file(&quot;log.txt&quot;));
+gzip.is_gzip(bytes)                                 // does it start as gzip data does?</pre></div>
+<p>Gzip is deflate (deflate.sharp) with a short header in front and, behind it, a checksum and the length of the original - so damaged data is NOTICED: decompress throws compress_exception when the checksum or the length does not fit, where bare deflate would hand back wrong bytes.</p>
+<p>zlib is the same idea with a smaller wrapper (2 bytes in front, another checksum behind); it is what png images and many protocols use:</p>
+<div class="code"><pre class="sharp">zlib.compress(bytes)        zlib.decompress(bytes)</pre></div>
+<div class="code"><pre class="sharp">Java comparison: GZIPOutputStream / GZIPInputStream; Python: gzip.compress / gzip.decompress.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="gzip.compress"><div class="sig">static def <b>compress</b>(data: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="gzip.compress_file"><div class="sig">static def <b>compress_file</b>(source: file, target: file)</div></div>
+<div class="fn" id="gzip.compress_text"><div class="sig">static def <b>compress_text</b>(text: string) : _int8[]</div></div>
+<div class="fn" id="gzip.decompress"><div class="sig">static def <b>decompress</b>(data: _int8[]?) : _int8[]</div><p>decompress gzip data; several gzip streams one after the other (which <code>cat a.gz b.gz</code> makes) give their contents joined</p></div>
+<div class="fn" id="gzip.decompress_file"><div class="sig">static def <b>decompress_file</b>(source: file, target: file)</div></div>
+<div class="fn" id="gzip.decompress_text"><div class="sig">static def <b>decompress_text</b>(data: _int8[]?) : string</div></div>
+<div class="fn" id="gzip.is_gzip"><div class="sig">static def <b>is_gzip</b>(data: _int8[]?) : bool</div></div>
+</div>
+</section>
+<section class="type" id="huffman_codes">
+<h2><span class="kind">class</span> huffman_codes</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p>a set of Huffman codes, as the format describes one: how many codes of each length, and the symbols in code order</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>count</code></td><td><code></code></td><td></td></tr><tr><td><code>symbol</code></td><td><code>_int64[]</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="huffman_codes.huffman_codes"><div class="sig"><b>huffman_codes</b>(symbols: _int64)</div></div>
+<div class="fn" id="huffman_codes.build"><div class="sig">def <b>build</b>(lengths: _int64[], from: _int64, symbols: _int64) : _int64</div><p>Build the codes from the length of each symbol&#x27;s code (0: the symbol is not used). Returns 0 for a complete set, a negative number for one that cannot be (more codes than the lengths allow), a positive one for an incomplete set.</p></div>
+</div>
+</section>
+<section class="type" id="inflater">
+<h2><span class="kind">class</span> inflater</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p>decompression: reads bits from <code>source</code>, writes bytes to a growing array</p>
+<h3>Functions</h3><div>
+<div class="fn" id="inflater.inflater"><div class="sig"><b>inflater</b>(data: _int8[]?, start: _int64)</div></div>
+<div class="fn" id="inflater.position"><div class="sig">def <b>position</b>() : _int64</div><p>where reading stopped: the first byte after the stream (a container&#x27;s checksum follows there)</p></div>
+<div class="fn" id="inflater.run"><div class="sig">def <b>run</b>() : _int8[]</div></div>
+</div>
+</section>
+<section class="type" id="zip_archive">
+<h2><span class="kind">class</span> zip_archive</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/zip.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="zip_archive.entry_at"><div class="sig">def <b>entry_at</b>(index: _int64) : zip_entry</div></div>
+<div class="fn" id="zip_archive.extract_all"><div class="sig">def <b>extract_all</b>(folder: string) : _int64</div><p>unpack every file into <code>folder</code> (made when it is not there). Returns how many files were written.</p></div>
+<div class="fn" id="zip_archive.find"><div class="sig">def <b>find</b>(name: string) : zip_entry?</div></div>
+<div class="fn" id="zip_archive.has"><div class="sig">def <b>has</b>(name: string) : bool</div></div>
+<div class="fn" id="zip_archive.names"><div class="sig">def <b>names</b>() : list&lt;string&gt;</div><p>the names of the files and folders, in the archive&#x27;s order</p></div>
+<div class="fn" id="zip_archive.of_bytes"><div class="sig">static def <b>of_bytes</b>(data: _int8[]?) : zip_archive</div><p>an archive that is in memory already (a download)</p></div>
+<div class="fn" id="zip_archive.open"><div class="sig">static def <b>open</b>(source: file) : zip_archive</div></div>
+<div class="fn" id="zip_archive.read"><div class="sig">def <b>read</b>(name: string) : _int8[]</div><p>the content of a file of the archive. Throws io_exception when it has no such file.</p></div>
+<div class="fn" id="zip_archive.read_entry"><div class="sig">def <b>read_entry</b>(entry: zip_entry) : _int8[]</div></div>
+<div class="fn" id="zip_archive.read_text"><div class="sig">def <b>read_text</b>(name: string) : string</div></div>
+<div class="fn" id="zip_archive.size"><div class="sig">def <b>size</b>() : _int64</div><p>how many entries the archive has (folders count)</p></div>
+</div>
+</section>
+<section class="type" id="zip_builder">
+<h2><span class="kind">class</span> zip_builder</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/zip.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="zip_builder.add"><div class="sig">def <b>add</b>(name: string, text: string) : zip_builder</div><p>a file with this text as its content</p></div>
+<div class="fn" id="zip_builder.add_bytes"><div class="sig">def <b>add_bytes</b>(name: string, content: _int8[]?) : zip_builder</div><p>a file with these bytes as its content. A name that is in the archive already is replaced.</p></div>
+<div class="fn" id="zip_builder.add_file"><div class="sig">def <b>add_file</b>(name: string, source: file) : zip_builder</div><p>a file of the disk, under <code>name</code> in the archive. Throws io_exception when it is not there.</p></div>
+<div class="fn" id="zip_builder.add_folder"><div class="sig">def <b>add_folder</b>(name: string) : zip_builder</div><p>an (empty) folder</p></div>
+<div class="fn" id="zip_builder.bytes"><div class="sig">def <b>bytes</b>() : _int8[]</div><p>the archive, as the bytes of a .zip file</p></div>
+<div class="fn" id="zip_builder.save"><div class="sig">def <b>save</b>(target: file)</div><p>write the archive to a file (made, or replaced)</p></div>
+<div class="fn" id="zip_builder.size"><div class="sig">def <b>size</b>() : _int64</div></div>
+</div>
+</section>
+<section class="type" id="zip_entry">
+<h2><span class="kind">class</span> zip_entry</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/zip.sharp">source</a></p>
+<p>ZIP ARCHIVES: many files in one, each compressed</p>
+<div class="code"><pre class="sharp">// read one
+archive := zip_archive.open(new file(&quot;release.zip&quot;));
+archive.names()                             // &quot;readme.txt&quot;, &quot;bin/app&quot;, &quot;docs/&quot; ...
+text := archive.read_text(&quot;readme.txt&quot;);
+data := archive.read(&quot;bin/app&quot;);            // bytes
+archive.extract_all(&quot;unpacked&quot;);            // every file, into that folder</pre></div>
+<div class="code"><pre class="sharp">// make one
+made := new zip_builder();
+made.add(&quot;readme.txt&quot;, &quot;some text&quot;);
+made.add_bytes(&quot;data/numbers.bin&quot;, bytes);
+made.add_file(&quot;bin/app&quot;, new file(&quot;build/app&quot;));
+made.save(new file(&quot;release.zip&quot;));</pre></div>
+<p>Names in an archive use <code>/</code> whatever the system, and a name that ends in <code>/</code> is a folder. Every file&#x27;s checksum is checked when it is read: a damaged archive is a compress_exception, not wrong bytes.</p>
+<p>extract_all refuses a name that would land outside the folder it is given (&quot;../../etc/passwd&quot;): an archive from somewhere else cannot write where it pleases.</p>
+<p>An archive is read into memory whole and built there: fine for the megabytes archives usually are, not for gigabytes. Not read: archives with passwords, the &quot;zip64&quot; form for files over 4 GB, and compression other than deflate (which is what every zip tool writes by default).</p>
+<div class="code"><pre class="sharp">Java comparison: java.util.zip.ZipFile and ZipOutputStream; Python: zipfile.ZipFile.</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>size</code></td><td><code>_int64</code></td><td>the file&#x27;s size, unpacked</td></tr><tr><td><code>packed_size</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>is_folder</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>method</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>checksum</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>header_at</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>data</code></td><td><code>_int8[]?</code></td><td>(zip_builder: the packed bytes)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="zip_entry.zip_entry"><div class="sig"><b>zip_entry</b>(name: string)</div></div>
+</div>
+</section>
+<section class="type" id="zlib">
+<h2><span class="kind">class</span> zlib</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/gzip.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="zlib.compress"><div class="sig">static def <b>compress</b>(data: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="zlib.decompress"><div class="sig">static def <b>decompress</b>(data: _int8[]?) : _int8[]</div></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

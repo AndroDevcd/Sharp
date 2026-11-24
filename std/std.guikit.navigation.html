@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.navigation - Sharp standard library</title>
+<meta name="description" content="The std.guikit.navigation module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="on sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.navigation</p>
+<h1>std.guikit.navigation <small>module</small></h1>
+<p class="contents"><a href="#nav_bar">nav_bar</a> <a href="#navigator">navigator</a> <a href="#route">route</a> <a href="#screen_host">screen_host</a> <a href="#screen_kind">screen_kind</a> <a href="#typed_screen">typed_screen</a> <a href="#typed_tab">typed_tab</a> <a href="#constants">constants</a></p>
+<section class="type" id="nav_bar">
+<h2><span class="kind">class</span> nav_bar</h2>
+<p class="meta"><code>base widget : behavior, pointer_target</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/nav_bar.sharp">source</a></p>
+<p>nav_bar - the bar that switches between an app&#x27;s tabs. Made with nav_bar(nav).</p>
+<div class="code"><pre class="sharp">column(modifier().fill()) {
+    screens(nav, to_home(), modifier().grow(1)) {
+        tab&lt;to_home&gt;(&quot;Home&quot;)       { home_screen(nav); };
+        tab&lt;to_library&gt;(&quot;Library&quot;) { library_screen(nav); };
+        screen&lt;to_detail&gt;()        { detail_screen(nav, it.id); };
+    };
+    nav_bar(nav);                               // under the screens: a bottom bar
+}</pre></div>
+<p>It shows one item per tab&lt;...&gt;(...) line of the screen list, in the order they are listed, and marks the tab that is showing. Clicking an item switches to that tab; clicking the tab that is already showing takes it back to its first screen.</p>
+<p>THE BAR HIDES WHILE A SCREEN IS OPEN ON TOP OF A TAB. A detail screen owns the whole window and has its own way back (top_bar); the tabs come back with the tab&#x27;s first screen. Call .always() to keep the bar there throughout.</p>
+<p>Where the bar sits is up to you: put it after the screens for a bottom bar, before them for a top bar. (Android: BottomNavigationView. Compose: NavigationBar.)</p>
+<p>HOW IT WORKS: the bar is built AFTER screens(...) in the same build(), so the navigator&#x27;s screen list is already written and the bar simply asks it: how many tabs, their words, which one is showing. It reads the navigator&#x27;s state while it is made, so every move of the navigator rebuilds it - that is how it appears, disappears and moves its mark without being told.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="nav_bar.nav_bar"><div class="sig"><b>nav_bar</b>(owner: navigator)</div></div>
+<div class="fn" id="nav_bar.always"><div class="sig">def <b>always</b>() : nav_bar</div><p>keep the bar there also while a screen is open on top of a tab</p></div>
+<div class="fn" id="nav_bar.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="nav_bar.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="nav_bar.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="nav_bar.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="nav_bar.pointer"><div class="sig">override def <b>pointer</b>(what: _int64, x: decimal, y: decimal)</div><p>a press that is released over the same item switches to that tab</p></div>
+</div>
+</section>
+<section class="type" id="navigator">
+<h2><span class="kind">class</span> navigator</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/navigator.sharp">source</a></p>
+<p>navigator - where the app is: the screens that are open, and the ones underneath that &quot;back&quot; returns to.</p>
+<div class="code"><pre class="sharp">class my_app base composable {
+    nav : navigator = navigator();</pre></div>
+<div class="code"><pre class="sharp">    override def build() : element {
+        return column(modifier().fill()) {
+            screens(nav, to_home(), modifier().grow(1)) {
+                tab&lt;to_home&gt;(&quot;Home&quot;)       { home_screen(nav); };
+                tab&lt;to_library&gt;(&quot;Library&quot;) { library_screen(nav); };
+                screen&lt;to_detail&gt;()        { detail_screen(nav, it.id); };
+            };
+            nav_bar(nav);
+        };
+    }
+}</pre></div>
+<p>The screen list (screens.sharp) says what there is; the navigator says where you are. Screens are given the navigator and call it:</p>
+<div class="code"><pre class="sharp">nav.go(to_detail(7))        open a screen on top of the one showing
+nav.show(to_player())       the same - unless that screen is already on top
+                            (a double tap must not open it twice)
+nav.back()                  return to the screen below
+nav.back_to&lt;to_home&gt;()      return to the nearest screen of that kind below
+nav.reset()         return to the first screen of this tab
+nav.replace(to_login())     swap the top screen; back will not return to the old one
+nav.current()               the route that is showing</pre></div>
+<p>A screen does not need to know any other screen - only the route to it.</p>
+<p>TABS</p>
+<p>A screen written with tab&lt;...&gt;(...) is top-level: it is one of the places the tab bar (nav_bar.sharp) switches between. EACH TAB HAS ITS OWN BACK STACK. Open a detail screen in Library, switch to Home, switch back: the detail screen is still there, exactly as it was left. Going to a tab that is already showing returns it to its first screen.</p>
+<p>nav.go(...) with a tab&#x27;s route switches to that tab; with any other route it opens that screen on top, in the tab you are in.</p>
+<p>&quot;Back&quot; on a tab&#x27;s first screen returns to the FIRST tab - and from there has nowhere to go (back() gives 0).</p>
+<p>WHAT BACK KEEPS: a screen that is covered by another, or sits in a tab that is not showing, stays alive - its states, its scroll positions, its typed text - and is as it was left when it shows again. A screen that is popped off its stack is gone; opening it again makes a fresh one.</p>
+<p>(Compose: NavController + NavHost with typed routes, and the saveState / restoreState of bottom navigation. Android: fragments on back stacks. Here the bookkeeping those need - save, restore, launchSingleTop, popUpTo - is the default behaviour or one short word.)</p>
+<p>HOW IT WORKS</p>
+<p><code>kinds</code> is the screen list: one entry per screen&lt;...&gt;() / tab&lt;...&gt;(...) line. It is written afresh every time the app&#x27;s build() runs (the block of screens(...) runs again), so the functions in it always belong to the latest build.</p>
+<p><code>stacks</code> holds the back stacks: one per tab, in the order the tabs are listed (an app without tabs just has the one). <code>showing</code> says which is in front. Each entry of a stack is one open screen: its route and its host - a small composable (screen_frame) that builds the screen by asking the screen list for the line that matches the route.</p>
+<p>Every move bumps a small state, <code>moves</code>. The widget that SHOWS the top screen (screens.sharp) and the tab bar read that state while they are built - so every move rebuilds them, like any other state change. <code>last_move</code> tells the showing widget which way to slide.</p>
+<p>Keep the navigator where it lives as long as the app: a field of the root composable. (A field of a nested composable is made anew whenever its parent rebuilds.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>listing</code></td><td><code>navigator?</code></td><td>the navigator whose screen list is being written right now (screens(...) sets it while its block runs)</td></tr><tr><td><code>last_move</code></td><td><code>_int64</code></td><td>which way the last move went: 1 forward (go), -1 back, 0 neither (a tab switch, replace, the first screen)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="navigator.back"><div class="sig">def <b>back</b>() : _int64</div><p>Return to the screen below. On a tab&#x27;s first screen, return to the first tab. Gives 1 when it went somewhere, 0 when there is nowhere to go back to (the first screen of the first tab).</p></div>
+<div class="fn" id="navigator.back_to"><div class="sig">def <b>back_to</b>&lt;t base route&gt;() : _int64</div><p>Return to the nearest screen of this kind below the one showing, dropping every screen above it: nav.back_to&lt;to_home&gt;(). Gives 1 when it got there, 0 when no such screen is open in this tab (nothing changes).</p></div>
+<div class="fn" id="navigator.begin_listing"><div class="sig">def <b>begin_listing</b>()</div><p>the screen list is about to be written again: forget the old one</p></div>
+<div class="fn" id="navigator.can_go_back"><div class="sig">def <b>can_go_back</b>() : _int64</div><p>is there a screen below this one to go back to, in this tab?</p></div>
+<div class="fn" id="navigator.current"><div class="sig">def <b>current</b>() : route?</div><p>the route of the screen that is showing (null before the first screen)</p></div>
+<div class="fn" id="navigator.depth"><div class="sig">def <b>depth</b>() : _int64</div><p>how many screens are open in the tab that is showing</p></div>
+<div class="fn" id="navigator.go"><div class="sig">def <b>go</b>(where: route)</div><p>Open the screen for <code>where</code>. A tab&#x27;s route switches to that tab (a tab that is already showing goes back to its first screen); any other route opens on top of the screen showing.</p></div>
+<div class="fn" id="navigator.holds"><div class="sig">def <b>holds</b>(screen: view) : _int64</div><p>is this screen (its view) still open somewhere - on any tab&#x27;s stack?</p></div>
+<div class="fn" id="navigator.kind_for"><div class="sig">def <b>kind_for</b>(where: route) : screen_kind</div><p>the line of the screen list that shows <code>where</code> - or an error that names the route nobody listed</p></div>
+<div class="fn" id="navigator.list_screen"><div class="sig">def <b>list_screen</b>(kind: screen_kind)</div><p>one line of the screen list (screen&lt;...&gt;() and tab&lt;...&gt;(...) call this)</p></div>
+<div class="fn" id="navigator.on_tab_root"><div class="sig">def <b>on_tab_root</b>() : _int64</div><p>is a tab&#x27;s own first screen showing (nothing opened on top of it)? The tab bar shows itself only then.</p></div>
+<div class="fn" id="navigator.open_tab"><div class="sig">def <b>open_tab</b>(index: _int64)</div><p>switch to tab number <code>index</code> (the tab bar calls this). The tab that is already showing goes back to its first screen.</p></div>
+<div class="fn" id="navigator.replace"><div class="sig">def <b>replace</b>(where: route)</div><p>put the screen for <code>where</code> in place of the one showing; &quot;back&quot; will not return to the old one</p></div>
+<div class="fn" id="navigator.reset"><div class="sig">def <b>reset</b>()</div><p>return to the first screen of the tab that is showing, dropping every screen above it</p></div>
+<div class="fn" id="navigator.show"><div class="sig">def <b>show</b>(where: route)</div><p>Make sure the screen for <code>where</code> is showing: like go(), except that nothing happens when a screen of that kind is already on top. For anything a quick double tap must not open twice.</p></div>
+<div class="fn" id="navigator.start_at"><div class="sig">def <b>start_at</b>(where: route)</div><p>the app&#x27;s first screen, once the screen list is written: only when nothing is open yet</p></div>
+<div class="fn" id="navigator.tab_count"><div class="sig">def <b>tab_count</b>() : _int64</div><p>how many tabs the screen list has</p></div>
+<div class="fn" id="navigator.tab_showing"><div class="sig">def <b>tab_showing</b>() : _int64</div><p>the number of the tab that is showing</p></div>
+<div class="fn" id="navigator.tab_title"><div class="sig">def <b>tab_title</b>(index: _int64) : string</div><p>the words of tab number <code>index</code> (0 is the first)</p></div>
+<div class="fn" id="navigator.top_view"><div class="sig">def <b>top_view</b>() : view?</div><p>the view of the screen on top of the stack in front (null while nothing is open)</p></div>
+<div class="fn" id="navigator.watch"><div class="sig">def <b>watch</b>()</div><p>&quot;rebuild me when the app goes somewhere&quot;: read by whoever shows the navigator, while it is built</p></div>
+</div>
+</section>
+<section class="type" id="route">
+<h2><span class="kind">class</span> route</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p>route - where the app can go. Every screen of an app has a route class that extends this one; the route&#x27;s fields are what that screen needs.</p>
+<div class="code"><pre class="sharp">class to_home base route { }                    // a screen that needs nothing</pre></div>
+<div class="code"><pre class="sharp">class to_detail base route {                    // a screen that needs to know which item
+    id : _int64;
+    to_detail(n: _int64) { id = n; }
+}</pre></div>
+<p>Going somewhere is making a route and handing it to the navigator:</p>
+<div class="code"><pre class="sharp">nav.go(to_detail(7));</pre></div>
+<p>and the screen list (screens.sharp) says what is shown for each kind of route. The screen gets the route object back, so it reads its arguments as ordinary, typed fields (<code>it.id</code>) - there are no strings to parse and nothing to look up by name.</p>
+<p>WHY A BASE CLASS: the navigator only takes routes, and the screen list only registers screens for route classes. A route that is misspelt, or an object that is not a route at all, is caught by the compiler instead of showing up as a blank screen at run time. (Compose&#x27;s typed navigation does the same with @Serializable route classes.)</p>
+<p>A route class is plain data: keep widgets and state out of it.</p>
+</section>
+<section class="type" id="screen_host">
+<h2><span class="kind">class</span> screen_host</h2>
+<p class="meta"><code>base widget : behavior, clipper, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/screens.sharp">source</a></p>
+<p>screen_host - shows the top screen of a navigator, and animates the change when the navigator moves. Made with screens(...).</p>
+<div class="code"><pre class="sharp">screens(nav, to_home(), modifier().grow(1)) {
+    tab&lt;to_home&gt;(&quot;Home&quot;)       { home_screen(nav); };
+    tab&lt;to_library&gt;(&quot;Library&quot;) { library_screen(nav); };
+    screen&lt;to_detail&gt;()        { detail_screen(nav, it.id); };
+}.transition(TRANSITION_SLIDE)</pre></div>
+<p>The block is the app&#x27;s SCREEN LIST: one line per kind of route, saying what is shown for it. It is read into the navigator every time the app is built; which screen is actually showing is the navigator&#x27;s business (navigator.sharp), and this widget shows it.</p>
+<p>THE TRANSITION</p>
+<p>When the navigator moves, whoever shows it is rebuilt (it read the navigator&#x27;s state). The NEW screen_host finds that the top screen is not the one the OLD screen_host was showing - that is the moment a transition starts. It keeps the old screen as <code>leaving</code> and, for a fraction of a second, holds BOTH screens as children, placed side by side:</p>
+<div class="code"><pre class="sharp">forward (go)              back
++--------+--------+       +--------+--------+
+| old &lt;- | new &lt;- |       | -&gt; new | -&gt; old |
++--------+--------+       +--------+--------+
+the new screen comes      the old screen leaves the way it came,
+in over the old one       uncovering the one below</pre></div>
+<p><code>progress</code> runs from 0 to 1 over the transition time. Each frame it is moved on by the time that passed, the two screens are arranged again at their new places, and another frame is asked for. At 1 the leaving screen is dropped and the host goes back to holding one child.</p>
+<p>The screen that is uncovered moves less than the one on top (a quarter of the way): that small difference is what makes it read as &quot;underneath&quot;. The movement starts fast and settles gently (ease-out), which is how things that come to rest look.</p>
+<p>There is no transparency or scaling in the painter yet, so transitions are movements. A screen with no background of its own is painted on the theme&#x27;s - a screen sliding over another must not be see-through.</p>
+<p>The host is a <code>clipper</code> (a sliding screen is cut off at the host&#x27;s edges) and <code>stateful</code> (a rebuild in the middle of a transition carries the transition on instead of restarting it). (Compose: NavHost with enter / exit transitions. Android: fragment transactions with setCustomAnimations.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="screen_host.screen_host"><div class="sig"><b>screen_host</b>(stack: navigator)</div></div>
+<div class="fn" id="screen_host.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
+<div class="fn" id="screen_host.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="screen_host.clips"><div class="sig">override def <b>clips</b>() : _int64</div></div>
+<div class="fn" id="screen_host.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="screen_host.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="screen_host.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="screen_host.transition"><div class="sig">def <b>transition</b>(how: _int64) : screen_host</div><p>how screens give way to each other: TRANSITION_NONE, TRANSITION_SLIDE (the default), TRANSITION_RISE</p></div>
+</div>
+</section>
+<section class="type" id="screen_kind">
+<h2><span class="kind">interface</span> screen_kind</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p>What the navigator knows about one line of the screen list, without knowing the route type it was written for: can it show this route, and how.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="screen_kind.accepts"><div class="sig">def <b>accepts</b>(where: route) : _int64</div><p>is <code>where</code> a route this line of the screen list is for?</p></div>
+<div class="fn" id="screen_kind.fill"><div class="sig">def <b>fill</b>(where: route)</div><p>build the screen for <code>where</code>: the widgets are made into whichever container is open (scope.sharp)</p></div>
+<div class="fn" id="screen_kind.first_route"><div class="sig">def <b>first_route</b>() : route?</div><p>A tab&#x27;s own route, made fresh: what opens the tab the first time the tab bar switches to it. null for a screen that is not a tab.</p></div>
+<div class="fn" id="screen_kind.is_tab"><div class="sig">def <b>is_tab</b>() : _int64</div><p>1 for a top-level screen written with tab&lt;...&gt;(...), 0 for one written with screen&lt;...&gt;()</p></div>
+<div class="fn" id="screen_kind.title"><div class="sig">def <b>title</b>() : string</div><p>the words on the tab bar - &quot;&quot; for a screen that is not a tab</p></div>
+</div>
+</section>
+<section class="type" id="typed_screen">
+<h2><span class="kind">class</span> typed_screen&lt;t base route&gt;</h2>
+<p class="meta"><code>: screen_kind</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p>One line of the screen list: &quot;a route of type t is shown by this function&quot;. Made by screen&lt;t&gt;() { } and tab&lt;t&gt;(title) { }.</p>
+<p>It is generic so that the function gets the route AS ITS OWN TYPE (<code>it.id</code> is a real field of to_detail), while the navigator keeps all the lines in one list as plain screen_kind. <code>where is t</code> is what matches a route to its line.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="typed_screen.typed_screen"><div class="sig"><b>typed_screen</b>(content: (t)())</div></div>
+<div class="fn" id="typed_screen.accepts"><div class="sig">override def <b>accepts</b>(where: route) : _int64</div></div>
+<div class="fn" id="typed_screen.fill"><div class="sig">override def <b>fill</b>(where: route)</div></div>
+<div class="fn" id="typed_screen.first_route"><div class="sig">override def <b>first_route</b>() : route?</div></div>
+<div class="fn" id="typed_screen.is_tab"><div class="sig">override def <b>is_tab</b>() : _int64</div></div>
+<div class="fn" id="typed_screen.title"><div class="sig">override def <b>title</b>() : string</div></div>
+</div>
+</section>
+<section class="type" id="typed_tab">
+<h2><span class="kind">class</span> typed_tab&lt;t base route&gt;</h2>
+<p class="meta"><code>: screen_kind</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p>A line of the screen list written with tab&lt;t&gt;(title) { }: a top-level screen, one of the places the tab bar switches between.</p>
+<p>A tab is opened by the tab bar, which has no route object to hand - so a tab makes its own (<code>new t()</code>). That is why A TAB&#x27;S ROUTE CLASS MUST BE MAKEABLE WITH NO ARGUMENTS: a tab is a place, not a particular item. (A route with arguments is for screen&lt;...&gt;(), which is always opened with a route someone made.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="typed_tab.typed_tab"><div class="sig"><b>typed_tab</b>(caption: string, content: (t)())</div></div>
+<div class="fn" id="typed_tab.accepts"><div class="sig">override def <b>accepts</b>(where: route) : _int64</div></div>
+<div class="fn" id="typed_tab.fill"><div class="sig">override def <b>fill</b>(where: route)</div></div>
+<div class="fn" id="typed_tab.first_route"><div class="sig">override def <b>first_route</b>() : route?</div></div>
+<div class="fn" id="typed_tab.is_tab"><div class="sig">override def <b>is_tab</b>() : _int64</div></div>
+<div class="fn" id="typed_tab.title"><div class="sig">override def <b>title</b>() : string</div></div>
+</div>
+</section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>TRANSITION_FADE</code></td><td><code>_int64</code></td><td><code>3</code></td><td>the new screen fades in over the old one</td></tr><tr><td><code>TRANSITION_NONE</code></td><td><code>_int64</code></td><td><code>0</code></td><td>the new screen is simply there</td></tr><tr><td><code>TRANSITION_RISE</code></td><td><code>_int64</code></td><td><code>2</code></td><td>forward: the new screen rises from the bottom; back: it drops away</td></tr><tr><td><code>TRANSITION_SLIDE</code></td><td><code>_int64</code></td><td><code>1</code></td><td>forward: the new screen slides in from the right; back: it slides out again</td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

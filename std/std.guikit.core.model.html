@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.core.model - Sharp standard library</title>
+<meta name="description" content="The std.guikit.core.model module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="on sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.core.model</p>
+<h1>std.guikit.core.model <small>module</small></h1>
+<p class="contents"><a href="#model_store">model_store</a> <a href="#saved_entry">saved_entry</a> <a href="#saved_items">saved_items</a> <a href="#saved_maker">saved_maker</a> <a href="#saved_store">saved_store</a> <a href="#view_model">view_model</a></p>
+<section class="type" id="model_store">
+<h2><span class="kind">class</span> model_store</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/model/view_model.sharp">source</a></p>
+<p>model_store - the models of one screen (or of the app). FRAMEWORK USE: apps ask for models with model_of&lt;...&gt;().</p>
+<p><code>current</code> is the store a model asked for right now goes into. A screen makes it its own while its content is built, and every composable remembers which store was current when it was made - so a part of a screen that is built again later, on its own, still finds the models of ITS screen (composable.sharp).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>current</code></td><td><code>model_store?</code></td><td>the store of the screen being built right now (null: none - then the app&#x27;s store is used)</td></tr><tr><td><code>app</code></td><td><code>model_store</code></td><td>the models that belong to no screen: they live until the window closes</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="model_store.drop_all"><div class="sig">def <b>drop_all</b>()</div><p>drop every model: each one&#x27;s work is cancelled and its when_cleared blocks run</p></div>
+<div class="fn" id="model_store.here"><div class="sig">static def <b>here</b>() : model_store</div><p>the store a model asked for right now belongs in</p></div>
+<div class="fn" id="model_store.of"><div class="sig">def <b>of</b>&lt;t base view_model&gt;() : t</div><p>the model of class t in this store: made the first time, the same one after that</p></div>
+</div>
+</section>
+<section class="type" id="saved_entry">
+<h2><span class="kind">interface</span> saved_entry</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/model/saved.sharp">source</a></p>
+<p>something that takes its value from its file when the store opens</p>
+<h3>Functions</h3><div>
+<div class="fn" id="saved_entry.load"><div class="sig">def <b>load</b>()</div></div>
+</div>
+</section>
+<section class="type" id="saved_items">
+<h2><span class="kind">class</span> saved_items&lt;t&gt;</h2>
+<p class="meta"><code>: saved_entry</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/model/saved.sharp">source</a></p>
+<p>A saved list: one item per line of the file. An item&#x27;s own text may hold line ends and backslashes; they are written as two characters each (a backslash and &quot;n&quot;, two backslashes) so that a line of the file is always exactly one item.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="saved_items.saved_items"><div class="sig"><b>saved_items</b>(name: string, target: state_list&lt;t&gt;, write_item: (t)(string), read_item: (string)(t))</div></div>
+<div class="fn" id="saved_items.load"><div class="sig">override def <b>load</b>()</div></div>
+</div>
+</section>
+<section class="type" id="saved_maker">
+<h2><span class="kind">class</span> saved_maker</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/model/saved.sharp">source</a></p>
+<p>the makers behind saved(...) and saved_list(...): FRAMEWORK USE (gui.sharp calls them)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="saved_maker.number"><div class="sig">static def <b>number</b>(key: string, first: decimal) : state&lt;decimal&gt;</div></div>
+<div class="fn" id="saved_maker.text"><div class="sig">static def <b>text</b>(key: string, first: string) : state&lt;string&gt;</div></div>
+<div class="fn" id="saved_maker.whole"><div class="sig">static def <b>whole</b>(key: string, first: _int64) : state&lt;_int64&gt;</div></div>
+</div>
+</section>
+<section class="type" id="saved_store">
+<h2><span class="kind">class</span> saved_store</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/model/saved.sharp">source</a></p>
+<p>SAVED STATE - values that are still there the next time the program runs.</p>
+<div class="code"><pre class="sharp">theme_choice := saved(&quot;theme&quot;, 0);          // a whole number
+text_size    := saved(&quot;text_size&quot;, 16.0);   // a decimal number
+user_name    := saved(&quot;user_name&quot;, &quot;&quot;);     // text</pre></div>
+<p>saved(key, first) gives an ordinary state: read it and set it like any other, and screens follow it. The difference is that every change is written to a small file, and the next run starts with what was written instead of with <code>first</code>.</p>
+<p>A whole list, with two functions that turn an item into text and back:</p>
+<div class="code"><pre class="sharp">tasks := saved_list&lt;task&gt;(&quot;tasks&quot;,
+            { t: task -&gt; return t.to_text(); },
+            { s: string -&gt; return task.from_text(s); });</pre></div>
+<p>(Android: DataStore / SharedPreferences. Compose: rememberSaveable is the same idea for the length of one run.)</p>
+<p>WHERE THE FILES ARE</p>
+<p>One plain text file per key, named after the key, in the app&#x27;s data folder:</p>
+<div class="code"><pre class="sharp">Linux       ~/.local/share/&lt;app&gt;/        (or $XDG_DATA_HOME/&lt;app&gt;/)
+Windows     %APPDATA%\&lt;app&gt;\</pre></div>
+<p>&lt;app&gt; is the window title given to gui.run, in small letters with anything that is not a letter or digit turned into &quot;_&quot; (&quot;Sharp GUI - tasks&quot; -&gt; &quot;sharp_gui_tasks&quot;). gui.data_name(&quot;tasks&quot;) sets another name; call it before gui.run.</p>
+<p>The files are plain text on purpose: you can read them, edit them, and delete one to reset a setting.</p>
+<p>WHEN THE VALUE IS READ</p>
+<p>A saved state is usually a field of the app&#x27;s root composable, and that object is made BEFORE gui.run(...) is called - before the app&#x27;s name is known. So a saved state made early simply waits: gui.run opens the store, and every waiting state then takes its value from its file, before the first screen is built. One made later reads its file at once.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="saved_store.data_folder"><div class="sig">static def <b>data_folder</b>() : string</div><p>the folder the app&#x27;s files are kept in (&quot;&quot; before gui.run)</p></div>
+<div class="fn" id="saved_store.join"><div class="sig">static def <b>join</b>(entry: saved_entry)</div><p>a saved state was made: it reads its file now, or as soon as the store opens</p></div>
+<div class="fn" id="saved_store.keep"><div class="sig">static def <b>keep</b>(key: string, text: string)</div><p>keep <code>text</code> under <code>key</code> (nothing happens before the store is open: the value was not loaded yet)</p></div>
+<div class="fn" id="saved_store.number_text"><div class="sig">static def <b>number_text</b>(kept: string) : string</div><p>the text of a number file without spaces and line ends around it (someone may have edited the file by hand)</p></div>
+<div class="fn" id="saved_store.open"><div class="sig">static def <b>open</b>(title: string)</div><p>gui.run calls this with the window title: the folder is settled and every waiting state reads its file</p></div>
+<div class="fn" id="saved_store.path_of"><div class="sig">static def <b>path_of</b>(key: string) : string</div><p>the file a key is kept in</p></div>
+<div class="fn" id="saved_store.read"><div class="sig">static def <b>read</b>(key: string) : string?</div><p>the text kept under <code>key</code>, or null when nothing was ever saved under it</p></div>
+<div class="fn" id="saved_store.use_name"><div class="sig">static def <b>use_name</b>(name: string)</div><p>use this name for the app&#x27;s data folder instead of the window title (before gui.run)</p></div>
+</div>
+</section>
+<section class="type" id="view_model">
+<h2><span class="kind">class</span> view_model</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/model/view_model.sharp">source</a></p>
+<p>view_model - the LOGIC of a screen, kept apart from what the screen looks like.</p>
+<div class="code"><pre class="sharp">class tasks_model base view_model {
+    tasks := state_list&lt;task&gt;();            // what the screen shows
+    busy  := state(0);</pre></div>
+<div class="code"><pre class="sharp">    def add(title: string) { tasks.add(task(title)); }      // what the screen can ask for
+    def remove(t: task)    { tasks.remove(t); }
+}</pre></div>
+<div class="code"><pre class="sharp">class tasks_screen base composable {
+    model := model_of&lt;tasks_model&gt;();</pre></div>
+<div class="code"><pre class="sharp">    override def build() : element {
+        return column {
+            for(i : _int64 = 0; i &lt; model.tasks.size(); i++) { task_row(model.tasks.at(i)); }
+            button(&quot;Add&quot;) { model.add(&quot;New task&quot;); };
+        };
+    }
+}</pre></div>
+<p>THE RULE: the screen is dumb. It READS the model&#x27;s states and CALLS the model&#x27;s functions - it decides nothing. The model knows nothing about widgets: no text(...), no modifier, no colours. Then the logic can be read, changed and tested without a window, and the screen can be redesigned without touching the logic. (Android / Compose: ViewModel, with StateFlow for the states.)</p>
+<p>HOW LONG A MODEL LIVES</p>
+<p>model_of&lt;tasks_model&gt;() gives the screen&#x27;s model: made the first time it is asked for, and THE SAME ONE every time after - a screen is built again and again, and its composable objects are made anew, but the model stays.</p>
+<p>The model belongs to the SCREEN it was asked for in (a screen of a navigator: screens.sharp). Every composable of that screen that asks for the same class gets the same model, so parts of a screen share one. When the screen is popped off its back stack the model is dropped and its cleared() runs. A tab&#x27;s first screen is never popped, so its model lives as long as the app.</p>
+<p>Outside any screen (an app without a navigator) the model belongs to the app and lives until the window closes.</p>
+<p>SLOW WORK</p>
+<p>A model must not make the screen wait. Reading a file, asking a server, crunching numbers: start it with launch(...) on a background dispatcher, and bring the result back with on_main:</p>
+<div class="code"><pre class="sharp">def load() {
+    busy.value = 1;
+    launch(dispatchers.io()) {
+        found := task_store.read_all();     // on an IO thread: the window stays alive
+        on_main {
+            tasks.replace_all(found);       // back on the main thread: the screen follows
+            busy.value = 0;
+        };
+    };
+}</pre></div>
+<p>Work started with the model&#x27;s launch is CANCELLED when the model is dropped, and the model&#x27;s on_main does nothing once the model is gone - so a screen that was closed while it was loading cannot be written to by the answer that arrives late. (Android: viewModelScope.launch.)</p>
+<p>WITHOUT A WINDOW</p>
+<p>A model is plain logic, so it also works in a console program or a test: make it with <code>new</code>, call its functions, read its states. Two things differ and are worth knowing: nobody drops it (call drop() yourself to run its when_cleared blocks), and nobody runs what on_main handed over - call main_queue.run_waiting() where you want it run. model_of&lt;...&gt;() itself is for screens: called with no window ever opening it still hands out a model, but that model is never dropped.</p>
+<p>A model class must be makeable with no arguments: model_of makes it. What a model needs from outside it takes from the route (give it a function like <code>open(id)</code> that the screen calls once) or from an object the app shares.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>alive</code></td><td><code>_int64</code></td><td>1 from when the model was made until it is dropped: work that comes back late checks it</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="view_model.drop"><div class="sig">def <b>drop</b>()</div><p>Drop the model by hand: its work is cancelled and its when_cleared blocks run. The framework does this for a model made with model_of; call it yourself only for one you made with <code>new</code> (a console program, a test).</p></div>
+<div class="fn" id="view_model.launch"><div class="sig">def <b>launch</b>(where: coroutine_dispatcher, block: ()()) : job</div><p>Start <code>block</code> on the threads of <code>where</code> (dispatchers.io() for anything that waits, dispatchers.default_pool() for computing) and return at once. The work belongs to the model: it is cancelled when the model is dropped. To change a state from inside it, use on_main.</p></div>
+<div class="fn" id="view_model.on_main"><div class="sig">def <b>on_main</b>(action: ()())</div><p>Run <code>action</code> on the main thread - the one place where states may be changed. Does nothing if the model has been dropped by the time the main thread gets to it.</p></div>
+<div class="fn" id="view_model.when_cleared"><div class="sig">def <b>when_cleared</b>(action: ()())</div><p>Run <code>action</code> when the model is dropped (its screen was popped, or the app closed): stop what it started, save what must be kept. Say it in the model&#x27;s constructor:</p>
+<div class="code"><pre class="sharp">tasks_model() {
+    when_cleared { connection.close(); };
+}</pre></div>
+<p>(Android: ViewModel.onCleared. It is a function you hand over rather than one you override, so a model with nothing to clean up writes nothing at all.)</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

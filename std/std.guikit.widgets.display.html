@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.widgets.display - Sharp standard library</title>
+<meta name="description" content="The std.guikit.widgets.display module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="on sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.widgets.display</p>
+<h1>std.guikit.widgets.display <small>module</small></h1>
+<p class="contents"><a href="#badge">badge</a> <a href="#chip">chip</a> <a href="#divider">divider</a> <a href="#label">label</a> <a href="#picture">picture</a> <a href="#progress_bar">progress_bar</a> <a href="#rich_label">rich_label</a> <a href="#rich_text">rich_text</a></p>
+<section class="type" id="badge">
+<h2><span class="kind">class</span> badge</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
+<p>badge - a small filled dot with a number in it: &quot;3 unread&quot;. Made with badge(count). A count of 0 shows nothing and takes no room. (Compose: Badge.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="badge.badge"><div class="sig"><b>badge</b>(count: _int64)</div></div>
+<div class="fn" id="badge.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="badge.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="badge.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="badge.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+</div>
+</section>
+<section class="type" id="chip">
+<h2><span class="kind">class</span> chip</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
+<p>chip - a small rounded label: a tag (&quot;work&quot;), a filter you switch on and off, a choice among a few. Made with chip(...).</p>
+<div class="code"><pre class="sharp">chip(&quot;work&quot;);                                   // just a tag
+chip(&quot;urgent&quot;).selected(only_urgent.value);     // drawn filled while the value is not 0
+chip(&quot;urgent&quot;) { only_urgent.value = 1 - only_urgent.value; }.selected(only_urgent.value);</pre></div>
+<p>A chip does not keep &quot;am I on&quot; itself: like every widget here it shows what a state says, and the click changes the state. (Compose: AssistChip, FilterChip. Android: Chip.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="chip.chip"><div class="sig"><b>chip</b>(caption: string)</div></div>
+<div class="fn" id="chip.chip-2"><div class="sig"><b>chip</b>(caption: string, action: ()())</div></div>
+<div class="fn" id="chip.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="chip.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="chip.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="chip.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="chip.selected"><div class="sig">def <b>selected</b>(on: _int64) : chip</div><p>drawn filled in the app&#x27;s colour while <code>on</code> is not 0</p></div>
+</div>
+</section>
+<section class="type" id="divider">
+<h2><span class="kind">class</span> divider</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/divider.sharp">source</a></p>
+<p>divider - a thin line between things. Made with gui.divider().</p>
+<div class="code"><pre class="sharp">gui.column().add(header).add(gui.divider()).add(body)</pre></div>
+<p>In a column it is a level line across the full width; in a row, call .upright() for a line from top to bottom. It is drawn in the theme&#x27;s border colour. (Compose: HorizontalDivider. HTML: hr.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="divider.divider"><div class="sig"><b>divider</b>()</div></div>
+<div class="fn" id="divider.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="divider.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="divider.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="divider.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="divider.upright"><div class="sig">def <b>upright</b>() : divider</div><p>a line from top to bottom (for a row) instead of across</p></div>
+</div>
+</section>
+<section class="type" id="label">
+<h2><span class="kind">class</span> label</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/label.sharp">source</a></p>
+<p>label - text on the screen. Made with text(...).</p>
+<div class="code"><pre class="sharp">text(&quot;Hello&quot;)
+text(&quot;Total: &quot; + total.value).size(24).color(theme_green)
+text(long_paragraph, modifier().max_width(400))     // wraps onto several lines</pre></div>
+<p>.size(px)        the font size in pixels (default: the theme&#x27;s text size) .color(c)        the text colour (default: the theme&#x27;s text colour) .dim()           the theme&#x27;s quieter text colour (captions, hints) .bold()          bold .max_lines(n)    at most n lines; text cut off ends in &quot;...&quot; .align(how)      where the lines sit when the label is wider than its text: ALIGN_START (left), ALIGN_CENTER, ALIGN_END</p>
+<p>Text breaks at a line feed (&quot;\n&quot;) always, and between words when it would not fit the width on offer - so a label inside a narrow column wraps by itself. (Compose: Text. Android: TextView. HTML: a span or p.)</p>
+<p>HOW WRAPPING WORKS: measure() is told the room there is. Each paragraph (the text between line feeds) that is wider than the room is cut greedily: words are added to the line while they fit, then a new line starts. The lines are kept for paint(). Measuring text is not free, so the result is remembered for the width it was made for.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="label.label"><div class="sig"><b>label</b>(content: string)</div></div>
+<div class="fn" id="label.align"><div class="sig">def <b>align</b>(how: _int64) : label</div><p>where the lines sit across the label: ALIGN_START, ALIGN_CENTER, ALIGN_END</p></div>
+<div class="fn" id="label.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="label.bold"><div class="sig">def <b>bold</b>() : label</div><p>bold text: headings, the thing that matters on a line</p></div>
+<div class="fn" id="label.color"><div class="sig">def <b>color</b>(c: color) : label</div><p>the text colour</p></div>
+<div class="fn" id="label.dim"><div class="sig">def <b>dim</b>() : label</div><p>the theme&#x27;s quieter text colour: captions, hints</p></div>
+<div class="fn" id="label.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="label.max_lines"><div class="sig">def <b>max_lines</b>(count: _int64) : label</div><p>At most this many lines. Text that would need more is cut, and the last line that is shown ends in &quot;...&quot; so the reader can tell. text(title).max_lines(1) is the usual one-line title in a list row. (Android: maxLines + ellipsize. Compose: maxLines + TextOverflow.Ellipsis.)</p></div>
+<div class="fn" id="label.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="label.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="label.size"><div class="sig">def <b>size</b>(px: decimal) : label</div><p>the font size in pixels</p></div>
+</div>
+</section>
+<section class="type" id="picture">
+<h2><span class="kind">class</span> picture</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/picture.sharp">source</a></p>
+<p>picture - an image file on the screen. Made with image(...).</p>
+<div class="code"><pre class="sharp">image(&quot;assets/logo.png&quot;)                              // at its own size
+image(&quot;assets/photo.jpg&quot;, modifier().size(120, 80))   // stretched to a size
+image(&quot;assets/bg.png&quot;, modifier().fill())             // as big as the room there is
+image(&quot;assets/icon.png&quot;).opacity(120)                 // see-through</pre></div>
+<p>The file is loaded the first time the picture is measured and shared from then on (the native side keeps one copy per file), so the same path in a hundred list rows costs one load. PNG transparency is kept. (Compose: Image. Android: ImageView. HTML: img.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="picture.picture"><div class="sig"><b>picture</b>(file: string)</div></div>
+<div class="fn" id="picture.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="picture.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="picture.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="picture.opacity"><div class="sig">def <b>opacity</b>(amount: _int32) : picture</div><p>how solid it is: 0 (invisible) .. 255 (solid)</p></div>
+<div class="fn" id="picture.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+</div>
+</section>
+<section class="type" id="progress_bar">
+<h2><span class="kind">class</span> progress_bar</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/progress_bar.sharp">source</a></p>
+<p>progress_bar - how far along something is. Made with gui.progress(...).</p>
+<div class="code"><pre class="sharp">gui.progress(done.value / total)            // a fraction: 0 = nothing, 1 = finished</pre></div>
+<p>It only SHOWS a number (nobody drags it), so it takes a plain value, not a state: build() runs again when your state changes and makes a bar with the new fraction. It is as wide as the room on offer. (Compose: LinearProgressIndicator. HTML: progress.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="progress_bar.progress_bar"><div class="sig"><b>progress_bar</b>(fraction: decimal)</div></div>
+<div class="fn" id="progress_bar.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="progress_bar.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="progress_bar.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="progress_bar.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+</div>
+</section>
+<section class="type" id="rich_label">
+<h2><span class="kind">class</span> rich_label</h2>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/rich_label.sharp">source</a></p>
+<p>rich_label - shows a rich_text. Made with text(rich { ... }).</p>
+<p>HOW IT WORKS: every part is cut into WORDS (each with the spaces after it). While measuring, the words are laid out left to right and wrapped to the width; each word remembers its line and how far across it is. Painting then only draws each word where it was put.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="rich_label.rich_label"><div class="sig"><b>rich_label</b>(content: rich_text)</div></div>
+<div class="fn" id="rich_label.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="rich_label.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="rich_label.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="rich_label.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="rich_label.size"><div class="sig">def <b>size</b>(px: decimal) : rich_label</div><p>the size of the letters, for every part</p></div>
+</div>
+</section>
+<section class="type" id="rich_text">
+<h2><span class="kind">class</span> rich_text</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/rich_label.sharp">source</a></p>
+<p>RICH TEXT - one piece of text with parts that look different: a bold word, a coloured number, a quiet aside.</p>
+<div class="code"><pre class="sharp">text(rich {
+    plain(&quot;Due &quot;);
+    bold(&quot;tomorrow&quot;);
+    plain(&quot; at &quot;);
+    colored(&quot;9:30&quot;, gui.current_theme().primary);
+    quiet(&quot;  (in 14 hours)&quot;);
+});</pre></div>
+<p>rich { } runs the block and gathers what plain / bold / colored / quiet said into one rich_text; text(...) shows it. The parts flow like one text: the line breaks between words wherever the width runs out, whichever part the word belongs to.</p>
+<p>plain, bold, colored and quiet only mean something inside rich { } - anywhere else they stop the program with a message that says so. (Compose: buildAnnotatedString with SpanStyle. Android: SpannableString.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>gathering</code></td><td><code>rich_text?</code></td><td>the rich text being gathered right now (rich { } sets it while its block runs)</td></tr><tr><td><code>parts</code></td><td><code>list&lt;rich_part&gt;</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="rich_text.add"><div class="sig">def <b>add</b>(words: string, heavy: _int64, dimmed: _int64, tint: color?)</div></div>
+<div class="fn" id="rich_text.open"><div class="sig">static def <b>open</b>(written: string) : rich_text</div><p>the open rich text - or an error that says where the word belongs</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

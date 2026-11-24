@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.text - Sharp standard library</title>
+<meta name="description" content="The std.text module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li class="on"><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.text</p>
+<h1>std.text <small>module</small></h1>
+<p class="contents"><a href="#ascii">ascii</a> <a href="#case_format">case_format</a> <a href="#char_sets">char_sets</a> <a href="#number_format">number_format</a> <a href="#number_parser">number_parser</a> <a href="#regex">regex</a> <a href="#regex_match">regex_match</a> <a href="#scanner">scanner</a> <a href="#string_joiner">string_joiner</a> <a href="#string_reader">string_reader</a> <a href="#string_similarity">string_similarity</a> <a href="#string_support">string_support</a> <a href="#string_tokenizer">string_tokenizer</a> <a href="#template">template</a> <a href="#text_align">text_align</a> <a href="#text_pattern">text_pattern</a> <a href="#text_table">text_table</a> <a href="#text_wrap">text_wrap</a></p>
+<section class="type" id="ascii">
+<h2><span class="kind">class</span> ascii</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/ascii.sharp">source</a></p>
+<p>ascii</p>
+<p>Names for the ASCII characters that cannot be typed as a character literal, and a few helpers for working with character codes. Everything is static.</p>
+<div class="code"><pre class="sharp">sb.append_char(ascii.escape).append(&quot;[1m&quot;);      // start bold on a terminal
+if(c == ascii.form_feed) ...
+ascii.name_of(10)        &quot;LF&quot;
+ascii.caret(3)           &quot;^C&quot;</pre></div>
+<p>The constants are native numbers and can be used wherever a character is expected (append_char, comparisons with char_at, <code>char</code> parameters). For questions such as &quot;is this a digit&quot; see std.text#character.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>nul</code></td><td><code>decimal</code></td><td>code 0: the NUL character</td></tr><tr><td><code>bell</code></td><td><code>decimal</code></td><td>code 7: bell (makes a terminal beep)</td></tr><tr><td><code>backspace</code></td><td><code>decimal</code></td><td>code 8: backspace</td></tr><tr><td><code>tab</code></td><td><code>decimal</code></td><td>code 9: horizontal tab, &#x27;\t&#x27;</td></tr><tr><td><code>line_feed</code></td><td><code>decimal</code></td><td>code 10: line feed, &#x27;\n&#x27; - the line end on Linux and macOS</td></tr><tr><td><code>vertical_tab</code></td><td><code>decimal</code></td><td>code 11: vertical tab</td></tr><tr><td><code>form_feed</code></td><td><code>decimal</code></td><td>code 12: form feed (page break)</td></tr><tr><td><code>carriage_return</code></td><td><code>decimal</code></td><td>code 13: carriage return, &#x27;\r&#x27; - Windows line ends are carriage return + line feed</td></tr><tr><td><code>escape</code></td><td><code>decimal</code></td><td>code 27: escape, the start of terminal control sequences</td></tr><tr><td><code>space</code></td><td><code>decimal</code></td><td>code 32: the space</td></tr><tr><td><code>double_quote</code></td><td><code>decimal</code></td><td>code 34: the double quote &quot;</td></tr><tr><td><code>dollar</code></td><td><code>decimal</code></td><td>code 36: the dollar sign, which cannot be written inside a Sharp string literal</td></tr><tr><td><code>single_quote</code></td><td><code>decimal</code></td><td>code 39: the single quote &#x27;</td></tr><tr><td><code>backslash</code></td><td><code>decimal</code></td><td>code 92: the backslash</td></tr><tr><td><code>delete_char</code></td><td><code>decimal</code></td><td>code 127: delete</td></tr><tr><td><code>max_code</code></td><td><code>decimal</code></td><td>the largest ASCII code, 127</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="ascii.caret"><div class="sig">static def <b>caret</b>(c: char): string</div><p>Caret notation, as terminals show control characters: &quot;^@&quot; for 0, &quot;^A&quot; for 1 ... &quot;^Z&quot; for 26, &quot;^[&quot; for escape, &quot;^?&quot; for delete. A character that is not a control character is returned as it is.</p></div>
+<div class="fn" id="ascii.is_ascii"><div class="sig">static def <b>is_ascii</b>(code: char): bool</div><p>true if <code>code</code> is an ASCII code, 0 to 127.</p></div>
+<div class="fn" id="ascii.is_ascii_text"><div class="sig">static def <b>is_ascii_text</b>(text: string): bool</div><p>true if every character of <code>text</code> is ASCII (&quot;&quot; gives 1).</p></div>
+<div class="fn" id="ascii.name_of"><div class="sig">static def <b>name_of</b>(c: char): string</div><p>A readable name for the character: the standard abbreviation for control characters (&quot;NUL&quot;, &quot;HT&quot;, &quot;LF&quot;, &quot;CR&quot;, &quot;ESC&quot; ...), &quot;SPACE&quot; for the space, &quot;DEL&quot; for 127, the character itself for visible characters (&quot;A&quot;, &quot;~&quot;), and &quot;0x&quot; plus two hexadecimal digits for bytes outside of ASCII (&quot;0xe9&quot;). Useful in error messages and hex dumps.</p></div>
+<div class="fn" id="ascii.printable"><div class="sig">static def <b>printable</b>(text: string, replacement: char): string</div><p><code>text</code> with every character that is not visible ASCII replaced by <code>replacement</code>: control characters, delete and bytes above 127. Spaces are kept. printable(&quot;a\tb&quot;, &#x27;.&#x27;) is &quot;a.b&quot;.</p></div>
+<div class="fn" id="ascii.unsigned_code"><div class="sig">static def <b>unsigned_code</b>(c: char): decimal</div><p>The code of the character as an unsigned number, 0 to 255. Characters are stored as signed bytes, so a byte above 127 reads as a negative number; this gives the value a hex dump would show.</p></div>
+</div>
+</section>
+<section class="type" id="case_format">
+<h2><span class="kind">class</span> case_format</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/case_format.sharp">source</a></p>
+<p>case_format</p>
+<p>Converts names between the usual spellings. All functions are static:</p>
+<div class="code"><pre class="sharp">case_format.to_snake(&quot;parseHttpRequest&quot;)        &quot;parse_http_request&quot;
+case_format.to_camel(&quot;parse_http_request&quot;)      &quot;parseHttpRequest&quot;
+case_format.to_pascal(&quot;parse-http-request&quot;)     &quot;ParseHttpRequest&quot;
+case_format.to_kebab(&quot;ParseHTTPRequest&quot;)        &quot;parse-http-request&quot;
+case_format.to_screaming_snake(&quot;max size&quot;)      &quot;MAX_SIZE&quot;
+case_format.to_title(&quot;max_size&quot;)                &quot;Max Size&quot;</pre></div>
+<p>Every conversion first cuts the input into words (see split_words) and then writes the words in the wanted style, so any style can be converted into any other, and mixed input (&quot;some_mixedInput-here&quot;) works too.</p>
+<p>How a name is cut into words - at &#x27;_&#x27;, &#x27;-&#x27;, &#x27;.&#x27;, spaces and other whitespace (these are dropped; several in a row count as one) - before a capital letter that follows a small letter or a digit: &quot;max_size&quot; -&gt; max | Size,   &quot;v2Final&quot; -&gt; v2 | Final - before the last capital of a run of capitals when a small letter follows, so abbreviations stay together: &quot;HTTPServer&quot; -&gt; HTTP | Server - digits stay with the word in front of them: &quot;utf8Text&quot; -&gt; utf8 | Text</p>
+<p>Only ASCII letters are handled. An empty or separator-only input gives &quot;&quot;.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="case_format.split_words"><div class="sig">static def <b>split_words</b>(name: string): string[]</div><p>The words of <code>name</code>, all in small letters, in order: split_words(&quot;parseHTTPRequest_v2&quot;) is [&quot;parse&quot;, &quot;http&quot;, &quot;request&quot;, &quot;v2&quot;]. An empty or separator-only name gives an array of length 0.</p></div>
+<div class="fn" id="case_format.to_camel"><div class="sig">static def <b>to_camel</b>(name: string): string</div><p>camelCase: first word small, the others capitalised, nothing between. to_camel(&quot;max_size&quot;) is &quot;max_size&quot;.</p></div>
+<div class="fn" id="case_format.to_dot"><div class="sig">static def <b>to_dot</b>(name: string): string</div><p>dot.case: small letters, words joined with &#x27;.&#x27;. to_dot(&quot;max_size&quot;) is &quot;max.size&quot;.</p></div>
+<div class="fn" id="case_format.to_kebab"><div class="sig">static def <b>to_kebab</b>(name: string): string</div><p>kebab-case: small letters, words joined with &#x27;-&#x27;. to_kebab(&quot;max_size&quot;) is &quot;max-size&quot;.</p></div>
+<div class="fn" id="case_format.to_pascal"><div class="sig">static def <b>to_pascal</b>(name: string): string</div><p>PascalCase: every word capitalised, nothing between. to_pascal(&quot;max_size&quot;) is &quot;MaxSize&quot;.</p></div>
+<div class="fn" id="case_format.to_screaming_snake"><div class="sig">static def <b>to_screaming_snake</b>(name: string): string</div><p>SCREAMING_SNAKE_CASE, as used for constants: to_screaming_snake(&quot;max_size&quot;) is &quot;MAX_SIZE&quot;.</p></div>
+<div class="fn" id="case_format.to_sentence"><div class="sig">static def <b>to_sentence</b>(name: string): string</div><p>Sentence case: first word capitalised, the rest small, spaces between. to_sentence(&quot;maxSizeLimit&quot;) is &quot;Max size limit&quot;.</p></div>
+<div class="fn" id="case_format.to_snake"><div class="sig">static def <b>to_snake</b>(name: string): string</div><p>snake_case: small letters, words joined with &#x27;_&#x27;. to_snake(&quot;max_size&quot;) is &quot;max_size&quot;.</p></div>
+<div class="fn" id="case_format.to_title"><div class="sig">static def <b>to_title</b>(name: string): string</div><p>Title Case for people: every word capitalised, spaces between. to_title(&quot;max_size&quot;) is &quot;Max Size&quot;.</p></div>
+<div class="fn" id="case_format.word_count"><div class="sig">static def <b>word_count</b>(name: string): decimal</div><p>How many words the name has: word_count(&quot;parseHTTPRequest&quot;) is 3.</p></div>
+</div>
+</section>
+<section class="type" id="char_sets">
+<h2><span class="kind">class</span> char_sets</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/char_sets.sharp">source</a></p>
+<p>char_sets</p>
+<p>Ready-made sets of characters, as strings, for the many functions that take &quot;any of these characters&quot;: string.trim_chars, split_any, index_of_any, remove_chars, retain_chars, string_reader.read_while_in, string_tokenizer ...</p>
+<div class="code"><pre class="sharp">digits_only := phone.retain_chars(char_sets.digits());
+word := reader.read_while_in(char_sets.letters());
+if(password.contains_any(char_sets.punctuation())) ...</pre></div>
+<p>and helpers to build and combine sets: range, union, difference, intersection, and tests such as all_in / none_in.</p>
+<p>A set is simply a string; the order of the characters does not matter to the functions that use it, and a character listed twice counts once. Everything is static. All sets are ASCII.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="char_sets.all_in"><div class="sig">static def <b>all_in</b>(text: string, set_chars: string): bool</div><p>true if every character of <code>text</code> is in <code>set_chars</code> (&quot;&quot; gives 1).</p></div>
+<div class="fn" id="char_sets.contains"><div class="sig">static def <b>contains</b>(set_chars: string, c: char): bool</div><p>true if the character <code>c</code> is in <code>set_chars</code>.</p></div>
+<div class="fn" id="char_sets.count_in"><div class="sig">static def <b>count_in</b>(text: string, set_chars: string): decimal</div><p>How many characters of <code>text</code> are in <code>set_chars</code> (count_in(&quot;a1b22&quot;, digits()) is 3).</p></div>
+<div class="fn" id="char_sets.difference"><div class="sig">static def <b>difference</b>(a: string, b: string): string</div><p>The characters of <code>a</code> that are NOT in <code>b</code>, each once, in the order of <code>a</code>.</p></div>
+<div class="fn" id="char_sets.digits"><div class="sig">static def <b>digits</b>(): string</div><p>&quot;0123456789&quot;</p></div>
+<div class="fn" id="char_sets.hex_digits"><div class="sig">static def <b>hex_digits</b>(): string</div><p>The hexadecimal digits in both cases: &quot;0123456789abcdefABCDEF&quot;.</p></div>
+<div class="fn" id="char_sets.identifier"><div class="sig">static def <b>identifier</b>(): string</div><p>The characters allowed inside a program name: letters, digits and &#x27;_&#x27;.</p></div>
+<div class="fn" id="char_sets.intersection"><div class="sig">static def <b>intersection</b>(a: string, b: string): string</div><p>The characters of <code>a</code> that are ALSO in <code>b</code>, each once, in the order of <code>a</code>.</p></div>
+<div class="fn" id="char_sets.letters"><div class="sig">static def <b>letters</b>(): string</div><p>All 52 ASCII letters, small ones first.</p></div>
+<div class="fn" id="char_sets.letters_and_digits"><div class="sig">static def <b>letters_and_digits</b>(): string</div><p>All ASCII letters and the digits.</p></div>
+<div class="fn" id="char_sets.lower"><div class="sig">static def <b>lower</b>(): string</div><p>The small letters &quot;abcdefghijklmnopqrstuvwxyz&quot;.</p></div>
+<div class="fn" id="char_sets.none_in"><div class="sig">static def <b>none_in</b>(text: string, set_chars: string): bool</div><p>true if no character of <code>text</code> is in <code>set_chars</code> (&quot;&quot; gives 1).</p></div>
+<div class="fn" id="char_sets.punctuation"><div class="sig">static def <b>punctuation</b>(): string</div><p>The 32 ASCII punctuation marks and symbols: every visible character that is not a letter or digit.</p></div>
+<div class="fn" id="char_sets.range"><div class="sig">static def <b>range</b>(first: char, last: char): string</div><p>The characters with the codes <code>first</code> to <code>last</code>, both included, in order: range(&#x27;a&#x27;, &#x27;f&#x27;) is &quot;abcdef&quot;. first == last gives one character. Throws illegal_argument_exception if last is before first.</p></div>
+<div class="fn" id="char_sets.union"><div class="sig">static def <b>union</b>(a: string, b: string): string</div><p>Every character that is in <code>a</code> or in <code>b</code>, each once: the characters of <code>a</code> in their order (without repeats), then those of <code>b</code> that are new.</p></div>
+<div class="fn" id="char_sets.upper"><div class="sig">static def <b>upper</b>(): string</div><p>The capital letters &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;.</p></div>
+<div class="fn" id="char_sets.vowels"><div class="sig">static def <b>vowels</b>(): string</div><p>The vowels in both cases: &quot;aeiouAEIOU&quot;.</p></div>
+<div class="fn" id="char_sets.whitespace"><div class="sig">static def <b>whitespace</b>(): string</div><p>The whitespace characters: space, tab, line feed, vertical tab, form feed, carriage return.</p></div>
+</div>
+</section>
+<section class="type" id="number_format">
+<h2><span class="kind">class</span> number_format</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/number_format.sharp">source</a></p>
+<p>number_format</p>
+<p>Turns numbers into text. All functions are static and take the number as a native <code>decimal</code>:</p>
+<div class="code"><pre class="sharp">number_format.integer(42)                 &quot;42&quot;
+number_format.fixed(3.14159, 2)           &quot;3.14&quot;
+number_format.trimmed(2.50, 4)            &quot;2.5&quot;
+number_format.grouped(1234567.891, 2)     &quot;1,234,567.89&quot;
+number_format.padded(7, 3)                &quot;007&quot;
+number_format.hex(255)                    &quot;ff&quot;
+number_format.binary(5, 8)                &quot;00000101&quot;
+number_format.scientific(31415.9, 2)      &quot;3.14e+04&quot;
+number_format.percent(0.256, 1)           &quot;25.6%&quot;
+number_format.ordinal(22)                 &quot;22nd&quot;
+number_format.bytes(1536)                 &quot;1.5 KB&quot;
+number_format.roman(1994)                 &quot;MCMXCIV&quot;</pre></div>
+<p>Things to know - Rounding is &quot;half away from zero&quot; on the value the number really has: fixed(2.5, 0) is &quot;3&quot;, fixed(-2.5, 0) is &quot;-3&quot;. Because numbers are binary floating point, a value written as 1.005 is really 1.00499999999999989... and fixed(1.005, 2) is therefore &quot;1.00&quot;. - A result that rounds to zero never has a minus sign: fixed(-0.001, 2) is &quot;0.00&quot;. - Whole numbers are exact up to 9007199254740991 (2^53 - 1). Larger numbers are still printed, with the digits the floating point value has. - Not-a-number prints as &quot;NaN&quot;, the infinities as &quot;Infinity&quot; / &quot;-Infinity&quot;. - Unlike <code>&quot;&quot; + number</code> (which prints 16 decimals) and int.to_string() (which is limited to 32 bit), these work on any native number.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="number_format.binary"><div class="sig">static def <b>binary</b>(number: decimal): string</div><p>The whole number in binary: binary(5) is &quot;101&quot;.</p></div>
+<div class="fn" id="number_format.binary-2"><div class="sig">static def <b>binary</b>(number: decimal, width: int): string</div><p>binary(number) with at least <code>width</code> digits: binary(5, 8) is &quot;00000101&quot;.</p></div>
+<div class="fn" id="number_format.bytes"><div class="sig">static def <b>bytes</b>(number: decimal): string</div><p>A size in bytes in the largest fitting unit (1 KB = 1024 B): bytes(512) is &quot;512 B&quot;, bytes(1536) is &quot;1.5 KB&quot;, bytes(1048576) is &quot;1.0 MB&quot;. Units go up to EB; from KB on there is one decimal. Throws illegal_argument_exception if the number is negative.</p></div>
+<div class="fn" id="number_format.fixed"><div class="sig">static def <b>fixed</b>(number: decimal, decimals: int): string</div><p>The number with exactly <code>decimals</code> digits after the point, rounded: fixed(3.14159, 2) is &quot;3.14&quot;, fixed(2, 2) is &quot;2.00&quot;, fixed(2.5, 0) is &quot;3&quot;. Throws illegal_argument_exception if decimals is not between 0 and 15.</p></div>
+<div class="fn" id="number_format.grouped"><div class="sig">static def <b>grouped</b>(number: decimal): string</div><p>The number rounded to a whole number, with commas between groups of three digits: grouped(1234567) is &quot;1,234,567&quot;, grouped(-1234.5) is &quot;-1,235&quot;.</p></div>
+<div class="fn" id="number_format.grouped-2"><div class="sig">static def <b>grouped</b>(number: decimal, decimals: int): string</div><p>The number with commas between groups of three digits and exactly <code>decimals</code> digits after the point: grouped(1234567.891, 2) is &quot;1,234,567.89&quot;. Throws illegal_argument_exception if decimals is not between 0 and 15.</p></div>
+<div class="fn" id="number_format.grouped-3"><div class="sig">static def <b>grouped</b>(number: decimal, decimals: int, separator: char, decimal_point: char): string</div><p>grouped with your own characters, for other conventions: grouped(1234567.891, 2, &#x27;.&#x27;, &#x27;,&#x27;) is &quot;1.234.567,89&quot; and grouped(1234567, 0, &#x27; &#x27;, &#x27;.&#x27;) is &quot;1 234 567&quot;. Throws illegal_argument_exception if decimals is not between 0 and 15.</p></div>
+<div class="fn" id="number_format.hex"><div class="sig">static def <b>hex</b>(number: decimal): string</div><p>The whole number in hexadecimal with small letters: hex(255) is &quot;ff&quot;, hex(0) is &quot;0&quot;.</p></div>
+<div class="fn" id="number_format.hex-2"><div class="sig">static def <b>hex</b>(number: decimal, width: int): string</div><p>hex(number) with at least <code>width</code> digits: hex(255, 4) is &quot;00ff&quot;.</p></div>
+<div class="fn" id="number_format.hex_upper"><div class="sig">static def <b>hex_upper</b>(number: decimal): string</div><p>The whole number in hexadecimal with capital letters: hex_upper(255) is &quot;FF&quot;.</p></div>
+<div class="fn" id="number_format.hex_upper-2"><div class="sig">static def <b>hex_upper</b>(number: decimal, width: int): string</div><p>hex_upper(number) with at least <code>width</code> digits: hex_upper(255, 4) is &quot;00FF&quot;.</p></div>
+<div class="fn" id="number_format.integer"><div class="sig">static def <b>integer</b>(number: decimal): string</div><p>The number as a whole number in base 10: integer(42) is &quot;42&quot;, integer(-7) is &quot;-7&quot;. A fraction is cut off, not rounded: integer(2.9) is &quot;2&quot; and integer(-2.9) is &quot;-2&quot; (use fixed(n, 0) to round).</p></div>
+<div class="fn" id="number_format.octal"><div class="sig">static def <b>octal</b>(number: decimal): string</div><p>The whole number in octal: octal(8) is &quot;10&quot;.</p></div>
+<div class="fn" id="number_format.ordinal"><div class="sig">static def <b>ordinal</b>(number: decimal): string</div><p>The whole number with its English ordinal ending: ordinal(1) is &quot;1st&quot;, ordinal(2) &quot;2nd&quot;, ordinal(3) &quot;3rd&quot;, ordinal(4) &quot;4th&quot;, ordinal(11) &quot;11th&quot;, ordinal(22) &quot;22nd&quot;, ordinal(113) &quot;113th&quot;. A fraction is cut off.</p></div>
+<div class="fn" id="number_format.padded"><div class="sig">static def <b>padded</b>(number: decimal, width: int): string</div><p>The whole number with zeros in front until it has at least <code>width</code> digits: padded(7, 3) is &quot;007&quot;, padded(1234, 3) is &quot;1234&quot;. The minus sign of a negative number comes first and is not counted: padded(-7, 3) is &quot;-007&quot;. Throws illegal_argument_exception if width is negative.</p></div>
+<div class="fn" id="number_format.percent"><div class="sig">static def <b>percent</b>(number: decimal, decimals: int): string</div><p>The number as a percentage: percent(0.256, 1) is &quot;25.6%&quot;, percent(1, 0) is &quot;100%&quot;. The number is multiplied by 100 and rounded to <code>decimals</code>. Throws illegal_argument_exception if decimals is not between 0 and 15.</p></div>
+<div class="fn" id="number_format.plain"><div class="sig">static def <b>plain</b>(number: decimal): string</div><p>A short readable form: a whole number without a point (&quot;42&quot;), anything else with up to 6 decimals and no zeros at the end (&quot;0.1&quot;, &quot;3.141593&quot;).</p></div>
+<div class="fn" id="number_format.roman"><div class="sig">static def <b>roman</b>(number: decimal): string</div><p>The whole number as a Roman numeral: roman(4) is &quot;IV&quot;, roman(1994) is &quot;MCMXCIV&quot;. Throws illegal_argument_exception unless 1 &lt;= number &lt;= 3999 (Roman numerals have no zero and no standard form beyond 3999).</p></div>
+<div class="fn" id="number_format.scientific"><div class="sig">static def <b>scientific</b>(number: decimal, decimals: int): string</div><p>Scientific notation: one digit before the point, <code>decimals</code> digits after it, then the power of ten with a sign and at least two digits: scientific(31415.9, 2) is &quot;3.14e+04&quot;, scientific(0.00012, 1) is &quot;1.2e-04&quot;, scientific(0, 2) is &quot;0.00e+00&quot;. Throws illegal_argument_exception if decimals is not between 0 and 15.</p></div>
+<div class="fn" id="number_format.to_radix"><div class="sig">static def <b>to_radix</b>(number: decimal, radix_base: int): string</div><p>The whole number in base <code>radix</code> (2 to 36) with small letters for the digits above 9: to_radix(255, 16) is &quot;ff&quot;, to_radix(35, 36) is &quot;z&quot;. A negative number gets a minus sign: to_radix(-255, 16) is &quot;-ff&quot;. Throws illegal_argument_exception if radix is not between 2 and 36, or if the number is 2^53 or larger (it would not be exact).</p></div>
+<div class="fn" id="number_format.to_radix-2"><div class="sig">static def <b>to_radix</b>(number: decimal, radix_base: int, width: int): string</div><p>to_radix(number, radix_base) with zeros in front until there are at least <code>width</code> digits.</p></div>
+<div class="fn" id="number_format.trimmed"><div class="sig">static def <b>trimmed</b>(number: decimal, max_decimals: int): string</div><p>The number with at most <code>max_decimals</code> digits after the point and no zeros at the end: trimmed(2.5, 4) is &quot;2.5&quot;, trimmed(2, 4) is &quot;2&quot;, trimmed(1.23456, 2) is &quot;1.23&quot;. Throws illegal_argument_exception if max_decimals is not between 0 and 15.</p></div>
+</div>
+</section>
+<section class="type" id="number_parser">
+<h2><span class="kind">class</span> number_parser</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/number_parser.sharp">source</a></p>
+<p>number_parser</p>
+<p>Turns text into numbers and says exactly what is wrong when it cannot. All functions are static: <code>number_parser.parse_int(&quot;42&quot;)</code>.</p>
+<p>Every kind of number comes in three flavours (as in Kotlin):</p>
+<div class="code"><pre class="sharp">parse_int(text)             throws number_format_exception if text is not a number
+parse_int_or_null(text)     returns null instead of throwing
+parse_int_or(text, 0)       returns the given fallback instead of throwing</pre></div>
+<p>and is_int / is_long / is_double only answer whether the text would parse.</p>
+<p>What counts as a number - integer: an optional &#x27;+&#x27; or &#x27;-&#x27; followed by at least one digit. With a radix (2 to 36) the digits are 0-9 and then the letters a-z / A-Z (parse_int(&quot;ff&quot;, 16) is 255). Nothing else is allowed: no spaces, no digit separators, no &quot;0x&quot; prefix (use decode() for prefixes). - <code>int</code> functions accept -2147483648 .. 2147483647 (32 bit). - <code>long</code> functions accept -9007199254740991 .. 9007199254740991: Sharp numbers are floating point and larger whole numbers are no longer exact. - decimal: [sign] digits [. digits] [e|E [sign] digits], where the digits before OR after the point may be left out (&quot;5.&quot;, &quot;.5&quot;) but not both. &quot;NaN&quot;, &quot;Infinity&quot; and hexadecimal fractions are not accepted. - bool: &quot;true&quot; or &quot;false&quot; in any mix of capital and small letters.</p>
+<p>Surrounding whitespace is NOT ignored; trim() the text first if it may have some.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="number_parser.decode"><div class="sig">static def <b>decode</b>(text: string): decimal</div><p>A whole number with an optional sign and an optional base prefix: &quot;0x&quot; / &quot;0X&quot; hexadecimal, &quot;0b&quot; / &quot;0B&quot; binary, &quot;0o&quot; / &quot;0O&quot; octal, otherwise decimal. decode(&quot;0xFF&quot;) is 255, decode(&quot;-0b101&quot;) is -5, decode(&quot;42&quot;) is 42. The range is that of parse_long. Throws number_format_exception if text is not such a number.</p></div>
+<div class="fn" id="number_parser.is_double"><div class="sig">static def <b>is_double</b>(text: string): bool</div><p>true if parse_double(text) would succeed.</p></div>
+<div class="fn" id="number_parser.is_int"><div class="sig">static def <b>is_int</b>(text: string): bool</div><p>true if parse_int(text) would succeed.</p></div>
+<div class="fn" id="number_parser.is_long"><div class="sig">static def <b>is_long</b>(text: string): bool</div><p>true if parse_long(text) would succeed.</p></div>
+<div class="fn" id="number_parser.parse_bool"><div class="sig">static def <b>parse_bool</b>(text: string): bool</div><p>true if text is &quot;true&quot;, false if it is &quot;false&quot; (in any mix of capital and small letters). Throws number_format_exception for any other text (&quot;yes&quot;, &quot;1&quot;, &quot;&quot; ...).</p></div>
+<div class="fn" id="number_parser.parse_bool_or"><div class="sig">static def <b>parse_bool_or</b>(text: string, fallback: bool): decimal</div><p>parse_bool(text) that returns <code>fallback</code> instead of throwing.</p></div>
+<div class="fn" id="number_parser.parse_bool_or_null"><div class="sig">static def <b>parse_bool_or_null</b>(text: string): boolean?</div><p>parse_bool(text) that returns null instead of throwing.</p></div>
+<div class="fn" id="number_parser.parse_double"><div class="sig">static def <b>parse_double</b>(text: string): decimal</div><p>The decimal number written in <code>text</code> (&quot;3.25&quot;, &quot;-0.5&quot;, &quot;1e3&quot;, &quot;.5&quot;, &quot;7&quot;). Throws number_format_exception if text is not a decimal number (see the top of the file for the exact syntax).</p></div>
+<div class="fn" id="number_parser.parse_double_or"><div class="sig">static def <b>parse_double_or</b>(text: string, fallback: double): decimal</div><p>parse_double(text) that returns <code>fallback</code> instead of throwing.</p></div>
+<div class="fn" id="number_parser.parse_double_or_null"><div class="sig">static def <b>parse_double_or_null</b>(text: string): double?</div><p>parse_double(text) that returns null instead of throwing.</p></div>
+<div class="fn" id="number_parser.parse_int"><div class="sig">static def <b>parse_int</b>(text: string): decimal</div><p>The whole number written in <code>text</code> in base 10. Throws number_format_exception if text is empty, has anything but an optional sign and digits, or is outside of -2147483648 .. 2147483647.</p></div>
+<div class="fn" id="number_parser.parse_int-2"><div class="sig">static def <b>parse_int</b>(text: string, radix: int): decimal</div><p>The whole number written in <code>text</code> in base <code>radix</code> (parse_int(&quot;ff&quot;, 16) is 255, parse_int(&quot;-101&quot;, 2) is -5). Throws number_format_exception as parse_int(text) does, and illegal_argument_exception if radix is not between 2 and 36.</p></div>
+<div class="fn" id="number_parser.parse_int_or"><div class="sig">static def <b>parse_int_or</b>(text: string, fallback: int): decimal</div><p>parse_int(text) that returns <code>fallback</code> instead of throwing when text is not a valid int.</p></div>
+<div class="fn" id="number_parser.parse_int_or_null"><div class="sig">static def <b>parse_int_or_null</b>(text: string): int?</div><p>parse_int(text) that returns null instead of throwing when text is not a valid int.</p></div>
+<div class="fn" id="number_parser.parse_int_or_null-2"><div class="sig">static def <b>parse_int_or_null</b>(text: string, radix: int): int?</div><p>parse_int(text, radix) that returns null instead of throwing when text is not a valid int. (A radix outside of 2..36 still throws illegal_argument_exception: that is a mistake in the program, not in the text.)</p></div>
+<div class="fn" id="number_parser.parse_long"><div class="sig">static def <b>parse_long</b>(text: string): decimal</div><p>The whole number written in <code>text</code> in base 10, with the larger range -9007199254740991 .. 9007199254740991. Throws number_format_exception if text is not such a number.</p></div>
+<div class="fn" id="number_parser.parse_long-2"><div class="sig">static def <b>parse_long</b>(text: string, radix: int): decimal</div><p>parse_long in base <code>radix</code> (2 to 36). Throws number_format_exception, or illegal_argument_exception for a bad radix.</p></div>
+<div class="fn" id="number_parser.parse_long_or"><div class="sig">static def <b>parse_long_or</b>(text: string, fallback: long): decimal</div><p>parse_long(text) that returns <code>fallback</code> instead of throwing.</p></div>
+<div class="fn" id="number_parser.parse_long_or_null"><div class="sig">static def <b>parse_long_or_null</b>(text: string): long?</div><p>parse_long(text) that returns null instead of throwing.</p></div>
+</div>
+</section>
+<section class="type" id="regex">
+<h2><span class="kind">class</span> regex</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/regex/regex.sharp">source</a></p>
+<p>regex</p>
+<p>Regular expressions: patterns that describe text, for testing, searching, replacing and splitting.</p>
+<div class="code"><pre class="sharp">r := new regex(&quot;(\\d+)-(\\d+)&quot;);
+r.matches(&quot;10-20&quot;)                      1   (the WHOLE text fits)
+r.contains(&quot;from 10-20 to 30-40&quot;)       1   (it occurs somewhere)
+m := r.find(&quot;from 10-20 to 30-40&quot;);     the first occurrence, or null
+m.value()   &quot;10-20&quot;     m.group(1)   &quot;10&quot;     m.start()   5
+r.find_all(text)                        every occurrence, as regex_match[]
+r.replace_all(&quot;10-20&quot;, &quot;\\2-\\1&quot;)       &quot;20-10&quot;
+new regex(&quot;,\\s*&quot;).split(&quot;a, b,c&quot;)      [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]</pre></div>
+<p>(In Sharp source a backslash in a string literal is written twice: the pattern \d+ is the literal &quot;\\d+&quot;.)</p>
+<p>Pattern syntax abc          the characters themselves .            any character except a line feed [abc] [a-z]  one character of the set / range;  [^abc] one that is NOT in it \d \w \s     a digit / a word character (letter, digit, _) / whitespace \D \W \S     the opposites \n \t \r \f \v \0    line feed, tab, carriage return, form feed, vertical tab, NUL \xHH         the character with hexadecimal code HH \. \* \\ ... a special character taken literally (any punctuation mark can be escaped) ^  $         the start / the end of the text \b \B        a word boundary / not a word boundary x*  x+  x?   zero or more / one or more / zero or one x (as many as possible) x{3} x{2,} x{2,5}    exactly 3 / at least 2 / between 2 and 5 times x*? x+? x?? x{2,5}?  the same, but as FEW as possible (&quot;lazy&quot;) (x)          a group: keeps what it matched, numbered from 1 by its &#x27;(&#x27; (?:x)        a group that only groups and keeps nothing a|b          a or b (the first alternative that leads to a match wins)</p>
+<p>Not supported: back-references inside a pattern (\1), look-ahead and look-behind, named groups, Unicode classes. ^ and $ do not match at line breaks inside the text. Characters are single bytes (ASCII).</p>
+<p>How it works, and what it costs The pattern is translated once, in the constructor, into a small program; matching runs that program with an explicit stack (no recursion, so long texts cannot overflow the call stack). Every (program step, text position) pair is tried at most once per search, so there is no &quot;catastrophic backtracking&quot;: the time is at most proportional to pattern size x text length, and a search uses about (pattern size x text length) / 30 numbers of working memory, which the regex object keeps for the next search. Because of that working memory one regex object must not be used by two threads at the same time; make one object per thread.</p>
+<p>Keep the regex object when a pattern is used more than once: translating the pattern is the expensive part for short texts.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="regex.regex"><div class="sig"><b>regex</b>(pattern: string)</div><p>Translates <code>pattern</code>. Capital and small letters are different. Throws parse_exception, saying what is wrong and at which position, if the pattern is not valid (unbalanced parentheses or brackets, a quantifier with nothing to repeat, an unknown escape ...).</p></div>
+<div class="fn" id="regex.regex-2"><div class="sig"><b>regex</b>(pattern: string, ignore_case: bool)</div><p>Translates <code>pattern</code>; if <code>ignore_case</code> is true, ASCII capital and small letters are treated as equal (&quot;abc&quot; also matches &quot;ABC&quot;, &quot;[a-c]&quot; also &#x27;B&#x27;). Throws parse_exception if the pattern is not valid.</p></div>
+<div class="fn" id="regex.contains"><div class="sig">def <b>contains</b>(text: string): bool</div><p>true if the pattern matches somewhere in the text.</p></div>
+<div class="fn" id="regex.count"><div class="sig">def <b>count</b>(text: string): decimal</div><p>How many (non-overlapping) matches the text has.</p></div>
+<div class="fn" id="regex.escape"><div class="sig">static def <b>escape</b>(text: string): string</div><p><code>text</code> with a backslash in front of every character that is special in a pattern, so the result matches exactly that text: regex.escape(&quot;1+1=2?&quot;) is the pattern 1\+1=2\?</p></div>
+<div class="fn" id="regex.find"><div class="sig">def <b>find</b>(text: string): regex_match?</div><p>The first (leftmost) match in the text, or null if there is none.</p></div>
+<div class="fn" id="regex.find-2"><div class="sig">def <b>find</b>(text: string, start: int): regex_match?</div><p>The first match that starts at position <code>start</code> or later, or null. (^ still means the start of the whole text, not <code>start</code>.) Throws out_of_bounds_exception if start is negative or beyond the end of the text.</p></div>
+<div class="fn" id="regex.find_all"><div class="sig">def <b>find_all</b>(text: string): regex_match[]</div><p>Every match in the text, left to right, not overlapping, as an array (length 0 if there is none). After an empty match the search moves on by one character, so a pattern that can match &quot;&quot; terminates.</p></div>
+<div class="fn" id="regex.group_count"><div class="sig">def <b>group_count</b>(): decimal</div><p>How many capturing groups &quot;( ... )&quot; the pattern has (group 0, the whole match, is not counted).</p></div>
+<div class="fn" id="regex.index_of"><div class="sig">def <b>index_of</b>(text: string): decimal</div><p>Position of the first match in the text, or -1 if there is none.</p></div>
+<div class="fn" id="regex.is_match"><div class="sig">static def <b>is_match</b>(pattern: string, text: string): bool</div><p>One-off test: true if <code>pattern</code> matches somewhere in <code>text</code>. Throws parse_exception for a bad pattern.</p></div>
+<div class="fn" id="regex.matches"><div class="sig">def <b>matches</b>(text: string): bool</div><p>true if the WHOLE text fits the pattern (new regex(&quot;\\d+&quot;).matches(&quot;123&quot;) is 1, matches(&quot;123a&quot;) is 0).</p></div>
+<div class="fn" id="regex.matches-2"><div class="sig">static def <b>matches</b>(pattern: string, text: string): bool</div><p>One-off test: true if the WHOLE <code>text</code> fits <code>pattern</code>. Throws parse_exception for a bad pattern.</p></div>
+<div class="fn" id="regex.pattern"><div class="sig">def <b>pattern</b>(): string</div><p>The pattern text this object was made from.</p></div>
+<div class="fn" id="regex.replace_all"><div class="sig">def <b>replace_all</b>(text: string, replacement: string): string</div><p>The text with every match replaced by <code>replacement</code>. In the replacement \1 .. \9 stand for what the groups matched and \0 for the whole match (written &quot;\\1&quot; in Sharp source; $1 is accepted as well); \\ gives a backslash. new regex(&quot;(\\w+)=(\\w+)&quot;).replace_all(&quot;a=1&quot;, &quot;\\2=\\1&quot;) is &quot;1=a&quot;. A text without a match is returned as an unchanged copy. Throws illegal_argument_exception if the replacement refers to a group the pattern does not have.</p></div>
+<div class="fn" id="regex.replace_first"><div class="sig">def <b>replace_first</b>(text: string, replacement: string): string</div><p>Like replace_all, but only the first (leftmost) match is replaced.</p></div>
+<div class="fn" id="regex.split"><div class="sig">def <b>split</b>(text: string): string[]</div><p>The parts of the text between matches: new regex(&quot;\\s*,\\s*&quot;).split(&quot;a , b,c&quot;) is [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]. As with string.split, empty parts are kept (&quot;,a,&quot;.split gives [&quot;&quot;, &quot;a&quot;, &quot;&quot;]) and a text without a match gives an array holding the whole text. An EMPTY match never produces an empty part at the very start or end, so new regex(&quot;&quot;).split(&quot;abc&quot;) is [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;].</p></div>
+<div class="fn" id="regex.split-2"><div class="sig">def <b>split</b>(text: string, limit: int): string[]</div><p>Like split(text), but returns at most <code>limit</code> parts: the last part holds the rest of the text. A limit of 0 means no limit. Throws illegal_argument_exception if limit is negative.</p></div>
+</div>
+</section>
+<section class="type" id="regex_match">
+<h2><span class="kind">class</span> regex_match</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/regex/regex_match.sharp">source</a></p>
+<p>regex_match</p>
+<p>One place where a std.text#regex matched: where it starts and ends, the matched text, and what each group &quot;( ... )&quot; of the pattern matched.</p>
+<div class="code"><pre class="sharp">m := new regex(&quot;(\\w+)@(\\w+)&quot;).find(&quot;mail ada@example now&quot;);
+m.value()       &quot;ada@example&quot;
+m.start()       5          (index of the first matched character)
+m.end()         16         (index just after the last one)
+m.group(1)      &quot;ada&quot;
+m.group(2)      &quot;example&quot;</pre></div>
+<p>Group 0 is the whole match; groups are numbered from 1 by the position of their opening parenthesis. A group that took no part in the match - for example the &quot;(b)&quot; in &quot;a|(b)&quot; when &quot;a&quot; matched - has start and end -1 and the text &quot;&quot;; has_group(n) tells it apart from a group that matched &quot;&quot;.</p>
+<p>Objects of this class are made by regex (find, find_all); a match keeps a reference to the text it was found in and does not change afterwards.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="regex_match.regex_match"><div class="sig"><b>regex_match</b>(text: string, positions: decimal[], group_total: decimal)</div><p>Used by regex: a match in <code>text</code> with the group positions copied from <code>positions</code> (two numbers per group, group 0 first).</p></div>
+<div class="fn" id="regex_match.end"><div class="sig">def <b>end</b>(): decimal</div><p>Index just after the last character of the match (start() == end() for an empty match).</p></div>
+<div class="fn" id="regex_match.group"><div class="sig">def <b>group</b>(index: int): string</div><p>The text matched by group <code>index</code> (0 = the whole match); &quot;&quot; if the group matched nothing or took no part in the match. Throws out_of_bounds_exception if the pattern has no such group.</p></div>
+<div class="fn" id="regex_match.group_count"><div class="sig">def <b>group_count</b>(): decimal</div><p>How many groups the pattern has, not counting group 0 (the whole match).</p></div>
+<div class="fn" id="regex_match.group_end"><div class="sig">def <b>group_end</b>(index: int): decimal</div><p>Index just after the last character matched by group <code>index</code>, or -1 if the group took no part in the match. Throws out_of_bounds_exception if the pattern has no such group.</p></div>
+<div class="fn" id="regex_match.group_start"><div class="sig">def <b>group_start</b>(index: int): decimal</div><p>Index of the first character matched by group <code>index</code>, or -1 if the group took no part in the match. Throws out_of_bounds_exception if the pattern has no such group.</p></div>
+<div class="fn" id="regex_match.groups_array"><div class="sig">def <b>groups_array</b>(): string[]</div><p>All groups as an array: element 0 is the whole match, element n is group(n).</p></div>
+<div class="fn" id="regex_match.has_group"><div class="sig">def <b>has_group</b>(index: int): bool</div><p>true if group <code>index</code> took part in the match (even if it matched &quot;&quot;). Throws out_of_bounds_exception if the pattern has no such group.</p></div>
+<div class="fn" id="regex_match.length"><div class="sig">def <b>length</b>(): decimal</div><p>The number of characters matched (0 for an empty match).</p></div>
+<div class="fn" id="regex_match.start"><div class="sig">def <b>start</b>(): decimal</div><p>Index of the first character of the match in the searched text.</p></div>
+<div class="fn" id="regex_match.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>The matched text, so a match can be printed directly.</p></div>
+<div class="fn" id="regex_match.value"><div class="sig">def <b>value</b>(): string</div><p>The matched text (&quot;&quot; for an empty match).</p></div>
+</div>
+</section>
+<section class="type" id="scanner">
+<h2><span class="kind">class</span> scanner</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/scanner.sharp">source</a></p>
+<p>scanner</p>
+<p>Reads words, numbers and lines out of a text, one after the other (like Java&#x27;s Scanner, but over a string):</p>
+<div class="code"><pre class="sharp">input := new scanner(&quot;width 42 3.5\nsecond line&quot;);
+name  := input.next();             // &quot;width&quot;
+count := input.next_int();         // 42
+ratio := input.next_double();      // 3.5
+input.next_line();                 // &quot;&quot; (the rest of the first line)
+rest  := input.next_line();        // &quot;second line&quot;</pre></div>
+<p>Tokens are separated by whitespace (space, tab, \n, \r, vertical tab, form feed), or by the characters given to the two-argument constructor. Any number of separators may sit between two tokens.</p>
+<p>The has_next... functions look ahead without reading anything, so the usual pattern is <code>while(input.has_next_int()) { total += input.next_int(); }</code>. A next_int / next_double / next_bool that finds a token of the wrong kind throws number_format_exception and does NOT read the token, so it can still be read with next(). Every next... throws no_such_element_exception when the text is used up.</p>
+<p>To read user input, read a line with read_line() and scan that.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="scanner.scanner"><div class="sig"><b>scanner</b>(text: string)</div><p>A scanner over <code>text</code> with tokens separated by whitespace.</p></div>
+<div class="fn" id="scanner.scanner-2"><div class="sig"><b>scanner</b>(text: string, separators: string)</div><p>A scanner over <code>text</code> with tokens separated by any character of <code>separators</code> (for example &quot;,;&quot;). Whitespace is then part of the tokens unless it is listed too. An empty string means whitespace.</p></div>
+<div class="fn" id="scanner.has_next"><div class="sig">def <b>has_next</b>(): bool</div><p>true if there is another token. Reads nothing.</p></div>
+<div class="fn" id="scanner.has_next_bool"><div class="sig">def <b>has_next_bool</b>(): bool</div><p>true if the next token is &quot;true&quot; or &quot;false&quot; (capital / small letters do not matter). Reads nothing.</p></div>
+<div class="fn" id="scanner.has_next_double"><div class="sig">def <b>has_next_double</b>(): bool</div><p>true if the next token is a number that next_double() would accept (&quot;12&quot;, &quot;-1.5&quot;, &quot;1e3&quot;). Reads nothing.</p></div>
+<div class="fn" id="scanner.has_next_int"><div class="sig">def <b>has_next_int</b>(): bool</div><p>true if the next token is a whole number that next_int() would accept. Reads nothing.</p></div>
+<div class="fn" id="scanner.has_next_line"><div class="sig">def <b>has_next_line</b>(): bool</div><p>true if there is anything left to read as a line (even an empty last line needs at least one unread character).</p></div>
+<div class="fn" id="scanner.next"><div class="sig">def <b>next</b>(): string</div><p>Reads the next token and returns it. Throws no_such_element_exception if there is none.</p></div>
+<div class="fn" id="scanner.next_bool"><div class="sig">def <b>next_bool</b>(): decimal</div><p>Reads the next token as a bool and returns 1 for &quot;true&quot;, 0 for &quot;false&quot;. Throws number_format_exception if the token is something else (it is then not read), no_such_element_exception if there is no token.</p></div>
+<div class="fn" id="scanner.next_double"><div class="sig">def <b>next_double</b>(): decimal</div><p>Reads the next token as a decimal number and returns it. Throws number_format_exception if the token is not a number (it is then not read), no_such_element_exception if there is no token.</p></div>
+<div class="fn" id="scanner.next_double_or"><div class="sig">def <b>next_double_or</b>(fallback: double): decimal</div><p>Reads the next token as a decimal number; if there is no token or it is not a number, returns <code>fallback</code> and reads nothing.</p></div>
+<div class="fn" id="scanner.next_int"><div class="sig">def <b>next_int</b>(): decimal</div><p>Reads the next token as a whole number (range -9007199254740991 .. 9007199254740991) and returns it. Throws number_format_exception if the token is not a whole number (it is then not read), no_such_element_exception if there is no token.</p></div>
+<div class="fn" id="scanner.next_int_or"><div class="sig">def <b>next_int_or</b>(fallback: long): decimal</div><p>Reads the next token as a whole number; if there is no token or it is not a whole number, returns <code>fallback</code> and reads nothing.</p></div>
+<div class="fn" id="scanner.next_line"><div class="sig">def <b>next_line</b>(): string</div><p>Reads the rest of the current line and returns it WITHOUT the line end (&quot;\n&quot;, &quot;\r\n&quot; or &quot;\r&quot;), which is read too. Separators are not skipped: after reading the last token of a line, next_line() returns what is left of that line (often &quot;&quot;), exactly as in Java. Throws no_such_element_exception if everything has been read.</p></div>
+<div class="fn" id="scanner.next_or"><div class="sig">def <b>next_or</b>(fallback: string): string</div><p>Reads the next token and returns it, or returns <code>fallback</code> (reading nothing) if there is none.</p></div>
+<div class="fn" id="scanner.peek"><div class="sig">def <b>peek</b>(): string</div><p>The next token without reading it, or &quot;&quot; if there is none.</p></div>
+<div class="fn" id="scanner.position"><div class="sig">def <b>position</b>(): decimal</div><p>Index of the next unread character: 0 at the start, the length of the text at the end.</p></div>
+<div class="fn" id="scanner.remaining"><div class="sig">def <b>remaining</b>(): string</div><p>Everything that has not been read yet, exactly as it is in the text. Reads nothing.</p></div>
+<div class="fn" id="scanner.reset"><div class="sig">def <b>reset</b>(): scanner</div><p>Starts again from the beginning of the text.</p></div>
+<div class="fn" id="scanner.skip"><div class="sig">def <b>skip</b>(expected: string): bool</div><p>If the next token is exactly <code>expected</code>, reads it and returns 1; otherwise reads nothing and returns 0.</p></div>
+<div class="fn" id="scanner.to_array"><div class="sig">def <b>to_array</b>(): string[]</div><p>All remaining tokens as an array; the scanner is at the end afterwards. No tokens gives an array of length 0.</p></div>
+</div>
+</section>
+<section class="type" id="string_joiner">
+<h2><span class="kind">class</span> string_joiner</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/string_joiner.sharp">source</a></p>
+<p>string_joiner</p>
+<p>Collects pieces of text and joins them with a separator, optionally between a prefix and a suffix (Java&#x27;s StringJoiner):</p>
+<div class="code"><pre class="sharp">j := new string_joiner(&quot;, &quot;, &quot;[&quot;, &quot;]&quot;);
+j.add(&quot;a&quot;).add(&quot;b&quot;).add(&quot;c&quot;);
+j.build()                       &quot;[a, b, c]&quot;</pre></div>
+<p>With nothing added the result is prefix + suffix (&quot;[]&quot;), unless another text was chosen with set_empty_value(&quot;none&quot;).</p>
+<p>The separator is only put BETWEEN pieces, so there is never one at the start or the end. Pieces may be empty strings; they still count as pieces (&quot;a&quot;, &quot;&quot;, &quot;b&quot; joined with &quot;,&quot; is &quot;a,,b&quot;).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="string_joiner.string_joiner"><div class="sig"><b>string_joiner</b>(separator: string)</div><p>A joiner that puts <code>separator</code> between the pieces, with no prefix or suffix.</p></div>
+<div class="fn" id="string_joiner.string_joiner-2"><div class="sig"><b>string_joiner</b>(separator: string, prefix: string, suffix: string)</div><p>A joiner that puts <code>separator</code> between the pieces and wraps the result in <code>prefix</code> ... <code>suffix</code>.</p></div>
+<div class="fn" id="string_joiner.add"><div class="sig">def <b>add</b>(piece: string): string_joiner</div><p>Adds one piece. Returns this joiner, so calls can be chained.</p></div>
+<div class="fn" id="string_joiner.add_all"><div class="sig">def <b>add_all</b>(items: string[]): string_joiner</div><p>Adds every string of the array as a piece of its own (null elements are skipped).</p></div>
+<div class="fn" id="string_joiner.add_int"><div class="sig">def <b>add_int</b>(number: decimal): string_joiner</div><p>Adds a whole number as a piece, without decimals: add_int(3) adds &quot;3&quot;.</p></div>
+<div class="fn" id="string_joiner.build"><div class="sig">def <b>build</b>(): string</div><p>The joined text: prefix, the pieces with the separator between them, suffix. The joiner is not changed and more pieces can be added afterwards.</p></div>
+<div class="fn" id="string_joiner.clear"><div class="sig">def <b>clear</b>(): string_joiner</div><p>Forgets all pieces. Separator, prefix, suffix and the empty value are kept.</p></div>
+<div class="fn" id="string_joiner.count"><div class="sig">def <b>count</b>(): decimal</div><p>How many pieces were added.</p></div>
+<div class="fn" id="string_joiner.is_empty"><div class="sig">def <b>is_empty</b>(): bool</div><p>true if nothing was added yet.</p></div>
+<div class="fn" id="string_joiner.length"><div class="sig">def <b>length</b>(): decimal</div><p>The number of characters build() would return (prefix, pieces, separators and suffix; or the empty value if nothing was added).</p></div>
+<div class="fn" id="string_joiner.merge"><div class="sig">def <b>merge</b>(other: string_joiner): string_joiner</div><p>Adds the pieces of another joiner as ONE piece of this one: its pieces joined with ITS separator, without its prefix and suffix (as in Java). An empty joiner adds nothing.</p></div>
+<div class="fn" id="string_joiner.set_empty_value"><div class="sig">def <b>set_empty_value</b>(value: string): string_joiner</div><p>Sets the text build() returns while nothing has been added, instead of prefix + suffix. Returns this joiner.</p></div>
+<div class="fn" id="string_joiner.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>Same as build(), so a joiner can be printed or put in a &quot;$text&quot; directly.</p></div>
+</div>
+</section>
+<section class="type" id="string_reader">
+<h2><span class="kind">class</span> string_reader</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/string_reader.sharp">source</a></p>
+<p>string_reader</p>
+<p>A cursor over a string, for writing parsers by hand: look at the next character without taking it (peek), take it (next), skip or collect runs of characters, and try to match fixed pieces of text.</p>
+<div class="code"><pre class="sharp">r := new string_reader(&quot;width = 42;&quot;);
+name := r.read_identifier();        // &quot;width&quot;
+r.skip_whitespace();
+r.expect(&quot;=&quot;);                      // throws parse_exception if something else is there
+r.skip_whitespace();
+digits := r.read_digits();          // &quot;42&quot;
+r.match(&quot;;&quot;);                       // 1, and the reader is at the end</pre></div>
+<p>Characters are returned as native numbers; -1 means &quot;end of the text&quot;, so <code>while((c = r.next()) &gt;= 0)</code> style loops need no separate end test. Nothing here throws at the end of the text except expect() and the <code>mark</code> misuse described below: reading past the end simply gives -1 or &quot;&quot;.</p>
+<p>The position can be saved and restored (mark / reset, or position / seek) to try one way of reading and go back if it does not work out. line() and column() say where the cursor is for error messages.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="string_reader.string_reader"><div class="sig"><b>string_reader</b>(text: string)</div><p>A reader at the start of <code>text</code>.</p></div>
+<div class="fn" id="string_reader.at_end"><div class="sig">def <b>at_end</b>(): bool</div><p>true if every character has been read.</p></div>
+<div class="fn" id="string_reader.back"><div class="sig">def <b>back</b>(): string_reader</div><p>Steps one character back (so the last next() is undone). Does nothing at the start.</p></div>
+<div class="fn" id="string_reader.column"><div class="sig">def <b>column</b>(): decimal</div><p>The column the cursor is at within its line, counting from 1.</p></div>
+<div class="fn" id="string_reader.expect"><div class="sig">def <b>expect</b>(expected: string): string_reader</div><p>Takes <code>expected</code>, which must be what the text continues with. Throws parse_exception, with line and column, if something else is there.</p></div>
+<div class="fn" id="string_reader.has_next"><div class="sig">def <b>has_next</b>(): bool</div><p>true if there is at least one more character to read.</p></div>
+<div class="fn" id="string_reader.length"><div class="sig">def <b>length</b>(): decimal</div><p>The number of characters in the whole text.</p></div>
+<div class="fn" id="string_reader.line"><div class="sig">def <b>line</b>(): decimal</div><p>The line the cursor is on, counting from 1 (a line ends at &quot;\n&quot;).</p></div>
+<div class="fn" id="string_reader.looking_at"><div class="sig">def <b>looking_at</b>(expected: string): bool</div><p>true if the text continues with <code>expected</code> at the cursor. Takes nothing. &quot;&quot; always matches.</p></div>
+<div class="fn" id="string_reader.mark"><div class="sig">def <b>mark</b>(): string_reader</div><p>Remembers the current position; reset() goes back to it. A new mark replaces the old one.</p></div>
+<div class="fn" id="string_reader.match"><div class="sig">def <b>match</b>(expected: string): bool</div><p>If the text continues with <code>expected</code>, takes it and returns 1; otherwise takes nothing and returns 0.</p></div>
+<div class="fn" id="string_reader.match_char"><div class="sig">def <b>match_char</b>(c: char): bool</div><p>If the next character is <code>c</code>, takes it and returns 1; otherwise returns 0.</p></div>
+<div class="fn" id="string_reader.next"><div class="sig">def <b>next</b>(): decimal</div><p>Takes the next character and returns it, or returns -1 at the end (and stays there).</p></div>
+<div class="fn" id="string_reader.peek"><div class="sig">def <b>peek</b>(): decimal</div><p>The next character without taking it, or -1 at the end.</p></div>
+<div class="fn" id="string_reader.peek-2"><div class="sig">def <b>peek</b>(offset: int): decimal</div><p>The character <code>offset</code> places ahead without taking anything (peek(0) is peek(), peek(1) the one after it). -1 if that is beyond the end or before the start.</p></div>
+<div class="fn" id="string_reader.position"><div class="sig">def <b>position</b>(): decimal</div><p>Index of the next character to read: 0 at the start, length() at the end.</p></div>
+<div class="fn" id="string_reader.read"><div class="sig">def <b>read</b>(count: int): string</div><p>Takes up to <code>count</code> characters (fewer at the end) and returns them.</p></div>
+<div class="fn" id="string_reader.read_digits"><div class="sig">def <b>read_digits</b>(): string</div><p>Takes a run of digits 0-9 and returns it (&quot;&quot; if the next character is not a digit).</p></div>
+<div class="fn" id="string_reader.read_identifier"><div class="sig">def <b>read_identifier</b>(): string</div><p>Takes a name as used in programs: a letter or underscore followed by letters, digits and underscores. Returns &quot;&quot; (and takes nothing) if the next character cannot start a name.</p></div>
+<div class="fn" id="string_reader.read_line"><div class="sig">def <b>read_line</b>(): string</div><p>Takes the rest of the current line and returns it without the line end; the cursor moves past the line end (&quot;\n&quot;, &quot;\r\n&quot; or &quot;\r&quot;). At the end of the text it returns &quot;&quot;.</p></div>
+<div class="fn" id="string_reader.read_rest"><div class="sig">def <b>read_rest</b>(): string</div><p>Takes everything that is left and returns it (&quot;&quot; at the end).</p></div>
+<div class="fn" id="string_reader.read_until"><div class="sig">def <b>read_until</b>(delimiter: string): string</div><p>Takes everything up to, not including, the next occurrence of <code>delimiter</code> and returns it; the cursor stops AT the delimiter (use match(delimiter) to step over it). If the delimiter does not occur, everything up to the end is taken. Throws illegal_argument_exception if the delimiter is empty.</p></div>
+<div class="fn" id="string_reader.read_until_any"><div class="sig">def <b>read_until_any</b>(chars: string): string</div><p>Takes everything up to, not including, the next character that is one of <code>chars</code>; the cursor stops at that character. Without such a character everything up to the end is taken.</p></div>
+<div class="fn" id="string_reader.read_while"><div class="sig">def <b>read_while</b>(accept: (char)(bool)): string</div><p>Takes characters as long as <code>accept</code> says yes for them and returns them (&quot;&quot; if none).</p></div>
+<div class="fn" id="string_reader.read_while_in"><div class="sig">def <b>read_while_in</b>(chars: string): string</div><p>Takes characters as long as they are one of <code>chars</code> and returns them (&quot;&quot; if the first one already is not).</p></div>
+<div class="fn" id="string_reader.remaining"><div class="sig">def <b>remaining</b>(): decimal</div><p>How many characters are left to read.</p></div>
+<div class="fn" id="string_reader.reset"><div class="sig">def <b>reset</b>(): string_reader</div><p>Goes back to the position remembered by mark(). The mark stays set. Throws illegal_state_exception if mark() was never called.</p></div>
+<div class="fn" id="string_reader.rest"><div class="sig">def <b>rest</b>(): string</div><p>Everything that is left, without taking it.</p></div>
+<div class="fn" id="string_reader.rewind"><div class="sig">def <b>rewind</b>(): string_reader</div><p>Goes back to the start of the text and forgets the mark.</p></div>
+<div class="fn" id="string_reader.seek"><div class="sig">def <b>seek</b>(new_position: int): string_reader</div><p>Moves the cursor to <code>new_position</code> (0 .. length()). Throws out_of_bounds_exception if it is outside of that range.</p></div>
+<div class="fn" id="string_reader.skip"><div class="sig">def <b>skip</b>(count: int): decimal</div><p>Skips up to <code>count</code> characters (fewer if the end comes first). Returns how many were skipped.</p></div>
+<div class="fn" id="string_reader.skip_while"><div class="sig">def <b>skip_while</b>(accept: (char)(bool)): decimal</div><p>Skips characters as long as <code>accept</code> says yes for them, e.g. <code>r.skip_while({ c: char -&gt; (bool) return c.value != &#x27;;&#x27;; })</code>. Returns how many were skipped.</p></div>
+<div class="fn" id="string_reader.skip_while_in"><div class="sig">def <b>skip_while_in</b>(chars: string): decimal</div><p>Skips characters as long as they are one of <code>chars</code>. Returns how many were skipped.</p></div>
+<div class="fn" id="string_reader.skip_whitespace"><div class="sig">def <b>skip_whitespace</b>(): decimal</div><p>Skips whitespace (space, tab, \n, \r, vertical tab, form feed). Returns how many characters were skipped.</p></div>
+</div>
+</section>
+<section class="type" id="string_similarity">
+<h2><span class="kind">class</span> string_similarity</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/string_similarity.sharp">source</a></p>
+<p>string_similarity</p>
+<p>Measures of how alike two strings are. All functions are static.</p>
+<div class="code"><pre class="sharp">levenshtein(a, b)          edits (insert / delete / replace one character) to turn a into b
+damerau_levenshtein(a, b)  the same, but swapping two neighbouring characters is one edit
+hamming(a, b)              positions at which two strings of equal length differ
+similarity(a, b)           0.0 .. 1.0 from the Levenshtein distance (1 = equal)
+jaro / jaro_winkler        0.0 .. 1.0, good for short strings such as names
+common_prefix / common_suffix (+ _length)
+longest_common_substring   the longest piece both strings contain
+lcs_length                 length of the longest common SUBSEQUENCE (need not be adjacent)</pre></div>
+<p>Comparisons are exact: capital and small letters are different. Call to_lower() on both strings first for a comparison that ignores case.</p>
+<p>Cost: the distance and common-part functions take time proportional to length(a) * length(b) and memory proportional to the shorter length or length(b); they are meant for words and lines, not for whole files.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="string_similarity.common_prefix"><div class="sig">static def <b>common_prefix</b>(a: string, b: string): string</div><p>The start both strings share (&quot;&quot; if they start differently): common_prefix(&quot;interstellar&quot;, &quot;internet&quot;) is &quot;inter&quot;.</p></div>
+<div class="fn" id="string_similarity.common_prefix_length"><div class="sig">static def <b>common_prefix_length</b>(a: string, b: string): decimal</div><p>The number of characters both strings start with: common_prefix_length(&quot;interstellar&quot;, &quot;internet&quot;) is 5.</p></div>
+<div class="fn" id="string_similarity.common_prefix_of"><div class="sig">static def <b>common_prefix_of</b>(items: string[]): string</div><p>The start shared by ALL strings of <code>items</code>: for [&quot;flower&quot;, &quot;flow&quot;, &quot;flight&quot;] it is &quot;fl&quot;. An empty array gives &quot;&quot;; one string gives that string.</p></div>
+<div class="fn" id="string_similarity.common_suffix"><div class="sig">static def <b>common_suffix</b>(a: string, b: string): string</div><p>The end both strings share (&quot;&quot; if they end differently): common_suffix(&quot;walking&quot;, &quot;talking&quot;) is &quot;alking&quot;.</p></div>
+<div class="fn" id="string_similarity.common_suffix_length"><div class="sig">static def <b>common_suffix_length</b>(a: string, b: string): decimal</div><p>The number of characters both strings end with: common_suffix_length(&quot;walking&quot;, &quot;talking&quot;) is 6.</p></div>
+<div class="fn" id="string_similarity.damerau_levenshtein"><div class="sig">static def <b>damerau_levenshtein</b>(a: string, b: string): decimal</div><p>Like levenshtein, but swapping two neighbouring characters counts as ONE edit instead of two (the &quot;optimal string alignment&quot; distance): the typical typing mistake. damerau_levenshtein(&quot;form&quot;, &quot;from&quot;) is 1.</p></div>
+<div class="fn" id="string_similarity.hamming"><div class="sig">static def <b>hamming</b>(a: string, b: string): decimal</div><p>The Hamming distance: at how many positions the two strings have a different character. hamming(&quot;karolin&quot;, &quot;kathrin&quot;) is 3. Throws illegal_argument_exception if the strings do not have the same length.</p></div>
+<div class="fn" id="string_similarity.jaro"><div class="sig">static def <b>jaro</b>(a: string, b: string): decimal</div><p>The Jaro similarity, 0 (nothing alike) to 1 (equal). It counts characters that match within a window around the same position, and how many of those are out of order. jaro(&quot;MARTHA&quot;, &quot;MARHTA&quot;) is about 0.944. Two empty strings give 1; one empty string gives 0.</p></div>
+<div class="fn" id="string_similarity.jaro_winkler"><div class="sig">static def <b>jaro_winkler</b>(a: string, b: string): decimal</div><p>The Jaro-Winkler similarity: jaro, raised for strings that start the same (up to 4 characters), which suits names and words. jaro_winkler(&quot;MARTHA&quot;, &quot;MARHTA&quot;) is about 0.961.</p></div>
+<div class="fn" id="string_similarity.lcs_length"><div class="sig">static def <b>lcs_length</b>(a: string, b: string): decimal</div><p>The length of the longest common SUBSEQUENCE: the most characters that appear in both strings in the same order, not necessarily next to each other. lcs_length(&quot;AGGTAB&quot;, &quot;GXTXAYB&quot;) is 4 (&quot;GTAB&quot;).</p></div>
+<div class="fn" id="string_similarity.levenshtein"><div class="sig">static def <b>levenshtein</b>(a: string, b: string): decimal</div><p>The Levenshtein (edit) distance: the smallest number of single-character insertions, deletions and replacements that turn <code>a</code> into <code>b</code>. levenshtein(&quot;kitten&quot;, &quot;sitting&quot;) is 3. Equal strings give 0; the distance to &quot;&quot; is the length of the other string.</p></div>
+<div class="fn" id="string_similarity.longest_common_substring"><div class="sig">static def <b>longest_common_substring</b>(a: string, b: string): string</div><p>The longest piece of text that occurs in both strings without gaps: longest_common_substring(&quot;xabcdy&quot;, &quot;zabcdw&quot;) is &quot;abcd&quot;. If several are equally long the one that comes first in <code>a</code> is returned; &quot;&quot; if the strings share no character.</p></div>
+<div class="fn" id="string_similarity.similarity"><div class="sig">static def <b>similarity</b>(a: string, b: string): decimal</div><p>How alike the strings are on a scale from 0 (nothing in common) to 1 (equal): 1 - levenshtein / length of the longer string. similarity(&quot;kitten&quot;, &quot;sitting&quot;) is about 0.571. Two empty strings give 1.</p></div>
+</div>
+</section>
+<section class="type" id="string_support">
+<h2><span class="kind">class</span> string_support</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/string/string_support.sharp">source</a></p>
+<p>string_support</p>
+<p>INTERNAL helpers shared by the string_*.sharp files in this folder (the files that add methods to the <code>string</code> class). Not meant to be called from programs: everything here is available in a friendlier form as a method of <code>string</code> (index_of, contains, trim ...).</p>
+<p>Why this is a class and not a set of private methods of <code>string</code>: a method added to a class by one <code>mutate</code> file is not reliably visible inside another <code>mutate</code> file of the same class - whether it resolves depends on the order in which the compiler happens to process the files. A separate class is always visible, so the shared code lives here and works on the raw character arrays (<code>string.data</code>, which is null for an empty string).</p>
+<p>All functions are static, take native numbers and never throw: the callers have already checked their arguments.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="string_support.count"><div class="sig">static def <b>count</b>(data: _int8[]?, needle: _int8[]?): decimal</div><p>How many times <code>needle</code> occurs in <code>data</code>, not counting overlaps; 0 for an empty needle.</p></div>
+<div class="fn" id="string_support.find_backward"><div class="sig">static def <b>find_backward</b>(data: _int8[]?, needle: _int8[]?, from: decimal): decimal</div><p>Position of the last occurrence of <code>needle</code> in <code>data</code> that starts at <code>from</code> or earlier, -1 if there is none. <code>from</code> beyond the last possible start counts as that start.</p></div>
+<div class="fn" id="string_support.find_forward"><div class="sig">static def <b>find_forward</b>(data: _int8[]?, needle: _int8[]?, from: decimal): decimal</div><p>Position of the first occurrence of <code>needle</code> in <code>data</code> that starts at <code>from</code> or later, -1 if there is none. <code>from</code> below 0 counts as 0. An empty needle is found at <code>from</code> (or at the length if from is beyond it).</p></div>
+<div class="fn" id="string_support.in_set"><div class="sig">static def <b>in_set</b>(c: decimal, chars: _int8[]?): bool</div><p>true if the character <code>c</code> is one of the characters in <code>chars</code>.</p></div>
+<div class="fn" id="string_support.is_space"><div class="sig">static def <b>is_space</b>(c: decimal): bool</div><p>true if <code>c</code> is whitespace: space, tab, \n, vertical tab (11), form feed (12), \r.</p></div>
+<div class="fn" id="string_support.lower_of"><div class="sig">static def <b>lower_of</b>(c: decimal): decimal</div><p><code>c</code> in lower case if it is an ASCII capital letter, otherwise <code>c</code>.</p></div>
+<div class="fn" id="string_support.of_buffer"><div class="sig">static def <b>of_buffer</b>(buffer: _int8[]?, len: decimal): string</div><p>A string of the first <code>len</code> characters of <code>buffer</code>; len &lt;= 0 gives &quot;&quot;.</p></div>
+<div class="fn" id="string_support.region_equals"><div class="sig">static def <b>region_equals</b>(data: _int8[]?, at: decimal, needle: _int8[]?): bool</div><p>true if <code>needle</code> occurs in <code>data</code> exactly at position <code>at</code>. Never reads outside of <code>data</code>: a needle that does not fit gives 0. An empty needle fits everywhere from 0 to the length.</p></div>
+<div class="fn" id="string_support.region_equals_ignore_case"><div class="sig">static def <b>region_equals_ignore_case</b>(data: _int8[]?, at: decimal, needle: _int8[]?): bool</div><p>region_equals that treats ASCII capital and small letters as equal.</p></div>
+<div class="fn" id="string_support.slice"><div class="sig">static def <b>slice</b>(data: _int8[]?, from: decimal, to: decimal): string</div><p>The characters from <code>from</code> up to (not including) <code>to</code> of <code>data</code> as a new string. The caller guarantees 0 &lt;= from, to &lt;= length. from &gt;= to gives &quot;&quot;.</p></div>
+<div class="fn" id="string_support.upper_of"><div class="sig">static def <b>upper_of</b>(c: decimal): decimal</div><p><code>c</code> in upper case if it is an ASCII small letter, otherwise <code>c</code>.</p></div>
+</div>
+</section>
+<section class="type" id="string_tokenizer">
+<h2><span class="kind">class</span> string_tokenizer</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/string_tokenizer.sharp">source</a></p>
+<p>string_tokenizer</p>
+<p>Walks through a text token by token, where tokens are the runs of characters between delimiter characters (Java&#x27;s StringTokenizer):</p>
+<div class="code"><pre class="sharp">t := new string_tokenizer(&quot;a, b;c&quot;, &quot;,; &quot;);
+while(t.has_more_tokens()) {
+    println(t.next_token());            // a   b   c
+}</pre></div>
+<p>Every character of the delimiter string is a delimiter on its own. Unlike string.split, several delimiters in a row do NOT give empty tokens, and delimiters at the start or end are skipped - which is what is wanted for words and lists typed by people. Use split when empty fields matter (CSV).</p>
+<p>With return_delimiters switched on, each delimiter character is returned as a one-character token too (&quot;1+2&quot; with &quot;+&quot; gives &quot;1&quot;, &quot;+&quot;, &quot;2&quot;), which is enough for a simple expression reader.</p>
+<p>The default delimiters are the whitespace characters: space, tab, \n, \r, form feed.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="string_tokenizer.string_tokenizer"><div class="sig"><b>string_tokenizer</b>(text: string)</div><p>A tokenizer over <code>text</code> that splits at whitespace.</p></div>
+<div class="fn" id="string_tokenizer.string_tokenizer-2"><div class="sig"><b>string_tokenizer</b>(text: string, delimiters: string)</div><p>A tokenizer over <code>text</code> that splits at any character of <code>delimiters</code>. An empty set makes the whole text one token.</p></div>
+<div class="fn" id="string_tokenizer.string_tokenizer-3"><div class="sig"><b>string_tokenizer</b>(text: string, delimiters: string, return_delimiters: bool)</div><p>A tokenizer over <code>text</code> that splits at any character of <code>delimiters</code>; if <code>return_delimiters</code> is true the delimiter characters are returned as tokens as well.</p></div>
+<div class="fn" id="string_tokenizer.count_tokens"><div class="sig">def <b>count_tokens</b>(): decimal</div><p>How many tokens next_token() can still return. Does not move forward.</p></div>
+<div class="fn" id="string_tokenizer.has_more_tokens"><div class="sig">def <b>has_more_tokens</b>(): bool</div><p>true if there is at least one more token. Does not move forward.</p></div>
+<div class="fn" id="string_tokenizer.next_token"><div class="sig">def <b>next_token</b>(): string</div><p>The next token; the tokenizer moves past it. Throws no_such_element_exception if there are no more tokens.</p></div>
+<div class="fn" id="string_tokenizer.next_token-2"><div class="sig">def <b>next_token</b>(new_delimiters: string): string</div><p>The next token, using <code>new_delimiters</code> from now on (they stay in effect for the following calls as well). Throws no_such_element_exception if there are no more tokens.</p></div>
+<div class="fn" id="string_tokenizer.next_token_or"><div class="sig">def <b>next_token_or</b>(fallback: string): string</div><p>The next token, or <code>fallback</code> if there are no more tokens.</p></div>
+<div class="fn" id="string_tokenizer.remaining"><div class="sig">def <b>remaining</b>(): string</div><p>Everything that has not been read yet, exactly as it is in the text (including the delimiters in front of the next token). &quot;&quot; at the end.</p></div>
+<div class="fn" id="string_tokenizer.reset"><div class="sig">def <b>reset</b>(): string_tokenizer</div><p>Starts again from the beginning of the text.</p></div>
+<div class="fn" id="string_tokenizer.to_array"><div class="sig">def <b>to_array</b>(): string[]</div><p>All remaining tokens as an array; the tokenizer is at the end afterwards. No tokens gives an array of length 0.</p></div>
+</div>
+</section>
+<section class="type" id="template">
+<h2><span class="kind">class</span> template</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/template.sharp">source</a></p>
+<p>template</p>
+<p>A text with named placeholders in braces that are filled in later:</p>
+<div class="code"><pre class="sharp">t := new template(&quot;Dear {name}, your order {id} ships on {day}.&quot;);
+t.put(&quot;name&quot;, &quot;Ada&quot;).put_int(&quot;id&quot;, 1042).put(&quot;day&quot;, &quot;Monday&quot;);
+t.render()        &quot;Dear Ada, your order 1042 ships on Monday.&quot;</pre></div>
+<p>Rules - a placeholder is &#x27;{&#x27;, a name, &#x27;}&#x27;. A name is made of letters, digits, &#x27;_&#x27;, &#x27;.&#x27; and &#x27;-&#x27;; spaces directly inside the braces are ignored, so &quot;{ name }&quot; is the same as &quot;{name}&quot;. - &quot;{{&quot; gives one &#x27;{&#x27; and &quot;}}&quot; gives one &#x27;}&#x27; (to write braces as text). - anything else in braces is not a placeholder and is copied as it is: &quot;{}&quot;, &quot;{a b}&quot;, &quot;{x:y}&quot;, and a &#x27;{&#x27; that is never closed. - a placeholder whose name has no value is, by default, left in the output unchanged (&quot;{day}&quot;), so missing values are easy to spot. Choose another behaviour with set_missing_value(&quot;&quot;) or set_strict(true). - values are inserted as they are; a value containing &quot;{x}&quot; is NOT filled in again.</p>
+<p>The same template can be rendered many times with changing values: put() with a name that already has a value replaces it.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="template.template"><div class="sig"><b>template</b>(text: string)</div><p>A template with the given text and no values yet.</p></div>
+<div class="fn" id="template.clear"><div class="sig">def <b>clear</b>(): template</div><p>Forgets all values. The text and the missing-value settings are kept.</p></div>
+<div class="fn" id="template.has"><div class="sig">def <b>has</b>(name: string): bool</div><p>true if a value has been set for <code>name</code>.</p></div>
+<div class="fn" id="template.placeholders"><div class="sig">def <b>placeholders</b>(): string[]</div><p>The names of the placeholders in the text, each once, in the order they first appear. A text without placeholders gives an array of length 0.</p></div>
+<div class="fn" id="template.put"><div class="sig">def <b>put</b>(name: string, value: string): template</div><p>Sets the value for the placeholder <code>name</code>, replacing an earlier value. Returns this template, so calls can be chained. Throws illegal_argument_exception if the name is empty.</p></div>
+<div class="fn" id="template.put_all"><div class="sig">def <b>put_all</b>(new_names: string[], new_values: string[]): template</div><p>Sets several values at once: names[i] gets values[i]. Throws illegal_argument_exception if the arrays have different lengths.</p></div>
+<div class="fn" id="template.put_int"><div class="sig">def <b>put_int</b>(name: string, value: decimal): template</div><p>put with a whole number as the value, written without decimals: put_int(&quot;count&quot;, 3) fills in &quot;3&quot;.</p></div>
+<div class="fn" id="template.put_number"><div class="sig">def <b>put_number</b>(name: string, value: decimal, decimals: int): template</div><p>put with a number as the value, written with exactly <code>decimals</code> decimals: put_number(&quot;price&quot;, 9.5, 2) fills in &quot;9.50&quot;.</p></div>
+<div class="fn" id="template.remove"><div class="sig">def <b>remove</b>(name: string): template</div><p>Forgets the value of <code>name</code> (nothing happens if it has none). Returns this template.</p></div>
+<div class="fn" id="template.render"><div class="sig">def <b>render</b>(): string</div><p>The text with every placeholder replaced by its value. Throws no_such_element_exception if a placeholder has no value and set_strict(true) was called.</p></div>
+<div class="fn" id="template.render-2"><div class="sig">static def <b>render</b>(text: string, names: string[], values: string[]): string</div><p>One-off rendering: <code>text</code> with each placeholder names[i] replaced by values[i]. Placeholders without a value are left unchanged. Throws illegal_argument_exception if the arrays have different lengths.</p></div>
+<div class="fn" id="template.set_missing_value"><div class="sig">def <b>set_missing_value</b>(value: string): template</div><p>The text to put in place of a placeholder that has no value (often &quot;&quot;). Without this call such a placeholder is left in the output unchanged.</p></div>
+<div class="fn" id="template.set_strict"><div class="sig">def <b>set_strict</b>(on: bool): template</div><p>true: render() throws no_such_element_exception when a placeholder has no value. false (the default): see set_missing_value.</p></div>
+<div class="fn" id="template.source"><div class="sig">def <b>source</b>(): string</div><p>The template text as given to the constructor.</p></div>
+<div class="fn" id="template.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>Same as render(), so a template can be printed directly.</p></div>
+<div class="fn" id="template.value_of"><div class="sig">def <b>value_of</b>(name: string, fallback: string): string</div><p>The value set for <code>name</code>, or <code>fallback</code> if there is none.</p></div>
+</div>
+</section>
+<section class="type" id="text_align">
+<h2><span class="kind">class</span> text_align</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/text_align.sharp">source</a></p>
+<p>text_align</p>
+<p>Puts one line of text into a field of a given width. All functions are static:</p>
+<div class="code"><pre class="sharp">text_align.left(&quot;abc&quot;, 7)        &quot;abc    &quot;
+text_align.right(&quot;abc&quot;, 7)       &quot;    abc&quot;
+text_align.center(&quot;abc&quot;, 7)      &quot;  abc  &quot;
+text_align.justify(&quot;a b c&quot;, 9)   &quot;a   b   c&quot;
+text_align.fit(&quot;abcdefgh&quot;, 5)    &quot;ab...&quot;</pre></div>
+<p>left / right / center / justify never cut text off: a text that is already as wide as the field, or wider, is returned unchanged. Use fit when the result must be EXACTLY the given width.</p>
+<p>Width is counted in characters (bytes), which is right for ASCII text in a fixed-width font. For whole paragraphs see std.text#text_wrap, for columns std.text#text_table.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="text_align.center"><div class="sig">static def <b>center</b>(text: string, width: int): string</div><p>The text in the middle of a field of <code>width</code> characters. When the spaces cannot be split evenly the extra one goes on the right: center(&quot;ab&quot;, 5) is &quot; ab  &quot;. Throws illegal_argument_exception if width is negative.</p></div>
+<div class="fn" id="text_align.center-2"><div class="sig">static def <b>center</b>(text: string, width: int, fill: char): string</div><p>center with the character to fill with: center(&quot; title &quot;, 15, &#x27;=&#x27;) is &quot;==== title ====&quot;.</p></div>
+<div class="fn" id="text_align.fit"><div class="sig">static def <b>fit</b>(text: string, width: int): string</div><p>The text made EXACTLY <code>width</code> characters wide: a shorter text is filled up with spaces on the right, a longer one is cut off and ends in &quot;...&quot; (or is just cut off if the width is below 3). fit(&quot;abcdefgh&quot;, 5) is &quot;ab...&quot;, fit(&quot;ab&quot;, 5) is &quot;ab   &quot;. Throws illegal_argument_exception if width is negative.</p></div>
+<div class="fn" id="text_align.justify"><div class="sig">static def <b>justify</b>(text: string, width: int): string</div><p>The words of the line spread out so that it is exactly <code>width</code> characters wide, with the extra spaces shared between the gaps (gaps further left get the leftover spaces first): justify(&quot;a b c&quot;, 8) is &quot;a   b  c&quot;. Existing runs of whitespace count as one gap each. A line with a single word (or none), or one that is already too wide with single spaces, cannot be justified: its words are returned joined by single spaces. Throws illegal_argument_exception if width is negative.</p></div>
+<div class="fn" id="text_align.left"><div class="sig">static def <b>left</b>(text: string, width: int): string</div><p>The text at the left of a field of <code>width</code> characters, filled up with spaces on the right. Throws illegal_argument_exception if width is negative.</p></div>
+<div class="fn" id="text_align.left-2"><div class="sig">static def <b>left</b>(text: string, width: int, fill: char): string</div><p>left with the character to fill with: left(&quot;abc&quot;, 6, &#x27;.&#x27;) is &quot;abc...&quot;.</p></div>
+<div class="fn" id="text_align.right"><div class="sig">static def <b>right</b>(text: string, width: int): string</div><p>The text at the right of a field of <code>width</code> characters, filled up with spaces on the left. Throws illegal_argument_exception if width is negative.</p></div>
+<div class="fn" id="text_align.right-2"><div class="sig">static def <b>right</b>(text: string, width: int, fill: char): string</div><p>right with the character to fill with: right(&quot;42&quot;, 6, &#x27;0&#x27;) is &quot;000042&quot;.</p></div>
+<div class="fn" id="text_align.rule"><div class="sig">static def <b>rule</b>(c: char, width: int): string</div><p>A horizontal rule: the character <code>c</code> repeated <code>width</code> times (rule(&#x27;-&#x27;, 20) draws a line under a heading). A width of 0 gives &quot;&quot;. Throws illegal_argument_exception if width is negative.</p></div>
+</div>
+</section>
+<section class="type" id="text_pattern">
+<h2><span class="kind">class</span> text_pattern</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/text_pattern.sharp">source</a></p>
+<p>text_pattern</p>
+<p>Wildcard (&quot;glob&quot;) matching, the kind used for file names:</p>
+<div class="code"><pre class="sharp">*        any run of characters, including none
+?        exactly one character
+[abc]    one character out of the set
+[a-z0-9] one character out of the ranges (sets and ranges can be mixed)
+[!abc]   one character that is NOT in the set ( [^abc] means the same )
+\x       the character x itself, e.g. \* for a real star</pre></div>
+<p>Inside brackets a &#x27;]&#x27; directly after the &#x27;[&#x27; (or after the &#x27;!&#x27;) is a normal member of the set, and a &#x27;-&#x27; at the start or end is a normal minus.</p>
+<div class="code"><pre class="sharp">p := new text_pattern(&quot;*.sharp&quot;);
+p.matches(&quot;main.sharp&quot;)        1
+p.matches(&quot;main.cpp&quot;)          0
+text_pattern.matches(&quot;data_??.csv&quot;, &quot;data_07.csv&quot;)     1</pre></div>
+<p>A pattern always has to match the WHOLE text (use &quot;*abc*&quot; to ask whether &quot;abc&quot; occurs somewhere). The &#x27;*&#x27; also matches &#x27;/&#x27; - there is no special treatment of path separators.</p>
+<p>Making a text_pattern checks and translates the pattern once; matching is then a single pass over the text with no recursion, so long texts and patterns with many stars are safe. Keep the object when the same pattern is used many times.</p>
+<p>For patterns that need repetition counts, groups or alternatives see std.text#regex.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="text_pattern.text_pattern"><div class="sig"><b>text_pattern</b>(pattern: string)</div><p>Translates <code>pattern</code>. Capital and small letters are different. Throws parse_exception if the pattern is malformed: a &#x27;[&#x27; without its &#x27;]&#x27;, an empty set &quot;[]&quot;, or a &#x27;\&#x27; at the very end.</p></div>
+<div class="fn" id="text_pattern.text_pattern-2"><div class="sig"><b>text_pattern</b>(pattern: string, ignore_case: bool)</div><p>Translates <code>pattern</code>; if <code>ignore_case</code> is true, ASCII capital and small letters are treated as equal when matching (&quot;*.TXT&quot; matches &quot;a.txt&quot;). Throws parse_exception if the pattern is malformed.</p></div>
+<div class="fn" id="text_pattern.count_matches"><div class="sig">def <b>count_matches</b>(items: string[]): decimal</div><p>How many strings of <code>items</code> match.</p></div>
+<div class="fn" id="text_pattern.escape"><div class="sig">static def <b>escape</b>(text: string): string</div><p><code>text</code> with a &#x27;\&#x27; in front of every character that is special in a pattern, so that the result matches exactly that text: escape(&quot;what?&quot;) is &quot;what\?&quot;.</p></div>
+<div class="fn" id="text_pattern.filter"><div class="sig">def <b>filter</b>(items: string[]): string[]</div><p>The strings of <code>items</code> that match, in their original order (an array of length 0 if none do). Null elements are skipped.</p></div>
+<div class="fn" id="text_pattern.has_wildcards"><div class="sig">static def <b>has_wildcards</b>(text: string): bool</div><p>true if <code>text</code> contains a character that is special in a pattern: * ? [ or \</p></div>
+<div class="fn" id="text_pattern.is_literal"><div class="sig">def <b>is_literal</b>(): bool</div><p>true if the pattern has no wildcards at all, so that it matches exactly one text (apart from letter case).</p></div>
+<div class="fn" id="text_pattern.matches"><div class="sig">def <b>matches</b>(text: string): bool</div><p>true if the whole of <code>text</code> fits the pattern. An empty pattern only matches &quot;&quot;; &quot;*&quot; matches everything, including &quot;&quot;.</p></div>
+<div class="fn" id="text_pattern.matches-2"><div class="sig">static def <b>matches</b>(pattern: string, text: string): bool</div><p>One-off match: true if the whole of <code>text</code> fits <code>pattern</code>. Throws parse_exception if the pattern is malformed.</p></div>
+<div class="fn" id="text_pattern.matches_ignore_case"><div class="sig">static def <b>matches_ignore_case</b>(pattern: string, text: string): bool</div><p>One-off match that treats ASCII capital and small letters as equal.</p></div>
+<div class="fn" id="text_pattern.pattern"><div class="sig">def <b>pattern</b>(): string</div><p>The pattern text this object was made from.</p></div>
+</div>
+</section>
+<section class="type" id="text_table">
+<h2><span class="kind">class</span> text_table</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/text_table.sharp">source</a></p>
+<p>text_table</p>
+<p>Lays out rows of text in columns for printing in a terminal or a log:</p>
+<div class="code"><pre class="sharp">t := new text_table(new string[] { &quot;item&quot;, &quot;qty&quot;, &quot;price&quot; });
+t.align(1, text_table.right).align(2, text_table.right);
+t.add_row(new string[] { &quot;pear&quot;, &quot;3&quot;, &quot;1.20&quot; });
+t.add_row(new string[] { &quot;melon&quot;, &quot;12&quot;, &quot;24.00&quot; });
+println(t.render());</pre></div>
+<div class="code"><pre class="sharp">+-------+-----+-------+
+| item  | qty | price |
++-------+-----+-------+
+| pear  |   3 |  1.20 |
+| melon |  12 | 24.00 |
++-------+-----+-------+</pre></div>
+<p>Every column is as wide as its widest cell (header included). Columns are left aligned unless align() says otherwise. With set_border(false) the frame is left out and columns are separated by two spaces, with a line of dashes under the headers:</p>
+<div class="code"><pre class="sharp">item   qty  price
+-----  ---  -----
+pear     3   1.20</pre></div>
+<p>Cells are single lines; a line end inside a cell would break the layout (render does not check for it). Width is counted in characters (bytes). render() can be called any number of times, also between add_row calls.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>left</code></td><td><code>decimal</code></td><td>align(column, text_table.left): the cell text starts at the left edge of the column (the default).</td></tr><tr><td><code>right</code></td><td><code>decimal</code></td><td>align(column, text_table.right): the cell text ends at the right edge of the column (for numbers).</td></tr><tr><td><code>center</code></td><td><code>decimal</code></td><td>align(column, text_table.center): the cell text is in the middle of the column.</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="text_table.text_table"><div class="sig"><b>text_table</b>(headers: string[])</div><p>A table with one column per header. Throws illegal_argument_exception if there are no headers.</p></div>
+<div class="fn" id="text_table.add_row"><div class="sig">def <b>add_row</b>(row: string[]): text_table</div><p>Adds a row. A row with fewer cells than the table has columns is filled up with empty cells; null cells count as empty. Throws illegal_argument_exception if the row has MORE cells than columns.</p></div>
+<div class="fn" id="text_table.align"><div class="sig">def <b>align</b>(column: int, mode: int): text_table</div><p>Sets how column <code>column</code> (0 = first) is aligned: text_table.left, text_table.right or text_table.center. The header is aligned the same way. Returns this table, so calls can be chained. Throws out_of_bounds_exception if there is no such column, illegal_argument_exception if <code>mode</code> is not one of the three values.</p></div>
+<div class="fn" id="text_table.cell"><div class="sig">def <b>cell</b>(row: int, column: int): string</div><p>The text of the cell in row <code>row</code>, column <code>column</code> (both from 0). Throws out_of_bounds_exception if there is no such cell.</p></div>
+<div class="fn" id="text_table.clear"><div class="sig">def <b>clear</b>(): text_table</div><p>Removes all rows. Headers, alignment and the border setting are kept.</p></div>
+<div class="fn" id="text_table.column_count"><div class="sig">def <b>column_count</b>(): decimal</div><p>The number of columns.</p></div>
+<div class="fn" id="text_table.render"><div class="sig">def <b>render</b>(): string</div><p>The whole table as text: one line per row, each line ending in &quot;\n&quot; (including the last one), ready for print().</p></div>
+<div class="fn" id="text_table.render_lines"><div class="sig">def <b>render_lines</b>(): string[]</div><p>The lines of render() as an array, without the line ends.</p></div>
+<div class="fn" id="text_table.row_count"><div class="sig">def <b>row_count</b>(): decimal</div><p>The number of rows added so far (the header row is not counted).</p></div>
+<div class="fn" id="text_table.set_border"><div class="sig">def <b>set_border</b>(on: bool): text_table</div><p>true (the default) draws the frame of + - | characters; false gives the plain layout.</p></div>
+<div class="fn" id="text_table.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>Same as render(), so a table can be printed directly.</p></div>
+</div>
+</section>
+<section class="type" id="text_wrap">
+<h2><span class="kind">class</span> text_wrap</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/text/text_wrap.sharp">source</a></p>
+<p>text_wrap</p>
+<p>Breaks long text into lines of a maximum width, and adds or removes indentation. All functions are static:</p>
+<div class="code"><pre class="sharp">text_wrap.wrap(&quot;the quick brown fox jumps&quot;, 10)     [&quot;the quick&quot;, &quot;brown fox&quot;, &quot;jumps&quot;]
+text_wrap.fill(&quot;the quick brown fox jumps&quot;, 10)     &quot;the quick\nbrown fox\njumps&quot;
+text_wrap.indent(&quot;a\nb&quot;, &quot;  &quot;)                      &quot;  a\n  b&quot;
+text_wrap.dedent(&quot;    a\n      b&quot;)                  &quot;a\n  b&quot;</pre></div>
+<p>How wrapping works - the text is cut into words at whitespace; words are put on a line with single spaces between them for as long as they fit - a word longer than the width is cut into pieces of exactly the width (there is no hyphenation), so no line is ever longer than the width - line ends in the input are treated like spaces by wrap(); fill() and wrap_paragraphs() keep EMPTY lines as paragraph breaks - width is counted in characters (bytes): right for ASCII text</p>
+<h3>Functions</h3><div>
+<div class="fn" id="text_wrap.dedent"><div class="sig">static def <b>dedent</b>(text: string): string</div><p>The text with the indentation that ALL its lines share removed, so the least indented line starts at column 0 and the others keep their relative indentation. Blank lines are ignored when measuring and come out empty. Only spaces and tabs count as indentation, each as one character. Line ends are written as &quot;\n&quot;.</p></div>
+<div class="fn" id="text_wrap.fill"><div class="sig">static def <b>fill</b>(text: string, width: int): string</div><p>The text wrapped to <code>width</code> as ONE string with &quot;\n&quot; between the lines. Paragraph breaks (empty lines) are kept, as in wrap_paragraphs. There is no &quot;\n&quot; after the last line. A blank text gives &quot;&quot;. Throws illegal_argument_exception if width is less than 1.</p></div>
+<div class="fn" id="text_wrap.fill-2"><div class="sig">static def <b>fill</b>(text: string, width: int, first_prefix: string, rest_prefix: string): string</div><p>Wraps the text so that, together with the prefixes, no line is longer than <code>width</code>: the first line starts with <code>first_prefix</code>, all following lines with <code>rest_prefix</code>. Used for bullet points and hanging indents: fill(&quot;some long text ...&quot;, 20, &quot;- &quot;, &quot;  &quot;). Throws illegal_argument_exception if width does not leave at least one character of room after the longer prefix.</p></div>
+<div class="fn" id="text_wrap.indent"><div class="sig">static def <b>indent</b>(text: string, prefix: string): string</div><p>Every line of the text with <code>prefix</code> in front of it. Lines that are empty stay empty (no trailing spaces are produced). Line ends are written as &quot;\n&quot;.</p></div>
+<div class="fn" id="text_wrap.indent_by"><div class="sig">static def <b>indent_by</b>(text: string, spaces: int): string</div><p>indent with <code>spaces</code> spaces as the prefix. A count of 0 or less changes nothing but the line ends. (It has its own name because indent(text, 3) would be ambiguous: a number also converts to a string.)</p></div>
+<div class="fn" id="text_wrap.max_line_length"><div class="sig">static def <b>max_line_length</b>(text: string): decimal</div><p>The length of the longest line of the text (0 for &quot;&quot;).</p></div>
+<div class="fn" id="text_wrap.wrap"><div class="sig">static def <b>wrap</b>(text: string, width: int): string[]</div><p>The text as lines of at most <code>width</code> characters, as an array. All whitespace (including line ends) only separates words. An empty or blank text gives an array of length 0. Throws illegal_argument_exception if width is less than 1.</p></div>
+<div class="fn" id="text_wrap.wrap_paragraphs"><div class="sig">static def <b>wrap_paragraphs</b>(text: string, width: int): string[]</div><p>Like wrap, but empty (or blank) lines in the text are kept as paragraph breaks: each paragraph is wrapped on its own and an empty string is put between two paragraphs. Several empty lines in a row give one break. Throws illegal_argument_exception if width is less than 1.</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

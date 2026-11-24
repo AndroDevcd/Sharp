@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.io.console - Sharp standard library</title>
+<meta name="description" content="The std.io.console module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="on sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.io.console</p>
+<h1>std.io.console <small>module</small></h1>
+<p class="contents"><a href="#ansi">ansi</a> <a href="#console">console</a> <a href="#console_line_end">console_line_end</a> <a href="#functions">functions</a></p>
+<section class="type" id="ansi">
+<h2><span class="kind">class</span> ansi</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/console/ansi.sharp">source</a></p>
+<p>ANSI escape sequences: the control codes terminals understand for colours, bold / underline, clearing the screen and moving the cursor.</p>
+<div class="code"><pre class="sharp">println(ansi.colored(&quot;error:&quot;, ansi.red) + &quot; file not found&quot;);
+println(ansi.styled(&quot;Title&quot;, ansi.bold));
+print(ansi.clear_screen());</pre></div>
+<p>Every function only builds a string; nothing is printed here (see the class console for printing). A sequence is the escape character (code 27), &#x27;[&#x27;, numbers separated by &#x27;;&#x27;, and a letter - e.g. &quot;\e[31m&quot; switches to red and &quot;\e[0m&quot; back to normal.</p>
+<p>Colours are numbers: the constants below (black .. white) and their bright variants (bright_black .. bright_white). Linux and macOS terminals and the Windows Terminal understand these codes; the old Windows console prints them as garbage. When output goes to a file or another program, call ansi.set_enabled(false) once: then every function returns its text without any codes (and the cursor / clear functions return &quot;&quot;).</p>
+<p>Everything is static.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>black</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>red</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>green</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>yellow</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>blue</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>magenta</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>cyan</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>white</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_black</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_red</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_green</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_yellow</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_blue</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_magenta</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_cyan</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bright_white</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bold</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>dim</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>italic</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>underline</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>inverse</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="ansi.background"><div class="sig">static def <b>background</b>(color: decimal) : string</div><p>The code that switches the background colour to <code>color</code> (0..15). Throws illegal_argument_exception when color is not 0..15.</p></div>
+<div class="fn" id="ansi.clear_line"><div class="sig">static def <b>clear_line</b>() : string</div><p>the code that clears the line the cursor is on and puts the cursor at its beginning (for progress displays)</p></div>
+<div class="fn" id="ansi.clear_screen"><div class="sig">static def <b>clear_screen</b>() : string</div><p>the code that clears the whole screen and puts the cursor in the top left corner</p></div>
+<div class="fn" id="ansi.colored"><div class="sig">static def <b>colored</b>(text: string, color: decimal) : string</div><p><code>text</code> in the colour <code>color</code>: the colour code, the text, and the reset code. Throws illegal_argument_exception when color is not 0..15.</p></div>
+<div class="fn" id="ansi.colored-2"><div class="sig">static def <b>colored</b>(text: string, color: decimal, back: decimal) : string</div><p><code>text</code> in the colour <code>color</code> on the background <code>back</code>. Throws illegal_argument_exception when a colour is not 0..15.</p></div>
+<div class="fn" id="ansi.cursor_visible"><div class="sig">static def <b>cursor_visible</b>(visible: bool) : string</div><p>the codes that hide (false) or show (true) the cursor</p></div>
+<div class="fn" id="ansi.foreground"><div class="sig">static def <b>foreground</b>(color: decimal) : string</div><p>The code that switches the text colour to <code>color</code> (one of the colour constants, 0..15). What is printed after it has that colour until reset(). Throws illegal_argument_exception when color is not 0..15.</p></div>
+<div class="fn" id="ansi.is_enabled"><div class="sig">static def <b>is_enabled</b>() : bool</div><p>true while codes are produced</p></div>
+<div class="fn" id="ansi.move_to"><div class="sig">static def <b>move_to</b>(row: decimal, column: decimal) : string</div><p>The code that puts the cursor at <code>row</code>, <code>column</code>, both counting from 1 at the top left corner. Throws illegal_argument_exception when one of them is below 1.</p></div>
+<div class="fn" id="ansi.reset"><div class="sig">static def <b>reset</b>() : string</div><p>the code that switches all colours and styles back to normal</p></div>
+<div class="fn" id="ansi.set_enabled"><div class="sig">static def <b>set_enabled</b>(on: bool)</div><p>produce codes (true, the default) or plain text only (false) from now on</p></div>
+<div class="fn" id="ansi.strip"><div class="sig">static def <b>strip</b>(text: string) : string</div><p><code>text</code> without any ANSI sequences in it (for writing coloured output to a log file, or measuring how wide a text is on screen).</p></div>
+<div class="fn" id="ansi.style"><div class="sig">static def <b>style</b>(which: decimal) : string</div><p>the code that switches a style on: one of bold, dim, italic, underline, inverse</p></div>
+<div class="fn" id="ansi.styled"><div class="sig">static def <b>styled</b>(text: string, which: decimal) : string</div><p><code>text</code> in the style <code>which</code> (bold, dim, italic, underline, inverse), followed by the reset code</p></div>
+</div>
+</section>
+<section class="type" id="console">
+<h2><span class="kind">class</span> console</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/console/console.sharp">source</a></p>
+<p>Talking to the person at the terminal: printing numbers the short way, coloured output, clearing the screen, and asking for input with validation.</p>
+<div class="code"><pre class="sharp">console.print_line(&quot;Total: &quot; + io_strings.number_to_string(7.5));
+console.print_colored(&quot;warning&quot;, ansi.yellow);
+name := console.prompt(&quot;Your name: &quot;);
+age := console.read_int(&quot;Your age: &quot;);            // asks again until it is a whole number
+level := console.read_int_between(&quot;Level (1-5): &quot;, 1, 5);
+if(console.confirm(&quot;Continue?&quot;)) { ... }</pre></div>
+<p>This class adds to the plain functions print(), println() and read_line() of std/console.sharp; it does not replace them. Everything is static.</p>
+<p>The end of the input (the input was a file or a pipe and it is used up, or the user pressed Ctrl-D) is noticed: read_line_or_null() returns null, and the functions that have to return something throw io_exception instead of waiting or asking for ever. (The plain read_line() does not notice it.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="console.choose"><div class="sig">static def <b>choose</b>(message: string, choices: list&lt;string&gt;) : decimal</div><p>Show a numbered list of choices and ask for one of them. Returns the position (from 0) of the chosen string in <code>choices</code>. Throws io_exception when the input has ended and illegal_argument_exception when there are no choices.</p></div>
+<div class="fn" id="console.clear"><div class="sig">static def <b>clear</b>()</div><p>clear the screen and put the cursor in the top left corner (nothing happens when ansi codes are switched off)</p></div>
+<div class="fn" id="console.clear_line"><div class="sig">static def <b>clear_line</b>()</div><p>clear the line the cursor is on and go back to its beginning, e.g. to redraw a progress display</p></div>
+<div class="fn" id="console.confirm"><div class="sig">static def <b>confirm</b>(message: string) : bool</div><p>Ask a yes / no question: prints <code>message</code> followed by &quot; (y/n) &quot; and asks again until the answer is y, yes, n or no (in any case). Returns true for yes. Throws io_exception when the input has ended.</p></div>
+<div class="fn" id="console.move_cursor"><div class="sig">static def <b>move_cursor</b>(row: decimal, column: decimal)</div><p>put the cursor at <code>row</code>, <code>column</code> (both from 1). Throws illegal_argument_exception when one is below 1.</p></div>
+<div class="fn" id="console.new_lines"><div class="sig">static def <b>new_lines</b>(count: decimal)</div><p>print <code>count</code> line ends (blank lines)</p></div>
+<div class="fn" id="console.pause"><div class="sig">static def <b>pause</b>(message: string)</div><p>print <code>message</code> and wait until the user presses enter (returns at once when the input has ended)</p></div>
+<div class="fn" id="console.print_bool"><div class="sig">static def <b>print_bool</b>(value: bool)</div><p>print &quot;true&quot; or &quot;false&quot; without a line end</p></div>
+<div class="fn" id="console.print_char"><div class="sig">static def <b>print_char</b>(ch: decimal)</div><p>print one character given as its code, without a line end</p></div>
+<div class="fn" id="console.print_colored"><div class="sig">static def <b>print_colored</b>(text: string, color: decimal)</div><p>Print <code>text</code> in the colour <code>color</code> (a constant of the class ansi, e.g. ansi.red) without a line end. Throws illegal_argument_exception when color is not 0..15.</p></div>
+<div class="fn" id="console.print_fixed"><div class="sig">static def <b>print_fixed</b>(value: decimal, decimals: decimal)</div><p>print a number with exactly <code>decimals</code> digits behind the point, rounded, without a line end</p></div>
+<div class="fn" id="console.print_int"><div class="sig">static def <b>print_int</b>(value: decimal)</div><p>print a whole number without a line end: 42, not 42.0000000000000000 (a fraction is cut off)</p></div>
+<div class="fn" id="console.print_line"><div class="sig">static def <b>print_line</b>(text: string)</div><p>print <code>text</code> and a line end</p></div>
+<div class="fn" id="console.print_number"><div class="sig">static def <b>print_number</b>(value: decimal)</div><p>print a number the short way without a line end: 3, 0.5, 1e21 (see io_strings.number_to_string)</p></div>
+<div class="fn" id="console.print_styled"><div class="sig">static def <b>print_styled</b>(text: string, style: decimal)</div><p>print <code>text</code> in a style of the class ansi (ansi.bold, ansi.underline, ...) without a line end</p></div>
+<div class="fn" id="console.print_text"><div class="sig">static def <b>print_text</b>(text: string)</div><p>print <code>text</code> without a line end</p></div>
+<div class="fn" id="console.println_colored"><div class="sig">static def <b>println_colored</b>(text: string, color: decimal)</div><p>Print <code>text</code> in the colour <code>color</code> and a line end. Throws illegal_argument_exception when color is not 0..15.</p></div>
+<div class="fn" id="console.println_int"><div class="sig">static def <b>println_int</b>(value: decimal)</div><p>print a whole number and a line end</p></div>
+<div class="fn" id="console.println_number"><div class="sig">static def <b>println_number</b>(value: decimal)</div><p>print a number the short way and a line end</p></div>
+<div class="fn" id="console.prompt"><div class="sig">static def <b>prompt</b>(message: string) : string</div><p>Print <code>message</code> (without a line end) and read the line the user types. Throws io_exception when the input has ended.</p></div>
+<div class="fn" id="console.prompt_or"><div class="sig">static def <b>prompt_or</b>(message: string, fallback: string) : string</div><p>Like prompt(), but an empty answer (just the enter key) gives <code>fallback</code>. The message should say what the default is. Throws io_exception when the input has ended.</p></div>
+<div class="fn" id="console.read_int"><div class="sig">static def <b>read_int</b>(message: string) : decimal</div><p>Ask for a whole number: print <code>message</code>, read a line, and ask again (after a short note) until the answer is a whole number such as 42 or -7. Spaces around the number are ignored. Throws io_exception when the input has ended.</p></div>
+<div class="fn" id="console.read_int_between"><div class="sig">static def <b>read_int_between</b>(message: string, low: decimal, high: decimal) : decimal</div><p>Ask for a whole number from <code>low</code> to <code>high</code> (both allowed); asks again until the answer is one. Throws io_exception when the input has ended and illegal_argument_exception when low is greater than high.</p></div>
+<div class="fn" id="console.read_line_or_null"><div class="sig">static def <b>read_line_or_null</b>() : string?</div><p>Read one line typed by the user, without the line end. Returns null when the input has ended before a single character could be read. A &quot;\r\n&quot; line end (windows, or a file made there) is taken as one.</p></div>
+<div class="fn" id="console.read_number"><div class="sig">static def <b>read_number</b>(message: string) : decimal</div><p>Ask for a number, with or without fraction (3, -0.5, 1e6); asks again until the answer is one. Spaces around the number are ignored. Throws io_exception when the input has ended.</p></div>
+</div>
+</section>
+<section class="type" id="console_line_end">
+<h2><span class="kind">class</span> console_line_end</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/console/console_functions.sharp">source</a></p>
+<p>what read_line() remembers between two lines</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>after_return</code></td><td><code>_int64</code></td><td>1 when the last line read ended with <code>\r</code>: a <code>\n</code> right after it belongs to that line end</td></tr></table></div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="chars_to_decimal"><div class="sig">def <b>chars_to_decimal</b>(digits: _int8[]) : decimal</div><p>The number written in <code>digits</code>, read the way strtod() reads it, for a caller that has the characters and wants the plain number: no string and no <code>double</code> object is made.</p></div>
+<div class="fn" id="exit"><div class="sig">def <b>exit</b>(val : int)</div></div>
+<div class="fn" id="exit-2"><div class="sig">def <b>exit</b>()</div></div>
+<div class="fn" id="flush"><div class="sig">def <b>flush</b>()</div><p>Everything printed so far is out when this returns. Rarely needed: the runtime flushes on its own (see print above).</p></div>
+<div class="fn" id="key_waiting"><div class="sig">def <b>key_waiting</b>() : bool</div><p>IS A KEY WAITING TO BE READ? - without waiting for one.</p>
+<p><code>read_char()</code> waits until a key is pressed, which stops everything else the program does. A program that has to keep going - a game&#x27;s loop, a machine&#x27;s control loop - asks first:</p>
+<div class="code"><pre class="sharp">if(key_waiting()) {
+    key := read_raw_char();         // comes back at once: the key is already there
+}</pre></div>
+<p>(C: kbhit(). Java has no such thing: System.in.available() is the nearest.) It is false when the input is not a console at all (a file, a pipe that has ended).</p></div>
+<div class="fn" id="memory_size"><div class="sig">def <b>memory_size</b>(data: object) : _int64</div><p>how many bytes an object takes in memory (the object itself: not what its fields refer to)</p></div>
+<div class="fn" id="memory_size-2"><div class="sig">def <b>memory_size</b>(data: object[]) : _int64</div><p>how many bytes an array of objects takes in memory (the array itself: not its elements)</p></div>
+<div class="fn" id="nano_time"><div class="sig">def <b>nano_time</b>() : long</div><p>nanoseconds since 1970-01-01T00:00:00Z, good to about 256 of them</p></div>
+<div class="fn" id="print"><div class="sig">def <b>print</b>(data: _int8[])</div><p>PRINTING. print() writes its value, println() the value and a line end.</p>
+<p>What is printed goes into a buffer of the runtime and reaches the screen (or the file, or the program that reads it) a few milliseconds later, in large pieces - at once when the program waits for input or ends. Nothing here flushes, and a program does not have to: flush() is for the rare case that the output must be out before the very next instruction.</p>
+<p>A text is handed to the runtime whole (<code>print_bytes</code>), a line end with it: println(&quot;...&quot;) is one step, however long the line.</p></div>
+<div class="fn" id="print-2"><div class="sig">def <b>print</b>(str: string)</div></div>
+<div class="fn" id="print-3"><div class="sig">def <b>print</b>(flag: bool)</div></div>
+<div class="fn" id="print-4"><div class="sig">def <b>print</b>(data: decimal)</div></div>
+<div class="fn" id="print-5"><div class="sig">def <b>print</b>(o: printable?)</div></div>
+<div class="fn" id="print-6"><div class="sig">def <b>print</b>(data: double)</div></div>
+<div class="fn" id="println"><div class="sig">def <b>println</b>(data: decimal[])</div></div>
+<div class="fn" id="println-2"><div class="sig">def <b>println</b>(data: _int8[])</div></div>
+<div class="fn" id="println-3"><div class="sig">def <b>println</b>(data: _int16[])</div></div>
+<div class="fn" id="println-4"><div class="sig">def <b>println</b>(data: _int32[])</div></div>
+<div class="fn" id="println-5"><div class="sig">def <b>println</b>(data: _int64[])</div></div>
+<div class="fn" id="println-6"><div class="sig">def <b>println</b>(data: _uint8[])</div></div>
+<div class="fn" id="println-7"><div class="sig">def <b>println</b>(data: _uint16[])</div></div>
+<div class="fn" id="println-8"><div class="sig">def <b>println</b>(data: _uint32[])</div></div>
+<div class="fn" id="println-9"><div class="sig">def <b>println</b>(data: _uint64[])</div></div>
+<div class="fn" id="println-10"><div class="sig">def <b>println</b>(flag: bool)</div></div>
+<div class="fn" id="println-11"><div class="sig">def <b>println</b>(data: decimal)</div></div>
+<div class="fn" id="println-12"><div class="sig">def <b>println</b>()</div></div>
+<div class="fn" id="println-13"><div class="sig">def <b>println</b>(e: _enum_)</div></div>
+<div class="fn" id="println-14"><div class="sig">def <b>println</b>(str: string)</div></div>
+<div class="fn" id="println-15"><div class="sig">def <b>println</b>(o: printable?)</div></div>
+<div class="fn" id="read_char"><div class="sig">def <b>read_char</b>() : char</div></div>
+<div class="fn" id="read_line"><div class="sig">def <b>read_line</b>() : string</div></div>
+<div class="fn" id="read_passwd"><div class="sig">def <b>read_passwd</b>() : string</div></div>
+<div class="fn" id="read_raw_char"><div class="sig">def <b>read_raw_char</b>() : char</div></div>
+<div class="fn" id="snprintf"><div class="sig">def <b>snprintf</b>(fmt: int, num: double, precision: int) : string</div></div>
+<div class="fn" id="strtod"><div class="sig">def <b>strtod</b>(str: string) : double</div></div>
+<div class="fn" id="sys"><div class="sig">def <b>sys</b>(str: string) : int</div></div>
+<div class="fn" id="utc_mills"><div class="sig">def <b>utc_mills</b>() : long</div><p>milliseconds since 1970-01-01T00:00:00Z (dates, durations and clocks: std.time)</p></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

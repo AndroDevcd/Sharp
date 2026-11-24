@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.util - Sharp standard library</title>
+<meta name="description" content="The std.util module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li class="on"><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.util</p>
+<h1>std.util <small>module</small></h1>
+<p class="contents"><a href="#bit_flags">bit_flags</a> <a href="#comparator">comparator</a> <a href="#comparators">comparators</a> <a href="#counter">counter</a> <a href="#either">either</a> <a href="#hashing">hashing</a> <a href="#id_generator">id_generator</a> <a href="#lazy">lazy</a> <a href="#optional">optional</a> <a href="#preconditions">preconditions</a> <a href="#range">range</a> <a href="#ref">ref</a> <a href="#uuid">uuid</a> <a href="#version">version</a></p>
+<section class="type" id="bit_flags">
+<h2><span class="kind">class</span> bit_flags</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/bit_flags.sharp">source</a></p>
+<p>A small set of on/off options packed into one number, one bit per option. Define the options as powers of two and combine them with add():</p>
+<div class="code"><pre class="sharp">const READ : decimal = 1;       // bit_flags.flag(0)
+const WRITE : decimal = 2;      // bit_flags.flag(1)
+const EXECUTE : decimal = 4;    // bit_flags.flag(2)</pre></div>
+<div class="code"><pre class="sharp">access := new bit_flags(READ);
+access.add(WRITE);
+access.has(WRITE).value         // true
+access.has(READ + EXECUTE).value    // false: not ALL of them are set
+access.has_any(READ + EXECUTE)    // true: one of them is
+access.value                    // 3, e.g. to store in a file</pre></div>
+<p>A &quot;mask&quot; is any combination of flags (their sum, as long as each flag appears once). Up to 32 flags are supported: masks are whole numbers in 0 .. 4294967295. Unlike most classes in this library a bit_flags object is MUTABLE: add / remove / toggle / clear change it (and return it, so calls can be chained).</p>
+<p>Every method throws illegal_argument_exception for a mask that is negative, fractional or above 4294967295.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>decimal</code></td><td>all flags that are currently set, as one number (read only; use add / remove / assign)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="bit_flags.bit_flags"><div class="sig"><b>bit_flags</b>()</div><p>no flag set</p></div>
+<div class="fn" id="bit_flags.bit_flags-2"><div class="sig"><b>bit_flags</b>(mask: decimal)</div><p>the flags of <code>mask</code> set</p></div>
+<div class="fn" id="bit_flags.add"><div class="sig">def <b>add</b>(mask: decimal): bit_flags</div><p>switch on every flag of <code>mask</code>; flags that are already on stay on</p></div>
+<div class="fn" id="bit_flags.assign"><div class="sig">def <b>assign</b>(mask: decimal, enabled: bool): bit_flags</div><p>switch the flags of <code>mask</code> on (enabled true) or off (enabled false)</p></div>
+<div class="fn" id="bit_flags.clear"><div class="sig">def <b>clear</b>(): bit_flags</div><p>switch every flag off</p></div>
+<div class="fn" id="bit_flags.copy_of"><div class="sig">def <b>copy_of</b>(): bit_flags</div><p>an independent copy of this set</p></div>
+<div class="fn" id="bit_flags.count"><div class="sig">def <b>count</b>(): decimal</div><p>how many flags are on</p></div>
+<div class="fn" id="bit_flags.flag"><div class="sig">static def <b>flag</b>(position: decimal): decimal</div><p>The mask for flag number <code>position</code> (0 .. 31): 2^position, so flag(0) == 1, flag(1) == 2, flag(5) == 32. Throws illegal_argument_exception for any other position.</p></div>
+<div class="fn" id="bit_flags.has"><div class="sig">def <b>has</b>(mask: decimal): bool</div><p>true when ALL flags of <code>mask</code> are on (true for the empty mask 0)</p></div>
+<div class="fn" id="bit_flags.has_any"><div class="sig">def <b>has_any</b>(mask: decimal): bool</div><p>true when AT LEAST ONE flag of <code>mask</code> is on (false for the empty mask 0)</p></div>
+<div class="fn" id="bit_flags.has_none"><div class="sig">def <b>has_none</b>(mask: decimal): bool</div><p>true when NO flag of <code>mask</code> is on</p></div>
+<div class="fn" id="bit_flags.hash"><div class="sig">override def <b>hash</b>(): int</div><p>the hash code is the mask itself (equal sets have equal hashes)</p></div>
+<div class="fn" id="bit_flags.intersection"><div class="sig">def <b>intersection</b>(other: bit_flags): bit_flags</div><p>a new set with the flags that are on in this set AND in <code>other</code></p></div>
+<div class="fn" id="bit_flags.is_empty"><div class="sig">def <b>is_empty</b>(): bool</div><p>true when no flag at all is on</p></div>
+<div class="fn" id="bit_flags.operator_"><div class="sig">def <b>operator!=</b>(other: bit_flags): bool</div><p>true when the sets differ in at least one flag</p></div>
+<div class="fn" id="bit_flags.operator_-2"><div class="sig">def <b>operator==</b>(other: bit_flags): bool</div><p>true when both sets have exactly the same flags on</p></div>
+<div class="fn" id="bit_flags.remove"><div class="sig">def <b>remove</b>(mask: decimal): bit_flags</div><p>switch off every flag of <code>mask</code>; flags that are already off stay off</p></div>
+<div class="fn" id="bit_flags.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>The flags as binary digits, the highest set flag first: a set with flags 0 and 2 on is &quot;101&quot;; the empty set is &quot;0&quot;.</p></div>
+<div class="fn" id="bit_flags.toggle"><div class="sig">def <b>toggle</b>(mask: decimal): bit_flags</div><p>flip every flag of <code>mask</code>: on becomes off, off becomes on</p></div>
+<div class="fn" id="bit_flags.union_with"><div class="sig">def <b>union_with</b>(other: bit_flags): bit_flags</div><p>a new set with the flags that are on in this set OR in <code>other</code></p></div>
+</div>
+</section>
+<section class="type" id="comparator">
+<h2><span class="kind">class</span> comparator&lt;T&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/comparator.sharp">source</a></p>
+<p>An ordering for objects of type T: something that can say which of two objects comes first. Comparators are built from small pieces and combined (Java&#x27;s Comparator, Kotlin&#x27;s compareBy / thenBy / reversed):</p>
+<div class="code"><pre class="sharp">by_age := comparator&lt;person&gt;.by_key({ p: person -&gt; (decimal) return p.age; });
+by_name := comparator&lt;person&gt;.by_text({ p: person -&gt; (string) return p.name; });</pre></div>
+<div class="code"><pre class="sharp">oldest_first := by_age.reversed();
+by_age_then_name := by_age.then_by(by_name);</pre></div>
+<div class="code"><pre class="sharp">by_age_then_name.sort(people);          // sorts the array in place
+youngest := by_age.min_of(people);</pre></div>
+<p>compare(a, b) follows the usual convention: a NEGATIVE number when a comes before b, a POSITIVE number when a comes after b, 0 when the order does not distinguish them.</p>
+<p>A comparator never changes after it is made; reversed() and then_by() return new comparators. The class std.util#comparators has ready-made comparators for strings and the number classes.</p>
+<p>LIMITATION: T must be an object type.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="comparator.comparator"><div class="sig"><b>comparator</b>(compare_function: (T, T)(decimal))</div><p>A comparator from a function that returns a negative number, 0 or a positive number for &quot;a before b&quot;, &quot;same&quot; and &quot;a after b&quot;.</p></div>
+<div class="fn" id="comparator.binary_search"><div class="sig">def <b>binary_search</b>(items: T[], wanted: T): decimal</div><p>Find <code>wanted</code> in an array that is SORTED by this ordering, by halving the search interval: O(log n). Returns the index of an element that compares equal to <code>wanted</code>, or -1 when there is none.</p></div>
+<div class="fn" id="comparator.by_key"><div class="sig">static def <b>by_key</b>(key: (T)(decimal)): comparator&lt;T&gt;</div><p>Order objects by a number taken from each: the object with the smaller key comes first (Kotlin compareBy).</p></div>
+<div class="fn" id="comparator.by_text"><div class="sig">static def <b>by_text</b>(key: (T)(string)): comparator&lt;T&gt;</div><p>Order objects by a text taken from each, compared character by character by character code (&quot;Zebra&quot; comes before &quot;apple&quot;; a text comes after its own prefixes).</p></div>
+<div class="fn" id="comparator.compare"><div class="sig">def <b>compare</b>(a: T, b: T): decimal</div><p>Compare two objects: negative when a comes before b, positive when a comes after b, 0 when this ordering does not distinguish them.</p></div>
+<div class="fn" id="comparator.compare_text"><div class="sig">static def <b>compare_text</b>(a: string, b: string): decimal</div><p>Compare two texts character by character by character code: negative when a comes first, positive when b comes first, 0 when they are equal. A text that is a prefix of the other comes first.</p></div>
+<div class="fn" id="comparator.in_order"><div class="sig">def <b>in_order</b>(a: T, b: T): bool</div><p>true when a and b are in order or equal: compare(a, b) &lt;= 0</p></div>
+<div class="fn" id="comparator.is_sorted"><div class="sig">def <b>is_sorted</b>(items: T[]): bool</div><p>true when every element is in order with the one after it (also for 0 or 1 elements)</p></div>
+<div class="fn" id="comparator.max_of"><div class="sig">def <b>max_of</b>(items: T[]): T</div><p>The element that comes last in this ordering (the last of several equal ones). Throws no_such_element_exception when the array is empty.</p></div>
+<div class="fn" id="comparator.min_of"><div class="sig">def <b>min_of</b>(items: T[]): T</div><p>The element that comes first in this ordering (the first of several equal ones). Throws no_such_element_exception when the array is empty.</p></div>
+<div class="fn" id="comparator.reversed"><div class="sig">def <b>reversed</b>(): comparator&lt;T&gt;</div><p>the opposite ordering: what came first now comes last</p></div>
+<div class="fn" id="comparator.sort"><div class="sig">def <b>sort</b>(items: T[])</div><p>Sort the array in place, smallest first according to this ordering.</p>
+<p>Algorithm: bottom-up merge sort (no recursion) with one helper array. O(n log n) comparisons and STABLE: objects the ordering calls equal keep their original relative order, which is what makes sorting by one key and then by another work.</p></div>
+<div class="fn" id="comparator.sort-2"><div class="sig">def <b>sort</b>(items: list&lt;T&gt;)</div><p>sort a list in place (see sort for arrays); does nothing for an empty list</p></div>
+<div class="fn" id="comparator.then_by"><div class="sig">def <b>then_by</b>(other: comparator&lt;T&gt;): comparator&lt;T&gt;</div><p>This ordering, with <code>other</code> deciding between objects this one calls equal (sort by last name, then by first name).</p></div>
+<div class="fn" id="comparator.then_by_key"><div class="sig">def <b>then_by_key</b>(key: (T)(decimal)): comparator&lt;T&gt;</div><p>then_by(by_key(key)): ties are decided by a number taken from each object</p></div>
+<div class="fn" id="comparator.then_by_text"><div class="sig">def <b>then_by_text</b>(key: (T)(string)): comparator&lt;T&gt;</div><p>then_by(by_text(key)): ties are decided by a text taken from each object</p></div>
+</div>
+</section>
+<section class="type" id="comparators">
+<h2><span class="kind">class</span> comparators</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/comparators.sharp">source</a></p>
+<p>Ready-made comparators (&quot;natural order&quot;) for strings and for the number classes. Only static functions; never instantiated.</p>
+<div class="code"><pre class="sharp">names := new string[] { &quot;pear&quot;, &quot;Apple&quot;, &quot;fig&quot; };
+comparators.strings().sort(names);                  // Apple fig pear
+comparators.strings_ignore_case().sort(names);      // Apple fig pear
+comparators.string_length().then_by(comparators.strings()).sort(names);    // fig pear Apple
+comparators.ints().reversed().sort(scores);         // largest first</pre></div>
+<p>Every function returns a new comparator&lt;T&gt; that can be combined further with reversed() and then_by().</p>
+<h3>Functions</h3><div>
+<div class="fn" id="comparators.bools"><div class="sig">static def <b>bools</b>(): comparator&lt;boolean&gt;</div><p>bool objects: false before true</p></div>
+<div class="fn" id="comparators.chars"><div class="sig">static def <b>chars</b>(): comparator&lt;char&gt;</div><p>char objects by character code</p></div>
+<div class="fn" id="comparators.doubles"><div class="sig">static def <b>doubles</b>(): comparator&lt;double&gt;</div><p>double objects, smallest first</p></div>
+<div class="fn" id="comparators.ints"><div class="sig">static def <b>ints</b>(): comparator&lt;int&gt;</div><p>int objects, smallest first</p></div>
+<div class="fn" id="comparators.longs"><div class="sig">static def <b>longs</b>(): comparator&lt;long&gt;</div><p>long objects, smallest first</p></div>
+<div class="fn" id="comparators.string_length"><div class="sig">static def <b>string_length</b>(): comparator&lt;string&gt;</div><p>strings by their length, shortest first (equal lengths compare as equal)</p></div>
+<div class="fn" id="comparators.strings"><div class="sig">static def <b>strings</b>(): comparator&lt;string&gt;</div><p>Strings by character code, character by character (&quot;Zebra&quot; &lt; &quot;apple&quot; because capital letters have smaller codes; &quot;ab&quot; &lt; &quot;abc&quot;).</p></div>
+<div class="fn" id="comparators.strings_ignore_case"><div class="sig">static def <b>strings_ignore_case</b>(): comparator&lt;string&gt;</div><p>strings compared after turning A-Z into a-z, so &quot;apple&quot; and &quot;Apple&quot; are equal and &quot;apple&quot; &lt; &quot;Zebra&quot;</p></div>
+</div>
+</section>
+<section class="type" id="counter">
+<h2><span class="kind">class</span> counter</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/counter.sharp">source</a></p>
+<p>A number in an object: something to count with that can be shared.</p>
+<p>A lambda can use the objects around it but cannot assign to an outer native variable, so <code>total += x</code> inside a lambda does not work on a <code>decimal</code>. A counter is an object, so this does:</p>
+<div class="code"><pre class="sharp">seen := new counter();
+items.for_each({ item: string -&gt; seen.increment(); });
+println(&quot;&quot; + seen.value);</pre></div>
+<p>It is also handy as a tally that several functions update, or as a running total (add() takes any number, not only 1).</p>
+<p><code>value</code> is a public field and may be read or assigned directly. The class does no locking; guard it when several threads count together.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>decimal</code></td><td>the current count</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="counter.counter"><div class="sig"><b>counter</b>()</div><p>a counter that starts at 0</p></div>
+<div class="fn" id="counter.counter-2"><div class="sig"><b>counter</b>(start: decimal)</div><p>a counter that starts at <code>start</code> (and returns there on reset())</p></div>
+<div class="fn" id="counter.add"><div class="sig">def <b>add</b>(amount: decimal): decimal</div><p>add <code>amount</code> (which may be negative or fractional) and return the new value</p></div>
+<div class="fn" id="counter.decrement"><div class="sig">def <b>decrement</b>(): decimal</div><p>subtract 1 and return the new value</p></div>
+<div class="fn" id="counter.increment"><div class="sig">def <b>increment</b>(): decimal</div><p>add 1 and return the new value</p></div>
+<div class="fn" id="counter.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when the count is exactly 0</p></div>
+<div class="fn" id="counter.next"><div class="sig">def <b>next</b>(): decimal</div><p>Return the current value and THEN add 1 (like value++): calling next() repeatedly on a new counter gives 0, 1, 2 ...</p></div>
+<div class="fn" id="counter.reset"><div class="sig">def <b>reset</b>()</div><p>go back to the starting value</p></div>
+<div class="fn" id="counter.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>the count as text, without decimals for whole numbers: &quot;42&quot;</p></div>
+</div>
+</section>
+<section class="type" id="either">
+<h2><span class="kind">class</span> either&lt;L, R&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/either.sharp">source</a></p>
+<p>A value that is ONE of two types: a &quot;left&quot; of type L or a &quot;right&quot; of type R. By convention the right side is the good result and the left side the alternative (usually an error description), which makes <code>either</code> the complement of std#result: a result always has data and maybe an error, an either has exactly one of the two.</p>
+<div class="code"><pre class="sharp">def parse_port(text: string): either&lt;string, int&gt; {
+    if(text.size() == 0) return either&lt;string, int&gt;.left(&quot;empty&quot;);
+    return either&lt;string, int&gt;.right(8080);
+}</pre></div>
+<div class="code"><pre class="sharp">answer := parse_port(&quot;x&quot;);
+if(answer.is_right()) use(answer.right_value());
+else println(answer.left_value());</pre></div>
+<p>An either never changes after it is made.</p>
+<p>LIMITATION: L and R must be object types (the two sides are stored in nullable fields), and neither side may hold null.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="either.if_left"><div class="sig">def <b>if_left</b>(action: (L)())</div><p>call <code>action</code> with the left value; does nothing for a right value</p></div>
+<div class="fn" id="either.if_right"><div class="sig">def <b>if_right</b>(action: (R)())</div><p>call <code>action</code> with the right value; does nothing for a left value</p></div>
+<div class="fn" id="either.is_left"><div class="sig">def <b>is_left</b>(): bool</div><p>true when the left side is held</p></div>
+<div class="fn" id="either.is_right"><div class="sig">def <b>is_right</b>(): bool</div><p>true when the right side is held</p></div>
+<div class="fn" id="either.left"><div class="sig">static def <b>left</b>(value: L): either&lt;L, R&gt;</div><p>An either holding a left value. Throws illegal_argument_exception when value is null.</p></div>
+<div class="fn" id="either.left_or"><div class="sig">def <b>left_or</b>(fallback: L): L</div><p>the left value, or <code>fallback</code> when this either holds a right value</p></div>
+<div class="fn" id="either.left_or_null"><div class="sig">def <b>left_or_null</b>(): L?</div><p>the left value, or null when this either holds a right value</p></div>
+<div class="fn" id="either.left_value"><div class="sig">def <b>left_value</b>(): L</div><p>The left value. Throws no_such_element_exception when this either holds a right value.</p></div>
+<div class="fn" id="either.map_left"><div class="sig">def <b>map_left</b>(transform: (L)(L)): either&lt;L, R&gt;</div><p>Apply <code>transform</code> to the left value; a right value is passed through untouched (the function is not called).</p></div>
+<div class="fn" id="either.map_right"><div class="sig">def <b>map_right</b>(transform: (R)(R)): either&lt;L, R&gt;</div><p>Apply <code>transform</code> to the right value; a left value is passed through untouched (the function is not called).</p></div>
+<div class="fn" id="either.right"><div class="sig">static def <b>right</b>(value: R): either&lt;L, R&gt;</div><p>An either holding a right value. Throws illegal_argument_exception when value is null.</p></div>
+<div class="fn" id="either.right_or"><div class="sig">def <b>right_or</b>(fallback: R): R</div><p>the right value, or <code>fallback</code> when this either holds a left value</p></div>
+<div class="fn" id="either.right_or_null"><div class="sig">def <b>right_or_null</b>(): R?</div><p>the right value, or null when this either holds a left value</p></div>
+<div class="fn" id="either.right_value"><div class="sig">def <b>right_value</b>(): R</div><p>The right value. Throws no_such_element_exception when this either holds a left value.</p></div>
+<div class="fn" id="either.swap"><div class="sig">def <b>swap</b>(): either&lt;R, L&gt;</div><p>the same value with the sides exchanged: left(x) becomes right(x) and the other way round</p></div>
+<div class="fn" id="either.to_optional"><div class="sig">def <b>to_optional</b>(): optional&lt;R&gt;</div><p>the right value as an optional: empty when this either holds a left value</p></div>
+</div>
+</section>
+<section class="type" id="hashing">
+<h2><span class="kind">class</span> hashing</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/hashing.sharp">source</a></p>
+<p>Well-known 32-bit hash and checksum functions over text and bytes. Only static functions; never instantiated.</p>
+<div class="code"><pre class="sharp">hashing.fnv1a(&quot;hello&quot;)              // 1335831723
+hashing.crc32(&quot;123456789&quot;)          // 3421780262 (0xCBF43926)
+hashing.to_hex(hashing.crc32(&quot;123456789&quot;))      // &quot;cbf43926&quot;
+code : decimal = hashing.combine(name_hash, age);   // a hash for an object with two fields</pre></div>
+<p>Which one to use:</p>
+<div class="code"><pre class="sharp">fnv1a     hash tables and general purpose hashing: fast, spreads well
+djb2      the classic &quot;times 33&quot; string hash; simple, common in older code
+crc32     detecting accidental changes (files, network packets); the
+          same polynomial as zip, gzip, png and Ethernet
+adler32   a cheaper but weaker checksum (zlib)</pre></div>
+<p>None of these is cryptographic: it is easy to construct two inputs with the same result on purpose. Do not use them for passwords or signatures.</p>
+<p>All results are whole numbers in 0 .. 4294967295 (an unsigned 32-bit word) and are the same on every machine. Every function exists for a string and for a byte array (_int8[]); characters above 127 are treated as the unsigned bytes 128 .. 255, so a string and its bytes hash the same.</p>
+<p>Native numbers are 64-bit floats, exact up to 2^53, so two 32-bit words cannot simply be multiplied: multiply() below does the multiplication modulo 2^32 in 16-bit halves.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="hashing.adler32"><div class="sig">static def <b>adler32</b>(data: _int8[]?): decimal</div><p>Adler-32 (the checksum of zlib). Two running sums modulo 65521: a = 1 + the sum of all bytes, b = the sum of all values a has had. The result is b * 65536 + a. The checksum of no bytes is 1.</p></div>
+<div class="fn" id="hashing.adler32-2"><div class="sig">static def <b>adler32</b>(text: string): decimal</div><p>Adler-32 of the characters of a text (see adler32 for bytes); 1 for &quot;&quot;</p></div>
+<div class="fn" id="hashing.combine"><div class="sig">static def <b>combine</b>(seed: decimal, value: decimal): decimal</div><p>Mix a further value into a hash code, for hashing an object field by field: start with seed 17 (or any number) and combine every field in.</p>
+<div class="code"><pre class="sharp">code : decimal = hashing.combine(hashing.combine(17, x), y);</pre></div>
+<p>Formula: (seed * 31 + value) modulo 2^32, the scheme of Java&#x27;s Objects.hash. <code>value</code> may be any whole number; its sign is dropped and it is reduced modulo 2^32 first. The order of the values matters.</p></div>
+<div class="fn" id="hashing.combine_all"><div class="sig">static def <b>combine_all</b>(values: decimal[]): decimal</div><p>combine() over all values of an array, starting from 17; 17 for an empty array</p></div>
+<div class="fn" id="hashing.crc32"><div class="sig">static def <b>crc32</b>(data: _int8[]?): decimal</div><p>CRC-32 (the checksum of zip, gzip, png, Ethernet; &quot;CRC-32/ISO-HDLC&quot;).</p>
+<p>Start with all 32 bits set; every byte is XORed into the low 8 bits, which then pick the next state from a table of 256 numbers (what eight rounds of &quot;shift right, XOR with 0xEDB88320 when a 1 fell out&quot; give); finally all bits are inverted. The CRC of no bytes is 0; the CRC of &quot;123456789&quot; is 0xCBF43926.</p></div>
+<div class="fn" id="hashing.crc32-2"><div class="sig">static def <b>crc32</b>(text: string): decimal</div><p>CRC-32 of the characters of a text (see crc32 for bytes); 0 for &quot;&quot;</p></div>
+<div class="fn" id="hashing.djb2"><div class="sig">static def <b>djb2</b>(data: _int8[]): decimal</div><p>djb2 (Daniel J. Bernstein): start with 5381; for every byte hash = hash * 33 + byte (modulo 2^32). The hash of no bytes is 5381.</p></div>
+<div class="fn" id="hashing.djb2-2"><div class="sig">static def <b>djb2</b>(text: string): decimal</div><p>djb2 of the characters of a text (see djb2 for bytes); 5381 for &quot;&quot;</p></div>
+<div class="fn" id="hashing.fnv1a"><div class="sig">static def <b>fnv1a</b>(data: _int8[]): decimal</div><p>FNV-1a (Fowler-Noll-Vo), 32 bit. Start with the offset basis 2166136261; for every byte: XOR the byte in, then multiply by the FNV prime 16777619 (modulo 2^32). The hash of no bytes is 2166136261.</p></div>
+<div class="fn" id="hashing.fnv1a-2"><div class="sig">static def <b>fnv1a</b>(text: string): decimal</div><p>FNV-1a of the characters of a text (see fnv1a for bytes); 2166136261 for &quot;&quot;</p></div>
+<div class="fn" id="hashing.multiply"><div class="sig">static def <b>multiply</b>(a: decimal, b: decimal): decimal</div><p>(a * b) modulo 2^32 for two words in 0 .. 4294967295, exactly.</p>
+<p>With a = ah * 2^16 + al and b = bh * 2^16 + bl: a * b = ah bh 2^32 + (ah bl + al bh) 2^16 + al bl The first term vanishes modulo 2^32, and of the middle term only the low 16 bits survive the shift, so every intermediate value stays below 2^34.</p></div>
+<div class="fn" id="hashing.to_hex"><div class="sig">static def <b>to_hex</b>(word: decimal): string</div><p>A 32-bit word as 8 lowercase hexadecimal digits, with leading zeros: to_hex(255) is &quot;000000ff&quot;, to_hex(3421780262) is &quot;cbf43926&quot;. Throws illegal_argument_exception when the value is not a whole number in 0 .. 4294967295.</p></div>
+</div>
+</section>
+<section class="type" id="id_generator">
+<h2><span class="kind">class</span> id_generator</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/id_generator.sharp">source</a></p>
+<p>Hands out identifiers that are unique within one generator: 1, 2, 3 ... or, with a prefix, &quot;order-1&quot;, &quot;order-2&quot; ...</p>
+<div class="code"><pre class="sharp">ids := new id_generator();
+first : decimal = ids.next_id();            // 1
+second : decimal = ids.next_id();           // 2</pre></div>
+<div class="code"><pre class="sharp">tickets := new id_generator(&quot;T-&quot;, 1000);
+name := tickets.next_text();            // &quot;T-1000&quot;</pre></div>
+<p>The sequence is fully predictable (no clock, no random numbers), which makes it suitable for tests and for anything that must be reproducible. For identifiers that must be unique across programs or machines use std.util#uuid instead.</p>
+<p>Ids are whole native numbers; they stay exact up to 2^53. The class does no locking: guard next_id() when several threads share a generator.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="id_generator.id_generator"><div class="sig"><b>id_generator</b>()</div><p>a generator whose first id is 1</p></div>
+<div class="fn" id="id_generator.id_generator-2"><div class="sig"><b>id_generator</b>(first_id: decimal)</div><p>A generator whose first id is <code>first_id</code>. Throws illegal_argument_exception when first_id is not a whole number.</p></div>
+<div class="fn" id="id_generator.id_generator-3"><div class="sig"><b>id_generator</b>(prefix: string, first_id: decimal)</div><p>A generator whose text ids are <code>prefix</code> followed by the number, starting at <code>first_id</code>. Throws illegal_argument_exception when first_id is not a whole number.</p></div>
+<div class="fn" id="id_generator.issued"><div class="sig">def <b>issued</b>(): decimal</div><p>how many ids have been handed out since the generator was made or reset</p></div>
+<div class="fn" id="id_generator.last_id"><div class="sig">def <b>last_id</b>(): decimal</div><p>the id handed out most recently; first id - 1 when none has been handed out</p></div>
+<div class="fn" id="id_generator.next_id"><div class="sig">def <b>next_id</b>(): decimal</div><p>the next id as a number; every call returns a number one higher than the call before</p></div>
+<div class="fn" id="id_generator.next_text"><div class="sig">def <b>next_text</b>(): string</div><p>the next id as text: the prefix followed by the number (&quot;order-17&quot;). Advances the same sequence as next_id().</p></div>
+<div class="fn" id="id_generator.peek"><div class="sig">def <b>peek</b>(): decimal</div><p>the id the next call will return, without using it up</p></div>
+<div class="fn" id="id_generator.reset"><div class="sig">def <b>reset</b>()</div><p>start again from the first id (ids will then repeat)</p></div>
+</div>
+</section>
+<section class="type" id="lazy">
+<h2><span class="kind">class</span> lazy&lt;T&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/lazy.sharp">source</a></p>
+<p>A value that is computed the first time it is asked for, and remembered from then on (Kotlin&#x27;s <code>by lazy</code>). Use it for something expensive that may never be needed: a parsed configuration, a lookup table, a connection.</p>
+<div class="code"><pre class="sharp">table := new lazy&lt;string&gt;({ -&gt; (string) return build_big_table(); });
+// nothing has been built yet
+text := table.value();      // built now
+again := table.value();     // the same object, not built again</pre></div>
+<p>std#deferred_init is the older, thinner version of this class; lazy adds is_initialized(), reset() and a ready-made value.</p>
+<p>The supplier runs at most once (until reset()). If it throws, nothing is remembered and the next value() call runs it again. The class does no locking: when several threads may ask at the same time, guard the call.</p>
+<p>LIMITATION: T must be an object type, and the supplier has to give an object: value() throws for a null.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="lazy.lazy"><div class="sig"><b>lazy</b>(supplier: ()(T))</div><p>a lazy value that will be produced by calling <code>supplier</code></p></div>
+<div class="fn" id="lazy.is_initialized"><div class="sig">def <b>is_initialized</b>(): bool</div><p>true when the value has been computed (or was given ready-made)</p></div>
+<div class="fn" id="lazy.of_value"><div class="sig">static def <b>of_value</b>(value: T): lazy&lt;T&gt;</div><p>A lazy value that is already known (nothing will be computed). Handy when an API wants a lazy&lt;T&gt; and the value happens to be at hand.</p></div>
+<div class="fn" id="lazy.reset"><div class="sig">def <b>reset</b>()</div><p>Forget the remembered value: the next value() call runs the supplier again. Does nothing when no value has been computed yet, and nothing for a lazy made with of_value() (it has no supplier to run again).</p></div>
+<div class="fn" id="lazy.value"><div class="sig">def <b>value</b>(): T</div><p>The value: computed by the supplier on the first call, the remembered object on every later call. An exception thrown by the supplier passes through to the caller.</p></div>
+</div>
+</section>
+<section class="type" id="optional">
+<h2><span class="kind">class</span> optional&lt;T&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/optional.sharp">source</a></p>
+<p>A box that either holds one value or is empty - a way to say &quot;there may be no result&quot; in a return type instead of returning null and hoping the caller checks (Java&#x27;s Optional, Kotlin&#x27;s nullable types).</p>
+<div class="code"><pre class="sharp">def find_user(id: decimal): optional&lt;string&gt; {
+    if(id == 1) return optional&lt;string&gt;.of(&quot;ada&quot;);
+    return optional&lt;string&gt;.empty();
+}</pre></div>
+<div class="code"><pre class="sharp">name := find_user(7).or_else(&quot;nobody&quot;);
+found := find_user(1);
+if(found.is_present()) println(found.value());</pre></div>
+<p>An optional never changes after it is made; map() and filter() return new optionals.</p>
+<p>LIMITATION: T must be an object type (string, int, your own classes). optional&lt;decimal&gt; and other native type arguments are not supported, because the class stores its value in a nullable field (T?).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="optional.empty"><div class="sig">static def <b>empty</b>(): optional&lt;T&gt;</div><p>an optional that holds nothing</p></div>
+<div class="fn" id="optional.filter"><div class="sig">def <b>filter</b>(predicate: (T)(bool)): optional&lt;T&gt;</div><p>This optional when it holds a value for which <code>predicate</code> returns true, otherwise an empty optional.</p></div>
+<div class="fn" id="optional.if_present"><div class="sig">def <b>if_present</b>(action: (T)())</div><p>call <code>action</code> with the held value; does nothing when the optional is empty</p></div>
+<div class="fn" id="optional.is_empty"><div class="sig">def <b>is_empty</b>(): bool</div><p>true when no value is held</p></div>
+<div class="fn" id="optional.is_present"><div class="sig">def <b>is_present</b>(): bool</div><p>true when a value is held</p></div>
+<div class="fn" id="optional.map"><div class="sig">def <b>map</b>(transform: (T)(T)): optional&lt;T&gt;</div><p>An optional holding <code>transform(value)</code>, or an empty optional when this one is empty (the function is not called then) or when the function returns null.</p>
+<p>The function maps T to T: the language has no generic methods, so the result type cannot differ from the type of the optional.</p></div>
+<div class="fn" id="optional.of"><div class="sig">static def <b>of</b>(value: T): optional&lt;T&gt;</div><p>An optional holding <code>value</code>. Throws illegal_argument_exception when value is null (use of_nullable).</p></div>
+<div class="fn" id="optional.of_nullable"><div class="sig">static def <b>of_nullable</b>(value: T?): optional&lt;T&gt;</div><p>an optional holding <code>value</code>, or an empty optional when value is null</p></div>
+<div class="fn" id="optional.or"><div class="sig">def <b>or</b>(other: optional&lt;T&gt;): optional&lt;T&gt;</div><p>this optional when it holds a value, otherwise <code>other</code></p></div>
+<div class="fn" id="optional.or_else"><div class="sig">def <b>or_else</b>(fallback: T): T</div><p>the held value, or <code>fallback</code> when the optional is empty</p></div>
+<div class="fn" id="optional.or_else_get"><div class="sig">def <b>or_else_get</b>(supplier: ()(T)): T</div><p>The held value, or the result of calling <code>supplier</code> when the optional is empty. The supplier is only called when it is needed.</p></div>
+<div class="fn" id="optional.or_null"><div class="sig">def <b>or_null</b>(): T?</div><p>the held value, or null when the optional is empty</p></div>
+<div class="fn" id="optional.or_throw"><div class="sig">def <b>or_throw</b>(message: string): T</div><p>The held value. Throws no_such_element_exception with the given message when the optional is empty.</p></div>
+<div class="fn" id="optional.value"><div class="sig">def <b>value</b>(): T</div><p>The held value. Throws no_such_element_exception when the optional is empty.</p></div>
+</div>
+</section>
+<section class="type" id="preconditions">
+<h2><span class="kind">class</span> preconditions</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/preconditions.sharp">source</a></p>
+<p>One-line checks that throw the right exception when something is wrong (Kotlin&#x27;s require / check / requireNotNull / error / TODO). Only static functions; never instantiated.</p>
+<div class="code"><pre class="sharp">def withdraw(amount: decimal) {
+    preconditions.require(amount &gt; 0, &quot;amount must be positive&quot;);
+    preconditions.check(is_open, &quot;the account is closed&quot;);
+    ...
+}</pre></div>
+<p>Which function to use:</p>
+<div class="code"><pre class="sharp">require(...)          the CALLER passed a bad argument   -&gt; illegal_argument_exception
+check(...)            the OBJECT is in the wrong state   -&gt; illegal_state_exception
+require_not_null(...) an argument is null                -&gt; nullptr_exception
+require_index(...)    an index is outside 0 .. size - 1  -&gt; out_of_bounds_exception
+error(...)            &quot;this cannot happen&quot; was reached   -&gt; illegal_state_exception
+todo(...)             the code is not written yet        -&gt; not_implemented_error</pre></div>
+<p>Note: a catch clause currently matches the exact class of the exception only, so catch the class named in the table.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="preconditions.check"><div class="sig">static def <b>check</b>(condition: bool, message: string)</div><p>Throws illegal_state_exception with <code>message</code> when <code>condition</code> is false. Use it to validate the state of the object a method was called on.</p></div>
+<div class="fn" id="preconditions.check-2"><div class="sig">static def <b>check</b>(condition: bool)</div><p>like check(condition, message) with the message &quot;check failed&quot;</p></div>
+<div class="fn" id="preconditions.error"><div class="sig">static def <b>error</b>(message: string)</div><p>Always throws illegal_state_exception with <code>message</code>. For branches that must never be reached (&quot;unknown shape kind&quot;).</p></div>
+<div class="fn" id="preconditions.require"><div class="sig">static def <b>require</b>(condition: bool, message: string)</div><p>Throws illegal_argument_exception with <code>message</code> when <code>condition</code> is false. Use it to validate the arguments of a function.</p></div>
+<div class="fn" id="preconditions.require-2"><div class="sig">static def <b>require</b>(condition: bool)</div><p>like require(condition, message) with the message &quot;requirement failed&quot;</p></div>
+<div class="fn" id="preconditions.require_in_range"><div class="sig">static def <b>require_in_range</b>(value: decimal, low: decimal, high: decimal, message: string): decimal</div><p>Throws illegal_argument_exception with <code>message</code> unless low &lt;= value &lt;= high; returns the value otherwise.</p></div>
+<div class="fn" id="preconditions.require_index"><div class="sig">static def <b>require_index</b>(index: decimal, size: decimal): decimal</div><p>Throws out_of_bounds_exception unless 0 &lt;= index &lt; size; returns the index otherwise. The message names the index and the size.</p></div>
+<div class="fn" id="preconditions.require_not_empty"><div class="sig">static def <b>require_not_empty</b>(text: string?, message: string): string</div><p>Throws illegal_argument_exception with <code>message</code> when the text is null or has no characters; returns the text otherwise.</p></div>
+<div class="fn" id="preconditions.require_not_null"><div class="sig">static def <b>require_not_null</b>(value: object, message: string): object</div><p>Returns <code>value</code> when it is not null, so the call can be used inline; throws nullptr_exception with <code>message</code> when it is null.</p></div>
+<div class="fn" id="preconditions.todo"><div class="sig">static def <b>todo</b>(what: string)</div><p>Always throws not_implemented_error: marks code that still has to be written. The message is &quot;not implemented: &quot; followed by <code>what</code>.</p></div>
+<div class="fn" id="preconditions.todo-2"><div class="sig">static def <b>todo</b>()</div><p>like todo(what) with the plain message &quot;not implemented&quot;</p></div>
+</div>
+</section>
+<section class="type" id="range">
+<h2><span class="kind">class</span> range</h2>
+<p class="meta"><code>: loopable&lt;decimal&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/range.sharp">source</a></p>
+<p>An arithmetic progression of native numbers: first, first + step, first + 2 * step ... up to and INCLUDING the last value (Kotlin&#x27;s IntRange / IntProgression).</p>
+<div class="code"><pre class="sharp">foreach(i in new range(1, 5)) { ... }            // 1 2 3 4 5
+foreach(i in new range(10, 1, 0 - 3)) { ... }    // 10 7 4 1
+foreach(i in range.until(0, 4)) { ... }          // 0 1 2 3
+new range(1, 10).contains(7)               // true
+new range(1, 10).stepped(2).to_array()           // { 1, 3, 5, 7, 9 }</pre></div>
+<p>A range is a VALUE: it cannot be changed after it is made; reversed() and stepped() return new ranges.</p>
+<p>The end is normalised: <code>last</code> is always a value the range really reaches, so new range(1, 10, 4) has last == 9 (1, 5, 9). A range whose start lies beyond its end in the direction of the step is EMPTY (size 0), e.g. new range(5, 1) - that is not an error, loops over it just do not run.</p>
+<p>Steps and bounds need not be whole numbers (new range(0, 1, 0.25) is 0, 0.25, 0.5, 0.75, 1), but then the usual floating point caveats apply.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>first</code></td><td><code>decimal</code></td><td>the first value (read only)</td></tr><tr><td><code>last</code></td><td><code>decimal</code></td><td>the last value the range reaches (read only); meaningless when the range is empty</td></tr><tr><td><code>step</code></td><td><code>decimal</code></td><td>the distance between two neighbouring values; never 0, negative for a falling range (read only)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="range.range"><div class="sig"><b>range</b>(first: decimal, last: decimal)</div><p>the range first, first + 1, ... last (empty when first &gt; last)</p></div>
+<div class="fn" id="range.range-2"><div class="sig"><b>range</b>(first: decimal, last: decimal, step: decimal)</div><p>The range first, first + step, ... not going past <code>last</code>. A negative step counts down. Throws illegal_argument_exception when step is 0.</p></div>
+<div class="fn" id="range.at"><div class="sig">def <b>at</b>(index: decimal): decimal</div><p>The value at position <code>index</code> (0 is the first): first + index * step. Throws out_of_bounds_exception when index is outside 0 .. size() - 1.</p></div>
+<div class="fn" id="range.contains"><div class="sig">def <b>contains</b>(value: decimal): bool</div><p>True when <code>value</code> is one of the values of the range: inside the bounds AND on the step grid. new range(1, 9, 2).contains(4) is false.</p></div>
+<div class="fn" id="range.down_to"><div class="sig">static def <b>down_to</b>(first: decimal, last: decimal): range</div><p>the falling range first, first - 1, ... last (Kotlin <code>downTo</code>). Empty when first &lt; last.</p></div>
+<div class="fn" id="range.for_each"><div class="sig">def <b>for_each</b>(action: (decimal)())</div><p>call <code>action</code> with every value, in order</p></div>
+<div class="fn" id="range.get_elements"><div class="sig">override def <b>get_elements</b>(): decimal[]?</div><p>The values for a foreach loop: <code>foreach(i in some_range) { ... }</code>. (The loopable interface; the same array as to_array().)</p></div>
+<div class="fn" id="range.index_of"><div class="sig">def <b>index_of</b>(value: decimal): decimal</div><p>The position of <code>value</code> in the range (0 for the first value), or -1 when the range does not contain it.</p></div>
+<div class="fn" id="range.indices"><div class="sig">static def <b>indices</b>(count: decimal): range</div><p>the range 0 .. count - 1: the valid indexes of something with <code>count</code> elements</p></div>
+<div class="fn" id="range.is_empty"><div class="sig">def <b>is_empty</b>(): bool</div><p>true when the range has no values</p></div>
+<div class="fn" id="range.operator_"><div class="sig">def <b>operator!=</b>(other: range): bool</div><p>true when the ranges produce different values</p></div>
+<div class="fn" id="range.operator_-2"><div class="sig">def <b>operator==</b>(other: range): bool</div><p>true when both ranges produce exactly the same values in the same order (two empty ranges are equal)</p></div>
+<div class="fn" id="range.reversed"><div class="sig">def <b>reversed</b>(): range</div><p>the same values in the opposite order: (1, 3, 5) becomes (5, 3, 1)</p></div>
+<div class="fn" id="range.size"><div class="sig">def <b>size</b>(): decimal</div><p>how many values the range has</p></div>
+<div class="fn" id="range.stepped"><div class="sig">def <b>stepped</b>(new_step: decimal): range</div><p>The same range walked with a different step size, keeping the direction (Kotlin <code>step</code>): new range(1, 10).stepped(3) is 1, 4, 7, 10 and range.down_to(10, 1).stepped(3) is 10, 7, 4, 1. Throws illegal_argument_exception when new_step is not positive.</p></div>
+<div class="fn" id="range.sum"><div class="sig">def <b>sum</b>(): decimal</div><p>the sum of all values: size * (first + last) / 2 (0 for an empty range)</p></div>
+<div class="fn" id="range.to_array"><div class="sig">def <b>to_array</b>(): decimal[]</div><p>all values as a new array (of length 0 for an empty range)</p></div>
+<div class="fn" id="range.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;1..10&quot;, &quot;1..9 step 2&quot;, &quot;10..1 step -3&quot;</p></div>
+<div class="fn" id="range.until"><div class="sig">static def <b>until</b>(first: decimal, end: decimal): range</div><p>the range first .. end - 1: the end is NOT included (Kotlin <code>until</code>). Empty when first &gt;= end.</p></div>
+</div>
+</section>
+<section class="type" id="ref">
+<h2><span class="kind">class</span> ref&lt;T&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/ref.sharp">source</a></p>
+<p>A mutable holder for one object: a variable you can pass around.</p>
+<p>Its main use is with lambdas. A closure can read and call the objects around it but cannot assign to an outer variable; put the value in a ref and the closure can change what the ref holds:</p>
+<div class="code"><pre class="sharp">longest := new ref&lt;string&gt;(&quot;&quot;);
+words.for_each({ w: string -&gt; if(w.size() &gt; longest.value.size()) longest.value = w; });
+println(longest.value);</pre></div>
+<p>It also serves as an &quot;out parameter&quot;: a function that needs to hand back a second result can fill a ref the caller passed in.</p>
+<p><code>value</code> is a public field: read and assign it directly.</p>
+<p>LIMITATION: T must be an object type. For a native number use std.util#counter, which is the same idea for a <code>decimal</code>.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>T</code></td><td>the object currently held</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="ref.ref"><div class="sig"><b>ref</b>(value: T)</div><p>a holder that starts out holding <code>value</code></p></div>
+<div class="fn" id="ref.replace"><div class="sig">def <b>replace</b>(new_value: T): T</div><p>store <code>new_value</code> and return what was held before</p></div>
+<div class="fn" id="ref.same_as"><div class="sig">def <b>same_as</b>(other: ref&lt;T&gt;): bool</div><p>true when both holders hold the very same object (identity, not equality)</p></div>
+<div class="fn" id="ref.swap"><div class="sig">def <b>swap</b>(other: ref&lt;T&gt;)</div><p>exchange the contents of this holder and <code>other</code></p></div>
+<div class="fn" id="ref.update"><div class="sig">def <b>update</b>(transform: (T)(T)): T</div><p>replace the held object by <code>transform(held object)</code> and return the new one</p></div>
+</div>
+</section>
+<section class="type" id="uuid">
+<h2><span class="kind">class</span> uuid</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/uuid.sharp">source</a></p>
+<p>A universally unique identifier: 128 bits, written as 32 hexadecimal digits in five groups, 8-4-4-4-12:</p>
+<div class="code"><pre class="sharp">123e4567-e89b-42d3-a456-426614174000</pre></div>
+<div class="code"><pre class="sharp">id := uuid.random();                    // a new random (version 4) id
+text := id.to_string();
+same := uuid.parse(text);
+(id == same).value                      // true</pre></div>
+<p>VERSION 4 LAYOUT (RFC 4122 / RFC 9562). 122 of the 128 bits are random; six are fixed and mark the kind of uuid:</p>
+<div class="code"><pre class="sharp">xxxxxxxx-xxxx-4xxx-Vxxx-xxxxxxxxxxxx
+              ^    ^
+              |    variant: the top two bits of byte 8 are 1 0, so V is 8, 9, a or b
+              version: the top four bits of byte 6 are 0100</pre></div>
+<p>random() takes its bits from the runtime&#x27;s random generator (std#rand, seeded from the clock unless set_seed() was called); random(generator) takes them from a std#seeded_random and is fully reproducible. Neither source is cryptographically secure: the ids are fine as database keys and correlation ids but must not be used as secrets (session tokens, password reset links).</p>
+<p>A uuid is a VALUE and cannot be changed after it is made.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="uuid.compare_to"><div class="sig">def <b>compare_to</b>(other: uuid): decimal</div><p>Three-way comparison, byte by byte from the most significant: -1, 0 or 1. This is the same order as comparing the text forms.</p></div>
+<div class="fn" id="uuid.from_bytes"><div class="sig">static def <b>from_bytes</b>(values: decimal[]): uuid</div><p>A uuid from its 16 bytes, most significant first; the array is copied. Throws illegal_argument_exception when the array does not hold exactly 16 whole numbers in 0 .. 255.</p></div>
+<div class="fn" id="uuid.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code over all 16 bytes (equal uuids have equal hashes)</p></div>
+<div class="fn" id="uuid.is_nil"><div class="sig">def <b>is_nil</b>(): bool</div><p>true for the nil uuid (all bits zero)</p></div>
+<div class="fn" id="uuid.is_valid"><div class="sig">static def <b>is_valid</b>(text: string): bool</div><p>true when parse(text) would succeed</p></div>
+<div class="fn" id="uuid.nil_uuid"><div class="sig">static def <b>nil_uuid</b>(): uuid</div><p>the &quot;nil&quot; uuid: all 128 bits zero, 00000000-0000-0000-0000-000000000000</p></div>
+<div class="fn" id="uuid.operator_"><div class="sig">def <b>operator!=</b>(other: uuid): bool</div><p>true when at least one bit differs</p></div>
+<div class="fn" id="uuid.operator_-2"><div class="sig">def <b>operator&lt;</b>(other: uuid): bool</div><p>true when this uuid sorts before <code>other</code></p></div>
+<div class="fn" id="uuid.operator_-3"><div class="sig">def <b>operator==</b>(other: uuid): bool</div><p>true when all 128 bits are equal</p></div>
+<div class="fn" id="uuid.operator_-4"><div class="sig">def <b>operator&gt;</b>(other: uuid): bool</div><p>true when this uuid sorts after <code>other</code></p></div>
+<div class="fn" id="uuid.parse"><div class="sig">static def <b>parse</b>(text: string): uuid</div><p>Read a uuid from its text form: 36 characters, hexadecimal digits in groups of 8-4-4-4-12 separated by &quot;-&quot;. Capital and small letters are both accepted. Any version is accepted, not only version 4.</p>
+<p>Throws parse_exception for anything else.</p></div>
+<div class="fn" id="uuid.parse_or_null"><div class="sig">static def <b>parse_or_null</b>(text: string): uuid?</div><p>like parse(), but returns null instead of throwing when the text is not a uuid</p></div>
+<div class="fn" id="uuid.random"><div class="sig">static def <b>random</b>(): uuid</div><p>a new random version 4 uuid from the runtime&#x27;s random generator</p></div>
+<div class="fn" id="uuid.random-2"><div class="sig">static def <b>random</b>(generator: seeded_random): uuid</div><p>A new random version 4 uuid whose bits come from <code>generator</code>: the same seed gives the same sequence of uuids.</p></div>
+<div class="fn" id="uuid.to_bytes"><div class="sig">def <b>to_bytes</b>(): decimal[]</div><p>a copy of the 16 bytes, most significant first</p></div>
+<div class="fn" id="uuid.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>the text form in small letters: &quot;123e4567-e89b-42d3-a456-426614174000&quot;</p></div>
+<div class="fn" id="uuid.variant"><div class="sig">def <b>variant</b>(): decimal</div><p>The variant: 2 for the standard layout of RFC 4122 (top bits of byte 8 are &quot;10&quot;), 0 for the old NCS layout (&quot;0x&quot;), 6 for Microsoft GUIDs (&quot;110&quot;) and 7 for the reserved pattern (&quot;111&quot;).</p></div>
+<div class="fn" id="uuid.version_number"><div class="sig">def <b>version_number</b>(): decimal</div><p>the version number 0 .. 15: the top four bits of byte 6 (4 for random uuids, 0 for nil)</p></div>
+</div>
+</section>
+<section class="type" id="version">
+<h2><span class="kind">class</span> version</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/util/version.sharp">source</a></p>
+<p>A semantic version number (semver.org, version 2.0.0):</p>
+<div class="code"><pre class="sharp">MAJOR.MINOR.PATCH[-PRE-RELEASE][+BUILD]      e.g.  1.4.2,  2.0.0-rc.1,  1.0.0-beta+exp.sha.5114f85</pre></div>
+<div class="code"><pre class="sharp">v := version.parse(&quot;1.4.2-beta.3+build7&quot;);
+v.major                 // 1
+v.pre_release           // &quot;beta.3&quot;
+(version.parse(&quot;1.9.0&quot;) &lt; version.parse(&quot;1.10.0&quot;)).value        // true: numbers, not text
+version.parse(&quot;1.2.3&quot;).next_minor().to_string()                 // &quot;1.3.0&quot;</pre></div>
+<p>ORDER (precedence), as the specification defines it: 1. major, minor and patch are compared as NUMBERS, in that order. 2. A version with a pre-release part comes BEFORE the same version without one: 1.0.0-rc.1 &lt; 1.0.0. 3. Two pre-release parts are compared identifier by identifier (the pieces between the dots): two numbers compare as numbers, a number comes before a word, two words compare by character code; when all shared identifiers are equal the shorter list comes first: alpha &lt; alpha.1 &lt; alpha.beta &lt; beta &lt; beta.2 &lt; beta.11 &lt; rc.1 4. The build part is IGNORED when comparing: 1.0.0+a equals 1.0.0+b.</p>
+<p>Versions are VALUES: the fields are read only and next_major() etc. return new versions.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>major</code></td><td><code>decimal</code></td><td>incremented for incompatible changes (read only)</td></tr><tr><td><code>minor</code></td><td><code>decimal</code></td><td>incremented for new, backward compatible functionality (read only)</td></tr><tr><td><code>patch</code></td><td><code>decimal</code></td><td>incremented for backward compatible bug fixes (read only)</td></tr><tr><td><code>pre_release</code></td><td><code>string</code></td><td>the part after &quot;-&quot;, e.g.</td></tr><tr><td><code>build</code></td><td><code>string</code></td><td>the part after &quot;+&quot;, e.g.</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="version.version"><div class="sig"><b>version</b>(major: decimal, minor: decimal, patch: decimal)</div><p>The release version major.minor.patch. Throws illegal_argument_exception when a number is negative or not whole.</p></div>
+<div class="fn" id="version.version-2"><div class="sig"><b>version</b>(major: decimal, minor: decimal, patch: decimal, pre_release: string)</div><p>The version major.minor.patch-pre_release (pass &quot;&quot; for no pre-release part). Throws illegal_argument_exception when a number is negative or not whole, and parse_exception when the pre-release text is malformed (see parse()).</p></div>
+<div class="fn" id="version.compare_to"><div class="sig">def <b>compare_to</b>(other: version): decimal</div><p>Three-way comparison by semantic version precedence (see the class comment): -1 when this version is older than <code>other</code>, 1 when it is newer, 0 when they have the same precedence (build parts may differ).</p></div>
+<div class="fn" id="version.hash"><div class="sig">override def <b>hash</b>(): int</div><p>A hash code from the numbers and the pre-release part (not the build part, so versions that compare equal have equal hashes).</p></div>
+<div class="fn" id="version.is_compatible_with"><div class="sig">def <b>is_compatible_with</b>(required: version): bool</div><p>True when code written against <code>required</code> can use this version: the same major number, and this version is not older than <code>required</code>. For major 0 the minor number must match as well, because 0.x releases make no compatibility promise between minor versions.</p></div>
+<div class="fn" id="version.is_pre_release"><div class="sig">def <b>is_pre_release</b>(): bool</div><p>true when the version has a pre-release part (1.0.0-rc.1)</p></div>
+<div class="fn" id="version.is_stable"><div class="sig">def <b>is_stable</b>(): bool</div><p>True for a version that promises a stable public interface: major is at least 1 and there is no pre-release part. (0.x.y is for initial development; anything may change.)</p></div>
+<div class="fn" id="version.is_valid"><div class="sig">static def <b>is_valid</b>(text: string): bool</div><p>true when parse(text) would succeed</p></div>
+<div class="fn" id="version.next_major"><div class="sig">def <b>next_major</b>(): version</div><p>the next incompatible release: major + 1, minor and patch 0, no pre-release or build part</p></div>
+<div class="fn" id="version.next_minor"><div class="sig">def <b>next_minor</b>(): version</div><p>the next feature release: minor + 1, patch 0, no pre-release or build part</p></div>
+<div class="fn" id="version.next_patch"><div class="sig">def <b>next_patch</b>(): version</div><p>the next bug fix release: patch + 1, no pre-release or build part</p></div>
+<div class="fn" id="version.operator_"><div class="sig">def <b>operator!=</b>(other: version): bool</div><p>true when the versions differ in precedence</p></div>
+<div class="fn" id="version.operator_-2"><div class="sig">def <b>operator&lt;</b>(other: version): bool</div><p>true when this version is older than <code>other</code></p></div>
+<div class="fn" id="version.operator_-3"><div class="sig">def <b>operator&lt;=</b>(other: version): bool</div><p>true when this version is older than or the same as <code>other</code></p></div>
+<div class="fn" id="version.operator_-4"><div class="sig">def <b>operator==</b>(other: version): bool</div><p>true when both versions have the same precedence (the build part is ignored)</p></div>
+<div class="fn" id="version.operator_-5"><div class="sig">def <b>operator&gt;</b>(other: version): bool</div><p>true when this version is newer than <code>other</code></p></div>
+<div class="fn" id="version.operator_-6"><div class="sig">def <b>operator&gt;=</b>(other: version): bool</div><p>true when this version is newer than or the same as <code>other</code></p></div>
+<div class="fn" id="version.parse"><div class="sig">static def <b>parse</b>(text: string): version</div><p>Read a version from text.</p>
+<p>Accepted: three dot-separated numbers without leading zeros, then optionally &quot;-&quot; and dot-separated pre-release identifiers, then optionally &quot;+&quot; and dot-separated build identifiers. Identifiers consist of letters, digits and &quot;-&quot; and are never empty; a numeric pre-release identifier has no leading zero.</p>
+<p>Throws parse_exception for anything else: &quot;1.2&quot;, &quot;1.2.3.4&quot;, &quot;01.2.3&quot;, &quot;1.2.x&quot;, &quot;1.2.3-&quot;, &quot;1.2.3-a..b&quot;, &quot;v1.2.3&quot;, &quot;&quot;.</p></div>
+<div class="fn" id="version.parse_or_null"><div class="sig">static def <b>parse_or_null</b>(text: string): version?</div><p>Like parse(), but returns null instead of throwing when the text is not a semantic version.</p></div>
+<div class="fn" id="version.release"><div class="sig">def <b>release</b>(): version</div><p>the same numbers without pre-release and build part: the release this version leads up to</p></div>
+<div class="fn" id="version.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>the standard text form: &quot;1.4.2&quot;, &quot;2.0.0-rc.1&quot;, &quot;1.0.0-beta+build.5&quot;</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

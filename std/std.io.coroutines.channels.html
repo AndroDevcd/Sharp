@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.io.coroutines.channels - Sharp standard library</title>
+<meta name="description" content="The std.io.coroutines.channels module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="on sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.io.coroutines.channels</p>
+<h1>std.io.coroutines.channels <small>module</small></h1>
+<p class="contents"><a href="#channel">channel</a> <a href="#channels">channels</a> <a href="#closed_channel_exception">closed_channel_exception</a> <a href="#produce">produce</a> <a href="#receive_channel">receive_channel</a> <a href="#send_channel">send_channel</a></p>
+<section class="type" id="channel">
+<h2><span class="kind">class</span> channel&lt;t&gt;</h2>
+<p class="meta"><code>: send_channel&lt;t&gt;, receive_channel&lt;t&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/channel.sharp">source</a></p>
+<p>channel&lt;t&gt; - a queue between coroutines: send() on one side, receive() on the other, and whoever is too fast is suspended until the other side has caught up.</p>
+<p>USAGE numbers := new channel&lt;int&gt;(16);                 // see <code>channels</code> for the capacities</p>
+<div class="code"><pre class="sharp">launch(numbers, { s: object -&gt;                   // the producer (state object: THE CLOSURE RULE)
+    out := s as channel&lt;int&gt;;
+    for(i : decimal = 0; i &lt; 100; i++) { out.send(i); }
+    out.close();
+});</pre></div>
+<div class="code"><pre class="sharp">total : decimal = 0;
+for( ;; ) {                                      // the consumer
+    n := numbers.receive_or_null();
+    if(n == null) { break; }                     // closed and empty
+    total += n!!.value;
+}
+// or: numbers.for_each({ n: int -&gt; ... });</pre></div>
+<p>Any number of coroutines may send and receive on the same channel; every element is received exactly once. Elements of one sender arrive in the order they were sent. Waiting senders and receivers are served first come first served. It works the same from plain fibers and threads (there the waits simply cannot be cancelled).</p>
+<p>CLOSING close()   &quot;nothing more will be sent&quot;. Elements that are in the channel, including those of senders that are still waiting, can be received; after that receive() throws closed_channel_exception and receive_or_null() returns null. send() throws at once. cancel()  close() from the consumer side: also throws away what is in the channel and makes waiting senders fail.</p>
+<p><code>t</code> must be an object type (channel&lt;int&gt;, not channel&lt;decimal&gt;).</p>
+<p>Kotlin equivalent: kotlinx.coroutines.channels.Channel&lt;E&gt;. Java equivalent: java.util.concurrent.BlockingQueue (SynchronousQueue, ArrayBlockingQueue, LinkedBlockingQueue for the first three capacities). Go equivalent: chan T.</p>
+<p>LOCKING DISCIPLINE <code>lk</code> (a stripe of lock_stripes, picked once) guards buffer, senders, receivers, closed and cancelled, and is the guard of every waiter queued here. No other lock is taken while it is held, nothing that can throw and no user code runs inside a lock block; waiters are unparked and exceptions thrown after the lock is released. A waiting sender carries its element in waiter.item; a waiting receiver is handed its element through waiter.item.</p>
+<p>Suspends: send (full), receive / receive_or_null / for_each / to_list (empty). All of them are cancellation points. try_send, try_receive, close, cancel and the queries never suspend.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="channel.channel"><div class="sig"><b>channel</b>()</div><p>A rendezvous channel: every send waits for a receive. Kotlin: Channel()</p></div>
+<div class="fn" id="channel.channel-2"><div class="sig"><b>channel</b>(capacity: decimal)</div><p>@param capacity 0 (channels.RENDEZVOUS), a buffer size, channels.UNLIMITED or channels.CONFLATED @throws illegal_argument_exception for any other negative number</p></div>
+<div class="fn" id="channel.cancel"><div class="sig">override def <b>cancel</b>()</div><p>The consumer gives up: closes the channel, throws away the elements that are waiting in it and makes senders that are waiting fail with closed_channel_exception. Never suspends. Kotlin: ReceiveChannel.cancel()</p></div>
+<div class="fn" id="channel.close"><div class="sig">override def <b>close</b>()</div><p>No more elements will be sent. Receivers that are waiting on the empty channel wake up (closed_channel_exception / null); elements that are still in the channel stay receivable. Closing twice is harmless. Never suspends. Kotlin: SendChannel.close()</p></div>
+<div class="fn" id="channel.for_each"><div class="sig">override def <b>for_each</b>(action: (t)())</div><p>Call <code>action(element)</code> for every element until the channel is closed and empty. The way to &quot;iterate over a channel&quot;.</p>
+<p>The action runs in-line in the calling fiber (it may capture locals). SUSPENDS while it waits for the next element; a cancellation point. An exception of the action ends the loop and is thrown on; the channel is left as it is. Do not call for_each from inside the action of another for_each on the same fiber (THE NESTING RULE, std/io/coroutines/scope/scopes.sharp); use a receive_or_null() loop for the inner one. Kotlin: for (x in channel) { } / consumeEach { }</p></div>
+<div class="fn" id="channel.get_capacity"><div class="sig">def <b>get_capacity</b>() : decimal</div><p>the capacity the channel was created with</p></div>
+<div class="fn" id="channel.is_cancelled"><div class="sig">def <b>is_cancelled</b>() : bool</div><p>true after cancel()</p></div>
+<div class="fn" id="channel.is_closed_for_receive"><div class="sig">override def <b>is_closed_for_receive</b>() : bool</div><p>true when the channel is closed and nothing is left to receive. Kotlin: isClosedForReceive</p></div>
+<div class="fn" id="channel.is_closed_for_send"><div class="sig">override def <b>is_closed_for_send</b>() : bool</div><p>true after close() or cancel(): send() will throw. Kotlin: isClosedForSend</p></div>
+<div class="fn" id="channel.is_empty"><div class="sig">def <b>is_empty</b>() : bool</div><p>true when no element is waiting in the buffer right now</p></div>
+<div class="fn" id="channel.receive"><div class="sig">override def <b>receive</b>() : t</div><p>Take the next element.</p>
+<p>SUSPENDS while the channel is empty. A cancellation point. @throws closed_channel_exception when the channel is closed and empty @throws cancellation_exception when the calling coroutine is cancelled Kotlin: ReceiveChannel.receive()</p></div>
+<div class="fn" id="channel.receive_or_null"><div class="sig">override def <b>receive_or_null</b>() : t?</div><p>receive() that returns null when the channel is closed and empty. SUSPENDS while the channel is empty and open. A cancellation point. Kotlin: receiveCatching().getOrNull()</p></div>
+<div class="fn" id="channel.send"><div class="sig">override def <b>send</b>(value: t)</div><p>Hand <code>value</code> to a receiver, or put it into the buffer.</p>
+<p>SUSPENDS while the channel is full (always, for a rendezvous channel without a waiting receiver). A cancellation point: checked on entry, and a cancelled wait takes the element back and throws. @throws closed_channel_exception when the channel is closed (also when it is cancelled while this call waits) @throws cancellation_exception when the calling coroutine is cancelled Kotlin: SendChannel.send(element)</p></div>
+<div class="fn" id="channel.size"><div class="sig">def <b>size</b>() : decimal</div><p>number of elements waiting in the buffer right now</p></div>
+<div class="fn" id="channel.to_list"><div class="sig">def <b>to_list</b>() : list&lt;t&gt;</div><p>Receive everything until the channel is closed and return it as a list. SUSPENDS until the channel is closed; a cancellation point. Kotlin: channel.toList()</p></div>
+<div class="fn" id="channel.try_receive"><div class="sig">override def <b>try_receive</b>() : t?</div><p>receive() that never waits: the next element, or null when nothing is there right now (empty or closed - is_closed_for_receive() tells). Never suspends, not a cancellation point. Kotlin: tryReceive().getOrNull()</p></div>
+<div class="fn" id="channel.try_send"><div class="sig">override def <b>try_send</b>(value: t) : bool</div><p>send() that never waits. @return true when the element was handed over or buffered; false when the channel is full or closed Never suspends, not a cancellation point. Kotlin: trySend(element).isSuccess</p></div>
+</div>
+</section>
+<section class="type" id="channels">
+<h2><span class="kind">class</span> channels</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/channels.sharp">source</a></p>
+<p>channels - the names of the four kinds of channel capacity.</p>
+<p>USAGE a := new channel&lt;int&gt;();                       // rendezvous (the default) b := new channel&lt;int&gt;(16);                     // a buffer of 16 c := new channel&lt;int&gt;(channels.UNLIMITED);     // send never waits d := new channel&lt;int&gt;(channels.CONFLATED);     // only the newest element is kept</p>
+<div class="code"><pre class="sharp">capacity          send() when no receiver is waiting
+---------------   -----------------------------------------------
+RENDEZVOUS (0)    suspends until a receiver takes the element
+n &gt; 0             suspends only when n elements are waiting already
+UNLIMITED         never suspends, the buffer grows
+CONFLATED         never suspends, replaces the element that was waiting</pre></div>
+<p>Kotlin equivalent: Channel.RENDEZVOUS, Channel.BUFFERED, Channel.UNLIMITED, Channel.CONFLATED.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>RENDEZVOUS</code></td><td><code>decimal</code></td><td>no buffer: every send meets a receive</td></tr><tr><td><code>BUFFERED</code></td><td><code>decimal</code></td><td>a buffer of a sensible default size</td></tr><tr><td><code>UNLIMITED</code></td><td><code>decimal</code></td><td>a buffer without a limit</td></tr><tr><td><code>CONFLATED</code></td><td><code>decimal</code></td><td>a buffer of one that always holds the newest element</td></tr></table></div>
+</section>
+<section class="type" id="closed_channel_exception">
+<h2><span class="kind">class</span> closed_channel_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/closed_channel_exception.sharp">source</a></p>
+<p>closed_channel_exception - thrown by channel.send() on a closed channel and by channel.receive() once a closed channel has nothing left.</p>
+<p>USAGE try { for( ;; ) { handle(inbox.receive()); } } catch(e: closed_channel_exception) { // the sender called close() and everything it sent was handled }</p>
+<p>Usually nicer than catching it: inbox.for_each({ item: message -&gt; handle(item); }) or receive_or_null(), which end quietly when the channel is closed.</p>
+<p>Kotlin equivalents: ClosedSendChannelException and ClosedReceiveChannelException (one class here; catch clauses used to match the exact class only, and one name is easier to remember anyway).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="closed_channel_exception.closed_channel_exception"><div class="sig">public <b>closed_channel_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="produce">
+<h2><span class="kind">class</span> produce&lt;t&gt;</h2>
+<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/produce.sharp">source</a></p>
+<p>produce&lt;t&gt; - start a coroutine that fills a channel, and get the receiving end of that channel.</p>
+<p>USAGE squares := produce&lt;int&gt;.start({ out: send_channel&lt;int&gt; -&gt; for(i : decimal = 1; i &lt;= 5; i++) { out.send(i * i); } });                                              // the channel is closed when the block returns</p>
+<div class="code"><pre class="sharp">squares.for_each({ n: int -&gt; println(&quot;$n&quot;); });  // 1 4 9 16 25</pre></div>
+<div class="code"><pre class="sharp">// with a buffer and a state object (THE CLOSURE RULE: no captured locals)
+lines := produce&lt;string&gt;.start(64, file, { out: send_channel&lt;string&gt;, s: object -&gt;
+    f := s as text_source;
+    while(f.has_more()) { out.send(f.next_line()); }
+});</pre></div>
+<p>The coroutine is a child of the current coroutine or scope, like launch. The channel is closed when the block ends - normally, by an exception or by a cancellation - so the consumer&#x27;s loop always ends. When the consumer calls cancel() on the channel the producer&#x27;s next send() fails and the producer ends quietly. An exception of the block (other than that) fails the producer&#x27;s job and with it the parent scope, as for launch.</p>
+<p>The language has no generic functions, so <code>produce</code> is a class whose static functions do the work; write the element type once: produce&lt;int&gt;.start(...). <code>t</code> must be an object type.</p>
+<p>Kotlin equivalent: produce { send(x) }.</p>
+<p>No locking: the fields are written before the coroutine is started and only read by its own fiber.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="produce.run_body"><div class="sig">override def <b>run_body</b>()</div><p>runs the block, then closes the channel whatever happened</p></div>
+<div class="fn" id="produce.start"><div class="sig">static def <b>start</b>(block: (send_channel&lt;t&gt;)()) : receive_channel&lt;t&gt;</div><p>Start a producer on a rendezvous channel: each send waits for the consumer. Does not suspend.</p></div>
+<div class="fn" id="produce.start-2"><div class="sig">static def <b>start</b>(capacity: decimal, block: (send_channel&lt;t&gt;)()) : receive_channel&lt;t&gt;</div><p>Start a producer on a channel of the given capacity (see <code>channels</code>).</p></div>
+<div class="fn" id="produce.start-3"><div class="sig">static def <b>start</b>(capacity: decimal, state: object, block: (send_channel&lt;t&gt;, object)()) : receive_channel&lt;t&gt;</div><p>start() with a state object handed to the block: block(out, state)</p></div>
+</div>
+</section>
+<section class="type" id="receive_channel">
+<h2><span class="kind">interface</span> receive_channel&lt;t&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/receive_channel.sharp">source</a></p>
+<p>receive_channel&lt;t&gt; - the receiving end of a channel: what a consumer is given, and what produce returns.</p>
+<p>USAGE def print_all(source: receive_channel&lt;int&gt;) { source.for_each({ n: int -&gt; println(&quot;$n&quot;); });     // ends when the channel is closed }</p>
+<p>channel&lt;t&gt; implements it. Kotlin equivalent: kotlinx.coroutines.channels.ReceiveChannel&lt;E&gt;.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="receive_channel.cancel"><div class="sig">def <b>cancel</b>()</div><p>The consumer is done: close the channel and throw away what is still waiting in it.</p></div>
+<div class="fn" id="receive_channel.for_each"><div class="sig">def <b>for_each</b>(action: (t)())</div><p>Call <code>action</code> for every element until the channel is closed. SUSPENDS between elements.</p></div>
+<div class="fn" id="receive_channel.is_closed_for_receive"><div class="sig">def <b>is_closed_for_receive</b>() : bool</div><p>true when the channel is closed and nothing is left to receive</p></div>
+<div class="fn" id="receive_channel.receive"><div class="sig">def <b>receive</b>() : t</div><p>Take the next element; SUSPENDS while there is none. Cancellation point. Throws closed_channel_exception when the channel is closed and empty.</p></div>
+<div class="fn" id="receive_channel.receive_or_null"><div class="sig">def <b>receive_or_null</b>() : t?</div><p>receive() that returns null instead of throwing when the channel is closed and empty.</p></div>
+<div class="fn" id="receive_channel.try_receive"><div class="sig">def <b>try_receive</b>() : t?</div><p>receive() that never waits: null when nothing is there right now.</p></div>
+</div>
+</section>
+<section class="type" id="send_channel">
+<h2><span class="kind">interface</span> send_channel&lt;t&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/send_channel.sharp">source</a></p>
+<p>send_channel&lt;t&gt; - the sending end of a channel: what a producer is given.</p>
+<p>USAGE def produce_numbers(out: send_channel&lt;int&gt;) { for(i : decimal = 0; i &lt; 10; i++) { out.send(i); } out.close(); }</p>
+<p>Handing out only this interface makes it plain that the function sends and never receives. channel&lt;t&gt; implements it.</p>
+<p>Kotlin equivalent: kotlinx.coroutines.channels.SendChannel&lt;E&gt;.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="send_channel.close"><div class="sig">def <b>close</b>()</div><p>No more elements will be sent. What was sent before can still be received.</p></div>
+<div class="fn" id="send_channel.is_closed_for_send"><div class="sig">def <b>is_closed_for_send</b>() : bool</div><p>true after close() or cancel()</p></div>
+<div class="fn" id="send_channel.send"><div class="sig">def <b>send</b>(value: t)</div><p>Hand <code>value</code> over; SUSPENDS while the channel is full. Cancellation point. Throws closed_channel_exception on a closed channel.</p></div>
+<div class="fn" id="send_channel.try_send"><div class="sig">def <b>try_send</b>(value: t) : bool</div><p>send() that never waits: false when the channel is full or closed.</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.platform - Sharp standard library</title>
+<meta name="description" content="The std.guikit.platform module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="on sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.platform</p>
+<h1>std.guikit.platform <small>module</small></h1>
+<p class="contents"><a href="#color">color</a> <a href="#event">event</a> <a href="#font">font</a> <a href="#image">image</a> <a href="#painter">painter</a> <a href="#shape_batch">shape_batch</a> <a href="#surface">surface</a> <a href="#window">window</a> <a href="#window_mode">window_mode</a> <a href="#constants">constants</a></p>
+<section class="type" id="color">
+<h2><span class="kind">class</span> color</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/color.sharp">source</a></p>
+<p>color - how much red, green and blue a thing is, and how solid it is (alpha). Every channel is 0..255; alpha 255 is fully solid, 0 is invisible.</p>
+<p>Like java.awt.Color or Compose&#x27;s Color. Make one through the front door so your code reads in one voice:</p>
+<div class="code"><pre class="sharp">p.rect(10, 10, 200, 80, gui.rgb(24, 28, 40));          // solid dark blue
+p.rect(10, 10, 200, 80, gui.rgba(0, 0, 0, 128));       // half see-through black</pre></div>
+<p>A colour is made once and then only read, so keep the ones you use often in variables instead of making them again every frame.</p>
+<p><code>packed</code> is all four channels in ONE whole number (0xRRGGBBAA). That single number is what crosses over to the native side on every drawing call - one argument instead of four. C++ comparison: a uint32_t RGBA colour.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>red</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>green</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>blue</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>alpha</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>packed</code></td><td><code>_int64</code></td><td>0xRRGGBBAA, worked out once here</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="color.color"><div class="sig"><b>color</b>(r: _int32, g: _int32, b: _int32, a: _int32)</div></div>
+<div class="fn" id="color.with_alpha"><div class="sig">def <b>with_alpha</b>(a: _int32) : color</div><p>the same colour, more or less see-through: c.with_alpha(128)</p></div>
+</div>
+</section>
+<section class="type" id="event">
+<h2><span class="kind">class</span> event</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/event.sharp">source</a></p>
+<p>event - one thing that happened to a window: a key, the mouse, the close button, a resize, typed text.</p>
+<p><code>kind</code> says which (the EVENT_ list above), and only the fields that kind fills in mean anything - the rest are 0. Like an SDL_Event or an Android MotionEvent/KeyEvent rolled into one small record.</p>
+<div class="code"><pre class="sharp">e := w.next_event();
+while(e.kind != EVENT_NONE) {
+    if(e.kind == EVENT_QUIT) { w.close(); }
+    if(e.kind == EVENT_KEY_DOWN &amp;&amp; e.key == KEY_ESCAPE) { w.close(); }
+    if(e.kind == EVENT_MOUSE_DOWN) { println(&quot;click at &quot; + e.x + &quot;, &quot; + e.y); }
+    e = w.next_event();
+}</pre></div>
+<p>A window keeps ONE event object and refills it on every next_event(), so reading events makes no garbage. Copy out the numbers you want to keep.</p>
+<p>TYPING: for text a person types, use EVENT_TEXT (it already has shift, caps lock and the keyboard layout applied). Use EVENT_KEY_DOWN for keys as buttons: arrows, escape, shortcuts.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>kind</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>x</code></td><td><code>_int64</code></td><td>mouse position, in pixels from the window&#x27;s top-left corner</td></tr><tr><td><code>y</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>button</code></td><td><code>_int64</code></td><td>MOUSE_LEFT, MOUSE_MIDDLE, MOUSE_RIGHT</td></tr><tr><td><code>moved_x</code></td><td><code>_int64</code></td><td>how far the mouse moved, across and down (also while the window keeps it: gui.keep_mouse)</td></tr><tr><td><code>moved_y</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>key</code></td><td><code>_int64</code></td><td>which key (a character, or a KEY_ name)</td></tr><tr><td><code>modifiers</code></td><td><code>_int64</code></td><td>MOD_SHIFT + MOD_CTRL + MOD_ALT that were held</td></tr><tr><td><code>repeat</code></td><td><code>_int64</code></td><td>1 when the key is being held and the keyboard repeats it</td></tr><tr><td><code>wheel_x</code></td><td><code>_int64</code></td><td>wheel steps sideways</td></tr><tr><td><code>wheel_y</code></td><td><code>_int64</code></td><td>wheel steps: more than 0 is away from you (scroll up)</td></tr><tr><td><code>width</code></td><td><code>_int64</code></td><td>the window&#x27;s new size after a resize</td></tr><tr><td><code>height</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>text</code></td><td><code>string</code></td><td>what was typed (EVENT_TEXT)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="event.has_alt"><div class="sig">def <b>has_alt</b>() : bool</div></div>
+<div class="fn" id="event.has_ctrl"><div class="sig">def <b>has_ctrl</b>() : bool</div></div>
+<div class="fn" id="event.has_shift"><div class="sig">def <b>has_shift</b>() : bool</div></div>
+<div class="fn" id="event.refill"><div class="sig">def <b>refill</b>()</div><p>Fill this event with the next one waiting on the native side (called by window.next_event). What a, b, c, d carry depends on the kind - the table is in gui/platform/native/sharpgui.cpp next to the EVT_ list.</p></div>
+</div>
+</section>
+<section class="type" id="font">
+<h2><span class="kind">class</span> font</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/font.sharp">source</a></p>
+<p>font - a typeface at one size, ready to draw text with.</p>
+<div class="code"><pre class="sharp">title := gui.font(28);                       // the system&#x27;s standard font, 28 pixels
+mono  := gui.font(&quot;fonts/code.ttf&quot;, 14);     // your own .ttf file</pre></div>
+<div class="code"><pre class="sharp">p.text(&quot;Hello&quot;, 20, 20, title, white);
+wide := title.width_of(&quot;Hello&quot;);             // to centre or right-align it</pre></div>
+<p>The size is in pixels, like CSS <code>px</code> (16 is ordinary reading text).</p>
+<p>Making a font the first time prepares every letter (a few milliseconds); asking for the same file and size again hands back the one already made, so calling gui.font(16) inside a draw loop is cheap. A font belongs to the open window and ends with it. Java comparison: java.awt.Font + FontMetrics in one.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>id</code></td><td><code>_int64</code></td><td>the native side&#x27;s number for this font</td></tr><tr><td><code>size</code></td><td><code>decimal</code></td><td>the size it was made at, in pixels</td></tr><tr><td><code>line_height</code></td><td><code>decimal</code></td><td>pixels from one line of text down to the next</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="font.font"><div class="sig"><b>font</b>(path: string, pixels: decimal)</div></div>
+<div class="fn" id="font.width_of"><div class="sig">def <b>width_of</b>(words: string) : decimal</div><p>how many pixels wide this text is in this font (one line)</p></div>
+</div>
+</section>
+<section class="type" id="image">
+<h2><span class="kind">class</span> image</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/image.sharp">source</a></p>
+<p>image - a picture loaded from a file (PNG, JPG, BMP, GIF), ready to draw.</p>
+<div class="code"><pre class="sharp">logo := gui.image(&quot;assets/logo.png&quot;);
+p.image(logo, 20, 20);                       // at its own size
+p.image(logo, 20, 20, 64, 64);               // stretched to 64 x 64</pre></div>
+<p>Load a picture ONCE (before the frame loop) and draw it as often as you like; loading the same file again hands back the one already loaded. PNG transparency is kept. A picture belongs to the open window and ends with it. Android comparison: a Bitmap; in a game: a sprite sheet or texture.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>id</code></td><td><code>_int64</code></td><td>the native side&#x27;s number for this picture</td></tr><tr><td><code>width</code></td><td><code>_int32</code></td><td>its own size in pixels</td></tr><tr><td><code>height</code></td><td><code>_int32</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="image.image"><div class="sig"><b>image</b>(path: string)</div></div>
+<div class="fn" id="image.smooth"><div class="sig">def <b>smooth</b>(on: bool)</div><p>how the picture is scaled when it is drawn larger or smaller than it is: true (how every picture starts) smoothly, right for photos and drawn art; false keeps every pixel a sharp square, which is what pixel art needs.</p></div>
+</div>
+</section>
+<section class="type" id="painter">
+<h2><span class="kind">class</span> painter</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/painter.sharp">source</a></p>
+<p>painter - the thing you draw with. Shapes, lines, text and pictures.</p>
+<p>Get it from the window and paint between clear() and show():</p>
+<div class="code"><pre class="sharp">p := w.painter();
+w.clear(background);
+p.rect(20, 20, 200, 80, 12, card);               // a round-cornered box
+p.circle(60, 60, 18, accent);
+p.text(&quot;Hello&quot;, 90, 48, title_font, white);
+w.show();</pre></div>
+<p>HOW POSITIONS WORK: (0, 0) is the top-left corner, x grows to the right, y grows DOWN. Every shape is placed by its top-left corner and its width and height - except circles, placed by their centre. Numbers are decimals, so things can move smoothly between pixels.</p>
+<p>Things painted later cover things painted earlier (like real paint). Colours with alpha below 255 let what is underneath show through.</p>
+<p>TWO THINGS THE FRAMEWORK USES (and you may too): - clip(x, y, w, h) ... unclip(): paint only inside an area. They nest. - move_origin(x, y) ... restore_origin(): make (0, 0) mean somewhere else, so a piece of drawing code can pretend it owns the whole window. A canvas in the middle of a layout is handed a painter set up like this.</p>
+<p>This is the &quot;immediate&quot; layer: you say what to paint, every frame. Games use it directly (the canvas); the declarative layer - gui.column(), gui.button() - is built ON it and calls it for you. Java comparison: Graphics2D. Android: Canvas. HTML: the 2D canvas context.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="painter.at_x"><div class="sig">def <b>at_x</b>(x: decimal) : decimal</div><p>where the painter&#x27;s (0, 0) is right now, across - for code that hands whole coordinates to the graphics card</p></div>
+<div class="fn" id="painter.at_y"><div class="sig">def <b>at_y</b>(y: decimal) : decimal</div></div>
+<div class="fn" id="painter.begin_layer"><div class="sig">def <b>begin_layer</b>() : _int64</div><p>from now on paint into a new layer. Gives 1 - or 0 when no layer could be made (then do not call end_layer)</p></div>
+<div class="fn" id="painter.circle"><div class="sig">def <b>circle</b>(cx: decimal, cy: decimal, radius: decimal, c: color)</div><p>a filled circle around the centre (cx, cy)</p></div>
+<div class="fn" id="painter.circle-2"><div class="sig">def <b>circle</b>(cx: decimal, cy: decimal, radius: decimal, packed: _int64)</div></div>
+<div class="fn" id="painter.circles"><div class="sig">def <b>circles</b>(xs: decimal[], ys: decimal[], radii: decimal[], colors: _int64[], count: _int64)</div><p><code>count</code> filled circles: circle i is around (xs[i], ys[i])</p></div>
+<div class="fn" id="painter.clip"><div class="sig">def <b>clip</b>(x: decimal, y: decimal, w: decimal, h: decimal)</div><p>From now on, paint only inside this area; anything outside it is cut off. A scrolling list uses this so its rows do not spill over its edge. Areas nest: inside another clip, only the part BOTH allow is painted. Every clip() needs its unclip().</p></div>
+<div class="fn" id="painter.draw"><div class="sig">def <b>draw</b>(shapes: shape_batch)</div><p>everything a shape_batch holds, in the order it was added (the batch is not emptied: clear() does that)</p></div>
+<div class="fn" id="painter.draw-2"><div class="sig">def <b>draw</b>(sprites: sprite_batch)</div><p>every sprite a sprite_batch holds, in one call (the batch is not emptied: clear() does that)</p></div>
+<div class="fn" id="painter.end_layer"><div class="sig">def <b>end_layer</b>(x: decimal, y: decimal, w: decimal, h: decimal, angle: decimal, scale: decimal, blur: decimal)</div><p>Close the layer and put its area (x, y, w, h) on what is underneath: turned <code>angle</code> degrees clockwise and <code>scale</code> times its size, both around the area&#x27;s middle, and blurred by about <code>blur</code> pixels (0: sharp).</p></div>
+<div class="fn" id="painter.fade"><div class="sig">def <b>fade</b>(amount: decimal) : decimal</div><p>From now on, paint everything this much more see-through: 1 changes nothing, 0.5 makes everything half as solid, 0 invisible. It multiplies with a fade that is already on, so a faded panel inside a faded screen is fainter still. Returns the level that was on before: hand it to unfade() when done.</p>
+<div class="code"><pre class="sharp">before := p.fade(0.5);
+... paint things ...
+p.unfade(before);</pre></div>
+<p>This is how a widget&#x27;s opacity and the fade animations work: the whole subtree is painted between a fade() and its unfade(). Every colour passes through the level on its way to the native side (ink, below), so nothing that paints needs to know it is being faded.</p></div>
+<div class="fn" id="painter.image"><div class="sig">def <b>image</b>(picture: image, x: decimal, y: decimal)</div><p>a picture at its own size</p></div>
+<div class="fn" id="painter.image-2"><div class="sig">def <b>image</b>(picture: image, x: decimal, y: decimal, w: decimal, h: decimal)</div><p>a picture stretched (or shrunk) to w x h</p></div>
+<div class="fn" id="painter.image-3"><div class="sig">def <b>image</b>(picture: image, x: decimal, y: decimal, w: decimal, h: decimal, opacity: _int32)</div><p>a picture stretched to w x h and see-through: opacity 0 (invisible) .. 255 (solid)</p></div>
+<div class="fn" id="painter.image-4"><div class="sig">def <b>image</b>(picture: image, sx: decimal, sy: decimal, sw: decimal, sh: decimal, x: decimal, y: decimal, w: decimal, h: decimal)</div><p>only the box (sx, sy, sw, sh) of a picture - in the picture&#x27;s own pixels - stretched to the area (x, y, w, h)</p></div>
+<div class="fn" id="painter.line"><div class="sig">def <b>line</b>(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, c: color)</div><p>a straight line from (x1, y1) to (x2, y2), <code>thickness</code> pixels wide</p></div>
+<div class="fn" id="painter.line-2"><div class="sig">def <b>line</b>(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, packed: _int64)</div></div>
+<div class="fn" id="painter.lines"><div class="sig">def <b>lines</b>(x1s: decimal[], y1s: decimal[], x2s: decimal[], y2s: decimal[], thickness: decimal, colors: _int64[], count: _int64)</div><p><code>count</code> lines, all <code>thickness</code> wide: line i runs from (x1s[i], y1s[i]) to (x2s[i], y2s[i])</p></div>
+<div class="fn" id="painter.mask_layer"><div class="sig">def <b>mask_layer</b>(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal)</div><p>of what the open layer holds, keep only what is inside this box with round corners</p></div>
+<div class="fn" id="painter.move_origin"><div class="sig">def <b>move_origin</b>(x: decimal, y: decimal)</div><p>from now on (0, 0) means the point (x, y) of the current coordinates</p></div>
+<div class="fn" id="painter.opacity"><div class="sig">def <b>opacity</b>() : _int32</div><p>how solid things are painted right now: 255 fully, 0 not at all (what fade() has made of it)</p></div>
+<div class="fn" id="painter.origin_x"><div class="sig">def <b>origin_x</b>() : decimal</div><p>where (0, 0) is now, in window pixels (to hand back to restore_origin)</p></div>
+<div class="fn" id="painter.origin_y"><div class="sig">def <b>origin_y</b>() : decimal</div></div>
+<div class="fn" id="painter.outline"><div class="sig">def <b>outline</b>(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, thickness: decimal, c: color)</div><p>Only the border of a rectangle, <code>thickness</code> pixels wide, drawn inside the area (a border never makes the box bigger). radius 0: square corners.</p></div>
+<div class="fn" id="painter.outline-2"><div class="sig">def <b>outline</b>(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, thickness: decimal, packed: _int64)</div></div>
+<div class="fn" id="painter.polygon"><div class="sig">def <b>polygon</b>(xs: decimal[], ys: decimal[], packed: _int64)</div></div>
+<div class="fn" id="painter.polygon-2"><div class="sig">def <b>polygon</b>(xs: decimal[], ys: decimal[], count: _int64, packed: _int64)</div></div>
+<div class="fn" id="painter.polygon-3"><div class="sig">def <b>polygon</b>(xs: decimal[], ys: decimal[], c: color)</div><p>any outline, filled: corner i is (xs[i], ys[i]), in order around the shape.</p>
+<div class="code"><pre class="sharp">p.polygon(new decimal[] { 10, 60, 35 }, new decimal[] { 50, 50, 10 }, red);     // a triangle</pre></div></div>
+<div class="fn" id="painter.polygon-4"><div class="sig">def <b>polygon</b>(xs: decimal[], ys: decimal[], count: _int64, c: color)</div><p>the same from only the first <code>count</code> corners - so one pair of arrays can be filled again every frame</p></div>
+<div class="fn" id="painter.polygon-5"><div class="sig">def <b>polygon</b>(points: string, c: color)</div><p>the same with the corners as text, &quot;x y x y x y ...&quot;, already moved by the painter&#x27;s origin (at_x, at_y). Much slower than the arrays: every number is turned into text here and read back on the other side.</p></div>
+<div class="fn" id="painter.rect"><div class="sig">def <b>rect</b>(x: decimal, y: decimal, w: decimal, h: decimal, c: color)</div><p>a filled rectangle</p></div>
+<div class="fn" id="painter.rect-2"><div class="sig">def <b>rect</b>(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, c: color)</div><p>a filled rectangle with round corners (<code>radius</code> pixels)</p></div>
+<div class="fn" id="painter.rect-3"><div class="sig">def <b>rect</b>(x: decimal, y: decimal, w: decimal, h: decimal, packed: _int64)</div></div>
+<div class="fn" id="painter.rect-4"><div class="sig">def <b>rect</b>(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, packed: _int64)</div></div>
+<div class="fn" id="painter.rects"><div class="sig">def <b>rects</b>(xs: decimal[], ys: decimal[], ws: decimal[], hs: decimal[], colors: _int64[], count: _int64)</div><p><code>count</code> plain rectangles: rectangle i is at (xs[i], ys[i]) and ws[i] x hs[i]</p></div>
+<div class="fn" id="painter.reset"><div class="sig">def <b>reset</b>()</div><p>forget every clip, move and fade: the start of a frame (the framework calls this)</p></div>
+<div class="fn" id="painter.restore_origin"><div class="sig">def <b>restore_origin</b>(x: decimal, y: decimal)</div><p>put (0, 0) back where origin_x() / origin_y() said it was</p></div>
+<div class="fn" id="painter.ring"><div class="sig">def <b>ring</b>(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, c: color)</div><p>only the ring of a circle, <code>thickness</code> pixels wide, inside the radius</p></div>
+<div class="fn" id="painter.ring-2"><div class="sig">def <b>ring</b>(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, packed: _int64)</div></div>
+<div class="fn" id="painter.sprite"><div class="sig">def <b>sprite</b>(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal)</div><p>frame number <code>frame</code> of a sprite sheet, at the frame&#x27;s own size</p></div>
+<div class="fn" id="painter.sprite-2"><div class="sig">def <b>sprite</b>(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal)</div><p>a frame stretched to w x h</p></div>
+<div class="fn" id="painter.sprite-3"><div class="sig">def <b>sprite</b>(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal, flipped: bool)</div><p>a frame stretched to w x h, and mirrored left to right when <code>flipped</code> (a character walking the other way)</p></div>
+<div class="fn" id="painter.sprite-4"><div class="sig">def <b>sprite</b>(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal, flipped: bool, angle: decimal, opacity: _int32)</div><p>a frame with everything: mirrored or not, turned <code>angle</code> degrees clockwise around its middle, and see-through - opacity 0 (invisible) .. 255 (solid)</p></div>
+<div class="fn" id="painter.text"><div class="sig">def <b>text</b>(words: string, x: decimal, y: decimal, f: font, packed: _int64)</div></div>
+<div class="fn" id="painter.text-2"><div class="sig">def <b>text</b>(words: string, x: decimal, y: decimal, f: font, c: color)</div><p>One line of text. (x, y) is the TOP-LEFT corner of the text, like every other shape. For more lines, step y by f.line_height.</p></div>
+<div class="fn" id="painter.tiles"><div class="sig">def <b>tiles</b>(ground: tile_map, camera_x: decimal, camera_y: decimal, view_w: decimal, view_h: decimal)</div><p>the part of a tile map that shows in a view <code>view_w</code> x <code>view_h</code> whose top-left corner is here at (0, 0), with the camera - the top-left corner of the view - at (camera_x, camera_y) of the map. Only the tiles in the view are painted, all in one call, however large the map is.</p></div>
+<div class="fn" id="painter.triangles"><div class="sig">def <b>triangles</b>(xs: decimal[], ys: decimal[], colors: _int64[], count: _int64)</div><p><code>count</code> triangles: triangle i has the corners 3i, 3i + 1 and 3i + 2 of xs and ys</p></div>
+<div class="fn" id="painter.unclip"><div class="sig">def <b>unclip</b>()</div><p>end the innermost clip(): back to the area that was open before it</p></div>
+<div class="fn" id="painter.unfade"><div class="sig">def <b>unfade</b>(before: decimal)</div><p>put back the level fade() returned</p></div>
+</div>
+</section>
+<section class="type" id="shape_batch">
+<h2><span class="kind">class</span> shape_batch</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/shape_batch.sharp">source</a></p>
+<p>shape_batch - many shapes, painted with ONE call.</p>
+<div class="code"><pre class="sharp">shapes := new shape_batch();                // once, before the frame loop</pre></div>
+<div class="code"><pre class="sharp">shapes.clear();                             // every frame: fill it again ...
+shapes.rect(0, 0, 200, 80, 0x3C3F46FF);
+shapes.circle(60, 60, 18, 0xFFD65AFF);
+shapes.line(0, 0, 200, 80, 2, 0x000000FF);
+p.draw(shapes);                             // ... and paint all of it</pre></div>
+<p>WHY: every p.rect(...) crosses into the graphics side on its own, and that crossing costs far more than the rectangle - a few hundred shapes a frame is all a small machine (a Raspberry Pi) has time for. A batch only writes numbers into its lists; p.draw(batch) crosses once for all of them, and the graphics card gets them as one list too.</p>
+<p>The shapes are painted in the order they were added, later ones over earlier ones, exactly as separate calls would. Colours are numbers, 0xRRGGBBAA (gui.pack(r, g, b) makes one). Positions are the painter&#x27;s, like p.rect&#x27;s.</p>
+<p>A batch keeps what it holds until clear(): one that never changes (a background) can be filled once and drawn every frame.</p>
+<p>(In a game engine: a sprite batch or a vertex buffer. HTML canvas: a Path2D.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>kinds</code></td><td><code>_int8[]</code></td><td></td></tr><tr><td><code>data</code></td><td><code>decimal[]</code></td><td></td></tr><tr><td><code>colors</code></td><td><code>_int64[]</code></td><td></td></tr><tr><td><code>count</code></td><td><code>_int64</code></td><td>how many shapes are in it</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="shape_batch.shape_batch"><div class="sig"><b>shape_batch</b>()</div></div>
+<div class="fn" id="shape_batch.shape_batch-2"><div class="sig"><b>shape_batch</b>(shapes: _int64)</div><p>a batch with room for this many shapes to begin with (it grows by itself when more are added)</p></div>
+<div class="fn" id="shape_batch.circle"><div class="sig">def <b>circle</b>(cx: decimal, cy: decimal, radius: decimal, packed: _int64)</div><p>a filled circle around (cx, cy)</p></div>
+<div class="fn" id="shape_batch.clear"><div class="sig">def <b>clear</b>()</div><p>forget every shape (the lists are kept, so filling it again makes nothing new)</p></div>
+<div class="fn" id="shape_batch.line"><div class="sig">def <b>line</b>(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, packed: _int64)</div><p>a straight line, <code>thickness</code> wide</p></div>
+<div class="fn" id="shape_batch.rect"><div class="sig">def <b>rect</b>(x: decimal, y: decimal, w: decimal, h: decimal, packed: _int64)</div><p>a filled rectangle</p></div>
+<div class="fn" id="shape_batch.rect-2"><div class="sig">def <b>rect</b>(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, packed: _int64)</div><p>a filled rectangle with round corners</p></div>
+<div class="fn" id="shape_batch.ring"><div class="sig">def <b>ring</b>(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, packed: _int64)</div><p>only the ring of a circle, <code>thickness</code> wide, inside the radius</p></div>
+<div class="fn" id="shape_batch.triangle"><div class="sig">def <b>triangle</b>(x1: decimal, y1: decimal, x2: decimal, y2: decimal, x3: decimal, y3: decimal, packed: _int64)</div><p>a filled triangle</p></div>
+</div>
+</section>
+<section class="type" id="surface">
+<h2><span class="kind">class</span> surface</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/surface.sharp">source</a></p>
+<p>surface - loads the native backend exactly once, the first time any window is made. The user never calls load_library: the window constructor asks here, and here we load it from beside the <code>sharp</code> runtime (runtime_folder()), wherever the install put it. <code>ready</code> makes it happen once and no more.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>ready</code></td><td><code>_int64</code></td><td>1 once the library is loaded (a number, not a bool: bools are shared objects)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="surface.ensure_loaded"><div class="sig">static def <b>ensure_loaded</b>()</div></div>
+</div>
+</section>
+<section class="type" id="window">
+<h2><span class="kind">class</span> window</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/window.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="window.window"><div class="sig"><b>window</b>(title: string, w: _int32, h: _int32)</div></div>
+<div class="fn" id="window.window-2"><div class="sig"><b>window</b>(title: string, w: _int32, h: _int32, opened_as: window_mode)</div><p>The same, opened in a mode. w and h are still the size of the window itself: what it has when it is, or goes back to being, windowed.</p></div>
+<div class="fn" id="window.clear"><div class="sig">def <b>clear</b>(c: color)</div><p>paint the whole window one colour: the start of every frame</p></div>
+<div class="fn" id="window.close"><div class="sig">def <b>close</b>()</div><p>take the window down. is_open() is false afterwards.</p></div>
+<div class="fn" id="window.fullscreen"><div class="sig">def <b>fullscreen</b>(on: bool)</div><p>true: take the whole screen. false: go back to what the window was before.</p></div>
+<div class="fn" id="window.height"><div class="sig">def <b>height</b>() : _int32</div><p>the height of the drawing area right now, in pixels</p></div>
+<div class="fn" id="window.is_fullscreen"><div class="sig">def <b>is_fullscreen</b>() : bool</div><p>does the window have the whole screen?</p></div>
+<div class="fn" id="window.is_open"><div class="sig">def <b>is_open</b>() : bool</div><p>is the window still open? (false if it never opened, or was closed)</p></div>
+<div class="fn" id="window.mode"><div class="sig">def <b>mode</b>() : window_mode</div><p>how the window sits on the screen right now (the user&#x27;s own maximize button counts)</p></div>
+<div class="fn" id="window.next_event"><div class="sig">def <b>next_event</b>() : event</div><p>The next thing that happened. When nothing is waiting, its kind is EVENT_NONE. The same event object is handed back every time, refilled.</p></div>
+<div class="fn" id="window.painter"><div class="sig">def <b>painter</b>() : painter</div><p>what you draw with (see the painter class)</p></div>
+<div class="fn" id="window.set_mode"><div class="sig">def <b>set_mode</b>(next: window_mode)</div><p>change how the window sits on the screen, while it is open</p></div>
+<div class="fn" id="window.show"><div class="sig">def <b>show</b>()</div><p>show the frame just painted. Waits for the screen&#x27;s refresh (~60 fps).</p></div>
+<div class="fn" id="window.time"><div class="sig">def <b>time</b>() : decimal</div><p>Seconds since the window opened, as a decimal (1.5 = one and a half seconds). Animations and games measure with it: remember the last frame&#x27;s time and move things by (now - last) * speed.</p></div>
+<div class="fn" id="window.width"><div class="sig">def <b>width</b>() : _int32</div><p>the width of the drawing area right now, in pixels</p></div>
+</div>
+</section>
+<section class="type" id="window_mode">
+<h2><span class="kind">enum</span> window_mode</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/platform/window.sharp">source</a></p>
+<p>How a window sits on the screen.</p>
+<div class="code"><pre class="sharp">windowed     an ordinary window of the size it was opened with
+maximized    fills the desktop; the title bar and the taskbar stay
+fullscreen   the whole screen and nothing else, at the resolution the
+             screen already has (a game, a kiosk on a Raspberry Pi)</pre></div>
+<p>Open in a mode with gui.run(&quot;App&quot;, window_mode.fullscreen, ...), change it while the program runs with gui.set_mode(...) or gui.fullscreen(true / false). (The numbers are the ones the native side uses: MODE_* in sharpgui.cpp.)</p>
+</section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>EVENT_KEY_DOWN</code></td><td><code>_int64</code></td><td><code>2</code></td><td>a key went down          -&gt; key, modifiers, repeat</td></tr><tr><td><code>EVENT_KEY_UP</code></td><td><code>_int64</code></td><td><code>3</code></td><td>a key came back up       -&gt; key, modifiers</td></tr><tr><td><code>EVENT_MOUSE_DOWN</code></td><td><code>_int64</code></td><td><code>4</code></td><td>a mouse button went down -&gt; x, y, button</td></tr><tr><td><code>EVENT_MOUSE_MOVE</code></td><td><code>_int64</code></td><td><code>6</code></td><td>the mouse moved          -&gt; x, y, moved_x, moved_y</td></tr><tr><td><code>EVENT_MOUSE_UP</code></td><td><code>_int64</code></td><td><code>5</code></td><td>a mouse button came up   -&gt; x, y, button</td></tr><tr><td><code>EVENT_NONE</code></td><td><code>_int64</code></td><td><code>0</code></td><td>nothing is waiting</td></tr><tr><td><code>EVENT_QUIT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>the window was closed (the X, or the OS)</td></tr><tr><td><code>EVENT_RESIZE</code></td><td><code>_int64</code></td><td><code>8</code></td><td>the window changed size  -&gt; width, height</td></tr><tr><td><code>EVENT_TEXT</code></td><td><code>_int64</code></td><td><code>9</code></td><td>text was typed           -&gt; text</td></tr><tr><td><code>EVENT_WHEEL</code></td><td><code>_int64</code></td><td><code>7</code></td><td>the wheel turned         -&gt; x, y, wheel_x, wheel_y</td></tr><tr><td><code>KEY_BACKSPACE</code></td><td><code>_int64</code></td><td><code>8</code></td><td>event.key.</td></tr><tr><td><code>KEY_DELETE</code></td><td><code>_int64</code></td><td><code>127</code></td><td></td></tr><tr><td><code>KEY_DOWN</code></td><td><code>_int64</code></td><td><code>1073741905</code></td><td></td></tr><tr><td><code>KEY_END</code></td><td><code>_int64</code></td><td><code>1073741901</code></td><td></td></tr><tr><td><code>KEY_ENTER</code></td><td><code>_int64</code></td><td><code>13</code></td><td></td></tr><tr><td><code>KEY_ESCAPE</code></td><td><code>_int64</code></td><td><code>27</code></td><td></td></tr><tr><td><code>KEY_F1</code></td><td><code>_int64</code></td><td><code>1073741882</code></td><td>F2 is KEY_F1 + 1 ... F12 is KEY_F1 + 11</td></tr><tr><td><code>KEY_HOME</code></td><td><code>_int64</code></td><td><code>1073741898</code></td><td></td></tr><tr><td><code>KEY_LEFT</code></td><td><code>_int64</code></td><td><code>1073741904</code></td><td></td></tr><tr><td><code>KEY_PAGE_DOWN</code></td><td><code>_int64</code></td><td><code>1073741902</code></td><td></td></tr><tr><td><code>KEY_PAGE_UP</code></td><td><code>_int64</code></td><td><code>1073741899</code></td><td></td></tr><tr><td><code>KEY_RIGHT</code></td><td><code>_int64</code></td><td><code>1073741903</code></td><td></td></tr><tr><td><code>KEY_SPACE</code></td><td><code>_int64</code></td><td><code>32</code></td><td></td></tr><tr><td><code>KEY_TAB</code></td><td><code>_int64</code></td><td><code>9</code></td><td></td></tr><tr><td><code>KEY_UP</code></td><td><code>_int64</code></td><td><code>1073741906</code></td><td></td></tr><tr><td><code>MOD_ALT</code></td><td><code>_int64</code></td><td><code>4</code></td><td></td></tr><tr><td><code>MOD_CTRL</code></td><td><code>_int64</code></td><td><code>2</code></td><td></td></tr><tr><td><code>MOD_SHIFT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>event.modifiers is these added together: shift + ctrl is 3.</td></tr><tr><td><code>MOUSE_LEFT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>event.button</td></tr><tr><td><code>MOUSE_MIDDLE</code></td><td><code>_int64</code></td><td><code>2</code></td><td></td></tr><tr><td><code>MOUSE_RIGHT</code></td><td><code>_int64</code></td><td><code>3</code></td><td></td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

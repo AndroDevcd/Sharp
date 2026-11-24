@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.math - Sharp standard library</title>
+<meta name="description" content="The std.math module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li class="on"><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.math</p>
+<h1>std.math <small>module</small></h1>
+<p class="contents"><a href="#big_integer">big_integer</a> <a href="#bits">bits</a> <a href="#circle">circle</a> <a href="#complex">complex</a> <a href="#fraction">fraction</a> <a href="#matrix">matrix</a> <a href="#rect">rect</a> <a href="#statistics">statistics</a> <a href="#vector2">vector2</a> <a href="#vector3">vector3</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
+<section class="type" id="big_integer">
+<h2><span class="kind">class</span> big_integer</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/numbers/big_integer.sharp">source</a></p>
+<p>A whole number of any size (arbitrary precision), for results that do not fit in the 53 exact bits of a native number: 30!, 2^200, long products.</p>
+<div class="code"><pre class="sharp">a := new big_integer(&quot;123456789012345678901234567890&quot;);
+b := big_integer.of(987654321);
+c := a * b + 1;
+println(c.to_string());
+f := big_integer.factorial(30);     // 265252859812191058636308480000000</pre></div>
+<p>Big integers are VALUES: no method changes the object it is called on, every operation returns a new big_integer.</p>
+<p>Operators: + - * / % with a big_integer or a whole native number on the right, unary -, == != &lt; &gt; &lt;= &gt;=. Division rounds toward zero and the remainder has the sign of the dividend, the same as for whole native numbers (and as Java&#x27;s BigInteger): -7 / 2 == -3, -7 % 2 == -1.</p>
+<p>REPRESENTATION A sign flag plus the magnitude in an array of &quot;limbs&quot;. Each limb holds 7 decimal digits (base 10 000 000), the least significant limb first:</p>
+<div class="code"><pre class="sharp">123456789012  -&gt;  limbs { 6789012, 12345 }</pre></div>
+<p>Base 10^7 is used because the product of two limbs (&lt; 10^14) plus carries stays far below 2^53, so all limb arithmetic is exact in native numbers, and because converting to and from decimal text needs no division. The array never has leading zero limbs (zero is the single limb { 0 }) and zero is never negative, so equal numbers always have equal fields.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="big_integer.big_integer"><div class="sig"><b>big_integer</b>(text: string)</div><p>Read a number from decimal text: an optional + or - followed by one or more digits (&quot;0&quot;, &quot;-42&quot;, &quot;+123456789012345678901234567890&quot;). Leading zeros are allowed.</p>
+<p>Throws number_format_exception for anything else (empty text, spaces, a decimal point, letters).</p></div>
+<div class="fn" id="big_integer.big_integer-2"><div class="sig"><b>big_integer</b>(other: big_integer)</div><p>a copy of another big_integer</p></div>
+<div class="fn" id="big_integer.abs"><div class="sig">def <b>abs</b>(): big_integer</div><p>the number without its sign</p></div>
+<div class="fn" id="big_integer.compare_to"><div class="sig">def <b>compare_to</b>(other: big_integer): decimal</div><p>three-way comparison: -1 when this &lt; other, 0 when equal, 1 when this &gt; other</p></div>
+<div class="fn" id="big_integer.digit_count"><div class="sig">def <b>digit_count</b>(): decimal</div><p>the number of decimal digits, not counting the sign: 0 has 1 digit, -1000 has 4</p></div>
+<div class="fn" id="big_integer.divide_and_remainder"><div class="sig">def <b>divide_and_remainder</b>(other: big_integer): big_integer[]</div><p>Quotient and remainder from one division, as an array of two: [0] is this / other, [1] is this % other. Throws division_by_zero_exception when <code>other</code> is zero.</p></div>
+<div class="fn" id="big_integer.equals_var"><div class="sig">def <b>equals_var</b>(value: decimal): bool</div><p>true when the value equals the whole native number <code>value</code></p></div>
+<div class="fn" id="big_integer.factorial"><div class="sig">static def <b>factorial</b>(n: decimal): big_integer</div><p>n! = 1 * 2 * ... * n with every digit exact: factorial(25) is 15511210043330985984000000. Throws illegal_argument_exception when n is negative or not whole.</p></div>
+<div class="fn" id="big_integer.fibonacci"><div class="sig">static def <b>fibonacci</b>(n: decimal): big_integer</div><p>The n-th Fibonacci number with every digit exact (fibonacci(0) == 0, fibonacci(1) == 1): fibonacci(100) is 354224848179261915075. Throws illegal_argument_exception when n is negative or not whole.</p></div>
+<div class="fn" id="big_integer.fits_in_var"><div class="sig">def <b>fits_in_var</b>(): bool</div><p>true when the value lies in -(2^53) .. 2^53 and so converts to a native number without loss</p></div>
+<div class="fn" id="big_integer.gcd"><div class="sig">def <b>gcd</b>(other: big_integer): big_integer</div><p>Greatest common divisor of the two magnitudes (never negative), by Euclid&#x27;s algorithm: gcd(a, b) = gcd(b, a mod b) until b is 0. gcd(0, n) is |n|.</p></div>
+<div class="fn" id="big_integer.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code built from the sign and all limbs (equal numbers have equal hashes)</p></div>
+<div class="fn" id="big_integer.is_even"><div class="sig">def <b>is_even</b>(): bool</div><p>true when the number is divisible by 2 (the base is even, so only the lowest limb matters)</p></div>
+<div class="fn" id="big_integer.is_negative"><div class="sig">def <b>is_negative</b>(): bool</div><p>true when the number is below 0</p></div>
+<div class="fn" id="big_integer.is_odd"><div class="sig">def <b>is_odd</b>(): bool</div><p>true when the number is not divisible by 2</p></div>
+<div class="fn" id="big_integer.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when the number is 0</p></div>
+<div class="fn" id="big_integer.modulo"><div class="sig">def <b>modulo</b>(modulus: big_integer): big_integer</div><p>The mathematical modulus: the remainder brought into 0 .. modulus - 1, also for a negative number (-7 mod 3 == 2, where -7 % 3 == -1). Throws illegal_argument_exception when modulus is not positive.</p></div>
+<div class="fn" id="big_integer.negate"><div class="sig">def <b>negate</b>(): big_integer</div><p>the number with the opposite sign (zero stays zero)</p></div>
+<div class="fn" id="big_integer.of"><div class="sig">static def <b>of</b>(value: decimal): big_integer</div><p>The whole native number <code>value</code> as a big_integer: big_integer.of(42). (This is a static function and not a constructor on purpose: a constructor taking one number would make every number silently convertible to a big_integer, which makes <code>a / 2</code> ambiguous.)</p>
+<p>Throws illegal_argument_exception when value is not whole or lies outside -(2^53) .. 2^53, where native numbers stop being exact (pass the digits as text instead).</p></div>
+<div class="fn" id="big_integer.one"><div class="sig">static def <b>one</b>(): big_integer</div><p>the number 1</p></div>
+<div class="fn" id="big_integer.operator_"><div class="sig">def <b>operator!=</b>(other: big_integer): bool</div><p>true when the values differ</p></div>
+<div class="fn" id="big_integer.operator_-2"><div class="sig">def <b>operator%</b>(other: big_integer): big_integer</div><p>Remainder of the division that rounds toward zero; it has the sign of this number (the dividend): 7 % 2 == 1, -7 % 2 == -1, 7 % -2 == 1. Throws division_by_zero_exception when <code>other</code> is zero.</p></div>
+<div class="fn" id="big_integer.operator_-3"><div class="sig">def <b>operator%</b>(value: decimal): big_integer</div><p>remainder for a whole native divisor; throws division_by_zero_exception for 0</p></div>
+<div class="fn" id="big_integer.operator_-4"><div class="sig">def <b>operator*</b>(other: big_integer): big_integer</div><p>product: multiply the magnitudes; the result is negative when exactly one operand is</p></div>
+<div class="fn" id="big_integer.operator_-5"><div class="sig">def <b>operator*</b>(value: decimal): big_integer</div><p>multiply by a whole native number</p></div>
+<div class="fn" id="big_integer.operator_-6"><div class="sig">def <b>operator+</b>(other: big_integer): big_integer</div><p>Sum. Equal signs: add the magnitudes and keep the sign. Different signs: subtract the smaller magnitude from the larger and take the sign of the larger.</p></div>
+<div class="fn" id="big_integer.operator_-7"><div class="sig">def <b>operator+</b>(value: decimal): big_integer</div><p>add a whole native number (see the constructor for its limits)</p></div>
+<div class="fn" id="big_integer.operator_-8"><div class="sig">def <b>operator-</b>(other: big_integer): big_integer</div><p>difference: a - b is a + (-b)</p></div>
+<div class="fn" id="big_integer.operator_-9"><div class="sig">def <b>operator-</b>(value: decimal): big_integer</div><p>subtract a whole native number</p></div>
+<div class="fn" id="big_integer.operator_-10"><div class="sig">def <b>operator-</b>(): big_integer</div><p>the number with the opposite sign</p></div>
+<div class="fn" id="big_integer.operator_-11"><div class="sig">def <b>operator/</b>(other: big_integer): big_integer</div><p>Quotient, rounded toward zero: 7 / 2 == 3, -7 / 2 == -3. Throws division_by_zero_exception when <code>other</code> is zero.</p></div>
+<div class="fn" id="big_integer.operator_-12"><div class="sig">def <b>operator/</b>(value: decimal): big_integer</div><p>divide by a whole native number; throws division_by_zero_exception for 0</p></div>
+<div class="fn" id="big_integer.operator_-13"><div class="sig">def <b>operator&lt;</b>(other: big_integer): bool</div><p>true when this number is smaller than <code>other</code></p></div>
+<div class="fn" id="big_integer.operator_-14"><div class="sig">def <b>operator&lt;=</b>(other: big_integer): bool</div><p>true when this number is smaller than or equal to <code>other</code></p></div>
+<div class="fn" id="big_integer.operator_-15"><div class="sig">def <b>operator==</b>(other: big_integer): bool</div><p>true when both numbers have the same value</p></div>
+<div class="fn" id="big_integer.operator_-16"><div class="sig">def <b>operator&gt;</b>(other: big_integer): bool</div><p>true when this number is larger than <code>other</code></p></div>
+<div class="fn" id="big_integer.operator_-17"><div class="sig">def <b>operator&gt;=</b>(other: big_integer): bool</div><p>true when this number is larger than or equal to <code>other</code></p></div>
+<div class="fn" id="big_integer.parse"><div class="sig">static def <b>parse</b>(text: string): big_integer</div><p>the same as <code>new big_integer(text)</code>; throws number_format_exception for bad text</p></div>
+<div class="fn" id="big_integer.pow"><div class="sig">def <b>pow</b>(exponent: decimal): big_integer</div><p>This number raised to a whole power &gt;= 0, by repeated squaring (O(log exponent) multiplications); pow(0) is 1. Throws illegal_argument_exception when exponent is negative or not whole.</p></div>
+<div class="fn" id="big_integer.sign"><div class="sig">def <b>sign</b>(): decimal</div><p>-1, 0 or 1: the sign of the number</p></div>
+<div class="fn" id="big_integer.sqrt"><div class="sig">def <b>sqrt</b>(): big_integer</div><p>The whole number square root: the largest r with r * r &lt;= this.</p>
+<p>Algorithm: Newton&#x27;s iteration x = (x + n / x) / 2 on whole numbers, started from 10^(half the digit count + 1), which is above the root, so the sequence falls until it reaches the root.</p>
+<p>Throws arithmetic_exception for a negative number.</p></div>
+<div class="fn" id="big_integer.ten"><div class="sig">static def <b>ten</b>(): big_integer</div><p>the number 10</p></div>
+<div class="fn" id="big_integer.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>All decimal digits, with a leading &quot;-&quot; for negative numbers. The most significant limb is written as it is, every following limb padded with zeros to 7 digits.</p></div>
+<div class="fn" id="big_integer.to_var"><div class="sig">def <b>to_var</b>(): decimal</div><p>The value as a native number. Exact when fits_in_var(); larger values are rounded to 53 significant bits (and become infinity beyond about 1.8 * 10^308).</p></div>
+<div class="fn" id="big_integer.to_var_exact"><div class="sig">def <b>to_var_exact</b>(): decimal</div><p>The value as a native number, or an exception when that would lose digits. Throws overflow_exception when !fits_in_var().</p></div>
+<div class="fn" id="big_integer.zero"><div class="sig">static def <b>zero</b>(): big_integer</div><p>the number 0</p></div>
+</div>
+</section>
+<section class="type" id="bits">
+<h2><span class="kind">class</span> bits</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/bits.sharp">source</a></p>
+<p>Bit tricks on whole numbers. Only static functions; never instantiated.</p>
+<div class="code"><pre class="sharp">bits.count_ones(255)            // 8
+bits.highest_one_bit(100)       // 64
+bits.is_power_of_two(64)  // true
+bits.next_power_of_two(100)     // 128
+bits.rotate_left(1, 31)         // 2147483648</pre></div>
+<p>RANGE. A native number holds whole values exactly up to 2^53, so the counting and searching functions accept any whole number in 0 .. 2^53. The functions with a fixed word size (rotate_left, rotate_right, reverse, invert, leading_zeros) treat their argument as an UNSIGNED 32-bit word, 0 .. 4294967295, and return such a word.</p>
+<p>Every function throws illegal_argument_exception for a negative number, a fraction, or a value above its range.</p>
+<p>The functions use division and multiplication by powers of two instead of the shift operators, which keeps them exact over the whole range.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="bits.bit_length"><div class="sig">static def <b>bit_length</b>(n: decimal): decimal</div><p>How many bits are needed to write n: the position of the highest 1 bit plus one. bit_length(0) == 0, bit_length(1) == 1, bit_length(255) == 8, bit_length(256) == 9.</p></div>
+<div class="fn" id="bits.clear_bit"><div class="sig">static def <b>clear_bit</b>(n: decimal, position: decimal): decimal</div><p>n with the bit at <code>position</code> set to 0: clear_bit(5, 0) == 4</p></div>
+<div class="fn" id="bits.count_ones"><div class="sig">static def <b>count_ones</b>(n: decimal): decimal</div><p>how many bits of n are 1 (the &quot;population count&quot;): count_ones(13) == 3 because 13 is 1101</p></div>
+<div class="fn" id="bits.highest_one_bit"><div class="sig">static def <b>highest_one_bit</b>(n: decimal): decimal</div><p>The value of the highest 1 bit: the largest power of two &lt;= n. highest_one_bit(100) == 64; highest_one_bit(0) == 0.</p></div>
+<div class="fn" id="bits.invert"><div class="sig">static def <b>invert</b>(n: decimal): decimal</div><p>every bit of the 32-bit word n flipped (bitwise NOT): invert(0) == 4294967295</p></div>
+<div class="fn" id="bits.is_power_of_two"><div class="sig">static def <b>is_power_of_two</b>(n: decimal): bool</div><p>true when n is 1, 2, 4, 8 ... (exactly one bit is set); false for 0</p></div>
+<div class="fn" id="bits.leading_zeros"><div class="sig">static def <b>leading_zeros</b>(n: decimal): decimal</div><p>How many 0 bits are above the highest 1 bit of the 32-bit word n: leading_zeros(1) == 31, leading_zeros(0) == 32, leading_zeros(4294967295) == 0.</p></div>
+<div class="fn" id="bits.lowest_one_bit"><div class="sig">static def <b>lowest_one_bit</b>(n: decimal): decimal</div><p>The value of the lowest 1 bit: the largest power of two that divides n. lowest_one_bit(12) == 4 (12 is 1100); lowest_one_bit(0) == 0.</p></div>
+<div class="fn" id="bits.next_power_of_two"><div class="sig">static def <b>next_power_of_two</b>(n: decimal): decimal</div><p>The smallest power of two that is &gt;= n: next_power_of_two(100) == 128, next_power_of_two(64) == 64, next_power_of_two(0) == 1.</p></div>
+<div class="fn" id="bits.parse_binary"><div class="sig">static def <b>parse_binary</b>(text: string): decimal</div><p>Read a binary number: parse_binary(&quot;1010&quot;) == 10. Throws number_format_exception when the text is empty, has a character other than 0 and 1, or has more than 53 digits.</p></div>
+<div class="fn" id="bits.reverse"><div class="sig">static def <b>reverse</b>(n: decimal): decimal</div><p>The 32-bit word n with its bits in the opposite order (bit 0 becomes bit 31 ...): reverse(1) == 2147483648, reverse(4294967295) == 4294967295.</p></div>
+<div class="fn" id="bits.rotate_left"><div class="sig">static def <b>rotate_left</b>(n: decimal, distance: decimal): decimal</div><p>The 32-bit word n rotated left by <code>distance</code> bits: bits pushed out at the top come back in at the bottom. rotate_left(1, 31) == 2147483648, rotate_left(2147483648, 1) == 1. Any distance is allowed (it is taken modulo 32; a negative distance rotates right).</p>
+<p>Algorithm: split n at bit (32 - distance) into a high and a low part and swap them: low * 2^distance + high.</p></div>
+<div class="fn" id="bits.rotate_right"><div class="sig">static def <b>rotate_right</b>(n: decimal, distance: decimal): decimal</div><p>The 32-bit word n rotated right by <code>distance</code> bits: rotate_right(1, 1) == 2147483648. The same as rotating left by 32 - distance.</p></div>
+<div class="fn" id="bits.set_bit"><div class="sig">static def <b>set_bit</b>(n: decimal, position: decimal): decimal</div><p>n with the bit at <code>position</code> set to 1: set_bit(4, 0) == 5</p></div>
+<div class="fn" id="bits.test_bit"><div class="sig">static def <b>test_bit</b>(n: decimal, position: decimal): bool</div><p>true when the bit at <code>position</code> (0 = lowest) of n is 1: test_bit(5, 2) is true because 5 is 101</p></div>
+<div class="fn" id="bits.to_binary_string"><div class="sig">static def <b>to_binary_string</b>(n: decimal): string</div><p>n written in binary, without leading zeros: to_binary_string(10) is &quot;1010&quot;, to_binary_string(0) is &quot;0&quot;.</p></div>
+<div class="fn" id="bits.toggle_bit"><div class="sig">static def <b>toggle_bit</b>(n: decimal, position: decimal): decimal</div><p>n with the bit at <code>position</code> flipped: toggle_bit(5, 1) == 7, toggle_bit(7, 1) == 5</p></div>
+<div class="fn" id="bits.trailing_zeros"><div class="sig">static def <b>trailing_zeros</b>(n: decimal): decimal</div><p>How many 0 bits are below the lowest 1 bit: trailing_zeros(8) == 3, trailing_zeros(1) == 0. For 0 the answer is 32 (all bits of the word are zero), the convention of Java and Kotlin.</p></div>
+</div>
+</section>
+<section class="type" id="circle">
+<h2><span class="kind">class</span> circle</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/geometry/circle.sharp">source</a></p>
+<p>A circle: a centre (x, y) and a radius, all native numbers.</p>
+<div class="code"><pre class="sharp">c := new circle(0, 0, 5);
+c.area()                         // 25 pi = 78.5398...
+c.contains(3, 4)           // true (the point is on the border)
+c.intersects(new circle(8, 0, 3)).value     // true (they touch)</pre></div>
+<p>The border counts as inside: contains() is true on the circle line, and circles (or a circle and a rectangle) that merely touch do intersect. Circles are values: methods return new circles.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td>x of the centre</td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td>y of the centre</td></tr><tr><td><code>radius</code></td><td><code>decimal</code></td><td>distance from the centre to the border; never negative</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="circle.circle"><div class="sig"><b>circle</b>(x: decimal, y: decimal, radius: decimal)</div><p>The circle around (x, y) with the given radius. Throws illegal_argument_exception when radius is negative.</p></div>
+<div class="fn" id="circle.circle-2"><div class="sig"><b>circle</b>(center: vector2, radius: decimal)</div><p>The circle around <code>center</code> with the given radius. Throws illegal_argument_exception when radius is negative.</p></div>
+<div class="fn" id="circle.circle-3"><div class="sig"><b>circle</b>(other: circle)</div><p>a copy of another circle</p></div>
+<div class="fn" id="circle.area"><div class="sig">def <b>area</b>(): decimal</div><p>pi * radius^2</p></div>
+<div class="fn" id="circle.bounding_rect"><div class="sig">def <b>bounding_rect</b>(): rect</div><p>the smallest axis-aligned rectangle that contains the circle (a square of side 2 * radius)</p></div>
+<div class="fn" id="circle.center"><div class="sig">def <b>center</b>(): vector2</div><p>the centre point</p></div>
+<div class="fn" id="circle.circumference"><div class="sig">def <b>circumference</b>(): decimal</div><p>the length of the border: 2 * pi * radius</p></div>
+<div class="fn" id="circle.contains"><div class="sig">def <b>contains</b>(px: decimal, py: decimal): bool</div><p>true when the point (px, py) is inside the circle or on its border: distance^2 &lt;= radius^2</p></div>
+<div class="fn" id="circle.contains-2"><div class="sig">def <b>contains</b>(point: vector2): bool</div><p>true when the point is inside the circle or on its border</p></div>
+<div class="fn" id="circle.contains-3"><div class="sig">def <b>contains</b>(other: circle): bool</div><p>True when <code>other</code> lies completely inside this circle: the distance of the centres plus the other radius is at most this radius.</p></div>
+<div class="fn" id="circle.diameter"><div class="sig">def <b>diameter</b>(): decimal</div><p>2 * radius</p></div>
+<div class="fn" id="circle.distance_to"><div class="sig">def <b>distance_to</b>(px: decimal, py: decimal): decimal</div><p>the distance from the centre to the point (px, py)</p></div>
+<div class="fn" id="circle.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code built from centre and radius (equal circles have equal hashes)</p></div>
+<div class="fn" id="circle.intersects"><div class="sig">def <b>intersects</b>(other: circle): bool</div><p>True when the two circles share at least one point (touching counts): the centres are at most radius1 + radius2 apart. Compared on the squared distance, so no square root is taken.</p></div>
+<div class="fn" id="circle.intersects-2"><div class="sig">def <b>intersects</b>(box: rect): bool</div><p>True when the circle and the rectangle share at least one point. Method: take the point of the rectangle closest to the centre (the centre clamped to the rectangle) and test whether it is inside the circle.</p></div>
+<div class="fn" id="circle.operator_"><div class="sig">def <b>operator!=</b>(other: circle): bool</div><p>true when centre or radius differ</p></div>
+<div class="fn" id="circle.operator_-2"><div class="sig">def <b>operator==</b>(other: circle): bool</div><p>true when centre and radius are exactly equal</p></div>
+<div class="fn" id="circle.point_at"><div class="sig">def <b>point_at</b>(radians: decimal): vector2</div><p>the point on the border in direction <code>radians</code> from the centre (0 = +x, counter clockwise)</p></div>
+<div class="fn" id="circle.scaled"><div class="sig">def <b>scaled</b>(factor: decimal): circle</div><p>The same circle with its radius multiplied by <code>factor</code>. Throws illegal_argument_exception when factor is negative.</p></div>
+<div class="fn" id="circle.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;circle(x, y, r=radius)&quot;, e.g. &quot;circle(0, 0, r=5)&quot;</p></div>
+<div class="fn" id="circle.translated"><div class="sig">def <b>translated</b>(dx: decimal, dy: decimal): circle</div><p>the same circle moved by (dx, dy)</p></div>
+</div>
+</section>
+<section class="type" id="complex">
+<h2><span class="kind">class</span> complex</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/numbers/complex.sharp">source</a></p>
+<p>A complex number re + im * i, where i * i == -1.</p>
+<p>Complex numbers are VALUES: operators and methods return new objects.</p>
+<div class="code"><pre class="sharp">a := new complex(3, 4);
+b := new complex(1, -2);
+c := a * b;                     // 11 - 2i
+r : decimal = a.magnitude();        // 5
+root := new complex(-4, 0).sqrt();   // 2i</pre></div>
+<p>Operators: + - * / with a complex number or a plain number on the right, unary -, == !=.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>re</code></td><td><code>decimal</code></td><td>the real part</td></tr><tr><td><code>im</code></td><td><code>decimal</code></td><td>the imaginary part (the factor of i)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="complex.complex"><div class="sig"><b>complex</b>()</div><p>0 + 0i</p></div>
+<div class="fn" id="complex.complex-2"><div class="sig"><b>complex</b>(re: decimal, im: decimal)</div><p>re + im * i</p></div>
+<div class="fn" id="complex.complex-3"><div class="sig"><b>complex</b>(other: complex)</div><p>a copy of another complex number</p></div>
+<div class="fn" id="complex.approx_equals"><div class="sig">def <b>approx_equals</b>(other: complex, tolerance: decimal): bool</div><p>true when both parts differ by at most <code>tolerance</code></p></div>
+<div class="fn" id="complex.conjugate"><div class="sig">def <b>conjugate</b>(): complex</div><p>the mirror image across the real axis: re - im * i</p></div>
+<div class="fn" id="complex.exp"><div class="sig">def <b>exp</b>(): complex</div><p>e raised to this number: e^re * (cos(im) + i sin(im)) (Euler&#x27;s formula)</p></div>
+<div class="fn" id="complex.from_polar"><div class="sig">static def <b>from_polar</b>(magnitude: decimal, phase: decimal): complex</div><p>The complex number at distance <code>magnitude</code> from the origin in direction <code>phase</code> (radians): magnitude * (cos(phase) + i sin(phase)).</p></div>
+<div class="fn" id="complex.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code built from both parts (equal numbers have equal hashes)</p></div>
+<div class="fn" id="complex.i"><div class="sig">stat<b>i</b>c def i(): complex</div><p>the imaginary unit i = 0 + 1i</p></div>
+<div class="fn" id="complex.is_real"><div class="sig">def <b>is_real</b>(): bool</div><p>true when the imaginary part is exactly 0</p></div>
+<div class="fn" id="complex.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when both parts are exactly 0</p></div>
+<div class="fn" id="complex.log"><div class="sig">def <b>log</b>(): complex</div><p>The principal natural logarithm: log(magnitude) + phase * i. Throws arithmetic_exception for 0 + 0i (the logarithm of 0 does not exist).</p></div>
+<div class="fn" id="complex.magnitude"><div class="sig">def <b>magnitude</b>(): decimal</div><p>the distance from the origin, sqrt(re^2 + im^2) (also called modulus or absolute value)</p></div>
+<div class="fn" id="complex.magnitude_squared"><div class="sig">def <b>magnitude_squared</b>(): decimal</div><p>re^2 + im^2: the magnitude squared, without the square root</p></div>
+<div class="fn" id="complex.of_real"><div class="sig">static def <b>of_real</b>(value: decimal): complex</div><p>the real number <code>value</code> as a complex number: value + 0i</p></div>
+<div class="fn" id="complex.one"><div class="sig">static def <b>one</b>(): complex</div><p>1 + 0i</p></div>
+<div class="fn" id="complex.operator_"><div class="sig">def <b>operator!=</b>(other: complex): bool</div><p>true when the real or the imaginary parts differ</p></div>
+<div class="fn" id="complex.operator_-2"><div class="sig">def <b>operator*</b>(other: complex): complex</div><p>(a + bi)(c + di) = (ac - bd) + (ad + bc)i</p></div>
+<div class="fn" id="complex.operator_-3"><div class="sig">def <b>operator*</b>(factor: decimal): complex</div><p>multiply both parts by a real number</p></div>
+<div class="fn" id="complex.operator_-4"><div class="sig">def <b>operator+</b>(other: complex): complex</div><p>(a + bi) + (c + di) = (a + c) + (b + d)i</p></div>
+<div class="fn" id="complex.operator_-5"><div class="sig">def <b>operator+</b>(value: decimal): complex</div><p>add a real number: only the real part changes</p></div>
+<div class="fn" id="complex.operator_-6"><div class="sig">def <b>operator-</b>(other: complex): complex</div><p>(a + bi) - (c + di) = (a - c) + (b - d)i</p></div>
+<div class="fn" id="complex.operator_-7"><div class="sig">def <b>operator-</b>(value: decimal): complex</div><p>subtract a real number: only the real part changes</p></div>
+<div class="fn" id="complex.operator_-8"><div class="sig">def <b>operator-</b>(): complex</div><p>the negation -re - im * i</p></div>
+<div class="fn" id="complex.operator_-9"><div class="sig">def <b>operator/</b>(other: complex): complex</div><p>Division: multiply numerator and denominator by the conjugate of the denominator, which makes the denominator the real number c^2 + d^2:</p>
+<div class="code"><pre class="sharp">(a + bi) / (c + di) = ((ac + bd) + (bc - ad)i) / (c^2 + d^2)</pre></div>
+<p>Throws division_by_zero_exception when <code>other</code> is 0 + 0i.</p></div>
+<div class="fn" id="complex.operator_-10"><div class="sig">def <b>operator/</b>(divisor: decimal): complex</div><p>Divide both parts by a real number. Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="complex.operator_-11"><div class="sig">def <b>operator==</b>(other: complex): bool</div><p>true when both parts are exactly equal</p></div>
+<div class="fn" id="complex.phase"><div class="sig">def <b>phase</b>(): decimal</div><p>the direction as an angle in -pi .. pi (also called argument): atan2(im, re)</p></div>
+<div class="fn" id="complex.pow"><div class="sig">def <b>pow</b>(exponent: decimal): complex</div><p>This number raised to a real power, in polar form (De Moivre): magnitude^exponent at angle phase * exponent. 0^0 is 1, 0^x is 0.</p></div>
+<div class="fn" id="complex.reciprocal"><div class="sig">def <b>reciprocal</b>(): complex</div><p>1 / this. Throws division_by_zero_exception when this is 0 + 0i.</p></div>
+<div class="fn" id="complex.sqrt"><div class="sig">def <b>sqrt</b>(): complex</div><p>The principal square root (the one with a non-negative real part): sqrt(-4) is 2i, sqrt(3 + 4i) is 2 + i.</p>
+<p>Formula, with m the magnitude: real part      = sqrt((m + re) / 2) imaginary part = sign(im) * sqrt((m - re) / 2)</p></div>
+<div class="fn" id="complex.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;re + imi&quot; or &quot;re - imi&quot;: &quot;3 + 4i&quot;, &quot;1 - 2i&quot;, &quot;0 + 1i&quot;, &quot;5 + 0i&quot;.</p></div>
+<div class="fn" id="complex.zero"><div class="sig">static def <b>zero</b>(): complex</div><p>0 + 0i</p></div>
+</div>
+</section>
+<section class="type" id="fraction">
+<h2><span class="kind">class</span> fraction</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/numbers/fraction.sharp">source</a></p>
+<p>An exact rational number numerator / denominator.</p>
+<p>Unlike a floating point number a fraction has no rounding error: 1/3 + 1/6 is exactly 1/2. A fraction is always kept NORMALISED:</p>
+<p>- numerator and denominator have no common divisor (6/8 is stored as 3/4) - the denominator is positive (1/-2 is stored as -1/2) - zero is 0/1</p>
+<p>so two equal fractions always have equal fields. Fractions are VALUES: the fields cannot be changed from outside and every operation returns a new fraction.</p>
+<div class="code"><pre class="sharp">a := new fraction(1, 3);
+b := new fraction(1, 6);
+c := a + b;                 // 1/2
+d := c * 4;                 // 2
+x : decimal = c.to_var();       // 0.5</pre></div>
+<p>Operators: + - * / with a fraction or a whole number on the right, unary -, == != &lt; &gt; &lt;= &gt;=.</p>
+<p>Numerator and denominator are native numbers, so they are exact up to 2^53; results whose parts grow beyond that lose exactness (use big_integer based arithmetic for such sizes).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>numerator</code></td><td><code>decimal</code></td><td>the top number; carries the sign of the fraction (read only)</td></tr><tr><td><code>denominator</code></td><td><code>decimal</code></td><td>the bottom number; always &gt;= 1 (read only)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="fraction.fraction"><div class="sig"><b>fraction</b>(numerator: decimal, denominator: decimal)</div><p>The fraction numerator / denominator, normalised.</p>
+<p>Throws division_by_zero_exception when denominator is 0 and illegal_argument_exception when either number is not whole.</p></div>
+<div class="fn" id="fraction.fraction-2"><div class="sig"><b>fraction</b>(other: fraction)</div><p>a copy of another fraction</p></div>
+<div class="fn" id="fraction.abs"><div class="sig">def <b>abs</b>(): fraction</div><p>the fraction without its sign</p></div>
+<div class="fn" id="fraction.ceil"><div class="sig">def <b>ceil</b>(): decimal</div><p>the smallest whole number &gt;= the fraction: ceil(7/2) == 4, ceil(-7/2) == -3</p></div>
+<div class="fn" id="fraction.compare_to"><div class="sig">def <b>compare_to</b>(other: fraction): decimal</div><p>Three-way comparison: -1 when this &lt; other, 0 when equal, 1 when this &gt; other. Compares a d with c b (both denominators are positive).</p></div>
+<div class="fn" id="fraction.floor"><div class="sig">def <b>floor</b>(): decimal</div><p>the largest whole number &lt;= the fraction: floor(7/2) == 3, floor(-7/2) == -4</p></div>
+<div class="fn" id="fraction.from_decimal"><div class="sig">static def <b>from_decimal</b>(value: decimal, max_denominator: decimal): fraction</div><p>The fraction closest to <code>value</code> whose denominator is at most <code>max_denominator</code>: from_decimal(0.75, 100) is 3/4, from_decimal(3.14159265, 1000) is 355/113.</p>
+<p>Algorithm: continued fractions. value = a0 + 1 / (a1 + 1 / (a2 + ...)); cutting the expansion after each term gives the &quot;convergents&quot; h(n) / k(n) with h(n) = a(n) h(n-1) + h(n-2), k(n) = a(n) k(n-1) + k(n-2), each the best approximation for its denominator size. The last convergent whose denominator still fits is returned.</p>
+<p>Throws illegal_argument_exception when value is NaN or infinite or max_denominator is &lt; 1.</p></div>
+<div class="fn" id="fraction.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code built from numerator and denominator (equal fractions have equal hashes)</p></div>
+<div class="fn" id="fraction.is_whole"><div class="sig">def <b>is_whole</b>(): bool</div><p>true when the fraction is a whole number (its denominator is 1)</p></div>
+<div class="fn" id="fraction.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when the fraction is 0</p></div>
+<div class="fn" id="fraction.of"><div class="sig">static def <b>of</b>(whole: decimal): fraction</div><p>The whole number <code>whole</code> as a fraction (whole / 1): fraction.of(5). (A static function and not a constructor on purpose: a constructor taking one number would make every number silently convertible to a fraction, which makes <code>new fraction(7)</code> and <code>f * 2</code> ambiguous.)</p>
+<p>Throws illegal_argument_exception when it is not whole (see from_decimal).</p></div>
+<div class="fn" id="fraction.one"><div class="sig">static def <b>one</b>(): fraction</div><p>1/1</p></div>
+<div class="fn" id="fraction.operator_"><div class="sig">def <b>operator!=</b>(other: fraction): bool</div><p>true when the values differ</p></div>
+<div class="fn" id="fraction.operator_-2"><div class="sig">def <b>operator*</b>(other: fraction): fraction</div><p>a/b * c/d = (a c) / (b d)</p></div>
+<div class="fn" id="fraction.operator_-3"><div class="sig">def <b>operator*</b>(whole: decimal): fraction</div><p>multiply by a whole number</p></div>
+<div class="fn" id="fraction.operator_-4"><div class="sig">def <b>operator+</b>(other: fraction): fraction</div><p>a/b + c/d = (a d + c b) / (b d)</p></div>
+<div class="fn" id="fraction.operator_-5"><div class="sig">def <b>operator+</b>(whole: decimal): fraction</div><p>add a whole number</p></div>
+<div class="fn" id="fraction.operator_-6"><div class="sig">def <b>operator-</b>(other: fraction): fraction</div><p>a/b - c/d = (a d - c b) / (b d)</p></div>
+<div class="fn" id="fraction.operator_-7"><div class="sig">def <b>operator-</b>(whole: decimal): fraction</div><p>subtract a whole number</p></div>
+<div class="fn" id="fraction.operator_-8"><div class="sig">def <b>operator-</b>(): fraction</div><p>the negation: -a/b</p></div>
+<div class="fn" id="fraction.operator_-9"><div class="sig">def <b>operator/</b>(other: fraction): fraction</div><p>(a/b) / (c/d) = (a d) / (b c). Throws division_by_zero_exception when <code>other</code> is zero.</p></div>
+<div class="fn" id="fraction.operator_-10"><div class="sig">def <b>operator/</b>(whole: decimal): fraction</div><p>Divide by a whole number. Throws division_by_zero_exception when it is 0.</p></div>
+<div class="fn" id="fraction.operator_-11"><div class="sig">def <b>operator&lt;</b>(other: fraction): bool</div><p>true when this fraction is smaller than <code>other</code></p></div>
+<div class="fn" id="fraction.operator_-12"><div class="sig">def <b>operator&lt;=</b>(other: fraction): bool</div><p>true when this fraction is smaller than or equal to <code>other</code></p></div>
+<div class="fn" id="fraction.operator_-13"><div class="sig">def <b>operator==</b>(other: fraction): bool</div><p>true when both fractions have the same value (fractions are normalised, so the fields are compared)</p></div>
+<div class="fn" id="fraction.operator_-14"><div class="sig">def <b>operator&gt;</b>(other: fraction): bool</div><p>true when this fraction is larger than <code>other</code></p></div>
+<div class="fn" id="fraction.operator_-15"><div class="sig">def <b>operator&gt;=</b>(other: fraction): bool</div><p>true when this fraction is larger than or equal to <code>other</code></p></div>
+<div class="fn" id="fraction.parse"><div class="sig">static def <b>parse</b>(text: string): fraction</div><p>Read a fraction from text: &quot;3/4&quot;, &quot;-6/8&quot; (gives -3/4), &quot;5&quot; (gives 5/1). Spaces around the numbers are not allowed.</p>
+<p>Throws number_format_exception when the text is not of that form and division_by_zero_exception when the denominator is 0.</p></div>
+<div class="fn" id="fraction.pow"><div class="sig">def <b>pow</b>(exponent: decimal): fraction</div><p>The fraction raised to a whole power; a negative exponent inverts it first: (2/3)^2 == 4/9, (2/3)^-2 == 9/4, anything^0 == 1.</p>
+<p>Throws illegal_argument_exception when exponent is not whole and division_by_zero_exception for zero raised to a negative power.</p></div>
+<div class="fn" id="fraction.reciprocal"><div class="sig">def <b>reciprocal</b>(): fraction</div><p>The fraction turned upside down: b/a. Throws division_by_zero_exception when this fraction is zero.</p></div>
+<div class="fn" id="fraction.round"><div class="sig">def <b>round</b>(): decimal</div><p>the nearest whole number, ties away from zero: round(5/2) == 3, round(-5/2) == -3</p></div>
+<div class="fn" id="fraction.sign"><div class="sig">def <b>sign</b>(): decimal</div><p>-1, 0 or 1: the sign of the fraction</p></div>
+<div class="fn" id="fraction.to_mixed_string"><div class="sig">def <b>to_mixed_string</b>(): string</div><p>Whole part and rest written separately: 7/4 is &quot;1 3/4&quot;, -7/4 is &quot;-1 3/4&quot;, 3/4 is &quot;3/4&quot; and 8/4 is &quot;2&quot;.</p></div>
+<div class="fn" id="fraction.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;3/4&quot;, or just &quot;5&quot; when the denominator is 1</p></div>
+<div class="fn" id="fraction.to_var"><div class="sig">def <b>to_var</b>(): decimal</div><p>the value as a native floating point number: numerator / denominator</p></div>
+<div class="fn" id="fraction.whole_part"><div class="sig">def <b>whole_part</b>(): decimal</div><p>the whole part, rounded toward zero: 7/4 -&gt; 1, -7/4 -&gt; -1</p></div>
+<div class="fn" id="fraction.zero"><div class="sig">static def <b>zero</b>(): fraction</div><p>0/1</p></div>
+</div>
+</section>
+<section class="type" id="matrix">
+<h2><span class="kind">class</span> matrix</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/linear/matrix.sharp">source</a></p>
+<p>A matrix of native numbers with any number of rows and columns.</p>
+<p>The cells are stored row after row in one flat array (&quot;row-major&quot;): the cell in row r and column c is cells[r * columns + c]. Rows and columns are counted from 0.</p>
+<div class="code"><pre class="sharp">m := new matrix(2, 2);          // 2 x 2, all zeros
+m.put(0, 0, 4); m.put(0, 1, 7);
+m.put(1, 0, 2); m.put(1, 1, 6);
+d : decimal = m.determinant();      // 4 * 6 - 7 * 2 = 10
+inv := m.inverse();             // { 0.6, -0.7, -0.2, 0.4 }
+id := m * inv;                  // the identity (up to rounding)</pre></div>
+<p>Operators: + - (matrix), * (matrix or number), unary -, == !=. All operators and the methods transpose(), inverse(), pow() ... return NEW matrices; only put() and fill() change the matrix they are called on.</p>
+<p>Wrong sizes throw illegal_argument_exception, positions outside the matrix throw out_of_bounds_exception, and operations that have no answer (the inverse of a singular matrix) throw arithmetic_exception.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>rows</code></td><td><code>decimal</code></td><td>number of rows (read only)</td></tr><tr><td><code>columns</code></td><td><code>decimal</code></td><td>number of columns (read only)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="matrix.matrix"><div class="sig"><b>matrix</b>(rows: decimal, columns: decimal)</div><p>A matrix of the given size filled with zeros. Throws illegal_argument_exception when a size is &lt; 1 or not whole.</p></div>
+<div class="fn" id="matrix.matrix-2"><div class="sig"><b>matrix</b>(rows: decimal, columns: decimal, values: decimal[])</div><p>A matrix of the given size holding <code>values</code>, listed row after row: new matrix(2, 3, { 1, 2, 3,   4, 5, 6 }). The values are copied.</p>
+<p>Throws illegal_argument_exception when a size is &lt; 1 or the array does not hold exactly rows * columns values.</p></div>
+<div class="fn" id="matrix.matrix-3"><div class="sig"><b>matrix</b>(other: matrix)</div><p>a copy of another matrix</p></div>
+<div class="fn" id="matrix.approx_equals"><div class="sig">def <b>approx_equals</b>(other: matrix, tolerance: decimal): bool</div><p>true when both matrices have the same size and every pair of cells differs by at most <code>tolerance</code></p></div>
+<div class="fn" id="matrix.at"><div class="sig">def <b>at</b>(row: decimal, column: decimal): decimal</div><p>The cell in row <code>row</code>, column <code>column</code> (both counted from 0). Throws out_of_bounds_exception when the position is outside the matrix.</p></div>
+<div class="fn" id="matrix.column"><div class="sig">def <b>column</b>(column: decimal): decimal[]</div><p>Column <code>column</code> as a new array of <code>rows</code> numbers. Throws out_of_bounds_exception when there is no such column.</p></div>
+<div class="fn" id="matrix.determinant"><div class="sig">def <b>determinant</b>(): decimal</div><p>The determinant: 0 exactly when the matrix has no inverse.</p>
+<p>Algorithm: Gaussian elimination with partial pivoting on a copy. For every column the row with the largest value in that column is swapped to the diagonal (each swap flips the sign), the rows below are cleared, and the determinant is the product of the diagonal. O(n^3).</p>
+<p>Throws illegal_argument_exception when the matrix is not square.</p></div>
+<div class="fn" id="matrix.diagonal"><div class="sig">static def <b>diagonal</b>(values: decimal[]): matrix</div><p>A square matrix with <code>values</code> on the diagonal and 0 elsewhere. Throws illegal_argument_exception when the array is empty.</p></div>
+<div class="fn" id="matrix.fill"><div class="sig">def <b>fill</b>(value: decimal)</div><p>set every cell to <code>value</code></p></div>
+<div class="fn" id="matrix.filled"><div class="sig">static def <b>filled</b>(rows: decimal, columns: decimal, value: decimal): matrix</div><p>a rows x columns matrix with every cell set to <code>value</code></p></div>
+<div class="fn" id="matrix.identity"><div class="sig">static def <b>identity</b>(n: decimal): matrix</div><p>The n x n identity matrix: 1 on the diagonal, 0 elsewhere. Multiplying by it changes nothing.</p></div>
+<div class="fn" id="matrix.inverse"><div class="sig">def <b>inverse</b>(): matrix</div><p>The inverse: the matrix that multiplied with this one gives the identity.</p>
+<p>Algorithm: Gauss-Jordan elimination with partial pivoting. The matrix and an identity matrix are transformed side by side with the same row operations until the matrix has become the identity; the other side is then the inverse. O(n^3).</p>
+<p>Throws illegal_argument_exception when the matrix is not square and arithmetic_exception when it is singular (its determinant is 0).</p></div>
+<div class="fn" id="matrix.is_square"><div class="sig">def <b>is_square</b>(): bool</div><p>true when the matrix has as many rows as columns</p></div>
+<div class="fn" id="matrix.minor"><div class="sig">def <b>minor</b>(row: decimal, column: decimal): matrix</div><p>The matrix without row <code>row</code> and column <code>column</code> (one smaller in each direction) - the building block of cofactor expansion.</p>
+<p>Throws out_of_bounds_exception when the position is outside the matrix and illegal_argument_exception when the matrix has only one row or column.</p></div>
+<div class="fn" id="matrix.multiply_vector"><div class="sig">def <b>multiply_vector</b>(vector: decimal[]): decimal[]</div><p>This matrix times a column vector: the result has <code>rows</code> numbers, the r-th being the dot product of row r and <code>vector</code>.</p>
+<p>Throws illegal_argument_exception when the vector does not have <code>columns</code> numbers.</p></div>
+<div class="fn" id="matrix.operator_"><div class="sig">def <b>operator!=</b>(other: matrix): bool</div><p>true when the sizes differ or at least one cell differs</p></div>
+<div class="fn" id="matrix.operator_-2"><div class="sig">def <b>operator*</b>(factor: decimal): matrix</div><p>every cell multiplied by a number</p></div>
+<div class="fn" id="matrix.operator_-3"><div class="sig">def <b>operator*</b>(other: matrix): matrix</div><p>Matrix product. An (n x m) matrix times an (m x p) matrix gives an (n x p) matrix whose cell (r, c) is the dot product of row r of this matrix and column c of <code>other</code>. Note that A * B and B * A differ.</p>
+<p>Throws illegal_argument_exception when this matrix does not have as many columns as <code>other</code> has rows.</p></div>
+<div class="fn" id="matrix.operator_-4"><div class="sig">def <b>operator+</b>(other: matrix): matrix</div><p>Cell by cell sum. Throws illegal_argument_exception when the sizes differ.</p></div>
+<div class="fn" id="matrix.operator_-5"><div class="sig">def <b>operator-</b>(other: matrix): matrix</div><p>Cell by cell difference. Throws illegal_argument_exception when the sizes differ.</p></div>
+<div class="fn" id="matrix.operator_-6"><div class="sig">def <b>operator-</b>(): matrix</div><p>every cell negated</p></div>
+<div class="fn" id="matrix.operator_-7"><div class="sig">def <b>operator==</b>(other: matrix): bool</div><p>true when both matrices have the same size and exactly equal cells</p></div>
+<div class="fn" id="matrix.power"><div class="sig">def <b>power</b>(exponent: decimal): matrix</div><p>The matrix multiplied by itself <code>exponent</code> times, by repeated squaring; pow(0) is the identity.</p>
+<p>Throws illegal_argument_exception when the matrix is not square or exponent is negative or not whole (use inverse().power(n) for A^-n).</p></div>
+<div class="fn" id="matrix.put"><div class="sig">def <b>put</b>(row: decimal, column: decimal, value: decimal)</div><p>Store <code>value</code> in row <code>row</code>, column <code>column</code>. Throws out_of_bounds_exception when the position is outside the matrix.</p></div>
+<div class="fn" id="matrix.row"><div class="sig">def <b>row</b>(row: decimal): decimal[]</div><p>Row <code>row</code> as a new array of <code>columns</code> numbers. Throws out_of_bounds_exception when there is no such row.</p></div>
+<div class="fn" id="matrix.same_size"><div class="sig">def <b>same_size</b>(other: matrix): bool</div><p>true when <code>other</code> has the same number of rows and of columns</p></div>
+<div class="fn" id="matrix.size_text"><div class="sig">def <b>size_text</b>(): string</div><p>the size as text, e.g. &quot;2 x 3&quot;</p></div>
+<div class="fn" id="matrix.solve"><div class="sig">def <b>solve</b>(right_side: decimal[]): decimal[]</div><p>Solve the linear system  this * x = right_side  for x. Computed as inverse() * right_side.</p>
+<p>Throws illegal_argument_exception when the matrix is not square or right_side does not have <code>rows</code> numbers, and arithmetic_exception when the matrix is singular (no solution, or infinitely many).</p></div>
+<div class="fn" id="matrix.to_array"><div class="sig">def <b>to_array</b>(): decimal[]</div><p>all cells, row after row, as a new array of rows * columns numbers</p></div>
+<div class="fn" id="matrix.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>The rows in square brackets, separated by commas: &quot;[[1, 2], [3, 4]]&quot;.</p></div>
+<div class="fn" id="matrix.trace"><div class="sig">def <b>trace</b>(): decimal</div><p>The sum of the diagonal cells. Throws illegal_argument_exception when the matrix is not square.</p></div>
+<div class="fn" id="matrix.transpose"><div class="sig">def <b>transpose</b>(): matrix</div><p>the matrix flipped over its diagonal: rows become columns (an n x m matrix becomes m x n)</p></div>
+</div>
+</section>
+<section class="type" id="rect">
+<h2><span class="kind">class</span> rect</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/geometry/rect.sharp">source</a></p>
+<p>An axis-aligned rectangle: a corner (x, y), a width and a height, all native numbers. (x, y) is the corner with the smallest coordinates; the rectangle covers x .. x + width and y .. y + height. Which of top and bottom is &quot;up&quot; depends on the coordinate system of the caller, so the edges are named by their coordinates: left / right for x, low_y / high_y for y.</p>
+<div class="code"><pre class="sharp">r := new rect(0, 0, 10, 5);
+r.area()                         // 50
+r.contains(3, 4)           // true
+r.intersects(new rect(8, 3, 5, 5)).value    // true</pre></div>
+<p>Points are passed as two numbers or as a vector2. Edges count as inside: contains() is true on the border, and two rectangles that merely touch do intersect. Rectangles are values: methods return new rectangles.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td>the smallest x of the rectangle (its left edge)</td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td>the smallest y of the rectangle</td></tr><tr><td><code>width</code></td><td><code>decimal</code></td><td>the extent along x; never negative</td></tr><tr><td><code>height</code></td><td><code>decimal</code></td><td>the extent along y; never negative</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="rect.rect"><div class="sig"><b>rect</b>(x: decimal, y: decimal, width: decimal, height: decimal)</div><p>The rectangle with corner (x, y) and the given size. Throws illegal_argument_exception when width or height is negative.</p></div>
+<div class="fn" id="rect.rect-2"><div class="sig"><b>rect</b>(other: rect)</div><p>a copy of another rectangle</p></div>
+<div class="fn" id="rect.area"><div class="sig">def <b>area</b>(): decimal</div><p>width * height</p></div>
+<div class="fn" id="rect.center"><div class="sig">def <b>center</b>(): vector2</div><p>the centre point</p></div>
+<div class="fn" id="rect.closest_point"><div class="sig">def <b>closest_point</b>(px: decimal, py: decimal): vector2</div><p>the point of the rectangle closest to (px, py): the point itself when it is inside</p></div>
+<div class="fn" id="rect.contains"><div class="sig">def <b>contains</b>(px: decimal, py: decimal): bool</div><p>true when the point (px, py) lies inside the rectangle or on its border</p></div>
+<div class="fn" id="rect.contains-2"><div class="sig">def <b>contains</b>(point: vector2): bool</div><p>true when the point lies inside the rectangle or on its border</p></div>
+<div class="fn" id="rect.contains-3"><div class="sig">def <b>contains</b>(other: rect): bool</div><p>true when <code>other</code> lies completely inside this rectangle (shared edges allowed)</p></div>
+<div class="fn" id="rect.diagonal"><div class="sig">def <b>diagonal</b>(): decimal</div><p>the length of the diagonal: sqrt(width^2 + height^2)</p></div>
+<div class="fn" id="rect.expanded"><div class="sig">def <b>expanded</b>(amount: decimal): rect</div><p>The rectangle grown by <code>amount</code> on every side (so width and height grow by 2 * amount); a negative amount shrinks it. Throws illegal_argument_exception when shrinking would make a size negative.</p></div>
+<div class="fn" id="rect.from_center"><div class="sig">static def <b>from_center</b>(center_x: decimal, center_y: decimal, width: decimal, height: decimal): rect</div><p>The rectangle of the given size whose centre is (center_x, center_y). Throws illegal_argument_exception when width or height is negative.</p></div>
+<div class="fn" id="rect.from_corners"><div class="sig">static def <b>from_corners</b>(x1: decimal, y1: decimal, x2: decimal, y2: decimal): rect</div><p>The rectangle spanned by two opposite corners, given in any order: from_corners(5, 7, 1, 2) is the rectangle at (1, 2) of size 4 x 5.</p></div>
+<div class="fn" id="rect.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code built from position and size (equal rectangles have equal hashes)</p></div>
+<div class="fn" id="rect.high_y"><div class="sig">def <b>high_y</b>(): decimal</div><p>the largest y: y + height</p></div>
+<div class="fn" id="rect.intersection"><div class="sig">def <b>intersection</b>(other: rect): rect</div><p>The area both rectangles cover, as a rectangle (of width or height 0 when they only touch). Throws arithmetic_exception when they do not intersect at all.</p></div>
+<div class="fn" id="rect.intersects"><div class="sig">def <b>intersects</b>(other: rect): bool</div><p>True when the two rectangles share at least one point (touching edges or corners count). They do NOT intersect exactly when one lies entirely to one side of the other.</p></div>
+<div class="fn" id="rect.is_empty"><div class="sig">def <b>is_empty</b>(): bool</div><p>true when width or height is 0 (the rectangle covers no area)</p></div>
+<div class="fn" id="rect.is_square"><div class="sig">def <b>is_square</b>(): bool</div><p>true when width equals height</p></div>
+<div class="fn" id="rect.left"><div class="sig">def <b>left</b>(): decimal</div><p>the x of the left edge (the same as the field x)</p></div>
+<div class="fn" id="rect.low_y"><div class="sig">def <b>low_y</b>(): decimal</div><p>the smallest y (the same as the field y)</p></div>
+<div class="fn" id="rect.operator_"><div class="sig">def <b>operator!=</b>(other: rect): bool</div><p>true when position or size differ</p></div>
+<div class="fn" id="rect.operator_-2"><div class="sig">def <b>operator==</b>(other: rect): bool</div><p>true when position and size are exactly equal</p></div>
+<div class="fn" id="rect.perimeter"><div class="sig">def <b>perimeter</b>(): decimal</div><p>the length of the border: 2 * (width + height)</p></div>
+<div class="fn" id="rect.right"><div class="sig">def <b>right</b>(): decimal</div><p>the x of the right edge: x + width</p></div>
+<div class="fn" id="rect.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;rect(x, y, width x height)&quot;, e.g. &quot;rect(0, 0, 10 x 5)&quot;</p></div>
+<div class="fn" id="rect.translated"><div class="sig">def <b>translated</b>(dx: decimal, dy: decimal): rect</div><p>the same rectangle moved by (dx, dy)</p></div>
+<div class="fn" id="rect.union_with"><div class="sig">def <b>union_with</b>(other: rect): rect</div><p>the smallest rectangle that contains both rectangles (their bounding box)</p></div>
+</div>
+</section>
+<section class="type" id="statistics">
+<h2><span class="kind">class</span> statistics</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/statistics.sharp">source</a></p>
+<p>Descriptive statistics over arrays of native numbers. The class only has static functions and is never instantiated:</p>
+<div class="code"><pre class="sharp">data := new decimal[] { 2, 4, 4, 4, 5, 5, 7, 9 };
+m : decimal = statistics.mean(data);        // 5
+s : decimal = statistics.std_dev(data);     // 2
+q : decimal = statistics.median(data);      // 4.5</pre></div>
+<p>No function changes the array it is given (the ones that need sorted data sort a copy). Every function throws illegal_argument_exception for an empty array, because none of these quantities exists for no data.</p>
+<p>&quot;Population&quot; versions (variance, std_dev, covariance) divide by n and describe exactly the numbers given; &quot;sample&quot; versions divide by n - 1 and estimate the spread of a larger population the numbers were drawn from.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="statistics.correlation"><div class="sig">static def <b>correlation</b>(xs: decimal[], ys: decimal[]): decimal</div><p>Pearson correlation coefficient of two equally long series, in -1 .. 1: 1 when y rises exactly linearly with x, -1 when it falls exactly linearly, 0 when there is no linear relation.</p>
+<p>Formula: sum((x - mx)(y - my)) / sqrt(sum((x - mx)^2) * sum((y - my)^2)).</p>
+<p>Throws illegal_argument_exception when the arrays are empty or differ in length, and arithmetic_exception when one series is constant (its spread is 0, so the coefficient is undefined).</p></div>
+<div class="fn" id="statistics.count"><div class="sig">static def <b>count</b>(values: decimal[]): decimal</div><p>how many numbers the array holds</p></div>
+<div class="fn" id="statistics.covariance"><div class="sig">static def <b>covariance</b>(xs: decimal[], ys: decimal[]): decimal</div><p>Population covariance of two equally long series: sum((x - mean_x)(y - mean_y)) / n. Positive when the series rise and fall together.</p>
+<p>Throws illegal_argument_exception when the arrays are empty or differ in length.</p></div>
+<div class="fn" id="statistics.geometric_mean"><div class="sig">static def <b>geometric_mean</b>(values: decimal[]): decimal</div><p>The geometric mean: the n-th root of the product, computed as exp(mean(log(x))) so the product cannot overflow. Throws illegal_argument_exception when a value is &lt;= 0.</p></div>
+<div class="fn" id="statistics.harmonic_mean"><div class="sig">static def <b>harmonic_mean</b>(values: decimal[]): decimal</div><p>The harmonic mean: count / sum(1 / x), the right average for rates. Throws illegal_argument_exception when a value is &lt;= 0.</p></div>
+<div class="fn" id="statistics.maximum"><div class="sig">static def <b>maximum</b>(values: decimal[]): decimal</div><p>the largest value</p></div>
+<div class="fn" id="statistics.mean"><div class="sig">static def <b>mean</b>(values: decimal[]): decimal</div><p>the arithmetic mean (average): sum / count</p></div>
+<div class="fn" id="statistics.median"><div class="sig">static def <b>median</b>(values: decimal[]): decimal</div><p>The middle value of the sorted data; for an even count the mean of the two middle values: median of { 5, 1, 3 } is 3, of { 1, 2, 3, 4 } is 2.5.</p></div>
+<div class="fn" id="statistics.minimum"><div class="sig">static def <b>minimum</b>(values: decimal[]): decimal</div><p>the smallest value</p></div>
+<div class="fn" id="statistics.mode"><div class="sig">static def <b>mode</b>(values: decimal[]): decimal</div><p>The value that occurs most often. When several values share the highest count, the smallest of them is returned (so the result does not depend on the order of the data).</p></div>
+<div class="fn" id="statistics.percentile"><div class="sig">static def <b>percentile</b>(values: decimal[], p: decimal): decimal</div><p>The p-th percentile (0 &lt;= p &lt;= 100): the value below which p percent of the data lie. percentile(v, 50) is the median, 0 the minimum, 100 the maximum.</p>
+<p>Method: linear interpolation between closest ranks (the default of spreadsheets and NumPy). With the data sorted, the position is rank = p / 100 * (n - 1); the result lies between the values at floor(rank) and floor(rank) + 1, weighted by the fractional part.</p>
+<p>Throws illegal_argument_exception when p is outside 0 .. 100.</p></div>
+<div class="fn" id="statistics.range"><div class="sig">static def <b>range</b>(values: decimal[]): decimal</div><p>the spread: maximum - minimum</p></div>
+<div class="fn" id="statistics.sample_std_dev"><div class="sig">static def <b>sample_std_dev</b>(values: decimal[]): decimal</div><p>Sample standard deviation: the square root of sample_variance(). Throws illegal_argument_exception for fewer than 2 values.</p></div>
+<div class="fn" id="statistics.sample_variance"><div class="sig">static def <b>sample_variance</b>(values: decimal[]): decimal</div><p>Sample variance: sum((x - mean)^2) / (n - 1) (Bessel&#x27;s correction). Throws illegal_argument_exception for fewer than 2 values.</p></div>
+<div class="fn" id="statistics.sorted"><div class="sig">static def <b>sorted</b>(values: decimal[]): decimal[]</div><p>A sorted copy of the array, smallest value first.</p>
+<p>Algorithm: bottom-up merge sort (no recursion): runs of length 1, 2, 4 ... are merged pairwise between two buffers. O(n log n), stable. An empty array gives an empty array.</p></div>
+<div class="fn" id="statistics.std_dev"><div class="sig">static def <b>std_dev</b>(values: decimal[]): decimal</div><p>population standard deviation: the square root of variance()</p></div>
+<div class="fn" id="statistics.sum"><div class="sig">static def <b>sum</b>(values: decimal[]): decimal</div><p>The sum of all values.</p>
+<p>Algorithm: Kahan (compensated) summation - the rounding error of every addition is carried along and fed back, so adding many small numbers to a large one does not lose them. An empty array is allowed and gives 0.</p></div>
+<div class="fn" id="statistics.to_array"><div class="sig">static def <b>to_array</b>(values: list&lt;double&gt;): decimal[]</div><p>The numbers of a list&lt;double&gt; as a native array, so list contents can be passed to the functions above. An empty list gives an empty array.</p></div>
+<div class="fn" id="statistics.variance"><div class="sig">static def <b>variance</b>(values: decimal[]): decimal</div><p>population variance: sum((x - mean)^2) / n</p></div>
+<div class="fn" id="statistics.z_score"><div class="sig">static def <b>z_score</b>(values: decimal[], value: decimal): decimal</div><p>How many standard deviations <code>value</code> lies above (positive) or below (negative) the mean of the data: (value - mean) / std_dev. Throws arithmetic_exception when all values are equal (std_dev is 0).</p></div>
+</div>
+</section>
+<section class="type" id="vector2">
+<h2><span class="kind">class</span> vector2</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/linear/vector2.sharp">source</a></p>
+<p>A 2D vector (or point) with native number components x and y.</p>
+<p>Vectors are VALUES: every operator and every method that produces a vector returns a NEW object and leaves its operands alone, so vectors can be shared freely. The fields are public and may be written directly when an object really should change in place (v.x = 5).</p>
+<div class="code"><pre class="sharp">a := new vector2(3, 4);
+b := new vector2(1, 0);
+c := a + b * 2;             // (5, 4)
+len : decimal = a.length();     // 5
+d : decimal = a.dot(b);         // 3</pre></div>
+<p>Operators: + - (vector), * / (number), unary -, == !=, [0] [1]. Angles are in radians, measured counter clockwise from the +x axis.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="vector2.vector2"><div class="sig"><b>vector2</b>()</div><p>the zero vector (0, 0)</p></div>
+<div class="fn" id="vector2.vector2-2"><div class="sig"><b>vector2</b>(x: decimal, y: decimal)</div><p>the vector (x, y)</p></div>
+<div class="fn" id="vector2.vector2-3"><div class="sig"><b>vector2</b>(other: vector2)</div><p>a copy of another vector</p></div>
+<div class="fn" id="vector2.abs"><div class="sig">def <b>abs</b>(): vector2</div><p>(|x|, |y|)</p></div>
+<div class="fn" id="vector2.angle"><div class="sig">def <b>angle</b>(): decimal</div><p>the direction of the vector as an angle in -pi .. pi: atan2(y, x)</p></div>
+<div class="fn" id="vector2.angle_to"><div class="sig">def <b>angle_to</b>(other: vector2): decimal</div><p>The signed angle to turn this vector onto <code>other</code>, in -pi .. pi (positive = counter clockwise): atan2(cross, dot).</p></div>
+<div class="fn" id="vector2.approx_equals"><div class="sig">def <b>approx_equals</b>(other: vector2, tolerance: decimal): bool</div><p>true when both components differ by at most <code>tolerance</code></p></div>
+<div class="fn" id="vector2.component_max"><div class="sig">def <b>component_max</b>(other: vector2): vector2</div><p>the larger x and the larger y of the two vectors</p></div>
+<div class="fn" id="vector2.component_min"><div class="sig">def <b>component_min</b>(other: vector2): vector2</div><p>the smaller x and the smaller y of the two vectors</p></div>
+<div class="fn" id="vector2.cross"><div class="sig">def <b>cross</b>(other: vector2): decimal</div><p>The 2D cross product x1 * y2 - y1 * x2 (the z component of the 3D cross product). Positive when <code>other</code> is counter clockwise from this vector, negative when clockwise, 0 when they are parallel. Its size is the area of the parallelogram the two vectors span.</p></div>
+<div class="fn" id="vector2.distance_squared_to"><div class="sig">def <b>distance_squared_to</b>(other: vector2): decimal</div><p>the distance squared between this point and another</p></div>
+<div class="fn" id="vector2.distance_to"><div class="sig">def <b>distance_to</b>(other: vector2): decimal</div><p>the distance between this point and another</p></div>
+<div class="fn" id="vector2.dot"><div class="sig">def <b>dot</b>(other: vector2): decimal</div><p>dot product x1 * x2 + y1 * y2; 0 when the vectors are perpendicular</p></div>
+<div class="fn" id="vector2.from_angle"><div class="sig">static def <b>from_angle</b>(radians: decimal, length: decimal): vector2</div><p>The vector of the given length pointing in direction <code>radians</code> (polar -&gt; cartesian): (length * cos, length * sin).</p></div>
+<div class="fn" id="vector2.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code built from both components (equal vectors have equal hashes)</p></div>
+<div class="fn" id="vector2.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when both components are exactly 0</p></div>
+<div class="fn" id="vector2.length"><div class="sig">def <b>length</b>(): decimal</div><p>the length sqrt(x^2 + y^2) (computed without overflow, see hypot)</p></div>
+<div class="fn" id="vector2.length_squared"><div class="sig">def <b>length_squared</b>(): decimal</div><p>the length squared, x^2 + y^2: cheaper than length() for comparisons</p></div>
+<div class="fn" id="vector2.lerp"><div class="sig">def <b>lerp</b>(other: vector2, t: decimal): vector2</div><p>the point a fraction t of the way from this vector to <code>other</code> (t = 0: this, t = 1: other)</p></div>
+<div class="fn" id="vector2.normalized"><div class="sig">def <b>normalized</b>(): vector2</div><p>The vector of length 1 pointing the same way. Throws arithmetic_exception for the zero vector, which has no direction.</p></div>
+<div class="fn" id="vector2.one"><div class="sig">static def <b>one</b>(): vector2</div><p>(1, 1)</p></div>
+<div class="fn" id="vector2.operator_"><div class="sig">def <b>operator!=</b>(other: vector2): bool</div><p>true when at least one component differs</p></div>
+<div class="fn" id="vector2.operator_-2"><div class="sig">def <b>operator*</b>(factor: decimal): vector2</div><p>every component multiplied by a number</p></div>
+<div class="fn" id="vector2.operator_-3"><div class="sig">def <b>operator+</b>(other: vector2): vector2</div><p>component-wise sum</p></div>
+<div class="fn" id="vector2.operator_-4"><div class="sig">def <b>operator-</b>(other: vector2): vector2</div><p>component-wise difference</p></div>
+<div class="fn" id="vector2.operator_-5"><div class="sig">def <b>operator-</b>(): vector2</div><p>the vector pointing the opposite way: (-x, -y)</p></div>
+<div class="fn" id="vector2.operator_-6"><div class="sig">def <b>operator/</b>(divisor: decimal): vector2</div><p>Every component divided by a number. Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="vector2.operator_-7"><div class="sig">def <b>operator==</b>(other: vector2): bool</div><p>true when both components are exactly equal</p></div>
+<div class="fn" id="vector2.operator_-8"><div class="sig">def <b>operator[]</b>(index: decimal): decimal</div><p>Component by position: [0] is x, [1] is y. Throws out_of_bounds_exception for any other index.</p></div>
+<div class="fn" id="vector2.perpendicular"><div class="sig">def <b>perpendicular</b>(): vector2</div><p>this vector turned a quarter turn counter clockwise: (-y, x)</p></div>
+<div class="fn" id="vector2.project_on"><div class="sig">def <b>project_on</b>(other: vector2): vector2</div><p>The part of this vector that lies along <code>other</code>: other * (this . other) / (other . other). Throws arithmetic_exception when <code>other</code> is the zero vector.</p></div>
+<div class="fn" id="vector2.reflect"><div class="sig">def <b>reflect</b>(normal: vector2): vector2</div><p>This vector bounced off a surface whose unit normal is <code>normal</code>: v - normal * 2 (v . normal). The normal must have length 1.</p></div>
+<div class="fn" id="vector2.rotated"><div class="sig">def <b>rotated</b>(radians: decimal): vector2</div><p>this vector turned counter clockwise by <code>radians</code> around the origin</p></div>
+<div class="fn" id="vector2.scaled_by"><div class="sig">def <b>scaled_by</b>(other: vector2): vector2</div><p>component-wise product (x1 * x2, y1 * y2)</p></div>
+<div class="fn" id="vector2.to_array"><div class="sig">def <b>to_array</b>(): decimal[]</div><p>the components as a new array { x, y }</p></div>
+<div class="fn" id="vector2.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;(x, y)&quot;, e.g. &quot;(3, -0.5)&quot;</p></div>
+<div class="fn" id="vector2.unit_x"><div class="sig">static def <b>unit_x</b>(): vector2</div><p>the unit vector along the x axis, (1, 0)</p></div>
+<div class="fn" id="vector2.unit_y"><div class="sig">static def <b>unit_y</b>(): vector2</div><p>the unit vector along the y axis, (0, 1)</p></div>
+<div class="fn" id="vector2.zero"><div class="sig">static def <b>zero</b>(): vector2</div><p>(0, 0)</p></div>
+</div>
+</section>
+<section class="type" id="vector3">
+<h2><span class="kind">class</span> vector3</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/math/linear/vector3.sharp">source</a></p>
+<p>A 3D vector (or point) with native number components x, y and z.</p>
+<p>Like vector2, vectors are VALUES: operators and methods return new objects and never change their operands. The fields are public.</p>
+<div class="code"><pre class="sharp">a := new vector3(1, 0, 0);
+b := new vector3(0, 1, 0);
+c := a.cross(b);            // (0, 0, 1)
+d : decimal = (a + b).length(); // sqrt(2)</pre></div>
+<p>Operators: + - (vector), * / (number), unary -, == !=, [0] [1] [2]. The coordinate system is right handed: x cross y == z.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="vector3.vector3"><div class="sig"><b>vector3</b>()</div><p>the zero vector (0, 0, 0)</p></div>
+<div class="fn" id="vector3.vector3-2"><div class="sig"><b>vector3</b>(x: decimal, y: decimal, z: decimal)</div><p>the vector (x, y, z)</p></div>
+<div class="fn" id="vector3.vector3-3"><div class="sig"><b>vector3</b>(other: vector3)</div><p>a copy of another vector</p></div>
+<div class="fn" id="vector3.vector3-4"><div class="sig"><b>vector3</b>(flat: vector2, z: decimal)</div><p>a 2D vector placed in space, with the given z</p></div>
+<div class="fn" id="vector3.abs"><div class="sig">def <b>abs</b>(): vector3</div><p>(|x|, |y|, |z|)</p></div>
+<div class="fn" id="vector3.angle_to"><div class="sig">def <b>angle_to</b>(other: vector3): decimal</div><p>The angle between this vector and <code>other</code>, in 0 .. pi: atan2(|a x b|, a . b), which stays accurate for nearly parallel vectors (unlike acos of the normalised dot product).</p></div>
+<div class="fn" id="vector3.approx_equals"><div class="sig">def <b>approx_equals</b>(other: vector3, tolerance: decimal): bool</div><p>true when all components differ by at most <code>tolerance</code></p></div>
+<div class="fn" id="vector3.component_max"><div class="sig">def <b>component_max</b>(other: vector3): vector3</div><p>the larger x, y and z of the two vectors</p></div>
+<div class="fn" id="vector3.component_min"><div class="sig">def <b>component_min</b>(other: vector3): vector3</div><p>the smaller x, y and z of the two vectors</p></div>
+<div class="fn" id="vector3.cross"><div class="sig">def <b>cross</b>(other: vector3): vector3</div><p>Cross product: a vector perpendicular to both operands, whose length is the area of the parallelogram they span (0 when they are parallel).</p>
+<div class="code"><pre class="sharp">(y1 z2 - z1 y2,  z1 x2 - x1 z2,  x1 y2 - y1 x2)</pre></div></div>
+<div class="fn" id="vector3.distance_squared_to"><div class="sig">def <b>distance_squared_to</b>(other: vector3): decimal</div><p>the distance squared between this point and another</p></div>
+<div class="fn" id="vector3.distance_to"><div class="sig">def <b>distance_to</b>(other: vector3): decimal</div><p>the distance between this point and another</p></div>
+<div class="fn" id="vector3.dot"><div class="sig">def <b>dot</b>(other: vector3): decimal</div><p>dot product x1 x2 + y1 y2 + z1 z2; 0 when the vectors are perpendicular</p></div>
+<div class="fn" id="vector3.hash"><div class="sig">override def <b>hash</b>(): int</div><p>a hash code built from all components (equal vectors have equal hashes)</p></div>
+<div class="fn" id="vector3.is_zero"><div class="sig">def <b>is_zero</b>(): bool</div><p>true when all components are exactly 0</p></div>
+<div class="fn" id="vector3.length"><div class="sig">def <b>length</b>(): decimal</div><p>the length sqrt(x^2 + y^2 + z^2)</p></div>
+<div class="fn" id="vector3.length_squared"><div class="sig">def <b>length_squared</b>(): decimal</div><p>the length squared: cheaper than length() for comparisons</p></div>
+<div class="fn" id="vector3.lerp"><div class="sig">def <b>lerp</b>(other: vector3, t: decimal): vector3</div><p>the point a fraction t of the way from this vector to <code>other</code> (t = 0: this, t = 1: other)</p></div>
+<div class="fn" id="vector3.normalized"><div class="sig">def <b>normalized</b>(): vector3</div><p>The vector of length 1 pointing the same way. Throws arithmetic_exception for the zero vector, which has no direction.</p></div>
+<div class="fn" id="vector3.one"><div class="sig">static def <b>one</b>(): vector3</div><p>(1, 1, 1)</p></div>
+<div class="fn" id="vector3.operator_"><div class="sig">def <b>operator!=</b>(other: vector3): bool</div><p>true when at least one component differs</p></div>
+<div class="fn" id="vector3.operator_-2"><div class="sig">def <b>operator*</b>(factor: decimal): vector3</div><p>every component multiplied by a number</p></div>
+<div class="fn" id="vector3.operator_-3"><div class="sig">def <b>operator+</b>(other: vector3): vector3</div><p>component-wise sum</p></div>
+<div class="fn" id="vector3.operator_-4"><div class="sig">def <b>operator-</b>(other: vector3): vector3</div><p>component-wise difference</p></div>
+<div class="fn" id="vector3.operator_-5"><div class="sig">def <b>operator-</b>(): vector3</div><p>the vector pointing the opposite way: (-x, -y, -z)</p></div>
+<div class="fn" id="vector3.operator_-6"><div class="sig">def <b>operator/</b>(divisor: decimal): vector3</div><p>Every component divided by a number. Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="vector3.operator_-7"><div class="sig">def <b>operator==</b>(other: vector3): bool</div><p>true when all three components are exactly equal</p></div>
+<div class="fn" id="vector3.operator_-8"><div class="sig">def <b>operator[]</b>(index: decimal): decimal</div><p>Component by position: [0] is x, [1] is y, [2] is z. Throws out_of_bounds_exception for any other index.</p></div>
+<div class="fn" id="vector3.project_on"><div class="sig">def <b>project_on</b>(other: vector3): vector3</div><p>The part of this vector that lies along <code>other</code>: other * (this . other) / (other . other). Throws arithmetic_exception when <code>other</code> is the zero vector.</p></div>
+<div class="fn" id="vector3.reflect"><div class="sig">def <b>reflect</b>(normal: vector3): vector3</div><p>This vector bounced off a surface whose unit normal is <code>normal</code>: v - normal * 2 (v . normal). The normal must have length 1.</p></div>
+<div class="fn" id="vector3.scaled_by"><div class="sig">def <b>scaled_by</b>(other: vector3): vector3</div><p>component-wise product (x1 x2, y1 y2, z1 z2)</p></div>
+<div class="fn" id="vector3.to_array"><div class="sig">def <b>to_array</b>(): decimal[]</div><p>the components as a new array { x, y, z }</p></div>
+<div class="fn" id="vector3.to_string"><div class="sig">override def <b>to_string</b>(): string?</div><p>&quot;(x, y, z)&quot;, e.g. &quot;(1, 0, -2.5)&quot;</p></div>
+<div class="fn" id="vector3.to_vector2"><div class="sig">def <b>to_vector2</b>(): vector2</div><p>the x and y components as a 2D vector (z is dropped)</p></div>
+<div class="fn" id="vector3.unit_x"><div class="sig">static def <b>unit_x</b>(): vector3</div><p>the unit vector along the x axis, (1, 0, 0)</p></div>
+<div class="fn" id="vector3.unit_y"><div class="sig">static def <b>unit_y</b>(): vector3</div><p>the unit vector along the y axis, (0, 1, 0)</p></div>
+<div class="fn" id="vector3.unit_z"><div class="sig">static def <b>unit_z</b>(): vector3</div><p>the unit vector along the z axis, (0, 0, 1)</p></div>
+<div class="fn" id="vector3.zero"><div class="sig">static def <b>zero</b>(): vector3</div><p>(0, 0, 0)</p></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="abs"><div class="sig">def <b>abs</b>(v: decimal) : decimal</div><p>the distance of v from zero: abs(-3) is 3</p></div>
+<div class="fn" id="abs-2"><div class="sig">def <b>abs</b>(num: double) : double</div></div>
+<div class="fn" id="abs-3"><div class="sig">def <b>abs</b>(num: int) : int</div></div>
+<div class="fn" id="abs-4"><div class="sig">def <b>abs</b>(num: long) : long</div></div>
+<div class="fn" id="abs-5"><div class="sig">def <b>abs</b>(num: short) : short</div></div>
+<div class="fn" id="abs-6"><div class="sig">def <b>abs</b>(num: char) : char</div></div>
+<div class="fn" id="abs-7"><div class="sig">def <b>abs</b>(num: byte) : byte</div></div>
+<div class="fn" id="acos"><div class="sig">def <b>acos</b>(v: decimal): decimal</div><p>arc cosine as a native number, in 0 .. pi; NaN outside -1 .. 1</p></div>
+<div class="fn" id="acosh"><div class="sig">def <b>acosh</b>(v: decimal): decimal</div><p>Inverse hyperbolic cosine, defined for v &gt;= 1 (NaN below 1). Formula: log(v + sqrt(v^2 - 1)).</p></div>
+<div class="fn" id="angle_difference_degrees"><div class="sig">def <b>angle_difference_degrees</b>(from: decimal, to: decimal): decimal</div><p>The shortest way to turn from angle <code>from</code> to angle <code>to</code>, both in degrees, as a signed angle in -180 .. 180 (positive = counter clockwise): angle_difference_degrees(350, 10) == 20, angle_difference_degrees(10, 350) == -20.</p></div>
+<div class="fn" id="approx_equals"><div class="sig">def <b>approx_equals</b>(a: decimal, b: decimal, tolerance: decimal): bool</div><p>True when a and b differ by at most <code>tolerance</code>. Use it instead of == for results of floating point arithmetic: approx_equals(0.1 + 0.2, 0.3, 1e-9). Always false when either number is NaN.</p></div>
+<div class="fn" id="asin"><div class="sig">def <b>asin</b>(v: decimal): decimal</div><p>arc sine as a native number, in -pi/2 .. pi/2; NaN outside -1 .. 1</p></div>
+<div class="fn" id="asinh"><div class="sig">def <b>asinh</b>(v: decimal): decimal</div><p>Inverse hyperbolic sine, defined for every number. Formula: log(v + sqrt(v^2 + 1)), using asinh(-v) == -asinh(v) so the sum inside the logarithm never cancels for negative v.</p></div>
+<div class="fn" id="atan"><div class="sig">def <b>atan</b>(v: decimal): decimal</div><p>arc tangent as a native number, in -pi/2 .. pi/2</p></div>
+<div class="fn" id="atan2"><div class="sig">def <b>atan2</b>(y: decimal, x: decimal): decimal</div><p>The angle of the point (x, y) seen from the origin, in -pi .. pi. Unlike atan(y / x) it knows the quadrant and copes with x == 0: atan2(1, 1) == pi/4, atan2(1, -1) == 3pi/4, atan2(-1, 0) == -pi/2. Note the argument order: y first (the same as C, Java and Kotlin).</p></div>
+<div class="fn" id="atanh"><div class="sig">def <b>atanh</b>(v: decimal): decimal</div><p>Inverse hyperbolic tangent, defined for -1 &lt; v &lt; 1 (+-infinity at +-1, NaN outside). Formula: log((1 + v) / (1 - v)) / 2.</p></div>
+<div class="fn" id="binomial"><div class="sig">def <b>binomial</b>(n: decimal, k: decimal): decimal</div><p>The binomial coefficient &quot;n choose k&quot;: the number of ways to pick k items out of n when the order does not matter. binomial(5, 2) == 10, binomial(n, 0) == 1, and 0 when k &gt; n.</p>
+<p>Algorithm: the product (n - k + 1) / 1 * (n - k + 2) / 2 * ... * n / k, where every partial product is itself a binomial coefficient and so the division is always exact.</p>
+<p>Throws illegal_argument_exception when n or k is negative.</p></div>
+<div class="fn" id="cbrt"><div class="sig">def <b>cbrt</b>(v: decimal): decimal</div><p>Cube root, also for negative numbers: cbrt(27) == 3, cbrt(-8) == -2.</p>
+<p>Algorithm: |v|^(1/3) with the runtime&#x27;s pow, then one Newton step r = r - (r^3 - |v|) / (3 r^2) which removes the rounding error of the inexact exponent 1/3, so perfect cubes come out exact.</p></div>
+<div class="fn" id="ceil"><div class="sig">def <b>ceil</b>(v: decimal): decimal</div><p>the smallest whole number that is &gt;= v: ceil(2.1) is 3, ceil(-2.5) is -2</p></div>
+<div class="fn" id="ceil_div"><div class="sig">def <b>ceil_div</b>(dividend: decimal, divisor: decimal): decimal</div><p>Division that rounds toward positive infinity: ceil_div(7, 2) == 4, ceil_div(-7, 2) == -3. Useful for &quot;how many pages of size n do I need&quot;.</p>
+<p>Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="ceil_to"><div class="sig">def <b>ceil_to</b>(v: decimal, decimals: decimal): decimal</div><p>round UP to <code>decimals</code> digits after the point: ceil_to(3.141, 2) == 3.15</p></div>
+<div class="fn" id="clamp"><div class="sig">def <b>clamp</b>(v: decimal, low: decimal, high: decimal): decimal</div><p>Limit v to the range low .. high (both ends included): clamp(15, 0, 10) == 10, clamp(-3, 0, 10) == 0, clamp(4, 0, 10) == 4.</p>
+<p>Throws illegal_argument_exception when low &gt; high.</p></div>
+<div class="fn" id="compare"><div class="sig">def <b>compare</b>(a: decimal, b: decimal): decimal</div><p>Three-way comparison of two numbers, the convention used by comparators: -1 when a &lt; b, 1 when a &gt; b, 0 when they are equal. NaN compares as equal to everything (no ordering exists for it).</p></div>
+<div class="fn" id="copy_sign"><div class="sig">def <b>copy_sign</b>(magnitude: decimal, sign_source: decimal): decimal</div><p>The size of <code>magnitude</code> with the sign of <code>sign_source</code>: copy_sign(3, -0.5) == -3, copy_sign(-3, 2) == 3. A sign_source of 0 counts as positive.</p></div>
+<div class="fn" id="cos"><div class="sig">def <b>cos</b>(radians: decimal): decimal</div><p>cosine of an angle in radians</p></div>
+<div class="fn" id="cosh"><div class="sig">def <b>cosh</b>(v: decimal): decimal</div><p>hyperbolic cosine as a native number: (e^v + e^-v) / 2</p></div>
+<div class="fn" id="cot"><div class="sig">def <b>cot</b>(radians: decimal): decimal</div><p>cotangent: cos / sin. Infinite where the sine is 0.</p></div>
+<div class="fn" id="csc"><div class="sig">def <b>csc</b>(radians: decimal): decimal</div><p>cosecant: 1 / sin. Infinite where the sine is 0.</p></div>
+<div class="fn" id="cube"><div class="sig">def <b>cube</b>(v: decimal): decimal</div><p>v * v * v</p></div>
+<div class="fn" id="digit_count"><div class="sig">def <b>digit_count</b>(n: decimal): decimal</div><p>How many decimal digits the whole part of n has, ignoring the sign: digit_count(0) == 1, digit_count(999) == 3, digit_count(-1000) == 4.</p></div>
+<div class="fn" id="digit_sum"><div class="sig">def <b>digit_sum</b>(n: decimal): decimal</div><p>the sum of the decimal digits of the whole part of n, ignoring the sign: digit_sum(1234) == 10</p></div>
+<div class="fn" id="exp"><div class="sig">def <b>exp</b>(v: decimal): decimal</div><p>e raised to the power v</p></div>
+<div class="fn" id="exp2"><div class="sig">def <b>exp2</b>(v: decimal): decimal</div><p>2 raised to the power v: exp2(10) == 1024</p></div>
+<div class="fn" id="factorial"><div class="sig">def <b>factorial</b>(n: decimal): decimal</div><p>n! = 1 * 2 * ... * n, with 0! == 1. Exact up to 18! (6402373705728000); larger results are rounded to 53 bits and 171! and above are infinity. Use big_integer.factorial() when every digit matters.</p>
+<p>Throws illegal_argument_exception when n is negative or not whole.</p></div>
+<div class="fn" id="fibonacci"><div class="sig">def <b>fibonacci</b>(n: decimal): decimal</div><p>The n-th Fibonacci number, counting from fibonacci(0) == 0 and fibonacci(1) == 1: 0, 1, 1, 2, 3, 5, 8, 13 ... Exact up to fibonacci(78) == 8944394323791464.</p>
+<p>Algorithm: a loop that keeps the last two numbers (no recursion). Throws illegal_argument_exception when n is negative or not whole.</p></div>
+<div class="fn" id="floor"><div class="sig">def <b>floor</b>(v: decimal): decimal</div><p>the largest whole number that is &lt;= v: floor(2.9) is 2, floor(-2.5) is -3</p></div>
+<div class="fn" id="floor_div"><div class="sig">def <b>floor_div</b>(dividend: decimal, divisor: decimal): decimal</div><p>Division that rounds toward negative infinity (Kotlin floorDiv): floor_div(7, 2) == 3, floor_div(-7, 2) == -4, floor_div(7, -2) == -4.</p>
+<p>Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="floor_mod"><div class="sig">def <b>floor_mod</b>(dividend: decimal, divisor: decimal): decimal</div><p>The remainder that goes with floor_div (Kotlin mod / Java floorMod); it has the sign of the DIVISOR, so for a positive divisor it is never negative, which is what indexing and clock arithmetic need: floor_mod(7, 3) == 1, floor_mod(-7, 3) == 2, floor_mod(7, -3) == -2.</p>
+<p>Formula: dividend - floor(dividend / divisor) * divisor. Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="floor_to"><div class="sig">def <b>floor_to</b>(v: decimal, decimals: decimal): decimal</div><p>round DOWN to <code>decimals</code> digits after the point: floor_to(3.149, 2) == 3.14</p></div>
+<div class="fn" id="fmod"><div class="sig">def <b>fmod</b>(a: decimal, b: decimal): decimal</div><p>what is left of a / b, with the sign of a (the <code>%</code> of plain numbers, for fractions too): fmod(7.5, 2) is 1.5</p></div>
+<div class="fn" id="fract"><div class="sig">def <b>fract</b>(v: decimal): decimal</div><p>The fractional part, with the sign of v: fract(2.75) == 0.75, fract(-2.75) == -0.75. Always v == trunc(v) + fract(v).</p></div>
+<div class="fn" id="gcd"><div class="sig">def <b>gcd</b>(a: decimal, b: decimal): decimal</div><p>Greatest common divisor: the largest whole number that divides both a and b. Signs are ignored and the result is never negative: gcd(12, 18) == 6, gcd(-12, 18) == 6, gcd(0, 5) == 5, gcd(0, 0) == 0.</p>
+<p>Algorithm: Euclid - replace (a, b) by (b, a mod b) until b is 0.</p></div>
+<div class="fn" id="hypot"><div class="sig">def <b>hypot</b>(x: decimal, y: decimal): decimal</div><p>Length of the hypotenuse, sqrt(x^2 + y^2), without overflowing for large arguments: hypot(3, 4) == 5.</p>
+<p>Algorithm: with m the larger and s the smaller of |x| and |y|, m * sqrt(1 + (s / m)^2) - the intermediate values never exceed the result.</p></div>
+<div class="fn" id="hypot-2"><div class="sig">def <b>hypot</b>(x: decimal, y: decimal, z: decimal): decimal</div><p>the 3D version of hypot: sqrt(x^2 + y^2 + z^2); hypot(2, 3, 6) == 7</p></div>
+<div class="fn" id="int_div"><div class="sig">def <b>int_div</b>(dividend: decimal, divisor: decimal): decimal</div><p>Whole number division that rounds toward zero, the way integer division works in C, Java and Kotlin: int_div(7, 2) == 3, int_div(-7, 2) == -3.</p>
+<p>Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="int_pow"><div class="sig">def <b>int_pow</b>(base_value: decimal, exponent: decimal): decimal</div><p>base^exponent for a whole, non-negative exponent, by repeated squaring (O(log exponent) multiplications, no call into the runtime). The result is exact whenever it fits in 53 bits: int_pow(3, 20) == 3486784401. int_pow(x, 0) == 1 for every x, including 0.</p>
+<p>Throws illegal_argument_exception when exponent is negative or not whole.</p></div>
+<div class="fn" id="int_rem"><div class="sig">def <b>int_rem</b>(dividend: decimal, divisor: decimal): decimal</div><p>The remainder that goes with int_div; it has the sign of the dividend (the same as the % operator on whole numbers): int_rem(7, 3) == 1, int_rem(-7, 3) == -1. Always dividend == int_div(a, b) * b + int_rem(a, b).</p>
+<p>Throws division_by_zero_exception when divisor is 0.</p></div>
+<div class="fn" id="inverse_lerp"><div class="sig">def <b>inverse_lerp</b>(a: decimal, b: decimal, v: decimal): decimal</div><p>The opposite of lerp: how far v is along the way from a to b, as a fraction. inverse_lerp(10, 20, 12.5) == 0.25.</p>
+<p>Throws arithmetic_exception when a == b (every v is then &quot;nowhere&quot; on a line of length 0).</p></div>
+<div class="fn" id="is_even"><div class="sig">def <b>is_even</b>(n: decimal): bool</div><p>true when the whole number n is divisible by 2 (also for negative n)</p></div>
+<div class="fn" id="is_finite"><div class="sig">def <b>is_finite</b>(v: decimal): bool</div><p>True when v is an ordinary number: not NaN and not +-infinity. (v - v is 0 for every finite number and NaN for the other three.)</p></div>
+<div class="fn" id="is_infinite"><div class="sig">public def <b>is_infinite</b>(v: decimal): bool</div><p>true when v is positive or negative infinity</p></div>
+<div class="fn" id="is_nan"><div class="sig">public def <b>is_nan</b>(v: decimal): bool</div><p>true when v is NaN (&quot;not a number&quot;, what 0 / 0 gives)</p></div>
+<div class="fn" id="is_odd"><div class="sig">def <b>is_odd</b>(n: decimal): bool</div><p>true when the whole number n is not divisible by 2 (also for negative n)</p></div>
+<div class="fn" id="is_perfect_square"><div class="sig">def <b>is_perfect_square</b>(n: decimal): bool</div><p>true when n is the square of a whole number: 0, 1, 4, 9, 16 ... (false for negatives and fractions)</p></div>
+<div class="fn" id="is_prime"><div class="sig">def <b>is_prime</b>(n: decimal): bool</div><p>True when n is a prime number (a whole number &gt; 1 whose only divisors are 1 and itself). 0, 1, negative numbers and fractions are not prime.</p>
+<p>Algorithm: trial division. After 2 and 3 every prime has the form 6k - 1 or 6k + 1, so only those candidates up to sqrt(n) are tried: O(sqrt(n)) steps, fine up to about 10^12.</p></div>
+<div class="fn" id="is_whole"><div class="sig">def <b>is_whole</b>(v: decimal): bool</div><p>true when v has no fractional part (and is finite): 3, -7, 1e20</p></div>
+<div class="fn" id="isqrt"><div class="sig">def <b>isqrt</b>(n: decimal): decimal</div><p>Whole number square root: the largest whole r with r * r &lt;= n. isqrt(17) == 4, isqrt(16) == 4, isqrt(0) == 0. Exact for n up to 2^53.</p>
+<p>Algorithm: floor(sqrt(n)), then corrected by at most one step in either direction in case the floating point root was rounded across a whole number.</p>
+<p>Throws illegal_argument_exception when n is negative.</p></div>
+<div class="fn" id="lcm"><div class="sig">def <b>lcm</b>(a: decimal, b: decimal): decimal</div><p>Least common multiple: the smallest positive whole number that both a and b divide. lcm(4, 6) == 12; lcm(0, n) == 0.</p>
+<p>Formula: |a| / gcd(a, b) * |b| (dividing first keeps the intermediate value small).</p></div>
+<div class="fn" id="ldexp"><div class="sig">def <b>ldexp</b>(v: decimal, exponent: decimal): decimal</div><p>v * 2 to the power <code>exponent</code></p></div>
+<div class="fn" id="lerp"><div class="sig">def <b>lerp</b>(a: decimal, b: decimal, t: decimal): decimal</div><p>Linear interpolation: the value a fraction t of the way from a to b. lerp(10, 20, 0) == 10, lerp(10, 20, 1) == 20, lerp(10, 20, 0.25) == 12.5. t outside 0 .. 1 extrapolates along the same line.</p>
+<p>Formula: a + (b - a) * t.</p></div>
+<div class="fn" id="log"><div class="sig">def <b>log</b>(v: decimal): decimal</div><p>the natural logarithm of v (base e); log(0) is negative infinity, of a negative number NaN</p></div>
+<div class="fn" id="log10"><div class="sig">def <b>log10</b>(v: decimal): decimal</div><p>the logarithm of v to the base 10: log10(1000) is 3</p></div>
+<div class="fn" id="log2"><div class="sig">def <b>log2</b>(v: decimal): decimal</div><p>Base 2 logarithm: log2(8) == 3, log2(1) == 0. log2(0) is negative infinity, log2 of a negative number is NaN.</p>
+<p>Whole powers of two (and their reciprocals) are returned exactly: the result of log(v) / LN2 is rounded and kept when 2^rounded == v.</p></div>
+<div class="fn" id="log_base"><div class="sig">def <b>log_base</b>(v: decimal, base_value: decimal): decimal</div><p>Logarithm of v in any base: log_base(81, 3) == 4. Formula: log(v) / log(base).</p>
+<p>Throws illegal_argument_exception when base is &lt;= 0 or is 1 (no such logarithm exists).</p></div>
+<div class="fn" id="map_range"><div class="sig">def <b>map_range</b>(v: decimal, in_low: decimal, in_high: decimal, out_low: decimal, out_high: decimal): decimal</div><p>Re-scale v from the range in_low .. in_high to the range out_low .. out_high, keeping its relative position: map_range(5, 0, 10, 100, 200) == 150 (half way stays half way). Values outside the input range land outside the output range; the output range may run backwards (map_range(2, 0, 10, 10, 0) == 8).</p>
+<p>Throws arithmetic_exception when in_low == in_high.</p></div>
+<div class="fn" id="math_call"><div class="sig">def <b>math_call</b>(a: decimal, b: decimal, proc: _int64): decimal</div><p>Run math procedure <code>proc</code> of the runtime on <code>a</code> (and <code>b</code> for the procedures that take two; 0 otherwise): for code that only knows WHICH function when it runs. The functions of this module do not come here: each is an instruction of the runtime with its number written in it (<code>dmath</code>; sqrt, ceil, floor and abs have instructions of their own), and with -O a call of one becomes that instruction where it is written.</p>
+<div class="code"><pre class="sharp">0x00 sin    0x01 cos    0x02 tan    0x03 sinh   0x04 cosh   0x05 tanh
+0x06 asin   0x07 acos   0x08 atan   0x09 atan2(a, b)        0x0a exp
+0x0b log    0x0c log10  0x0d pow(a, b)          0x0e sqrt   0x0f ceil
+0x10 floor  0x11 fabs   0x12 ldexp(a, b)        0x13 fmod(a, b)</pre></div>
+<p>Throws invalid_operation_exception (raised by the runtime) when <code>proc</code> is not one of these numbers.</p></div>
+<div class="fn" id="max"><div class="sig">def <b>max</b>(a: decimal, b: decimal): decimal</div><p>the larger of two numbers; NaN if either one is NaN</p></div>
+<div class="fn" id="max-2"><div class="sig">def <b>max</b>(a: decimal, b: decimal, c: decimal): decimal</div><p>the largest of three numbers</p></div>
+<div class="fn" id="max_of"><div class="sig">def <b>max_of</b>(values: decimal[]): decimal</div><p>The largest number in an array (any number of values). Throws illegal_argument_exception when the array is empty.</p></div>
+<div class="fn" id="min"><div class="sig">def <b>min</b>(a: decimal, b: decimal): decimal</div><p>the smaller of two numbers; NaN if either one is NaN</p></div>
+<div class="fn" id="min-2"><div class="sig">def <b>min</b>(a: decimal, b: decimal, c: decimal): decimal</div><p>the smallest of three numbers</p></div>
+<div class="fn" id="min_of"><div class="sig">def <b>min_of</b>(values: decimal[]): decimal</div><p>The smallest number in an array (any number of values). Throws illegal_argument_exception when the array is empty.</p></div>
+<div class="fn" id="mod_pow"><div class="sig">def <b>mod_pow</b>(base_value: decimal, exponent: decimal, modulus: decimal): decimal</div><p>(base ^ exponent) mod modulus without ever forming the huge power: mod_pow(4, 13, 497) == 445. The result is in 0 .. modulus - 1.</p>
+<p>Algorithm: square-and-multiply, reducing after every multiplication. Every product of two reduced values must stay exact, which limits the modulus to 94906265 (just under 2^26.5, so products stay below 2^53).</p>
+<p>Throws illegal_argument_exception when exponent is negative, or modulus is &lt; 1 or above that limit.</p></div>
+<div class="fn" id="next_prime"><div class="sig">def <b>next_prime</b>(n: decimal): decimal</div><p>the smallest prime that is greater than n: next_prime(7) == 11, next_prime(-5) == 2</p></div>
+<div class="fn" id="normalize_degrees"><div class="sig">def <b>normalize_degrees</b>(degrees: decimal): decimal</div><p>Bring an angle in degrees into 0 &lt;= angle &lt; 360: normalize_degrees(-90) == 270, normalize_degrees(725) == 5.</p></div>
+<div class="fn" id="normalize_radians"><div class="sig">def <b>normalize_radians</b>(radians: decimal): decimal</div><p>Bring an angle in radians into 0 &lt;= angle &lt; 2 pi by adding or removing whole turns: normalize_radians(-pi/2) == 3pi/2.</p></div>
+<div class="fn" id="nth_root"><div class="sig">def <b>nth_root</b>(v: decimal, n: decimal): decimal</div><p>The n-th root of v: nth_root(32, 5) == 2. For an odd n a negative v is allowed (nth_root(-27, 3) == -3); for an even n it gives NaN.</p>
+<p>Throws illegal_argument_exception when n is 0.</p></div>
+<div class="fn" id="number_to_fixed"><div class="sig">def <b>number_to_fixed</b>(v: decimal, decimals: decimal): string</div><p>v with exactly <code>decimals</code> digits after the decimal point, rounded: number_to_fixed(3.14159, 2) is &quot;3.14&quot;, number_to_fixed(2, 3) is &quot;2.000&quot;, number_to_fixed(2.5, 0) is &quot;3&quot;.</p>
+<p>Throws illegal_argument_exception when decimals is negative or above 100.</p></div>
+<div class="fn" id="number_to_string"><div class="sig">def <b>number_to_string</b>(v: decimal): string</div><p>The shortest text that reads back as exactly v - what <code>&quot;&quot; + v</code> gives:</p>
+<div class="code"><pre class="sharp">3        -&gt; &quot;3&quot;            -0.5   -&gt; &quot;-0.5&quot;
+2.50     -&gt; &quot;2.5&quot;          0.1    -&gt; &quot;0.1&quot;
+1e21     -&gt; &quot;1e+21&quot;        1e-20  -&gt; &quot;1e-20&quot;
+NaN      -&gt; &quot;NaN&quot;          1 / 0  -&gt; &quot;Infinity&quot;   -1 / 0 -&gt; &quot;-Infinity&quot;</pre></div>
+<p>The VM makes this text (the fewest digits that give the same number again), so a number printed here, added to a string, or written by json always looks the same.</p></div>
+<div class="fn" id="permutations"><div class="sig">def <b>permutations</b>(n: decimal, k: decimal): decimal</div><p>The number of ways to pick k items out of n when the order DOES matter: n * (n - 1) * ... * (n - k + 1). permutations(5, 2) == 20; 0 when k &gt; n.</p>
+<p>Throws illegal_argument_exception when n or k is negative.</p></div>
+<div class="fn" id="pow"><div class="sig">def <b>pow</b>(base_value: decimal, exponent: decimal): decimal</div><p><code>base_value</code> raised to the power <code>exponent</code>: pow(2, 10) is 1024, pow(2, 0.5) is sqrt(2), pow(x, 0) is 1. A negative base with a fractional exponent gives NaN.</p></div>
+<div class="fn" id="prime_factors"><div class="sig">def <b>prime_factors</b>(n: decimal): decimal[]</div><p>The prime factors of n in rising order, repeated as often as they divide n: prime_factors(360) is { 2, 2, 2, 3, 3, 5 }. A prime gives an array holding just itself; 1 gives an empty array.</p>
+<p>Throws illegal_argument_exception when n is &lt; 1 or not whole.</p></div>
+<div class="fn" id="round"><div class="sig">def <b>round</b>(v: decimal): decimal</div><p>Round to the nearest whole number; a tie (x.5) goes away from zero: round(2.5) is 3, round(2.4) is 2, round(-2.5) is -3 (round_half_away of rounding.sharp; round_half_even is the other rule).</p></div>
+<div class="fn" id="round_half_away"><div class="sig">def <b>round_half_away</b>(v: decimal): decimal</div><p>Round to the nearest whole number; a tie (x.5) goes AWAY from zero, which is what people usually call rounding: 2.5 -&gt; 3, -2.5 -&gt; -3, 2.4 -&gt; 2.</p></div>
+<div class="fn" id="round_half_even"><div class="sig">def <b>round_half_even</b>(v: decimal): decimal</div><p>Round to the nearest whole number; a tie (x.5) goes to the EVEN neighbour (&quot;banker&#x27;s rounding&quot;, the rule Kotlin&#x27;s round() uses): 2.5 -&gt; 2, 3.5 -&gt; 4, -2.5 -&gt; -2. Over many values this does not drift upward the way round_half_away does.</p></div>
+<div class="fn" id="round_to"><div class="sig">def <b>round_to</b>(v: decimal, decimals: decimal): decimal</div><p>Round to <code>decimals</code> digits after the decimal point (ties away from zero): round_to(3.14159, 2) == 3.14, round_to(2.5, 0) == 3. A negative count rounds to the left of the point: round_to(1234, -2) == 1200.</p>
+<p>Formula: round_half_away(v * 10^decimals) / 10^decimals. The usual floating point caveat applies: 1.005 is stored as 1.00499999999999989..., so round_to(1.005, 2) is 1 and not 1.01.</p></div>
+<div class="fn" id="round_to_multiple"><div class="sig">def <b>round_to_multiple</b>(v: decimal, step: decimal): decimal</div><p>Round v to the nearest multiple of <code>step</code> (ties away from zero): round_to_multiple(17, 5) == 15, round_to_multiple(18, 5) == 20.</p>
+<p>Throws division_by_zero_exception when step is 0.</p></div>
+<div class="fn" id="sec"><div class="sig">def <b>sec</b>(radians: decimal): decimal</div><p>secant: 1 / cos. Infinite where the cosine is 0.</p></div>
+<div class="fn" id="sign"><div class="sig">def <b>sign</b>(v: decimal): decimal</div><p>The sign of a number: -1 for negative, 1 for positive, 0 for zero. NaN is returned unchanged (it is neither negative nor positive).</p></div>
+<div class="fn" id="sin"><div class="sig">def <b>sin</b>(radians: decimal): decimal</div><p>sine of an angle in radians</p></div>
+<div class="fn" id="sinh"><div class="sig">def <b>sinh</b>(v: decimal): decimal</div><p>hyperbolic sine as a native number: (e^v - e^-v) / 2</p></div>
+<div class="fn" id="smoothstep"><div class="sig">def <b>smoothstep</b>(edge0: decimal, edge1: decimal, x: decimal): decimal</div><p>A smooth 0 -&gt; 1 transition as x goes from edge0 to edge1: 0 at or below edge0, 1 at or above edge1, and an S shaped curve with zero slope at both ends in between (smoothstep(0, 10, 5) == 0.5).</p>
+<p>Formula: t = clamp((x - edge0) / (edge1 - edge0), 0, 1); t * t * (3 - 2 t). Throws arithmetic_exception when edge0 == edge1.</p></div>
+<div class="fn" id="sqrt"><div class="sig">def <b>sqrt</b>(v: decimal): decimal</div><p>The square root; NaN for a negative number. It is one instruction of the runtime (<code>dsqrt</code>: the processor&#x27;s own square root), and with -O a call of this function becomes that instruction where it is written.</p></div>
+<div class="fn" id="square"><div class="sig">def <b>square</b>(v: decimal): decimal</div><p>v * v</p></div>
+<div class="fn" id="tan"><div class="sig">def <b>tan</b>(radians: decimal): decimal</div><p>tangent of an angle in radians</p></div>
+<div class="fn" id="tanh"><div class="sig">def <b>tanh</b>(v: decimal): decimal</div><p>hyperbolic tangent as a native number: sinh / cosh, always in -1 .. 1</p></div>
+<div class="fn" id="to_degrees"><div class="sig">def <b>to_degrees</b>(radians: decimal): decimal</div><p>radians -&gt; degrees: to_degrees(pi) == 180</p></div>
+<div class="fn" id="to_radians"><div class="sig">def <b>to_radians</b>(degrees: decimal): decimal</div><p>degrees -&gt; radians: to_radians(180) == pi</p></div>
+<div class="fn" id="trunc"><div class="sig">def <b>trunc</b>(v: decimal): decimal</div><p>Drop the fractional part (round toward zero): trunc(2.9) == 2, trunc(-2.9) == -2. NaN and the infinities are returned unchanged.</p></div>
+<div class="fn" id="wrap"><div class="sig">def <b>wrap</b>(v: decimal, low: decimal, high: decimal): decimal</div><p>Wrap v into low &lt;= result &lt; high, like the hands of a clock: wrap(370, 0, 360) == 10, wrap(-1, 0, 5) == 4, wrap(7, 2, 5) == 4.</p>
+<p>Throws illegal_argument_exception when low &gt;= high.</p></div>
+</div></section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>DEGREES_PER_RADIAN</code></td><td><code>decimal</code></td><td><code>57.295779513082321</code></td><td>multiply an angle in radians by this to get degrees (180 / pi)</td></tr><tr><td><code>E</code></td><td><code>decimal</code></td><td><code>2.7182818284590452</code></td><td>the base of the natural logarithm</td></tr><tr><td><code>EPSILON</code></td><td><code>decimal</code></td><td><code>0.0000000000000002220446049250313</code></td><td>The gap between 1 and the next larger native number (2^-52).</td></tr><tr><td><code>E_VALUE</code></td><td><code>decimal</code></td><td><code>2.7182818284590452</code></td><td>e as a native number (the same value as E): 2.71828...</td></tr><tr><td><code>GOLDEN_RATIO</code></td><td><code>decimal</code></td><td><code>1.6180339887498949</code></td><td>the golden ratio phi = (1 + sqrt(5)) / 2</td></tr><tr><td><code>HALF_PI</code></td><td><code>decimal</code></td><td><code>1.5707963267948966</code></td><td>pi / 2, a quarter turn (90 degrees) in radians</td></tr><tr><td><code>LN10</code></td><td><code>decimal</code></td><td><code>2.3025850929940457</code></td><td>the natural logarithm of 10</td></tr><tr><td><code>LN2</code></td><td><code>decimal</code></td><td><code>0.69314718055994531</code></td><td>the natural logarithm of 2</td></tr><tr><td><code>LOG10E</code></td><td><code>decimal</code></td><td><code>0.43429448190325183</code></td><td>the base 10 logarithm of e, which is 1 / LN10</td></tr><tr><td><code>LOG2E</code></td><td><code>decimal</code></td><td><code>1.4426950408889634</code></td><td>the base 2 logarithm of e, which is 1 / LN2</td></tr><tr><td><code>MAX_SAFE_INTEGER</code></td><td><code>decimal</code></td><td><code>9007199254740991</code></td><td>The largest whole number n for which n and n + 1 are both exact in a native number: 2^53 - 1 = 9007199254740991.</td></tr><tr><td><code>MIN_SAFE_INTEGER</code></td><td><code>decimal</code></td><td><code>negated(9007199254740991)</code></td><td>the most negative exactly representable whole number: -(2^53 - 1)</td></tr><tr><td><code>NEGATIVE_INFINITY</code></td><td><code>decimal</code></td><td><code>0 - positive_infinity_value()</code></td><td>smaller than every number: what -1 / 0 gives</td></tr><tr><td><code>NaN</code></td><td><code>decimal</code></td><td><code>nan_value()</code></td><td>&quot;not a number&quot;: what 0 / 0 gives.</td></tr><tr><td><code>PI</code></td><td><code>decimal</code></td><td><code>3.1415926535897932</code></td><td>the ratio of the circumference of a circle to its diameter</td></tr><tr><td><code>PI_VALUE</code></td><td><code>decimal</code></td><td><code>3.1415926535897932</code></td><td>pi as a native number (the same value as PI): 3.14159...</td></tr><tr><td><code>POSITIVE_INFINITY</code></td><td><code>decimal</code></td><td><code>positive_infinity_value()</code></td><td>larger than every number: what 1 / 0 gives</td></tr><tr><td><code>QUARTER_PI</code></td><td><code>decimal</code></td><td><code>0.78539816339744831</code></td><td>pi / 4, an eighth of a turn (45 degrees) in radians</td></tr><tr><td><code>RADIANS_PER_DEGREE</code></td><td><code>decimal</code></td><td><code>0.017453292519943296</code></td><td>multiply an angle in degrees by this to get radians (pi / 180)</td></tr><tr><td><code>SQRT1_2</code></td><td><code>decimal</code></td><td><code>0.70710678118654752</code></td><td>the square root of 1/2, which is also 1 / sqrt(2) and sin(45 degrees)</td></tr><tr><td><code>SQRT2</code></td><td><code>decimal</code></td><td><code>1.4142135623730951</code></td><td>the square root of 2</td></tr><tr><td><code>SQRT3</code></td><td><code>decimal</code></td><td><code>1.7320508075688773</code></td><td>the square root of 3</td></tr><tr><td><code>TAU</code></td><td><code>decimal</code></td><td><code>6.2831853071795865</code></td><td>tau = 2 * pi, the number of radians in a full turn</td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

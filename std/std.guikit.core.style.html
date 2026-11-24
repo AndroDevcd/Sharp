@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.core.style - Sharp standard library</title>
+<meta name="description" content="The std.guikit.core.style module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="on sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.core.style</p>
+<h1>std.guikit.core.style <small>module</small></h1>
+<p class="contents"><a href="#modifier">modifier</a> <a href="#shape">shape</a> <a href="#shape_path">shape_path</a> <a href="#theme">theme</a></p>
+<section class="type" id="modifier">
+<h2><span class="kind">class</span> modifier</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/modifier.sharp">source</a></p>
+<p>modifier - how a widget&#x27;s BOX is changed: its size, the room around it, its background, whether it can be clicked. You chain what you want onto one and PASS IT IN where the widget is made:</p>
+<div class="code"><pre class="sharp">text(&quot;Hello&quot;, modifier().padding(8))
+column(modifier().fill().padding(16)) { ... }
+button(&quot;Save&quot;, modifier().fill_width()) { save(); }
+text_field(name, modifier().grow(1))</pre></div>
+<p>This is the ONLY way to change a widget&#x27;s box. Every widget function takes an optional modifier, and no widget has box settings of its own - so there is one vocabulary, in one place, that works the same on everything:</p>
+<div class="code"><pre class="sharp">room inside      .padding(all)   .padding(sides, top_bottom)   .padding(l, t, r, b)
+room outside     .margin(all)    .margin(sides, top_bottom)    .margin(l, t, r, b)
+size             .width(n)  .height(n)  .size(w, h)
+                 .min_width(n)  .min_height(n)  .max_width(n)  .max_height(n)
+                 .fill()  .fill_width()  .fill_height()
+                 .grow(share) / .weight(share)     a share of the leftover room
+                 .width_part(0.5)  .height_part(0.5)   a fraction of the parent
+                 .aspect(16.0 / 9)                     a fixed shape
+its own place    .align(how)  in a row or column     .place(across, down)  in a stack
+looks            .background(colour)  .corner(radius)  .border(thickness, colour)  .shadow(depth)
+looks            .opacity(0.5)
+behaviour        .click { ... }  .show(yes)  .visible(yes)  .enable(yes)  .key(name)
+gestures         .long_press { }  .double_click { }  .right_click { }
+                 .drag { dx, dy -&gt; }  .drag_start { }  .drag_end { }  .tooltip(words)</pre></div>
+<p>(What a widget IS stays with the widget: a text&#x27;s .size() and .color(), a column&#x27;s .gap(), a button&#x27;s .outline(). The modifier is about the box every widget has in common.)</p>
+<p>NAME A LOOK ONCE AND REUSE IT - a modifier is an ordinary value:</p>
+<div class="code"><pre class="sharp">card := modifier().padding(16).background(t.surface).corner(10);
+column(card) { ... }
+column(card.then(modifier().grow(1))) { ... }      // the card look, plus one more setting</pre></div>
+<p>This is Compose&#x27;s Modifier, and the reason is the same as there: if every widget had its own padding / size / background parameters, each widget would have to repeat them and they would drift apart. One object that carries them all means a new widget gets every one of them for free. (CSS: a class.)</p>
+<p>HOW IT WORKS: a modifier is a notepad. Each call writes one setting down and hands the same modifier back, so calls chain. Nothing happens until the widget function it is passed to calls apply_to, which copies the settings that were WRITTEN onto the widget&#x27;s view (view.sharp) - the ones never mentioned leave the view as it was. &quot;Written&quot; is tracked by each field&#x27;s untouched value (-1 for sizes, null for colours ...), the same untouched values the view itself starts with.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="modifier.align"><div class="sig">def <b>align</b>(how: _int64) : modifier</div><p>Where THIS child sits across its row or column, whatever the container says for the others: ALIGN_START, ALIGN_CENTER, ALIGN_END, ALIGN_STRETCH. (Android: layout_gravity. Compose: Modifier.align.)</p></div>
+<div class="fn" id="modifier.animate_size"><div class="sig">def <b>animate_size</b>() : modifier</div><p>When the box&#x27;s height changes (its content grew, something inside was shown or hidden), glide to the new height instead of jumping - and whatever is below it moves along. (Compose: animateContentSize.)</p></div>
+<div class="fn" id="modifier.apply_to"><div class="sig">def <b>apply_to</b>(target: view)</div><p>Copy every setting this modifier mentions onto a widget&#x27;s view. The widget functions call this; you do not.</p></div>
+<div class="fn" id="modifier.aspect"><div class="sig">def <b>aspect</b>(width_by_height: decimal) : modifier</div><p>Keep this shape whatever the size: width divided by height. A video thumbnail is aspect(16.0 / 9), a square is aspect(1). The box becomes as wide as it is allowed and exactly as tall as the shape then needs (or the other way round when that would be too tall). (Compose: Modifier.aspectRatio.)</p></div>
+<div class="fn" id="modifier.at"><div class="sig">def <b>at</b>(place: decimal, value: decimal) : modifier</div><p>over place <code>place</code> (0 is the first; 2.5 is between the third and the fourth), at the height of <code>value</code></p></div>
+<div class="fn" id="modifier.at_place"><div class="sig">def <b>at_place</b>(place: decimal) : modifier</div><p>over place <code>place</code>, at the top</p></div>
+<div class="fn" id="modifier.at_value"><div class="sig">def <b>at_value</b>(value: decimal) : modifier</div><p>on the level of <code>value</code>, at the left</p></div>
+<div class="fn" id="modifier.background"><div class="sig">def <b>background</b>(c: color) : modifier</div><p>a background colour behind the widget (padding included)</p></div>
+<div class="fn" id="modifier.background-2"><div class="sig">def <b>background</b>(c: color, outline: shape) : modifier</div><p>a background colour in a shape: shape.pill(), shape.circle(), shape.star(), your own (shape.sharp)</p></div>
+<div class="fn" id="modifier.blur"><div class="sig">def <b>blur</b>(pixels: decimal) : modifier</div><p>blur the widget and everything in it by about this many pixels; 0 is sharp (Compose: Modifier.blur)</p></div>
+<div class="fn" id="modifier.border"><div class="sig">def <b>border</b>(thickness: decimal, c: color) : modifier</div><p>a border line inside the widget&#x27;s edge</p></div>
+<div class="fn" id="modifier.click"><div class="sig">def <b>click</b>(what: ()()) : modifier</div><p>Run this when the widget is clicked. Works on anything: a text, a picture, a whole row. It also makes the widget reachable with Tab and clickable with Enter.</p>
+<div class="code"><pre class="sharp">row(modifier().click { open(item); }) { ... }</pre></div>
+<p>(Compose: Modifier.clickable. Android: setOnClickListener.)</p></div>
+<div class="fn" id="modifier.clip"><div class="sig">def <b>clip</b>(outline: shape) : modifier</div><p>Cut the widget and everything in it to a shape: a round picture is image(path, modifier().size(64, 64).clip(shape.circle())). (Compose: Modifier.clip.)</p></div>
+<div class="fn" id="modifier.corner"><div class="sig">def <b>corner</b>(pixels: decimal) : modifier</div><p>round the corners of the background and border</p></div>
+<div class="fn" id="modifier.double_click"><div class="sig">def <b>double_click</b>(what: ()()) : modifier</div><p>run this when the widget is clicked twice in quick succession (the first click still counts as a click)</p></div>
+<div class="fn" id="modifier.drag"><div class="sig">def <b>drag</b>(what: (decimal, decimal)()) : modifier</div><p>Run this while the widget is DRAGGED: pressed, and the mouse moved while held. It is told how far the mouse moved since the last time, across and down, in pixels - add those to a position to make something follow the mouse:</p>
+<div class="code"><pre class="sharp">box(modifier().drag { dx: decimal, dy: decimal -&gt; x.value += dx; y.value += dy; })</pre></div>
+<p>A drag does not also count as a click. .drag_start { } and .drag_end { } tell you when one begins and ends. (Compose: Modifier.draggable / detectDragGestures. Android: onTouchEvent with ACTION_MOVE.)</p></div>
+<div class="fn" id="modifier.drag_end"><div class="sig">def <b>drag_end</b>(what: ()()) : modifier</div><p>run this when a drag of the widget ends (the button came back up)</p></div>
+<div class="fn" id="modifier.drag_start"><div class="sig">def <b>drag_start</b>(what: ()()) : modifier</div><p>run this when a drag of the widget begins</p></div>
+<div class="fn" id="modifier.enable"><div class="sig">def <b>enable</b>(yes: _int64) : modifier</div><p>can it be clicked and focused? enable(0) greys it out. enable(agreed.value)</p></div>
+<div class="fn" id="modifier.fill"><div class="sig">def <b>fill</b>() : modifier</div><p>take all the room the parent offers, both ways</p></div>
+<div class="fn" id="modifier.fill_height"><div class="sig">def <b>fill_height</b>() : modifier</div><p>take all the height the parent offers</p></div>
+<div class="fn" id="modifier.fill_width"><div class="sig">def <b>fill_width</b>() : modifier</div><p>take all the width the parent offers</p></div>
+<div class="fn" id="modifier.grow"><div class="sig">def <b>grow</b>(share: decimal) : modifier</div><p>Inside a row or column: take a share of the room that is LEFT OVER after the other children have what they need. Two children with grow(1) split it evenly; grow(2) next to grow(1) gets twice as much. (CSS: flex-grow. Compose: Modifier.weight.)</p></div>
+<div class="fn" id="modifier.height"><div class="sig">def <b>height</b>(pixels: decimal) : modifier</div><p>exactly this tall</p></div>
+<div class="fn" id="modifier.height_part"><div class="sig">def <b>height_part</b>(fraction: decimal) : modifier</div><p>this fraction of the parent&#x27;s height</p></div>
+<div class="fn" id="modifier.key"><div class="sig">def <b>key</b>(id: string) : modifier</div></div>
+<div class="fn" id="modifier.long_press"><div class="sig">def <b>long_press</b>(what: ()()) : modifier</div><p>Run this when the widget is pressed and HELD for about half a second without moving. A long press does not also count as a click. (Android: setOnLongClickListener. Compose: combinedClickable(onLongClick).)</p></div>
+<div class="fn" id="modifier.margin"><div class="sig">def <b>margin</b>(all: decimal) : modifier</div><p>Room OUTSIDE the box, between it and its neighbours - the same on all four sides. (Padding is room INSIDE the box: the background covers the padding but not the margin, and a click in the margin misses the box.) (Android: layout_margin. CSS: margin.)</p></div>
+<div class="fn" id="modifier.margin-2"><div class="sig">def <b>margin</b>(sides: decimal, top_bottom: decimal) : modifier</div><p>margin left+right, and top+bottom</p></div>
+<div class="fn" id="modifier.margin-3"><div class="sig">def <b>margin</b>(left: decimal, top: decimal, right: decimal, bottom: decimal) : modifier</div><p>margin per side, clockwise from the left: left, top, right, bottom</p></div>
+<div class="fn" id="modifier.max_height"><div class="sig">def <b>max_height</b>(pixels: decimal) : modifier</div><p>never taller than this</p></div>
+<div class="fn" id="modifier.max_width"><div class="sig">def <b>max_width</b>(pixels: decimal) : modifier</div><p>never wider than this (text wraps to it)</p></div>
+<div class="fn" id="modifier.min_height"><div class="sig">def <b>min_height</b>(pixels: decimal) : modifier</div><p>never shorter than this</p></div>
+<div class="fn" id="modifier.min_width"><div class="sig">def <b>min_width</b>(pixels: decimal) : modifier</div><p>never narrower than this</p></div>
+<div class="fn" id="modifier.opacity"><div class="sig">def <b>opacity</b>(amount: decimal) : modifier</div><p>How solid the widget and everything in it is painted: 1 fully (the default), 0.5 half see-through, 0 not at all (it still takes its room). (Compose: Modifier.alpha. CSS: opacity.)</p></div>
+<div class="fn" id="modifier.padding"><div class="sig">def <b>padding</b>(all: decimal) : modifier</div><p>the same padding on all four sides</p></div>
+<div class="fn" id="modifier.padding-2"><div class="sig">def <b>padding</b>(sides: decimal, top_bottom: decimal) : modifier</div><p>padding left+right, and top+bottom</p></div>
+<div class="fn" id="modifier.padding-3"><div class="sig">def <b>padding</b>(left: decimal, top: decimal, right: decimal, bottom: decimal) : modifier</div><p>padding per side, clockwise from the left: left, top, right, bottom</p></div>
+<div class="fn" id="modifier.place"><div class="sig">def <b>place</b>(across: _int64, down: _int64) : modifier</div><p>Where THIS child sits in a stack: across (ALIGN_START left, _CENTER, _END right) and down (top, center, bottom). modifier().place(ALIGN_END, ALIGN_END) is the bottom-right corner.</p></div>
+<div class="fn" id="modifier.right_click"><div class="sig">def <b>right_click</b>(what: ()()) : modifier</div><p>run this when the widget is clicked with the RIGHT mouse button: the usual way to open a context menu</p></div>
+<div class="fn" id="modifier.rotate"><div class="sig">def <b>rotate</b>(degrees: decimal) : modifier</div><p>Turn the widget - with everything in it - this many degrees clockwise around its middle. Only how it is PAINTED changes: it keeps the room layout gave it, and the mouse still finds it where it would be unturned. (Compose: Modifier.rotate / graphicsLayer.)</p></div>
+<div class="fn" id="modifier.scale"><div class="sig">def <b>scale</b>(factor: decimal) : modifier</div><p>paint the widget this many times its size, around its middle: 1.2 a fifth bigger, 0.5 half (Compose: Modifier.scale)</p></div>
+<div class="fn" id="modifier.shadow"><div class="sig">def <b>shadow</b>(pixels: decimal) : modifier</div><p>A soft shadow under the box, this many pixels deep, so it looks lifted off the page: a card is about 6, a dialog about 14. Give the box a background too - a shadow under nothing looks odd. (Android: elevation. CSS: box-shadow.)</p></div>
+<div class="fn" id="modifier.shape"><div class="sig">def <b>shape</b>(outline: shape) : modifier</div><p>the shape of the background and border, when the colour is set elsewhere (a card&#x27;s own surface)</p></div>
+<div class="fn" id="modifier.show"><div class="sig">def <b>show</b>(yes: _int64) : modifier</div><p>show it or not: show(0) takes NO ROOM and paints nothing. show(logged_in.value) (Android: GONE)</p></div>
+<div class="fn" id="modifier.size"><div class="sig">def <b>size</b>(w: decimal, h: decimal) : modifier</div><p>exactly this big</p></div>
+<div class="fn" id="modifier.then"><div class="sig">def <b>then</b>(more: modifier) : modifier</div><p>A NEW modifier with everything this one says, and then everything <code>more</code> says - where both mention the same thing, <code>more</code> wins. Neither of the two is changed, so a named look stays reusable:</p>
+<div class="code"><pre class="sharp">card.then(modifier().grow(1))</pre></div></div>
+<div class="fn" id="modifier.tooltip"><div class="sig">def <b>tooltip</b>(words: string) : modifier</div><p>words shown in a small box when the mouse rests on the widget for a moment</p></div>
+<div class="fn" id="modifier.visible"><div class="sig">def <b>visible</b>(yes: _int64) : modifier</div><p>visible(0) paints nothing and cannot be clicked, but KEEPS ITS ROOM, so the things around it do not move. Use it when a part of the screen should blink in and out without the layout jumping. (Android: INVISIBLE)</p></div>
+<div class="fn" id="modifier.weight"><div class="sig">def <b>weight</b>(share: decimal) : modifier</div><p>the same as grow(share), under the name Android and Compose use</p></div>
+<div class="fn" id="modifier.width"><div class="sig">def <b>width</b>(pixels: decimal) : modifier</div><p>exactly this wide</p></div>
+<div class="fn" id="modifier.width_part"><div class="sig">def <b>width_part</b>(fraction: decimal) : modifier</div><p>This fraction of the parent&#x27;s width: width_part(0.5) is half, however wide the parent turns out to be. Always a fraction of the WHOLE parent, so two children with 0.5 are the same width. (Android: ConstraintLayout&#x27;s layout_constraintWidth_percent.)</p></div>
+</div>
+</section>
+<section class="type" id="shape">
+<h2><span class="kind">class</span> shape</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/shape.sharp">source</a></p>
+<p>shape - the outline of a box: what its background is filled as, and what its content is cut to.</p>
+<div class="code"><pre class="sharp">modifier().background(t.surface, shape.rounded(12))
+modifier().background(t.primary, shape.pill())
+modifier().background(t.success, shape.circle())
+modifier().background(gold, shape.star())
+modifier().clip(shape.circle())                     // a round picture</pre></div>
+<p>A shape has no size of its own: it is stretched over whatever box it is given. So the same shape.pill() is right for a small chip and a wide bar.</p>
+<p>YOUR OWN SHAPE is a list of corners, each given as a fraction of the box (0, 0 is the top left; 1, 1 the bottom right), in order around the shape:</p>
+<div class="code"><pre class="sharp">arrow := shape.corners { p: shape_path -&gt;
+    p.to(0, 0.3); p.to(0.6, 0.3); p.to(0.6, 0); p.to(1, 0.5);
+    p.to(0.6, 1); p.to(0.6, 0.7); p.to(0, 0.7);
+};</pre></div>
+<p>Make a shape once and keep it (a field, a global): it is the same object every time it is used.</p>
+<p>What works with what, today: background      every shape border          rounded, pill, circle clip            rounded, pill, circle (a shape with corners clips to its box)</p>
+<p>(Compose: Shape - RoundedCornerShape, CircleShape, GenericShape. Android: ShapeDrawable, MaterialShapeDrawable.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="shape.circle"><div class="sig">static def <b>circle</b>() : shape</div><p>a circle in the middle of the box, as big as fits</p></div>
+<div class="fn" id="shape.corners"><div class="sig">static def <b>corners</b>(build: (shape_path)()) : shape</div><p>a shape of your own: the block names its corners in order, as fractions of the box</p></div>
+<div class="fn" id="shape.diamond"><div class="sig">static def <b>diamond</b>() : shape</div></div>
+<div class="fn" id="shape.fill"><div class="sig">def <b>fill</b>(p: painter, x: decimal, y: decimal, w: decimal, h: decimal, c: color)</div><p>fill the shape, stretched over the box (x, y, w, h)</p></div>
+<div class="fn" id="shape.hexagon"><div class="sig">static def <b>hexagon</b>() : shape</div></div>
+<div class="fn" id="shape.is_boxy"><div class="sig">def <b>is_boxy</b>() : _int64</div><p>can this shape be drawn as a rounded box (and so have a border and be clipped to)?</p></div>
+<div class="fn" id="shape.left_on"><div class="sig">def <b>left_on</b>(x: decimal, w: decimal, h: decimal) : decimal</div><p>the box a circle sits in: the middle square of the box it was given (other shapes: the box itself)</p></div>
+<div class="fn" id="shape.pill"><div class="sig">static def <b>pill</b>() : shape</div><p>a rectangle with fully round ends: a capsule, however wide the box is</p></div>
+<div class="fn" id="shape.radius_on"><div class="sig">def <b>radius_on</b>(w: decimal, h: decimal) : decimal</div><p>the corner radius this shape has on a box of this size (0 for a shape with corners of its own)</p></div>
+<div class="fn" id="shape.rounded"><div class="sig">static def <b>rounded</b>(radius: decimal) : shape</div><p>a rectangle whose corners are rounded by <code>radius</code></p></div>
+<div class="fn" id="shape.star"><div class="sig">static def <b>star</b>() : shape</div><p>a five-pointed star</p></div>
+<div class="fn" id="shape.stroke"><div class="sig">def <b>stroke</b>(p: painter, x: decimal, y: decimal, w: decimal, h: decimal, thickness: decimal, c: color)</div><p>the border of the shape (shapes with corners of their own have none yet)</p></div>
+<div class="fn" id="shape.tall_on"><div class="sig">def <b>tall_on</b>(w: decimal, h: decimal) : decimal</div></div>
+<div class="fn" id="shape.top_on"><div class="sig">def <b>top_on</b>(y: decimal, w: decimal, h: decimal) : decimal</div></div>
+<div class="fn" id="shape.triangle"><div class="sig">static def <b>triangle</b>() : shape</div></div>
+<div class="fn" id="shape.wide_on"><div class="sig">def <b>wide_on</b>(w: decimal, h: decimal) : decimal</div></div>
+</div>
+</section>
+<section class="type" id="shape_path">
+<h2><span class="kind">class</span> shape_path</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/shape.sharp">source</a></p>
+<p>what the block of shape.corners { } is given: name the corners in order with to(x, y)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="shape_path.shape_path"><div class="sig"><b>shape_path</b>(target: list&lt;shape_point&gt;)</div></div>
+<div class="fn" id="shape_path.to"><div class="sig">def <b>to</b>(x: decimal, y: decimal) : shape_path</div><p>the next corner, as a fraction of the box: (0, 0) top left, (1, 1) bottom right</p></div>
+</div>
+</section>
+<section class="type" id="theme">
+<h2><span class="kind">class</span> theme</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/theme.sharp">source</a></p>
+<p>theme - the colours and sizes every built-in widget draws itself with.</p>
+<p>Widgets never hard-code a colour: a button asks the theme for <code>primary</code>, a label for <code>text</code>. Change the theme and the whole app changes with it:</p>
+<div class="code"><pre class="sharp">gui.use_theme(theme.light());          // before gui.run(...)</pre></div>
+<div class="code"><pre class="sharp">mine := theme.dark();                  // or start from one and adjust
+mine.primary = gui.rgb(255, 120, 60);
+gui.use_theme(mine);</pre></div>
+<p>A widget can still be given its own colour with a modifier (.background(c), text .color(c)); the theme is only the default. Android comparison: a Theme / Material colour scheme. CSS: custom properties on :root.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>background</code></td><td><code>color</code></td><td>the window behind everything</td></tr><tr><td><code>surface</code></td><td><code>color</code></td><td>cards, panels, input boxes</td></tr><tr><td><code>surface_high</code></td><td><code>color</code></td><td>a surface under the mouse, raised things</td></tr><tr><td><code>border</code></td><td><code>color</code></td><td>thin lines around and between things</td></tr><tr><td><code>text</code></td><td><code>color</code></td><td>ordinary text</td></tr><tr><td><code>text_dim</code></td><td><code>color</code></td><td>less important text, placeholders</td></tr><tr><td><code>primary</code></td><td><code>color</code></td><td>THE colour of the app: main buttons, switches that are on, the focus ring</td></tr><tr><td><code>primary_high</code></td><td><code>color</code></td><td>primary under the mouse</td></tr><tr><td><code>primary_low</code></td><td><code>color</code></td><td>primary while pressed</td></tr><tr><td><code>on_primary</code></td><td><code>color</code></td><td>text on top of primary</td></tr><tr><td><code>danger</code></td><td><code>color</code></td><td>destructive buttons, errors</td></tr><tr><td><code>success</code></td><td><code>color</code></td><td>&quot;it worked&quot;</td></tr><tr><td><code>radius</code></td><td><code>decimal</code></td><td>corner radius of buttons, inputs, cards</td></tr><tr><td><code>text_size</code></td><td><code>decimal</code></td><td>ordinary text</td></tr><tr><td><code>small_size</code></td><td><code>decimal</code></td><td>captions</td></tr><tr><td><code>title_size</code></td><td><code>decimal</code></td><td>headings</td></tr><tr><td><code>space</code></td><td><code>decimal</code></td><td>the basic gap; paddings are multiples of it</td></tr><tr><td><code>control_height</code></td><td><code>decimal</code></td><td>the height of a button, an input box</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="theme.dark"><div class="sig">static def <b>dark</b>() : theme</div><p>the dark theme (the default)</p></div>
+<div class="fn" id="theme.light"><div class="sig">static def <b>light</b>() : theme</div><p>a light theme</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

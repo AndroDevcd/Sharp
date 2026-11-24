@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.layout.scrolling - Sharp standard library</title>
+<meta name="description" content="The std.guikit.layout.scrolling module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="on sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.layout.scrolling</p>
+<h1>std.guikit.layout.scrolling <small>module</small></h1>
+<p class="contents"><a href="#lazy_list">lazy_list</a> <a href="#scroller">scroller</a></p>
+<section class="type" id="lazy_list">
+<h2><span class="kind">class</span> lazy_list</h2>
+<p class="meta"><code>base widget : behavior, clipper, wheel_target, drag_scroller, stateful, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/layout/scrolling/lazy_list.sharp">source</a></p>
+<p>lazy_list - a scrolling list that only builds the rows you can see. Made with lazy_column(...).</p>
+<div class="code"><pre class="sharp">lazy_column(modifier().fill()) {
+    item { text(&quot;Contacts&quot;).size(22).bold(); }          // one fixed row
+    items(people.size()) { i: _int64 -&gt;           // one row per person,
+        contact_row(people.at(i));                      // built only when it scrolls into view
+    }
+    item { text(&quot;end of list&quot;).dim(); }
+}.gap(4)</pre></div>
+<p>A plain scroll { } builds, measures and keeps EVERY child, visible or not: fine for dozens of rows, hopeless for fifty thousand. A lazy list is told HOW MANY rows there are and HOW to build row i, and it builds just the handful that fit the window - so a list of a million rows opens instantly and scrolls smoothly.</p>
+<p>.gap(n)      room between the rows</p>
+<p>ONLY item { } AND items(n) { i -&gt; } GO INSIDE lazy_column { }. A widget written straight into the block would be built eagerly, which is exactly what this list exists to avoid - so that is an error, and so is item or items anywhere else (scope.inside).</p>
+<p>(Android: RecyclerView with an adapter. Compose: LazyColumn with item / items. The idea is the same in all of them: &quot;virtualisation&quot;.)</p>
+<p>HOW IT WORKS</p>
+<p>The scroll position is not a number of pixels (nobody knows how tall a million rows are without building them). It is &quot;which row is at the top, and how many pixels of that row have scrolled out&quot;: <code>first</code> and <code>first_cut</code>. (Compose&#x27;s LazyListState keeps the same pair: firstVisibleItemIndex and firstVisibleItemScrollOffset.)</p>
+<p>Every layout, <code>fill</code> works from that pair: 1. if the top row has scrolled DOWN past the top edge (first_cut below 0), build the rows before it until the gap is covered; 2. if the top row has scrolled entirely out, let it go and move on to the next; 3. from the top row, build and measure row after row until the window is full; 4. if the rows ran out before the window was full, the list was scrolled past its end: pull it back and go again.</p>
+<p>The rows that exist right now are the list&#x27;s children (<code>rows</code>, with <code>rows_first</code> the number of the first of them) - so painting, clicking and focus work on them like on any other widgets. Rows that leave the window are dropped; rows that come in are built by the section&#x27;s function.</p>
+<p>WHO REBUILDS: a row is built during layout, not during anyone&#x27;s build(). So the list remembers the composable that was building when the list itself was made (<code>owner</code>) and puts it back as &quot;the one building&quot; while a row&#x27;s function runs. A state read inside a row therefore signs up that composable; when the state changes, it rebuilds, makes a new lazy list, and the visible rows are built afresh from the new data.</p>
+<p>ACROSS A REBUILD the new list adopts the scroll position, and each row it builds takes over the memory of the old list&#x27;s row with the same number (the reconciler) - so a counter or a text field inside a visible row keeps what it had. A row that scrolls out of view is gone, and with it what only that row remembered; keep what matters in your own state.</p>
+<p>The scroll bar is an estimate: rows are assumed to be as tall, on average, as the ones built so far.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="lazy_list.lazy_list"><div class="sig"><b>lazy_list</b>()</div></div>
+<div class="fn" id="lazy_list.add_section"><div class="sig">def <b>add_section</b>(how_many: _int64, each: (_int64)())</div><p>one more run of rows (called by item and items)</p></div>
+<div class="fn" id="lazy_list.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
+<div class="fn" id="lazy_list.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="lazy_list.clips"><div class="sig">override def <b>clips</b>() : _int64</div></div>
+<div class="fn" id="lazy_list.content"><div class="sig">def <b>content</b>(block: ()()) : lazy_list</div><p>run the block that says what is in the list: item { } and items(n) { }</p></div>
+<div class="fn" id="lazy_list.drag_by"><div class="sig">override def <b>drag_by</b>(dx: decimal, dy: decimal)</div><p>the rows were dragged (a finger on a touch screen, or the mouse): move with it</p></div>
+<div class="fn" id="lazy_list.gap"><div class="sig">def <b>gap</b>(pixels: decimal) : lazy_list</div></div>
+<div class="fn" id="lazy_list.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="lazy_list.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="lazy_list.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="lazy_list.paint_over"><div class="sig">override def <b>paint_over</b>(p: painter)</div></div>
+<div class="fn" id="lazy_list.scroll_feel"><div class="sig">def <b>scroll_feel</b>(how: _int64) : lazy_list</div><p>how the rows behave while scrolling: SCROLL_PLAIN (the default) or SCROLL_STAGGER (stagger.sharp)</p></div>
+<div class="fn" id="lazy_list.wheel"><div class="sig">override def <b>wheel</b>(dx: decimal, dy: decimal) : _int64</div></div>
+</div>
+</section>
+<section class="type" id="scroller">
+<h2><span class="kind">class</span> scroller</h2>
+<p class="meta"><code>base widget : behavior, clipper, wheel_target, pointer_target, drag_scroller, stateful, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/layout/scrolling/scroller.sharp">source</a></p>
+<p>scroller - a window onto content that is bigger than the room there is.</p>
+<div class="code"><pre class="sharp">scroll(modifier().fill()) {                       // scrolls up and down
+    for(i : _int64 = 1; i &lt;= 200; i++) { text(&quot;row &quot; + i); }
+}</pre></div>
+<div class="code"><pre class="sharp">scroll_row(modifier().fill_width()) {             // scrolls sideways
+    for(i : _int64 = 0; i &lt; count; i++) { photo_card(i); }
+}</pre></div>
+<p>The content is laid out at its full size along the scrolling direction; the scroller shows the part that fits and lets the wheel (or dragging the bar) move it. Give the scroller a limit that way - modifier().fill(), .grow(1), .height(n) - otherwise it is simply as big as its content and there is nothing to scroll.</p>
+<p>A sideways scroller moves with the wheel too (and with a sideways wheel or touchpad swipe). When a scroller is already at its end, the turn of the wheel is passed on to a scroller around it.</p>
+<p>HOW IT WORKS: the scroll position is <code>offset</code>, the number of pixels the content has moved (up, or left). arrange() places the content that far before the scroller&#x27;s own corner, and the scroller is a <code>clipper</code>, so the view paints the content cut off at the scroller&#x27;s edges and the mouse cannot reach things that are scrolled out. Scrolling changes <code>offset</code> and arranges again - it does not rebuild anything.</p>
+<p>The offset is the scroller&#x27;s own memory (not your state), so it implements <code>stateful</code>: when the screen is rebuilt, the new scroller adopts the old one&#x27;s offset and the list stays where the user left it.</p>
+<p>Both directions are ONE class: <code>sideways</code> says which way is &quot;along&quot;. The few places that differ ask long_of_me() instead of naming width or height. (Compose: Modifier.verticalScroll / horizontalScroll. Android: ScrollView / HorizontalScrollView.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="scroller.scroller"><div class="sig"><b>scroller</b>(content: element, across: _int64)</div></div>
+<div class="fn" id="scroller.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
+<div class="fn" id="scroller.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="scroller.clips"><div class="sig">override def <b>clips</b>() : _int64</div></div>
+<div class="fn" id="scroller.drag_by"><div class="sig">override def <b>drag_by</b>(dx: decimal, dy: decimal)</div><p>the content was dragged (a finger on a touch screen, or the mouse): move with it</p></div>
+<div class="fn" id="scroller.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="scroller.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="scroller.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="scroller.paint_over"><div class="sig">override def <b>paint_over</b>(p: painter)</div></div>
+<div class="fn" id="scroller.pointer"><div class="sig">override def <b>pointer</b>(what: _int64, x: decimal, y: decimal)</div></div>
+<div class="fn" id="scroller.scroll_feel"><div class="sig">def <b>scroll_feel</b>(how: _int64) : scroller</div><p>how the rows behave while scrolling: SCROLL_PLAIN (the default) or SCROLL_STAGGER (stagger.sharp)</p></div>
+<div class="fn" id="scroller.wheel"><div class="sig">override def <b>wheel</b>(dx: decimal, dy: decimal) : _int64</div></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.io.coroutines - Sharp standard library</title>
+<meta name="description" content="The std.io.coroutines module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="on sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.io.coroutines</p>
+<h1>std.io.coroutines <small>module</small></h1>
+<p class="contents"><a href="#async">async</a> <a href="#cancellation_exception">cancellation_exception</a> <a href="#coroutine_body">coroutine_body</a> <a href="#coroutine_dispatcher">coroutine_dispatcher</a> <a href="#coroutine_exception_handler">coroutine_exception_handler</a> <a href="#coroutine_exceptions">coroutine_exceptions</a> <a href="#coroutine_scope">coroutine_scope</a> <a href="#deferred">deferred</a> <a href="#dispatchers">dispatchers</a> <a href="#global_scope">global_scope</a> <a href="#job">job</a> <a href="#pool_dispatcher">pool_dispatcher</a> <a href="#thread_dispatcher">thread_dispatcher</a> <a href="#timeout_cancellation_exception">timeout_cancellation_exception</a> <a href="#timeout_timer">timeout_timer</a> <a href="#unconfined_dispatcher">unconfined_dispatcher</a> <a href="#functions">functions</a></p>
+<section class="type" id="async">
+<h2><span class="kind">class</span> async&lt;t&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/async.sharp">source</a></p>
+<p>async&lt;t&gt; - start a coroutine that computes a value; the result is a deferred&lt;t&gt;.</p>
+<p>USAGE price := async&lt;int&gt;.start({ -&gt; (int) return fetch_price(); }); stock := async&lt;int&gt;.start(warehouse, { w: object -&gt; (int) house := w as storage;                    // the state object, see THE CLOSURE RULE return house.count(); }); println(&quot;worth ${price.await() * stock.await()}&quot;);</p>
+<p>The language has no generic functions, so <code>async</code> is a class whose static functions do the work: write the result type once, async&lt;int&gt;.start(...).</p>
+<p>The block runs on another fiber: THE CLOSURE RULE (builders.sharp) applies, no captured locals. The new coroutine is a child of the current coroutine or scope (of global_scope outside any), exactly like launch.</p>
+<p>FAILURES: the exception of the block is thrown by await(). As in Kotlin it ALSO cancels the parent scope, unless that is a supervisor (supervisor_scope, global_scope).</p>
+<p><code>t</code> must be an object type: async&lt;int&gt;, not async&lt;decimal&gt;.</p>
+<p>Kotlin equivalent: async { }.  C++ equivalent: std::async on a fiber.</p>
+<p>No state, so nothing to lock.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="async.start"><div class="sig">static def <b>start</b>(block: ()(t)) : deferred&lt;t&gt;</div><p>Start a coroutine for <code>block</code>; does not suspend. Kotlin: async { }</p></div>
+<div class="fn" id="async.start-2"><div class="sig">static def <b>start</b>(state: object?, block: (object)(t)) : deferred&lt;t&gt;</div><p>start() with a state object handed to the block: block(state)</p></div>
+<div class="fn" id="async.start_in"><div class="sig">static def <b>start_in</b>(scope: coroutine_scope, block: ()(t)) : deferred&lt;t&gt;</div><p>start() as a child of a coroutine_scope object. Kotlin: scope.async { }</p></div>
+<div class="fn" id="async.start_in-2"><div class="sig">static def <b>start_in</b>(scope: coroutine_scope, state: object?, block: (object)(t)) : deferred&lt;t&gt;</div><p>start_in() with a state object</p></div>
+<div class="fn" id="async.start_on"><div class="sig">static def <b>start_on</b>(where: coroutine_dispatcher, block: ()(t)) : deferred&lt;t&gt;</div><p>start() on a particular dispatcher. Kotlin: async(dispatcher) { }</p></div>
+<div class="fn" id="async.start_on-2"><div class="sig">static def <b>start_on</b>(where: coroutine_dispatcher, state: object?, block: (object)(t)) : deferred&lt;t&gt;</div><p>start_on() with a state object</p></div>
+</div>
+</section>
+<section class="type" id="cancellation_exception">
+<h2><span class="kind">class</span> cancellation_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/cancellation_exception.sharp">source</a></p>
+<p>cancellation_exception - thrown inside a coroutine at a cancellation point after its job was cancelled.</p>
+<p>USAGE j := launch({ -&gt; try { delay(10000);                 // a cancellation point } catch(e: cancellation_exception) { println(&quot;cancelled, cleaning up&quot;); throw e;                      // let the coroutine end as cancelled } }); j.cancel();</p>
+<p>Cancellation is cooperative: nothing stops a coroutine by force. The cancellation points are delay(), yield(), ensure_active(), job.join(), deferred.await(), every channel operation, mutex.acquire() and semaphore.acquire(). A coroutine that never reaches one of them runs to its end even when it is cancelled.</p>
+<p>A coroutine that ends with a cancellation_exception counts as CANCELLED, not as failed: its parent is not cancelled and nothing is reported as an error. Catching it without throwing it again is allowed but makes the coroutine carry on although it is cancelled; the next cancellation point throws again.</p>
+<p>Kotlin equivalent: kotlinx.coroutines.CancellationException. Java equivalent: java.util.concurrent.CancellationException.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="cancellation_exception.cancellation_exception"><div class="sig">public <b>cancellation_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="coroutine_body">
+<h2><span class="kind">interface</span> coroutine_body</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/coroutine_body.sharp">source</a></p>
+<p>coroutine_body - the code a coroutine runs.</p>
+<p>USAGE class download : coroutine_body { url : string; download(url: string) { self-&gt;url = url; } override def run_body() { fetch(url); } }</p>
+<div class="code"><pre class="sharp">launch(new download(&quot;http://...&quot;));      // an object instead of a lambda</pre></div>
+<p>WHY IT EXISTS 1. A lambda that runs on another fiber cannot see the local variables of the function that created it (see builders.sharp, &quot;THE CLOSURE RULE&quot;). An object that implements coroutine_body carries its own data in its fields, which is the cleanest way to hand state to a coroutine. 2. Methods are only dispatched at run time through an interface reference. job calls run_body() through this interface, which is what lets deferred&lt;t&gt; replace it with a version that keeps the result.</p>
+<p>Kotlin equivalent: the <code>block: suspend CoroutineScope.() -&gt; Unit</code> parameter of launch. Java equivalent: java.lang.Runnable.</p>
+<p>run_body() may suspend (delay, join, channel operations, ...) and may throw: the exception ends the coroutine and is handled by its job.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="coroutine_body.run_body"><div class="sig">def <b>run_body</b>()</div></div>
+</div>
+</section>
+<section class="type" id="coroutine_dispatcher">
+<h2><span class="kind">interface</span> coroutine_dispatcher</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/coroutine_dispatcher.sharp">source</a></p>
+<p>coroutine_dispatcher - decides which thread runs a coroutine.</p>
+<p>USAGE launch_on(dispatchers.default_pool(), { -&gt; crunch(); });     // any worker thread ui := dispatchers.single_thread(&quot;ui&quot;); launch_on(ui, { -&gt; draw(); });                               // always the &quot;ui&quot; thread</p>
+<p>The runtime knows two kinds of fibers and a dispatcher simply picks one: select_thread() returns null     an UNBOUND fiber: whichever thread is free takes it (and it may continue on another thread after it has slept) select_thread() returns a thread a fiber BOUND to that thread: only that thread ever runs it</p>
+<p>A coroutine started without a dispatcher uses the one of its parent.</p>
+<p>Kotlin equivalent: kotlinx.coroutines.CoroutineDispatcher (reduced to the one decision this runtime offers). Java equivalent: java.util.concurrent.Executor.</p>
+<p>select_thread() is called once per coroutine, by the fiber that starts it. It must not block for long and must be safe to call from several threads.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="coroutine_dispatcher.select_thread"><div class="sig">def <b>select_thread</b>() : thread?</div></div>
+</div>
+</section>
+<section class="type" id="coroutine_exception_handler">
+<h2><span class="kind">interface</span> coroutine_exception_handler</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/coroutine_exception_handler.sharp">source</a></p>
+<p>coroutine_exception_handler - what happens to an exception nobody is left to receive: a coroutine started with launch() directly in global_scope (or in a supervisor) ended with an exception that is not a cancellation.</p>
+<p>USAGE class log_errors : coroutine_exception_handler { override def handle_exception(failed: job, error: throwable) { println(&quot;coroutine failed: ${error.get_message()}&quot;); } }</p>
+<div class="code"><pre class="sharp">coroutine_exceptions.set_handler(new log_errors());</pre></div>
+<p>The handler runs in the fiber that finished the failed coroutine: keep it short, do not block in it, and do not throw from it (an exception thrown by the handler is dropped).</p>
+<p>Kotlin equivalent: kotlinx.coroutines.CoroutineExceptionHandler. Java equivalent: Thread.UncaughtExceptionHandler.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="coroutine_exception_handler.handle_exception"><div class="sig">def <b>handle_exception</b>(failed: job, error: throwable)</div></div>
+</div>
+</section>
+<section class="type" id="coroutine_exceptions">
+<h2><span class="kind">class</span> coroutine_exceptions</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/coroutine_exceptions.sharp">source</a></p>
+<p>coroutine_exceptions - where uncaught coroutine exceptions go.</p>
+<p>USAGE coroutine_exceptions.set_handler(my_handler);    // see coroutine_exception_handler coroutine_exceptions.set_handler(null);          // back to printing them coroutine_exceptions.count();                    // how many were reported so far</p>
+<p>WHICH EXCEPTIONS END UP HERE - launch() in global_scope or in a supervisor (supervisor_scope { }, coroutine_scope.supervisor()) and the coroutine throws: reported here. - launch() inside coroutine_scope { } / run_blocking { } / another coroutine: NOT reported here. The failure cancels the parent and is thrown again by the enclosing scope function. - async: never reported here, deferred.await() throws it. - cancellation_exception: never reported, being cancelled is not an error.</p>
+<p>Without a handler the exception is printed, like an uncaught exception of a thread. Kotlin equivalent: the default handler that calls Thread.uncaughtExceptionHandler.</p>
+<p>The handler is called on a fiber of its own, never inside the library code that noticed the failure (that code must not have user code on its stack, see NO RECURSION in job.sharp).</p>
+<p>LOCKING DISCIPLINE: <code>guard</code> protects handler and reported. The handler is called after the lock is released.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="coroutine_exceptions.count"><div class="sig">static def <b>count</b>() : decimal</div><p>how many uncaught coroutine exceptions were reported since the program started</p></div>
+<div class="fn" id="coroutine_exceptions.handler_entry"><div class="sig">static def <b>handler_entry</b>(args: object[]) : int</div><p>the function of the fiber that calls the handler</p></div>
+<div class="fn" id="coroutine_exceptions.report"><div class="sig">static def <b>report</b>(failed: job, error: throwable)</div><p>Called by job when a coroutine failed and nobody else will see the exception. Never throws.</p></div>
+<div class="fn" id="coroutine_exceptions.set_handler"><div class="sig">static def <b>set_handler</b>(new_handler: coroutine_exception_handler?)</div><p>Install the handler for uncaught coroutine exceptions; null prints them instead.</p></div>
+</div>
+</section>
+<section class="type" id="coroutine_scope">
+<h2><span class="kind">class</span> coroutine_scope</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/scope/coroutine_scope.sharp">source</a></p>
+<p>coroutine_scope - an object that owns coroutines, so that they can be cancelled and waited for as a unit. Give one to everything that has a life time: a connection, a window, a request.</p>
+<p>USAGE class connection { scope := new coroutine_scope();</p>
+<div class="code"><pre class="sharp">def open() {
+    scope.launch(self, { s: object -&gt; c := s as connection; c.read_loop(); });
+    scope.launch(self, { s: object -&gt; c := s as connection; c.ping_loop(); });
+}</pre></div>
+<div class="code"><pre class="sharp">    def close() {
+        scope.cancel_and_join();         // both loops have stopped when this returns
+    }
+}</pre></div>
+<p>A failing coroutine cancels the scope and with it all the others, unless the scope was made with coroutine_scope.supervisor(). The scope&#x27;s own job has no code: it is active until cancel() or complete() is called.</p>
+<p>The coroutines run on other fibers: THE CLOSURE RULE (builders.sharp) applies to the blocks handed to launch().</p>
+<p>Kotlin equivalent: CoroutineScope(Job() + dispatcher) / CoroutineScope(SupervisorJob()). (The function coroutine_scope { } in scopes.sharp is Kotlin&#x27;s coroutineScope { }.)</p>
+<p>LOCKING DISCIPLINE: the only state is the job, which locks itself.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="coroutine_scope.coroutine_scope"><div class="sig"><b>coroutine_scope</b>()</div><p>A scope whose coroutines run on the default pool.</p></div>
+<div class="fn" id="coroutine_scope.coroutine_scope-2"><div class="sig"><b>coroutine_scope</b>(where: coroutine_dispatcher)</div><p>A scope whose coroutines run on <code>where</code>.</p></div>
+<div class="fn" id="coroutine_scope.active_count"><div class="sig">def <b>active_count</b>() : decimal</div><p>number of coroutines of this scope that are not finished yet</p></div>
+<div class="fn" id="coroutine_scope.cancel"><div class="sig">def <b>cancel</b>()</div><p>Cancel every coroutine of the scope; no new ones can be started afterwards. Does not suspend. Kotlin: scope.cancel()</p></div>
+<div class="fn" id="coroutine_scope.cancel_and_join"><div class="sig">def <b>cancel_and_join</b>()</div><p>cancel(), then wait until every coroutine has stopped. SUSPENDS; a cancellation point for the caller.</p></div>
+<div class="fn" id="coroutine_scope.cancel_children"><div class="sig">def <b>cancel_children</b>()</div><p>Cancel the coroutines that are running now but keep the scope usable. Kotlin: coroutineContext.cancelChildren()</p></div>
+<div class="fn" id="coroutine_scope.complete_and_join"><div class="sig">def <b>complete_and_join</b>()</div><p>No more coroutines will be started: finish the scope when the running ones are done, and wait for that. SUSPENDS; a cancellation point for the caller. Kotlin: (job as CompletableJob).complete(); job.join()</p></div>
+<div class="fn" id="coroutine_scope.get_job"><div class="sig">def <b>get_job</b>() : job</div><p>the job that is the parent of every coroutine of this scope</p></div>
+<div class="fn" id="coroutine_scope.is_active"><div class="sig">def <b>is_active</b>() : bool</div><p>true until the scope is cancelled or completed. Kotlin: scope.isActive</p></div>
+<div class="fn" id="coroutine_scope.join_children"><div class="sig">def <b>join_children</b>()</div><p>Wait until every coroutine that is in the scope right now is finished. The scope stays open. SUSPENDS; a cancellation point for the caller. Kotlin: scope.coroutineContext.job.children.forEach { it.join() }</p></div>
+<div class="fn" id="coroutine_scope.launch"><div class="sig">def <b>launch</b>(block: ()()) : job</div><p>Start a coroutine in this scope. Does not suspend. In a cancelled scope the result is a cancelled job. Kotlin: scope.launch { }</p></div>
+<div class="fn" id="coroutine_scope.launch-2"><div class="sig">def <b>launch</b>(state: object?, block: (object)()) : job</div><p>launch() with a state object handed to the coroutine: block(state)</p></div>
+<div class="fn" id="coroutine_scope.launch-3"><div class="sig">def <b>launch</b>(task: coroutine_body) : job</div><p>launch() for a coroutine_body object</p></div>
+<div class="fn" id="coroutine_scope.supervisor"><div class="sig">static def <b>supervisor</b>() : coroutine_scope</div><p>A scope in which a failing coroutine does not cancel the others. Kotlin: CoroutineScope(SupervisorJob())</p></div>
+<div class="fn" id="coroutine_scope.supervisor-2"><div class="sig">static def <b>supervisor</b>(where: coroutine_dispatcher) : coroutine_scope</div><p>supervisor() with a dispatcher</p></div>
+</div>
+</section>
+<section class="type" id="deferred">
+<h2><span class="kind">class</span> deferred&lt;t&gt;</h2>
+<p class="meta"><code>base job</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/deferred.sharp">source</a></p>
+<p>deferred&lt;t&gt; - a job that produces a value: the result of async.</p>
+<p>USAGE a := async&lt;int&gt;.start({ -&gt; (int) return slow_sum(); }); b := async&lt;int&gt;.start({ -&gt; (int) return slow_product(); }); total := a.await() + b.await();          // both ran at the same time</p>
+<div class="code"><pre class="sharp">all := deferred&lt;int&gt;.await_all(new deferred&lt;int&gt;[] { a, b });   // a list&lt;int&gt;</pre></div>
+<p>A deferred IS a job: join(), cancel(), is_active() and the rest work as for any coroutine. Its exception is not reported as uncaught; await() throws it.</p>
+<p><code>t</code> must be an object type (int, string, your classes ...): deferred&lt;decimal&gt; and other native numbers are not supported, write deferred&lt;int&gt;.</p>
+<p>Kotlin equivalent: kotlinx.coroutines.Deferred&lt;T&gt;. C++ equivalent: std::future&lt;T&gt; whose get() suspends a fiber instead of blocking a thread. Java equivalent: CompletableFuture&lt;T&gt;.</p>
+<p>LOCKING DISCIPLINE: see job. <code>result</code> is written by the fiber of the coroutine before the job reaches its final state and read by others only after they have seen the final state (join returned), so it needs no lock of its own.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="deferred.deferred"><div class="sig"><b>deferred</b>(block: ()(t))</div><p>A deferred for a coroutine that runs <code>block</code> and keeps what it returns. Not started (see async).</p></div>
+<div class="fn" id="deferred.deferred-2"><div class="sig"><b>deferred</b>(state: object?, block: (object)(t))</div><p>A deferred for a coroutine that runs <code>block(state)</code>.</p></div>
+<div class="fn" id="deferred.await"><div class="sig">def <b>await</b>() : t</div><p>Wait for the result.</p>
+<p>SUSPENDS until the coroutine and its children are finished; returns at once when they are. A cancellation point for the CALLER. @throws the exception the coroutine failed with @throws cancellation_exception when this deferred was cancelled, or when the caller is cancelled while it waits Kotlin: Deferred.await()</p></div>
+<div class="fn" id="deferred.await_all"><div class="sig">static def <b>await_all</b>(items: deferred&lt;t&gt;[]) : list&lt;t&gt;</div><p>Wait for all of them and return their results in the same order. SUSPENDS; a cancellation point. Throws the exception of the first one (in array order) that failed. Kotlin: awaitAll(a, b, c)</p></div>
+<div class="fn" id="deferred.await_all-2"><div class="sig">static def <b>await_all</b>(items: list&lt;deferred&lt;t&gt; &gt;) : list&lt;t&gt;</div><p>await_all() for a list. Kotlin: list.awaitAll()</p></div>
+<div class="fn" id="deferred.get_completed"><div class="sig">def <b>get_completed</b>() : t?</div><p>The result if the coroutine finished normally, null otherwise (still running, failed, cancelled). Never suspends, never throws. Kotlin: getCompleted(), without the exceptions</p></div>
+<div class="fn" id="deferred.run_body"><div class="sig">override def <b>run_body</b>()</div><p>runs the block and stores its result (replaces job.run_body)</p></div>
+</div>
+</section>
+<section class="type" id="dispatchers">
+<h2><span class="kind">class</span> dispatchers</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/dispatchers.sharp">source</a></p>
+<p>dispatchers - the ready made coroutine dispatchers.</p>
+<p>USAGE launch_on(dispatchers.default_pool(), { -&gt; crunch(); });     // in parallel, on the worker threads launch_on(dispatchers.current_thread(), { -&gt; step(); });     // on this thread, when it is free db := dispatchers.single_thread(&quot;db&quot;);                       // a thread of its own</p>
+<div class="code"><pre class="sharp">which one a coroutine gets when you do not say:
+  launch { } at top level (global_scope)        default_pool()
+  launch { } inside run_blocking { }            the thread that called run_blocking
+  launch { } inside another coroutine           the same as that coroutine</pre></div>
+<p>Kotlin equivalent: kotlinx.coroutines.Dispatchers Dispatchers.Default      -&gt; default_pool() Dispatchers.IO           -&gt; io() Dispatchers.Unconfined   -&gt; unconfined()   (see there for the difference) newSingleThreadContext   -&gt; single_thread(name) the runBlocking loop     -&gt; current_thread() There is no Dispatchers.Main: use current_thread() on the thread you mean.</p>
+<p>LOCKING DISCIPLINE: <code>guard</code> protects pool, loose, timer_thread and wanted_parallelism (each dispatcher is created once, on first use).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="dispatchers.current_thread"><div class="sig">static def <b>current_thread</b>() : coroutine_dispatcher</div><p>Coroutines run on the thread that calls this function, whenever that thread is free (its current fiber is suspended). This is what run_blocking { } gives its children.</p></div>
+<div class="fn" id="dispatchers.default_pool"><div class="sig">static def <b>default_pool</b>() : coroutine_dispatcher</div><p>The shared pool of worker threads: coroutines run in parallel on whichever thread is free. The threads are started with the first coroutine. Kotlin: Dispatchers.Default</p></div>
+<div class="fn" id="dispatchers.io"><div class="sig">static def <b>io</b>() : coroutine_dispatcher</div><p>A pool of threads kept for work that WAITS: reading and writing files, talking to a network, asking a database. Such work spends its time blocked, doing nothing, and on the default pool it would hold up the workers that are meant for computing. Here it has threads of its own (eight), started with the first coroutine that uses them.</p>
+<div class="code"><pre class="sharp">launch_on(dispatchers.io(), { -&gt; text := file_utils.read_text(&quot;big.txt&quot;); });</pre></div>
+<p>It is there in every program - with a window or without. Kotlin: Dispatchers.IO</p></div>
+<div class="fn" id="dispatchers.on_thread"><div class="sig">static def <b>on_thread</b>(target: thread) : coroutine_dispatcher</div><p>Coroutines run on <code>target</code>.</p></div>
+<div class="fn" id="dispatchers.set_parallelism"><div class="sig">static def <b>set_parallelism</b>(threads: decimal) : bool</div><p>Set the number of worker threads of the default pool. Call it before the first coroutine is started on the pool, afterwards it has no effect. @return true when the value was taken</p></div>
+<div class="fn" id="dispatchers.shared_pool"><div class="sig">static def <b>shared_pool</b>() : pool_dispatcher</div><p>the default pool as its own class, for get_parallelism() and is_started()</p></div>
+<div class="fn" id="dispatchers.single_thread"><div class="sig">static def <b>single_thread</b>(name: string) : thread_dispatcher</div><p>Starts a new thread called <code>name</code> and returns a dispatcher that runs every coroutine on it. Call close() on the result when you are done. Kotlin: newSingleThreadContext(name)</p></div>
+<div class="fn" id="dispatchers.timers"><div class="sig">static def <b>timers</b>() : coroutine_dispatcher</div><p>The thread the timers of with_timeout { } run on. One thread for the whole program, started with the first timeout: a time limit has to fire even when every other thread is busy.</p></div>
+<div class="fn" id="dispatchers.unconfined"><div class="sig">static def <b>unconfined</b>() : coroutine_dispatcher</div></div>
+</div>
+</section>
+<section class="type" id="global_scope">
+<h2><span class="kind">class</span> global_scope</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/scope/global_scope.sharp">source</a></p>
+<p>global_scope - the scope of coroutines that belong to nobody: they live until they are finished or the program ends.</p>
+<p>USAGE launch({ -&gt; background_work(); });       // outside any coroutine: lands here by itself global_scope.launch({ -&gt; ... });         // inside a coroutine: start one that is NOT its child global_scope.active_count();             // how many are still running</p>
+<p>Its job is a supervisor: a coroutine that fails here does not disturb the others, its exception goes to coroutine_exceptions. Coroutines run on the default pool. The program does not wait for them when main returns; use run_blocking { } or job.join() when you need them to finish.</p>
+<p>Kotlin equivalent: GlobalScope (and like there: prefer a scope with an end).</p>
+<p>LOCKING DISCIPLINE: <code>guard</code> protects root (created once, on first use).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="global_scope.active_count"><div class="sig">static def <b>active_count</b>() : decimal</div><p>number of top level coroutines that are not finished yet</p></div>
+<div class="fn" id="global_scope.launch"><div class="sig">static def <b>launch</b>(block: ()()) : job</div><p>Start a top level coroutine, also from inside another coroutine. THE CLOSURE RULE applies. Kotlin: GlobalScope.launch { }</p></div>
+<div class="fn" id="global_scope.launch-2"><div class="sig">static def <b>launch</b>(state: object?, block: (object)()) : job</div><p>launch() with a state object handed to the coroutine</p></div>
+<div class="fn" id="global_scope.launch-3"><div class="sig">static def <b>launch</b>(task: coroutine_body) : job</div><p>launch() for a coroutine_body object</p></div>
+<div class="fn" id="global_scope.root"><div class="sig">static def <b>root</b>() : job</div><p>the job every top level coroutine is a child of. It is never cancelled or completed.</p></div>
+</div>
+</section>
+<section class="type" id="job">
+<h2><span class="kind">class</span> job</h2>
+<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/job.sharp">source</a></p>
+<p>job - the handle of one coroutine (or of a scope that owns coroutines): ask what it is doing, wait for it, cancel it.</p>
+<p>USAGE j := launch({ -&gt; do_work(); }); j.is_active();           // true until the work and all its children are done j.join();                // suspends the caller until then j.cancel();              // asks it to stop (cooperative, see cancellation_exception) j.cancel_and_join();     // cancel, then wait until it really has stopped j.invoke_on_completion({ done: job -&gt; println(&quot;finished: ${done.is_cancelled()}&quot;); });</p>
+<p>Kotlin equivalent: kotlinx.coroutines.Job. C++ has no direct equivalent (the closest is a std::jthread with its stop_token, for a fiber instead of a thread).</p>
+<p>LIFE CYCLE ACTIVE ------&gt; COMPLETING ------&gt; COMPLETED |  (body done,     |   (all children done) |   children run)  | +------------------+---&gt; CANCELLING ------&gt; CANCELLED cancel() or a failure     (body and all children done)</p>
+<div class="code"><pre class="sharp">state        is_active   is_completed   is_cancelled
+ACTIVE         true         false          false
+COMPLETING     true         false          false
+CANCELLING     false        false          true
+COMPLETED      false        true           false
+CANCELLED      false        true           true</pre></div>
+<p>PARENTS AND CHILDREN (structured concurrency) - a job started inside a coroutine or a scope is a CHILD of it - a parent is not complete before all its children are - cancelling a parent cancels all its children - a child that FAILS (ends with an exception that is not a cancellation_exception) cancels its parent, and with it its siblings, unless the parent is a supervisor (supervisor_scope, global_scope) - a child that was merely cancelled does not affect its parent</p>
+<p>LOCKING DISCIPLINE Every job is given one of the shared lock objects of lock_stripes (<code>lk</code>) when it is created. guarded by this job&#x27;s <code>lk</code>: state, cancel_flag, body_done, failure, failed, waiting, joiners, handlers, first_child, n_children, and the hand-over fields out_kids, out_sleeper, out_joiners, out_handlers (written under the lock by the one fiber that made the state change, read by that same fiber right after it released the lock) guarded by the PARENT&#x27;s <code>lk</code>: next_sibling, prev_sibling written once before the job is started, read only afterwards: parent, attached, supervisor, scoped, has_body, quiet, dispatcher, block0, block1, arg, body, fib state, cancel_flag and failed are also READ without the lock (one number each): the answer can be out of date by the time it is used, which is all a predicate like is_active() can promise anyway. cancel_flag only ever goes from 0 to 1. RULES: no second lock is ever taken while <code>lk</code> is held (two jobs may share a stripe, see lock_stripes), nothing that can throw and no user code runs inside a lock block (an exception that leaves a lock block does not release the lock).</p>
+<p>NO RECURSION The runtime cannot continue a fiber that was switched out while one function was on its call stack twice (known bug, see tests/suite/known_bugs/lib_coroutines_recursive_suspend.sharp). A job tree is therefore never walked by recursion: cancelling downwards and finishing upwards are both done by ONE loop with a work list (settle()). For the same reason completion handlers never run inside that loop: they get a fiber of their own, so whatever they call starts on a fresh stack.</p>
+<p>Suspends: join(), cancel_and_join(). Everything else returns at once.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>ACTIVE</code></td><td><code>decimal</code></td><td>the body is running, or has not started yet</td></tr><tr><td><code>COMPLETING</code></td><td><code>decimal</code></td><td>the body is finished, children are still running</td></tr><tr><td><code>CANCELLING</code></td><td><code>decimal</code></td><td>cancelled or failed; waiting for the body and the children to stop</td></tr><tr><td><code>COMPLETED</code></td><td><code>decimal</code></td><td>finished normally (final)</td></tr><tr><td><code>CANCELLED</code></td><td><code>decimal</code></td><td>finished after a cancellation or a failure (final)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="job.job"><div class="sig"><b>job</b>()</div><p>A job without code: active until complete() or cancel() is called. Kotlin: Job().</p></div>
+<div class="fn" id="job.job-2"><div class="sig"><b>job</b>(block: ()())</div><p>A job for a coroutine that runs <code>block</code>. Not started yet (the builders in builders.sharp do that).</p></div>
+<div class="fn" id="job.job-3"><div class="sig"><b>job</b>(state: object?, block: (object)())</div><p>A job for a coroutine that runs <code>block(state)</code>.</p></div>
+<div class="fn" id="job.job-4"><div class="sig"><b>job</b>(task: coroutine_body)</div><p>A job for a coroutine that runs <code>task.run_body()</code>.</p></div>
+<div class="fn" id="job.cancel"><div class="sig">def <b>cancel</b>()</div><p>Ask the job and all its children to stop. Returns at once; the coroutine notices at its next cancellation point (see cancellation_exception). Does nothing when the job is finished or cancelled already. Kotlin: Job.cancel()</p></div>
+<div class="fn" id="job.cancel-2"><div class="sig">def <b>cancel</b>(reason: string)</div><p>cancel() with a text that says why (it is the message of the cancellation_exception)</p></div>
+<div class="fn" id="job.cancel_and_join"><div class="sig">def <b>cancel_and_join</b>()</div><p>cancel(), then wait until the job has really stopped. SUSPENDS. A cancellation point for the CALLER (throws cancellation_exception when the caller&#x27;s own job is cancelled). Kotlin: Job.cancelAndJoin()</p></div>
+<div class="fn" id="job.cancel_children"><div class="sig">def <b>cancel_children</b>()</div><p>Cancel the children but not this job. Kotlin: Job.cancelChildren()</p></div>
+<div class="fn" id="job.child_count"><div class="sig">def <b>child_count</b>() : decimal</div><p>how many children are not finished yet</p></div>
+<div class="fn" id="job.children"><div class="sig">def <b>children</b>() : job[]</div><p>the children that are not finished yet. Kotlin: Job.children</p></div>
+<div class="fn" id="job.complete"><div class="sig">def <b>complete</b>() : bool</div><p>For a job without code (new job(), a coroutine_scope object): no more work will be added, finish as soon as the children are done. @return true when this call made the difference Kotlin: CompletableJob.complete()</p></div>
+<div class="fn" id="job.get_failure"><div class="sig">def <b>get_failure</b>() : throwable?</div><p>Why the job was cancelled: the exception its coroutine (or a child) failed with, or the cancellation_exception it was cancelled with. Null for a job that is active or completed normally. Kotlin: Job.getCancellationException() (without wrapping).</p></div>
+<div class="fn" id="job.get_parent"><div class="sig">def <b>get_parent</b>() : job?</div><p>the job this one is a child of, or null. Kotlin: Job.parent</p></div>
+<div class="fn" id="job.get_state"><div class="sig">def <b>get_state</b>() : decimal</div><p>ACTIVE, COMPLETING, CANCELLING, COMPLETED or CANCELLED as a number</p></div>
+<div class="fn" id="job.invoke_on_completion"><div class="sig">def <b>invoke_on_completion</b>(handler: (job)())</div><p>Call <code>handler(this job)</code> once when the job is finished (right away when it is finished already).</p>
+<p>The handler ALWAYS runs on a fiber of its own, shortly after the job finished - never inside the fiber that calls this function and never inside the fiber that finished the job. So it must not use local variables of the function that created it (THE CLOSURE RULE, builders.sharp): it gets the job as its argument and may use globals. An exception thrown by a handler is dropped. Handlers of one job run in the order they were registered. Kotlin: Job.invokeOnCompletion { cause -&gt; }  (the cause is job.get_failure())</p></div>
+<div class="fn" id="job.is_active"><div class="sig">def <b>is_active</b>() : bool</div><p>true while the job is neither finished nor cancelled. Kotlin: Job.isActive</p></div>
+<div class="fn" id="job.is_cancelled"><div class="sig">def <b>is_cancelled</b>() : bool</div><p>true once the job was cancelled or has failed, even if it has not stopped yet. Kotlin: Job.isCancelled</p></div>
+<div class="fn" id="job.is_completed"><div class="sig">def <b>is_completed</b>() : bool</div><p>true when the job is finished for good, normally or not. Kotlin: Job.isCompleted</p></div>
+<div class="fn" id="job.is_failed"><div class="sig">def <b>is_failed</b>() : bool</div><p>true when the job ended (or is ending) because of an exception that is not a cancellation</p></div>
+<div class="fn" id="job.join"><div class="sig">def <b>join</b>()</div><p>Wait until the job is finished (normally, cancelled or failed - join does not tell and never throws the job&#x27;s own exception).</p>
+<p>SUSPENDS the calling fiber; returns at once when the job is finished. A cancellation point for the CALLER: throws cancellation_exception when the caller&#x27;s own job is cancelled before or while it waits. Kotlin: Job.join()</p></div>
+<div class="fn" id="job.run_body"><div class="sig">override def <b>run_body</b>()</div><p>runs the code this job was created with; deferred&lt;t&gt; replaces it to keep the result</p></div>
+</div>
+</section>
+<section class="type" id="pool_dispatcher">
+<h2><span class="kind">class</span> pool_dispatcher</h2>
+<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/pool_dispatcher.sharp">source</a></p>
+<p>pool_dispatcher - runs coroutines on whichever worker thread is free. dispatchers.default_pool() is the one shared instance.</p>
+<p>USAGE dispatchers.set_parallelism(4);                      // optional, before the first coroutine launch_on(dispatchers.default_pool(), { -&gt; crunch(); });</p>
+<p>HOW IT WORKS Coroutines are started as unbound fibers. The scheduler of the runtime hands an unbound fiber to any thread that has nothing to run, so all this class has to do is make sure such threads exist: the first coroutine starts <code>parallelism</code> worker threads whose own first fiber just sleeps. A thread that is blocked in run_blocking { } or job.join() helps as well, it is free while it waits. Idle workers are parked by the scheduler and cost no cpu.</p>
+<p>The workers are never stopped; they end with the program (the virtual machine does not wait for them when main returns).</p>
+<p>AUTOMATIC SIZE Without set_parallelism() the pool has one worker per cpu core minus one (the main thread works too while it waits), but at most 4. The limit is deliberate caution about the current runtime: starting a thread hangs once in a long while (seen about once in 50 program runs that started 15 threads, with every thread idle and only the first few workers created), and code that the JIT compiles while several threads are inside it can crash (tests/suite/known_bugs/lib_coroutines_jit_fiber_frames.sharp). Fewer threads means fewer chances for both. Ask for more with dispatchers.set_parallelism(n) when you need them.</p>
+<p>Kotlin equivalent: Dispatchers.Default. Java equivalent: Executors.newWorkStealingPool().</p>
+<p>LOCKING DISCIPLINE: <code>guard</code> protects started and parallelism. The threads are created after the lock is released, by the one caller that changed started from 0 to 1.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="pool_dispatcher.pool_dispatcher"><div class="sig"><b>pool_dispatcher</b>(threads: decimal)</div><p>@param threads number of worker threads; 0 or less means the automatic size (cores - 1, at most 4, see the class comment)</p></div>
+<div class="fn" id="pool_dispatcher.get_parallelism"><div class="sig">def <b>get_parallelism</b>() : decimal</div><p>number of worker threads this dispatcher has, or will start</p></div>
+<div class="fn" id="pool_dispatcher.is_started"><div class="sig">def <b>is_started</b>() : bool</div><p>true once the worker threads were started</p></div>
+<div class="fn" id="pool_dispatcher.keep_alive"><div class="sig">static def <b>keep_alive</b>(args: object[]) : int</div><p>The function of a worker thread. Its first fiber only has to exist: while it sleeps the thread is free, and a free thread is given the unbound fibers that are ready. One timer per hour is the whole cost.</p></div>
+<div class="fn" id="pool_dispatcher.select_thread"><div class="sig">override def <b>select_thread</b>() : thread?</div><p>null: the coroutine is not tied to a thread. Starts the workers on first use.</p></div>
+<div class="fn" id="pool_dispatcher.set_parallelism"><div class="sig">def <b>set_parallelism</b>(threads: decimal) : bool</div><p>Change the number of worker threads. Only has an effect before the first coroutine was dispatched. @return true when the new value was taken</p></div>
+</div>
+</section>
+<section class="type" id="thread_dispatcher">
+<h2><span class="kind">class</span> thread_dispatcher</h2>
+<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/thread_dispatcher.sharp">source</a></p>
+<p>thread_dispatcher - runs every coroutine on one particular thread.</p>
+<p>USAGE db := dispatchers.single_thread(&quot;database&quot;);     // a new thread of its own launch_on(db, { -&gt; run_query(); });              // never two of these at the same time db.close();                                      // when it is no longer needed</p>
+<div class="code"><pre class="sharp">here := dispatchers.current_thread();            // the thread that is running right now</pre></div>
+<p>Coroutines of one thread_dispatcher never run in parallel with each other, so state that only they touch needs no lock (they still interleave at suspension points). Each is a fiber bound to the thread, and runs when the thread is free: for a thread you created yourself that means &quot;while its current fiber is suspended&quot; (delay, join, run_blocking, ...).</p>
+<p>Kotlin equivalents: newSingleThreadContext(name), and the event loop of runBlocking for current_thread().</p>
+<p>LOCKING DISCIPLINE: closed is written once (0 -&gt; 1) by close() and read by the thread&#x27;s own fiber without a lock; target never changes.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="thread_dispatcher.thread_dispatcher"><div class="sig"><b>thread_dispatcher</b>(target: thread)</div><p>Coroutines run on <code>target</code>, a thread that exists already. close() will not stop it.</p></div>
+<div class="fn" id="thread_dispatcher.thread_dispatcher-2"><div class="sig"><b>thread_dispatcher</b>(name: string)</div><p>Starts a new thread called <code>name</code> for the coroutines of this dispatcher.</p></div>
+<div class="fn" id="thread_dispatcher.close"><div class="sig">def <b>close</b>()</div><p>Let the thread this dispatcher created end. Coroutines that are still bound to it keep it alive until they are finished; do not start new ones afterwards. Does nothing for a dispatcher of an existing thread. The thread notices within a quarter of a second (see keep_alive). Kotlin: ExecutorCoroutineDispatcher.close()</p></div>
+<div class="fn" id="thread_dispatcher.get_thread"><div class="sig">def <b>get_thread</b>() : thread</div><p>the thread the coroutines run on</p></div>
+<div class="fn" id="thread_dispatcher.is_closed"><div class="sig">def <b>is_closed</b>() : bool</div><p>true after close()</p></div>
+<div class="fn" id="thread_dispatcher.keep_alive"><div class="sig">static def <b>keep_alive</b>(args: object[]) : int</div><p>The function of a dispatcher thread: its first fiber only keeps the thread alive. The runtime does not tell the first fiber of a thread its id, so it cannot be parked and woken like other fibers (see waiter.polling); it looks at <code>closed</code> four times a second instead.</p></div>
+<div class="fn" id="thread_dispatcher.select_thread"><div class="sig">override def <b>select_thread</b>() : thread?</div></div>
+</div>
+</section>
+<section class="type" id="timeout_cancellation_exception">
+<h2><span class="kind">class</span> timeout_cancellation_exception</h2>
+<p class="meta"><code>base cancellation_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/timeout_cancellation_exception.sharp">source</a></p>
+<p>timeout_cancellation_exception - thrown by with_timeout() when its block did not finish in time.</p>
+<p>USAGE try { with_timeout(500, { -&gt; slow_work(); }); } catch(e: timeout_cancellation_exception) { println(&quot;gave up after half a second&quot;); }</p>
+<p>It is a cancellation_exception: inside the block it arrives at the next cancellation point like any other cancellation, and a coroutine that lets it escape ends as cancelled, not as failed. Use with_timeout_or_null() to get null instead of an exception.</p>
+<p>Kotlin equivalent: kotlinx.coroutines.TimeoutCancellationException. (std&#x27;s timeout_exception is the thread level one, thrown by future.result(ms).)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="timeout_cancellation_exception.timeout_cancellation_exception"><div class="sig">public <b>timeout_cancellation_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="timeout_timer">
+<h2><span class="kind">class</span> timeout_timer</h2>
+<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/timeout_timer.sharp">source</a></p>
+<p>timeout_timer - the coroutine behind with_timeout { }: sleeps for the time limit, then cancels the scope it guards.</p>
+<p>USAGE (by timeouts.sharp only) timer := new timeout_timer(scope_job, 500, error); ticking := new job(timer);          // started on dispatchers.timers() ... ticking.cancel();                   // the block finished in time</p>
+<p>It is a coroutine_body object because the timer runs on another fiber and has to carry its data with it (THE CLOSURE RULE, builders.sharp).</p>
+<p>Kotlin equivalent: the TimeoutCoroutine that withTimeout schedules on the delay queue.</p>
+<p>No locking: the fields are written before the timer is started and only read by its own fiber.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="timeout_timer.timeout_timer"><div class="sig"><b>timeout_timer</b>(target: job, limit: decimal, error: timeout_cancellation_exception)</div><p>@param target the scope job to cancel @param limit  after how many milliseconds @param error  what the cancellation points of the scope throw then</p></div>
+<div class="fn" id="timeout_timer.run_body"><div class="sig">override def <b>run_body</b>()</div><p>sleep, then cancel. Cancelling the timer&#x27;s own job during the sleep ends it without doing anything.</p></div>
+</div>
+</section>
+<section class="type" id="unconfined_dispatcher">
+<h2><span class="kind">class</span> unconfined_dispatcher</h2>
+<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/unconfined_dispatcher.sharp">source</a></p>
+<p>unconfined_dispatcher - coroutines that are not tied to a thread and do not get worker threads either. dispatchers.unconfined() is the shared instance.</p>
+<p>USAGE launch_on(dispatchers.unconfined(), { -&gt; step(); });</p>
+<p>The coroutine is an unbound fiber: whichever thread is free runs it. Unlike pool_dispatcher this class starts no threads, so in a program that never used the default pool the coroutine runs on the thread of its creator the next time that thread waits (or on any other thread that happens to be idle).</p>
+<p>Kotlin equivalent: Dispatchers.Unconfined, with one difference: Kotlin runs the coroutine inside the caller up to its first suspension, here it starts like any other coroutine.</p>
+<p>No state, so nothing to lock.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="unconfined_dispatcher.unconfined_dispatcher"><div class="sig"><b>unconfined_dispatcher</b>()</div></div>
+<div class="fn" id="unconfined_dispatcher.select_thread"><div class="sig">override def <b>select_thread</b>() : thread?</div><p>null: not tied to a thread</p></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="await_waiter"><div class="sig">def <b>await_waiter</b>(w: waiter, ms: decimal) : decimal</div><p>Sleep on <code>w</code> until it is claimed - THE way a blocking operation of the library waits, because it makes the wait a cancellation point: the current job remembers the waiter and job.cancel() claims it with waiter.CANCELLED.</p>
+<p>The waiter must already be published (queued in the resource, under its guard) and the caller must hold no lock.</p>
+<p>@param ms  a time limit in milliseconds, or a negative number for none @return    the waiter&#x27;s final state: waiter.RESUMED, CANCELLED, TIMED_OUT or CLOSED. After CANCELLED or TIMED_OUT the waiter may still be in its wait_queue: the caller removes it (under the guard) and, for CANCELLED, calls throw_cancellation().</p>
+<p>SUSPENDS. Never throws by itself. Outside a coroutine it is a plain park()/park_for(). Kotlin equivalent: suspendCancellableCoroutine { }</p></div>
+<div class="fn" id="check_scope_nesting"><div class="sig">def <b>check_scope_nesting</b>(bit: decimal, name: string)</div><p>Throw illegal_state_exception if the calling fiber is already inside the scope function with this bit (THE NESTING RULE). Changes nothing.</p></div>
+<div class="fn" id="close_scope"><div class="sig">def <b>close_scope</b>(scope_job: job, error: throwable?, cancellation: decimal)</div><p>The block of an in-line scope is over: wait for the children and throw what the scope failed with. For the scope functions of this module; it is only ever on the stack of a fiber once, because an outer scope function is still inside its block while an inner one is here.</p>
+<p>@param error        what the block threw, or null @param cancellation 1 when <code>error</code> is a cancellation_exception</p></div>
+<div class="fn" id="coroutine_scope-2"><div class="sig">def <b>coroutine_scope</b>(block: ()())</div><p>Run <code>block</code>, then wait for all the coroutines it launched.</p>
+<p>SUSPENDS (at the end, while children are still running). Cancellation: when the caller is cancelled, everything inside is cancelled and cancellation_exception is thrown. @throws the exception of the block or of the first child that failed (the other children are cancelled first and have stopped by then) @throws illegal_state_exception directly inside another coroutine_scope { } of the same fiber (THE NESTING RULE) Kotlin: coroutineScope { }</p></div>
+<div class="fn" id="current_job"><div class="sig">def <b>current_job</b>() : job?</div><p>The job of the coroutine (or in-line scope) this code runs in, or null outside any coroutine. Does not suspend. Kotlin: coroutineContext[Job] / currentCoroutineContext().job</p></div>
+<div class="fn" id="delay"><div class="sig">def <b>delay</b>(ms: decimal)</div><p>Sleep for <code>ms</code> milliseconds without blocking the thread: other coroutines run meanwhile.</p>
+<p>SUSPENDS. A cancellation point: throws cancellation_exception at once when the coroutine is (or gets) cancelled, it does not sleep the rest of the time. Outside a coroutine it is a plain sleep of the calling fiber. <code>ms</code> of 0 or less only gives other coroutines a turn (like yield()). Kotlin: delay(timeMillis)</p>
+<p>(std.io.fiber also has a delay(): the bare runtime timer, not cancellable. A file that imports both modules gets this one by writing std.io.coroutines#delay(ms), or simply by not importing std.io.fiber.)</p></div>
+<div class="fn" id="ensure_active"><div class="sig">def <b>ensure_active</b>()</div><p>Throw cancellation_exception if the current coroutine was cancelled, return otherwise. The cheapest cancellation point: put it in long loops that do not suspend. Does not suspend. Outside a coroutine it does nothing. Kotlin: ensureActive()</p></div>
+<div class="fn" id="is_active"><div class="sig">def <b>is_active</b>() : bool</div><p>true unless the current coroutine was cancelled (true outside a coroutine). Kotlin: isActive</p></div>
+<div class="fn" id="join_all"><div class="sig">def <b>join_all</b>(jobs: job[])</div><p>Wait until all the jobs are finished. SUSPENDS. A cancellation point for the caller. Kotlin: joinAll(a, b, c)</p></div>
+<div class="fn" id="join_all-2"><div class="sig">def <b>join_all</b>(jobs: list&lt;job&gt;)</div><p>join_all() for a list of jobs. Kotlin: jobs.joinAll()</p></div>
+<div class="fn" id="launch"><div class="sig">def <b>launch</b>(block: ()()) : job</div><p>Start a coroutine that runs <code>block</code> and return its job at once.</p>
+<p>Does not suspend. The block runs on another fiber: THE CLOSURE RULE applies (no captured locals). An exception thrown by the block cancels the parent scope (see job); in global_scope it goes to coroutine_exceptions. In a scope that is already cancelled the coroutine is not started and the returned job is cancelled. Kotlin: launch { }</p></div>
+<div class="fn" id="launch-2"><div class="sig">def <b>launch</b>(state: object?, block: (object)()) : job</div><p>launch() with one object handed to the coroutine: <code>block(state)</code>.</p>
+<div class="code"><pre class="sharp">launch(account, { s: object -&gt; a := s as bank_account; a.deposit(5); });</pre></div></div>
+<div class="fn" id="launch-3"><div class="sig">def <b>launch</b>(task: coroutine_body) : job</div><p>launch() for an object that implements coroutine_body: runs task.run_body().</p></div>
+<div class="fn" id="launch_on"><div class="sig">def <b>launch_on</b>(where: coroutine_dispatcher, block: ()()) : job</div><p>launch() on a particular dispatcher instead of the parent&#x27;s.</p>
+<p>launch_on(dispatchers.default_pool(), { -&gt; crunch(); }); Kotlin: launch(dispatcher) { }</p></div>
+<div class="fn" id="launch_on-2"><div class="sig">def <b>launch_on</b>(where: coroutine_dispatcher, state: object?, block: (object)()) : job</div><p>launch_on() with a state object, see launch(state, block).</p></div>
+<div class="fn" id="launch_on-3"><div class="sig">def <b>launch_on</b>(where: coroutine_dispatcher, task: coroutine_body) : job</div><p>launch_on() for a coroutine_body object.</p></div>
+<div class="fn" id="mark_scope"><div class="sig">def <b>mark_scope</b>(bit: decimal)</div><p>remember that the calling fiber is inside the scope function with this bit</p></div>
+<div class="fn" id="open_scope"><div class="sig">def <b>open_scope</b>(supervising: decimal) : job</div><p>Create the job of an in-line scope as a child of the current coroutine (a root when there is none). For the scope functions of this module. A cancellation point: throws when the current coroutine is cancelled.</p></div>
+<div class="fn" id="run_blocking"><div class="sig">def <b>run_blocking</b>(block: ()())</div><p>Run <code>block</code> as a coroutine in the CALLING fiber and return when it and every coroutine started inside it are finished. The bridge from ordinary code (main, a thread) into coroutines.</p>
+<div class="code"><pre class="sharp">def main(args: string[]) {
+    run_blocking({ -&gt;
+        launch({ -&gt; delay(100); println(&quot;world&quot;); });
+        println(&quot;hello&quot;);
+    });                                  // returns after &quot;world&quot;
+}</pre></div>
+<p>The block runs in-line, so it may capture locals. Coroutines launched inside without a dispatcher run on the calling thread, one at a time, while the block is suspended or finished (use launch_on(dispatchers.default_pool(), ...) for parallel work). The calling fiber is suspended while it waits, so its thread is free to run them.</p>
+<p>@throws the exception the block or one of its children failed with; cancellation_exception when the scope was cancelled @throws illegal_state_exception directly inside another run_blocking { } of the same fiber (THE NESTING RULE, scope/scopes.sharp) Kotlin: runBlocking { }</p></div>
+<div class="fn" id="set_current_job"><div class="sig">def <b>set_current_job</b>(j: job?)</div><p>set the current job of this fiber; for the builders and scopes of this module</p></div>
+<div class="fn" id="start_coroutine"><div class="sig">def <b>start_coroutine</b>(coroutine: job, owner: job?, where: coroutine_dispatcher?) : job</div><p>Attach a prepared job to its parent and start its fiber. The one place every builder goes through.</p>
+<p>@param owner the parent, or null for &quot;the current coroutine, else global_scope&quot; @param where the dispatcher, or null for &quot;the same as the parent&quot;</p></div>
+<div class="fn" id="supervisor_scope"><div class="sig">def <b>supervisor_scope</b>(block: ()())</div><p>coroutine_scope() whose children fail on their own: a child that throws does not cancel its siblings or the scope, its exception goes to coroutine_exceptions (async children keep theirs for await()). An exception of the BLOCK ITSELF still cancels all children and is thrown again.</p>
+<p>SUSPENDS; cancellation as for coroutine_scope(). @throws illegal_state_exception directly inside another supervisor_scope { } of the same fiber (THE NESTING RULE) Kotlin: supervisorScope { }</p></div>
+<div class="fn" id="throw_cancellation"><div class="sig">def <b>throw_cancellation</b>()</div><p>Throw the exception a cancelled wait of the current coroutine ends with. For the blocking operations of the library, after await_waiter() returned waiter.CANCELLED.</p></div>
+<div class="fn" id="unmark_scope"><div class="sig">def <b>unmark_scope</b>(bit: decimal)</div><p>the calling fiber left the scope function with this bit</p></div>
+<div class="fn" id="with_context"><div class="sig">def <b>with_context</b>(where: coroutine_dispatcher, block: ()())</div><p>Run <code>block</code> on another dispatcher and wait for it: launch_on + join, with the block&#x27;s exception thrown again here.</p>
+<div class="code"><pre class="sharp">with_context(dispatchers.default_pool(), { -&gt; heavy_work(); });</pre></div>
+<p>SUSPENDS. A cancellation point; cancelling the caller cancels the block. The block runs on another fiber: THE CLOSURE RULE applies. @throws the exception the block failed with Kotlin: withContext(dispatcher) { }</p></div>
+<div class="fn" id="with_context-2"><div class="sig">def <b>with_context</b>(where: coroutine_dispatcher, state: object?, block: (object)())</div><p>with_context() with a state object, see launch(state, block).</p></div>
+<div class="fn" id="with_timeout"><div class="sig">def <b>with_timeout</b>(ms: decimal, block: ()())</div><p>Run <code>block</code>, but give it at most <code>ms</code> milliseconds.</p>
+<p>SUSPENDS (the block does; and at the end while children finish). Cancellation: a cancellation of the caller cancels the block as well. @throws timeout_cancellation_exception when the time ran out @throws whatever the block throws @throws illegal_state_exception directly inside another with_timeout { } of the same fiber (THE NESTING RULE) Kotlin: withTimeout(ms) { }</p></div>
+<div class="fn" id="with_timeout_or_null"><div class="sig">def <b>with_timeout_or_null</b>(ms: decimal, block: ()(object)) : object?</div><p>with_timeout() that returns the block&#x27;s result, or null when the time ran out, instead of throwing.</p>
+<div class="code"><pre class="sharp">r := with_timeout_or_null(200, { -&gt; (object) return queue.receive(); });</pre></div>
+<p>The result is an <code>object</code>: cast it to what the block returns (r as int). A block whose own result is null cannot be told from a time out.</p>
+<p>SUSPENDS; cancellation as for with_timeout(). @throws whatever the block throws, except its own time out @throws illegal_state_exception directly inside another with_timeout_or_null { } of the same fiber (THE NESTING RULE) Kotlin: withTimeoutOrNull(ms) { }</p></div>
+<div class="fn" id="yield"><div class="sig">def <b>yield</b>()</div><p>Let the other coroutines that are ready run, then continue. SUSPENDS for a moment. A cancellation point (checked before and after). Kotlin: yield()</p></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

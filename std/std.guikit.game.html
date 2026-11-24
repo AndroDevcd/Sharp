@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.game - Sharp standard library</title>
+<meta name="description" content="The std.guikit.game module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="on sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.game</p>
+<h1>std.guikit.game <small>module</small></h1>
+<p class="contents"><a href="#hit_box">hit_box</a> <a href="#sprite_animation">sprite_animation</a> <a href="#sprite_batch">sprite_batch</a> <a href="#sprite_sheet">sprite_sheet</a> <a href="#tile_map">tile_map</a></p>
+<section class="type" id="hit_box">
+<h2><span class="kind">class</span> hit_box</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/hit_box.sharp">source</a></p>
+<p>hit_box - a rectangle that things in a game are checked against: does the player touch the coin, is the click inside the button, did the bullet hit.</p>
+<div class="code"><pre class="sharp">player := new hit_box(x, y, 32, 48);
+coin := new hit_box(400, 200, 16, 16);</pre></div>
+<div class="code"><pre class="sharp">if(player.overlaps(coin)) { ... }
+if(player.contains(f.mouse_x, f.mouse_y)) { ... }</pre></div>
+<p>Its fields are plain numbers: move a hit box by changing x and y. Hit boxes that only share an edge do not overlap.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>w</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>h</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="hit_box.hit_box"><div class="sig"><b>hit_box</b>(left: decimal, top: decimal, width: decimal, height: decimal)</div></div>
+<div class="fn" id="hit_box.blocked_by"><div class="sig">def <b>blocked_by</b>(level: tile_map) : bool</div><p>would the box be inside a solid tile of this map? (tile_map.blocked)</p></div>
+<div class="fn" id="hit_box.contains"><div class="sig">def <b>contains</b>(px: decimal, py: decimal) : bool</div><p>is the point (px, py) inside the box?</p></div>
+<div class="fn" id="hit_box.overlaps"><div class="sig">def <b>overlaps</b>(other: hit_box) : bool</div><p>do the two boxes share any area?</p></div>
+<div class="fn" id="hit_box.overlaps-2"><div class="sig">def <b>overlaps</b>(left: decimal, top: decimal, width: decimal, height: decimal) : bool</div><p>the same against a box given as four numbers</p></div>
+</div>
+</section>
+<section class="type" id="sprite_animation">
+<h2><span class="kind">class</span> sprite_animation</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/sprite_animation.sharp">source</a></p>
+<p>sprite_animation - which frame of a sprite sheet to show, as time passes.</p>
+<div class="code"><pre class="sharp">run := new sprite_animation(8, 6, 12);       // frames 8 .. 13, twelve a second</pre></div>
+<div class="code"><pre class="sharp">p.sprite(hero, run.frame_at(f.time), x, y);  // in the canvas, every frame</pre></div>
+<p>It holds no clock of its own: hand frame_at the seconds since the animation began - f.time for one that just loops, or <code>f.time - jumped_at</code> for one that starts at a moment. So one animation serves every character that uses it, each at its own point, and the speed is the same at any frame rate.</p>
+<p>It loops for ever unless once() is called: then it stops on its last frame, and finished(seconds) says when (a jump, an explosion).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>frames</code></td><td><code>_int64[]</code></td><td>the sheet&#x27;s frame numbers, in the order shown</td></tr><tr><td><code>per_second</code></td><td><code>decimal</code></td><td>how many of them a second</td></tr><tr><td><code>loops</code></td><td><code>bool</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sprite_animation.sprite_animation"><div class="sig"><b>sprite_animation</b>(first: _int64, count: _int64, frames_a_second: decimal)</div><p><code>count</code> frames in a row of the sheet, starting at frame <code>first</code></p></div>
+<div class="fn" id="sprite_animation.sprite_animation-2"><div class="sig"><b>sprite_animation</b>(in_order: _int64[], frames_a_second: decimal)</div><p>exactly these frames, in this order (a frame may be in it twice)</p></div>
+<div class="fn" id="sprite_animation.finished"><div class="sig">def <b>finished</b>(seconds: decimal) : bool</div><p>has an animation that plays once reached its end? (one that loops never has)</p></div>
+<div class="fn" id="sprite_animation.frame_at"><div class="sig">def <b>frame_at</b>(seconds: decimal) : _int64</div><p>the frame to show <code>seconds</code> after the animation began</p></div>
+<div class="fn" id="sprite_animation.length"><div class="sig">def <b>length</b>() : decimal</div><p>how long one pass through the frames takes, in seconds</p></div>
+<div class="fn" id="sprite_animation.once"><div class="sig">def <b>once</b>() : sprite_animation</div><p>play through once and stay on the last frame. Returns the animation.</p></div>
+</div>
+</section>
+<section class="type" id="sprite_batch">
+<h2><span class="kind">class</span> sprite_batch</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/sprite_batch.sharp">source</a></p>
+<p>sprite_batch - many sprites of ONE sheet, painted with one call.</p>
+<div class="code"><pre class="sharp">coins := new sprite_batch(items);            // once: items is a sprite_sheet</pre></div>
+<div class="code"><pre class="sharp">coins.clear();                               // every frame
+for(...) { coins.add(spin.frame_at(f.time), x, y); }
+p.draw(coins);</pre></div>
+<p>The same idea as shape_batch: p.sprite(...) crosses into the graphics side for every sprite, a batch crosses once for all of them. Use it wherever many sprites come from the same sheet - a crowd, bullets, coins, particles. They are painted in the order they were added.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>sheet</code></td><td><code>sprite_sheet</code></td><td></td></tr><tr><td><code>sources</code></td><td><code>decimal[]</code></td><td>for sprite i, at [i * 4 ...]: its box in the picture (a width below 0: mirrored)</td></tr><tr><td><code>places</code></td><td><code>decimal[]</code></td><td>... and where it goes: x y w h</td></tr><tr><td><code>count</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sprite_batch.sprite_batch"><div class="sig"><b>sprite_batch</b>(from: sprite_sheet)</div></div>
+<div class="fn" id="sprite_batch.add"><div class="sig">def <b>add</b>(frame: _int64, x: decimal, y: decimal)</div><p>a frame at its own size</p></div>
+<div class="fn" id="sprite_batch.add-2"><div class="sig">def <b>add</b>(frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal)</div><p>a frame stretched to w x h</p></div>
+<div class="fn" id="sprite_batch.add-3"><div class="sig">def <b>add</b>(frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal, flipped: bool)</div><p>a frame stretched to w x h, mirrored left to right when <code>flipped</code></p></div>
+<div class="fn" id="sprite_batch.clear"><div class="sig">def <b>clear</b>()</div><p>forget every sprite (the lists are kept)</p></div>
+</div>
+</section>
+<section class="type" id="sprite_sheet">
+<h2><span class="kind">class</span> sprite_sheet</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/sprite_sheet.sharp">source</a></p>
+<p>sprite_sheet - one picture that holds many small ones of the same size, in rows: the frames of a character&#x27;s run, the tiles of a level.</p>
+<div class="code"><pre class="sharp">hero := new sprite_sheet(&quot;assets/hero.png&quot;, 32, 32);     // frames of 32 x 32 pixels
+p.sprite(hero, 5, x, y);                                 // frame 5, at its own size
+p.sprite(hero, 5, x, y, 96, 96);                         // three times as large
+p.sprite(hero, 5, x, y, 96, 96, true);                   // facing the other way</pre></div>
+<p>FRAMES ARE NUMBERED from 0, left to right and then down - the top-left frame is 0, the one to its right is 1, and the first of the second row comes after the last of the first.</p>
+<p>PIXEL ART: call crisp() once. A picture is normally smoothed when it is drawn larger than it is, which is right for a photo and turns pixel art to mush; crisp() keeps every pixel a sharp square.</p>
+<p>Some sheets leave a gap around the frames: <code>margin</code> is the gap between the picture&#x27;s edge and the first frame, <code>spacing</code> the gap between two frames.</p>
+<p>Make a sheet once, before the frame loop (it needs an open window, like every picture). Animations are sprite_animation; many sprites at once sprite_batch; a level made of tiles tile_map.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>picture</code></td><td><code>image</code></td><td></td></tr><tr><td><code>frame_width</code></td><td><code>decimal</code></td><td>the size of one frame, in the picture&#x27;s pixels</td></tr><tr><td><code>frame_height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>margin</code></td><td><code>decimal</code></td><td>the gap around all the frames</td></tr><tr><td><code>spacing</code></td><td><code>decimal</code></td><td>the gap between two frames</td></tr><tr><td><code>columns</code></td><td><code>_int64</code></td><td>frames in a row</td></tr><tr><td><code>rows</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sprite_sheet.sprite_sheet"><div class="sig"><b>sprite_sheet</b>(path: string, frame_w: decimal, frame_h: decimal)</div></div>
+<div class="fn" id="sprite_sheet.sprite_sheet-2"><div class="sig"><b>sprite_sheet</b>(path: string, frame_w: decimal, frame_h: decimal, edge: decimal, gap: decimal)</div></div>
+<div class="fn" id="sprite_sheet.sprite_sheet-3"><div class="sig"><b>sprite_sheet</b>(loaded: image, frame_w: decimal, frame_h: decimal)</div><p>a sheet over a picture that is already loaded</p></div>
+<div class="fn" id="sprite_sheet.crisp"><div class="sig">def <b>crisp</b>() : sprite_sheet</div><p>keep every pixel a sharp square when the sheet is drawn larger: for pixel art. Returns the sheet.</p></div>
+<div class="fn" id="sprite_sheet.frame_x"><div class="sig">def <b>frame_x</b>(frame: _int64) : decimal</div><p>where a frame&#x27;s box starts in the picture, across and down</p></div>
+<div class="fn" id="sprite_sheet.frame_y"><div class="sig">def <b>frame_y</b>(frame: _int64) : decimal</div></div>
+<div class="fn" id="sprite_sheet.frames"><div class="sig">def <b>frames</b>() : _int64</div><p>how many frames the sheet holds</p></div>
+</div>
+</section>
+<section class="type" id="tile_map">
+<h2><span class="kind">class</span> tile_map</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/tile_map.sharp">source</a></p>
+<p>tile_map - a level laid out as a grid of tiles from a tile set.</p>
+<div class="code"><pre class="sharp">ground := new sprite_sheet(&quot;assets/tiles.png&quot;, 18, 18).crisp();
+level := new tile_map(ground, 200, 20);          // 200 tiles wide, 20 high
+level.tile_size(36, 36);                         // painted twice the tile&#x27;s own size
+level.fill(0, 18, 200, 2, 3);                    // two rows of tile 3 along the bottom
+level.put(12, 17, 48);                           // one tile
+level.solid(3);                                  // tile 3 is something to stand on</pre></div>
+<div class="code"><pre class="sharp">p.tiles(level, camera_x, camera_y, f.width, f.height);     // in the canvas</pre></div>
+<p>TILE NUMBERS: 0 is &quot;nothing here&quot;. Tile n is frame n - 1 of the sheet, so tile 1 is the sheet&#x27;s top-left frame. (A new map is all 0: empty. The Tiled map editor numbers tiles the same way.)</p>
+<p>THE CAMERA is the point of the map that is at the view&#x27;s top-left corner, in the map&#x27;s painted pixels: moving it scrolls the level. p.tiles paints only the tiles inside the view, in one call - a map of a million tiles costs the same to paint as a small one.</p>
+<p>WALLS AND FLOORS: mark tiles solid(...), and blocked(x, y, w, h) says whether a box - a character - would be inside one. Move, ask, and move back if so.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>sheet</code></td><td><code>sprite_sheet</code></td><td></td></tr><tr><td><code>columns</code></td><td><code>_int64</code></td><td>tiles across</td></tr><tr><td><code>rows</code></td><td><code>_int64</code></td><td>tiles down</td></tr><tr><td><code>tiles</code></td><td><code>_int32[]</code></td><td>row after row: the tile at (column, row) is tiles[row * columns + column]</td></tr><tr><td><code>tile_width</code></td><td><code>decimal</code></td><td>the size a tile is painted at</td></tr><tr><td><code>tile_height</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="tile_map.tile_map"><div class="sig"><b>tile_map</b>(tile_set: sprite_sheet, across: _int64, down: _int64)</div></div>
+<div class="fn" id="tile_map.at"><div class="sig">def <b>at</b>(column: _int64, row: _int64) : _int32</div><p>the tile at (column, row); 0 outside the map</p></div>
+<div class="fn" id="tile_map.blocked"><div class="sig">def <b>blocked</b>(x: decimal, y: decimal, w: decimal, h: decimal) : bool</div><p>would the box (x, y, w, h), in the map&#x27;s painted pixels, be inside a solid tile?</p></div>
+<div class="fn" id="tile_map.fill"><div class="sig">def <b>fill</b>(column: _int64, row: _int64, across: _int64, down: _int64, tile: _int32)</div><p>the same tile over a block: <code>across</code> columns and <code>down</code> rows from (column, row)</p></div>
+<div class="fn" id="tile_map.height"><div class="sig">def <b>height</b>() : decimal</div></div>
+<div class="fn" id="tile_map.is_solid"><div class="sig">def <b>is_solid</b>(tile: _int32) : bool</div><p>is this tile number solid?</p></div>
+<div class="fn" id="tile_map.put"><div class="sig">def <b>put</b>(column: _int64, row: _int64, tile: _int32)</div><p>put a tile at (column, row); outside the map nothing happens</p></div>
+<div class="fn" id="tile_map.solid"><div class="sig">def <b>solid</b>(tile: _int32) : tile_map</div><p>from now on tile number <code>tile</code> is solid: a wall or a floor (blocked). Returns the map.</p></div>
+<div class="fn" id="tile_map.tile_at"><div class="sig">def <b>tile_at</b>(x: decimal, y: decimal) : _int32</div><p>the tile under the point (x, y) of the map, in painted pixels; 0 outside the map</p></div>
+<div class="fn" id="tile_map.tile_size"><div class="sig">def <b>tile_size</b>(w: decimal, h: decimal) : tile_map</div><p>paint every tile at this size instead of the sheet&#x27;s own. Returns the map.</p></div>
+<div class="fn" id="tile_map.width"><div class="sig">def <b>width</b>() : decimal</div><p>the whole map&#x27;s size, in painted pixels</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

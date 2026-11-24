@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.io.fiber - Sharp standard library</title>
+<meta name="description" content="The std.io.fiber module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="on sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.io.fiber</p>
+<h1>std.io.fiber <small>module</small></h1>
+<p class="contents"><a href="#fiber">fiber</a> <a href="#fiber_state">fiber_state</a> <a href="#lock_stripes">lock_stripes</a> <a href="#wait_queue">wait_queue</a> <a href="#waiter">waiter</a> <a href="#functions">functions</a></p>
+<section class="type" id="fiber">
+<h2><span class="kind">class</span> fiber</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/fiber/fiber.sharp">source</a></p>
+
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>id</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>main</code></td><td><code>(object[]?)(int)</code></td><td></td></tr><tr><td><code>exit_val</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bound_thread</code></td><td><code>thread?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="fiber.fiber"><div class="sig"><b>fiber</b>(name : string, main : (object[])(int))</div></div>
+<div class="fn" id="fiber.fiber-2"><div class="sig"><b>fiber</b>(name : string, t: thread, main : (object[])(int))</div></div>
+<div class="fn" id="fiber.bind"><div class="sig">def <b>bind</b>(t: thread) : int</div></div>
+<div class="fn" id="fiber.current"><div class="sig">static def <b>current</b>() : fiber</div></div>
+<div class="fn" id="fiber.get_state"><div class="sig">def <b>get_state</b>() : fiber_state</div></div>
+<div class="fn" id="fiber.join"><div class="sig">def <b>join</b>()</div></div>
+<div class="fn" id="fiber.kill"><div class="sig">def <b>kill</b>() : int</div></div>
+<div class="fn" id="fiber.poll"><div class="sig">static def <b>poll</b>(t: thread?) : int</div></div>
+<div class="fn" id="fiber.start"><div class="sig">def <b>start</b>(args: object[]?)</div></div>
+<div class="fn" id="fiber.suspend"><div class="sig">def <b>suspend</b>() : int</div></div>
+<div class="fn" id="fiber.unbind"><div class="sig">def <b>unbind</b>() : int</div></div>
+<div class="fn" id="fiber.unsuspend"><div class="sig">def <b>unsuspend</b>() : int</div></div>
+</div>
+</section>
+<section class="type" id="fiber_state">
+<h2><span class="kind">enum</span> fiber_state</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/fiber/fiber_state.sharp">source</a></p>
+
+</section>
+<section class="type" id="lock_stripes">
+<h2><span class="kind">class</span> lock_stripes</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/fiber/lock_stripes.sharp">source</a></p>
+<p>lock_stripes - a small, fixed set of lock objects shared by all the short lived synchronisation objects of the library (jobs, deferreds, futures, ...).</p>
+<p>USAGE class job { private lk : object = lock_stripes.next();    // picked once, never changes def is_active() : bool { lock(lk) { return state == 1; } } }</p>
+<p>WHY NOT lock(self) The runtime keeps one entry for every object that was ever used in a lock() statement, in ONE linked list, and every lock and unlock walks that list to find its entry. A program that starts 10,000 coroutines and locks each job once would make that list 10,000 long and every lock in the whole program 10,000 steps slow. With stripes the list stays at STRIPE_COUNT entries however many jobs exist. Objects that share a stripe only share the lock, not their data; the critical sections are a few field reads and writes, so the extra contention is small.</p>
+<p>C++ / Java equivalent: lock striping, e.g. the segments of the old java.util.concurrent.ConcurrentHashMap or Guava&#x27;s Striped&lt;Lock&gt;.</p>
+<p>THE RULE THAT COMES WITH IT Never take a second library lock while holding a stripe. Two different objects may have been given the SAME stripe, and the runtime lock is not counted: lock(a) { lock(a) { } ...here the lock is already released... }. A nested lock on the same stripe would silently end the outer critical section early. Every class that uses a stripe states in its own comment that it follows this rule.</p>
+<p>LOCKING DISCIPLINE stripes  is filled once by setup(), which the start-up code runs on the main thread before any other thread or fiber exists (std.io.coroutines start_scheduler(), called by platform.srt_init), and is only read afterwards. cursor   is advanced without a lock on purpose: two fibers that race only get the same stripe, which is harmless.</p>
+<p>Nothing here suspends.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="lock_stripes.next"><div class="sig">static def <b>next</b>() : object</div><p>The lock object for a new synchronisation object: the stripes are handed out in turn. Keep the result in a field; do not call next() per lock.</p></div>
+<div class="fn" id="lock_stripes.setup"><div class="sig">static def <b>setup</b>()</div><p>Create the lock objects. Safe to call more than once. Must run for the first time while the program still has a single fiber (see above).</p></div>
+</div>
+</section>
+<section class="type" id="wait_queue">
+<h2><span class="kind">class</span> wait_queue</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/fiber/wait_queue.sharp">source</a></p>
+<p>wait_queue - the fibers waiting for one resource, first come first served.</p>
+<p>USAGE waiters := new wait_queue();          // a field of the resource</p>
+<div class="code"><pre class="sharp">lock(lk) { waiters.add(w); }          // the fiber that has to wait
+w.park();</pre></div>
+<div class="code"><pre class="sharp">lock(lk) {                            // the fiber that frees the resource
+    w := waiters.pop_waiting(waiter.RESUMED);
+}
+if(w != null) w.unpark();</pre></div>
+<p>It is a doubly linked list threaded through the waiters themselves (waiter.next / prev / queue), so add, pop and remove are O(1) and nothing is allocated. C++ equivalent: an intrusive std::list&lt;waiter*&gt;. Java equivalent: the CLH queue inside AbstractQueuedSynchronizer, without the lock-free part.</p>
+<p>LOCKING DISCIPLINE A wait_queue has NO lock of its own. Every method must be called while holding the lock of the resource that owns the queue, and that must be the same lock the queued waiters were created with (waiter.guard), because pop_waiting() claims waiters and a claim is only legal under their guard.</p>
+<p>Nothing in this class suspends, and nothing is a cancellation point.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="wait_queue.wait_queue"><div class="sig"><b>wait_queue</b>()</div></div>
+<div class="fn" id="wait_queue.add"><div class="sig">def <b>add</b>(w: waiter)</div><p>Append a waiter. It must not be in any queue. @throws illegal_state_exception when the waiter is already queued somewhere</p></div>
+<div class="fn" id="wait_queue.clear"><div class="sig">def <b>clear</b>()</div><p>Empty the queue without claiming anybody.</p></div>
+<div class="fn" id="wait_queue.is_empty"><div class="sig">def <b>is_empty</b>() : bool</div><p>true when no waiter is queued</p></div>
+<div class="fn" id="wait_queue.peek"><div class="sig">def <b>peek</b>() : waiter?</div><p>the waiter that would be popped next, or null. It stays in the queue.</p></div>
+<div class="fn" id="wait_queue.pop"><div class="sig">def <b>pop</b>() : waiter?</div><p>Take the oldest waiter out of the queue whatever its state is. Null when the queue is empty.</p></div>
+<div class="fn" id="wait_queue.pop_waiting"><div class="sig">def <b>pop_waiting</b>(new_state: decimal) : waiter?</div><p>Take the oldest waiter that is still waiting out of the queue and claim it with waiter.resume(new_state). Waiters that were claimed before (timed out or cancelled and not removed yet) are dropped on the way.</p>
+<p>@return the claimed waiter - the caller MUST call unpark() on it after releasing the lock - or null when nobody is waiting.</p></div>
+<div class="fn" id="wait_queue.pop_waiting_with"><div class="sig">def <b>pop_waiting_with</b>(new_state: decimal, value: object?) : waiter?</div><p>pop_waiting() that also hands <code>value</code> to the waiter (waiter.item)</p></div>
+<div class="fn" id="wait_queue.remove"><div class="sig">def <b>remove</b>(w: waiter)</div><p>Take <code>w</code> out of the queue if it is in THIS queue; does nothing otherwise (it was popped already, or never added). This is what a fiber calls after its wait ended with CANCELLED or TIMED_OUT.</p></div>
+<div class="fn" id="wait_queue.size"><div class="sig">def <b>size</b>() : decimal</div><p>number of waiters in the queue (claimed ones that were not removed yet included)</p></div>
+</div>
+</section>
+<section class="type" id="waiter">
+<h2><span class="kind">class</span> waiter</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/fiber/waiter.sharp">source</a></p>
+<p>waiter - one fiber waiting for one event. The parking primitive every blocking operation in the coroutine and concurrency library is built on (job.join, channel.send/receive, mutex, semaphore, future, latch, ...).</p>
+<p>USAGE (this is the whole pattern, <code>self</code> is the resource that is waited for):</p>
+<div class="code"><pre class="sharp">// the fiber that has to wait
+w := new waiter(lk);                 // lk = the lock that guards the resource
+lock(lk) {
+    if(resource_is_ready) { ...take it...; return; }
+    waiters.add(w);                  // a wait_queue, guarded by lk as well
+}
+w.park();                            // sleeps, costs no cpu
+// w.state says why it woke up: RESUMED, CANCELLED, TIMED_OUT, CLOSED</pre></div>
+<div class="code"><pre class="sharp">// the fiber that makes the resource ready
+woken : waiter? = null;
+lock(lk) {
+    w := waiters.pop();
+    if(w != null &amp;&amp; w.resume(waiter.RESUMED) != 0) { woken = w; }
+}
+if(woken != null) woken.unpark();    // outside the lock</pre></div>
+<p>C++ equivalent: one std::condition_variable wait with its predicate, or a Linux futex wait/wake pair. Kotlin equivalent: a CancellableContinuation. Java equivalent: LockSupport.park / unpark plus the &quot;permit&quot; that makes an unpark before the park not get lost.</p>
+<p>WHY THIS IS NOT JUST fiber.suspend() / fiber.unsuspend() The runtime gives us two calls and neither remembers anything: suspend(self)    the fiber sleeps until somebody unsuspends it unsuspend(f)     wakes f if it is suspended, does NOTHING if it is running So &quot;check the condition, then suspend&quot; loses the wake-up when the other fiber unsuspends between the check and the suspend: the fiber then sleeps forever. A waiter closes that hole with three rules:</p>
+<p>1. CLAIM. <code>state</code> goes from WAITING to something else exactly once, under <code>guard</code>, and <code>wake</code> is set to 1 in the same step. Whoever makes that change has &quot;claimed&quot; the waiter. (resume / abandon / the timeout in park_for)</p>
+<p>2. CHECK AND SLEEP IN ONE STEP. The waiting fiber reads <code>wake</code> and makes the suspend call in a sequence of instructions that contains no jump, no call and no allocation (see suspend_unless_woken). The interpreter and the JIT only switch fibers at jumps, calls, returns, <code>int</code> and object creation, so no other fiber can run on this thread between the read and the suspend: when <code>wake</code> was 0 the fiber really is suspended next, when it was 1 the suspend call is turned into a no-op (it is given fiber id -1).</p>
+<p>3. HANDSHAKE. Another THREAD can still see the fiber as &quot;running&quot; for the few instructions between the read and the suspend, and unsuspend reports that (result 1). unpark() therefore repeats the call until it either hit a suspended fiber or the waiter says it noticed <code>wake</code> by itself (<code>done</code>). And the waiting fiber does not leave park() before the other side has finished (<code>unparked</code>), so a late unsuspend can never hit some later, unrelated sleep of the same fiber (it would cut a delay() short).</p>
+<p>The retry in rule 3 yields the OS thread between attempts. It only runs while the other thread is inside those few instructions, so in practice it goes around zero or one time. This is the one place in the library that waits by retrying; a runtime call &quot;suspend unless a wake-up is pending&quot; would remove it (see the final report of the library redesign).</p>
+<p>LOCKING DISCIPLINE guarded by <code>guard</code> (the lock of the resource this waiter waits for): state, item, tag, next, prev, queue written under <code>guard</code>, read without it by the owner fiber: wake (only ever goes 0 -&gt; 1), self_claimed (only written by the owner) not locked, each written by one side only, each only goes 0 -&gt; 1: done      written by the owner fiber unparked  written by the fiber that called unpark() never changes after the constructor: fib, guard</p>
+<p>A waiter is used for ONE wait and then dropped. Never reuse one.</p>
+<p>Can suspend: park() and park_for(). Nothing else blocks. Cancellation: a waiter knows nothing about jobs. The coroutine library wakes a waiter of a cancelled job with resume(waiter.CANCELLED) (see std.io.coroutines await_waiter()).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>WAITING</code></td><td><code>decimal</code></td><td>not claimed yet: the owner fiber is (or is about to be) asleep</td></tr><tr><td><code>RESUMED</code></td><td><code>decimal</code></td><td>the event happened: the resource was handed over, the job finished, ...</td></tr><tr><td><code>CANCELLED</code></td><td><code>decimal</code></td><td>the job of the waiting coroutine was cancelled</td></tr><tr><td><code>TIMED_OUT</code></td><td><code>decimal</code></td><td>park_for() ran out of time</td></tr><tr><td><code>CLOSED</code></td><td><code>decimal</code></td><td>the resource was closed or shut down while the fiber waited</td></tr><tr><td><code>fib</code></td><td><code>fiber?</code></td><td>the fiber that waits (the one that created this waiter)</td></tr><tr><td><code>guard</code></td><td><code>object?</code></td><td>the lock that protects <code>state</code> and the queue links, see LOCKING DISCIPLINE</td></tr><tr><td><code>state</code></td><td><code>decimal</code></td><td>WAITING, RESUMED, CANCELLED, TIMED_OUT or CLOSED</td></tr><tr><td><code>wake</code></td><td><code>decimal</code></td><td>1 as soon as <code>state</code> is not WAITING any more.</td></tr><tr><td><code>self_claimed</code></td><td><code>decimal</code></td><td>1 when the owner fiber claimed the waiter itself (abandon / timeout): nobody will call unpark()</td></tr><tr><td><code>done</code></td><td><code>decimal</code></td><td>owner -&gt; waker: &quot;I have seen <code>wake</code>, stop trying to unsuspend me&quot;</td></tr><tr><td><code>unparked</code></td><td><code>decimal</code></td><td>waker -&gt; owner: &quot;unpark() is finished, I will not touch your fiber again&quot;</td></tr><tr><td><code>item</code></td><td><code>object?</code></td><td>a value passed between the two sides (channel element, result, ...)</td></tr><tr><td><code>tag</code></td><td><code>decimal</code></td><td>a number the resource may use for its own purpose (permits wanted, reader or writer, ...)</td></tr><tr><td><code>polling</code></td><td><code>decimal</code></td><td>1 when the owner is the first fiber of a thread other than the main thread.</td></tr><tr><td><code>next</code></td><td><code>waiter?</code></td><td>links of the wait_queue this waiter is in (null when it is in none)</td></tr><tr><td><code>prev</code></td><td><code>waiter?</code></td><td></td></tr><tr><td><code>queue</code></td><td><code>wait_queue?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="waiter.waiter"><div class="sig"><b>waiter</b>(guard: object)</div><p>A waiter for the fiber that is running right now.</p>
+<p>@param guard the lock that protects the resource (and with it this waiter&#x27;s state). resume() and abandon() must be called while holding it.</p></div>
+<div class="fn" id="waiter.abandon"><div class="sig">def <b>abandon</b>(new_state: decimal) : bool</div><p>Claim the waiter for its OWN fiber: &quot;I do not want to wait any more&quot; (the job was already cancelled, a timeout passed). MUST be called by the owner fiber while holding <code>guard</code>. Does not block.</p>
+<p>@return true when the waiter is now withdrawn (park() will return at once, nobody will unpark it). false when another fiber claimed it first: the owner must still call park() to finish the handshake and then act on <code>state</code>.</p></div>
+<div class="fn" id="waiter.is_waiting"><div class="sig">def <b>is_waiting</b>() : bool</div><p>true while nobody has claimed the waiter. Hold <code>guard</code> for an answer that stays true.</p></div>
+<div class="fn" id="waiter.now_millis"><div class="sig">static def <b>now_millis</b>() : decimal</div><p>wall clock in milliseconds, as a native number</p></div>
+<div class="fn" id="waiter.park"><div class="sig">def <b>park</b>()</div><p>Sleep until the waiter is claimed. Call it exactly once, from the owner fiber, WITHOUT holding <code>guard</code> (or any other lock: a fiber that sleeps while it holds a lock blocks everybody who wants that lock).</p>
+<p>Returns at once when the waiter was claimed already. On return <code>state</code> is never WAITING.</p>
+<p>SUSPENDS the calling fiber. The thread is free to run other fibers. Not a cancellation point by itself (see the class comment).</p></div>
+<div class="fn" id="waiter.park_for"><div class="sig">def <b>park_for</b>(ms: decimal)</div><p>park() that gives up after <code>ms</code> milliseconds: the waiter then claims itself with state TIMED_OUT. Same rules as park().</p>
+<p>After a time out the waiter may still be linked in a wait_queue: the caller removes it (wait_queue.remove, under <code>guard</code>). A waker that pops it before that simply gets 0 from resume() and moves on.</p>
+<p>Takes <code>guard</code> for a moment when the time runs out, so do not hold it.</p>
+<p>@param ms how long to wait at most. 0 or less: do not sleep at all, time out at once unless the waiter was claimed already.</p></div>
+<div class="fn" id="waiter.resume"><div class="sig">def <b>resume</b>(new_state: decimal) : bool</div><p>Claim the waiter for another fiber: the event it waits for has happened. MUST be called while holding <code>guard</code>. Does not block.</p>
+<p>@param new_state RESUMED, CANCELLED or CLOSED @return true when this call claimed the waiter: the caller MUST then call unpark() (once, soon, preferably after releasing the lock). false when the waiter was claimed before (it timed out, was cancelled or resumed by somebody else): the caller must look for another waiter and must NOT call unpark().</p></div>
+<div class="fn" id="waiter.resume_with"><div class="sig">def <b>resume_with</b>(new_state: decimal, value: object?) : bool</div><p>resume() that also hands a value to the waiting fiber (it reads <code>item</code> after park() returns). Same rules as resume().</p></div>
+<div class="fn" id="waiter.sleep_raw"><div class="sig">static def <b>sleep_raw</b>(ms: decimal)</div><p>Sleep <code>ms</code> milliseconds with the plain runtime timer: no waiter, no cancellation, cannot be woken early. For the insides of the library only; user code calls delay().</p></div>
+<div class="fn" id="waiter.unpark"><div class="sig">def <b>unpark</b>()</div><p>Wake the owner fiber. Call it exactly once after resume() / resume_with() returned 1, from the fiber that made that call. Do NOT hold <code>guard</code> longer than needed around it (it is legal to hold it, the owner needs no lock to wake up, but other fibers wait for the lock meanwhile).</p>
+<p>Does not block. May retry for a moment while the owner fiber is between &quot;decided to sleep&quot; and &quot;asleep&quot; on another thread (see rule 3 above).</p></div>
+<div class="fn" id="waiter.yield_fiber"><div class="sig">static def <b>yield_fiber</b>()</div><p>give the other fibers of this thread a turn; no cancellation check (the raw delay(0))</p></div>
+<div class="fn" id="waiter.yield_os_thread"><div class="sig">static def <b>yield_os_thread</b>()</div><p>let the operating system run another thread for a moment (std::this_thread::yield)</p></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="delay"><div class="sig">def <b>delay</b>(tm: long)</div></div>
+<div class="fn" id="slice"><div class="sig">def <b>slice</b>(main: (object[])(int)) : fiber</div></div>
+<div class="fn" id="slice-2"><div class="sig">def <b>slice</b>(main: (object[])(int), args: object[]) : fiber</div></div>
+<div class="fn" id="slice-3"><div class="sig">def <b>slice</b>(main: (object[])(int), t: thread) : fiber</div></div>
+<div class="fn" id="slice-4"><div class="sig">def <b>slice</b>(main: (object[])(int), t: thread, args: object[]) : fiber</div></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

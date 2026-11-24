@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.system - Sharp standard library</title>
+<meta name="description" content="The std.system module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li class="on"><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.system</p>
+<h1>std.system <small>module</small></h1>
+<p class="contents"><a href="#args_exception">args_exception</a> <a href="#args_option">args_option</a> <a href="#args_parser">args_parser</a> <a href="#environment">environment</a> <a href="#gc">gc</a> <a href="#gc_hook">gc_hook</a> <a href="#gc_mode">gc_mode</a> <a href="#gc_stats">gc_stats</a> <a href="#logger">logger</a> <a href="#platform_info">platform_info</a> <a href="#process">process</a> <a href="#rotating_log_file">rotating_log_file</a> <a href="#signal_hook">signal_hook</a> <a href="#signals">signals</a> <a href="#subprocess">subprocess</a> <a href="#windows_environment_clear">windows_environment_clear</a></p>
+<section class="type" id="args_exception">
+<h2><span class="kind">class</span> args_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/args_exception.sharp">source</a></p>
+<p>Thrown by args_parser.parse() when the command line does not fit what the program declared: an unknown option, an option without its value, a missing required option or argument, too many arguments, a value that is not a number where one is needed.</p>
+<p>The message is meant for the user of the program, e.g.</p>
+<div class="code"><pre class="sharp">unknown option --colour
+option --output needs a value
+missing required argument &lt;source&gt;</pre></div>
+<p>The usual reaction is to print it together with parser.usage() and exit with a code other than 0.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="args_exception.args_exception"><div class="sig">public <b>args_exception</b>(message: string) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="args_option">
+<h2><span class="kind">class</span> args_option</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/args_option.sharp">source</a></p>
+<p>One thing an args_parser knows about: a flag (--verbose), an option with a value (--output FILE) or a positional argument (&lt;source&gt;), with its description and - after parsing - what the command line gave for it.</p>
+<p>Programs declare these through args_parser.add_flag / add_option / add_positional and read the results through the parser; this class only holds the data.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>kind_flag</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>kind_value</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>kind_positional</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>kind</code></td><td><code>decimal</code></td><td>which of the three kinds this is</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td>the long name, without the dashes (&quot;output&quot;); for a positional the name shown in the help</td></tr><tr><td><code>letter</code></td><td><code>decimal</code></td><td>the one-letter name as a character code (&#x27;o&#x27;), or 0 when there is none</td></tr><tr><td><code>value_name</code></td><td><code>string</code></td><td>what the value is called in the help (&quot;FILE&quot;); only for options with a value</td></tr><tr><td><code>description</code></td><td><code>string</code></td><td>the text for the help</td></tr><tr><td><code>required</code></td><td><code>decimal</code></td><td>1 when leaving it out is an error</td></tr><tr><td><code>has_default</code></td><td><code>decimal</code></td><td>1 when there is a default value</td></tr><tr><td><code>default_value</code></td><td><code>string</code></td><td>the value used when the command line does not give one</td></tr><tr><td><code>seen</code></td><td><code>decimal</code></td><td>how many times it appeared on the command line</td></tr><tr><td><code>value</code></td><td><code>string</code></td><td>the value from the command line (the last one when it appeared several times)</td></tr><tr><td><code>values</code></td><td><code></code></td><td>all values from the command line in order, for options that may be repeated</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="args_option.args_option"><div class="sig"><b>args_option</b>(kind: decimal, name: string, letter: decimal, description: string)</div></div>
+<div class="fn" id="args_option.reset"><div class="sig">def <b>reset</b>()</div><p>forget what a previous parse found</p></div>
+</div>
+</section>
+<section class="type" id="args_parser">
+<h2><span class="kind">class</span> args_parser</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/args_parser.sharp">source</a></p>
+<p>Takes the command line of a program apart: flags, options with values and positional arguments, with defaults, checks, and a generated help text.</p>
+<div class="code"><pre class="sharp">def main(args: string[]) {
+    parser := new args_parser(&quot;copytool&quot;, &quot;Copies files with style.&quot;);
+    parser.add_flag(&quot;verbose&quot;, &#x27;v&#x27;, &quot;print what is being done&quot;);
+    parser.add_option(&quot;jobs&quot;, &#x27;j&#x27;, &quot;N&quot;, &quot;how many copies run at once&quot;, &quot;4&quot;);
+    parser.add_required_option(&quot;output&quot;, &#x27;o&#x27;, &quot;DIR&quot;, &quot;where the copies go&quot;);
+    parser.add_positional(&quot;source&quot;, &quot;the file to copy&quot;, true);</pre></div>
+<div class="code"><pre class="sharp">try {
+    parser.parse(args);
+} catch(e: args_exception) {
+    println(e.get_message());
+    println(parser.usage());
+    exit(2);
+}
+if(parser.help_requested()) { println(parser.help()); exit(0); }</pre></div>
+<div class="code"><pre class="sharp">    jobs := parser.number(&quot;jobs&quot;);          // 4 unless -j / --jobs was given
+    if(parser.flag(&quot;verbose&quot;)) { ... }
+    source := parser.value(&quot;source&quot;);
+}</pre></div>
+<p>What a command line may look like: --name            a flag               -n          its one-letter form --name value      an option            -n value    its one-letter form --name=value      the same             -nvalue     the same -abc              several one-letter flags at once (the last may be an option that takes the next argument as its value) --                everything after it is a positional argument, even when it starts with a dash -                 a single dash is a positional argument (by custom: &quot;standard input&quot;) anything else     a positional argument</p>
+<p>An option takes the next argument as its value whatever it looks like, so &quot;--count -5&quot; works. An option or flag may appear several times: value() gives the last one, values() all of them, count() how many.</p>
+<p>--help and -h are understood without being declared (unless the program declares &quot;help&quot; or &#x27;h&#x27; itself): they set help_requested(), and then the checks for required options and arguments are skipped.</p>
+<p>Everything that does not fit throws args_exception (see there). Declaring something twice, or asking for a name that was never declared, is a mistake in the program and throws illegal_argument_exception.</p>
+<p>A parser can parse several times; each parse starts fresh. Not thread safe.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="args_parser.args_parser"><div class="sig"><b>args_parser</b>(program: string, about: string)</div><p>A parser for the program <code>program</code> (the name shown in the usage line); <code>about</code> is a sentence or two for the top of the help (&quot;&quot; for none).</p></div>
+<div class="fn" id="args_parser.add_flag"><div class="sig">def <b>add_flag</b>(name: string, letter: decimal, description: string) : args_parser</div><p>Declare a flag: --name, and -letter when <code>letter</code> is not 0 (pass the character, e.g. &#x27;v&#x27;). A flag is off unless it is on the command line. Returns this parser. Throws illegal_argument_exception for a malformed or already used name.</p></div>
+<div class="fn" id="args_parser.add_option"><div class="sig">def <b>add_option</b>(name: string, letter: decimal, value_name: string, description: string, default_value: string) : args_parser</div><p>Declare an option with a value: --name VALUE, and -letter VALUE when <code>letter</code> is not 0. <code>value_name</code> is what the value is called in the help (&quot;FILE&quot;, &quot;N&quot;). When the command line does not give the option its value is <code>default_value</code>. Returns this parser. Throws illegal_argument_exception for a malformed or already used name.</p></div>
+<div class="fn" id="args_parser.add_optional_option"><div class="sig">def <b>add_optional_option</b>(name: string, letter: decimal, value_name: string, description: string) : args_parser</div><p>Declare an option with a value that may be left out and then has no value at all: has(name) tells whether it was given. Returns this parser. Throws illegal_argument_exception for a malformed or already used name.</p></div>
+<div class="fn" id="args_parser.add_positional"><div class="sig">def <b>add_positional</b>(name: string, description: string, required: bool) : args_parser</div><p>Declare the next positional argument. Positional arguments are filled in the order they are declared; <code>required</code> says whether leaving it out is an error. Returns this parser. Throws illegal_argument_exception for a malformed or already used name, and when a required argument is declared after an optional one (which could never be told apart).</p></div>
+<div class="fn" id="args_parser.add_required_option"><div class="sig">def <b>add_required_option</b>(name: string, letter: decimal, value_name: string, description: string) : args_parser</div><p>Declare an option with a value that has to be on the command line. Returns this parser. Throws illegal_argument_exception for a malformed or already used name.</p></div>
+<div class="fn" id="args_parser.allow_extra"><div class="sig">def <b>allow_extra</b>(name: string, description: string) : args_parser</div><p>Accept any number of positional arguments beyond the declared ones (see rest()); without this, extra arguments are an error. <code>name</code> and <code>description</code> are for the help (&quot;files&quot;, &quot;more files to process&quot;). Returns this parser.</p></div>
+<div class="fn" id="args_parser.count"><div class="sig">def <b>count</b>(name: string) : decimal</div><p>How many times the flag, option or argument <code>name</code> was on the command line (-vvv gives 3). Throws illegal_argument_exception when <code>name</code> was never declared.</p></div>
+<div class="fn" id="args_parser.flag"><div class="sig">def <b>flag</b>(name: string) : bool</div><p>True when the flag <code>name</code> was on the command line. Throws illegal_argument_exception when <code>name</code> was never declared.</p></div>
+<div class="fn" id="args_parser.has"><div class="sig">def <b>has</b>(name: string) : bool</div><p>True when the option or positional argument <code>name</code> was on the command line (false when its default is used). Throws illegal_argument_exception when <code>name</code> was never declared.</p></div>
+<div class="fn" id="args_parser.help"><div class="sig">def <b>help</b>() : string</div><p>The full help text: the usage line, the description of the program, the positional arguments and the options, each with its description, in aligned columns. Defaults and &quot;required&quot; are mentioned. Ends with a line end.</p></div>
+<div class="fn" id="args_parser.help_requested"><div class="sig">def <b>help_requested</b>() : bool</div><p>true when --help or -h was on the command line (and the program did not declare them itself)</p></div>
+<div class="fn" id="args_parser.number"><div class="sig">def <b>number</b>(name: string) : decimal</div><p>The value of <code>name</code> as a number (&quot;12&quot;, &quot;-0.5&quot;, &quot;1e3&quot;). Throws args_exception when the value is not a number (the user&#x27;s mistake) and illegal_argument_exception when <code>name</code> was never declared (the program&#x27;s).</p></div>
+<div class="fn" id="args_parser.parse"><div class="sig">def <b>parse</b>(args: string[])</div><p>Take the command line <code>args</code> apart (the arguments as main() gets them, without the program name). Throws args_exception when it does not fit the declarations.</p></div>
+<div class="fn" id="args_parser.parse_list"><div class="sig">def <b>parse_list</b>(args: list&lt;string&gt;)</div><p>Take the arguments in <code>args</code> apart, like parse(). Throws args_exception when they do not fit the declarations.</p></div>
+<div class="fn" id="args_parser.rest"><div class="sig">def <b>rest</b>() : list&lt;string&gt;</div><p>the positional arguments beyond the declared ones, in order (see allow_extra)</p></div>
+<div class="fn" id="args_parser.usage"><div class="sig">def <b>usage</b>() : string</div><p>The one-line summary of the command line, e.g. &quot;usage: copytool [options] --output DIR &lt;source&gt; [target] [files...]&quot;: required options are spelled out, optional positional arguments are in brackets.</p></div>
+<div class="fn" id="args_parser.value"><div class="sig">def <b>value</b>(name: string) : string</div><p>The value of the option or positional argument <code>name</code>: from the command line (the last one when it was given several times), or its default. &quot;&quot; when it was not given and has no default (see has()). Throws illegal_argument_exception when <code>name</code> was never declared.</p></div>
+<div class="fn" id="args_parser.value_or"><div class="sig">def <b>value_or</b>(name: string, fallback: string) : string</div><p>the value of <code>name</code>, or <code>fallback</code> when it was not on the command line and has no default. Throws illegal_argument_exception when <code>name</code> was never declared.</p></div>
+<div class="fn" id="args_parser.values"><div class="sig">def <b>values</b>(name: string) : list&lt;string&gt;</div><p>All values the option <code>name</code> was given, in order - for options that may be repeated (-I a -I b). Empty when it was not on the command line (the default is not included). Throws illegal_argument_exception when <code>name</code> was never declared.</p></div>
+<div class="fn" id="args_parser.whole_number"><div class="sig">def <b>whole_number</b>(name: string) : decimal</div><p>The value of <code>name</code> as a whole number. Throws args_exception when the value is not a whole number and illegal_argument_exception when <code>name</code> was never declared.</p></div>
+</div>
+</section>
+<section class="type" id="environment">
+<h2><span class="kind">class</span> environment</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/environment.sharp">source</a></p>
+<p>THE ENVIRONMENT: the named texts every program is started with</p>
+<div class="code"><pre class="sharp">home := environment.value(&quot;HOME&quot;);                // null when it is not set
+level := environment.value_or(&quot;LOG_LEVEL&quot;, &quot;info&quot;);
+environment.put(&quot;MY_TOOL_DIR&quot;, &quot;/opt/tool&quot;);     // for this program and what it starts
+environment.remove(&quot;MY_TOOL_DIR&quot;);</pre></div>
+<p>A variable that is set to nothing counts as not set (on Windows the two cannot be told apart).</p>
+<p>What is set here is seen by this program and by the programs it starts afterwards (process.run) - not by the program that started this one.</p>
+<p>The system is asked directly (getenv on Linux, GetEnvironmentVariable on Windows): no shell is started.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="environment.has"><div class="sig">static def <b>has</b>(name: string) : bool</div><p>is <code>name</code> set (to something)?</p></div>
+<div class="fn" id="environment.put"><div class="sig">static def <b>put</b>(name: string, value: string)</div><p>Set <code>name</code> to <code>value</code> for this program and the programs it starts. Throws illegal_state_exception when the system refuses (no memory).</p></div>
+<div class="fn" id="environment.remove"><div class="sig">static def <b>remove</b>(name: string)</div><p>take <code>name</code> out of the environment; nothing happens when it is not set</p></div>
+<div class="fn" id="environment.value"><div class="sig">static def <b>value</b>(name: string) : string?</div><p>The value of <code>name</code>, or null when it is not set (or set to nothing). Throws illegal_argument_exception for a name that is empty or has a <code>=</code> in it.</p></div>
+<div class="fn" id="environment.value_or"><div class="sig">static def <b>value_or</b>(name: string, otherwise: string) : string</div><p>the value of <code>name</code>, or <code>otherwise</code> when it is not set</p></div>
+</div>
+</section>
+<section class="type" id="gc">
+<h2><span class="kind">class</span> gc</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/gc.sharp">source</a></p>
+<p>THE GARBAGE COLLECTOR: when it runs, and what it has been doing</p>
+<p>A collection stops the program for a moment. Most programs never notice. One that draws a picture sixty times a second does: a pause in the middle of a frame is a frame that comes late. Such a program takes the decision for itself:</p>
+<div class="code"><pre class="sharp">gc.set_mode(gc_mode.manual);        // from here on nothing is collected ...
+while(playing) {
+    draw_a_frame();
+}
+gc.collect();                       // ... until the program says so
+gc.set_mode(gc_mode.normal);</pre></div>
+<p>or for one piece of code only, with the mode put back afterwards whatever happens in it:</p>
+<div class="code"><pre class="sharp">gc.during(gc_mode.manual) {
+    play_the_level();
+};</pre></div>
+<p>MANUAL MEANS MANUAL. Nothing is freed until the program collects. If it never does, memory fills up to the limit (<code>sharp -mem</code>, a quarter of the machine&#x27;s memory when not given) and the next <code>new</code> is out of memory. There is no rescue collection. So a program in manual mode watches what it uses and collects where a pause costs nothing:</p>
+<div class="code"><pre class="sharp">if(gc.pressure() &gt; 0.8) { gc.collect(); }           // between two levels
+if(gc.allocated_since_collection() &gt; 4 * 1024 * 1024) { gc.collect_young(); }</pre></div>
+<p>OUT OF MEMORY, in either mode, is not the end at once. Past the limit lies a small reserve (a 32nd of the limit, 4 MB at most) that ordinary code can never use; it is there so that what answers an out of memory has room to work in. Three things happen, in this order:</p>
+<p>1. THE HOOK, when the program has one:</p>
+<div class="code"><pre class="sharp">gc.on_out_of_memory({ -&gt;
+    textures.drop_unused();
+    gc.collect();
+});</pre></div>
+<p>The thread that ran out waits; the hook runs on a thread of its own (<code>memory watcher</code>, like the hooks of <code>signals</code>), so it is ordinary code. When it has brought memory back under the limit the program goes on exactly where it was - nothing was thrown, nothing unwound. 2. ONE EXCEPTION, when there is no hook or it did not help: the next <code>new</code> throws an out_of_memory_exception, for a try/catch to take:</p>
+<div class="code"><pre class="sharp">try {
+    level = load_level(name);
+} catch(none_left: out_of_memory_exception) {
+    cache.clear();
+    gc.collect();
+}</pre></div>
+<p>3. THE END, when the reserve is used up as well: by a handler that needed more than the reserve, or by a program that caught the exception and went on without freeing anything. The VM prints what memory looked like and the program ends. There is no third chance, so an out of memory can never follow an out of memory without end.</p>
+<p>It is over as soon as a collection leaves memory under the limit: the reserve is whole again for the next time. gc.collect() and gc.collect_young() make no objects themselves and always work.</p>
+<p>A hook must not wait for a lock that a thread which ran out is holding: that thread waits for the hook. An exception a hook throws ends that hook, is printed, and the hooks after it still run.</p>
+<p>TWO KINDS OF COLLECTION gc.collect_young()      looks at what was made since the last collection. Short: its cost follows what is new, not everything alive. gc.collect()            looks at everything. It frees what a young one cannot (objects that lived long and then died), and takes longer the more is alive. Both work in either mode, and both are done when the call returns.</p>
+<p>THREADS. The mode belongs to the whole program, not to the thread that set it, and every function here may be called from any thread. When blocks of gc.during() run at the same time on several threads and ask for different modes, manual wins for as long as one manual block runs - it is the one that promised &quot;no pause in here&quot;.</p>
+<div class="code"><pre class="sharp">C# comparison: GCSettings.LatencyMode and GC.TryStartNoGCRegion; Unity&#x27;s
+GarbageCollector.GCMode.Manual. Go: debug.SetGCPercent(-1). Lua:
+collectgarbage(&quot;stop&quot;). Go&#x27;s collector still steps in at its memory
+limit; here manual mode is out of memory instead. Java: an
+OutOfMemoryError can be caught too, but with no reserve to handle it in.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="gc.allocated_since_collection"><div class="sig">static def <b>allocated_since_collection</b>() : _int64</div><p>bytes of new objects made since the last collection, of either kind</p></div>
+<div class="fn" id="gc.collect"><div class="sig">static def <b>collect</b>()</div><p>collect now, looking at everything</p></div>
+<div class="fn" id="gc.collect_young"><div class="sig">static def <b>collect_young</b>()</div><p>collect now, looking only at what was made since the last collection</p></div>
+<div class="fn" id="gc.collections"><div class="sig">static def <b>collections</b>() : _int64</div><p>how many collections have run since the program started, young and full</p></div>
+<div class="fn" id="gc.during"><div class="sig">static def <b>during</b>(mode: gc_mode, block: ()())</div><p>Run <code>block</code> with the collector in <code>mode</code>, and put things back as they were when the block is done - also when it throws: the mode is put back first, then the exception goes on to whoever catches it.</p></div>
+<div class="fn" id="gc.forget_hooks"><div class="sig">static def <b>forget_hooks</b>()</div><p>take every hook away: out of memory throws at once again</p></div>
+<div class="fn" id="gc.full_collections"><div class="sig">static def <b>full_collections</b>() : _int64</div><p>how many of them looked at everything</p></div>
+<div class="fn" id="gc.last_pause"><div class="sig">static def <b>last_pause</b>() : decimal</div><p>how long the last collection stopped the program, in milliseconds</p></div>
+<div class="fn" id="gc.longest_pause"><div class="sig">static def <b>longest_pause</b>() : decimal</div><p>the longest any collection stopped it, in milliseconds</p></div>
+<div class="fn" id="gc.memory_in_use"><div class="sig">static def <b>memory_in_use</b>() : _int64</div><p>bytes of memory the program&#x27;s objects take now</p></div>
+<div class="fn" id="gc.memory_limit"><div class="sig">static def <b>memory_limit</b>() : _int64</div><p>the most bytes they may take: a <code>new</code> past this is out of memory</p></div>
+<div class="fn" id="gc.mode"><div class="sig">static def <b>mode</b>() : gc_mode</div><p>the mode the collector is in now</p></div>
+<div class="fn" id="gc.on_out_of_memory"><div class="sig">static def <b>on_out_of_memory</b>(hook: ()())</div><p>Run <code>hook</code> when the program runs out of memory, before anything is thrown. Several hooks run in the order they were added.</p></div>
+<div class="fn" id="gc.pressure"><div class="sig">static def <b>pressure</b>() : decimal</div><p>how full memory is: 0 is empty, 1 is at the limit</p></div>
+<div class="fn" id="gc.set_mode"><div class="sig">static def <b>set_mode</b>(mode: gc_mode)</div><p>change the mode for the whole program, until it is changed again</p></div>
+<div class="fn" id="gc.stats"><div class="sig">static def <b>stats</b>() : gc_stats</div><p>everything above in one object, as it is now</p></div>
+<div class="fn" id="gc.total_pause"><div class="sig">static def <b>total_pause</b>() : decimal</div><p>how long all collections together stopped it, in milliseconds</p></div>
+</div>
+</section>
+<section class="type" id="gc_hook">
+<h2><span class="kind">class</span> gc_hook</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/gc.sharp">source</a></p>
+<p>one hook of <code>gc</code> (a function value cannot be the element of a list by itself)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="gc_hook.gc_hook"><div class="sig"><b>gc_hook</b>(work: ()())</div></div>
+<div class="fn" id="gc_hook.run"><div class="sig">def <b>run</b>()</div></div>
+</div>
+</section>
+<section class="type" id="gc_mode">
+<h2><span class="kind">enum</span> gc_mode</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/gc.sharp">source</a></p>
+<p>How the garbage collector decides when to run.</p>
+<div class="code"><pre class="sharp">normal      on its own, when memory is needed. What every program starts with.
+manual      only when the program asks (gc.collect(), gc.collect_young()).</pre></div>
+</section>
+<section class="type" id="gc_stats">
+<h2><span class="kind">class</span> gc_stats</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/gc.sharp">source</a></p>
+<p>what the collector has been doing, at the moment gc.stats() was called</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>mode</code></td><td><code>gc_mode</code></td><td></td></tr><tr><td><code>memory_in_use</code></td><td><code>_int64</code></td><td>bytes</td></tr><tr><td><code>memory_limit</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>allocated_since_collection</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>collections</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>full_collections</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>last_pause</code></td><td><code>decimal</code></td><td>milliseconds</td></tr><tr><td><code>longest_pause</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>total_pause</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="gc_stats.pressure"><div class="sig">def <b>pressure</b>() : decimal</div><p>how full memory was: 0 is empty, 1 is at the limit</p></div>
+</div>
+</section>
+<section class="type" id="logger">
+<h2><span class="kind">class</span> logger</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/logger.sharp">source</a></p>
+<p>Writes log messages with a level, optionally a time stamp, and a name, to the console, to files, or to any text_writer.</p>
+<div class="code"><pre class="sharp">log := new logger(&quot;server&quot;);
+log.add_console();
+log.add_file(new file(&quot;server.log&quot;));
+log.set_level(logger.level_debug);</pre></div>
+<div class="code"><pre class="sharp">log.info(&quot;listening on port 8080&quot;);
+log.warn(&quot;disk almost full&quot;);
+log.debug(&quot;request took 12 ms&quot;);
+log.close();</pre></div>
+<div class="code"><pre class="sharp">2026-11-12 09:30:00.123 INFO  [server] listening on port 8080</pre></div>
+<p>Levels, from chatty to serious: trace, debug, info, warn, error. A logger writes the messages at its level and above (info by default) and drops the rest; logger.level_off silences it.</p>
+<p>Format. Every message becomes one line built from a pattern with the placeholders {time} {level} {name} {message}; the default is &quot;{time} {level} [{name}] {message}&quot;. set_format() changes it. The level is padded to five characters so that the messages line up.</p>
+<p>Time. {time} is the time in UTC as &quot;YYYY-MM-DD HH:MM:SS.mmm&quot;. The clock can be replaced with set_clock() (a function that returns milliseconds since 1970) - tests use that to get the same output on every run - or time stamps can be left out altogether with set_timestamps(false), which also removes &quot;{time} &quot; from the default format.</p>
+<p>Targets. A logger without a target writes nothing. File targets append to their file. By default every message is flushed to all targets right away, so nothing is lost when the program stops; for a file that means rewriting it on every message (the runtime cannot append), which is fine for ordinary logs and slow for very large ones - set_auto_flush(false) and flush() or close() at the end are the remedy.</p>
+<p>A file that must not grow without end: add_rotating_file(&quot;server.log&quot;, 1000000, 5) really appends (nothing is rewritten), and when the file passes a million bytes it becomes server.log.1 - the old .1 becomes .2, and so on, the fifth is deleted - and a new server.log is started.</p>
+<p>Several threads may log to one logger: each message is written whole, one after the other.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>level_trace</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>level_debug</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>level_info</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>level_warn</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>level_error</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>level_off</code></td><td><code>decimal</code></td><td>a level for set_level() that lets nothing through</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="logger.logger"><div class="sig"><b>logger</b>(name: string)</div><p>a logger called <code>name</code> at level info, without targets</p></div>
+<div class="fn" id="logger.add_console"><div class="sig">def <b>add_console</b>() : logger</div><p>also print messages on the console. Returns this logger.</p></div>
+<div class="fn" id="logger.add_file"><div class="sig">def <b>add_file</b>(target: file) : logger</div><p>Also append messages to the file <code>target</code> (created when it does not exist). Returns this logger. Throws io_exception when <code>target</code> is a directory.</p></div>
+<div class="fn" id="logger.add_rotating_file"><div class="sig">def <b>add_rotating_file</b>(path: string, most_bytes: decimal, keep: decimal) : logger</div><p>Also append messages to the file at <code>path</code>, and start a new file when it has grown past <code>most_bytes</code>: the full one is kept as <code>path</code>.1, the one before as <code>path</code>.2 ... up to <code>keep</code> old files (0: none is kept). Returns this logger. Throws io_exception when the file cannot be opened.</p></div>
+<div class="fn" id="logger.add_writer"><div class="sig">def <b>add_writer</b>(target: text_writer) : logger</div><p>also write messages to <code>target</code> (a string_writer in tests, a buffered_writer, ...). Returns this logger.</p></div>
+<div class="fn" id="logger.close"><div class="sig">def <b>close</b>()</div><p>Flush and close all targets; logging afterwards throws illegal_state_exception. Closing twice is fine. Throws io_exception when a file cannot be written.</p></div>
+<div class="fn" id="logger.debug"><div class="sig">def <b>debug</b>(message: string)</div><p>log <code>message</code> at level debug: details for finding problems</p></div>
+<div class="fn" id="logger.error"><div class="sig">def <b>error</b>(message: string)</div><p>log <code>message</code> at level error: something failed</p></div>
+<div class="fn" id="logger.flush"><div class="sig">def <b>flush</b>()</div><p>Hand everything on to where it goes (files are written now). Throws io_exception when a file cannot be written.</p></div>
+<div class="fn" id="logger.format_line"><div class="sig">def <b>format_line</b>(message_level: decimal, message: string) : string</div><p>the line for one message, without a line end: the pattern with its placeholders filled in</p></div>
+<div class="fn" id="logger.format_time"><div class="sig">static def <b>format_time</b>(mills: decimal) : string</div><p>Milliseconds since 1970-01-01 00:00 UTC as &quot;YYYY-MM-DD HH:MM:SS.mmm&quot; (UTC, the proleptic Gregorian calendar). Negative values (before 1970) are treated as 0.</p></div>
+<div class="fn" id="logger.get_dropped"><div class="sig">def <b>get_dropped</b>() : decimal</div><p>how many messages were dropped so far because their level was below the level of the logger</p></div>
+<div class="fn" id="logger.get_level"><div class="sig">def <b>get_level</b>() : decimal</div><p>the lowest level that is written</p></div>
+<div class="fn" id="logger.get_written"><div class="sig">def <b>get_written</b>() : decimal</div><p>how many messages were written so far (they passed the level)</p></div>
+<div class="fn" id="logger.info"><div class="sig">def <b>info</b>(message: string)</div><p>log <code>message</code> at level info: normal events worth noting</p></div>
+<div class="fn" id="logger.is_enabled"><div class="sig">def <b>is_enabled</b>(message_level: decimal) : bool</div><p>true when a message of <code>message_level</code> would be written - to skip building an expensive message that would be dropped</p></div>
+<div class="fn" id="logger.level_name"><div class="sig">static def <b>level_name</b>(which: decimal) : string</div><p>the name of a level as it appears in messages: &quot;TRACE&quot;, &quot;DEBUG&quot;, &quot;INFO&quot;, &quot;WARN&quot;, &quot;ERROR&quot; (&quot;OFF&quot; for logger.level_off, &quot;?&quot; otherwise)</p></div>
+<div class="fn" id="logger.level_of"><div class="sig">static def <b>level_of</b>(word: string) : decimal</div><p>The level with the given name, in any case: &quot;debug&quot;, &quot;WARN&quot;, &quot;warning&quot; (same as warn), &quot;off&quot; ... Throws illegal_argument_exception for any other word - for reading the level from a configuration file or the command line.</p></div>
+<div class="fn" id="logger.log"><div class="sig">def <b>log</b>(message_level: decimal, message: string)</div><p>Log <code>message</code> at <code>message_level</code> (logger.level_trace .. logger.level_error): when the level is enabled, one line is written to every target. Throws illegal_state_exception when the logger was closed, illegal_argument_exception for a number that is not a level, and io_exception when a file target cannot be written.</p></div>
+<div class="fn" id="logger.log_exception"><div class="sig">def <b>log_exception</b>(message: string, problem: throwable)</div><p>log an exception at level error: <code>message</code>, then &quot;: &quot; and the message of the exception</p></div>
+<div class="fn" id="logger.name"><div class="sig">def <b>name</b>() : string</div><p>the name given to the constructor, shown as {name}</p></div>
+<div class="fn" id="logger.set_auto_flush"><div class="sig">def <b>set_auto_flush</b>(enabled: bool) : logger</div><p>flush all targets after every message (true, the default) or only on flush() / close() (false). Returns this logger.</p></div>
+<div class="fn" id="logger.set_clock"><div class="sig">def <b>set_clock</b>(source: ()(decimal)) : logger</div><p>Take the time from <code>source</code> instead of the clock of the machine: a function without parameters that returns milliseconds since 1970-01-01 00:00 UTC. Returns this logger.</p></div>
+<div class="fn" id="logger.set_format"><div class="sig">def <b>set_format</b>(new_pattern: string) : logger</div><p>The pattern every line is built from. Placeholders: {time} {level} {name} {message}; everything else is copied as it is. Returns this logger.</p></div>
+<div class="fn" id="logger.set_level"><div class="sig">def <b>set_level</b>(new_level: decimal) : logger</div><p>Write messages of <code>new_level</code> and above (logger.level_trace .. logger.level_error, or logger.level_off for none). Returns this logger. Throws illegal_argument_exception for a number that is not a level.</p></div>
+<div class="fn" id="logger.set_timestamps"><div class="sig">def <b>set_timestamps</b>(enabled: bool) : logger</div><p>Show time stamps (true, the default) or not (false). Without them {time} is replaced by nothing, and the default format loses its &quot;{time} &quot; at the front. Returns this logger.</p></div>
+<div class="fn" id="logger.target_count"><div class="sig">def <b>target_count</b>() : decimal</div><p>how many targets the logger writes to</p></div>
+<div class="fn" id="logger.trace"><div class="sig">def <b>trace</b>(message: string)</div><p>log <code>message</code> at level trace: very detailed tracing</p></div>
+<div class="fn" id="logger.warn"><div class="sig">def <b>warn</b>(message: string)</div><p>log <code>message</code> at level warn: something is odd but the program goes on</p></div>
+</div>
+</section>
+<section class="type" id="platform_info">
+<h2><span class="kind">class</span> platform_info</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/platform_info.sharp">source</a></p>
+<p>Facts about the machine and the running program: which operating system, how many processors, where the directories are, what the program is called.</p>
+<div class="code"><pre class="sharp">if(platform_info.is_windows()) { ... }
+println(platform_info.os_name() + &quot;, &quot; + platform_info.processor_count() + &quot; cores&quot;);
+config := platform_info.home_directory() + &quot;/.myapp&quot;;</pre></div>
+<p>Everything is static. Most answers come from the runtime (the <code>build</code> class of the platform module); the ones about the user&#x27;s environment (home directory, user name, host name) are asked from the shell on the first call and remembered - see environment - and are &quot;&quot; when they cannot be found out.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="platform_info.app_name"><div class="sig">static def <b>app_name</b>() : string</div><p>the name the running program was compiled with</p></div>
+<div class="fn" id="platform_info.app_version"><div class="sig">static def <b>app_version</b>() : string</div><p>the version the running program was compiled with</p></div>
+<div class="fn" id="platform_info.current_directory"><div class="sig">static def <b>current_directory</b>() : string</div><p>the directory the program was started in</p></div>
+<div class="fn" id="platform_info.free_disk_space"><div class="sig">static def <b>free_disk_space</b>() : decimal</div><p>the number of bytes on the disk the program runs on that this program can still use, or -1 when unknown</p></div>
+<div class="fn" id="platform_info.home_directory"><div class="sig">static def <b>home_directory</b>() : string</div><p>the home directory of the user (HOME on unix, USERPROFILE on windows), or &quot;&quot; when unknown</p></div>
+<div class="fn" id="platform_info.host_name"><div class="sig">static def <b>host_name</b>() : string</div><p>the name of the machine, as the command <code>hostname</code> prints it, or &quot;&quot; when unknown</p></div>
+<div class="fn" id="platform_info.is_unix"><div class="sig">static def <b>is_unix</b>() : bool</div><p>true when the program runs on a unix-like system (linux, macOS, BSD, ...)</p></div>
+<div class="fn" id="platform_info.is_windows"><div class="sig">static def <b>is_windows</b>() : bool</div><p>true when the program runs on windows</p></div>
+<div class="fn" id="platform_info.line_separator"><div class="sig">static def <b>line_separator</b>() : string</div><p>the line end text files usually have on this system: &quot;\n&quot; on unix, &quot;\r\n&quot; on windows</p></div>
+<div class="fn" id="platform_info.os_id"><div class="sig">static def <b>os_id</b>() : string</div><p>the operating system as the runtime names it: &quot;win&quot; or &quot;posix&quot;</p></div>
+<div class="fn" id="platform_info.os_name"><div class="sig">static def <b>os_name</b>() : string</div><p>the family of the operating system: &quot;windows&quot; or &quot;unix&quot;</p></div>
+<div class="fn" id="platform_info.path_list_separator"><div class="sig">static def <b>path_list_separator</b>() : decimal</div><p>the character between the entries of the PATH variable: &#x27;:&#x27; on unix, &#x27;;&#x27; on windows (as a character code)</p></div>
+<div class="fn" id="platform_info.path_separator"><div class="sig">static def <b>path_separator</b>() : decimal</div><p>the character between the parts of a path: &#x27;/&#x27; or &#x27;\&#x27; (as a character code)</p></div>
+<div class="fn" id="platform_info.platform_version"><div class="sig">static def <b>platform_version</b>() : string</div><p>the platform (runtime version) the running program was compiled for</p></div>
+<div class="fn" id="platform_info.processor_count"><div class="sig">static def <b>processor_count</b>() : decimal</div><p>the number of processors (cores) the machine has, at least 1</p></div>
+<div class="fn" id="platform_info.summary"><div class="sig">static def <b>summary</b>() : string</div><p>a one line summary for logs and bug reports, e.g. &quot;unix, 8 processors, app demo 1.0&quot;</p></div>
+<div class="fn" id="platform_info.temp_directory"><div class="sig">static def <b>temp_directory</b>() : string</div><p>the directory for temporary files (see temp_files.directory)</p></div>
+<div class="fn" id="platform_info.total_disk_space"><div class="sig">static def <b>total_disk_space</b>() : decimal</div><p>the size in bytes of the disk the program runs on, or -1 when unknown</p></div>
+<div class="fn" id="platform_info.user_name"><div class="sig">static def <b>user_name</b>() : string</div><p>the login name of the user (USER / LOGNAME on unix, USERNAME on windows), or &quot;&quot; when unknown</p></div>
+</div>
+</section>
+<section class="type" id="process">
+<h2><span class="kind">class</span> process</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/process.sharp">source</a></p>
+<p>Runs a command of the operating system and tells what came out of it.</p>
+<div class="code"><pre class="sharp">result := process.run(&quot;git status --short&quot;);
+if(result.succeeded()) {
+    foreach(line in result.output_lines()) { println(line); }
+} else {
+    println(&quot;git failed (&quot; + result.exit_code() + &quot;): &quot; + result.error_output());
+}</pre></div>
+<div class="code"><pre class="sharp">code := process.execute(&quot;make install&quot;);      // output goes straight to the console</pre></div>
+<p>A process object is the finished result of one run: the command, its exit code, and everything it printed to standard output and to standard error.</p>
+<p>How it works: the runtime can hand a command line to the shell (sys()) but cannot talk to the running program. So run() sends the output of the command into temporary files, waits for the command to end, reads the files and deletes them. Consequences: output is available only when the command has finished (no live progress), and a command that waits for keyboard input should get its input from run_with_input().</p>
+<p>The command is a command line for the shell (/bin/sh on unix, cmd.exe on windows), so pipes, &amp;&amp; and wild cards work - and anything put into it from outside has to be quoted: use process.quote() for every argument that is not a constant.</p>
+<p>Exit codes: 0 means success by convention. On unix a command that was ended by a signal reports 128 + the number of the signal, like the shell does, and &quot;command not found&quot; is 127.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="process.check"><div class="sig">def <b>check</b>() : process</div><p>Returns this result when the command succeeded. Throws io_exception with the command, the exit code and the error output when it did not - for commands that simply have to work.</p></div>
+<div class="fn" id="process.command"><div class="sig">def <b>command</b>() : string</div><p>the command line that was run</p></div>
+<div class="fn" id="process.command_exists"><div class="sig">static def <b>command_exists</b>(name: string) : bool</div><p>true when the shell can find a program called <code>name</code> (looked up the way the shell does, in the PATH)</p></div>
+<div class="fn" id="process.error_output"><div class="sig">def <b>error_output</b>() : string</div><p>everything the command printed to standard error (&quot;&quot; when nothing, and always &quot;&quot; after run_merged)</p></div>
+<div class="fn" id="process.execute"><div class="sig">static def <b>execute</b>(command: string) : decimal</div><p>Run <code>command</code> with its output going straight to the console (and its input coming from the keyboard), wait for it, and return its exit code.</p></div>
+<div class="fn" id="process.exit_code"><div class="sig">def <b>exit_code</b>() : decimal</div><p>the exit code of the command: 0 for success</p></div>
+<div class="fn" id="process.id"><div class="sig">static def <b>id</b>() : _int64</div><p>the number the system knows THIS program by (what subprocess.id() is, seen from the program that started it)</p></div>
+<div class="fn" id="process.output"><div class="sig">def <b>output</b>() : string</div><p>everything the command printed to standard output (&quot;&quot; when nothing)</p></div>
+<div class="fn" id="process.output_lines"><div class="sig">def <b>output_lines</b>() : list&lt;string&gt;</div><p>the standard output cut into lines (see io_strings.split_lines)</p></div>
+<div class="fn" id="process.output_trimmed"><div class="sig">def <b>output_trimmed</b>() : string</div><p>the standard output without white space and line ends at its beginning and end - handy for commands that print one value</p></div>
+<div class="fn" id="process.quote"><div class="sig">static def <b>quote</b>(argument: string) : string</div><p><code>argument</code> written so that the shell takes it as one argument, whatever it contains (spaces, quotes, wild cards, dollar signs): process.run(&quot;grep &quot; + process.quote(word) + &quot; &quot; + process.quote(path)). See io_strings.shell_quote.</p></div>
+<div class="fn" id="process.run"><div class="sig">static def <b>run</b>(command: string) : process</div><p>Run <code>command</code>, wait for it, and return the result with its exit code, standard output and standard error. Throws io_exception when the temporary files for the output cannot be used (the command itself failing is not an exception: look at exit_code()).</p></div>
+<div class="fn" id="process.run_merged"><div class="sig">static def <b>run_merged</b>(command: string) : process</div><p>Like run(), but standard error is mixed into standard output in the order the command printed it; error_output() of the result is &quot;&quot;. Throws io_exception when the temporary files cannot be used.</p></div>
+<div class="fn" id="process.run_with_input"><div class="sig">static def <b>run_with_input</b>(command: string, input: string) : process</div><p>Like run(), with <code>input</code> as the standard input of the command (what it would otherwise read from the keyboard). Throws io_exception when the temporary files cannot be used.</p></div>
+<div class="fn" id="process.succeeded"><div class="sig">def <b>succeeded</b>() : bool</div><p>true when the exit code is 0</p></div>
+</div>
+</section>
+<section class="type" id="rotating_log_file">
+<h2><span class="kind">class</span> rotating_log_file</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/logger.sharp">source</a></p>
+<p>A log file that is appended to and replaced by a new one when it is full (logger.add_rotating_file). It is kept open; each line goes to the end of the file, so nothing that is there is written again.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="rotating_log_file.rotating_log_file"><div class="sig"><b>rotating_log_file</b>(path: string, most: decimal, keep: decimal)</div></div>
+<div class="fn" id="rotating_log_file.close"><div class="sig">def <b>close</b>()</div></div>
+<div class="fn" id="rotating_log_file.flush"><div class="sig">def <b>flush</b>()</div></div>
+<div class="fn" id="rotating_log_file.write_line"><div class="sig">def <b>write_line</b>(line: string, flush_now: bool)</div></div>
+</div>
+</section>
+<section class="type" id="signal_hook">
+<h2><span class="kind">class</span> signal_hook</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/signals.sharp">source</a></p>
+<p>one hook of <code>signals</code> (a function value cannot be the element of a list by itself)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="signal_hook.signal_hook"><div class="sig"><b>signal_hook</b>(work: ()())</div></div>
+<div class="fn" id="signal_hook.run"><div class="sig">def <b>run</b>()</div></div>
+</div>
+</section>
+<section class="type" id="signals">
+<h2><span class="kind">class</span> signals</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/signals.sharp">source</a></p>
+<p>SIGNALS: being told when someone asks the program to stop, instead of being stopped</p>
+<div class="code"><pre class="sharp">signals.on_interrupt({ -&gt;                   // Ctrl+C
+    println(&quot;saving before I go...&quot;);
+    save_everything();
+    exit(0);
+});</pre></div>
+<div class="code"><pre class="sharp">signals.on_terminate({ -&gt; server.stop(); });    // `kill`, the system shutting down
+signals.on_hangup({ -&gt; reload_settings(); });   // the terminal was closed (not on Windows)</pre></div>
+<p>WITHOUT A HOOK each of the three ends the program at once, as always. WITH ONE the program is not ended: the hook runs, and what happens next is the hook&#x27;s to decide - most end the program themselves with exit(), after putting things in order; a hook that returns lets the program run on.</p>
+<p>Several hooks for one signal run in the order they were added. signals.forget_hooks() takes them all away: the signals end the program again.</p>
+<p>WHERE A HOOK RUNS: on a thread of its own, started with the first hook (<code>signal watcher</code>, a daemon: it does not keep the program alive). NOT in the middle of whatever the program was doing when the key was pressed - that is what makes a hook safe to write: it is ordinary code, it may print, lock, allocate, wait. It is another thread, so what it shares with the rest of the program is shared as between any two threads (lock it). It runs within a few hundredths of a second of the signal.</p>
+<p>A PROGRAM THAT DOES NOT ANSWER CAN STILL BE STOPPED. If Ctrl+C is pressed three more times while a hook has not come back for the next one (it hangs, or it loops), the program is ended the plain way.</p>
+<p>WHAT CANNOT BE HOOKED: a crash. And under sdb, Ctrl+C belongs to the debugger: it pauses the program, and an interrupt hook is not run.</p>
+<p>An exception a hook throws ends that hook, is printed, and the hooks after it still run.</p>
+<div class="code"><pre class="sharp">C comparison: signal() / sigaction(), whose handler runs inside the
+interrupted code and may call almost nothing. Go: signal.Notify, a
+channel read by a goroutine - the same idea as here.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="signals.forget_hooks"><div class="sig">static def <b>forget_hooks</b>()</div><p>take every hook away: Ctrl+C and the others end the program again</p></div>
+<div class="fn" id="signals.on_hangup"><div class="sig">static def <b>on_hangup</b>(hook: ()())</div><p>run <code>hook</code> when the program&#x27;s terminal is closed, instead of ending the program (never happens on Windows)</p></div>
+<div class="fn" id="signals.on_interrupt"><div class="sig">static def <b>on_interrupt</b>(hook: ()())</div><p>run <code>hook</code> when Ctrl+C is pressed, instead of ending the program</p></div>
+<div class="fn" id="signals.on_terminate"><div class="sig">static def <b>on_terminate</b>(hook: ()())</div><p>run <code>hook</code> when the program is asked to end (<code>kill</code>, the system shutting down), instead of ending it</p></div>
+</div>
+</section>
+<section class="type" id="subprocess">
+<h2><span class="kind">class</span> subprocess</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/subprocess.sharp">source</a></p>
+<p>A PROGRAM THIS PROGRAM STARTS AND TALKS TO WHILE IT RUNS</p>
+<div class="code"><pre class="sharp">child := subprocess.start(&quot;ping example.com&quot;);
+while(true) {
+    line := child.read_line();              // each line as the program prints it
+    if(line == null) { break; }             // null: it has closed its output (it ended)
+    println(&quot;&gt; &quot; + line!!);
+}
+code := child.wait();                       // its exit code
+child.close();</pre></div>
+<div class="code"><pre class="sharp">sorter := subprocess.start(&quot;sort&quot;);
+sorter.write_text(&quot;pear\napple\n&quot;);
+sorter.close_input();                       // &quot;that was all&quot;: the program sees the end of its input
+sorted := sorter.read_all_text();</pre></div>
+<p>process.run() (process.sharp) runs a command to its end and then hands over everything it printed. A subprocess is for the rest: output read while the program still runs, input written to it as the conversation goes, a program that is stopped from here (kill), or one that is only asked now and then whether it is still running.</p>
+<p>ANOTHER SHARP PROGRAM is started with run(program, arguments), and any program by its file and arguments with start_program(file, arguments).</p>
+<p>THE COMMAND is a command line for the system&#x27;s shell (/bin/sh on Linux, cmd.exe on Windows), as with process.run: pipes and &amp;&amp; work, and anything put into it from outside is quoted with process.quote().</p>
+<p>THREE STREAMS connect the two programs: what is written here is the program&#x27;s input; its output and its error output are read here, each on its own - or as one, in the order printed, with start(command, true). A read WAITS until something has arrived or the program has closed that stream. So a program that prints a lot on BOTH streams should be started merged, or have each stream read by a thread of its own: while this program waits on one, the other fills up and the program stops and waits for it to be read.</p>
+<p>close() lets go of the streams. It does not stop the program: kill() does.</p>
+<p>All of it is Sharp: posix_spawn and pipes on Linux, CreateProcess and pipes on Windows, called directly.</p>
+<div class="code"><pre class="sharp">Java comparison: ProcessBuilder and Process; Python: subprocess.Popen.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="subprocess.close"><div class="sig">def <b>close</b>()</div><p>Let go of the three streams (and, on Windows, of the system&#x27;s handle of the program). The program is not stopped by this; one that still runs is not waited for either - wait() before close() when its exit code matters. Closing twice does nothing.</p></div>
+<div class="fn" id="subprocess.close_input"><div class="sig">def <b>close_input</b>()</div><p>&quot;that was all&quot;: the program reads the end of its input. Nothing can be written afterwards.</p></div>
+<div class="fn" id="subprocess.command"><div class="sig">def <b>command</b>() : string</div><p>the command line it was started with</p></div>
+<div class="fn" id="subprocess.exit_code"><div class="sig">def <b>exit_code</b>() : _int64</div><p>The exit code of a program that has ended. Throws illegal_state_exception while it still runs: wait() first.</p></div>
+<div class="fn" id="subprocess.id"><div class="sig">def <b>id</b>() : _int64</div><p>The number the system knows the program by: the program&#x27;s own after start_program() and run(), the shell&#x27;s after start() - a command is run by the shell, which may start several programs for it. process.id() is THIS program&#x27;s.</p></div>
+<div class="fn" id="subprocess.is_running"><div class="sig">def <b>is_running</b>() : bool</div><p>is the program still running?</p></div>
+<div class="fn" id="subprocess.kill"><div class="sig">def <b>kill</b>()</div><p>Stop the program now. It gets no chance to tidy up. (Programs IT started are not stopped with it.) Nothing happens when it has ended.</p></div>
+<div class="fn" id="subprocess.read"><div class="sig">def <b>read</b>(most: _int64) : _int8[]</div><p>Wait for the program to print something and return it: at least one byte, at most <code>most</code>. An EMPTY array: it has closed its output (it ended, usually) and everything it printed has been read.</p></div>
+<div class="fn" id="subprocess.read_all_error_text"><div class="sig">def <b>read_all_error_text</b>() : string</div><p>everything the program prints as errors from here to the end (&quot;&quot; when it was started merged)</p></div>
+<div class="fn" id="subprocess.read_all_text"><div class="sig">def <b>read_all_text</b>() : string</div><p>everything the program prints from here to the end of its output (waits for it to close it)</p></div>
+<div class="fn" id="subprocess.read_error"><div class="sig">def <b>read_error</b>(most: _int64) : _int8[]</div><p>as read(), of the program&#x27;s error output (always empty when it was started merged)</p></div>
+<div class="fn" id="subprocess.read_line"><div class="sig">def <b>read_line</b>() : string?</div><p>The next line the program prints, without its line end (&quot;\n&quot; and &quot;\r\n&quot; both end one). Waits for it. Null when the program has closed its output and nothing is left.</p></div>
+<div class="fn" id="subprocess.read_text"><div class="sig">def <b>read_text</b>(most: _int64) : string</div><p>read as read() does, as a text</p></div>
+<div class="fn" id="subprocess.run"><div class="sig">static def <b>run</b>(program: string, arguments: string[]) : subprocess</div><p>Start another SHARP program: the compiled program at <code>program</code>, run by the same <code>sharp</code> this program is run by, with these arguments (what its main(args) gets).</p>
+<div class="code"><pre class="sharp">worker := subprocess.run(program_folder() + &quot;/worker&quot;, new string[] { &quot;--port&quot;, &quot;8080&quot; });
+again := subprocess.run(program_path(), new string[] { &quot;child&quot; });     // this very program, once more</pre></div>
+<p>The two programs are apart - each its own memory, its own threads - and talk through the three streams, like any two programs.</p></div>
+<div class="fn" id="subprocess.run-2"><div class="sig">static def <b>run</b>(program: string, arguments: string[], merge_errors: bool) : subprocess</div></div>
+<div class="fn" id="subprocess.start"><div class="sig">static def <b>start</b>(command: string) : subprocess</div><p>Start <code>command</code> with its output and its error output apart. Throws io_exception when the system cannot start it. (A command the shell does not know IS started - the shell is - and ends at once with the shell&#x27;s &quot;not found&quot; code and message.)</p></div>
+<div class="fn" id="subprocess.start-2"><div class="sig">static def <b>start</b>(command: string, merge_errors: bool) : subprocess</div><p>... with the error output mixed into the output, in the order printed, when <code>merge_errors</code></p></div>
+<div class="fn" id="subprocess.start_program"><div class="sig">static def <b>start_program</b>(program: string, arguments: string[]) : subprocess</div><p>Start a program by its file and its arguments, each handed over as it is - quoted for the shell here, so spaces and signs in them are safe.</p>
+<div class="code"><pre class="sharp">subprocess.start_program(&quot;git&quot;, new string[] { &quot;commit&quot;, &quot;-m&quot;, message });</pre></div>
+<p>No shell stays between the two programs: id() is the program&#x27;s own number and kill() stops the program itself. (Windows: a file that is not a program by itself - a .cmd or .bat script - is run by cmd.exe, and then the id is cmd.exe&#x27;s.)</p></div>
+<div class="fn" id="subprocess.start_program-2"><div class="sig">static def <b>start_program</b>(program: string, arguments: string[], merge_errors: bool) : subprocess</div></div>
+<div class="fn" id="subprocess.wait"><div class="sig">def <b>wait</b>() : _int64</div><p>Wait until the program has ended and return its exit code (0 means success by convention; on Linux a program ended by a signal has 128 + the signal&#x27;s number, as the shell says it).</p></div>
+<div class="fn" id="subprocess.wait_for"><div class="sig">def <b>wait_for</b>(milliseconds: _int64) : bool</div><p>wait at most that long; true when the program has ended by then</p></div>
+<div class="fn" id="subprocess.write"><div class="sig">def <b>write</b>(data: _int8[]) : subprocess</div><p>Write all of <code>data</code> to the program&#x27;s input. Throws io_exception when the input is closed or the program is gone.</p></div>
+<div class="fn" id="subprocess.write_text"><div class="sig">def <b>write_text</b>(text: string) : subprocess</div><p>write a text to the program&#x27;s input, as its bytes</p></div>
+</div>
+</section>
+<section class="type" id="windows_environment_clear">
+<h2><span class="kind">class</span> windows_environment_clear</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/system/environment.sharp">source</a></p>
+<p>SetEnvironmentVariableA with no text (C&#x27;s NULL) for the value, which is how Windows takes a name out</p>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

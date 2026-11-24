@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.crypto - Sharp standard library</title>
+<meta name="description" content="The std.crypto module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li class="on"><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.crypto</p>
+<h1>std.crypto <small>module</small></h1>
+<p class="contents"><a href="#crypto">crypto</a> <a href="#hash_work">hash_work</a> <a href="#hmac">hmac</a> <a href="#md5">md5</a> <a href="#pbkdf2">pbkdf2</a> <a href="#secure_random">secure_random</a> <a href="#sha1">sha1</a> <a href="#sha256">sha256</a></p>
+<section class="type" id="crypto">
+<h2><span class="kind">class</span> crypto</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hmac.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="crypto.hex"><div class="sig">static def <b>hex</b>(bytes: _int8[]?) : string</div><p>bytes as text, two characters each (0 to 9, a to f)</p></div>
+<div class="fn" id="crypto.same"><div class="sig">static def <b>same</b>(a: _int8[]?, b: _int8[]?) : bool</div><p>Are two secrets the same? Takes the same time wherever they differ: <code>==</code> stops at the first byte that is wrong, and how long it took tells an attacker how many bytes of a guess were right.</p></div>
+<div class="fn" id="crypto.same-2"><div class="sig">static def <b>same</b>(a: string, b: string) : bool</div></div>
+</div>
+</section>
+<section class="type" id="hash_work">
+<h2><span class="kind">class</span> hash_work</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+<p>HOW THE THREE WORK. They are built the same way (it has a name: the Merkle-Damgard construction):</p>
+<div class="code"><pre class="sharp">the data is cut into blocks of 64 bytes;
+a small state (4, 5 or 8 numbers of 32 bits) starts at fixed values;
+each block is stirred into the state by a fixed recipe of adds, rotations and bit operations;
+the last block is padded: a 1 bit, zeros, and the length of the data in bits;
+the state at the end, written out, is the fingerprint.</pre></div>
+<p>Only the recipe - and whether numbers are written big end or little end first - differs. A 32-bit number lives in an _int64 here and is cut back to 32 bits (<code>&amp; M</code>) after every add.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>MD5</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>SHA1</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>SHA256</code></td><td><code>_int64</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="hash_work.hash_work"><div class="sig"><b>hash_work</b>(kind: _int64)</div></div>
+<div class="fn" id="hash_work.add"><div class="sig">def <b>add</b>(data: _int8[]?)</div></div>
+<div class="fn" id="hash_work.finish"><div class="sig">def <b>finish</b>() : _int8[]</div></div>
+<div class="fn" id="hash_work.size_of"><div class="sig">static def <b>size_of</b>(kind: _int64) : _int64</div><p>how many bytes the fingerprint of this kind has</p></div>
+</div>
+</section>
+<section class="type" id="hmac">
+<h2><span class="kind">class</span> hmac</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hmac.sharp">source</a></p>
+<p>SIGNATURES WITH A SHARED SECRET (HMAC), and passwords (PBKDF2)</p>
+<div class="code"><pre class="sharp">signature := hmac.sha256_hex(secret, message);</pre></div>
+<p>A hash of a message that only someone with the KEY can compute: a server that signs what it hands out (a session token, a webhook body, the parameters of an API call) can check later that it comes back unchanged and was signed by a holder of the key. Compare a signature you received with the one you computed using crypto.same(a, b), never ==.</p>
+<div class="code"><pre class="sharp">hmac.sha256(key, message)           32 bytes        key and message as bytes
+hmac.sha256_hex(key, message)       as text         key and message as texts
+hmac.sha1 / sha1_hex                20 bytes        (old APIs, TOTP codes)
+hmac.md5 / md5_hex                  16 bytes        (older APIs still)</pre></div>
+<p>PASSWORDS. To store a password, store this instead:</p>
+<div class="code"><pre class="sharp">salt := secure_random.bytes(16);                            // new for every password, stored beside it
+stored := pbkdf2.sha256(password, salt, 100000, 32);        // 100000 rounds of hmac</pre></div>
+<p>and to check one, compute it again from what was typed and the stored salt, and compare with crypto.same. The rounds make each guess cost someone who stole the stored values as much as it costs you once.</p>
+<div class="code"><pre class="sharp">Java comparison: Mac.getInstance(&quot;HmacSHA256&quot;), SecretKeyFactory(&quot;PBKDF2WithHmacSHA256&quot;);
+Python: hmac.new(key, msg, &quot;sha256&quot;), hashlib.pbkdf2_hmac.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="hmac.md5"><div class="sig">static def <b>md5</b>(key: _int8[]?, message: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="hmac.md5_hex"><div class="sig">static def <b>md5_hex</b>(key: string, message: string) : string</div></div>
+<div class="fn" id="hmac.of"><div class="sig">static def <b>of</b>(kind: _int64, key: _int8[]?, message: _int8[]?) : _int8[]</div><p>hash(key ^ outer, hash(key ^ inner, message)): the key is mixed in twice, with two fixed patterns, so that knowing hash(message) helps nobody. A key longer than a block (64 bytes) is hashed first.</p></div>
+<div class="fn" id="hmac.sha1"><div class="sig">static def <b>sha1</b>(key: _int8[]?, message: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="hmac.sha1_hex"><div class="sig">static def <b>sha1_hex</b>(key: string, message: string) : string</div></div>
+<div class="fn" id="hmac.sha256"><div class="sig">static def <b>sha256</b>(key: _int8[]?, message: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="hmac.sha256_hex"><div class="sig">static def <b>sha256_hex</b>(key: string, message: string) : string</div></div>
+</div>
+</section>
+<section class="type" id="md5">
+<h2><span class="kind">class</span> md5</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="md5.add"><div class="sig">def <b>add</b>(text: string) : md5</div></div>
+<div class="fn" id="md5.add_bytes"><div class="sig">def <b>add_bytes</b>(data: _int8[]?) : md5</div></div>
+<div class="fn" id="md5.bytes"><div class="sig">def <b>bytes</b>() : _int8[]</div></div>
+<div class="fn" id="md5.bytes-2"><div class="sig">static def <b>bytes</b>(text: string) : _int8[]</div></div>
+<div class="fn" id="md5.bytes_of"><div class="sig">static def <b>bytes_of</b>(data: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="md5.hex"><div class="sig">def <b>hex</b>() : string</div></div>
+<div class="fn" id="md5.hex-2"><div class="sig">static def <b>hex</b>(text: string) : string</div></div>
+<div class="fn" id="md5.hex_of"><div class="sig">static def <b>hex_of</b>(data: _int8[]?) : string</div></div>
+<div class="fn" id="md5.hex_of_file"><div class="sig">static def <b>hex_of_file</b>(source: file) : string</div></div>
+</div>
+</section>
+<section class="type" id="pbkdf2">
+<h2><span class="kind">class</span> pbkdf2</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hmac.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="pbkdf2.sha256"><div class="sig">static def <b>sha256</b>(password: string, salt: _int8[]?, rounds: _int64, length: _int64) : _int8[]</div><p><code>length</code> bytes made from a password and a salt by <code>rounds</code> rounds of hmac-sha256. More rounds: slower for you once, slower for an attacker every guess (100000 or more).</p></div>
+<div class="fn" id="pbkdf2.sha256_hex"><div class="sig">static def <b>sha256_hex</b>(password: string, salt: _int8[]?, rounds: _int64, length: _int64) : string</div></div>
+</div>
+</section>
+<section class="type" id="secure_random">
+<h2><span class="kind">class</span> secure_random</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/secure_random.sharp">source</a></p>
+<p>RANDOM NUMBERS NOBODY CAN GUESS</p>
+<div class="code"><pre class="sharp">key := secure_random.bytes(32);         // 32 random bytes
+id := secure_random.hex(16);            // 32 characters, 0 to 9 and a to f
+token := secure_random.token(24);       // 32 characters that are safe in an address (letters, digits, - and _)
+roll := secure_random.below(6) + 1;     // 1 to 6, each as likely as the others</pre></div>
+<p>std&#x27;s rand() and seeded_random are for games and simulations: fast, and the same seed gives the same numbers - so whoever sees a few of them can work out the rest. Keys, tokens, salts, session ids and passwords have to come from here: the operating system&#x27;s own generator, which collects what cannot be predicted (the timing of the hardware) and is what the system&#x27;s own encryption uses.</p>
+<div class="code"><pre class="sharp">Windows     BCryptGenRandom (bcrypt.dll)
+Linux       getrandom</pre></div>
+<p>Throws illegal_state_exception when the system gives none (which does not happen on a working system).</p>
+<div class="code"><pre class="sharp">Java comparison: java.security.SecureRandom; Python: secrets.token_bytes / token_urlsafe.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="secure_random.below"><div class="sig">static def <b>below</b>(limit: _int64) : _int64</div><p>A whole number from 0 up to, not including, <code>limit</code> - each equally likely (numbers that would favour the low ones are thrown away).</p></div>
+<div class="fn" id="secure_random.bytes"><div class="sig">static def <b>bytes</b>(count: _int64) : _int8[]</div></div>
+<div class="fn" id="secure_random.hex"><div class="sig">static def <b>hex</b>(count: _int64) : string</div><p><code>count</code> random bytes written as 2 * count characters</p></div>
+<div class="fn" id="secure_random.token"><div class="sig">static def <b>token</b>(count: _int64) : string</div><p><code>count</code> random bytes as text that can stand in an address, a file name or a header as it is</p></div>
+<div class="fn" id="secure_random.uuid"><div class="sig">static def <b>uuid</b>() : string</div><p>a random id in the usual form: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx (a version 4 UUID)</p></div>
+</div>
+</section>
+<section class="type" id="sha1">
+<h2><span class="kind">class</span> sha1</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="sha1.add"><div class="sig">def <b>add</b>(text: string) : sha1</div></div>
+<div class="fn" id="sha1.add_bytes"><div class="sig">def <b>add_bytes</b>(data: _int8[]?) : sha1</div></div>
+<div class="fn" id="sha1.bytes"><div class="sig">def <b>bytes</b>() : _int8[]</div></div>
+<div class="fn" id="sha1.bytes-2"><div class="sig">static def <b>bytes</b>(text: string) : _int8[]</div></div>
+<div class="fn" id="sha1.bytes_of"><div class="sig">static def <b>bytes_of</b>(data: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="sha1.hex"><div class="sig">def <b>hex</b>() : string</div></div>
+<div class="fn" id="sha1.hex-2"><div class="sig">static def <b>hex</b>(text: string) : string</div></div>
+<div class="fn" id="sha1.hex_of"><div class="sig">static def <b>hex_of</b>(data: _int8[]?) : string</div></div>
+<div class="fn" id="sha1.hex_of_file"><div class="sig">static def <b>hex_of_file</b>(source: file) : string</div></div>
+</div>
+</section>
+<section class="type" id="sha256">
+<h2><span class="kind">class</span> sha256</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+<p>HASHES: a fingerprint of any amount of data</p>
+<div class="code"><pre class="sharp">sha256.hex(&quot;hello&quot;)                 &quot;2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824&quot;
+sha256.bytes(&quot;hello&quot;)               the same 32 bytes, not written out
+sha256.hex_of(bytes)                of bytes instead of a text
+sha256.hex_of_file(new file(&quot;a.zip&quot;))</pre></div>
+<div class="code"><pre class="sharp">// data that comes in pieces
+running := new sha256();
+running.add(&quot;first part&quot;);
+running.add_bytes(more);
+print(running.hex());</pre></div>
+<p>The same data always gives the same fingerprint; any change to it gives a completely different one; and nobody can make data to fit a fingerprint. That is what downloads are checked with, what signatures and tokens are built from (hmac, in hmac.sharp), and how a file is named by its content.</p>
+<div class="code"><pre class="sharp">sha256      32 bytes. The one to use.
+sha1        20 bytes. Broken for security (two different files with one fingerprint
+            have been made); still what git, WebSocket handshakes and old APIs ask for.
+md5         16 bytes. Broken the same way, long ago; for old checksums and ETags only.</pre></div>
+<p>NOT FOR PASSWORDS as they are: a fingerprint is fast to compute, so every password can be tried. Passwords go through pbkdf2 (hmac.sharp).</p>
+<p>All three are written in Sharp (no library is called); a megabyte takes a moment, not an instant.</p>
+<div class="code"><pre class="sharp">Java comparison: MessageDigest.getInstance(&quot;SHA-256&quot;); Python: hashlib.sha256(data).hexdigest().</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="sha256.add"><div class="sig">def <b>add</b>(text: string) : sha256</div></div>
+<div class="fn" id="sha256.add_bytes"><div class="sig">def <b>add_bytes</b>(data: _int8[]?) : sha256</div></div>
+<div class="fn" id="sha256.bytes"><div class="sig">def <b>bytes</b>() : _int8[]</div><p>the fingerprint of everything added. The object is used up: make a new one for other data.</p></div>
+<div class="fn" id="sha256.bytes-2"><div class="sig">static def <b>bytes</b>(text: string) : _int8[]</div></div>
+<div class="fn" id="sha256.bytes_of"><div class="sig">static def <b>bytes_of</b>(data: _int8[]?) : _int8[]</div></div>
+<div class="fn" id="sha256.hex"><div class="sig">def <b>hex</b>() : string</div></div>
+<div class="fn" id="sha256.hex-2"><div class="sig">static def <b>hex</b>(text: string) : string</div></div>
+<div class="fn" id="sha256.hex_of"><div class="sig">static def <b>hex_of</b>(data: _int8[]?) : string</div></div>
+<div class="fn" id="sha256.hex_of_file"><div class="sig">static def <b>hex_of_file</b>(source: file) : string</div></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

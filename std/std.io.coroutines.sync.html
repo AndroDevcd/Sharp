@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.io.coroutines.sync - Sharp standard library</title>
+<meta name="description" content="The std.io.coroutines.sync module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="on sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.io.coroutines.sync</p>
+<h1>std.io.coroutines.sync <small>module</small></h1>
+<p class="contents"><a href="#mutex">mutex</a> <a href="#semaphore">semaphore</a></p>
+<section class="type" id="mutex">
+<h2><span class="kind">class</span> mutex</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/sync/mutex.sharp">source</a></p>
+<p>mutex - a lock for coroutines: one at a time, the others are SUSPENDED (not spinning, not blocking their thread) until it is their turn.</p>
+<p>USAGE guard := new mutex();</p>
+<div class="code"><pre class="sharp">guard.with_lock({ -&gt;            // acquire, run the block, release - whatever happens
+    balance.value = balance.value + 10;
+});</pre></div>
+<div class="code"><pre class="sharp">guard.acquire();                // or by hand, when the two ends are in different places
+try { ... } finally { guard.release(); }</pre></div>
+<p>WHEN TO USE IT INSTEAD OF lock(obj) { } lock(obj) is for a few instructions. A fiber that sleeps (delay, channel, join ...) while it holds lock(obj) keeps everybody else out, and an exception that leaves a lock block does not release it. A mutex may be held across suspension points, waiting for it can be cancelled, and it is handed over in the order the waiters arrived.</p>
+<p>It is NOT reentrant: a coroutine that calls acquire() while it holds the mutex waits for itself for ever (try_acquire() returns false). It works from plain fibers and threads as well.</p>
+<p>Kotlin equivalent: kotlinx.coroutines.sync.Mutex (acquire = lock, release = unlock, with_lock = withLock; <code>lock</code> is a keyword in Sharp). C++ equivalent: std::mutex whose lock() suspends a fiber.</p>
+<p>LOCKING DISCIPLINE <code>lk</code> (a stripe of lock_stripes, picked once) guards held, owner and waiters, and is the guard of every waiter queued here. No other lock is taken while it is held, nothing throws and no user code runs inside a lock block. release() with waiters does not unlock: it hands the mutex straight to the oldest waiter (held stays 1, owner becomes that fiber), so nobody can jump the queue.</p>
+<p>Suspends: acquire(), with_lock(). Cancellation: acquire() is a cancellation point; a cancelled wait does not get the mutex.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="mutex.mutex"><div class="sig"><b>mutex</b>()</div><p>an unlocked mutex</p></div>
+<div class="fn" id="mutex.acquire"><div class="sig">def <b>acquire</b>()</div><p>Take the mutex, waiting for it if somebody else has it.</p>
+<p>SUSPENDS while it is taken. A cancellation point: checked on entry; when the caller is cancelled while it waits it is taken out of the queue and cancellation_exception is thrown (the mutex is then NOT held). Kotlin: Mutex.lock()</p></div>
+<div class="fn" id="mutex.holds_lock"><div class="sig">def <b>holds_lock</b>() : bool</div><p>true when the calling fiber is the one that holds the mutex. Kotlin: Mutex.holdsLock(owner)</p></div>
+<div class="fn" id="mutex.is_locked"><div class="sig">def <b>is_locked</b>() : bool</div><p>true while somebody holds the mutex. Kotlin: Mutex.isLocked</p></div>
+<div class="fn" id="mutex.release"><div class="sig">def <b>release</b>()</div><p>Give the mutex back; the coroutine that has waited longest gets it. Never suspends. Any fiber may release (hand-over patterns are allowed), holds_lock() tells who holds it. @throws illegal_state_exception when the mutex is not held Kotlin: Mutex.unlock()</p></div>
+<div class="fn" id="mutex.try_acquire"><div class="sig">def <b>try_acquire</b>() : bool</div><p>Take the mutex if it is free right now. @return true when the caller holds it now Never suspends, not a cancellation point. Kotlin: Mutex.tryLock()</p></div>
+<div class="fn" id="mutex.waiting_count"><div class="sig">def <b>waiting_count</b>() : decimal</div><p>number of coroutines waiting for the mutex right now</p></div>
+<div class="fn" id="mutex.with_lock"><div class="sig">def <b>with_lock</b>(block: ()())</div><p>acquire(), run <code>block</code>, release() - also when the block throws (the exception is thrown on after the release).</p>
+<p>The block runs in-line and may capture locals. SUSPENDS while it waits for the mutex; a cancellation point (a cancelled wait does not run the block). @throws illegal_state_exception when called from inside the block of another with_lock() on the same fiber, of this or any other mutex (THE NESTING RULE, std/io/coroutines/scope/scopes.sharp: the runtime cannot continue a fiber with one function on its stack twice). Take the second mutex with acquire() / release() instead. Kotlin: mutex.withLock { }</p></div>
+</div>
+</section>
+<section class="type" id="semaphore">
+<h2><span class="kind">class</span> semaphore</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/sync/semaphore.sharp">source</a></p>
+<p>semaphore - a counter of permits: at most N coroutines inside at the same time, the others are suspended until a permit comes back.</p>
+<p>USAGE downloads := new semaphore(4);           // at most 4 at once</p>
+<div class="code"><pre class="sharp">for(i : decimal = 0; i &lt; 100; i++) {
+    launch(downloads, { s: object -&gt;
+        limit := s as semaphore;
+        limit.acquire();
+        try { fetch_next(); } finally { limit.release(); }
+    });
+}</pre></div>
+<div class="code"><pre class="sharp">downloads.with_permit({ -&gt; fetch_next(); });     // the same, for an in-line block</pre></div>
+<p>A semaphore with 0 permits is a signal: one side waits in acquire(), the other wakes it with release(). It works from plain fibers and threads as well.</p>
+<p>Kotlin equivalent: kotlinx.coroutines.sync.Semaphore (with_permit = withPermit). Java equivalent: java.util.concurrent.Semaphore (fair). C++ equivalent: std::counting_semaphore whose acquire() suspends a fiber.</p>
+<p>LOCKING DISCIPLINE <code>lk</code> (a stripe of lock_stripes, picked once) guards permits and waiters, and is the guard of every waiter queued here. No other lock is taken while it is held, nothing throws and no user code runs inside a lock block. release() with waiters hands the permit straight to the oldest waiter instead of increasing the count (first come first served).</p>
+<p>Suspends: acquire(), with_permit(). Cancellation: acquire() is a cancellation point; a cancelled wait does not take a permit.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="semaphore.semaphore"><div class="sig"><b>semaphore</b>(permits: decimal)</div><p>@param permits how many permits are available at the start (0 or more) @throws illegal_argument_exception for a negative number</p></div>
+<div class="fn" id="semaphore.acquire"><div class="sig">def <b>acquire</b>()</div><p>Take one permit, waiting for one if there is none.</p>
+<p>SUSPENDS while no permit is available. A cancellation point: checked on entry; a cancelled wait is taken out of the queue and throws cancellation_exception (no permit is taken then). Kotlin: Semaphore.acquire()</p></div>
+<div class="fn" id="semaphore.acquire_for"><div class="sig">def <b>acquire_for</b>(ms: decimal) : bool</div><p>acquire() that gives up after <code>ms</code> milliseconds. @return true when a permit was taken, false when the time ran out SUSPENDS for at most <code>ms</code>. A cancellation point. Java: tryAcquire(timeout, MILLISECONDS)</p></div>
+<div class="fn" id="semaphore.available_permits"><div class="sig">def <b>available_permits</b>() : decimal</div><p>number of permits that can be taken without waiting. Kotlin: availablePermits</p></div>
+<div class="fn" id="semaphore.release"><div class="sig">def <b>release</b>()</div><p>Give one permit back (or add one: a semaphore does not remember who took what). The coroutine that has waited longest gets it. Never suspends. Kotlin: Semaphore.release()</p></div>
+<div class="fn" id="semaphore.try_acquire"><div class="sig">def <b>try_acquire</b>() : bool</div><p>Take a permit if one is available right now. @return true when a permit was taken Never suspends, not a cancellation point. Kotlin: Semaphore.tryAcquire()</p></div>
+<div class="fn" id="semaphore.waiting_count"><div class="sig">def <b>waiting_count</b>() : decimal</div><p>number of coroutines waiting for a permit right now</p></div>
+<div class="fn" id="semaphore.with_permit"><div class="sig">def <b>with_permit</b>(block: ()())</div><p>acquire(), run <code>block</code>, release() - also when the block throws.</p>
+<p>The block runs in-line and may capture locals. SUSPENDS while it waits for a permit; a cancellation point. @throws illegal_state_exception when called from inside the block of another with_permit() on the same fiber (THE NESTING RULE, std/io/coroutines/scope/scopes.sharp); use acquire() / release() for the inner one. Kotlin: semaphore.withPermit { }</p></div>
+</div>
+</section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

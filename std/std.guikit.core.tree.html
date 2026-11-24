@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.core.tree - Sharp standard library</title>
+<meta name="description" content="The std.guikit.core.tree module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="on sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.core.tree</p>
+<h1>std.guikit.core.tree <small>module</small></h1>
+<p class="contents"><a href="#behavior">behavior</a> <a href="#clipper">clipper</a> <a href="#drag_scroller">drag_scroller</a> <a href="#element">element</a> <a href="#floater">floater</a> <a href="#key_target">key_target</a> <a href="#overlay_painter">overlay_painter</a> <a href="#pointer_target">pointer_target</a> <a href="#scope">scope</a> <a href="#stateful">stateful</a> <a href="#view">view</a> <a href="#wheel_target">wheel_target</a> <a href="#widget">widget</a> <a href="#constants">constants</a></p>
+<section class="type" id="behavior">
+<h2><span class="kind">interface</span> behavior</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>What every kind of widget must answer.</p>
+<p>The widget object holds its own view (<code>me</code>, from the widget base class), so these take no view argument.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="behavior.arrange"><div class="sig">def <b>arrange</b>()</div><p>Your view now has its final place. Put your CHILDREN where they belong inside your content box (me.inner_x() ... me.inner_h()), each at the size its measure answered (kid.want_w x kid.want_h). Only positions are decided here; sizes were decided in measure. A widget without children does nothing here.</p></div>
+<div class="fn" id="behavior.kind"><div class="sig">def <b>kind</b>() : string</div><p>A short name of the kind (&quot;button&quot;, &quot;column&quot;). When the screen is rebuilt, a new widget only takes over the remembered state of an old one (scroll position, text cursor) when the kinds match.</p></div>
+<div class="fn" id="behavior.measure"><div class="sig">def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div><p>How big does your CONTENT want to be? It may be anything from min_w x min_h up to max_w x max_h (a max may be UNBOUNDED; min equal to max means the size is already decided). Answer by setting me.content_w and me.content_h; the view pulls the answer into the range, so a widget that just reports its natural size is correct.</p>
+<p>Padding and the size modifiers are the view&#x27;s business, not yours: the numbers you get are already for the content alone.</p>
+<p>A container measures its CHILDREN here - every child exactly once, with the range it decides for that child - and answers from their sizes.</p></div>
+<div class="fn" id="behavior.paint"><div class="sig">def <b>paint</b>(p: painter)</div><p>Paint your own content. The view has already painted the background and border; your children are painted after you return, on top.</p></div>
+</div>
+</section>
+<section class="type" id="clipper">
+<h2><span class="kind">interface</span> clipper</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A widget whose children must not paint (or be clicked) outside its box: a scrolling area.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="clipper.clips"><div class="sig">def <b>clips</b>() : _int64</div></div>
+</div>
+</section>
+<section class="type" id="drag_scroller">
+<h2><span class="kind">interface</span> drag_scroller</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A scrolling widget whose content can be DRAGGED to scroll it, the way a finger moves a list on a touch screen. When a press on something inside it turns into a drag, the host takes the gesture away from what was pressed (that is not a click any more) and feeds the movement here instead.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="drag_scroller.drag_by"><div class="sig">def <b>drag_by</b>(dx: decimal, dy: decimal)</div><p>the content was dragged this far since the last time, across and down, in pixels</p></div>
+</div>
+</section>
+<section class="type" id="element">
+<h2><span class="kind">interface</span> element</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>Anything that can be put into the tree with .add(...): it has a view.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="element.node"><div class="sig">def <b>node</b>() : view</div></div>
+</div>
+</section>
+<section class="type" id="floater">
+<h2><span class="kind">interface</span> floater</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A widget whose children are NOT part of the page: they float above everything - a dialog, a menu. The view neither paints nor hit-tests a floater&#x27;s children in the normal walk of the tree; the host does both for them afterwards, on top (popup.sharp, and &quot;overlays&quot; in host.sharp).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="floater.floats"><div class="sig">def <b>floats</b>() : _int64</div></div>
+</div>
+</section>
+<section class="type" id="key_target">
+<h2><span class="kind">interface</span> key_target</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A widget that takes the keyboard while it has the focus (a text field, a slider moved with the arrow keys).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="key_target.key"><div class="sig">def <b>key</b>(e: event) : _int64</div><p>a key went down. Return 1 when it was used (0: the framework may use it: Tab moves the focus).</p></div>
+<div class="fn" id="key_target.typed"><div class="sig">def <b>typed</b>(words: string)</div><p>text was typed (already with shift, caps lock and keyboard layout applied)</p></div>
+</div>
+</section>
+<section class="type" id="overlay_painter">
+<h2><span class="kind">interface</span> overlay_painter</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A widget that paints something OVER its children too: a scroll bar.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="overlay_painter.paint_over"><div class="sig">def <b>paint_over</b>(p: painter)</div></div>
+</div>
+</section>
+<section class="type" id="pointer_target">
+<h2><span class="kind">interface</span> pointer_target</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A widget that wants the mouse in detail - where it was pressed, dragging - like a slider or a text field. (A plain click needs none of this: give the view an on_click and the framework does the rest.)</p>
+<p>From the press until the release, every move goes to the SAME widget, also when the mouse leaves it: that is what makes dragging a slider work.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="pointer_target.pointer"><div class="sig">def <b>pointer</b>(what: _int64, x: decimal, y: decimal)</div></div>
+</div>
+</section>
+<section class="type" id="scope">
+<h2><span class="kind">class</span> scope</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/scope.sharp">source</a></p>
+<p>scope - what makes the nested, Compose-like way of writing a screen work:</p>
+<div class="code"><pre class="sharp">gui.column {
+    gui.text(&quot;Hello&quot;);                       // lands in the column ...
+    gui.row {
+        gui.button(&quot;No&quot;) { answer(0); };     // ... these land in the row ...
+        gui.button(&quot;Yes&quot;) { answer(1); };
+    };
+    if(show_hint.value == 1) {
+        gui.text(&quot;ordinary `if` and `for` work in here&quot;).dim();
+    }
+}</pre></div>
+<p>Nobody calls .add(). A widget made INSIDE a container&#x27;s block becomes a child of that container, in the order the lines run.</p>
+<p>HOW: there is one &quot;open container&quot; at any moment (<code>open</code>, below).</p>
+<p>- A container given a block opens itself (remembering what was open before), runs the block, and puts the previous one back. Blocks nest, so this behaves like a stack - kept on the call stack by <code>fill</code>, with no list to manage. - Every widget, the moment it is made, asks the scope to adopt it (widget.attach, and the composable&#x27;s constructor). If a container is open, the widget is added to it; if none is, nothing happens.</p>
+<p>That is all the &quot;magic&quot; there is. Compose does the equivalent in its compiler (every @Composable call gets a hidden <code>composer</code> argument that knows the current group); here it is one static field you can read.</p>
+<p>BOTH STYLES MIX. .add(child) still works everywhere, also inside a block: a widget that is already somewhere is MOVED, never duplicated (view.add_kid). So <code>gui.row().add(gui.text(&quot;a&quot;))</code> written inside a column&#x27;s block ends up as the column holding the row holding the text.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>open</code></td><td><code>view?</code></td><td>the container whose block is running right now (null: none)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="scope.adopt"><div class="sig">static def <b>adopt</b>(fresh: view)</div><p>a widget was just made: if a block is running, it belongs to that block&#x27;s container</p></div>
+<div class="fn" id="scope.collect"><div class="sig">static def <b>collect</b>(as_kind: string, block: ()()) : view</div><p>Run <code>block</code> on its own, into a container that is part of nothing, and hand that container back: its kids are the widgets the block made.</p>
+<p>For functions whose block does not describe CHILDREN but something else they want to look at first - the first screen of a screen stack, the options of a dropdown. <code>as_kind</code> is the kind the container reports while the block runs (&quot;dropdown&quot;), so that things which only belong in such a block (option(...)) can check they are in the right place (inside, below).</p></div>
+<div class="fn" id="scope.fill"><div class="sig">static def <b>fill</b>(container: view, block: ()())</div><p>run <code>block</code> with <code>container</code> as the open container, then put back whichever was open before</p></div>
+<div class="fn" id="scope.inside"><div class="sig">static def <b>inside</b>(wanted_kind: string, written: string, belongs_in: string) : view</div><p>SOME THINGS ONLY MAKE SENSE INSIDE ONE PARTICULAR PARENT: tab(...) inside tabs { }, item / items inside lazy_column { }, option(...) inside dropdown { }. Such a function calls this first. It hands back the open container when that is of the kind asked for - and otherwise stops the program with an error that says what was written and where it belongs:</p>
+<div class="code"><pre class="sharp">illegal_state_exception: `tab(...)` only works inside `tabs { ... }`
+(here it was used inside a `column`)</pre></div>
+<p>(Compose catches the same mistake at compile time with scope types - RowScope, LazyListScope. Sharp has no receiver types for blocks, so it is checked when the line runs: the first time the screen is built.)</p></div>
+<div class="fn" id="scope.lone_row"><div class="sig">static def <b>lone_row</b>(space: decimal, block: ()()) : view</div><p>Run <code>block</code> into a ROW of its own that belongs to nothing yet, and hand the row&#x27;s box back: the widgets the block made sit in it side by side, <code>space</code> pixels apart.</p>
+<p>For a widget that takes a block for one PART of itself - the caption of a checkbox, the title of a tab: it makes the part with this, adds the box as its child and gives it a place in its own arrange().</p></div>
+</div>
+</section>
+<section class="type" id="stateful">
+<h2><span class="kind">interface</span> stateful</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A widget that remembers something between frames that is NOT in the program&#x27;s state: how far a list is scrolled, where the text cursor is, how far a switch has slid. When the screen is rebuilt a NEW widget object is made; <code>adopt</code> is its chance to copy those things from the old one it replaces (same kind, same place in the tree).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="stateful.adopt"><div class="sig">def <b>adopt</b>(old: behavior)</div></div>
+</div>
+</section>
+<section class="type" id="view">
+<h2><span class="kind">class</span> view</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/view.sharp">source</a></p>
+<p>view - one box on the screen, and one node of the tree.</p>
+<p>Every widget has exactly one view. The view holds what ALL boxes have in common and does the work that is the same for all of them:</p>
+<div class="code"><pre class="sharp">the tree         parent, kids
+the box model    padding, fixed / minimum / maximum size, &quot;fill&quot;, background,
+                 corner radius, border
+layout           measure() works out the size it wants, arrange() gives it
+                 its final place - asking its behavior about the content
+painting         background, border, then the behavior, then the kids
+the mouse        which view is under a point; hovered / pressed; on_click</pre></div>
+<p>What is DIFFERENT per kind of widget lives in its <code>behavior</code> (behavior.sharp): <code>how</code>. A view never checks &quot;am I a button?&quot;.</p>
+<p>LAYOUT IN TWO PASSES (the same idea as Android, Flutter and Compose):</p>
+<p>1. measure(low_w, high_w, low_h, high_h) top-down the allowed range of sizes, bottom-up the answers: &quot;inside that, I want want_w x want_h&quot;. 2. arrange(x, y, w, h)       top-down: &quot;here is your final rectangle&quot; - the size it answered, at the place the parent chose.</p>
+<p>All positions are in WINDOW pixels (not relative to the parent). That makes painting and &quot;what is under the mouse&quot; trivial; moving a subtree (scrolling) is done by arranging it again.</p>
+<p>THE BOX:</p>
+<div class="code"><pre class="sharp">(x, y) +------------------------------+
+       |  padding                     |
+       |   +----------------------+   |
+       |   |  content             |   |   h
+       |   |  (inner_x .. inner_h)|   |
+       |   +----------------------+   |
+       +------------------------------+
+                      w</pre></div>
+<p>You normally never touch a view directly: a modifier passed to the widget (.padding(), .background(), .fill() ...) sets these fields for you (modifier.sharp).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>parent</code></td><td><code>view?</code></td><td></td></tr><tr><td><code>kids</code></td><td><code>list&lt;view&gt;</code></td><td></td></tr><tr><td><code>how</code></td><td><code>behavior</code></td><td>what kind of widget this box is</td></tr><tr><td><code>key</code></td><td><code>string</code></td><td>An optional name for this box among its siblings.</td></tr><tr><td><code>at_set</code></td><td><code>_int64</code></td><td>A place in the PARENT&#x27;S own terms, for a parent that puts its children where its content says rather than in a row or a column: in a chart, the place across and the number up (m...</td></tr><tr><td><code>at_across</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>at_up</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>pad_left</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>pad_top</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>pad_right</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>pad_bottom</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>fixed_w</code></td><td><code>decimal</code></td><td>an exact width; -1: as wide as the content needs</td></tr><tr><td><code>fixed_h</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>min_w</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>min_h</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>max_w</code></td><td><code>decimal</code></td><td>-1: no limit</td></tr><tr><td><code>max_h</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>fill_w</code></td><td><code>_int64</code></td><td>1: take all the width the parent offers</td></tr><tr><td><code>fill_h</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>weight</code></td><td><code>decimal</code></td><td>share of the LEFTOVER room along the parent&#x27;s direction (row / column)</td></tr><tr><td><code>mar_left</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mar_top</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mar_right</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mar_bottom</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>part_w</code></td><td><code>decimal</code></td><td>this fraction of the width the parent offers (0.5 = half); 0: not used</td></tr><tr><td><code>part_h</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>aspect</code></td><td><code>decimal</code></td><td>keep width / height at this ratio (16.0 / 9); 0: not used</td></tr><tr><td><code>self_align</code></td><td><code>_int64</code></td><td>across a row or column (ALIGN_...); -1: as the container says</td></tr><tr><td><code>self_across</code></td><td><code>_int64</code></td><td>in a stack: left / center / right; -1: as the stack says</td></tr><tr><td><code>self_down</code></td><td><code>_int64</code></td><td>in a stack: top / center / bottom</td></tr><tr><td><code>back</code></td><td><code>color?</code></td><td>background colour (null: none)</td></tr><tr><td><code>corner</code></td><td><code>decimal</code></td><td>corner radius of background and border</td></tr><tr><td><code>border_w</code></td><td><code>decimal</code></td><td>border thickness (0: none)</td></tr><tr><td><code>border_c</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>shadow</code></td><td><code>decimal</code></td><td>a soft shadow this many pixels deep under the box (0: none)</td></tr><tr><td><code>opacity</code></td><td><code>decimal</code></td><td>how solid the box and everything in it is painted: 1 fully, 0 not at all</td></tr><tr><td><code>page</code></td><td><code>_int64</code></td><td>1: a whole screen - painted on the theme&#x27;s background when it has none of its own</td></tr><tr><td><code>turn</code></td><td><code>decimal</code></td><td>turned this many degrees clockwise around its middle</td></tr><tr><td><code>zoom</code></td><td><code>decimal</code></td><td>painted this many times its size, around its middle</td></tr><tr><td><code>blur</code></td><td><code>decimal</code></td><td>blurred by about this many pixels (0: sharp)</td></tr><tr><td><code>outline</code></td><td><code>shape?</code></td><td>what the background and border are drawn as (null: a box with <code>corner</code> radius)</td></tr><tr><td><code>cut</code></td><td><code>shape?</code></td><td>the content is cut to this shape (null: not cut)</td></tr><tr><td><code>shift_x</code></td><td><code>decimal</code></td><td>painted this far right of where layout put it</td></tr><tr><td><code>shift_y</code></td><td><code>decimal</code></td><td>... and this far down</td></tr><tr><td><code>sway_y</code></td><td><code>decimal</code></td><td>one more offset down, owned by the scroller around it (stagger.sharp)</td></tr><tr><td><code>veil</code></td><td><code>decimal</code></td><td>how solid it is painted on top of <code>opacity</code>: an entering box comes up from 0</td></tr><tr><td><code>raised</code></td><td><code>_int64</code></td><td>1: painted after its siblings, so on top of them (a row being dragged)</td></tr><tr><td><code>glides</code></td><td><code>_int64</code></td><td>1 on a CONTAINER: its children glide to their new places (animate_items)</td></tr><tr><td><code>was_x</code></td><td><code>decimal</code></td><td>where the last layout put this box, relative to its parent</td></tr><tr><td><code>was_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>was_placed</code></td><td><code>_int64</code></td><td>1 once it has been laid out (a box without a past is NEW: it fades in)</td></tr><tr><td><code>glide_on</code></td><td><code>_int64</code></td><td>1 while the shift is moving towards its aim</td></tr><tr><td><code>glide_from_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>glide_from_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>glide_aim_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>glide_aim_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>glide_start</code></td><td><code>decimal</code></td><td>on the host&#x27;s clock</td></tr><tr><td><code>entering</code></td><td><code>_int64</code></td><td>1 while the veil is coming up</td></tr><tr><td><code>size_glides</code></td><td><code>_int64</code></td><td>1: a change of height is glided through (modifier().animate_size())</td></tr><tr><td><code>size_known</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>size_shown</code></td><td><code>decimal</code></td><td>the height it has right now</td></tr><tr><td><code>size_from</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_target</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_start</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>shown</code></td><td><code>_int64</code></td><td>0: takes no room and paints nothing (&quot;gone&quot;)</td></tr><tr><td><code>hidden</code></td><td><code>_int64</code></td><td>1: keeps its room but paints nothing and cannot be clicked (&quot;invisible&quot;)</td></tr><tr><td><code>enabled</code></td><td><code>_int64</code></td><td>0: cannot be clicked or focused</td></tr><tr><td><code>on_click</code></td><td><code>()()?</code></td><td>run when the view is clicked (pressed and released on it)</td></tr><tr><td><code>feedback</code></td><td><code>_int64</code></td><td>1: tint the box while the mouse is over it or presses it (set by modifier().click)</td></tr><tr><td><code>on_long_press</code></td><td><code>()()?</code></td><td>pressed and held without moving</td></tr><tr><td><code>on_double_click</code></td><td><code>()()?</code></td><td>clicked twice in quick succession</td></tr><tr><td><code>on_right_click</code></td><td><code>()()?</code></td><td>the right mouse button</td></tr><tr><td><code>on_drag_start</code></td><td><code>()()?</code></td><td>a drag began on this view (the mouse moved while held)</td></tr><tr><td><code>on_drag</code></td><td><code>(decimal, decimal)()?</code></td><td>the drag moved: how far since the last time, across and down</td></tr><tr><td><code>on_drag_end</code></td><td><code>()()?</code></td><td>the button came back up after a drag</td></tr><tr><td><code>on_press_end</code></td><td><code>()()?</code></td><td>the button came back up after a press this view felt, whatever it turned into</td></tr><tr><td><code>wired</code></td><td><code>_int64</code></td><td>FRAMEWORK USE: 1 once a container gave this child its gesture handlers (reorder.sharp)</td></tr><tr><td><code>tip</code></td><td><code>string</code></td><td>words shown in a small box when the mouse rests on the view</td></tr><tr><td><code>hovered</code></td><td><code>_int64</code></td><td>1 while the mouse is over it</td></tr><tr><td><code>pressed</code></td><td><code>_int64</code></td><td>1 while the mouse button is held on it</td></tr><tr><td><code>content_w</code></td><td><code>decimal</code></td><td>set by the behavior in measure(): what the content wants</td></tr><tr><td><code>content_h</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>room_w</code></td><td><code>decimal</code></td><td>set by measure(): the most room the content may use (see part_w)</td></tr><tr><td><code>room_h</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>want_w</code></td><td><code>decimal</code></td><td>set by measure(): the whole box, padding included</td></tr><tr><td><code>want_h</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>x</code></td><td><code>decimal</code></td><td>set by arrange(): the final rectangle, in window pixels</td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>w</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>h</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="view.view"><div class="sig"><b>view</b>(what: behavior)</div></div>
+<div class="fn" id="view.add_kid"><div class="sig">def <b>add_kid</b>(kid: view)</div><p>Make <code>kid</code> the last child of this view. A view lives in ONE place: if it already has a parent it is taken out of there first - it is moved, never duplicated. (That is what lets .add(...) and the nested block style be mixed freely: scope.sharp.)</p></div>
+<div class="fn" id="view.arrange"><div class="sig">def <b>arrange</b>(nx: decimal, ny: decimal, nw: decimal, nh: decimal)</div><p>Your final rectangle; the behavior then places the children inside it. A parent arranges a child at the size the child&#x27;s measure() answered (want_w x want_h), so nothing is measured again here.</p>
+<p>The rectangle handed in includes this box&#x27;s margin; the box itself (x, y, w, h - what is painted and clicked) is what is left inside it.</p></div>
+<div class="fn" id="view.clear_kids"><div class="sig">def <b>clear_kids</b>()</div></div>
+<div class="fn" id="view.click"><div class="sig">def <b>click</b>()</div><p>run the click handler, if there is one and the view is enabled</p></div>
+<div class="fn" id="view.contains"><div class="sig">def <b>contains</b>(px: decimal, py: decimal) : _int64</div><p>is the window point (px, py) inside this box?</p></div>
+<div class="fn" id="view.double_clicked"><div class="sig">def <b>double_clicked</b>()</div></div>
+<div class="fn" id="view.drag_ended"><div class="sig">def <b>drag_ended</b>()</div></div>
+<div class="fn" id="view.drag_started"><div class="sig">def <b>drag_started</b>()</div></div>
+<div class="fn" id="view.dragged"><div class="sig">def <b>dragged</b>(dx: decimal, dy: decimal)</div></div>
+<div class="fn" id="view.find_at"><div class="sig">def <b>find_at</b>(px: decimal, py: decimal) : view?</div><p>The deepest shown view under the point, or null. Children are asked last-to-first: the one painted on top wins. A point outside this box never reaches its children, so things scrolled out of a list cannot be clicked.</p></div>
+<div class="fn" id="view.inner_h"><div class="sig">def <b>inner_h</b>() : decimal</div></div>
+<div class="fn" id="view.inner_w"><div class="sig">def <b>inner_w</b>() : decimal</div></div>
+<div class="fn" id="view.inner_x"><div class="sig">def <b>inner_x</b>() : decimal</div></div>
+<div class="fn" id="view.inner_y"><div class="sig">def <b>inner_y</b>() : decimal</div></div>
+<div class="fn" id="view.is_focusable"><div class="sig">def <b>is_focusable</b>() : _int64</div><p>can the keyboard focus land here (Tab stops here)?</p></div>
+<div class="fn" id="view.kid_count"><div class="sig">def <b>kid_count</b>() : _int64</div></div>
+<div class="fn" id="view.long_pressed"><div class="sig">def <b>long_pressed</b>()</div></div>
+<div class="fn" id="view.measure"><div class="sig">def <b>measure</b>(low_w: decimal, high_w: decimal, low_h: decimal, high_h: decimal)</div><p>Work out want_w x want_h. The parent says how small and how big this box may be, each way:</p>
+<div class="code"><pre class="sharp">low_w .. high_w   and   low_h .. high_h</pre></div>
+<p><code>high</code> may be UNBOUNDED (&quot;as big as you like&quot;); low == high means &quot;exactly this size, no choice&quot;. This pair of ranges is the whole conversation between a parent and a child. (It is Compose&#x27;s Constraints: minWidth / maxWidth / minHeight / maxHeight. Android&#x27;s MeasureSpec says the same with three modes: EXACTLY is low == high, AT_MOST is low 0, UNSPECIFIED is high unbounded.)</p>
+<p>The box&#x27;s own modifiers then narrow the range, in this order, always staying inside what the parent allowed (the parent wins):</p>
+<p>- fill: the smallest allowed becomes the biggest allowed (when that is limited) - &quot;exactly as big as there is room&quot;; - min / max size; - an exact size: both ends become it.</p>
+<p>The behavior measures the content inside what is left after padding, and the box ends up as content + padding, pulled into the range.</p>
+<p>WHY THE RANGE MATTERS: because the child is told its exact size HERE when the parent already knows it (a child that shares a row&#x27;s leftover room, a child that fills), it measures its content once, for the size it really gets. arrange() never has to measure again.</p>
+<p>Measuring a box twice with the same range in one layout pass costs nothing: the answer is remembered (Android keeps the same kind of cache in View.measure).</p></div>
+<div class="fn" id="view.paint"><div class="sig">def <b>paint</b>(p: painter)</div><p>Paint this box and everything in it, back to front: background, border, the behavior&#x27;s own content, the children, and last whatever the behavior paints over its children (a scroll bar).</p></div>
+<div class="fn" id="view.remove_kid"><div class="sig">def <b>remove_kid</b>(kid: view)</div><p>take <code>kid</code> out of this view&#x27;s children (nothing happens if it is not one)</p></div>
+<div class="fn" id="view.right_clicked"><div class="sig">def <b>right_clicked</b>()</div></div>
+<div class="fn" id="view.wants_input"><div class="sig">def <b>wants_input</b>() : _int64</div><p>would this view react to the mouse or the keyboard - whether or not it is enabled right now?</p></div>
+</div>
+</section>
+<section class="type" id="wheel_target">
+<h2><span class="kind">interface</span> wheel_target</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p>A widget that scrolls. Return 1 when the turn was used (0: let the widget around me have it).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="wheel_target.wheel"><div class="sig">def <b>wheel</b>(dx: decimal, dy: decimal) : _int64</div></div>
+</div>
+</section>
+<section class="type" id="widget">
+<h2><span class="kind">class</span> widget</h2>
+<p class="meta"><code>: element</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/tree/widget.sharp">source</a></p>
+<p>widget - what every built-in widget class starts from: its view.</p>
+<div class="code"><pre class="sharp">class label base widget : behavior { ... }</pre></div>
+<p>A widget is two things joined together:</p>
+<p>- its VIEW (<code>me</code>): the one box it has in the tree (view.sharp) - position, size, padding, background, children. Every widget has one, and they are all the same class. - its BEHAVIOR: the widget class itself, which implements <code>behavior</code> and answers how big its content is, where its children go and what it paints (behavior.sharp).</p>
+<p>A widget class&#x27;s constructor calls attach(self): that makes the view, tells it who to ask about content, and - when a container&#x27;s block is running - puts the new widget into that container (scope.sharp).</p>
+<p>WHAT IS NOT HERE: settings for the box (padding, size, fill, background, click ...). Those are not widget functions at all. They are chained onto a <code>modifier</code> that is passed in where the widget is made (modifier.sharp), so there is exactly one way to say them and every widget understands all of them. A widget class only adds the settings that are about what it IS: a text&#x27;s size and colour, a column&#x27;s gap, a button&#x27;s look.</p>
+<p><code>element</code> is what containers accept as a child: anything with a view - every widget, and every composable.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>me</code></td><td><code>view</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="widget.attach"><div class="sig">def <b>attach</b>(what: behavior)</div><p>Make this widget&#x27;s view; <code>what</code> is the widget itself (it is the behavior). If a container&#x27;s block is running, the new widget becomes a child of that container right here.</p></div>
+<div class="fn" id="widget.node"><div class="sig">override def <b>node</b>() : view</div></div>
+</div>
+</section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>POINTER_DOUBLE</code></td><td><code>_int64</code></td><td><code>4</code></td><td>the second click of a double click landed here (a text field selects the word)</td></tr><tr><td><code>POINTER_DRAG</code></td><td><code>_int64</code></td><td><code>2</code></td><td>the mouse moved while still held (also outside the widget)</td></tr><tr><td><code>POINTER_PRESS</code></td><td><code>_int64</code></td><td><code>1</code></td><td>the button went down on this widget</td></tr><tr><td><code>POINTER_RELEASE</code></td><td><code>_int64</code></td><td><code>3</code></td><td>the button came back up</td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

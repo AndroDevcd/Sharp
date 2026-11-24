@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.charts - Sharp standard library</title>
+<meta name="description" content="The std.guikit.charts module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="on sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit.charts</p>
+<h1>std.guikit.charts <small>module</small></h1>
+<p class="contents"><a href="#axis_label">axis_label</a> <a href="#bar_series">bar_series</a> <a href="#chart">chart</a> <a href="#chart_axis">chart_axis</a> <a href="#chart_grid">chart_grid</a> <a href="#chart_hover">chart_hover</a> <a href="#chart_legend">chart_legend</a> <a href="#chart_marker">chart_marker</a> <a href="#chart_series">chart_series</a> <a href="#chart_text">chart_text</a> <a href="#chart_tip">chart_tip</a> <a href="#easing">easing</a> <a href="#legend_entry">legend_entry</a> <a href="#line_series">line_series</a> <a href="#mark">mark</a> <a href="#motion">motion</a> <a href="#constants">constants</a></p>
+<section class="type" id="axis_label">
+<h2><span class="kind">class</span> axis_label</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>axis_label - one label of an axis: <code>it</code> in the block of x_axis / y_axis, and what the function given to chart_axis.for_each is handed. In for_each, change its fields to change how the label is painted.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>index</code></td><td><code>_int64</code></td><td>x axis: the place, 0 the first. y axis: which number, 0 the lowest</td></tr><tr><td><code>value</code></td><td><code>decimal</code></td><td>y axis: the number it stands for (x axis: 0)</td></tr><tr><td><code>words</code></td><td><code>string</code></td><td>what is written</td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td>its colour (null: the axis&#x27; own)</td></tr><tr><td><code>bold</code></td><td><code>_int64</code></td><td>1: bold</td></tr><tr><td><code>hidden</code></td><td><code>_int64</code></td><td>1: not painted</td></tr></table></div>
+</section>
+<section class="type" id="bar_series">
+<h2><span class="kind">class</span> bar_series</h2>
+<p class="meta"><code>base chart_series</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/series.sharp">source</a></p>
+<p>bar_series - a row of numbers drawn as bars. Made with bars(...), inside chart { }.</p>
+<div class="code"><pre class="sharp">bars(&quot;Sales&quot;, sales).color(blue).corner(6)
+bars(sales).gradient(light_blue, dark_blue).value_labels()
+bars(profit).color_each { i: _int64, v: decimal -&gt; if(v &lt; 0) { return red; } return green; }</pre></div>
+<p>.color(c)                 one colour for every bar .gradient(far, near)      a colour at the far end of the bar running into another at the baseline .color_each { i, v -&gt; }   a colour for each bar, from its number .corner(pixels)           round the far end of the bar .width(pixels)            exactly this wide (else: as wide as there is room) .gap(part)                how much of each slot is left empty between the groups: 0 .. 0.9 (0.28) .outline(pixels, c)       a line around each bar .value_labels()           each bar&#x27;s number written at its end .enter(motion)            how THESE bars appear (else: as the chart says) .draw_bar { p, b -&gt; }     paint each bar yourself: b is a mark (motion.sharp) with its place and size</p>
+<p>WITH A BLOCK, WIDGETS STAND ON EVERY BAR, at its far end: a text, a chip, a picture. <code>it</code> is the bar&#x27;s mark (index, value, tint). They ride on the bar while it moves.</p>
+<div class="code"><pre class="sharp">bars(&quot;Sales&quot;, sales) { if(it.value &gt;= goal) { chip(&quot;goal&quot;); } }</pre></div>
+<p>Several bars(...) in one chart stand side by side at each place; with .stacked() on the chart they stand on top of each other.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>far_tint</code></td><td><code>color?</code></td><td>a gradient: the colour at the far end ...</td></tr><tr><td><code>near_tint</code></td><td><code>color?</code></td><td>... and at the baseline</td></tr><tr><td><code>each_tint</code></td><td><code>(_int64, decimal)(color)?</code></td><td></td></tr><tr><td><code>round</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>wide</code></td><td><code>decimal</code></td><td>0: as wide as there is room</td></tr><tr><td><code>empty</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>edge</code></td><td><code>decimal</code></td><td>the outline&#x27;s thickness; 0: none</td></tr><tr><td><code>edge_tint</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>labelled</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>painter_of</code></td><td><code>(painter, mark)()?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="bar_series.bar_series"><div class="sig"><b>bar_series</b>(title: string, numbers: decimal[])</div></div>
+<div class="fn" id="bar_series.bar_series-2"><div class="sig"><b>bar_series</b>(title: string, numbers: list&lt;double&gt;)</div></div>
+<div class="fn" id="bar_series.color"><div class="sig">def <b>color</b>(c: color) : bar_series</div></div>
+<div class="fn" id="bar_series.color_each"><div class="sig">def <b>color_each</b>(pick: (_int64, decimal)(color)) : bar_series</div></div>
+<div class="fn" id="bar_series.corner"><div class="sig">def <b>corner</b>(pixels: decimal) : bar_series</div></div>
+<div class="fn" id="bar_series.draw_bar"><div class="sig">def <b>draw_bar</b>(drawing: (painter, mark)()) : bar_series</div></div>
+<div class="fn" id="bar_series.enter"><div class="sig">def <b>enter</b>(how: motion) : bar_series</div></div>
+<div class="fn" id="bar_series.gap"><div class="sig">def <b>gap</b>(part: decimal) : bar_series</div></div>
+<div class="fn" id="bar_series.gradient"><div class="sig">def <b>gradient</b>(far: color, near: color) : bar_series</div></div>
+<div class="fn" id="bar_series.is_bars"><div class="sig">override def <b>is_bars</b>() : _int64</div></div>
+<div class="fn" id="bar_series.outline"><div class="sig">def <b>outline</b>(pixels: decimal, c: color) : bar_series</div></div>
+<div class="fn" id="bar_series.value_labels"><div class="sig">def <b>value_labels</b>() : bar_series</div></div>
+<div class="fn" id="bar_series.width"><div class="sig">def <b>width</b>(pixels: decimal) : bar_series</div></div>
+</div>
+</section>
+<section class="type" id="chart">
+<h2><span class="kind">class</span> chart</h2>
+<p class="meta"><code>base widget : behavior, stateful, pointer_target, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/chart.sharp">source</a></p>
+<p>chart - numbers as bars and lines. Made with chart(...).</p>
+<div class="code"><pre class="sharp">chart(modifier().fill_width().height(240)) {
+    bars(&quot;Sales&quot;, sales).corner(6);
+    line(&quot;Target&quot;, target).curved().dots(4);</pre></div>
+<div class="code"><pre class="sharp">    x_axis(months);
+    y_axis().ticks(5);
+    grid_lines().dashed();
+    legend();
+    marker();
+}.enter(motion.grow().stagger(0.04));</pre></div>
+<p>WHAT GOES IN THE BLOCK</p>
+<p>bars(...)  line(...)      the data: any number of each, drawn in the order written (series.sharp) x_axis(...)  y_axis()     the words along the bottom and the numbers up the side (parts.sharp) grid_lines()              level lines behind the marks legend()                  the names of the series marker()                  the place under the mouse is marked and its numbers are shown</p>
+<p>Each of them only works inside chart { }; written anywhere else it stops the program with an error that says so. Ordinary <code>if</code> and <code>for</code> work in the block, as in every block of this library.</p>
+<p>EACH OF THEM TAKES A BLOCK OF ITS OWN, and then what it would have written is built from widgets instead - any widgets, your composables too:</p>
+<div class="code"><pre class="sharp">x_axis(months) { text(it.words).size(13); if(it.index == best) { chip(&quot;best&quot;); } }
+legend { text(it.name).color(it.tint!!); }
+marker { text(months[it.index]).bold(); progress(share[it.index]); }
+bars(&quot;Sales&quot;, sales) { if(it.value &gt;= goal) { chip(&quot;goal&quot;); } }</pre></div>
+<p>AND ANY OTHER WIDGET CAN BE WRITTEN IN THE BLOCK. It is laid over the marks, where its modifier says in the chart&#x27;s own terms:</p>
+<div class="code"><pre class="sharp">chip(&quot;launch day&quot;, modifier().at(4, revenue[4]));       // over place 4, at that number&#x27;s height
+text(&quot;goal&quot;, modifier().at_value(8000));                // on the level of 8000
+button(&quot;Details&quot;, modifier().at_place(11)) { open(); }; // over place 11, at the top</pre></div>
+<p>(with no place said, it sits in the top left corner of the marks&#x27; area).</p>
+<p>AND ON THE CHART ITSELF</p>
+<p>.stacked()                bars stand on top of each other instead of side by side .range(low, high)         the numbers the y axis runs between (else: round numbers around the data) .enter(motion)            how the marks appear (motion.sharp); a series can say its own .change(motion)           how they get from old numbers to new ones .on_select { i -&gt; }       a place was clicked: i is its number, 0 the first .hover(state)             keep a state at the place under the mouse (-1: none): anything on the screen can then follow what the chart is pointed at</p>
+<p>THE NUMBERS ARE PLAIN VALUES, not a state - like progress(fraction). When your state changes, build() runs again and makes a chart from the new numbers; the marks then glide from where they were to where they belong. One made with new numbers every second is a live chart.</p>
+<p>(Compose: Vico&#x27;s CartesianChartHost with its layers. Android: MPAndroidChart&#x27;s CombinedChart. HTML: Chart.js.)</p>
+<p>HOW IT WORKS</p>
+<p>A chart is ONE widget that paints everything itself; the things said in its block are not widgets but notes it keeps (chart.open is the chart whose block is running, as scope.open is for containers).</p>
+<p>Painting goes from numbers to pixels in three steps:</p>
+<div class="code"><pre class="sharp">1. THE SCALE. The lowest and highest number are found (with bars: 0
+   is always in), and widened to round numbers so the y axis reads
+   0, 50, 100 and not 0, 47, 94. `y_of` turns a number into a place.
+2. EVERY MARK AT REST. Place i of n is a slot of the width; a bar
+   fills its share of the slot, a point sits in the slot&#x27;s middle
+   (with no bars in the chart, the points run from edge to edge).
+3. THE MOTION. Each mark is handed to the motion with how far along
+   it is, and painted as the motion leaves it.</pre></div>
+<p>MOVING. Nothing here is a timer. The chart knows WHEN things began (a series&#x27; <code>born</code>, the chart&#x27;s <code>change_at</code>, in the host&#x27;s clock) and works out from the time of each frame where everything is; while something is on its way it asks the host for another frame.</p>
+<p>WIDGETS IN A CHART. Every place a chart writes words - the labels of the axes, the legend, the marker&#x27;s box, the marks themselves - can hold widgets instead (the block of its word), and widgets written straight into the chart&#x27;s block are laid over the marks. Each is an ordinary CHILD of the chart: built with the chart (make_views), so the reconciler carries its memory across rebuilds like any other; measured in the chart&#x27;s measure, which is how the chart knows the room a row of labels needs; and put in its place while PAINTING, where the places are worked out anyway - they move with every frame of a motion, and layout is not run for that. Only the marker&#x27;s box is different: what it holds depends on where the mouse is, so it is built when the mouse comes to a place (tip_view).</p>
+<p>NEW NUMBERS. A rebuild makes a NEW chart object. The reconciler hands it the old one (adopt, below): the new chart takes over when each series appeared, and - if the numbers differ - notes where every mark stands on the screen at this moment as the place to glide from. So a change in the middle of a change starts from wherever the marks are.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>open</code></td><td><code>chart?</code></td><td>the chart whose block is running right now (null: none)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="chart.chart"><div class="sig"><b>chart</b>()</div></div>
+<div class="fn" id="chart.add"><div class="sig">def <b>add</b>(series: chart_series)</div></div>
+<div class="fn" id="chart.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div><p>Take over from the chart this one replaces after a rebuild: when its series appeared, and - when the numbers are not the same - where every mark stands right now, as the place to glide from (NEW NUMBERS, above).</p></div>
+<div class="fn" id="chart.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="chart.change"><div class="sig">def <b>change</b>(how: motion) : chart</div><p>how the marks get from old numbers to new ones</p></div>
+<div class="fn" id="chart.change_part"><div class="sig">def <b>change_part</b>(now: decimal, i: _int64, count: _int64) : decimal</div><p>how much of the glide to the present numbers mark i has done at time <code>now</code> (1: there is none, or it is over)</p></div>
+<div class="fn" id="chart.content"><div class="sig">def <b>content</b>(block: ()()) : chart</div><p>run the block: what it says (bars, line, x_axis ...) is noted in this chart</p></div>
+<div class="fn" id="chart.enter"><div class="sig">def <b>enter</b>(how: motion) : chart</div><p>how the marks appear</p></div>
+<div class="fn" id="chart.hover"><div class="sig">def <b>hover</b>(target: state&lt;_int64&gt;) : chart</div><p>Keep <code>target</code> at the place the mouse points at (0: the first; -1: none). It is an ordinary state, so whatever is built from it follows the mouse: a panel beside the chart, a second chart that lights up the same place.</p>
+<div class="code"><pre class="sharp">pointed := state(0 - 1);
+chart { ... }.hover(pointed);
+if(pointed.value &gt;= 0) { text(&quot;you are looking at &quot; + months[pointed.value]); }</pre></div></div>
+<div class="fn" id="chart.inside"><div class="sig">static def <b>inside</b>(written: string) : chart</div><p>The chart whose block is running - or, outside any, an error that names what was written and where it belongs (as scope.inside does for tab(...)).</p></div>
+<div class="fn" id="chart.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
+<div class="fn" id="chart.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="chart.on_select"><div class="sig">def <b>on_select</b>(action: (_int64)()) : chart</div><p>run this when a place is clicked, with its number (0: the first)</p></div>
+<div class="fn" id="chart.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="chart.paint_over"><div class="sig">override def <b>paint_over</b>(p: painter)</div><p>After the chart&#x27;s widgets are painted: the marker&#x27;s box, so that no widget standing on a mark covers it.</p></div>
+<div class="fn" id="chart.pointer"><div class="sig">override def <b>pointer</b>(what: _int64, x: decimal, y: decimal)</div></div>
+<div class="fn" id="chart.range"><div class="sig">def <b>range</b>(lowest: decimal, highest: decimal) : chart</div><p>the numbers the y axis runs between</p></div>
+<div class="fn" id="chart.set_grid"><div class="sig">def <b>set_grid</b>(grid: chart_grid)</div></div>
+<div class="fn" id="chart.set_legend"><div class="sig">def <b>set_legend</b>(legend: chart_legend)</div></div>
+<div class="fn" id="chart.set_marker"><div class="sig">def <b>set_marker</b>(marker: chart_marker)</div></div>
+<div class="fn" id="chart.set_x_axis"><div class="sig">def <b>set_x_axis</b>(axis: chart_axis)</div></div>
+<div class="fn" id="chart.set_y_axis"><div class="sig">def <b>set_y_axis</b>(axis: chart_axis)</div></div>
+<div class="fn" id="chart.stacked"><div class="sig">def <b>stacked</b>() : chart</div><p>bars stand on top of each other instead of side by side</p></div>
+</div>
+</section>
+<section class="type" id="chart_axis">
+<h2><span class="kind">class</span> chart_axis</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>chart_axis - the words along one side. Made with x_axis(...) or y_axis().</p>
+<div class="code"><pre class="sharp">x_axis(months)                                  // a word under every place (else: 1, 2, 3 ...)
+y_axis().ticks(4).format { v: decimal -&gt; return &quot;$&quot; + chart_text.number(v); }</pre></div>
+<p>WITH A BLOCK, EVERY LABEL IS BUILT FROM WIDGETS instead of having its words painted. The block runs once for each label; <code>it</code> says which one it is (an axis_label: index, value, words) and whatever the block makes - a text, a row with a picture, a button, one of your composables - stands where the label would. The chart makes the room they need and puts them in place.</p>
+<div class="code"><pre class="sharp">x_axis(months) {
+    if(it.index == best) { chip(&quot;best&quot;); }
+    text(it.words).size(13);
+}
+y_axis { text(&quot;$&quot; + it.words).size(12).dim(); }</pre></div>
+<p>(Compose calls this a slot: a parameter that is a piece of screen.)</p>
+<p>.ticks(n)             y axis: about this many numbers (5). The chart picks round ones. .format { v -&gt; }      y axis: how a number is written (also at the bars and in the marker) .color(c)             the colour of the words (else: the theme&#x27;s quiet text colour) .for_each { l -&gt; }    painted labels: change single ones - their colour, words, weight (below)</p>
+<p>Painted words that would run into each other are left out evenly, and so are built labels.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>words</code></td><td><code>list&lt;string&gt;</code></td><td></td></tr><tr><td><code>wanted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>writer</code></td><td><code>(decimal)(string)?</code></td><td></td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>viewer</code></td><td><code>(axis_label)()?</code></td><td>what builds each label from widgets (the block given to x_axis / y_axis); null: the words are painted</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="chart_axis.color"><div class="sig">def <b>color</b>(c: color) : chart_axis</div></div>
+<div class="fn" id="chart_axis.dressed"><div class="sig">def <b>dressed</b>(index: _int64, value: decimal, words: string) : axis_label</div><p>label <code>index</code> as it is to be painted: as the axis writes it, then as for_each left it</p></div>
+<div class="fn" id="chart_axis.for_each"><div class="sig">def <b>for_each</b>(change: (axis_label)()) : chart_axis</div><p>Go over the labels of the axis one by one, as they are painted, and change the ones you like - their colour, their words, whether they are bold or there at all:</p>
+<div class="code"><pre class="sharp">x_axis(months).for_each { l: axis_label -&gt;
+    if(l.index == best_month) { l.tint = green; l.bold = 1; }
+};
+y_axis().for_each { l: axis_label -&gt; if(l.value &lt; 0) { l.tint = red; } };</pre></div></div>
+<div class="fn" id="chart_axis.format"><div class="sig">def <b>format</b>(write: (decimal)(string)) : chart_axis</div></div>
+<div class="fn" id="chart_axis.name_places"><div class="sig">def <b>name_places</b>(names: string[]) : chart_axis</div><p>the word for each place (the front door calls this: x_axis(months))</p></div>
+<div class="fn" id="chart_axis.name_places-2"><div class="sig">def <b>name_places</b>(names: list&lt;string&gt;) : chart_axis</div></div>
+<div class="fn" id="chart_axis.ticks"><div class="sig">def <b>ticks</b>(about: _int64) : chart_axis</div></div>
+</div>
+</section>
+<section class="type" id="chart_grid">
+<h2><span class="kind">class</span> chart_grid</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>chart_grid - level lines behind the marks, one at each number of the y axis. Made with grid_lines().</p>
+<div class="code"><pre class="sharp">grid_lines().dashed()</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>broken</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="chart_grid.color"><div class="sig">def <b>color</b>(c: color) : chart_grid</div></div>
+<div class="fn" id="chart_grid.dashed"><div class="sig">def <b>dashed</b>() : chart_grid</div></div>
+</div>
+</section>
+<section class="type" id="chart_hover">
+<h2><span class="kind">class</span> chart_hover</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>chart_hover - which place the mouse points at: <code>it</code> in the block of marker { }, and what the functions given to a marker are told. The first two fields are all a block or .tip needs; the rest says where things are on the screen, for a function that paints (.draw).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>index</code></td><td><code>_int64</code></td><td>the place: 0 is the first</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td>its word on the x axis</td></tr><tr><td><code>x</code></td><td><code>decimal</code></td><td>the middle of the place, across</td></tr><tr><td><code>left</code></td><td><code>decimal</code></td><td>the area the marks are in</td></tr><tr><td><code>top</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>width</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_y</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+</section>
+<section class="type" id="chart_legend">
+<h2><span class="kind">class</span> chart_legend</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>chart_legend - the name of every named series beside a sign in its colour. Made with legend().</p>
+<div class="code"><pre class="sharp">legend()                                            // squares, above the marks, at the left
+legend().bottom().align(ALIGN_CENTER).sign(LEGEND_DOT)
+legend().pills().bold().size(14).gap(10)</pre></div>
+<p>.bottom()             below the chart (else: above the marks) .align(how)           ALIGN_START (left, the default), ALIGN_CENTER, ALIGN_END (right) .sign(which)          LEGEND_SQUARE, LEGEND_DOT, LEGEND_LINE .pills()              each name in a small rounded box of its own .color(c)             the colour of the names (else: the theme&#x27;s quiet text colour) .size(pixels)         the size of the names (else: the theme&#x27;s small text) .bold()               bold names .gap(pixels)          the room between one entry and the next (18)</p>
+<p>WITH A BLOCK, EVERY ENTRY IS BUILT FROM WIDGETS: <code>it</code> is a legend_entry (index, name, tint), and the sign is then yours to make too.</p>
+<div class="code"><pre class="sharp">legend {
+    text(it.name).bold().color(it.tint!!);
+    text(total_of(it.index)).dim();
+}.align(ALIGN_END);</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>viewer</code></td><td><code>(legend_entry)()?</code></td><td>what builds each entry from widgets (the block given to legend); null: a sign and the name are painted</td></tr><tr><td><code>below</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>sideways</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>mark_kind</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>boxed</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>pixels</code></td><td><code>decimal</code></td><td>0: the theme&#x27;s small text</td></tr><tr><td><code>heavy</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>apart</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="chart_legend.align"><div class="sig">def <b>align</b>(how: _int64) : chart_legend</div></div>
+<div class="fn" id="chart_legend.bold"><div class="sig">def <b>bold</b>() : chart_legend</div></div>
+<div class="fn" id="chart_legend.bottom"><div class="sig">def <b>bottom</b>() : chart_legend</div></div>
+<div class="fn" id="chart_legend.color"><div class="sig">def <b>color</b>(c: color) : chart_legend</div></div>
+<div class="fn" id="chart_legend.gap"><div class="sig">def <b>gap</b>(px: decimal) : chart_legend</div></div>
+<div class="fn" id="chart_legend.pills"><div class="sig">def <b>pills</b>() : chart_legend</div></div>
+<div class="fn" id="chart_legend.sign"><div class="sig">def <b>sign</b>(which: _int64) : chart_legend</div></div>
+<div class="fn" id="chart_legend.size"><div class="sig">def <b>size</b>(px: decimal) : chart_legend</div></div>
+</div>
+</section>
+<section class="type" id="chart_marker">
+<h2><span class="kind">class</span> chart_marker</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>chart_marker - what the mouse points at: the place under it is marked and a small box says its numbers. Made with marker().</p>
+<div class="code"><pre class="sharp">marker()                                                // the usual look
+marker().guide(GUIDE_BAND).dim_others()                 // the place tinted, the other bars faded
+marker().box_color(white).text_color(black).corner(4)   // the box in your colours
+marker().title { i: _int64 -&gt; return &quot;Week &quot; + (i + 1); }</pre></div>
+<p>THE PLACE .guide(which)         GUIDE_AUTO, GUIDE_LINE, GUIDE_BAND, GUIDE_NONE (above) .guide_color(c)       the colour of the line or band .dashed()             a broken line .dim_others()         the bars of every other place fade while one is pointed at .highlight(c)         what is laid over the bar pointed at (else: a faint white). See-through colours only! .dot(radius)          the ring on each line&#x27;s point there (6); 0: none .dot_color(c)         the middle of that ring (else: white)</p>
+<p>THE BOX .box_color(c)         its background           .border(c)        its edge .text_color(c)        its words                .corner(pixels)   how round it is (8; 99: a pill) .above()              over the place, just above its highest mark (else: beside the mouse) .title { i -&gt; }       the heading, from the place&#x27;s number (else: the x axis&#x27; word) .format { v -&gt; }      how a number is written in it (else: as the y axis writes it) .tip { h, tip -&gt; }    say yourself what the box holds, line by line (chart_tip, above): the chart still measures it, draws it and finds its place .no_box()             no box at all: only the place is marked (with a block: no background)</p>
+<p>WITH A BLOCK, THE BOX HOLDS WIDGETS: texts, rows, pictures, a small chart. <code>it</code> is a chart_hover (index, name); the block runs whenever the mouse comes to another place. The box&#x27;s colours, corner and .above() still apply.</p>
+<div class="code"><pre class="sharp">marker {
+    text(months[it.index] + &quot; 2026&quot;).bold();
+    progress(done[it.index] / goal, modifier().width(150));
+}.dashed();</pre></div>
+<p>AND IF NONE OF THAT WILL DO .draw { p, h -&gt; }     paint whatever you like instead of the box, with the painter. Here the places and sizes are yours to work out: h says where things are.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>guide_kind</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>guide_tint</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>broken</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>fading</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>lit</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>ring</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>ring_tint</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>boxed</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>back</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>edge</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>ink</code></td><td><code>color?</code></td><td></td></tr><tr><td><code>round</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>over</code></td><td><code>_int64</code></td><td>1: above the place&#x27;s highest mark; 0: beside the mouse</td></tr><tr><td><code>heading</code></td><td><code>(_int64)(string)?</code></td><td></td></tr><tr><td><code>writer</code></td><td><code>(decimal)(string)?</code></td><td></td></tr><tr><td><code>filler</code></td><td><code>(chart_hover, chart_tip)()?</code></td><td></td></tr><tr><td><code>viewer</code></td><td><code>(chart_hover)()?</code></td><td>what builds the box from widgets (the block given to marker); null: lines of words</td></tr><tr><td><code>painter_of</code></td><td><code>(painter, chart_hover)()?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="chart_marker.above"><div class="sig">def <b>above</b>() : chart_marker</div></div>
+<div class="fn" id="chart_marker.border"><div class="sig">def <b>border</b>(c: color) : chart_marker</div></div>
+<div class="fn" id="chart_marker.box_color"><div class="sig">def <b>box_color</b>(c: color) : chart_marker</div></div>
+<div class="fn" id="chart_marker.corner"><div class="sig">def <b>corner</b>(pixels: decimal) : chart_marker</div></div>
+<div class="fn" id="chart_marker.dashed"><div class="sig">def <b>dashed</b>() : chart_marker</div></div>
+<div class="fn" id="chart_marker.dim_others"><div class="sig">def <b>dim_others</b>() : chart_marker</div></div>
+<div class="fn" id="chart_marker.dot"><div class="sig">def <b>dot</b>(radius: decimal) : chart_marker</div></div>
+<div class="fn" id="chart_marker.dot_color"><div class="sig">def <b>dot_color</b>(c: color) : chart_marker</div></div>
+<div class="fn" id="chart_marker.draw"><div class="sig">def <b>draw</b>(drawing: (painter, chart_hover)()) : chart_marker</div></div>
+<div class="fn" id="chart_marker.format"><div class="sig">def <b>format</b>(write: (decimal)(string)) : chart_marker</div></div>
+<div class="fn" id="chart_marker.guide"><div class="sig">def <b>guide</b>(which: _int64) : chart_marker</div></div>
+<div class="fn" id="chart_marker.guide_color"><div class="sig">def <b>guide_color</b>(c: color) : chart_marker</div></div>
+<div class="fn" id="chart_marker.highlight"><div class="sig">def <b>highlight</b>(c: color) : chart_marker</div></div>
+<div class="fn" id="chart_marker.no_box"><div class="sig">def <b>no_box</b>() : chart_marker</div></div>
+<div class="fn" id="chart_marker.text_color"><div class="sig">def <b>text_color</b>(c: color) : chart_marker</div></div>
+<div class="fn" id="chart_marker.tip"><div class="sig">def <b>tip</b>(fill: (chart_hover, chart_tip)()) : chart_marker</div></div>
+<div class="fn" id="chart_marker.title"><div class="sig">def <b>title</b>(write: (_int64)(string)) : chart_marker</div></div>
+</div>
+</section>
+<section class="type" id="chart_series">
+<h2><span class="kind">class</span> chart_series</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/series.sharp">source</a></p>
+<p>chart_series - one row of numbers in a chart, whatever it is drawn as: what bars and lines have in common. (The two kinds follow: bar_series, line_series.)</p>
+<p>It holds the numbers TWICE: <code>values</code> is what the program gave, and <code>start</code> is where each number stood when the last change began. What is on the screen is somewhere between the two while the chart glides from old numbers to new ones (value_at), and equal to <code>values</code> the rest of the time.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td>what the legend and the marker call it (&quot;&quot;: not named)</td></tr><tr><td><code>values</code></td><td><code>decimal[]</code></td><td>the numbers the program gave</td></tr><tr><td><code>start</code></td><td><code>decimal[]</code></td><td>where each one stood when the last change began</td></tr><tr><td><code>count</code></td><td><code>_int64</code></td><td>how many numbers</td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td>null: the chart picks one (palette.sharp ... chart.tint_of)</td></tr><tr><td><code>entering</code></td><td><code>motion?</code></td><td>null: the chart&#x27;s</td></tr><tr><td><code>born</code></td><td><code>decimal</code></td><td>the host time it first appeared; -1: at the next paint</td></tr><tr><td><code>viewer</code></td><td><code>(mark)()?</code></td><td>builds widgets for each mark (the block given to bars / line); null: none</td></tr><tr><td><code>views</code></td><td><code>list&lt;view&gt;</code></td><td>those widgets, one for each number (the chart makes and places them)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="chart_series.is_bars"><div class="sig">def <b>is_bars</b>() : _int64</div><p>1: drawn as bars; 0: as a line</p></div>
+<div class="fn" id="chart_series.same_numbers"><div class="sig">def <b>same_numbers</b>(other: chart_series) : _int64</div><p>the very same numbers as another series?</p></div>
+<div class="fn" id="chart_series.take"><div class="sig">def <b>take</b>(numbers: decimal[])</div><p>take the numbers: a copy, so the program&#x27;s own list can go on changing</p></div>
+<div class="fn" id="chart_series.take-2"><div class="sig">def <b>take</b>(numbers: list&lt;double&gt;)</div></div>
+<div class="fn" id="chart_series.value_at"><div class="sig">def <b>value_at</b>(i: _int64, part: decimal) : decimal</div><p>number i when <code>part</code> of the way from where it stood to where it is going (1: arrived)</p></div>
+</div>
+</section>
+<section class="type" id="chart_text">
+<h2><span class="kind">class</span> chart_text</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>chart_text - numbers as a chart writes them.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="chart_text.number"><div class="sig">static def <b>number</b>(v: decimal) : string</div><p>A number as short as it can honestly be: no &quot;.0&quot; on a whole number, at most two digits after the point, and a comma between the thousands - 1250 is &quot;1,250&quot;, 3.5 is &quot;3.5&quot;, 0.125 is &quot;0.13&quot;.</p></div>
+</div>
+</section>
+<section class="type" id="chart_tip">
+<h2><span class="kind">class</span> chart_tip</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>chart_tip - what the marker&#x27;s box says, line by line. The function given to marker().tip fills one; the chart measures it, draws the box around it and puts it where there is room.</p>
+<div class="code"><pre class="sharp">marker().tip { h: chart_hover, tip: chart_tip -&gt;
+    tip.title(days[h.index]);
+    tip.line(teal, chart_text.number(steps[h.index]) + &quot; steps&quot;);       // a dot in that colour, then the words
+    tip.line(&quot;goal: 8,000&quot;);                                            // only words
+};</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>TITLE</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>WORDS</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>DOTTED</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kinds</code></td><td><code>list&lt;long&gt;</code></td><td></td></tr><tr><td><code>texts</code></td><td><code>list&lt;string&gt;</code></td><td></td></tr><tr><td><code>tints</code></td><td><code>list&lt;color&gt;</code></td><td>for a line with a dot: its colour (else: any colour, not used)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="chart_tip.clear"><div class="sig">def <b>clear</b>()</div></div>
+<div class="fn" id="chart_tip.kind_at"><div class="sig">def <b>kind_at</b>(i: _int64) : _int64</div></div>
+<div class="fn" id="chart_tip.line"><div class="sig">def <b>line</b>(words: string)</div><p>a line of words</p></div>
+<div class="fn" id="chart_tip.line-2"><div class="sig">def <b>line</b>(dot: color, words: string)</div><p>a line of words behind a dot of this colour</p></div>
+<div class="fn" id="chart_tip.size"><div class="sig">def <b>size</b>() : _int64</div></div>
+<div class="fn" id="chart_tip.title"><div class="sig">def <b>title</b>(words: string)</div><p>a heading, in bold</p></div>
+</div>
+</section>
+<section class="type" id="easing">
+<h2><span class="kind">class</span> easing</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/motion.sharp">source</a></p>
+<p>easing - the curves above as one function: easing.at(EASE_OUT, 0.5)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="easing.at"><div class="sig">st<b>at</b>ic def at(curve: _int64, through: decimal) : decimal</div><p>how much of the way is done when <code>through</code> (0 .. 1) of the time has passed</p></div>
+</div>
+</section>
+<section class="type" id="legend_entry">
+<h2><span class="kind">class</span> legend_entry</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p>legend_entry - one named series: <code>it</code> in the block of legend { }</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>index</code></td><td><code>_int64</code></td><td>which series of the chart: 0 is the first</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td>the series&#x27; colour</td></tr></table></div>
+</section>
+<section class="type" id="line_series">
+<h2><span class="kind">class</span> line_series</h2>
+<p class="meta"><code>base chart_series</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/series.sharp">source</a></p>
+<p>line_series - a row of numbers drawn as a line through its points. Made with line(...), inside chart { }.</p>
+<div class="code"><pre class="sharp">line(&quot;Target&quot;, target).curved().thickness(3).dots(4)
+line(visitors).curved().fill_below()
+line(limit).dashed().color(red)</pre></div>
+<p>.color(c)             the colour of the line, its dots and its fill .curved()             a smooth curve through the points (it never swings past a point&#x27;s height) .stepped()            level to the next point, then straight up or down to it .thickness(pixels)    how thick the line is (2.5) .dashed()             a broken line .dots(radius)         a dot on every point .fill_below()         the area between the line and the baseline, fading towards the baseline .enter(motion)        how THIS line appears (else: as the chart says) .draw_dot { p, d -&gt; } paint each point yourself: d is a mark (motion.sharp) with its place</p>
+<p>WITH A BLOCK, WIDGETS STAND ABOVE EVERY POINT: <code>it</code> is the point&#x27;s mark (index, value, tint).</p>
+<div class="code"><pre class="sharp">line(prices) { if(it.index == peak) { text(&quot;peak&quot;).size(12); } }</pre></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>route</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>thick</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>broken</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>dot</code></td><td><code>decimal</code></td><td>the radius of the dots; 0: none</td></tr><tr><td><code>filled</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>painter_of</code></td><td><code>(painter, mark)()?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="line_series.line_series"><div class="sig"><b>line_series</b>(title: string, numbers: decimal[])</div></div>
+<div class="fn" id="line_series.line_series-2"><div class="sig"><b>line_series</b>(title: string, numbers: list&lt;double&gt;)</div></div>
+<div class="fn" id="line_series.color"><div class="sig">def <b>color</b>(c: color) : line_series</div></div>
+<div class="fn" id="line_series.curved"><div class="sig">def <b>curved</b>() : line_series</div></div>
+<div class="fn" id="line_series.dashed"><div class="sig">def <b>dashed</b>() : line_series</div></div>
+<div class="fn" id="line_series.dots"><div class="sig">def <b>dots</b>(radius: decimal) : line_series</div></div>
+<div class="fn" id="line_series.draw_dot"><div class="sig">def <b>draw_dot</b>(drawing: (painter, mark)()) : line_series</div></div>
+<div class="fn" id="line_series.enter"><div class="sig">def <b>enter</b>(how: motion) : line_series</div></div>
+<div class="fn" id="line_series.fill_below"><div class="sig">def <b>fill_below</b>() : line_series</div></div>
+<div class="fn" id="line_series.is_bars"><div class="sig">override def <b>is_bars</b>() : _int64</div></div>
+<div class="fn" id="line_series.stepped"><div class="sig">def <b>stepped</b>() : line_series</div></div>
+<div class="fn" id="line_series.thickness"><div class="sig">def <b>thickness</b>(pixels: decimal) : line_series</div></div>
+</div>
+</section>
+<section class="type" id="mark">
+<h2><span class="kind">class</span> mark</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/motion.sharp">source</a></p>
+<p>mark - ONE drawn thing of a chart: one bar, or one point of a line.</p>
+<p>A motion is handed every mark at the place where it comes to rest, and changes it into what it looks like part of the way there. A drawing function (bars(...).draw_bar, line(...).draw_dot) is handed the mark as it is to be painted right now.</p>
+<div class="code"><pre class="sharp">a bar       (x, y) is its top-left corner; width and height its size
+a point     (x, y) is its middle; width and height are 0; size is the dot&#x27;s radius</pre></div>
+<p><code>baseline</code> is where the value 0 is, down the screen: a bar stands on it (or hangs from it, when its value is below 0).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>index</code></td><td><code>_int64</code></td><td>which one of its series: 0 is the first</td></tr><tr><td><code>count</code></td><td><code>_int64</code></td><td>how many the series has</td></tr><tr><td><code>value</code></td><td><code>decimal</code></td><td>the number it shows</td></tr><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>width</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>baseline</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size</code></td><td><code>decimal</code></td><td>a point&#x27;s radius</td></tr><tr><td><code>opacity</code></td><td><code>decimal</code></td><td>0: invisible .. 1: solid</td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td>its colour</td></tr><tr><td><code>is_bar</code></td><td><code>_int64</code></td><td>1: a bar; 0: a point of a line</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="mark.grow"><div class="sig">def <b>grow</b>(part: decimal)</div><p>Only <code>part</code> of the way from the baseline: 0 is flat on the baseline, 1 is the full bar (or the point at its place). The everyday movement of a chart, written once for bars above 0, bars below 0 and points.</p></div>
+</div>
+</section>
+<section class="type" id="motion">
+<h2><span class="kind">class</span> motion</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/motion.sharp">source</a></p>
+<p>motion - HOW the marks of a chart move: when the chart appears, and when its numbers change.</p>
+<div class="code"><pre class="sharp">chart { ... }.enter(motion.grow().stagger(0.04))            // bars rise one after another
+line(values).enter(motion.draw_on().over(1.2))              // the line is drawn left to right
+chart { ... }.change(motion.glide().ease(EASE_SPRING))      // new numbers spring into place</pre></div>
+<p>WHAT THERE IS</p>
+<p>motion.grow()        up from the baseline motion.draw_on()     from left to right: a line as if drawn by a pen, bars one by one motion.rise()        lifted a little into place while fading in motion.fade()        fading in where it stands motion.none()        no movement: it is simply there motion.glide()       for .change(...): from the old numbers to the new ones motion.custom { m: mark, t: decimal -&gt; ... }       your own</p>
+<p>AND WHAT EVERY ONE OF THEM TAKES</p>
+<p>.over(seconds)       how long one mark takes .stagger(seconds)    each mark starts this much later than the one before it .ease(curve)         EASE_OUT, EASE_SPRING ... (above), or a function of your own</p>
+<p>YOUR OWN: the function gets a mark at the place where it comes to rest and <code>t</code>, how much of the way it has come (0 at the start, 1 when it has arrived - after the easing, so with EASE_OVERSHOOT it passes 1 on the way). Change the mark into what it looks like at that moment:</p>
+<div class="code"><pre class="sharp">motion.custom { m: mark, t: decimal -&gt;
+    m.grow(t);                      // up from the baseline ...
+    m.opacity = t;                  // ... while fading in
+}</pre></div>
+<p>(They are functions of a class, not bare words, because <code>fade</code> already is a widget of this library and words like <code>grow</code> and <code>none</code> are likely to mean something in your own program.)</p>
+<p>(Compose: an AnimationSpec - tween, spring - handed to a chart library. CSS: a transition with its timing function and delay.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="motion.custom"><div class="sig">static def <b>custom</b>(shape_it: (mark, decimal)()) : motion</div></div>
+<div class="fn" id="motion.draw_on"><div class="sig">static def <b>draw_on</b>() : motion</div></div>
+<div class="fn" id="motion.ease"><div class="sig">def <b>ease</b>(which: _int64) : motion</div><p>the curve the movement follows: EASE_OUT, EASE_SPRING ...</p></div>
+<div class="fn" id="motion.ease-2"><div class="sig">def <b>ease</b>(which: (decimal)(decimal)) : motion</div><p>a curve of your own: the share of the time that has passed in, the share of the way out</p></div>
+<div class="fn" id="motion.fade"><div class="sig">static def <b>fade</b>() : motion</div></div>
+<div class="fn" id="motion.glide"><div class="sig">static def <b>glide</b>() : motion</div></div>
+<div class="fn" id="motion.grow"><div class="sig">static def <b>grow</b>() : motion</div></div>
+<div class="fn" id="motion.moves"><div class="sig">def <b>moves</b>() : _int64</div><p>does it move at all?</p></div>
+<div class="fn" id="motion.none"><div class="sig">static def <b>none</b>() : motion</div></div>
+<div class="fn" id="motion.over"><div class="sig">def <b>over</b>(time: decimal) : motion</div><p>how long one mark takes, in seconds</p></div>
+<div class="fn" id="motion.overall"><div class="sig">def <b>overall</b>(elapsed: decimal) : decimal</div><p>how much of the WHOLE movement is done (no stagger): what a line being drawn, or a scale that changes, follows</p></div>
+<div class="fn" id="motion.progress"><div class="sig">def <b>progress</b>(elapsed: decimal, index: _int64, count: _int64) : decimal</div><p>How much of its way mark <code>index</code> of <code>count</code> has come when <code>elapsed</code> seconds have passed since the movement began - after the easing.</p></div>
+<div class="fn" id="motion.rise"><div class="sig">static def <b>rise</b>() : motion</div></div>
+<div class="fn" id="motion.shape"><div class="sig">def <b>shape</b>(m: mark, t: decimal)</div><p>change a mark at rest into what it looks like when it has come <code>t</code> of its way</p></div>
+<div class="fn" id="motion.stagger"><div class="sig">def <b>stagger</b>(seconds_each: decimal) : motion</div><p>each mark starts this many seconds after the one before it</p></div>
+<div class="fn" id="motion.sweeps"><div class="sig">def <b>sweeps</b>() : _int64</div><p>is it the kind that uncovers a line from left to right (draw_on)?</p></div>
+<div class="fn" id="motion.total"><div class="sig">def <b>total</b>(count: _int64) : decimal</div><p>how long it takes until the last of <code>count</code> marks has arrived, in seconds</p></div>
+</div>
+</section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>EASE_BOUNCE</code></td><td><code>_int64</code></td><td><code>6</code></td><td>drops onto the end and bounces, like a ball</td></tr><tr><td><code>EASE_IN</code></td><td><code>_int64</code></td><td><code>2</code></td><td>slow at first, quick at the end</td></tr><tr><td><code>EASE_IN_OUT</code></td><td><code>_int64</code></td><td><code>3</code></td><td>slow, quick, slow</td></tr><tr><td><code>EASE_LINEAR</code></td><td><code>_int64</code></td><td><code>0</code></td><td>the same speed all the way</td></tr><tr><td><code>EASE_OUT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>quick at first, settling gently (the default)</td></tr><tr><td><code>EASE_OVERSHOOT</code></td><td><code>_int64</code></td><td><code>4</code></td><td>a little past the end, and back</td></tr><tr><td><code>EASE_SPRING</code></td><td><code>_int64</code></td><td><code>5</code></td><td>past the end and back a few times, like a spring</td></tr><tr><td><code>GUIDE_AUTO</code></td><td><code>_int64</code></td><td><code>0</code></td><td>an upright line - or, in a chart with bars, nothing (the bar itself lights up)</td></tr><tr><td><code>GUIDE_BAND</code></td><td><code>_int64</code></td><td><code>2</code></td><td>the whole place tinted, from top to bottom</td></tr><tr><td><code>GUIDE_LINE</code></td><td><code>_int64</code></td><td><code>1</code></td><td>an upright line through the place</td></tr><tr><td><code>GUIDE_NONE</code></td><td><code>_int64</code></td><td><code>3</code></td><td>nothing</td></tr><tr><td><code>LEGEND_DOT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>a dot</td></tr><tr><td><code>LEGEND_LINE</code></td><td><code>_int64</code></td><td><code>2</code></td><td>a short thick line</td></tr><tr><td><code>LEGEND_SQUARE</code></td><td><code>_int64</code></td><td><code>0</code></td><td>a small square with round corners (the default)</td></tr><tr><td><code>LINE_CURVED</code></td><td><code>_int64</code></td><td><code>1</code></td><td></td></tr><tr><td><code>LINE_STEPPED</code></td><td><code>_int64</code></td><td><code>2</code></td><td></td></tr><tr><td><code>LINE_STRAIGHT</code></td><td><code>_int64</code></td><td><code>0</code></td><td>how a line gets from one point to the next</td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

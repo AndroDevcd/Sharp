@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.c - Sharp standard library</title>
+<meta name="description" content="The std.c module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li class="on"><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.c</p>
+<h1>std.c <small>module</small></h1>
+<p class="contents"><a href="#c_float_cell">c_float_cell</a> <a href="#c_memory">c_memory</a> <a href="#c_pointer_cell">c_pointer_cell</a> <a href="#c_struct">c_struct</a> <a href="#functions">functions</a></p>
+<section class="type" id="c_float_cell">
+<h2><span class="kind">class</span> c_float_cell</h2>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/memory.sharp">source</a></p>
+<p>a C <code>float</code> on its own: how a 32-bit float is read from and written to memory</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>c_float</code></td><td></td></tr></table></div>
+</section>
+<section class="type" id="c_memory">
+<h2><span class="kind">class</span> c_memory</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/memory.sharp">source</a></p>
+
+<h3>Functions</h3><div>
+<div class="fn" id="c_memory.c_memory"><div class="sig"><b>c_memory</b>(size: _int64)</div><p><code>size</code> bytes of C&#x27;s memory, all 0. Throws illegal_argument_exception for a size below 1 and out_of_memory_exception when C has none to give.</p></div>
+<div class="fn" id="c_memory.address"><div class="sig">def <b>address</b>() : pointer</div><p>the address of the block&#x27;s first byte: what a C function is handed</p></div>
+<div class="fn" id="c_memory.address_at"><div class="sig">def <b>address_at</b>(offset: _int64) : pointer</div><p>the address of the byte <code>offset</code> bytes in</p></div>
+<div class="fn" id="c_memory.bytes_at"><div class="sig">def <b>bytes_at</b>(offset: _int64, count: _int64) : _int8[]</div><p><code>count</code> bytes as an array of their own (a copy)</p></div>
+<div class="fn" id="c_memory.damaged"><div class="sig">def <b>damaged</b>() : bool</div><p>Was something written in front of the block or behind its end? (C writing more than the block has room for.) Always false for a view: memory that is C&#x27;s has no guards of ours.</p></div>
+<div class="fn" id="c_memory.double_at"><div class="sig">def <b>double_at</b>(offset: _int64) : decimal</div><p>a C <code>double</code></p></div>
+<div class="fn" id="c_memory.fill"><div class="sig">def <b>fill</b>(value: _int64) : c_memory</div><p>every byte of the block set to <code>value</code></p></div>
+<div class="fn" id="c_memory.float_at"><div class="sig">def <b>float_at</b>(offset: _int64) : decimal</div><p>a C <code>float</code></p></div>
+<div class="fn" id="c_memory.int16_at"><div class="sig">def <b>int16_at</b>(offset: _int64) : _int64</div></div>
+<div class="fn" id="c_memory.int32_at"><div class="sig">def <b>int32_at</b>(offset: _int64) : _int64</div></div>
+<div class="fn" id="c_memory.int64_at"><div class="sig">def <b>int64_at</b>(offset: _int64) : _int64</div></div>
+<div class="fn" id="c_memory.int8_at"><div class="sig">def <b>int8_at</b>(offset: _int64) : _int64</div></div>
+<div class="fn" id="c_memory.is_released"><div class="sig">def <b>is_released</b>() : bool</div><p>was the block given back (release())?</p></div>
+<div class="fn" id="c_memory.pointer_at"><div class="sig">def <b>pointer_at</b>(offset: _int64) : pointer</div><p>an address stored in the block (8 bytes on a 64-bit machine, 4 on a 32-bit one)</p></div>
+<div class="fn" id="c_memory.pointer_size"><div class="sig">static def <b>pointer_size</b>() : _int64</div><p>how many bytes an address has on this machine: 8, or 4 on a 32-bit one</p></div>
+<div class="fn" id="c_memory.put_bytes"><div class="sig">def <b>put_bytes</b>(offset: _int64, values: _int8[]) : c_memory</div><p>every byte of <code>values</code></p></div>
+<div class="fn" id="c_memory.put_double"><div class="sig">def <b>put_double</b>(offset: _int64, value: decimal) : c_memory</div><p>as a C <code>double</code></p></div>
+<div class="fn" id="c_memory.put_float"><div class="sig">def <b>put_float</b>(offset: _int64, value: decimal) : c_memory</div><p>as a C <code>float</code></p></div>
+<div class="fn" id="c_memory.put_int16"><div class="sig">def <b>put_int16</b>(offset: _int64, value: _int64) : c_memory</div></div>
+<div class="fn" id="c_memory.put_int32"><div class="sig">def <b>put_int32</b>(offset: _int64, value: _int64) : c_memory</div></div>
+<div class="fn" id="c_memory.put_int64"><div class="sig">def <b>put_int64</b>(offset: _int64, value: _int64) : c_memory</div></div>
+<div class="fn" id="c_memory.put_int8"><div class="sig">def <b>put_int8</b>(offset: _int64, value: _int64) : c_memory</div></div>
+<div class="fn" id="c_memory.put_pointer"><div class="sig">def <b>put_pointer</b>(offset: _int64, value: pointer) : c_memory</div><p>an address (8 bytes on a 64-bit machine, 4 on a 32-bit one)</p></div>
+<div class="fn" id="c_memory.put_text"><div class="sig">def <b>put_text</b>(offset: _int64, text: string) : c_memory</div><p><code>text</code> as a C string: its characters and a 0 after them (so it takes one byte more than it has characters)</p></div>
+<div class="fn" id="c_memory.release"><div class="sig">def <b>release</b>()</div><p>Give the block back to C. Afterwards it refuses every use. Releasing twice does nothing; releasing a view does nothing (it is not ours). Throws illegal_state_exception - after the memory is given back - when the guard bytes around the block were written over: C wrote outside it.</p></div>
+<div class="fn" id="c_memory.size"><div class="sig">def <b>size</b>() : _int64</div><p>how many bytes the block has</p></div>
+<div class="fn" id="c_memory.text_at"><div class="sig">def <b>text_at</b>(offset: _int64) : string</div><p>The C string that starts at <code>offset</code>: the characters up to the first 0. Throws out_of_bounds_exception when there is no 0 before the block ends.</p></div>
+<div class="fn" id="c_memory.uint16_at"><div class="sig">def <b>uint16_at</b>(offset: _int64) : _int64</div></div>
+<div class="fn" id="c_memory.uint32_at"><div class="sig">def <b>uint32_at</b>(offset: _int64) : _int64</div></div>
+<div class="fn" id="c_memory.uint8_at"><div class="sig">def <b>uint8_at</b>(offset: _int64) : _int64</div></div>
+<div class="fn" id="c_memory.view"><div class="sig">static def <b>view</b>(address: pointer, size: _int64) : c_memory</div><p>Memory that is C&#x27;s: <code>size</code> bytes at <code>address</code> (a pointer a C function returned, a field of a C struct). Reads and writes are checked against <code>size</code>; whether the address really has that many bytes is yours to know. Throws illegal_argument_exception for the address 0 or a size below 1.</p></div>
+</div>
+</section>
+<section class="type" id="c_pointer_cell">
+<h2><span class="kind">class</span> c_pointer_cell</h2>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/memory.sharp">source</a></p>
+<p>an address on its own: how wide an address is on this machine is read off one</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>pointer</code></td><td></td></tr></table></div>
+</section>
+<section class="type" id="c_struct">
+<h2><span class="kind">class</span> c_struct</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/struct.sharp">source</a></p>
+<p>A C STRUCT: a class whose fields are the struct&#x27;s members</p>
+<div class="code"><pre class="sharp">class SDL_Rect base c_struct {                  // typedef struct { int x, y, w, h; } SDL_Rect;
+    x : c_int;
+    y : c_int;
+    w : c_int;
+    h : c_int;
+}</pre></div>
+<div class="code"><pre class="sharp">extern &quot;sdl&quot; {
+    def SDL_RenderFillRect(renderer: pointer, rect: SDL_Rect?) : c_int;     // const SDL_Rect *rect
+    def SDL_HasIntersection(a: SDL_Rect?, b: SDL_Rect?) : c_int;
+}</pre></div>
+<div class="code"><pre class="sharp">r := new SDL_Rect();
+r.x = 10;  r.w = 200;                           // ordinary fields
+SDL_RenderFillRect(renderer, r);</pre></div>
+<p>Write the fields in the order the C header has the members, each with its C type (std/c/types.sharp), and base the class on c_struct. A member that is itself a struct is a field of that struct&#x27;s class; a member that is a pointer is a <code>pointer</code>. Static fields, and everything else a class may have (functions, constructors), do not count.</p>
+<p>AN ARRAY MEMBER is an array field whose value says how many items:</p>
+<div class="code"><pre class="sharp">name : c_char[] = new c_char[32];               // char name[32];</pre></div>
+<p>THE SIZE C HAS FOR THE STRUCT may be said, as a static field called c_bytes. It is checked when a function that uses the struct is linked, so a field that is missing or of another type shows before the first call:</p>
+<div class="code"><pre class="sharp">static const c_bytes : _int64 = 16;             // sizeof(SDL_Rect)</pre></div>
+<p>BY VALUE OR BY POINTER is how the parameter is written:</p>
+<div class="code"><pre class="sharp">rect: SDL_Rect          the struct itself, by value         void f(SDL_Rect rect)
+rect: SDL_Rect?         a pointer to it; null is NULL       void f(SDL_Rect *rect)</pre></div>
+<p>and the same for what a function returns: <code>: SDL_Rect</code> is a struct by value, <code>: SDL_Rect?</code> a pointer to one (null when C returns NULL).</p>
+<p>WHAT HAPPENS AT A CALL. The object is Sharp&#x27;s; C gets the struct as C lays it out, made from the object&#x27;s fields for the length of the call. After a call that took a POINTER, what C wrote is read back into the object&#x27;s fields - so a function that fills a struct fills your object. A struct that comes back is a new object; through a pointer it is a COPY of what C points to at that moment.</p>
+<p>So C never holds on to the object itself. For a struct C keeps the address of after the call returns (a callback&#x27;s user data, a node C links into a list), use memory of C&#x27;s own: <code>pointer</code> and c_memory (std/c/memory.sharp).</p>
+<div class="code"><pre class="sharp">Java comparison: a MemoryLayout.structLayout(...) with VarHandles for
+the members, written as a class; C#: a [StructLayout(Sequential)] struct.</pre></div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="c_check_libraries"><div class="sig">def <b>c_check_libraries</b>()</div><p>Open every C library the program&#x27;s extern functions name and find every one of those functions NOW, instead of at each one&#x27;s first call - so a missing library or a misspelt function shows when the program starts. Throws unsatisfied_link_error with everything that is missing.</p></div>
+<div class="fn" id="c_drop"><div class="sig">def <b>c_drop</b>(callback: object)</div><p>C no longer has the function (see c_keep).</p></div>
+<div class="fn" id="c_keep"><div class="sig">def <b>c_keep</b>(callback: object)</div><p>C WILL CALL THIS FUNCTION LATER - after the call it is handed to has returned (an event handler, a timer, a comparison C stores).</p>
+<div class="code"><pre class="sharp">on_tick := { interval: c_uint, data: pointer -&gt; println(&quot;tick&quot;); return interval; };
+c_keep(on_tick);
+SDL_AddTimer(1000, on_tick, 0);
+...
+c_drop(on_tick);                    // C no longer has it</pre></div>
+<p>A function handed to an extern function is C&#x27;s for the length of that call and no longer: enough for qsort and &quot;call this for each&quot;. c_keep says C keeps it; the function then has ONE address in C until c_drop, however often it is handed over. Keep it BEFORE it is handed over.</p>
+<p>A callback runs on the thread that made the C call, while a C call of that thread is running. For a C library that calls from threads of its own, see c_serve_other_threads() (std/c/threads.sharp).</p></div>
+<div class="fn" id="c_library"><div class="sig">def <b>c_library</b>(name: string, place: string)</div><p>Say which file the C library <code>name</code> is: a path (absolute, or looked for beside the program, in the project and in the folder the program was started in) or a file&#x27;s name the system finds itself. The ending (.dll, .so) may be left off. Said more than once, each place is tried in order.</p>
+<div class="code"><pre class="sharp">c_library(&quot;sdl&quot;, build.is_windows() ? &quot;SDL2.dll&quot; : &quot;libSDL2-2.0.so.0&quot;);</pre></div>
+<p>Throws illegal_state_exception when the library is already open: say it before the first call of one of its functions.</p></div>
+<div class="fn" id="c_serve_other_threads"><div class="sig">def <b>c_serve_other_threads</b>()</div></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

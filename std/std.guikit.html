@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit - Sharp standard library</title>
+<meta name="description" content="The std.guikit module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li class="on"><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.guikit</p>
+<h1>std.guikit <small>module</small></h1>
+<p class="contents"><a href="#gui">gui</a> <a href="#functions">functions</a></p>
+<section class="type" id="gui">
+<h2><span class="kind">class</span> gui</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/gui.sharp">source</a></p>
+<p>gui - the front door to the whole framework.</p>
+<div class="code"><pre class="sharp">class counter base composable {
+    count := state(0);</pre></div>
+<div class="code"><pre class="sharp">    override def build() : element {
+        return column(modifier().fill().padding(24)) {
+            text(&quot;count: &quot; + count.value).size(28);
+            button(&quot;Add one&quot;) { count.value += 1; };
+        }.center().gap(12);
+    }
+}</pre></div>
+<div class="code"><pre class="sharp">def main() {
+    gui.run(&quot;Counter&quot;, 360, 240, new counter());
+}</pre></div>
+<p>Every widget function exists twice with the same meaning: here as gui.column(...), gui.text(...), and as a bare word, column(...), text(...) (words.sharp). Use the bare words; reach for <code>gui.</code> when one of them is also a name in your own program.</p>
+<p>WHAT IS HERE</p>
+<div class="code"><pre class="sharp">run an app          gui.run(title, width, height, root)
+                    gui.use_theme(t)  gui.current_theme()  gui.after(seconds) { }  gui.every(seconds) { }
+lay things out      column  row  stack  wrap  grid  grid_fit  spacer  gap  divider
+scroll              scroll  scroll_row  lazy_column { item { }  items(n) { i -&gt; } }
+show things         text  image  progress
+show numbers        chart { bars(...)  line(...)  x_axis(...)  y_axis()  grid_lines()  legend()  marker() }
+                    each takes a block that builds it from widgets; any widget in the block: modifier().at(...)
+                    bar_chart(values)  line_chart(values)  motion (how the marks move)
+take input          button  checkbox  radio  toggle  slider  text_field
+                    dropdown { option(...) }  tabs { tab(...) }
+float above         dialog(open) { }  menu(open) { menu_item(...) { } }  gui.toast(words)
+animate             fade(visible) { }  modifier().opacity(x)  animated(first) in a composable
+clipboard           gui.copy(words)  gui.paste()
+screens             screens(nav, start) { screen&lt;route&gt;() { }  tab&lt;route&gt;(title) { } }
+                    nav_bar(nav)  top_bar(title, nav)  navigator  route
+draw it yourself    canvas
+the box of a widget modifier()            (modifier.sharp)
+values              gui.state(first)  rgb(r, g, b)  rgba(r, g, b, a)
+the layer below     gui.window(...)  gui.font(size)  gui.load_image(path)</pre></div>
+<p>THE SHAPE OF EVERY WIDGET FUNCTION</p>
+<div class="code"><pre class="sharp">name(what it needs)                         text(&quot;Hello&quot;)
+name(what it needs, modifier)               text(&quot;Hello&quot;, modifier().padding(8))
+... and a block last, where it takes one    column(modifier().fill()) { ... }
+                                            button(&quot;Save&quot;) { save(); }</pre></div>
+<p>The modifier is the one place a widget&#x27;s BOX is changed - size, padding, fill, background, click. What a widget IS, it says itself afterwards: text(...).size(24), column { ... }.gap(8), button(...) { }.outline().</p>
+<p>HOW THE FRAMEWORK IS BUILT (start reading at core/tree/behavior.sharp)</p>
+<p>It lives in the standard library, in std/guikit. Every folder is a module of its own, named after its path - a file in std/guikit/core/tree is <code>mod std.guikit.core.tree;</code> - and a program takes the whole family in with</p>
+<div class="code"><pre class="sharp">import ( std.guikit.* )</pre></div>
+<div class="code"><pre class="sharp">std.guikit                  gui.sharp, words.sharp - the front door: every widget function,
+                            as gui.x and as a bare word</pre></div>
+<div class="code"><pre class="sharp">std.guikit.platform         the layer underneath, over SDL2:
+                            window  painter  event  color  font  image  surface
+    platform/native/        the C++ side (the &quot;sharpgui&quot; native library)</pre></div>
+<div class="code"><pre class="sharp">std.guikit.core.tree        behavior (the contracts)  view (one box)  widget  scope (nested blocks)
+std.guikit.core.state       state  composable  reconciler (memory across rebuilds)
+std.guikit.core.style       modifier  theme
+std.guikit.core.runtime     host (the loop, input, gestures, focus, overlays)  timer
+std.guikit.core.util        num  txt (small helpers)</pre></div>
+<div class="code"><pre class="sharp">std.guikit.layout.flow      flex (the algorithm)  row  column  wrap  spacer
+std.guikit.layout.stacking  stack
+std.guikit.layout.grids     grid
+std.guikit.layout.scrolling scroller  lazy_list</pre></div>
+<div class="code"><pre class="sharp">std.guikit.widgets.display  label  picture  divider  progress_bar
+std.guikit.widgets.input    button  checkbox  radio  toggle  slider  text_field  dropdown  tabs
+std.guikit.widgets.drawing  canvas
+std.guikit.charts           chart  bar_series  line_series (series.sharp)  the axes, grid, legend
+                            and marker (parts.sharp)  motion (how the marks move)</pre></div>
+<div class="code"><pre class="sharp">std.guikit.animation        fader (fade in and out)  animated (a number that glides)
+std.guikit.overlay          popup (dialogs and menus float above the page)  menu
+std.guikit.navigation       navigator (the stack of screens)  screens (shows it, with transitions)</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="gui.after"><div class="sig">static def <b>after</b>(seconds: decimal, action: ()()) : timer</div><p>run <code>action</code> once, <code>seconds</code> from now. Returns the timer; .cancel() stops it. (timer.sharp)</p></div>
+<div class="fn" id="gui.animated_show"><div class="sig">static def <b>animated_show</b>(visible: _int64, block: ()()) : revealer</div><p>Content that grows open and fades in while <code>visible</code> is not 0, and shrinks away when it is 0 - with whatever is below moving along. (revealer.sharp)</p>
+<div class="code"><pre class="sharp">animated_show(expanded.value) { text(&quot;The details ...&quot;); };</pre></div></div>
+<div class="fn" id="gui.animated_show-2"><div class="sig">static def <b>animated_show</b>(visible: _int64, how: _int64, block: ()()) : revealer</div><p>the same, coming and going another way: SHOW_EXPAND, SHOW_FADE or SHOW_SLIDE</p></div>
+<div class="fn" id="gui.animated_show-3"><div class="sig">static def <b>animated_show</b>(visible: _int64, look: modifier, block: ()()) : revealer</div></div>
+<div class="fn" id="gui.animated_show-4"><div class="sig">static def <b>animated_show</b>(visible: _int64, how: _int64, look: modifier, block: ()()) : revealer</div></div>
+<div class="fn" id="gui.app_icon"><div class="sig">static def <b>app_icon</b>(path: string)</div><p>The app&#x27;s icon: the picture in the title bar, the taskbar and the list of open windows. Before gui.run or while the app runs.</p>
+<div class="code"><pre class="sharp">gui.app_icon(&quot;art/icon.svg&quot;);
+gui.run(&quot;Sharpcraft&quot;, 1280, 720, game);</pre></div>
+<p>The file is one of:</p>
+<div class="code"><pre class="sharp">.ico        Windows&#x27; icon file with several sizes in it: the largest is used
+.svg        a drawing, painted 256 pixels a side: sharp at every size
+a picture   PNG, JPG, BMP, GIF, TGA or PSD; square, and 256 pixels a
+            side for an icon that stays sharp where it is shown large</pre></div>
+<p>A file that cannot be read leaves the icon as it was: an app does not stop for want of its icon.</p></div>
+<div class="fn" id="gui.app_name"><div class="sig">static def <b>app_name</b>(name: string)</div><p>The app&#x27;s name: the words in the window&#x27;s title bar and in the taskbar. gui.run&#x27;s title is the name an app starts with; this changes it - before gui.run (it then wins over run&#x27;s title) or while the app runs.</p>
+<div class="code"><pre class="sharp">gui.app_name(&quot;Sharpcraft - world 4711&quot;);</pre></div></div>
+<div class="fn" id="gui.badge"><div class="sig">static def <b>badge</b>(count: _int64) : badge</div><p>a small filled dot with a count; nothing at all when the count is 0 (chip.sharp)</p></div>
+<div class="fn" id="gui.badge-2"><div class="sig">static def <b>badge</b>(count: _int64, look: modifier) : badge</div></div>
+<div class="fn" id="gui.bar_chart"><div class="sig">static def <b>bar_chart</b>(values: decimal[]) : chart</div><p>one row of numbers as bars, with both axes and level lines: the whole chart in one word</p></div>
+<div class="fn" id="gui.bar_chart-2"><div class="sig">static def <b>bar_chart</b>(values: decimal[], look: modifier) : chart</div></div>
+<div class="fn" id="gui.bars"><div class="sig">static def <b>bars</b>(values: decimal[]) : bar_series</div><p>inside chart { }: a row of numbers as bars; with a name, the legend and the marker can say whose they are. With a block, the widgets it makes stand on every bar: <code>it</code> is the bar&#x27;s mark (charts/series.sharp)</p></div>
+<div class="fn" id="gui.bars-2"><div class="sig">static def <b>bars</b>(name: string, values: decimal[]) : bar_series</div></div>
+<div class="fn" id="gui.bars-3"><div class="sig">static def <b>bars</b>(values: list&lt;double&gt;) : bar_series</div></div>
+<div class="fn" id="gui.bars-4"><div class="sig">static def <b>bars</b>(name: string, values: list&lt;double&gt;) : bar_series</div></div>
+<div class="fn" id="gui.bars-5"><div class="sig">static def <b>bars</b>(values: decimal[], on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="gui.bars-6"><div class="sig">static def <b>bars</b>(name: string, values: decimal[], on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="gui.bars-7"><div class="sig">static def <b>bars</b>(values: list&lt;double&gt;, on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="gui.bars-8"><div class="sig">static def <b>bars</b>(name: string, values: list&lt;double&gt;, on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="gui.bold"><div class="sig">static def <b>bold</b>(words: string)</div><p>inside rich { }: bold words</p></div>
+<div class="fn" id="gui.button"><div class="sig">static def <b>button</b>(words: string, action: ()()) : button</div><p>words you can click: button(&quot;Save&quot;) { save(); } (button.sharp)</p></div>
+<div class="fn" id="gui.button-2"><div class="sig">static def <b>button</b>(words: string, look: modifier, action: ()()) : button</div></div>
+<div class="fn" id="gui.canvas"><div class="sig">static def <b>canvas</b>(drawing: (painter, frame)()) : canvas</div><p>an area you paint yourself every frame: charts, drawings, games (canvas.sharp). Give it a size with the modifier.</p></div>
+<div class="fn" id="gui.canvas-2"><div class="sig">static def <b>canvas</b>(look: modifier, drawing: (painter, frame)()) : canvas</div></div>
+<div class="fn" id="gui.card"><div class="sig">static def <b>card</b>(block: ()()) : column</div><p>A card: a raised panel that groups what belongs together. Its children are stacked like a column&#x27;s. A modifier adds to the card&#x27;s own look (and can replace any part of it): card(modifier().fill_width().click { ... }) { ... } (Compose: Card. Android: CardView.)</p></div>
+<div class="fn" id="gui.card-2"><div class="sig">static def <b>card</b>(extra: modifier, block: ()()) : column</div></div>
+<div class="fn" id="gui.chart"><div class="sig">static def <b>chart</b>(block: ()()) : chart</div><p>Numbers as bars and lines (charts/chart.sharp). The block says what is in it:</p>
+<div class="code"><pre class="sharp">chart(modifier().fill_width().height(240)) {
+    bars(&quot;Sales&quot;, sales);
+    line(&quot;Target&quot;, target).curved();
+    x_axis(months);
+    y_axis();
+}</pre></div></div>
+<div class="fn" id="gui.chart-2"><div class="sig">static def <b>chart</b>(look: modifier, block: ()()) : chart</div></div>
+<div class="fn" id="gui.checkbox"><div class="sig">static def <b>checkbox</b>(words: string, value: state&lt;_int64&gt;) : checkbox</div><p>a box you tick, bound to a 0/1 state (checkbox.sharp)</p></div>
+<div class="fn" id="gui.checkbox-2"><div class="sig">static def <b>checkbox</b>(value: state&lt;_int64&gt;, caption: ()()) : checkbox</div><p>... the caption built from the widgets the block makes: checkbox(agreed) { text(&quot;I agree&quot;); }</p></div>
+<div class="fn" id="gui.checkbox-3"><div class="sig">static def <b>checkbox</b>(value: state&lt;_int64&gt;, look: modifier, caption: ()()) : checkbox</div></div>
+<div class="fn" id="gui.checkbox-4"><div class="sig">static def <b>checkbox</b>(words: string, value: state&lt;_int64&gt;, look: modifier) : checkbox</div></div>
+<div class="fn" id="gui.chip"><div class="sig">static def <b>chip</b>(words: string) : chip</div><p>a small rounded label: a tag, or a filter with a click (chip.sharp)</p></div>
+<div class="fn" id="gui.chip-2"><div class="sig">static def <b>chip</b>(words: string, action: ()()) : chip</div></div>
+<div class="fn" id="gui.chip-3"><div class="sig">static def <b>chip</b>(words: string, look: modifier) : chip</div></div>
+<div class="fn" id="gui.chip-4"><div class="sig">static def <b>chip</b>(words: string, look: modifier, action: ()()) : chip</div></div>
+<div class="fn" id="gui.colored"><div class="sig">static def <b>colored</b>(words: string, c: color)</div><p>inside rich { }: words in a colour of their own</p></div>
+<div class="fn" id="gui.column"><div class="sig">static def <b>column</b>() : column</div><p>children stacked top to bottom (column.sharp)</p></div>
+<div class="fn" id="gui.column-2"><div class="sig">static def <b>column</b>(look: modifier) : column</div></div>
+<div class="fn" id="gui.column-3"><div class="sig">static def <b>column</b>(block: ()()) : column</div></div>
+<div class="fn" id="gui.column-4"><div class="sig">static def <b>column</b>(look: modifier, block: ()()) : column</div></div>
+<div class="fn" id="gui.copy"><div class="sig">static def <b>copy</b>(words: string)</div><p>put text on the system clipboard, where every other program can paste it</p></div>
+<div class="fn" id="gui.current_theme"><div class="sig">static def <b>current_theme</b>() : theme</div><p>the theme in use right now: its colours and sizes, for your own widgets (t := gui.current_theme(); t.surface ...)</p></div>
+<div class="fn" id="gui.data_name"><div class="sig">static def <b>data_name</b>(name: string)</div><p>the name of the app&#x27;s data folder, instead of the window title: call it before gui.run</p></div>
+<div class="fn" id="gui.date_picker"><div class="sig">static def <b>date_picker</b>(open: state&lt;_int64&gt;, value: state&lt;date&gt;) : popup</div><p>A dialog to pick a date, there while <code>open</code> is not 0. The day that is clicked goes into <code>value</code> at once; &quot;Done&quot; (or a click outside, or Escape) closes it.</p>
+<div class="code"><pre class="sharp">due     := state_of&lt;date&gt;(date.today());
+picking := state(0);</pre></div>
+<div class="code"><pre class="sharp">button(date_words(due.value)) { picking.value = 1; }.outline();
+date_picker(picking, due);</pre></div>
+<p>(Android: MaterialDatePicker. Compose: DatePickerDialog.)</p></div>
+<div class="fn" id="gui.date_words"><div class="sig">static def <b>date_words</b>(day: date) : string</div><p>a date the way people write it: &quot;Tue 17 Nov 2026&quot;</p></div>
+<div class="fn" id="gui.default_height"><div class="sig">static def <b>default_height</b>() : _int32</div></div>
+<div class="fn" id="gui.default_width"><div class="sig">static def <b>default_width</b>() : _int32</div><p>The size a window gets when the program names none: 960 x 640 units. Room for a real app, and it still fits a 1280 x 720 screen with its taskbar. On a screen smaller than that the window opens maximized.</p></div>
+<div class="fn" id="gui.dialog"><div class="sig">static def <b>dialog</b>(open: state&lt;_int64&gt;, block: ()()) : popup</div><p>A dialog: a card in the middle of the window, over a dimmed page, there while <code>open</code> is not 0. A click outside it, or Escape, sets <code>open</code> back to 0. (popup.sharp)</p>
+<div class="code"><pre class="sharp">confirm := state(0);
+dialog(confirm) {
+    text(&quot;Delete this file?&quot;).size(20).bold();
+    button(&quot;Delete&quot;) { remove(); confirm.value = 0; }.danger();
+}</pre></div></div>
+<div class="fn" id="gui.divider"><div class="sig">static def <b>divider</b>() : divider</div><p>a thin line between things (divider.sharp)</p></div>
+<div class="fn" id="gui.divider-2"><div class="sig">static def <b>divider</b>(look: modifier) : divider</div></div>
+<div class="fn" id="gui.dropdown"><div class="sig">static def <b>dropdown</b>(choice: state&lt;_int64&gt;, block: ()()) : dropdown</div><p>pick one named choice from a menu that drops down: dropdown(choice) { option(&quot;A&quot;); option(&quot;B&quot;); } (dropdown.sharp)</p></div>
+<div class="fn" id="gui.dropdown-2"><div class="sig">static def <b>dropdown</b>(choice: state&lt;_int64&gt;, look: modifier, block: ()()) : dropdown</div></div>
+<div class="fn" id="gui.every"><div class="sig">static def <b>every</b>(seconds: decimal, action: ()()) : timer</div><p>run <code>action</code> every <code>seconds</code>, until the timer it returns is cancelled. (timer.sharp)</p></div>
+<div class="fn" id="gui.fab"><div class="sig">static def <b>fab</b>(words: string, action: ()()) : fab</div><p>the floating action button: put it in a stack, after the content it floats over (fab.sharp)</p></div>
+<div class="fn" id="gui.fab-2"><div class="sig">static def <b>fab</b>(words: string, look: modifier, action: ()()) : fab</div></div>
+<div class="fn" id="gui.fade"><div class="sig">static def <b>fade</b>(visible: _int64, block: ()()) : fader</div><p>Content that fades in while <code>visible</code> is not 0 and fades out when it turns 0; faded out, it takes no room (fader.sharp).</p>
+<div class="code"><pre class="sharp">fade(saved.value) { text(&quot;Saved!&quot;); }</pre></div></div>
+<div class="fn" id="gui.fade-2"><div class="sig">static def <b>fade</b>(visible: _int64, look: modifier, block: ()()) : fader</div></div>
+<div class="fn" id="gui.font"><div class="sig">static def <b>font</b>(size: decimal) : font</div><p>The system&#x27;s standard font at this size in pixels, for painter.text. Needs an open window.</p></div>
+<div class="fn" id="gui.font-2"><div class="sig">static def <b>font</b>(path: string, size: decimal) : font</div><p>Your own font file (.ttf / .otf) at this size in pixels, for painter.text. Needs an open window.</p></div>
+<div class="fn" id="gui.form"><div class="sig">static def <b>form</b>() : form</div><p>the rules a set of fields must pass, and the messages when they do not (form.sharp)</p></div>
+<div class="fn" id="gui.frame_rate"><div class="sig">static def <b>frame_rate</b>(frames: _int64)</div><p>The most frames the app paints in a second. 60 unless the program says otherwise; before gui.run or while the app runs.</p>
+<div class="code"><pre class="sharp">gui.frame_rate(30);     // half the work while something moves: a Raspberry Pi, a laptop on battery
+gui.frame_rate(10);     // visibly jerky, and very little work
+gui.frame_rate(0);      // no limit: as fast as the machine paints</pre></div>
+<p>It limits PAINTING. An app that stands still paints nothing whatever the rate is; events are read at once and only what they change on the screen waits for the next frame. Animations move by the clock, so a lower rate makes them jerkier, not slower. The lowest rate is 1 (anything below, except 0, counts as 1).</p></div>
+<div class="fn" id="gui.frame_rate-2"><div class="sig">static def <b>frame_rate</b>() : _int64</div><p>the frame rate in force (0: no limit)</p></div>
+<div class="fn" id="gui.fullscreen"><div class="sig">static def <b>fullscreen</b>(on: bool)</div><p>true: the app takes the whole screen. false: it goes back to what it was before (a game&#x27;s &quot;fullscreen&quot; setting, or F11):</p>
+<div class="code"><pre class="sharp">gui.fullscreen(!gui.is_fullscreen());       // switch</pre></div></div>
+<div class="fn" id="gui.gap"><div class="sig">static def <b>gap</b>(pixels: decimal) : spacer</div><p>exactly this many pixels of empty room (along the row or column it is in, and across)</p></div>
+<div class="fn" id="gui.grid"><div class="sig">static def <b>grid</b>(columns: _int64, block: ()()) : grid</div><p>children in <code>columns</code> equal columns, row after row (grid.sharp)</p></div>
+<div class="fn" id="gui.grid-2"><div class="sig">static def <b>grid</b>(columns: _int64, look: modifier, block: ()()) : grid</div></div>
+<div class="fn" id="gui.grid_fit"><div class="sig">static def <b>grid_fit</b>(least: decimal, block: ()()) : grid</div><p>a grid with as many equal columns as fit, each at least <code>least</code> pixels wide (grid.sharp)</p></div>
+<div class="fn" id="gui.grid_fit-2"><div class="sig">static def <b>grid_fit</b>(least: decimal, look: modifier, block: ()()) : grid</div></div>
+<div class="fn" id="gui.grid_lines"><div class="sig">static def <b>grid_lines</b>() : chart_grid</div><p>inside chart { }: level lines behind the marks, one at each number of the y axis</p></div>
+<div class="fn" id="gui.image"><div class="sig">static def <b>image</b>(path: string) : picture</div><p>a picture from a file: PNG, JPG, BMP, GIF (picture.sharp)</p></div>
+<div class="fn" id="gui.image-2"><div class="sig">static def <b>image</b>(path: string, look: modifier) : picture</div></div>
+<div class="fn" id="gui.is_fullscreen"><div class="sig">static def <b>is_fullscreen</b>() : bool</div><p>does the app have the whole screen?</p></div>
+<div class="fn" id="gui.item"><div class="sig">static def <b>item</b>(block: ()())</div><p>inside lazy_column { }: one row, built when it scrolls into view</p></div>
+<div class="fn" id="gui.items"><div class="sig">static def <b>items</b>(count: _int64, each: (_int64)())</div><p>inside lazy_column { }: <code>count</code> rows; row i (from 0) is built by the block when it scrolls into view</p></div>
+<div class="fn" id="gui.keep_mouse"><div class="sig">static def <b>keep_mouse</b>(on: bool)</div><p>true: the window keeps the mouse. The pointer is hidden and cannot leave the window, and a frame&#x27;s moved_x and moved_y go on saying how far the mouse moved, with no edge of the screen to stop at - what a game needs that looks round with the mouse. false: the pointer is back.</p>
+<div class="code"><pre class="sharp">gui.keep_mouse(true);
+on_frame { f: frame -&gt; heading = heading + f.moved_x * 0.2; }</pre></div>
+<p>Only while the app runs (before gui.run there is no window to keep it). The mouse is let go by itself when another window comes to the front (Alt+Tab, the Windows key): ask gui.mouse_kept() and show a pause screen. ALWAYS give the person a key that lets the mouse go - Escape, by custom.</p></div>
+<div class="fn" id="gui.lazy_column"><div class="sig">static def <b>lazy_column</b>(block: ()()) : lazy_list</div><p>A scrolling list that only builds the rows in view - for long lists (lazy_list.sharp). Inside the block, only item { } and items(n) { i -&gt; }.</p></div>
+<div class="fn" id="gui.lazy_column-2"><div class="sig">static def <b>lazy_column</b>(look: modifier, block: ()()) : lazy_list</div></div>
+<div class="fn" id="gui.legend"><div class="sig">static def <b>legend</b>() : chart_legend</div><p>inside chart { }: a coloured square and the name of every named series, above the marks</p></div>
+<div class="fn" id="gui.legend-2"><div class="sig">static def <b>legend</b>(entry: (legend_entry)()) : chart_legend</div><p>... each entry built from the widgets the block makes: <code>it</code> is a legend_entry</p></div>
+<div class="fn" id="gui.line"><div class="sig">static def <b>line</b>(values: decimal[]) : line_series</div><p>inside chart { }: a row of numbers as a line through its points. With a block, the widgets it makes stand above every point: <code>it</code> is the point&#x27;s mark (charts/series.sharp)</p></div>
+<div class="fn" id="gui.line-2"><div class="sig">static def <b>line</b>(name: string, values: decimal[]) : line_series</div></div>
+<div class="fn" id="gui.line-3"><div class="sig">static def <b>line</b>(values: list&lt;double&gt;) : line_series</div></div>
+<div class="fn" id="gui.line-4"><div class="sig">static def <b>line</b>(name: string, values: list&lt;double&gt;) : line_series</div></div>
+<div class="fn" id="gui.line-5"><div class="sig">static def <b>line</b>(values: decimal[], on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="gui.line-6"><div class="sig">static def <b>line</b>(name: string, values: decimal[], on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="gui.line-7"><div class="sig">static def <b>line</b>(values: list&lt;double&gt;, on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="gui.line-8"><div class="sig">static def <b>line</b>(name: string, values: list&lt;double&gt;, on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="gui.line_chart"><div class="sig">static def <b>line_chart</b>(values: decimal[]) : chart</div><p>one row of numbers as a line, with both axes and level lines</p></div>
+<div class="fn" id="gui.line_chart-2"><div class="sig">static def <b>line_chart</b>(values: decimal[], look: modifier) : chart</div></div>
+<div class="fn" id="gui.load_image"><div class="sig">static def <b>load_image</b>(path: string) : image</div><p>A picture file loaded for painter.image (in a layout, use image(path)). Needs an open window.</p></div>
+<div class="fn" id="gui.marker"><div class="sig">static def <b>marker</b>() : chart_marker</div><p>inside chart { }: the place under the mouse is marked, and a small box says its numbers</p></div>
+<div class="fn" id="gui.marker-2"><div class="sig">static def <b>marker</b>(box: (chart_hover)()) : chart_marker</div><p>... the box built from the widgets the block makes: <code>it</code> is a chart_hover</p></div>
+<div class="fn" id="gui.menu"><div class="sig">static def <b>menu</b>(open: state&lt;_int64&gt;, block: ()()) : popup</div><p>A context menu: a list of choices at the mouse, there while <code>open</code> is not 0 (menu.sharp). Open it from a right click:</p>
+<div class="code"><pre class="sharp">row(modifier().right_click { opened.value = 1; }) { ... };
+menu(opened) { menu_item(&quot;Delete&quot;) { remove(); }; }</pre></div></div>
+<div class="fn" id="gui.menu_item"><div class="sig">static def <b>menu_item</b>(title: string, action: ()()) : row</div><p>inside menu { }: one choice. Choosing it runs <code>action</code> and closes the menu.</p></div>
+<div class="fn" id="gui.menu_item-2"><div class="sig">static def <b>menu_item</b>(title: string, look: modifier, action: ()()) : row</div></div>
+<div class="fn" id="gui.mode"><div class="sig">static def <b>mode</b>() : window_mode</div><p>how the app&#x27;s window sits on the screen right now (windowed while no app runs)</p></div>
+<div class="fn" id="gui.model_of"><div class="sig">static def <b>model_of</b>&lt;t base view_model&gt;() : t</div><p>The model of class t for the screen being built: made the first time, the same one every time after, dropped when the screen is popped. (view_model.sharp)</p>
+<div class="code"><pre class="sharp">model := model_of&lt;tasks_model&gt;();</pre></div></div>
+<div class="fn" id="gui.modifier"><div class="sig">static def <b>modifier</b>() : modifier</div><p>A new, empty modifier: chain the box settings you want onto it and pass it to a widget function (modifier.sharp).</p>
+<div class="code"><pre class="sharp">text(&quot;Hello&quot;, modifier().padding(8).background(surface).corner(6))</pre></div></div>
+<div class="fn" id="gui.month_view"><div class="sig">static def <b>month_view</b>(value: state&lt;date&gt;) : month_grid</div><p>a month as a calendar page; clicking a day puts that date into the state (month_grid.sharp)</p></div>
+<div class="fn" id="gui.month_view-2"><div class="sig">static def <b>month_view</b>(value: state&lt;date&gt;, look: modifier) : month_grid</div></div>
+<div class="fn" id="gui.mouse_kept"><div class="sig">static def <b>mouse_kept</b>() : bool</div><p>does the window keep the mouse right now? (gui.keep_mouse)</p></div>
+<div class="fn" id="gui.nav_bar"><div class="sig">static def <b>nav_bar</b>(nav: navigator) : nav_bar</div><p>the bar that switches between the app&#x27;s tabs; it hides while a screen is open on top of a tab (nav_bar.sharp)</p></div>
+<div class="fn" id="gui.nav_bar-2"><div class="sig">static def <b>nav_bar</b>(nav: navigator, look: modifier) : nav_bar</div></div>
+<div class="fn" id="gui.on_main"><div class="sig">static def <b>on_main</b>(action: ()())</div><p>Run <code>action</code> on the main thread: the way back from a background thread to the one place where states may be changed. (main_queue.sharp)</p>
+<div class="code"><pre class="sharp">launch_on(dispatchers.io(), { -&gt;
+    found := read_the_file();
+    gui.on_main { shown.value = found; };
+});</pre></div>
+<p>Inside a view model use the model&#x27;s own on_main: it also does nothing once the model&#x27;s screen is gone.</p></div>
+<div class="fn" id="gui.option"><div class="sig">static def <b>option</b>(title: string) : menu_option</div><p>inside dropdown { }: one choice - words, or with a block the widgets it makes: option { text(&quot;Sweden&quot;); }</p></div>
+<div class="fn" id="gui.option-2"><div class="sig">static def <b>option</b>(content: ()()) : menu_option</div></div>
+<div class="fn" id="gui.pack"><div class="sig">static def <b>pack</b>(r: _int64, g: _int64, b: _int64) : _int64</div><p>A solid colour as ONE NUMBER, 0xRRGGBBAA - the form the painter takes without making anything: p.rect(0, 0, 200, 80, gui.pack(60, 63, 70)) is p.rect(0, 0, 200, 80, 0x3C3F46FF). Channels outside 0..255 are brought inside. For a colour worked out while painting; one that never changes is best written as the hex number, or packed once and kept.</p></div>
+<div class="fn" id="gui.pack-2"><div class="sig">static def <b>pack</b>(r: _int64, g: _int64, b: _int64, a: _int64) : _int64</div><p>the same with an alpha: 0 (invisible) .. 255 (solid)</p></div>
+<div class="fn" id="gui.paste"><div class="sig">static def <b>paste</b>() : string</div><p>the text on the system clipboard (&quot;&quot; when there is none)</p></div>
+<div class="fn" id="gui.plain"><div class="sig">static def <b>plain</b>(words: string)</div><p>inside rich { }: words in the ordinary look</p></div>
+<div class="fn" id="gui.progress"><div class="sig">static def <b>progress</b>(fraction: decimal) : progress_bar</div><p>a bar that shows how far along something is: 0 = nothing, 1 = done (progress_bar.sharp)</p></div>
+<div class="fn" id="gui.progress-2"><div class="sig">static def <b>progress</b>(fraction: decimal, look: modifier) : progress_bar</div></div>
+<div class="fn" id="gui.quiet"><div class="sig">static def <b>quiet</b>(words: string)</div><p>inside rich { }: words in the theme&#x27;s quiet colour</p></div>
+<div class="fn" id="gui.quit"><div class="sig">static def <b>quit</b>()</div><p>close the window and end the app: gui.run returns</p></div>
+<div class="fn" id="gui.radio"><div class="sig">static def <b>radio</b>(words: string, choice: state&lt;_int64&gt;, stands_for: _int64) : radio</div><p>one choice out of several: all radios sharing a state form a group; this one stands for <code>stands_for</code> (radio.sharp)</p></div>
+<div class="fn" id="gui.radio-2"><div class="sig">static def <b>radio</b>(choice: state&lt;_int64&gt;, stands_for: _int64, caption: ()()) : radio</div><p>... the caption built from the widgets the block makes: radio(size, 2) { text(&quot;Large&quot;); }</p></div>
+<div class="fn" id="gui.radio-3"><div class="sig">static def <b>radio</b>(choice: state&lt;_int64&gt;, stands_for: _int64, look: modifier, caption: ()()) : radio</div></div>
+<div class="fn" id="gui.radio-4"><div class="sig">static def <b>radio</b>(words: string, choice: state&lt;_int64&gt;, stands_for: _int64, look: modifier) : radio</div></div>
+<div class="fn" id="gui.rgb"><div class="sig">static def <b>rgb</b>(r: _int32, g: _int32, b: _int32) : color</div><p>A solid colour, each channel 0..255: rgb(24, 28, 40).</p></div>
+<div class="fn" id="gui.rgba"><div class="sig">static def <b>rgba</b>(r: _int32, g: _int32, b: _int32, a: _int32) : color</div><p>A colour that can be see-through: alpha 0 (invisible) .. 255 (solid).</p></div>
+<div class="fn" id="gui.rich"><div class="sig">static def <b>rich</b>(block: ()()) : rich_text</div><p>One text with parts that look different. The block says the parts with plain / bold / colored / quiet; text(...) shows the result. (rich_label.sharp)</p>
+<div class="code"><pre class="sharp">text(rich { plain(&quot;Due &quot;); bold(&quot;tomorrow&quot;); });</pre></div></div>
+<div class="fn" id="gui.row"><div class="sig">static def <b>row</b>() : row</div><p>children side by side, left to right (row.sharp)</p></div>
+<div class="fn" id="gui.row-2"><div class="sig">static def <b>row</b>(look: modifier) : row</div></div>
+<div class="fn" id="gui.row-3"><div class="sig">static def <b>row</b>(block: ()()) : row</div></div>
+<div class="fn" id="gui.row-4"><div class="sig">static def <b>row</b>(look: modifier, block: ()()) : row</div></div>
+<div class="fn" id="gui.run"><div class="sig">static def <b>run</b>(title: string, width: _int32, height: _int32, root: element)</div><p>Open a window and run <code>root</code> in it until the window is closed. <code>root</code> is usually one of your composables (new my_app()), but any widget works.</p></div>
+<div class="fn" id="gui.run-2"><div class="sig">static def <b>run</b>(title: string, width: _int32, height: _int32, build: ()(element))</div><p>The same, for a screen written as a function instead of a class - handy for small programs whose state is made with gui.state(...):</p>
+<div class="code"><pre class="sharp">clicks := gui.state(0);
+gui.run(&quot;Clicker&quot;, 300, 200, { -&gt;
+    return button(&quot;clicked &quot; + clicks.value) { clicks.value += 1; };
+});</pre></div></div>
+<div class="fn" id="gui.run-3"><div class="sig">static def <b>run</b>(title: string, root: element)</div><p>run <code>root</code> in a window of the standard size (default_width x default_height)</p></div>
+<div class="fn" id="gui.run-4"><div class="sig">static def <b>run</b>(title: string, build: ()(element))</div></div>
+<div class="fn" id="gui.run-5"><div class="sig">static def <b>run</b>(title: string, opened_as: window_mode, root: element)</div><p>Run <code>root</code> maximized or fullscreen (window_mode, window.sharp):</p>
+<div class="code"><pre class="sharp">gui.run(&quot;Kiosk&quot;, window_mode.fullscreen, new my_app());</pre></div>
+<p>The window itself has the standard size - what it goes back to when the mode is changed to windowed later (gui.set_mode, gui.fullscreen(false)).</p></div>
+<div class="fn" id="gui.run-6"><div class="sig">static def <b>run</b>(title: string, opened_as: window_mode, build: ()(element))</div></div>
+<div class="fn" id="gui.run-7"><div class="sig">static def <b>run</b>(title: string, width: _int32, height: _int32, opened_as: window_mode, root: element)</div><p>the same with the window&#x27;s own size given: what it has when it is, or goes back to being, windowed</p></div>
+<div class="fn" id="gui.run-8"><div class="sig">static def <b>run</b>(title: string, width: _int32, height: _int32, opened_as: window_mode, build: ()(element))</div></div>
+<div class="fn" id="gui.saved"><div class="sig">static def <b>saved</b>(key: string, first: _int64) : state&lt;_int64&gt;</div><p>A state that is still there the next time the program runs: every change is written to a small file in the app&#x27;s data folder. (saved.sharp)</p>
+<div class="code"><pre class="sharp">theme_choice := saved(&quot;theme&quot;, 0);</pre></div></div>
+<div class="fn" id="gui.saved-2"><div class="sig">static def <b>saved</b>(key: string, first: decimal) : state&lt;decimal&gt;</div></div>
+<div class="fn" id="gui.saved-3"><div class="sig">static def <b>saved</b>(key: string, first: string) : state&lt;string&gt;</div></div>
+<div class="fn" id="gui.saved_list"><div class="sig">static def <b>saved_list</b>&lt;t&gt;(key: string, to_text: (t)(string), from_text: (string)(t)) : state_list&lt;t&gt;</div><p>A watched list that is saved: one item per line of its file. The two functions turn an item into text and back.</p>
+<div class="code"><pre class="sharp">tasks := saved_list&lt;task&gt;(&quot;tasks&quot;, { t: task -&gt; return t.to_text(); },
+                                   { s: string -&gt; return task.from_text(s); });</pre></div></div>
+<div class="fn" id="gui.scale"><div class="sig">static def <b>scale</b>(factor: decimal)</div><p>How many real pixels one unit is. Sizes in this library are in UNITS that look the same on every screen; by default the scale follows the screen&#x27;s own setting (1.5 on a laptop at 150 %). Call this BEFORE gui.run to choose it yourself: gui.scale(2) makes everything twice as big, text included and still sharp. (Android: dp / sp and the display density.)</p></div>
+<div class="fn" id="gui.screen"><div class="sig">static def <b>screen</b>&lt;t base route&gt;(content: (t)())</div><p>Inside screens { }: what is shown for routes of type t. <code>it</code> is the route: screen&lt;to_detail&gt;() { detail_screen(nav, it.id); }</p></div>
+<div class="fn" id="gui.screen_height"><div class="sig">static def <b>screen_height</b>() : _int32</div></div>
+<div class="fn" id="gui.screen_width"><div class="sig">static def <b>screen_width</b>() : _int32</div><p>the size of the whole screen, in the units a layout is written in: what a fullscreen window gets</p></div>
+<div class="fn" id="gui.screens"><div class="sig">static def <b>screens</b>(nav: navigator, start: route, block: ()()) : screen_host</div><p>The app&#x27;s screens, in one list, and the place they are shown.</p>
+<div class="code"><pre class="sharp">screens(nav, to_home(), modifier().grow(1)) {
+    tab&lt;to_home&gt;(&quot;Home&quot;)       { home_screen(nav); };
+    tab&lt;to_library&gt;(&quot;Library&quot;) { library_screen(nav); };
+    screen&lt;to_detail&gt;()        { detail_screen(nav, it.id); };
+}</pre></div>
+<p><code>start</code> is the route the app opens with. The block lists what is shown for each kind of route: screen&lt;route&gt;() { } for an ordinary screen, tab&lt;route&gt;(title) { } for a top-level one the tab bar switches between. Inside each, <code>it</code> is the route the screen was opened with. (screens.sharp, navigator.sharp, route.sharp)</p></div>
+<div class="fn" id="gui.screens-2"><div class="sig">static def <b>screens</b>(nav: navigator, start: route, look: modifier, block: ()()) : screen_host</div></div>
+<div class="fn" id="gui.scroll"><div class="sig">static def <b>scroll</b>(content: element) : scroller</div><p>a scrolling window onto content taller than the room there is (scroller.sharp)</p></div>
+<div class="fn" id="gui.scroll-2"><div class="sig">static def <b>scroll</b>(look: modifier, content: element) : scroller</div></div>
+<div class="fn" id="gui.scroll-3"><div class="sig">static def <b>scroll</b>(block: ()()) : scroller</div><p>the block form: the widgets made in the block scroll, stacked top to bottom</p></div>
+<div class="fn" id="gui.scroll-4"><div class="sig">static def <b>scroll</b>(look: modifier, block: ()()) : scroller</div></div>
+<div class="fn" id="gui.scroll_row"><div class="sig">static def <b>scroll_row</b>(block: ()()) : scroller</div><p>the sideways scroller: the widgets made in the block sit side by side and scroll left-right</p></div>
+<div class="fn" id="gui.scroll_row-2"><div class="sig">static def <b>scroll_row</b>(look: modifier, block: ()()) : scroller</div></div>
+<div class="fn" id="gui.set_mode"><div class="sig">static def <b>set_mode</b>(next: window_mode)</div><p>maximize the app&#x27;s window, make it fullscreen, or an ordinary window again. Does nothing while no app runs.</p></div>
+<div class="fn" id="gui.shared_model_of"><div class="sig">static def <b>shared_model_of</b>&lt;t base view_model&gt;() : t</div><p>The model of class t that belongs to the whole APP rather than to one screen: every screen that asks gets the same one, and it lives until the window closes. For what several screens share - the list of tasks that one screen shows and another edits. (Android: a ViewModel scoped to the activity or the navigation graph.)</p></div>
+<div class="fn" id="gui.sheet"><div class="sig">static def <b>sheet</b>(open: state&lt;_int64&gt;, block: ()()) : popup</div><p>A sheet: a panel that rises from the bottom edge of the window over a dimmed page, there while <code>open</code> is not 0. A click outside it, or Escape, sets <code>open</code> back to 0. For a short task that belongs to the page behind it: adding an item, choosing among options. (popup.sharp)</p>
+<div class="code"><pre class="sharp">adding := state(0);
+sheet(adding) {
+    text(&quot;New task&quot;).size(20).bold();
+    text_field(title, modifier().fill_width());
+    button(&quot;Add&quot;) { add(); adding.value = 0; };
+}</pre></div>
+<p>(Compose: ModalBottomSheet. Android: BottomSheetDialogFragment.)</p></div>
+<div class="fn" id="gui.show_fps"><div class="sig">static def <b>show_fps</b>(on: bool)</div><p>true: a small box in the top right corner, over everything the app paints, says how many frames were painted in the last second and how long the last one took (&quot;60 fps  3.2 ms&quot;). false: gone. An app that stands still shows 0 - it is not painting, which is what it should be doing.</p></div>
+<div class="fn" id="gui.slider"><div class="sig">static def <b>slider</b>(value: state&lt;decimal&gt;, from: decimal, to: decimal) : slider</div><p>a knob on a track that picks a number between <code>from</code> and <code>to</code>, bound to a decimal state (slider.sharp)</p></div>
+<div class="fn" id="gui.slider-2"><div class="sig">static def <b>slider</b>(value: state&lt;decimal&gt;, from: decimal, to: decimal, look: modifier) : slider</div></div>
+<div class="fn" id="gui.spacer"><div class="sig">static def <b>spacer</b>() : spacer</div><p>empty room that takes whatever is left over in a row or column: pushes things apart</p></div>
+<div class="fn" id="gui.stack"><div class="sig">static def <b>stack</b>() : stack</div><p>children on top of each other, first at the bottom (stack.sharp)</p></div>
+<div class="fn" id="gui.stack-2"><div class="sig">static def <b>stack</b>(look: modifier) : stack</div></div>
+<div class="fn" id="gui.stack-3"><div class="sig">static def <b>stack</b>(block: ()()) : stack</div></div>
+<div class="fn" id="gui.stack-4"><div class="sig">static def <b>stack</b>(look: modifier, block: ()()) : stack</div></div>
+<div class="fn" id="gui.state"><div class="sig">static def <b>state</b>(first: _int64) : state&lt;_int64&gt;</div><p>A value the screen depends on, made outside a composable (inside one, use the composable&#x27;s own state(...), which is also remembered when a parent rebuilds). Read it with .value while building; assign .value to change it - whatever was built from it is built again.</p></div>
+<div class="fn" id="gui.state-2"><div class="sig">static def <b>state</b>(first: decimal) : state&lt;decimal&gt;</div><p>a decimal state: gui.state(0.5)</p></div>
+<div class="fn" id="gui.state-3"><div class="sig">static def <b>state</b>(first: string) : state&lt;string&gt;</div><p>a text state: gui.state(&quot;&quot;)</p></div>
+<div class="fn" id="gui.state_list"><div class="sig">static def <b>state_list</b>&lt;t&gt;() : state_list&lt;t&gt;</div><p>a list the screen watches: adding, removing or moving an item rebuilds whoever showed it (state_list.sharp)</p></div>
+<div class="fn" id="gui.state_of"><div class="sig">static def <b>state_of</b>&lt;t&gt;(first: t) : state&lt;t&gt;</div><p>a state holding any other kind of value (an object, a list); call .touch() after changing something inside it</p></div>
+<div class="fn" id="gui.swipe_to_dismiss"><div class="sig">static def <b>swipe_to_dismiss</b>(action: ()(), block: ()()) : swipe_row</div><p>A row that can be pushed off the screen sideways; <code>action</code> runs when it has gone, and must take the item out of the list. (swipe_row.sharp)</p>
+<div class="code"><pre class="sharp">swipe_to_dismiss({ -&gt; model.remove(t); }) { task_card(t); }.behind(&quot;Delete&quot;);</pre></div></div>
+<div class="fn" id="gui.swipe_to_dismiss-2"><div class="sig">static def <b>swipe_to_dismiss</b>(look: modifier, action: ()(), block: ()()) : swipe_row</div></div>
+<div class="fn" id="gui.tab"><div class="sig">static def <b>tab</b>&lt;t base route&gt;(title: string, content: (t)())</div><p>Inside screens { }: a top-level screen, one of the places the tab bar switches between: tab&lt;to_home&gt;(&quot;Home&quot;) { home_screen(nav); } The route class must be makeable with no arguments.</p></div>
+<div class="fn" id="gui.tab-2"><div class="sig">static def <b>tab</b>(title: string) : tab_item</div><p>inside tabs { }: one title - words, or with a block the widgets it makes: tab { text(&quot;Inbox&quot;); badge(3); }</p></div>
+<div class="fn" id="gui.tab-3"><div class="sig">static def <b>tab</b>(title: string, look: modifier) : tab_item</div></div>
+<div class="fn" id="gui.tab-4"><div class="sig">static def <b>tab</b>(title: ()()) : tab_item</div></div>
+<div class="fn" id="gui.tab-5"><div class="sig">static def <b>tab</b>(look: modifier, title: ()()) : tab_item</div></div>
+<div class="fn" id="gui.tabs"><div class="sig">static def <b>tabs</b>(choice: state&lt;_int64&gt;, block: ()()) : tab_strip</div><p>a strip of titles that chooses a page: tabs(page) { tab(&quot;One&quot;); tab(&quot;Two&quot;); } (tabs.sharp)</p></div>
+<div class="fn" id="gui.tabs-2"><div class="sig">static def <b>tabs</b>(choice: state&lt;_int64&gt;, look: modifier, block: ()()) : tab_strip</div></div>
+<div class="fn" id="gui.text"><div class="sig">static def <b>text</b>(words: string) : label</div><p>text; wraps when it does not fit (label.sharp)</p></div>
+<div class="fn" id="gui.text-2"><div class="sig">static def <b>text</b>(words: string, look: modifier) : label</div></div>
+<div class="fn" id="gui.text-3"><div class="sig">static def <b>text</b>(words: rich_text) : rich_label</div><p>a rich text on the screen</p></div>
+<div class="fn" id="gui.text-4"><div class="sig">static def <b>text</b>(words: rich_text, look: modifier) : rich_label</div></div>
+<div class="fn" id="gui.text_area"><div class="sig">static def <b>text_area</b>(value: state&lt;string&gt;) : text_area</div></div>
+<div class="fn" id="gui.text_area-2"><div class="sig">static def <b>text_area</b>(value: state&lt;string&gt;, look: modifier) : text_area</div></div>
+<div class="fn" id="gui.text_field"><div class="sig">static def <b>text_field</b>(value: state&lt;string&gt;) : text_field</div></div>
+<div class="fn" id="gui.text_field-2"><div class="sig">static def <b>text_field</b>(value: state&lt;string&gt;, look: modifier) : text_field</div></div>
+<div class="fn" id="gui.time_picker"><div class="sig">static def <b>time_picker</b>(open: state&lt;_int64&gt;, value: state&lt;time_of_day&gt;) : popup</div><p>a dialog to pick a time of day, there while <code>open</code> is not 0 (see date_picker)</p></div>
+<div class="fn" id="gui.time_view"><div class="sig">static def <b>time_view</b>(value: state&lt;time_of_day&gt;) : time_spinner</div><p>hours and minutes with arrows, to set a time of day (time_spinner.sharp)</p></div>
+<div class="fn" id="gui.time_view-2"><div class="sig">static def <b>time_view</b>(value: state&lt;time_of_day&gt;, look: modifier) : time_spinner</div></div>
+<div class="fn" id="gui.time_words"><div class="sig">static def <b>time_words</b>(at: time_of_day) : string</div><p>a time of day as &quot;09:30&quot;</p></div>
+<div class="fn" id="gui.toast"><div class="sig">static def <b>toast</b>(words: string)</div></div>
+<div class="fn" id="gui.toggle"><div class="sig">static def <b>toggle</b>(value: state&lt;_int64&gt;) : toggle</div><p>an on/off switch, bound to a 0/1 state (toggle.sharp)</p></div>
+<div class="fn" id="gui.toggle-2"><div class="sig">static def <b>toggle</b>(value: state&lt;_int64&gt;, look: modifier) : toggle</div></div>
+<div class="fn" id="gui.top_bar"><div class="sig">static def <b>top_bar</b>(title: string, nav: navigator) : row</div><p>The bar across the top of a screen: its title, and a back button whenever there is a screen to go back to. With a block, the widgets it makes sit at the bar&#x27;s right end - the screen&#x27;s own buttons:</p>
+<div class="code"><pre class="sharp">top_bar(&quot;Inbox&quot;, nav) { button(&quot;New&quot;) { compose(); }; }</pre></div></div>
+<div class="fn" id="gui.top_bar-2"><div class="sig">static def <b>top_bar</b>(title: string, nav: navigator, look: modifier) : row</div></div>
+<div class="fn" id="gui.top_bar-3"><div class="sig">static def <b>top_bar</b>(title: string, nav: navigator, actions: ()()) : row</div></div>
+<div class="fn" id="gui.top_bar-4"><div class="sig">static def <b>top_bar</b>(title: string, nav: navigator, look: modifier, actions: ()()) : row</div></div>
+<div class="fn" id="gui.use_theme"><div class="sig">static def <b>use_theme</b>(next: theme)</div><p>The colours and sizes the widgets use: theme.dark() (the default), theme.light(), or your own. Before gui.run it sets the theme the app starts with; while the app runs it switches the look on the spot (the whole screen is built again with the new theme).</p></div>
+<div class="fn" id="gui.vsync"><div class="sig">static def <b>vsync</b>(on: bool)</div><p>true: a frame is shown only when the screen starts its next refresh (vsync), so nothing moving on the screen ever tears. false, the default: frames are shown as soon as they are painted, and the frame rate alone keeps the pace.</p>
+<p>Before gui.run or while the app runs. Where the system has no compositor (a Raspberry Pi), a frame that misses a refresh waits for the next one: with vsync on a 60 Hz screen shows 60, 30, 20, 15 ... frames a second and nothing in between, so a limit of 30 can come out lower. Turn it on when tearing shows, and check the rate with gui.show_fps(true).</p></div>
+<div class="fn" id="gui.vsync-2"><div class="sig">static def <b>vsync</b>() : bool</div><p>is vsync on? (gui.vsync)</p></div>
+<div class="fn" id="gui.window"><div class="sig">static def <b>window</b>(title: string, width: _int32, height: _int32) : window</div><p>Open a bare window and drive it yourself: read events, paint with its painter, show the frame (window.sharp). gui.run does all of this for you; use this only for a program that wants the raw loop.</p></div>
+<div class="fn" id="gui.window-2"><div class="sig">static def <b>window</b>(title: string) : window</div><p>... of the standard size (default_width x default_height)</p></div>
+<div class="fn" id="gui.window-3"><div class="sig">static def <b>window</b>(title: string, opened_as: window_mode) : window</div><p>... opened maximized or fullscreen; w.set_mode(...) and w.fullscreen(true / false) change it later</p></div>
+<div class="fn" id="gui.window-4"><div class="sig">static def <b>window</b>(title: string, width: _int32, height: _int32, opened_as: window_mode) : window</div></div>
+<div class="fn" id="gui.wrap"><div class="sig">static def <b>wrap</b>(block: ()()) : wrap</div><p>children side by side, folding onto the next line when the line is full (wrap.sharp)</p></div>
+<div class="fn" id="gui.wrap-2"><div class="sig">static def <b>wrap</b>(look: modifier, block: ()()) : wrap</div></div>
+<div class="fn" id="gui.x_axis"><div class="sig">static def <b>x_axis</b>() : chart_axis</div><p>inside chart { }: the words along the bottom - one for each place, or 1, 2, 3 ... With a block, every label is built from the widgets it makes: <code>it</code> is the label (charts/parts.sharp)</p></div>
+<div class="fn" id="gui.x_axis-2"><div class="sig">static def <b>x_axis</b>(names: string[]) : chart_axis</div></div>
+<div class="fn" id="gui.x_axis-3"><div class="sig">static def <b>x_axis</b>(names: list&lt;string&gt;) : chart_axis</div></div>
+<div class="fn" id="gui.x_axis-4"><div class="sig">static def <b>x_axis</b>(label: (axis_label)()) : chart_axis</div></div>
+<div class="fn" id="gui.x_axis-5"><div class="sig">static def <b>x_axis</b>(names: string[], label: (axis_label)()) : chart_axis</div></div>
+<div class="fn" id="gui.x_axis-6"><div class="sig">static def <b>x_axis</b>(names: list&lt;string&gt;, label: (axis_label)()) : chart_axis</div></div>
+<div class="fn" id="gui.y_axis"><div class="sig">static def <b>y_axis</b>() : chart_axis</div><p>inside chart { }: the numbers up the side: y_axis().ticks(4). With a block, each is built from widgets</p></div>
+<div class="fn" id="gui.y_axis-2"><div class="sig">static def <b>y_axis</b>(label: (axis_label)()) : chart_axis</div></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="add"><div class="sig">def <b>add</b>(what: thing) : thing</div><p>put a thing you kept in a variable into the scene or group being written</p></div>
+<div class="fn" id="add-2"><div class="sig">def <b>add</b>(shape: mesh) : thing</div><p>a mesh of your own, as a thing</p></div>
+<div class="fn" id="animated_show"><div class="sig">def <b>animated_show</b>(visible: _int64, block: ()()) : revealer</div><p>content that grows open while <code>visible</code> is not 0 and shrinks away when it is 0 (animation/revealer.sharp)</p></div>
+<div class="fn" id="animated_show-2"><div class="sig">def <b>animated_show</b>(visible: _int64, how: _int64, block: ()()) : revealer</div></div>
+<div class="fn" id="animated_show-3"><div class="sig">def <b>animated_show</b>(visible: _int64, look: modifier, block: ()()) : revealer</div></div>
+<div class="fn" id="animated_show-4"><div class="sig">def <b>animated_show</b>(visible: _int64, how: _int64, look: modifier, block: ()()) : revealer</div></div>
+<div class="fn" id="backdrop"><div class="sig">def <b>backdrop</b>(color: _int64)</div><p>one flat colour behind everything, instead of a sky</p></div>
+<div class="fn" id="badge"><div class="sig">def <b>badge</b>(count: _int64) : badge</div><p>a small filled dot with a count; nothing when the count is 0</p></div>
+<div class="fn" id="badge-2"><div class="sig">def <b>badge</b>(count: _int64, look: modifier) : badge</div></div>
+<div class="fn" id="bar_chart"><div class="sig">def <b>bar_chart</b>(values: decimal[]) : chart</div><p>one row of numbers as bars / as a line, with both axes and level lines: the whole chart in one word</p></div>
+<div class="fn" id="bar_chart-2"><div class="sig">def <b>bar_chart</b>(values: decimal[], look: modifier) : chart</div></div>
+<div class="fn" id="bars"><div class="sig">def <b>bars</b>(values: decimal[]) : bar_series</div><p>inside chart { }: a row of numbers as bars; with a name, the legend and the marker can say whose they are. With a block, the widgets it makes stand on every bar: bars(sales) { if(it.value &gt; 90) { chip(&quot;top&quot;); } }</p></div>
+<div class="fn" id="bars-2"><div class="sig">def <b>bars</b>(name: string, values: decimal[]) : bar_series</div></div>
+<div class="fn" id="bars-3"><div class="sig">def <b>bars</b>(values: list&lt;double&gt;) : bar_series</div></div>
+<div class="fn" id="bars-4"><div class="sig">def <b>bars</b>(name: string, values: list&lt;double&gt;) : bar_series</div></div>
+<div class="fn" id="bars-5"><div class="sig">def <b>bars</b>(values: decimal[], on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="bars-6"><div class="sig">def <b>bars</b>(name: string, values: decimal[], on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="bars-7"><div class="sig">def <b>bars</b>(values: list&lt;double&gt;, on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="bars-8"><div class="sig">def <b>bars</b>(name: string, values: list&lt;double&gt;, on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="bold"><div class="sig">def <b>bold</b>(words: string)</div></div>
+<div class="fn" id="button"><div class="sig">def <b>button</b>(words: string, action: ()()) : button</div><p>words you can click: button(&quot;Save&quot;) { save(); } (widgets/input/button.sharp)</p></div>
+<div class="fn" id="button-2"><div class="sig">def <b>button</b>(words: string, look: modifier, action: ()()) : button</div></div>
+<div class="fn" id="camera"><div class="sig">def <b>camera</b>() : camera</div><p>the scene&#x27;s camera (three/camera.sharp)</p></div>
+<div class="fn" id="canvas"><div class="sig">def <b>canvas</b>(drawing: (painter, frame)()) : canvas</div><p>an area you paint yourself every frame: canvas(modifier().fill()) { p: painter, f: frame -&gt; ... } (widgets/drawing/canvas.sharp)</p></div>
+<div class="fn" id="canvas-2"><div class="sig">def <b>canvas</b>(look: modifier, drawing: (painter, frame)()) : canvas</div></div>
+<div class="fn" id="card"><div class="sig">def <b>card</b>(block: ()()) : column</div><p>a raised panel that groups what belongs together; children stacked like a column&#x27;s</p></div>
+<div class="fn" id="card-2"><div class="sig">def <b>card</b>(look: modifier, block: ()()) : column</div></div>
+<div class="fn" id="chart"><div class="sig">def <b>chart</b>(block: ()()) : chart</div><p>numbers as bars and lines; the block says what is in it (charts/chart.sharp)</p></div>
+<div class="fn" id="chart-2"><div class="sig">def <b>chart</b>(look: modifier, block: ()()) : chart</div></div>
+<div class="fn" id="checkbox"><div class="sig">def <b>checkbox</b>(words: string, value: state&lt;_int64&gt;) : checkbox</div><p>a box you tick, bound to a 0/1 state (widgets/input/checkbox.sharp)</p></div>
+<div class="fn" id="checkbox-2"><div class="sig">def <b>checkbox</b>(words: string, value: state&lt;_int64&gt;, look: modifier) : checkbox</div></div>
+<div class="fn" id="checkbox-3"><div class="sig">def <b>checkbox</b>(value: state&lt;_int64&gt;, caption: ()()) : checkbox</div><p>... its caption built from widgets: checkbox(agreed) { text(&quot;I agree to the&quot;); text(&quot;terms&quot;).color(blue); }</p></div>
+<div class="fn" id="checkbox-4"><div class="sig">def <b>checkbox</b>(value: state&lt;_int64&gt;, look: modifier, caption: ()()) : checkbox</div></div>
+<div class="fn" id="chip"><div class="sig">def <b>chip</b>(words: string) : chip</div><p>a small rounded label - a tag, or with a block, a filter you click (widgets/display/chip.sharp)</p></div>
+<div class="fn" id="chip-2"><div class="sig">def <b>chip</b>(words: string, action: ()()) : chip</div></div>
+<div class="fn" id="chip-3"><div class="sig">def <b>chip</b>(words: string, look: modifier) : chip</div></div>
+<div class="fn" id="chip-4"><div class="sig">def <b>chip</b>(words: string, look: modifier, action: ()()) : chip</div></div>
+<div class="fn" id="colored"><div class="sig">def <b>colored</b>(words: string, c: color)</div></div>
+<div class="fn" id="column"><div class="sig">def <b>column</b>() : column</div><p>children stacked top to bottom (layout/flow/column.sharp)</p></div>
+<div class="fn" id="column-2"><div class="sig">def <b>column</b>(look: modifier) : column</div></div>
+<div class="fn" id="column-3"><div class="sig">def <b>column</b>(block: ()()) : column</div></div>
+<div class="fn" id="column-4"><div class="sig">def <b>column</b>(look: modifier, block: ()()) : column</div></div>
+<div class="fn" id="cone"><div class="sig">def <b>cone</b>(radius: decimal, height: decimal) : thing</div><p>a cone: <code>radius</code> at the bottom, a point at the top</p></div>
+<div class="fn" id="cube"><div class="sig">def <b>cube</b>(size: decimal) : thing</div><p>a cube <code>size</code> metres along every edge, round its own middle</p></div>
+<div class="fn" id="cube-2"><div class="sig">def <b>cube</b>(w: decimal, h: decimal, d: decimal) : thing</div><p>a box <code>w</code> wide, <code>h</code> high and <code>d</code> deep</p></div>
+<div class="fn" id="cylinder"><div class="sig">def <b>cylinder</b>(radius: decimal, height: decimal) : thing</div><p>a round post of this radius and height, standing on its own middle</p></div>
+<div class="fn" id="cylinder-2"><div class="sig">def <b>cylinder</b>(bottom: decimal, top: decimal, height: decimal, sides: _int64) : thing</div><p><code>bottom</code> and <code>top</code> its two radii, <code>sides</code> how many flat sides: a funnel, a pillar, a pyramid</p></div>
+<div class="fn" id="date_picker"><div class="sig">def <b>date_picker</b>(open: state&lt;_int64&gt;, value: state&lt;date&gt;) : popup</div><p>dialogs to pick a date / a time of day, there while <code>open</code> is not 0</p></div>
+<div class="fn" id="date_words"><div class="sig">def <b>date_words</b>(day: date) : string</div><p>&quot;Tue 17 Nov 2026&quot; and &quot;09:30&quot;</p></div>
+<div class="fn" id="daylight"><div class="sig">def <b>daylight</b>(from_sky: _int64, from_ground: _int64)</div><p>the light that is everywhere, sun or not: <code>from_sky</code> on what faces up, <code>from_ground</code> on what faces down. Darker for a moody scene, both the same for flat light.</p></div>
+<div class="fn" id="dialog"><div class="sig">def <b>dialog</b>(open: state&lt;_int64&gt;, block: ()()) : popup</div><p>a card in the middle of the window, there while <code>open</code> is not 0 (overlay/popup.sharp)</p></div>
+<div class="fn" id="divider"><div class="sig">def <b>divider</b>() : divider</div><p>a thin line between things (widgets/display/divider.sharp)</p></div>
+<div class="fn" id="divider-2"><div class="sig">def <b>divider</b>(look: modifier) : divider</div></div>
+<div class="fn" id="dropdown"><div class="sig">def <b>dropdown</b>(choice: state&lt;_int64&gt;, block: ()()) : dropdown</div><p>pick one named choice from a drop-down menu: dropdown(choice) { option(&quot;A&quot;); option(&quot;B&quot;); } (widgets/input/dropdown.sharp)</p></div>
+<div class="fn" id="dropdown-2"><div class="sig">def <b>dropdown</b>(choice: state&lt;_int64&gt;, look: modifier, block: ()()) : dropdown</div></div>
+<div class="fn" id="fab"><div class="sig">def <b>fab</b>(words: string, action: ()()) : fab</div><p>the floating action button: in a stack, after the content it floats over (widgets/input/fab.sharp)</p></div>
+<div class="fn" id="fab-2"><div class="sig">def <b>fab</b>(words: string, look: modifier, action: ()()) : fab</div></div>
+<div class="fn" id="fade"><div class="sig">def <b>fade</b>(visible: _int64, block: ()()) : fader</div><p>content that fades in while <code>visible</code> is not 0 and fades out when it turns 0 (animation/fader.sharp)</p></div>
+<div class="fn" id="fade-2"><div class="sig">def <b>fade</b>(visible: _int64, look: modifier, block: ()()) : fader</div></div>
+<div class="fn" id="fog"><div class="sig">def <b>fog</b>(color: _int64, from: decimal, to: decimal)</div><p>far things fade into this colour: none of it at <code>from</code> metres, nothing but it at <code>to</code></p></div>
+<div class="fn" id="form"><div class="sig">def <b>form</b>() : form</div><p>the rules a set of fields must pass before something is saved (widgets/input/form.sharp)</p></div>
+<div class="fn" id="gap"><div class="sig">def <b>gap</b>(pixels: decimal) : spacer</div><p>exactly this many pixels of empty room</p></div>
+<div class="fn" id="graphics_card"><div class="sig">def <b>graphics_card</b>() : string</div><p>what draws the scenes on this machine: the graphics card and its OpenGL (or why 3D is not available)</p></div>
+<div class="fn" id="grid"><div class="sig">def <b>grid</b>(columns: _int64, block: ()()) : grid</div><p>children in <code>columns</code> equal columns, row after row (layout/grids/grid.sharp)</p></div>
+<div class="fn" id="grid-2"><div class="sig">def <b>grid</b>(columns: _int64, look: modifier, block: ()()) : grid</div></div>
+<div class="fn" id="grid_fit"><div class="sig">def <b>grid_fit</b>(least: decimal, block: ()()) : grid</div><p>a grid with as many equal columns as fit, each at least <code>least</code> pixels wide</p></div>
+<div class="fn" id="grid_fit-2"><div class="sig">def <b>grid_fit</b>(least: decimal, look: modifier, block: ()()) : grid</div></div>
+<div class="fn" id="grid_lines"><div class="sig">def <b>grid_lines</b>() : chart_grid</div><p>inside chart { }: level lines behind the marks</p></div>
+<div class="fn" id="ground"><div class="sig">def <b>ground</b>(size: decimal) : thing</div><p>flat ground, <code>size</code> metres square, round (0, 0, 0)</p></div>
+<div class="fn" id="ground-2"><div class="sig">def <b>ground</b>(w: decimal, d: decimal) : thing</div></div>
+<div class="fn" id="group"><div class="sig">def <b>group</b>(block: ()()) : thing</div><p>things that belong together: placed, turned and scaled as one</p></div>
+<div class="fn" id="hud"><div class="sig">def <b>hud</b>(block: ()())</div><p>ordinary widgets over the scene: a score, a health bar, buttons. Any widget written in scene { } is laid over the view already; this only keeps a group of them together.</p></div>
+<div class="fn" id="image"><div class="sig">def <b>image</b>(path: string) : picture</div><p>a picture from a file: PNG, JPG, BMP, GIF (widgets/display/picture.sharp)</p></div>
+<div class="fn" id="image-2"><div class="sig">def <b>image</b>(path: string, look: modifier) : picture</div></div>
+<div class="fn" id="item"><div class="sig">def <b>item</b>(block: ()())</div><p>inside lazy_column { }: one row</p></div>
+<div class="fn" id="items"><div class="sig">def <b>items</b>(count: _int64, each: (_int64)())</div><p>inside lazy_column { }: <code>count</code> rows; the block builds row i (from 0) when it scrolls into view</p></div>
+<div class="fn" id="lamp"><div class="sig">def <b>lamp</b>() : lamp</div><p>a light at a place (three/lights.sharp). Made inside a group, it hangs in the group.</p></div>
+<div class="fn" id="lazy_column"><div class="sig">def <b>lazy_column</b>(block: ()()) : lazy_list</div><p>a scrolling list that only builds the rows in view; inside: item { } and items(n) { i -&gt; } (layout/scrolling/lazy_list.sharp)</p></div>
+<div class="fn" id="lazy_column-2"><div class="sig">def <b>lazy_column</b>(look: modifier, block: ()()) : lazy_list</div></div>
+<div class="fn" id="legend"><div class="sig">def <b>legend</b>() : chart_legend</div><p>inside chart { }: the names of the series; and the mark and numbers of the place under the mouse. With a block, each entry / the box is built from widgets: legend { text(it.name); }  marker { text(it.name); }</p></div>
+<div class="fn" id="legend-2"><div class="sig">def <b>legend</b>(entry: (legend_entry)()) : chart_legend</div></div>
+<div class="fn" id="line"><div class="sig">def <b>line</b>(values: decimal[]) : line_series</div><p>inside chart { }: a row of numbers as a line through its points. With a block, widgets stand above every point</p></div>
+<div class="fn" id="line-2"><div class="sig">def <b>line</b>(name: string, values: decimal[]) : line_series</div></div>
+<div class="fn" id="line-3"><div class="sig">def <b>line</b>(values: list&lt;double&gt;) : line_series</div></div>
+<div class="fn" id="line-4"><div class="sig">def <b>line</b>(name: string, values: list&lt;double&gt;) : line_series</div></div>
+<div class="fn" id="line-5"><div class="sig">def <b>line</b>(values: decimal[], on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="line-6"><div class="sig">def <b>line</b>(name: string, values: decimal[], on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="line-7"><div class="sig">def <b>line</b>(values: list&lt;double&gt;, on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="line-8"><div class="sig">def <b>line</b>(name: string, values: list&lt;double&gt;, on_each: (mark)()) : line_series</div></div>
+<div class="fn" id="line_chart"><div class="sig">def <b>line_chart</b>(values: decimal[]) : chart</div></div>
+<div class="fn" id="line_chart-2"><div class="sig">def <b>line_chart</b>(values: decimal[], look: modifier) : chart</div></div>
+<div class="fn" id="made_texture"><div class="sig">def <b>made_texture</b>(kind: string, which: _int64) : _int64</div><p>a texture the library draws itself, for land and plants with no picture files: &quot;bark&quot;, &quot;leaves&quot;, &quot;needles&quot;, &quot;grass&quot;, &quot;rock&quot; or &quot;sand&quot;. The number picks one of each kind. Gives its id, for .texture(id).</p></div>
+<div class="fn" id="make_texture"><div class="sig">def <b>make_texture</b>(name: string, pixels: _int64[], width: _int64, height: _int64) : _int64</div><p>a texture made by the program: <code>width</code> x <code>height</code> colours (0xRRGGBBAA), row after row from the top. <code>name</code> is what it is remembered by: asking again under the same name gives the one made first.</p></div>
+<div class="fn" id="marker"><div class="sig">def <b>marker</b>() : chart_marker</div></div>
+<div class="fn" id="marker-2"><div class="sig">def <b>marker</b>(box: (chart_hover)()) : chart_marker</div></div>
+<div class="fn" id="menu"><div class="sig">def <b>menu</b>(open: state&lt;_int64&gt;, block: ()()) : popup</div><p>a context menu at the mouse, there while <code>open</code> is not 0 (overlay/menu.sharp)</p></div>
+<div class="fn" id="menu_item"><div class="sig">def <b>menu_item</b>(title: string, action: ()()) : row</div><p>inside menu { }: one choice; choosing it runs <code>action</code> and closes the menu</p></div>
+<div class="fn" id="menu_item-2"><div class="sig">def <b>menu_item</b>(title: string, look: modifier, action: ()()) : row</div></div>
+<div class="fn" id="model"><div class="sig">def <b>model</b>(path: string) : thing</div><p>a model made in an art tool: an .obj (with its .mtl), a .gltf or a .glb file, with its materials and textures. The file is read once; every model(...) of it after that is the same shape on the graphics card.</p></div>
+<div class="fn" id="model_of"><div class="sig">def <b>model_of</b>&lt;t base view_model&gt;() : t</div><p>the screen&#x27;s model of class t: made once, the same one after, dropped with the screen (core/model/view_model.sharp)</p></div>
+<div class="fn" id="modifier"><div class="sig">def <b>modifier</b>() : modifier</div><p>a new, empty modifier: modifier().padding(16).fill_width() ... (core/style/modifier.sharp)</p></div>
+<div class="fn" id="month_view"><div class="sig">def <b>month_view</b>(value: state&lt;date&gt;) : month_grid</div><p>a month as a calendar page to pick a day from (widgets/pickers/month_grid.sharp)</p></div>
+<div class="fn" id="month_view-2"><div class="sig">def <b>month_view</b>(value: state&lt;date&gt;, look: modifier) : month_grid</div></div>
+<div class="fn" id="nav_bar"><div class="sig">def <b>nav_bar</b>(nav: navigator) : nav_bar</div><p>the bar that switches between the app&#x27;s tabs (navigation/nav_bar.sharp)</p></div>
+<div class="fn" id="nav_bar-2"><div class="sig">def <b>nav_bar</b>(nav: navigator, look: modifier) : nav_bar</div></div>
+<div class="fn" id="on_frame"><div class="sig">def <b>on_frame</b>(what: (frame)())</div><p>your code, run before every frame of the scene is drawn. <code>f</code> says how much time passed (f.step, in seconds), what time it is (f.time), where the mouse is and which keys are held (f.key_down(KEY_LEFT), f.key_down(&#x27;a&#x27;)).</p>
+<div class="code"><pre class="sharp">on_frame { f: frame -&gt;
+    if(f.key_down(KEY_LEFT) == 1) { ship.turn_by(0 - 90 * f.step); }
+    ship.forward(12 * f.step);
+};</pre></div></div>
+<div class="fn" id="on_main"><div class="sig">def <b>on_main</b>(action: ()())</div><p>run <code>action</code> on the main thread, from any thread: the way back to where states may be changed (core/runtime/main_queue.sharp)</p></div>
+<div class="fn" id="option"><div class="sig">def <b>option</b>(title: string) : menu_option</div><p>inside dropdown { }: one choice - words, or with a block the widgets it makes: option { text(&quot;Sweden&quot;); }</p></div>
+<div class="fn" id="option-2"><div class="sig">def <b>option</b>(content: ()()) : menu_option</div></div>
+<div class="fn" id="pine"><div class="sig">def <b>pine</b>(seed: decimal) : plant</div><p>a conifer, grown from this number</p></div>
+<div class="fn" id="plain"><div class="sig">def <b>plain</b>(words: string)</div></div>
+<div class="fn" id="progress"><div class="sig">def <b>progress</b>(fraction: decimal) : progress_bar</div><p>a bar that shows how far along something is: 0 = nothing, 1 = done (widgets/display/progress_bar.sharp)</p></div>
+<div class="fn" id="progress-2"><div class="sig">def <b>progress</b>(fraction: decimal, look: modifier) : progress_bar</div></div>
+<div class="fn" id="quiet"><div class="sig">def <b>quiet</b>(words: string)</div></div>
+<div class="fn" id="radio"><div class="sig">def <b>radio</b>(words: string, choice: state&lt;_int64&gt;, stands_for: _int64) : radio</div><p>one choice out of several: radios sharing a state form a group (widgets/input/radio.sharp)</p></div>
+<div class="fn" id="radio-2"><div class="sig">def <b>radio</b>(words: string, choice: state&lt;_int64&gt;, stands_for: _int64, look: modifier) : radio</div></div>
+<div class="fn" id="radio-3"><div class="sig">def <b>radio</b>(choice: state&lt;_int64&gt;, stands_for: _int64, caption: ()()) : radio</div><p>... its caption built from widgets: radio(size, 2) { text(&quot;Large&quot;); chip(&quot;popular&quot;); }</p></div>
+<div class="fn" id="radio-4"><div class="sig">def <b>radio</b>(choice: state&lt;_int64&gt;, stands_for: _int64, look: modifier, caption: ()()) : radio</div></div>
+<div class="fn" id="rgb"><div class="sig">def <b>rgb</b>(r: _int32, g: _int32, b: _int32) : color</div><p>a solid colour, each channel 0..255</p></div>
+<div class="fn" id="rgba"><div class="sig">def <b>rgba</b>(r: _int32, g: _int32, b: _int32, a: _int32) : color</div><p>a colour that can be see-through: alpha 0 (invisible) .. 255 (solid)</p></div>
+<div class="fn" id="rich"><div class="sig">def <b>rich</b>(block: ()()) : rich_text</div><p>one text with parts that look different: rich { plain(&quot;Due &quot;); bold(&quot;tomorrow&quot;); } (widgets/display/rich_label.sharp)</p></div>
+<div class="fn" id="ring"><div class="sig">def <b>ring</b>(radius: decimal, thickness: decimal) : thing</div><p>a ring lying flat: <code>radius</code> to the middle of its tube, the tube <code>thickness</code> in radius</p></div>
+<div class="fn" id="row"><div class="sig">def <b>row</b>() : row</div><p>children side by side, left to right (layout/flow/row.sharp)</p></div>
+<div class="fn" id="row-2"><div class="sig">def <b>row</b>(look: modifier) : row</div></div>
+<div class="fn" id="row-3"><div class="sig">def <b>row</b>(block: ()()) : row</div></div>
+<div class="fn" id="row-4"><div class="sig">def <b>row</b>(look: modifier, block: ()()) : row</div></div>
+<div class="fn" id="saved"><div class="sig">def <b>saved</b>(key: string, first: _int64) : state&lt;_int64&gt;</div><p>a state that is kept between runs of the program (core/model/saved.sharp)</p></div>
+<div class="fn" id="saved-2"><div class="sig">def <b>saved</b>(key: string, first: decimal) : state&lt;decimal&gt;</div></div>
+<div class="fn" id="saved-3"><div class="sig">def <b>saved</b>(key: string, first: string) : state&lt;string&gt;</div></div>
+<div class="fn" id="saved_list"><div class="sig">def <b>saved_list</b>&lt;t&gt;(key: string, to_text: (t)(string), from_text: (string)(t)) : state_list&lt;t&gt;</div><p>a watched list that is kept between runs: one item per line, with functions to turn an item into text and back</p></div>
+<div class="fn" id="scatter"><div class="sig">def <b>scatter</b>(what: thing, count: _int64) : scattering</div><p><code>count</code> copies of a thing, strewn about (three/terrain.sharp: scattering)</p></div>
+<div class="fn" id="scene"><div class="sig">def <b>scene</b>(block: ()()) : scene</div><p>a 3D view filling what room there is (give it a modifier to size it)</p></div>
+<div class="fn" id="scene-2"><div class="sig">def <b>scene</b>(look: modifier, block: ()()) : scene</div></div>
+<div class="fn" id="screen"><div class="sig">def <b>screen</b>&lt;t base route&gt;(content: (t)())</div><p>inside screens { }: what is shown for routes of type t; <code>it</code> is the route</p></div>
+<div class="fn" id="screens"><div class="sig">def <b>screens</b>(nav: navigator, start: route, block: ()()) : screen_host</div><p>the app&#x27;s screens in one list, and the place they are shown; <code>start</code> is the route the app opens with (navigation/screens.sharp):</p>
+<div class="code"><pre class="sharp">screens(nav, to_home(), modifier().grow(1)) {
+    tab&lt;to_home&gt;(&quot;Home&quot;)   { home_screen(nav); };
+    screen&lt;to_detail&gt;()    { detail_screen(nav, it.id); };
+}</pre></div></div>
+<div class="fn" id="screens-2"><div class="sig">def <b>screens</b>(nav: navigator, start: route, look: modifier, block: ()()) : screen_host</div></div>
+<div class="fn" id="scroll"><div class="sig">def <b>scroll</b>(content: element) : scroller</div><p>a scrolling window onto content taller than the room there is (layout/scrolling/scroller.sharp)</p></div>
+<div class="fn" id="scroll-2"><div class="sig">def <b>scroll</b>(look: modifier, content: element) : scroller</div></div>
+<div class="fn" id="scroll-3"><div class="sig">def <b>scroll</b>(block: ()()) : scroller</div></div>
+<div class="fn" id="scroll-4"><div class="sig">def <b>scroll</b>(look: modifier, block: ()()) : scroller</div></div>
+<div class="fn" id="scroll_row"><div class="sig">def <b>scroll_row</b>(block: ()()) : scroller</div><p>a sideways scroller: the widgets made in the block sit side by side and scroll left-right</p></div>
+<div class="fn" id="scroll_row-2"><div class="sig">def <b>scroll_row</b>(look: modifier, block: ()()) : scroller</div></div>
+<div class="fn" id="shared_model_of"><div class="sig">def <b>shared_model_of</b>&lt;t base view_model&gt;() : t</div><p>the model of class t shared by every screen of the app; it lives until the window closes</p></div>
+<div class="fn" id="sheet"><div class="sig">def <b>sheet</b>(open: state&lt;_int64&gt;, block: ()()) : popup</div><p>a panel that rises from the bottom of the window while <code>open</code> is not 0 (overlay/popup.sharp)</p></div>
+<div class="fn" id="sign"><div class="sig">def <b>sign</b>(path: string, w: decimal, h: decimal) : thing</div><p>a picture standing in the world, <code>w</code> by <code>h</code> metres, on its bottom edge. Its see-through parts are holes, and it is its own colours whatever the light. Chain .face_camera() for one that always looks at the eye (a name tag, a far-off tree).</p></div>
+<div class="fn" id="sky"><div class="sig">def <b>sky</b>(top: _int64, horizon: _int64)</div><p>the sky: its colour overhead, and at the horizon</p></div>
+<div class="fn" id="slider"><div class="sig">def <b>slider</b>(value: state&lt;decimal&gt;, from: decimal, to: decimal) : slider</div><p>a knob on a track that picks a number between <code>from</code> and <code>to</code>, bound to a decimal state (widgets/input/slider.sharp)</p></div>
+<div class="fn" id="slider-2"><div class="sig">def <b>slider</b>(value: state&lt;decimal&gt;, from: decimal, to: decimal, look: modifier) : slider</div></div>
+<div class="fn" id="spacer"><div class="sig">def <b>spacer</b>() : spacer</div><p>empty room that takes whatever is left over in a row or column: pushes things apart</p></div>
+<div class="fn" id="sphere"><div class="sig">def <b>sphere</b>(radius: decimal) : thing</div><p>a ball of this radius</p></div>
+<div class="fn" id="sphere-2"><div class="sig">def <b>sphere</b>(radius: decimal, around: _int64, down: _int64) : thing</div><p>a ball cut into <code>around</code> pieces round its middle and <code>down</code> bands: few of them for a faceted look</p></div>
+<div class="fn" id="stack"><div class="sig">def <b>stack</b>() : stack</div><p>children on top of each other, the first at the bottom (layout/stacking/stack.sharp)</p></div>
+<div class="fn" id="stack-2"><div class="sig">def <b>stack</b>(look: modifier) : stack</div></div>
+<div class="fn" id="stack-3"><div class="sig">def <b>stack</b>(block: ()()) : stack</div></div>
+<div class="fn" id="stack-4"><div class="sig">def <b>stack</b>(look: modifier, block: ()()) : stack</div></div>
+<div class="fn" id="state_list"><div class="sig">def <b>state_list</b>&lt;t&gt;() : state_list&lt;t&gt;</div><p>a list the screen watches (core/state/state_list.sharp)</p></div>
+<div class="fn" id="sun"><div class="sig">def <b>sun</b>() : sun</div><p>the scene&#x27;s sun (three/lights.sharp)</p></div>
+<div class="fn" id="swipe_to_dismiss"><div class="sig">def <b>swipe_to_dismiss</b>(action: ()(), block: ()()) : swipe_row</div><p>a row that can be pushed off the screen sideways; <code>action</code> must take the item out of the list (gestures/swipe_row.sharp)</p></div>
+<div class="fn" id="swipe_to_dismiss-2"><div class="sig">def <b>swipe_to_dismiss</b>(look: modifier, action: ()(), block: ()()) : swipe_row</div></div>
+<div class="fn" id="tab"><div class="sig">def <b>tab</b>&lt;t base route&gt;(title: string, content: (t)())</div><p>inside screens { }: a top-level screen the tab bar switches between</p></div>
+<div class="fn" id="tab-2"><div class="sig">def <b>tab</b>(title: string) : tab_item</div><p>inside tabs { }: one title - words, or with a block the widgets it makes: tab { text(&quot;Inbox&quot;); badge(3); }</p></div>
+<div class="fn" id="tab-3"><div class="sig">def <b>tab</b>(title: string, look: modifier) : tab_item</div></div>
+<div class="fn" id="tab-4"><div class="sig">def <b>tab</b>(title: ()()) : tab_item</div></div>
+<div class="fn" id="tab-5"><div class="sig">def <b>tab</b>(look: modifier, title: ()()) : tab_item</div></div>
+<div class="fn" id="tabs"><div class="sig">def <b>tabs</b>(choice: state&lt;_int64&gt;, block: ()()) : tab_strip</div><p>a strip of titles that chooses a page: tabs(page) { tab(&quot;One&quot;); tab(&quot;Two&quot;); } (widgets/input/tabs.sharp)</p></div>
+<div class="fn" id="tabs-2"><div class="sig">def <b>tabs</b>(choice: state&lt;_int64&gt;, look: modifier, block: ()()) : tab_strip</div></div>
+<div class="fn" id="terrain"><div class="sig">def <b>terrain</b>(size: decimal, rise: (decimal, decimal)(decimal)) : terrain</div><p>land <code>size</code> metres square, its height at (x, z) given by your function (three/terrain.sharp)</p></div>
+<div class="fn" id="terrain-2"><div class="sig">def <b>terrain</b>(size: decimal, cells: _int64, rise: (decimal, decimal)(decimal)) : terrain</div><p>the same cut into <code>cells</code> squares along each edge: more for finer land, fewer for a faster start</p></div>
+<div class="fn" id="text"><div class="sig">def <b>text</b>(words: string) : label</div><p>text; wraps when it does not fit (widgets/display/label.sharp)</p></div>
+<div class="fn" id="text-2"><div class="sig">def <b>text</b>(words: string, look: modifier) : label</div></div>
+<div class="fn" id="text-3"><div class="sig">def <b>text</b>(words: rich_text) : rich_label</div></div>
+<div class="fn" id="text-4"><div class="sig">def <b>text</b>(words: rich_text, look: modifier) : rich_label</div></div>
+<div class="fn" id="text_area"><div class="sig">def <b>text_area</b>(value: state&lt;string&gt;) : text_area</div><p>a box for text of several lines (widgets/input/text_area.sharp)</p></div>
+<div class="fn" id="text_area-2"><div class="sig">def <b>text_area</b>(value: state&lt;string&gt;, look: modifier) : text_area</div></div>
+<div class="fn" id="text_field"><div class="sig">def <b>text_field</b>(value: state&lt;string&gt;) : text_field</div></div>
+<div class="fn" id="text_field-2"><div class="sig">def <b>text_field</b>(value: state&lt;string&gt;, look: modifier) : text_field</div></div>
+<div class="fn" id="texture_of"><div class="sig">def <b>texture_of</b>(path: string) : _int64</div><p>a picture file as a texture: its id, for mesh.texture(id) and thing.texture(id)</p></div>
+<div class="fn" id="time_picker"><div class="sig">def <b>time_picker</b>(open: state&lt;_int64&gt;, value: state&lt;time_of_day&gt;) : popup</div></div>
+<div class="fn" id="time_view"><div class="sig">def <b>time_view</b>(value: state&lt;time_of_day&gt;) : time_spinner</div><p>hours and minutes with arrows (widgets/pickers/time_spinner.sharp)</p></div>
+<div class="fn" id="time_view-2"><div class="sig">def <b>time_view</b>(value: state&lt;time_of_day&gt;, look: modifier) : time_spinner</div></div>
+<div class="fn" id="time_words"><div class="sig">def <b>time_words</b>(at: time_of_day) : string</div></div>
+<div class="fn" id="toggle"><div class="sig">def <b>toggle</b>(value: state&lt;_int64&gt;) : toggle</div><p>an on/off switch, bound to a 0/1 state (widgets/input/toggle.sharp)</p></div>
+<div class="fn" id="toggle-2"><div class="sig">def <b>toggle</b>(value: state&lt;_int64&gt;, look: modifier) : toggle</div></div>
+<div class="fn" id="top_bar"><div class="sig">def <b>top_bar</b>(title: string, nav: navigator) : row</div><p>the bar across the top of a screen: its title, and a back button when there is a screen to go back to</p></div>
+<div class="fn" id="top_bar-2"><div class="sig">def <b>top_bar</b>(title: string, nav: navigator, look: modifier) : row</div></div>
+<div class="fn" id="top_bar-3"><div class="sig">def <b>top_bar</b>(title: string, nav: navigator, actions: ()()) : row</div><p>... with the screen&#x27;s own buttons at its right end: top_bar(&quot;Inbox&quot;, nav) { button(&quot;New&quot;) { compose(); }; }</p></div>
+<div class="fn" id="top_bar-4"><div class="sig">def <b>top_bar</b>(title: string, nav: navigator, look: modifier, actions: ()()) : row</div></div>
+<div class="fn" id="tree"><div class="sig">def <b>tree</b>(seed: decimal) : plant</div><p>a broad-leaved tree, grown from this number: another number, another tree (three/plant.sharp)</p></div>
+<div class="fn" id="wrap"><div class="sig">def <b>wrap</b>(block: ()()) : wrap</div><p>children side by side, folding onto the next line when the line is full (layout/flow/wrap.sharp)</p></div>
+<div class="fn" id="wrap-2"><div class="sig">def <b>wrap</b>(look: modifier, block: ()()) : wrap</div></div>
+<div class="fn" id="x_axis"><div class="sig">def <b>x_axis</b>() : chart_axis</div><p>inside chart { }: the words along the bottom and the numbers up the side (charts/parts.sharp). With a block, every label is built from widgets: x_axis(months) { text(it.words).size(13); }</p></div>
+<div class="fn" id="x_axis-2"><div class="sig">def <b>x_axis</b>(names: string[]) : chart_axis</div></div>
+<div class="fn" id="x_axis-3"><div class="sig">def <b>x_axis</b>(names: list&lt;string&gt;) : chart_axis</div></div>
+<div class="fn" id="x_axis-4"><div class="sig">def <b>x_axis</b>(label: (axis_label)()) : chart_axis</div></div>
+<div class="fn" id="x_axis-5"><div class="sig">def <b>x_axis</b>(names: string[], label: (axis_label)()) : chart_axis</div></div>
+<div class="fn" id="x_axis-6"><div class="sig">def <b>x_axis</b>(names: list&lt;string&gt;, label: (axis_label)()) : chart_axis</div></div>
+<div class="fn" id="y_axis"><div class="sig">def <b>y_axis</b>() : chart_axis</div></div>
+<div class="fn" id="y_axis-2"><div class="sig">def <b>y_axis</b>(label: (axis_label)()) : chart_axis</div></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.reflect - Sharp standard library</title>
+<meta name="description" content="The std.reflect module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li class="on"><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.reflect</p>
+<h1>std.reflect <small>module</small></h1>
+<p class="contents"><a href="#class_info">class_info</a> <a href="#enum_value">enum_value</a> <a href="#field_info">field_info</a> <a href="#field_reading">field_reading</a> <a href="#function_info">function_info</a> <a href="#object_view">object_view</a> <a href="#reflect">reflect</a> <a href="#reflect_exception">reflect_exception</a> <a href="#reflect_keeper">reflect_keeper</a> <a href="#reflect_names">reflect_names</a> <a href="#reflect_vm">reflect_vm</a> <a href="#type_info">type_info</a> <a href="#type_token">type_token</a> <a href="#functions">functions</a></p>
+<section class="type" id="class_info">
+<h2><span class="kind">class</span> class_info</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/class_info.sharp">source</a></p>
+<p>A CLASS, AN INTERFACE OR AN ENUM of the program (see reflect.sharp)</p>
+<div class="code"><pre class="sharp">shape := reflect.of&lt;user&gt;();
+shape.name                      // &quot;user&quot;
+shape.full_name                 // &quot;app.models#user&quot;
+shape.module                    // &quot;app.models&quot;
+shape.base_class()              // the class it is based on, or null
+shape.is_a(other)               // the same class, one below it, or one that implements it</pre></div>
+<div class="code"><pre class="sharp">shape.fields()                  // its fields and those of the classes above it
+shape.field(&quot;age&quot;)              // one of them (a static one too), or null
+shape.functions()               // its functions, and those above it that it did not replace
+shape.function(&quot;greet&quot;)         // the first function with the name, or null
+shape.constructors()</pre></div>
+<div class="code"><pre class="sharp">shape.create()                  // an object, by the constructor without parameters
+shape.create(&quot;ann&quot;, new int(31))  // ... by the constructor that takes these
+shape.create_array(10)          // user[10], every item null</pre></div>
+<div class="code"><pre class="sharp">colors := reflect.of&lt;color&gt;();  // an enum
+colors.values()                 // enum_value: .name, .number, .value
+colors.value(&quot;red&quot;)</pre></div>
+<p>PROTECTIONS. What is private or protected in the class is listed, and is not read, written or called. A class_info from open() allows it:</p>
+<div class="code"><pre class="sharp">shape.field(&quot;secret&quot;)!!.read(someone)           // reflect_exception
+shape.open().field(&quot;secret&quot;)!!.read(someone)    // allowed
+shape.open().create()                           // a private constructor too</pre></div>
+<p>open() gives another class_info for the same class (compare the two by <code>id</code>); the one every other part of the program gets stays closed.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>id</code></td><td><code>_int64</code></td><td>the VM&#x27;s number for the class (there is one class_info for each class, and one more from open(): <code>==</code> compares them)</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td>the name as it is written: &quot;user&quot;, &quot;list&lt;string&gt;&quot;</td></tr><tr><td><code>full_name</code></td><td><code>string</code></td><td>with the modules: &quot;app.models#user&quot;, &quot;std#list&lt;std#string&gt;&quot;</td></tr><tr><td><code>module</code></td><td><code>string</code></td><td>the module it is declared in</td></tr><tr><td><code>is_enum</code></td><td><code>decimal</code></td><td>1 for an enum</td></tr><tr><td><code>is_generic</code></td><td><code>decimal</code></td><td>1 for a class made of a generic one: list&lt;string&gt;</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="class_info.class_info"><div class="sig"><b>class_info</b>(id: _int64)</div></div>
+<div class="fn" id="class_info.base_class"><div class="sig">def <b>base_class</b>() : class_info?</div><p>the class it is based on; null when it is based on none</p></div>
+<div class="fn" id="class_info.constructors"><div class="sig">def <b>constructors</b>() : list&lt;function_info&gt;</div><p>the constructors of the class</p></div>
+<div class="fn" id="class_info.create"><div class="sig">def <b>create</b>() : object</div><p>a new object, made by the constructor without parameters</p></div>
+<div class="fn" id="class_info.create-2"><div class="sig">def <b>create</b>(first: object?) : object</div><p>a new object, made by the constructor that takes this</p></div>
+<div class="fn" id="class_info.create-3"><div class="sig">def <b>create</b>(first: object?, second: object?) : object</div></div>
+<div class="fn" id="class_info.create-4"><div class="sig">def <b>create</b>(first: object?, second: object?, third: object?) : object</div></div>
+<div class="fn" id="class_info.create-5"><div class="sig">def <b>create</b>(first: object?, second: object?, third: object?, fourth: object?) : object</div></div>
+<div class="fn" id="class_info.create_array"><div class="sig">def <b>create_array</b>(count: _int64) : object?</div><p>an array with room for <code>count</code> objects of the class, every item null; null for a count of 0, which is what an empty array is</p></div>
+<div class="fn" id="class_info.create_with"><div class="sig">def <b>create_with</b>(values: object[]?) : object</div><p>A new object, made by the constructor that takes <code>values</code> (null: the one without parameters). The constructor is the first whose parameters take the values: as many of them, a number for a number, an object of the right class for a class.</p>
+<p>@throws reflect_exception when no constructor takes them, with the constructors there are</p></div>
+<div class="fn" id="class_info.field"><div class="sig">def <b>field</b>(name: string) : field_info?</div><p>the field with a name, a static one too; null when the class has none (or the program did not keep it)</p></div>
+<div class="fn" id="class_info.field_or_fail"><div class="sig">def <b>field_or_fail</b>(name: string) : field_info</div><p>field(name), or a reflect_exception that names what the class does have</p></div>
+<div class="fn" id="class_info.fields"><div class="sig">def <b>fields</b>() : list&lt;field_info&gt;</div><p>the fields an object of the class has: its own and those of the classes above it</p></div>
+<div class="fn" id="class_info.function"><div class="sig">def <b>function</b>(name: string) : function_info?</div><p>the first function with a name; null when there is none (or the program did not keep it)</p></div>
+<div class="fn" id="class_info.function-2"><div class="sig">def <b>function</b>(name: string, count: _int64) : function_info?</div><p>the function with a name that takes <code>count</code> parameters; null when there is none</p></div>
+<div class="fn" id="class_info.functions"><div class="sig">def <b>functions</b>() : list&lt;function_info&gt;</div><p>the functions of the class (not its constructors): its own first, then those of the classes above it that it did not replace</p></div>
+<div class="fn" id="class_info.functions_named"><div class="sig">def <b>functions_named</b>(name: string) : list&lt;function_info&gt;</div><p>every function with a name (one per list of parameters)</p></div>
+<div class="fn" id="class_info.implements"><div class="sig">def <b>implements</b>(other: class_info) : bool</div><p>true when <code>other</code> (or an interface based on it) is among interfaces()</p></div>
+<div class="fn" id="class_info.interfaces"><div class="sig">def <b>interfaces</b>() : list&lt;class_info&gt;</div><p>the interfaces it implements, those of the classes above it too</p></div>
+<div class="fn" id="class_info.is_a"><div class="sig">def <b>is_a</b>(other: class_info) : bool</div><p>true when an object of this class can stand where <code>other</code> is asked for: the same class, a class below it, or one that implements it</p></div>
+<div class="fn" id="class_info.is_open"><div class="sig">def <b>is_open</b>() : bool</div><p>true for a class_info that open() gave</p></div>
+<div class="fn" id="class_info.open"><div class="sig">def <b>open</b>() : class_info</div><p>the same class with the protections off: its private and protected fields are read and written, its private functions and constructors called</p></div>
+<div class="fn" id="class_info.own_functions"><div class="sig">def <b>own_functions</b>() : list&lt;function_info&gt;</div><p>the functions and operators written in this class itself (not its constructors)</p></div>
+<div class="fn" id="class_info.owner_class"><div class="sig">def <b>owner_class</b>() : class_info?</div><p>the class it is declared inside of; null for a class of a module</p></div>
+<div class="fn" id="class_info.static_fields"><div class="sig">def <b>static_fields</b>() : list&lt;field_info&gt;</div><p>the static fields of the class</p></div>
+<div class="fn" id="class_info.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+<div class="fn" id="class_info.type_arguments"><div class="sig">def <b>type_arguments</b>() : list&lt;type_info&gt;</div><p>what stands in <code>&lt;...&gt;</code> of a class made of a generic one: for list&lt;string&gt; the type string</p></div>
+<div class="fn" id="class_info.value"><div class="sig">def <b>value</b>(name: string) : enum_value?</div><p>the value of an enum with a name; null when it has none</p></div>
+<div class="fn" id="class_info.value_at"><div class="sig">def <b>value_at</b>(number: _int64) : enum_value?</div><p>the value of an enum with a number; null when it has none</p></div>
+<div class="fn" id="class_info.values"><div class="sig">def <b>values</b>() : list&lt;enum_value&gt;</div><p>the values of an enum, in the order they are written; empty for a class that is no enum</p></div>
+</div>
+</section>
+<section class="type" id="enum_value">
+<h2><span class="kind">class</span> enum_value</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/class_info.sharp">source</a></p>
+<p>one value of an enum: its name, its number, and the value itself (what a field of the enum&#x27;s type holds)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>number</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>value</code></td><td><code>object</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="enum_value.enum_value"><div class="sig"><b>enum_value</b>(name: string, number: _int64, value: object)</div></div>
+<div class="fn" id="enum_value.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+</div>
+</section>
+<section class="type" id="field_info">
+<h2><span class="kind">class</span> field_info</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/field_info.sharp">source</a></p>
+<p>A FIELD of a class (see reflect.sharp)</p>
+<div class="code"><pre class="sharp">age := shape.field(&quot;age&quot;)!!;
+age.name                    // &quot;age&quot;
+age.type.name               // &quot;_int64&quot;
+age.is_static               age.is_private              age.is_constant</pre></div>
+<div class="code"><pre class="sharp">age.read(someone)           // the value as an object: a number in its number class
+age.number(someone)         // the number of a number field
+name.text(someone)          // the text of a string field
+age.write(someone, 32);     // a number for a number field
+name.write(someone, &quot;ann&quot;); // an object for a field of a class</pre></div>
+<p><code>write</code> checks the value against the field&#x27;s type and refuses a wrong one with a reflect_exception that names the field. A static field takes null for the object: <code>count.read(null)</code>, <code>count.write(null, 0)</code>.</p>
+<p>PROTECTIONS. A private or protected field is neither read nor written until it is opened, and a <code>const</code> field is never written:</p>
+<div class="code"><pre class="sharp">secret := shape.field(&quot;secret&quot;)!!;
+secret.read(someone)            // reflect_exception: `main#user.secret` is private ...
+secret.open().read(someone)     // said on purpose: allowed</pre></div>
+<p>open() gives another field_info and leaves this one closed, so opening a field in one place does not open it for the rest of the program. <code>shape.open()</code> opens a whole class (class_info).</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>type</code></td><td><code>type_info</code></td><td></td></tr><tr><td><code>owner</code></td><td><code>class_info</code></td><td>the class this field_info was asked from (the field may be declared in a class above it: declared_in())</td></tr><tr><td><code>is_static</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_public</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_private</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_protected</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_constant</code></td><td><code>decimal</code></td><td>1 for a <code>const</code> field</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="field_info.field_info"><div class="sig"><b>field_info</b>(owner: class_info, place: _int64)</div></div>
+<div class="fn" id="field_info.declared_in"><div class="sig">def <b>declared_in</b>() : class_info</div><p>the class the field is written in: <code>owner</code>, or a class above it</p></div>
+<div class="fn" id="field_info.is_open"><div class="sig">def <b>is_open</b>() : bool</div><p>true when read and write are allowed: a public field, or one that was opened</p></div>
+<div class="fn" id="field_info.number"><div class="sig">def <b>number</b>(target: object?) : decimal</div><p>the number in a number field of <code>target</code>; throws reflect_exception for a field that holds no number</p></div>
+<div class="fn" id="field_info.open"><div class="sig">def <b>open</b>() : field_info</div><p>this field with its protection off: a private or protected field that can be read and written. This one stays as it is.</p></div>
+<div class="fn" id="field_info.read"><div class="sig">def <b>read</b>(target: object?) : object?</div><p>the field&#x27;s value in <code>target</code> (null for a static field): an object, an array or null; a number in its number class</p></div>
+<div class="fn" id="field_info.text"><div class="sig">def <b>text</b>(target: object?) : string?</div><p>the field&#x27;s value as text: the string of a string field, the number of a number field, to_string() of anything else; null for null</p></div>
+<div class="fn" id="field_info.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>&quot;age : _int64&quot;</p></div>
+<div class="fn" id="field_info.write"><div class="sig">def <b>write</b>(target: object?, value: object?)</div><p>The field&#x27;s value in <code>target</code> (null for a static field) becomes <code>value</code>: an object of the field&#x27;s class or of one below it, an array for an array field, an object of a number class for a number field, or null.</p>
+<p>@throws reflect_exception when the value is not what the field holds, the field is private or protected and not opened, or it is a <code>const</code></p></div>
+<div class="fn" id="field_info.write-2"><div class="sig">def <b>write</b>(target: object?, value: decimal)</div><p>the number field&#x27;s value in <code>target</code> becomes <code>value</code>, cut to the field&#x27;s size (an _int8 field keeps 8 bits)</p></div>
+</div>
+</section>
+<section class="type" id="field_reading">
+<h2><span class="kind">class</span> field_reading</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/object_view.sharp">source</a></p>
+<p>one field of one object: what object_view.fields hands its block</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>field</code></td><td><code>field_info</code></td><td></td></tr><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="field_reading.field_reading"><div class="sig"><b>field_reading</b>(field: field_info, holder: object)</div></div>
+<div class="fn" id="field_reading.number"><div class="sig">def <b>number</b>() : decimal</div><p>the value as a number, for a number field</p></div>
+<div class="fn" id="field_reading.text"><div class="sig">def <b>text</b>() : string</div><p>the value as text; &quot;null&quot; for null</p></div>
+<div class="fn" id="field_reading.value"><div class="sig">def <b>value</b>() : object?</div><p>the value as an object (a number in its number class)</p></div>
+</div>
+</section>
+<section class="type" id="function_info">
+<h2><span class="kind">class</span> function_info</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/function_info.sharp">source</a></p>
+<p>A FUNCTION, A CONSTRUCTOR OR AN OPERATOR of a class (see reflect.sharp)</p>
+<div class="code"><pre class="sharp">greet := shape.function(&quot;greet&quot;)!!;
+greet.name                          // &quot;greet&quot;
+greet.parameters                    // a type_info for each parameter
+greet.result                        // the type_info of what it gives
+greet.is_static</pre></div>
+<div class="code"><pre class="sharp">greet.call(someone, &quot;bob&quot;)          // someone.greet(&quot;bob&quot;): what it gives, as an object
+count.call_static()                 // a static function</pre></div>
+<p>What a call gives is an object: a number comes in its number class (<code>(found as int).value</code>), nothing comes as null. An argument for a number parameter is an object of a number class: <code>new int(31)</code>.</p>
+<p>A call runs the function that this function_info is - the one written in its class. To run what an object&#x27;s own class has for a name, ask that class: <code>reflect.of(thing)!!.function(&quot;area&quot;)</code>, or <code>reflect.on(thing).call(&quot;area&quot;)</code>.</p>
+<p>A private or protected function is not called until it is opened: <code>shape.function(&quot;check&quot;)!!.open().call(someone)</code>, or <code>shape.open()</code> for the whole class. open() gives another function_info; this one stays closed.</p>
+<p>The names of parameters are not kept in a program; their types are.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>FUNCTION</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>CONSTRUCTOR</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>SETUP</code></td><td><code>_int64</code></td><td>an <code>init</code> block</td></tr><tr><td><code>OPERATOR</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>id</code></td><td><code>_int64</code></td><td>the VM&#x27;s number for the function</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>full_name</code></td><td><code>string</code></td><td>with the module and the class: &quot;app.models#user.greet&quot;</td></tr><tr><td><code>kind</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>parameters</code></td><td><code>list&lt;type_info&gt;</code></td><td>the type of each parameter, in order</td></tr><tr><td><code>result</code></td><td><code>type_info</code></td><td>the type of what it gives (<code>result.is_nothing</code> for a function that gives nothing)</td></tr><tr><td><code>is_static</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_constructor</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_setup</code></td><td><code>decimal</code></td><td>1 for an <code>init</code> block</td></tr><tr><td><code>is_public</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_private</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>is_protected</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>owner_id</code></td><td><code>_int64</code></td><td>the VM&#x27;s number of the class it is written in; -1 for a function of a module</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="function_info.function_info"><div class="sig"><b>function_info</b>(id: _int64)</div></div>
+<div class="fn" id="function_info.call"><div class="sig">def <b>call</b>(target: object?) : object?</div><p>call a function without parameters on an object</p></div>
+<div class="fn" id="function_info.call-2"><div class="sig">def <b>call</b>(target: object?, first: object?) : object?</div><p>call the function on an object with these arguments</p></div>
+<div class="fn" id="function_info.call-3"><div class="sig">def <b>call</b>(target: object?, first: object?, second: object?) : object?</div></div>
+<div class="fn" id="function_info.call-4"><div class="sig">def <b>call</b>(target: object?, first: object?, second: object?, third: object?) : object?</div></div>
+<div class="fn" id="function_info.call-5"><div class="sig">def <b>call</b>(target: object?, first: object?, second: object?, third: object?, fourth: object?) : object?</div></div>
+<div class="fn" id="function_info.call_on"><div class="sig">def <b>call_on</b>(target: object?, values: object[]?) : object?</div><p>Call the function: on <code>target</code> (which a static function does not look at) with one value for each parameter (null for none).</p>
+<p>@throws reflect_exception when the values are not what the parameters take, a function of an object is called without an object, or the function is private or protected and not opened</p></div>
+<div class="fn" id="function_info.call_static"><div class="sig">def <b>call_static</b>() : object?</div><p>call a static function without parameters</p></div>
+<div class="fn" id="function_info.call_static-2"><div class="sig">def <b>call_static</b>(first: object?) : object?</div><p>call a static function with these arguments</p></div>
+<div class="fn" id="function_info.call_static-3"><div class="sig">def <b>call_static</b>(first: object?, second: object?) : object?</div></div>
+<div class="fn" id="function_info.call_static-4"><div class="sig">def <b>call_static</b>(first: object?, second: object?, third: object?) : object?</div></div>
+<div class="fn" id="function_info.is_number_class"><div class="sig">static def <b>is_number_class</b>(full_name: string) : bool</div><p>the classes a number travels in</p></div>
+<div class="fn" id="function_info.is_open"><div class="sig">def <b>is_open</b>() : bool</div><p>true when a call is allowed: a public function, or one that was opened</p></div>
+<div class="fn" id="function_info.open"><div class="sig">def <b>open</b>() : function_info</div><p>this function with its protection off: a private or protected one that can be called. This one stays as it is.</p></div>
+<div class="fn" id="function_info.owner"><div class="sig">def <b>owner</b>() : class_info?</div><p>the class the function is written in; null for a function of a module</p></div>
+<div class="fn" id="function_info.same_shape"><div class="sig">def <b>same_shape</b>(other: function_info) : bool</div><p>true when <code>other</code> has the same name and the same types of parameters: what replaces it in a class below</p></div>
+<div class="fn" id="function_info.shown"><div class="sig">static def <b>shown</b>(values: object[]?) : string</div><p>&quot;(string, int)&quot;: the types of some values, for a message</p></div>
+<div class="fn" id="function_info.takes"><div class="sig">def <b>takes</b>(values: object[]?) : bool</div><p>true when the values are what the parameters take: as many of them, a number for a number, an object of the right class for a class</p></div>
+<div class="fn" id="function_info.to_string"><div class="sig">override def <b>to_string</b>() : string?</div><p>&quot;greet(string) : string&quot;</p></div>
+</div>
+</section>
+<section class="type" id="object_view">
+<h2><span class="kind">class</span> object_view</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/object_view.sharp">source</a></p>
+<p>ONE OBJECT, BY NAMES: an object together with its class (see reflect.sharp)</p>
+<div class="code"><pre class="sharp">view := reflect.on(someone);
+view.read(&quot;name&quot;)                   // the field&#x27;s value, as an object
+view.number(&quot;age&quot;)                  // ... as a number
+view.text(&quot;home.city&quot;)              // through objects: null when one on the way is null
+view.write(&quot;age&quot;, 33);
+view.write(&quot;name&quot;, &quot;ann&quot;);
+view.call(&quot;greet&quot;, &quot;bob&quot;)           // what the object&#x27;s own class has for the name
+view.fields { print(it.name + &quot; = &quot; + it.text() + &quot;\n&quot;); }</pre></div>
+<div class="code"><pre class="sharp">view.to_text()                      // user(name=ann, age=33, home=address(city=oslo))
+view.copy()                         // a new object with the same field values
+view.same_as(other)                 // the same class and equal field values</pre></div>
+<p>to_text, copy and same_as are what is otherwise written by hand for each class. copy gives the new object the same numbers and the SAME objects in its fields (it does not copy those in turn).</p>
+<p>PROTECTIONS. A view reads, writes, calls and shows what is public. <code>reflect.on(someone).open()</code> is a view that does so for private and protected fields and functions too. copy and same_as go by every field either way: they hand no private value out.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>target</code></td><td><code>object</code></td><td></td></tr><tr><td><code>shape</code></td><td><code>class_info</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="object_view.object_view"><div class="sig"><b>object_view</b>(target: object)</div></div>
+<div class="fn" id="object_view.call"><div class="sig">def <b>call</b>(name: string) : object?</div><p>call the function of the object&#x27;s class with a name and no parameters</p></div>
+<div class="fn" id="object_view.call-2"><div class="sig">def <b>call</b>(name: string, first: object?) : object?</div><p>call the function with a name that takes these</p></div>
+<div class="fn" id="object_view.call-3"><div class="sig">def <b>call</b>(name: string, first: object?, second: object?) : object?</div></div>
+<div class="fn" id="object_view.call-4"><div class="sig">def <b>call</b>(name: string, first: object?, second: object?, third: object?) : object?</div></div>
+<div class="fn" id="object_view.call_with"><div class="sig">def <b>call_with</b>(name: string, values: object[]?) : object?</div><p>call the function with a name whose parameters take <code>values</code> (null: none)</p></div>
+<div class="fn" id="object_view.copy"><div class="sig">def <b>copy</b>() : object</div><p>a new object of the same class with the same value in every field (the same objects, not copies of them)</p></div>
+<div class="fn" id="object_view.fields"><div class="sig">def <b>fields</b>(action: (field_reading)())</div><p>runs the block for each field of the object that the view may read, with its value: <code>it.name</code>, <code>it.value()</code>, <code>it.number()</code>, <code>it.text()</code>, <code>it.field</code></p></div>
+<div class="fn" id="object_view.number"><div class="sig">def <b>number</b>(path: string) : decimal</div><p>the number of a number field, by its name or path; 0 when an object on the way is null</p></div>
+<div class="fn" id="object_view.open"><div class="sig">def <b>open</b>() : object_view</div><p>a view of the same object that also reads, writes, calls and shows what is private or protected</p></div>
+<div class="fn" id="object_view.read"><div class="sig">def <b>read</b>(path: string) : object?</div><p>the value of a field (&quot;name&quot;), or of a field of a field (&quot;home.city&quot;): null when an object on the way is null</p></div>
+<div class="fn" id="object_view.same_as"><div class="sig">def <b>same_as</b>(other: object?) : bool</div><p>true when <code>other</code> is of the same class and every field holds an equal value: equal numbers, equal texts, the same or equal objects</p></div>
+<div class="fn" id="object_view.text"><div class="sig">def <b>text</b>(path: string) : string?</div><p>the value of a field as text, by its name or path; null for null</p></div>
+<div class="fn" id="object_view.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+<div class="fn" id="object_view.to_text"><div class="sig">def <b>to_text</b>() : string</div><p>&quot;user(name=ann, age=33, home=address(city=oslo))&quot;: the public fields, and the private ones too for an open view</p></div>
+<div class="fn" id="object_view.write"><div class="sig">def <b>write</b>(name: string, value: object?)</div><p>give a field a value (field_info.write)</p></div>
+<div class="fn" id="object_view.write-2"><div class="sig">def <b>write</b>(name: string, value: decimal)</div><p>give a number field a number</p></div>
+</div>
+</section>
+<section class="type" id="reflect">
+<h2><span class="kind">class</span> reflect</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/reflect.sharp">source</a></p>
+<p>REFLECTION: a program looking at its own classes</p>
+<div class="code"><pre class="sharp">shape := reflect.of&lt;user&gt;();                    // from a type
+shape := reflect.of(someone)!!;                 // from an object
+shape := reflect.find(&quot;app.models#user&quot;)!!;     // from a full name</pre></div>
+<div class="code"><pre class="sharp">foreach(field in shape.fields()) {
+    print(field.name + &quot; : &quot; + field.type.name + &quot;\n&quot;);     // &quot;tags : list&lt;string&gt;&quot;
+}</pre></div>
+<div class="code"><pre class="sharp">someone := reflect.create&lt;user&gt;(&quot;ann&quot;, new int(31));        // any constructor
+age := shape.field(&quot;age&quot;)!!;
+age.number(someone)                             // 31
+age.write(someone, 32);                         // checked: a wrong value is refused here
+shape.function(&quot;greet&quot;)!!.call(someone, &quot;bob&quot;)  // what greet(&quot;bob&quot;) gives</pre></div>
+<div class="code"><pre class="sharp">view := reflect.on(someone);                    // one object, by names
+view.read(&quot;home.city&quot;)
+view.write(&quot;age&quot;, 33);
+view.to_text()                                  // user(name=ann, age=33, home=address(city=oslo))</pre></div>
+<p>The classes: class_info (a class, an interface or an enum), field_info, function_info, type_info (what a field, a parameter or a result is), object_view (one object with its class), enum_value. Each is made the first time it is asked for and kept; nothing is made when a program starts.</p>
+<p>WHAT IS IN THE PROGRAM. An executable holds only what its text uses: a field no code names and a function no code calls are left out. Reflection shows what is there, so code that works by NAMES says what it needs:</p>
+<div class="code"><pre class="sharp">reflect.of&lt;t&gt;(), reflect.create&lt;t&gt;()    all of t stays: fields, functions, constructors
+reflects&lt;t&gt;()                           the fields of t and its constructor without
+                                        parameters stay, and the same for the class of
+                                        each field (what json.to&lt;t&gt; says)
+the compiler option -eager              everything stays (for reflect.find of any class)</pre></div>
+<p>reflect.of(object) and reflect.find(name) always work, and show what stayed.</p>
+<p>Numbers. A value that is read or handed over as an <code>object</code> is an object: a number travels as an <code>int</code>, <code>long</code>, <code>double</code> ... object (<code>new int(31)</code>), and read() gives one back. number() and write(target, 31) take and give plain numbers.</p>
+<div class="code"><pre class="sharp">Java comparison: Class, Field, Method and Constructor of
+java.lang.reflect; Kotlin: KClass and its members.</pre></div>
+<h3>Functions</h3><div>
+<div class="fn" id="reflect.by_number"><div class="sig">static def <b>by_number</b>(id: _int64) : class_info</div><p>the class with a number (the VM&#x27;s number for it; class_info.id)</p></div>
+<div class="fn" id="reflect.classes"><div class="sig">static def <b>classes</b>() : list&lt;class_info&gt;</div><p>every class the program holds</p></div>
+<div class="fn" id="reflect.create"><div class="sig">static def <b>create</b>&lt;t&gt;() : t</div><p>a new <code>t</code> made with its constructor without parameters</p></div>
+<div class="fn" id="reflect.create-2"><div class="sig">static def <b>create</b>&lt;t&gt;(first: object?) : t</div><p>a new <code>t</code> made with the constructor that takes this</p></div>
+<div class="fn" id="reflect.create-3"><div class="sig">static def <b>create</b>&lt;t&gt;(first: object?, second: object?) : t</div></div>
+<div class="fn" id="reflect.create-4"><div class="sig">static def <b>create</b>&lt;t&gt;(first: object?, second: object?, third: object?) : t</div></div>
+<div class="fn" id="reflect.create-5"><div class="sig">static def <b>create</b>&lt;t&gt;(first: object?, second: object?, third: object?, fourth: object?) : t</div></div>
+<div class="fn" id="reflect.find"><div class="sig">static def <b>find</b>(full_name: string) : class_info?</div><p>the class with a full name: &quot;std#string&quot;, &quot;app.models#user&quot;, &quot;std#list&lt;std#string&gt;&quot;; null when the program has none</p></div>
+<div class="fn" id="reflect.of"><div class="sig">static def <b>of</b>&lt;t&gt;() : class_info</div><p>The class the type <code>t</code> is. All of <code>t</code> stays in the program (see the top of this file).</p>
+<p>@throws reflect_exception when t is not a class (a number, an array)</p></div>
+<div class="fn" id="reflect.of-2"><div class="sig">static def <b>of</b>(target: object?) : class_info?</div><p>the class an object is of; null for null and for what is not an object of a class (an array)</p></div>
+<div class="fn" id="reflect.on"><div class="sig">static def <b>on</b>(target: object) : object_view</div><p>one object together with its class, for work by names (object_view)</p></div>
+<div class="fn" id="reflect.type_of"><div class="sig">static def <b>type_of</b>(target: object?) : type_info</div><p>what an object is, also when it is an array or null (<code>nothing</code>)</p></div>
+</div>
+</section>
+<section class="type" id="reflect_exception">
+<h2><span class="kind">class</span> reflect_exception</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/reflect.sharp">source</a></p>
+<p>what reflection refuses: a field given a wrong value, a function called with wrong arguments, a class that is not there</p>
+<h3>Functions</h3><div>
+<div class="fn" id="reflect_exception.reflect_exception"><div class="sig">public <b>reflect_exception</b>(message : string?) -&gt; base(message)</div></div>
+</div>
+</section>
+<section class="type" id="reflect_keeper">
+<h2><span class="kind">class</span> reflect_keeper</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/reflect.sharp">source</a></p>
+<p>what by_number locks while it looks a class up: two threads asking for one class get the same class_info</p>
+<h3>Functions</h3><div>
+<div class="fn" id="reflect_keeper.reflect_keeper"><div class="sig"><b>reflect_keeper</b>()</div></div>
+</div>
+</section>
+<section class="type" id="reflect_names">
+<h2><span class="kind">class</span> reflect_names</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/reflect.sharp">source</a></p>
+<p>class names as the program holds them: &quot;module#name&lt;module#argument, ...&gt;&quot;</p>
+<h3>Functions</h3><div>
+<div class="fn" id="reflect_names.inside"><div class="sig">static def <b>inside</b>(name: string) : string</div><p>what stands between the first <code>&lt;</code> and the last <code>&gt;</code> (&quot;&quot; when there is none)</p></div>
+<div class="fn" id="reflect_names.module_of"><div class="sig">static def <b>module_of</b>(full_name: string) : string</div><p>&quot;app.models#user&quot; -&gt; &quot;app.models&quot; (&quot;&quot; for a name without a module)</p></div>
+<div class="fn" id="reflect_names.parts"><div class="sig">static def <b>parts</b>(text: string) : list&lt;string&gt;</div><p>the parts of &quot;a, b&lt;c, d&gt;, e&quot; between the commas that are not inside <code>&lt;...&gt;</code></p></div>
+<div class="fn" id="reflect_names.short"><div class="sig">static def <b>short</b>(full_name: string) : string</div><p>a full name without its modules: &quot;std#list&lt;app.models#user&gt;&quot; -&gt; &quot;list&lt;user&gt;&quot;</p></div>
+<div class="fn" id="reflect_names.steps"><div class="sig">static def <b>steps</b>(path: string) : list&lt;string&gt;</div><p>&quot;home.city&quot; -&gt; home, city</p></div>
+</div>
+</section>
+<section class="type" id="reflect_vm">
+<h2><span class="kind">class</span> reflect_vm</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/reflect_vm.sharp">source</a></p>
+<p>WHAT THE VM ANSWERS (the library&#x27;s own; programs use <code>reflect</code>)</p>
+<p>The VM knows no class of std.reflect. It answers questions about the program in plain numbers and characters, and class_info, field_info and function_info are built from the answers. A class is named by its number, a function by its number, a field by its class&#x27;s number and its place in the class&#x27;s list of fields (instance fields first, then static ones). What each answer holds: lib/runtime/interrupts/reflection.cpp.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="reflect_vm.call"><div class="sig">static def <b>call</b>(function_id: _int64, arguments: object[]?) : object?</div><p>Call a function. <code>arguments</code> has one item per parameter and, before them, the object the function is called on when it is a function of an object. What it gives comes back as an object (a number in its number class); null when it gives nothing.</p></div>
+<div class="fn" id="reflect_vm.class_of"><div class="sig">static def <b>class_of</b>(target: object?) : _int64[]</div><p>what an object is: [ kind, class or -1, array or not, size ]; kind -1 for null</p></div>
+<div class="fn" id="reflect_vm.facts"><div class="sig">static def <b>facts</b>(kind: _int64, a: _int64, b: _int64) : _int64[]</div><p>numbers about the program (kind 0), a class (1), a field (2), a class&#x27;s functions (3), a function (4)</p></div>
+<div class="fn" id="reflect_vm.find"><div class="sig">static def <b>find</b>(full_name: string) : _int64</div><p>the number of the class with a full name, or -1</p></div>
+<div class="fn" id="reflect_vm.make"><div class="sig">static def <b>make</b>(class_id: _int64, count: _int64) : object?</div><p>an object of a class with empty fields and no constructor run (count &lt; 0), or an array with room for <code>count</code> of them</p></div>
+<div class="fn" id="reflect_vm.read"><div class="sig">static def <b>read</b>(class_id: _int64, place: _int64, target: object?) : object?</div><p>a field&#x27;s value; a number as an object of its number class</p></div>
+<div class="fn" id="reflect_vm.text"><div class="sig">static def <b>text</b>(kind: _int64, a: _int64, b: _int64) : string</div><p>a name: a class&#x27;s (kind 0), its full name (1), a field&#x27;s (2), a function&#x27;s (3), its full name (4)</p></div>
+<div class="fn" id="reflect_vm.write"><div class="sig">static def <b>write</b>(class_id: _int64, place: _int64, target: object?, value: object?)</div><p>give a field a value; a number as an object of a number class or as a number array</p></div>
+</div>
+</section>
+<section class="type" id="type_info">
+<h2><span class="kind">class</span> type_info</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/type_info.sharp">source</a></p>
+<p>WHAT A FIELD, A PARAMETER OR A RESULT IS: <code>_int64</code>, <code>string</code>, <code>user[]</code>, <code>list&lt;string&gt;</code>, <code>object</code>, a function, or nothing (a function without a result).</p>
+<div class="code"><pre class="sharp">field.type.name             // &quot;list&lt;string&gt;&quot;
+field.type.is_number        // 1 for _int8 ... _uint64 and decimal (not for arrays of them)
+field.type.class_of()       // the class_info, when the type is a class
+field.type.arguments()      // for list&lt;string&gt;: the type `string`</pre></div>
+<p>Whether a type is written with <code>?</code> is not kept in a program, so it is not known here: a field of a class may always hold null.</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>INT8</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>INT16</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>INT32</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>INT64</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>UINT8</code></td><td><code>_int64</code></td><td>also what <code>bool</code> is</td></tr><tr><td><code>UINT16</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>UINT32</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>UINT64</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>DECIMAL</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>OBJECT</code></td><td><code>_int64</code></td><td><code>object</code>: anything</td></tr><tr><td><code>CLASS</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>FUNCTION</code></td><td><code>_int64</code></td><td>a function value: <code>(int)(string)</code></td></tr><tr><td><code>NOTHING</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>is_array</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>name</code></td><td><code>string</code></td><td>the type as it is written: &quot;_int64&quot;, &quot;string&quot;, &quot;user[]&quot;, &quot;list&lt;string&gt;&quot;</td></tr><tr><td><code>full_name</code></td><td><code>string</code></td><td>with the modules: &quot;std#list&lt;std#string&gt;&quot;</td></tr><tr><td><code>is_number</code></td><td><code>decimal</code></td><td>1 for a plain number (not an array of them)</td></tr><tr><td><code>is_class</code></td><td><code>decimal</code></td><td>1 for a class (not an array of them): class_of() gives it</td></tr><tr><td><code>is_text</code></td><td><code>decimal</code></td><td>1 for the type <code>string</code></td></tr><tr><td><code>is_nothing</code></td><td><code>decimal</code></td><td>1 for what a function without a result gives, and for what null is</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="type_info.type_info"><div class="sig"><b>type_info</b>(kind: _int64, class_id: _int64, is_array: decimal)</div></div>
+<div class="fn" id="type_info.arguments"><div class="sig">def <b>arguments</b>() : list&lt;type_info&gt;</div><p>what stands in <code>&lt;...&gt;</code>: for list&lt;string&gt; the type string, for hash_map&lt;string, int&gt; two types; empty for other types</p></div>
+<div class="fn" id="type_info.class_of"><div class="sig">def <b>class_of</b>() : class_info?</div><p>the class the type is (for an array: the class of its items); null for numbers, <code>object</code> and functions</p></div>
+<div class="fn" id="type_info.named"><div class="sig">static def <b>named</b>(written: string) : type_info</div><p>the type with a name as the program holds it: &quot;std#string&quot;, &quot;_int64&quot;, &quot;std#list&lt;std#int&gt;&quot;</p></div>
+<div class="fn" id="type_info.takes"><div class="sig">def <b>takes</b>(other: type_info) : bool</div><p>true when a value of the type <code>other</code> can be held by this type: the same class or one below it, the same kind of number</p></div>
+<div class="fn" id="type_info.to_string"><div class="sig">override def <b>to_string</b>() : string?</div></div>
+</div>
+</section>
+<section class="type" id="type_token">
+<h2><span class="kind">class</span> type_token&lt;t&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/reflect/reflect.sharp">source</a></p>
+<p>an object whose class carries a type in its name; how reflect.of&lt;t&gt;() finds t without an object of it</p>
+<h3>Functions</h3><div>
+<div class="fn" id="type_token.type_token"><div class="sig"><b>type_token</b>()</div></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="reflects"><div class="sig">def <b>reflects</b>&lt;t&gt;()</div><p>KNOWN TO THE COMPILER BY NAME (lib/compiler, backend/finalizer/layout/kept.sharp): for <code>t</code> and the class of every field under it, every field and the constructor without parameters stay in the executable. What code says that fills objects by the names in a text (json.to&lt;t&gt;). Does nothing at run time.</p></div>
+<div class="fn" id="reflects_whole"><div class="sig">def <b>reflects_whole</b>&lt;t&gt;()</div><p>KNOWN TO THE COMPILER BY NAME: all of <code>t</code> and of the classes above it stays in the executable - fields, functions, constructors. What reflect.of&lt;t&gt;() says. Does nothing at run time.</p></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

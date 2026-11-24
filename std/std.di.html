@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.di - Sharp standard library</title>
+<meta name="description" content="The std.di module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.11</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../std/index.html" aria-current="page">Standard library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../projects.html">Projects</a>
+      <a href="../install.html">Install</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li class="on"><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
+        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
+        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
+        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
+        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / std.di</p>
+<h1>std.di <small>module</small></h1>
+<p class="contents"><a href="#replacements">replacements</a> <a href="#functions">functions</a></p>
+<section class="type" id="replacements">
+<h2><span class="kind">class</span> replacements</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/di/replaceable.sharp">source</a></p>
+<p>REPLACEABLE - a component definition that a test can swap for a stand-in.</p>
+<div class="code"><pre class="sharp">interface clock { def now() : string; }</pre></div>
+<div class="code"><pre class="sharp">component app {
+    factory { replaceable&lt;clock&gt;() { return system_clock(); } }
+}</pre></div>
+<div class="code"><pre class="sharp">class greeter {
+    inject time : clock;                        // unchanged: asked for, never built here
+    def greet() : string { return &quot;It is &quot; + time.now(); }
+}</pre></div>
+<p>In the program, <code>replaceable&lt;clock&gt;() { ... }</code> simply runs its block: the real clock. In a test (std.testing), provide&lt;clock&gt;() { ... } puts a stand-in in its place for the length of that test:</p>
+<div class="code"><pre class="sharp">test(&quot;the greeting has the time in it&quot;) {
+    provide&lt;clock&gt;() { return fixed_clock(&quot;09:30&quot;); };
+    expect(greeter().greet()).should_be(&quot;It is 09:30&quot;);
+};</pre></div>
+<p>WHY IT IS NEEDED. Components are settled while the program is COMPILED: every <code>get</code> and <code>inject</code> is tied to its definition then, which is why a missing one is a compile error. The price is that nothing can re-wire them while the program runs - unless the definition itself asks &quot;has someone given me a replacement?&quot;. That question is all <code>replaceable</code> is.</p>
+<p>WRITE IT AS A <code>factory</code>. A <code>single</code> runs its definition once and keeps the result for good, so a replacement provided later would never be seen. For one shared object, use replaceable_single: it keeps the real one itself, and still gives the stand-in while a test provides one.</p>
+<p>WHAT TO MAKE REPLACEABLE: the edges of the program - the clock, files, the network, a database, anything slow or different on every run. Logic in the middle needs no stand-in; it is what the tests are for. (Koin: declare / loadKoinModules in tests. Hilt: @TestInstallIn. Dagger: a test component.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="replacements.clear"><div class="sig">static def <b>clear</b>()</div><p>take every stand-in away again (std.testing does this after each test)</p></div>
+<div class="fn" id="replacements.count"><div class="sig">static def <b>count</b>() : _int64</div><p>how many stand-ins are in place</p></div>
+<div class="fn" id="replacements.find"><div class="sig">static def <b>find</b>&lt;t&gt;() : t?</div><p>the newest stand-in that is a t, or null</p></div>
+<div class="fn" id="replacements.forget_kept"><div class="sig">static def <b>forget_kept</b>()</div><p>forget the real objects too: the next replaceable_single makes a fresh one (a test that wants a clean start)</p></div>
+<div class="fn" id="replacements.keep"><div class="sig">static def <b>keep</b>(real: object)</div></div>
+<div class="fn" id="replacements.kept_one"><div class="sig">static def <b>kept_one</b>&lt;t&gt;() : t?</div><p>the real object of type t that replaceable_single made earlier, or null</p></div>
+<div class="fn" id="replacements.put"><div class="sig">static def <b>put</b>(stand_in: object)</div><p>put a stand-in in place: every replaceable&lt;t&gt; gives it from now on, until clear()</p></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="replaceable"><div class="sig">def <b>replaceable</b>&lt;t&gt;(make: ()(t)) : t</div><p>The stand-in a test provided for t - or, when there is none, what <code>make</code> builds. Write it as the value of a <code>factory</code> definition.</p></div>
+<div class="fn" id="replaceable_single"><div class="sig">def <b>replaceable_single</b>&lt;t&gt;(make: ()(t)) : t</div><p>The same for ONE shared object: <code>make</code> runs the first time and its result is kept and given every time after (what <code>single</code> does) - except while a test provides a stand-in, which then wins. Write it as the value of a <code>factory</code> definition too.</p></div>
+</div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>
