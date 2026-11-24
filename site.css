@@ -241,3 +241,4 @@ footer a { color: inherit; }
 .lib .wrap { grid-template-columns: 270px minmax(0, 1fr); }
 .lib .mods li a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
 @media (max-width: 860px) { .lib .wrap { grid-template-columns: minmax(0, 1fr); } }
+.lib h2.inside { border: 0; padding: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }

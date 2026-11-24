@@ -64,11 +64,6 @@
         <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
         <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
         <li><a href="std.io.html">std.io</a></li>
-        <li class="sub"><a href="std.io.console.html">std.io.console</a></li>
-        <li class="sub"><a href="std.io.coroutines.html">std.io.coroutines</a></li>
-        <li class="sub"><a href="std.io.coroutines.channels.html">std.io.coroutines.channels</a></li>
-        <li class="sub"><a href="std.io.coroutines.sync.html">std.io.coroutines.sync</a></li>
-        <li class="sub"><a href="std.io.fiber.html">std.io.fiber</a></li>
         <li><a href="std.math.html">std.math</a></li>
         <li><a href="std.net.html">std.net</a></li>
         <li><a href="std.reflect.html">std.reflect</a></li>
@@ -82,6 +77,31 @@
     <main>
 <p class="crumbs"><a href="index.html">Standard library</a> / std.guikit</p>
 <h1>std.guikit <small>module</small></h1>
+<h2 class="inside">Modules inside</h2>
+<div class="modgrid">
+<a class="modcard" href="std.guikit.animation.html"><b>std.guikit.animation</b><span>5 types, 33 functions</span><span class="names">animated, fader, glide, revealer, stagger</span></a>
+<a class="modcard" href="std.guikit.charts.html"><b>std.guikit.charts</b><span>16 types, 113 functions</span><span class="names">axis_label, bar_series, chart, chart_axis, chart_grid, chart_hover, ...</span></a>
+<a class="modcard" href="std.guikit.core.model.html"><b>std.guikit.core.model</b><span>6 types, 21 functions</span><span class="names">model_store, saved_entry, saved_items, saved_maker, saved_store, view_model</span></a>
+<a class="modcard" href="std.guikit.core.runtime.html"><b>std.guikit.core.runtime</b><span>3 types, 29 functions</span><span class="names">main_queue, timer, ui_host</span></a>
+<a class="modcard" href="std.guikit.core.state.html"><b>std.guikit.core.state</b><span>7 types, 49 functions</span><span class="names">built_by, change_hook, composable, reconciler, state, state_cell, ...</span></a>
+<a class="modcard" href="std.guikit.core.style.html"><b>std.guikit.core.style</b><span>4 types, 72 functions</span><span class="names">modifier, shape, shape_path, theme</span></a>
+<a class="modcard" href="std.guikit.core.tree.html"><b>std.guikit.core.tree</b><span>13 types, 44 functions</span><span class="names">behavior, clipper, drag_scroller, element, floater, key_target, ...</span></a>
+<a class="modcard" href="std.guikit.core.util.html"><b>std.guikit.core.util</b><span>2 types, 13 functions</span><span class="names">num, txt</span></a>
+<a class="modcard" href="std.guikit.game.html"><b>std.guikit.game</b><span>5 types, 34 functions</span><span class="names">hit_box, sprite_animation, sprite_batch, sprite_sheet, tile_map</span></a>
+<a class="modcard" href="std.guikit.gestures.html"><b>std.guikit.gestures</b><span>2 types, 10 functions</span><span class="names">reorder, swipe_row</span></a>
+<a class="modcard" href="std.guikit.layout.flow.html"><b>std.guikit.layout.flow</b><span>5 types, 40 functions</span><span class="names">column, flex, row, spacer, wrap</span></a>
+<a class="modcard" href="std.guikit.layout.grids.html"><b>std.guikit.layout.grids</b><span>1 types, 8 functions</span><span class="names">grid</span></a>
+<a class="modcard" href="std.guikit.layout.scrolling.html"><b>std.guikit.layout.scrolling</b><span>2 types, 26 functions</span><span class="names">lazy_list, scroller</span></a>
+<a class="modcard" href="std.guikit.layout.stacking.html"><b>std.guikit.layout.stacking</b><span>1 types, 9 functions</span><span class="names">stack</span></a>
+<a class="modcard" href="std.guikit.navigation.html"><b>std.guikit.navigation</b><span>7 types, 53 functions</span><span class="names">nav_bar, navigator, route, screen_host, screen_kind, typed_screen, ...</span></a>
+<a class="modcard" href="std.guikit.overlay.html"><b>std.guikit.overlay</b><span>2 types, 19 functions</span><span class="names">menu_box, popup</span></a>
+<a class="modcard" href="std.guikit.platform.html"><b>std.guikit.platform</b><span>9 types, 84 functions</span><span class="names">color, event, font, image, painter, shape_batch, ...</span></a>
+<a class="modcard" href="std.guikit.three.html"><b>std.guikit.three</b><span>13 types, 138 functions</span><span class="names">camera, lamp, mesh, plant, plants, scattering, ...</span></a>
+<a class="modcard" href="std.guikit.widgets.display.html"><b>std.guikit.widgets.display</b><span>8 types, 48 functions</span><span class="names">badge, chip, divider, label, picture, progress_bar, ...</span></a>
+<a class="modcard" href="std.guikit.widgets.drawing.html"><b>std.guikit.widgets.drawing</b><span>2 types, 7 functions</span><span class="names">canvas, frame</span></a>
+<a class="modcard" href="std.guikit.widgets.input.html"><b>std.guikit.widgets.input</b><span>13 types, 101 functions</span><span class="names">button, checkbox, dropdown, fab, form, menu_option, ...</span></a>
+<a class="modcard" href="std.guikit.widgets.pickers.html"><b>std.guikit.widgets.pickers</b><span>2 types, 14 functions</span><span class="names">month_grid, time_spinner</span></a>
+</div>
 <p class="contents"><a href="#gui">gui</a> <a href="#functions">functions</a></p>
 <section class="type" id="gui">
 <h2><span class="kind">class</span> gui</h2>
