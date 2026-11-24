@@ -18,6 +18,7 @@
 #   4. builds the GUI's native library here too (the release's is for 64-bit x86) and puts it beside
 #      the VM - when SDL2 is installed (sudo apt install libsdl2-dev); without it everything but
 #      GUI programs works, and it says so
+#   5. builds sdb, the debugger, here as well (the release's is for 64-bit x86) - before step 3 installs
 HERE="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$HERE" || exit 1
 
@@ -38,6 +39,16 @@ echo "compiler and library: from $ZIP"
 # the release's VM is for 64-bit x86: the one built here takes its place
 cp "$VM" "$RELEASE/linux/sharp"
 rm -f "$RELEASE/linux/sharpgui.so"          # built for 64-bit x86: it would not load here (see the top of this script)
+
+# ---- sdb, the debugger: the release's is for 64-bit x86 too, so it is built here as well (the VM's
+# sources once more, with the debugger compiled in). Without it everything but debugging works.
+rm -f "$RELEASE/linux/sdb"
+echo ""
+if OUT= bash "$HERE/build-scripts/linux/build_sdb.sh" "$@" && [ -x "$HERE/build/linux-sdb/sdb" ]; then
+    cp "$HERE/build/linux-sdb/sdb" "$RELEASE/linux/sdb"
+else
+    echo "NOTE: sdb, the debugger, did not build (above) - everything but debugging works"
+fi
 chmod +x "$RELEASE"/linux/*
 bash "$RELEASE/linux/unix-install.sh" || exit 1
 
