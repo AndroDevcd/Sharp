@@ -4,6 +4,7 @@
 
 #include "commands.h"
 #include "../prompt/prompt.h"
+#include <algorithm>
 
 struct command {
     string topic;
