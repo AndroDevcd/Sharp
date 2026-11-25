@@ -3,7 +3,7 @@ mod main;
 import ( std.testing, std.math )
 
 /**
- * std.math - big_integer (lib/support/0.4.0/std/math/numbers/big_integer.sharp):
+ * std.math - big_integer (stdlib/std/math/numbers/big_integer.sharp):
  * arbitrary precision whole numbers. Values are compared as decimal text.
  */
 

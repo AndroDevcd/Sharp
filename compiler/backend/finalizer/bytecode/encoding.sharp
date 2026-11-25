@@ -1,0 +1,180 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * HOW AN INSTRUCTION BECOMES 32-BIT WORDS (doc/codegen.md 4.2)
+ *
+ * The low 8 bits of a word are the opcode. The operands follow in one of four
+ * classes, each operand SIGN-AND-MAGNITUDE: its size, and a separate bit that
+ * is 1 when it is positive (runtime/opcode/opcode_macros.h):
+ *
+ *      class E   [ 24 bits unused                         | opcode ]       no operand
+ *      class D   [ a: 23 bits            | sa: 1          | opcode ]       |a| <= 8,388,607
+ *      class C   [ b: 18 bits | a: 4 bits | sb: 1 | sa: 1 | opcode ]       |a| <= 15, |b| <= 262,143
+ *      class B   [ c: 7 | b: 7 | a: 7     | sc | sb | sa  | opcode ]       each |x| <= 127
+ *                  bits 25-31  18-24  11-17   10    9    8   0-7
+ *
+ * Some instructions have a second word: a raw signed 32-bit number (`movi`'s
+ * value, `newclass`'s class address), or for invoke_delegate a class-C word
+ * with the opcode FF.
+ *
+ * The emitter collects the words of one function. It is run twice over the
+ * same instructions (bytecode.sharp): the first time to learn where every
+ * label falls, the second to write the jumps to them - every instruction has
+ * the same length both times, so the positions agree.
+ *
+ * An operand too large for its field is not cut: it is noted (`too_large`)
+ * and becomes E0972 for the function (a program or function too large for
+ * the encoding).
+ */
+const D_LIMIT  : _int64 = 8388607;
+const CA_LIMIT : _int64 = 15;
+const CB_LIMIT : _int64 = 262143;
+const B_LIMIT  : _int64 = 127;
+
+/** the words of one function as they are made, with the line table and what did not fit */
+class code_emitter {
+    words : number_list;
+    label_pcs : number_list;            // per label: the pc it was placed at (known after the first run)
+    line_pcs : number_list;
+    line_numbers : number_list;
+    too_large : string = "";            // the first operand that did not fit, for E0972
+    not_selected : string = "";         // the first thing selection had no VM sequence for, for E0970
+    value_calls_returning : number_list;    // the pcs of `calld`s whose function returns a value (function_code)
+    skip_word : _int64 = 0 - 1;         // a value handed on in its register (bytecode.sharp, `hand_on`): this class-C word,
+    skip_at : _int64 = 0 - 1;           // when it is the word made at pc `skip_at`, is the load that is no longer needed
+
+    code_emitter(label_pcs: number_list) {
+        words = new number_list();
+        self->label_pcs = label_pcs;
+        line_pcs = new number_list();
+        line_numbers = new number_list();
+        value_calls_returning = new number_list();
+    }
+
+    /** where the next word goes */
+    def pc() : _int64 {
+        return words.count;
+    }
+
+    /** class E: the opcode alone */
+    def class_e(opcode: _int64) {
+        words.add(opcode);
+    }
+
+    /** class D: one operand of 23 bits */
+    def class_d(opcode: _int64, a: _int64) {
+        check(a, D_LIMIT, opcode);
+        words.add(opcode | (sign_bit(a) << 8) | (magnitude(a) << 9));
+    }
+
+    /** class C: a small operand (4 bits) and a larger one (18 bits) */
+    def class_c(opcode: _int64, a: _int64, b: _int64) {
+        check(a, CA_LIMIT, opcode);
+        check(b, CB_LIMIT, opcode);
+        word : _int64 = class_c_word(opcode, a, b);
+        if(word == skip_word && pc() == skip_at) {
+            // the load of a value the instruction before left in this very register (`hand_on`)
+            skip_word = 0 - 1;
+            skip_at = 0 - 1;
+            return;
+        }
+        words.add(word);
+    }
+
+    /** the last word, taken back (a store `hand_on` found is not needed) */
+    def drop_last() {
+        words.pop_last();
+    }
+
+    /** class B: three operands of 7 bits */
+    def class_b(opcode: _int64, a: _int64, b: _int64, c: _int64) {
+        check(a, B_LIMIT, opcode);
+        check(b, B_LIMIT, opcode);
+        check(c, B_LIMIT, opcode);
+        words.add(opcode | (sign_bit(a) << 8) | (sign_bit(b) << 9) | (sign_bit(c) << 10) | (magnitude(a) << 11)
+                  | (magnitude(b) << 18) | (magnitude(c) << 25));
+    }
+
+    /** a raw second word: a signed 32-bit number */
+    def raw(value: _int64) {
+        if(value > 2147483647 || value < 0 - 2147483648) {
+            if(sizeof(too_large.data) == 0) { too_large = "the number " + value + " does not fit 32 bits"; }
+        }
+        words.add(value & 0xffffffff);
+    }
+
+    /** class D with a raw second word (movi, istorel, newclassarray ...) */
+    def d_and_raw(opcode: _int64, a: _int64, value: _int64) {
+        class_d(opcode, a);
+        raw(value);
+    }
+
+    /** class E with a raw second word (newclass, movn, istore ...) */
+    def e_and_raw(opcode: _int64, value: _int64) {
+        class_e(opcode);
+        raw(value);
+    }
+
+    /** invoke_delegate: [D: function | 64], then [C: FF | static in a | argument count in b] */
+    def invoke_delegate(function: _int64, argument_count: _int64, is_static: _int64) {
+        class_d(OP_INVOKE_DELEGATE, function);
+        class_c(OP_ILL, is_static, argument_count);
+    }
+
+    /**
+     * Selection met something it has no VM sequence for. It is noted, and the
+     * function is refused as an internal error (E0970, no file) instead of
+     * being written with other code in its place.
+     */
+    def cannot_select(what: string) {
+        if(sizeof(not_selected.data) == 0) { not_selected = "no instruction sequence for " + what; }
+    }
+
+    /** the pc of a label (0 while it is not known yet: the first run) */
+    def label_pc(label: _int64) : _int64 {
+        if(label < 0 || label >= label_pcs.count) { return 0; }
+        return label_pcs.at(label);
+    }
+
+    /** source line `line` begins here (one entry per pc: a later line at the same pc replaces it) */
+    def line(line: _int64) {
+        if(line_pcs.count > 0 && line_pcs.at(line_pcs.count - 1) == pc()) {
+            line_numbers.replace(line_numbers.count - 1, line);
+            return;
+        }
+        line_pcs.add(pc());
+        line_numbers.add(line);
+    }
+
+    /** note an operand that is larger than its field holds (the first one is what E0972 says) */
+    def check(value: _int64, limit: _int64, opcode: _int64) {
+        if(value > limit || value < 0 - limit) {
+            if(sizeof(too_large.data) == 0) {
+                too_large = "the operand " + value + " of `" + opcode_name(opcode) + "` is larger than its field holds ("
+                            + limit + ")";
+            }
+        }
+    }
+}
+
+/** the class-C word of an instruction (layout in the header of this file) */
+def class_c_word(opcode: _int64, a: _int64, b: _int64) : _int64 {
+    return opcode | (sign_bit(a) << 8) | (sign_bit(b) << 9) | (magnitude(a) << 10) | (magnitude(b) << 14);
+}
+
+/** 1 for a positive number (and zero), 0 for a negative one: the VM's sign bit */
+def sign_bit(value: _int64) : _int64 {
+    if(value < 0) { return 0; }
+    return 1;
+}
+
+/** the size of a number without its sign: the VM's operands are sign-and-magnitude */
+def magnitude(value: _int64) : _int64 {
+    if(value < 0) { return 0 - value; }
+    return value;
+}

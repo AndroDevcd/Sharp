@@ -11,7 +11,7 @@
 # THE VERSION NUMBER is the language version (the compiler and the standard library); the zip is
 # named after it. Given a number, this script writes it into the three places of the sources that
 # hold it (set_version below). Given none, it uses the number that is already there.
-# (The VM has its own number, lib/runtime/main.h `#define rev`: change it by hand when the VM changed.)
+# (The VM has its own number, runtime/main.h `#define rev`: change it by hand when the VM changed.)
 #
 # IT NEVER REPLACES A RELEASE SILENTLY. When releases/sharp-<version>.zip already exists it asks
 #     Replace it? [Y/n]
@@ -39,8 +39,8 @@
 # that changed code generation, the optimizer or the VM), the commit, and the push.
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/.." && pwd)
-CONFIGURATION="$REPO/lib/compiler/configuration/configuration.sharp"
-OPTIONS="$REPO/lib/compiler/configuration/options.sharp"
+CONFIGURATION="$REPO/compiler/configuration/configuration.sharp"
+OPTIONS="$REPO/compiler/configuration/options.sharp"
 
 # ---- the arguments: a version number, `install` and/or `notests`, in any order
 VERSION=""; INSTALL=0; TESTS=1

@@ -269,5 +269,5 @@
 ,{"path":"/home/braxton_nunnally/sharp_work/stdlib/std/util/ref.sharp","module":"std.util","library":true,"size":1711,"hash":"1e9e31aa","imports":["std.util","std","std.io.console"],"groups":[],"bodies":null}
 ,{"path":"/home/braxton_nunnally/sharp_work/stdlib/std/util/uuid.sharp","module":"std.util","library":true,"size":8268,"hash":"6d24c2ef","imports":["std.util","std","std.io.console"],"groups":[],"bodies":null}
 ,{"path":"/home/braxton_nunnally/sharp_work/stdlib/std/util/version.sharp","module":"std.util","library":true,"size":16219,"hash":"411f4468","imports":["std.util","std","std.io.console"],"groups":[],"bodies":null}
-,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/lib/compiler/tests/ide/samples/analysis_errors.sharp","module":"analysis_errors","library":false,"size":957,"hash":"a655ba61","imports":["analysis_errors","std","std.io.console","std.io"],"groups":[],"bodies":"bodies/270.json"}
+,{"path":"/mnt/c/Users/Braxton Nunnally/Documents/Github/Sharp/compiler/tests/ide/samples/analysis_errors.sharp","module":"analysis_errors","library":false,"size":957,"hash":"a655ba61","imports":["analysis_errors","std","std.io.console","std.io"],"groups":[],"bodies":"bodies/270.json"}
 ]}

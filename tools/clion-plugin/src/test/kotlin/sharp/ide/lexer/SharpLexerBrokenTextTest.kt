@@ -35,7 +35,7 @@ class SharpLexerBrokenTextTest {
     @Test
     fun randomDamageToRealFiles() {
         val random = Random(42)
-        val files = sharpFilesBelow(File(repoRoot(), "lib/support/0.4.0/std")).take(25)
+        val files = sharpFilesBelow(File(repoRoot(), "stdlib/std")).take(25)
         val noise = "\"'\\\$\${}/*#\né😀".toCharArray()
         for (file in files) {
             val original = file.readText(Charsets.UTF_8)

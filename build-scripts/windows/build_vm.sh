@@ -9,7 +9,7 @@
 #
 # The same sources build the debugger (build_sdb.sh sets these; nothing else uses them):
 #   PROGRAM        what the built program is called, without .exe      (default: sharp)
-#   MAIN           the file with `main`                                 (default: main.cpp)
+#   MAIN           the file with `main`                                 (default: runtime/entry/main.cpp)
 #   MORE_SOURCES   more .cpp files to compile in, as shell patterns
 #   SHARP_NO_JIT   1: build without the machine-code compiler
 #
@@ -31,18 +31,18 @@ FLAGS="-std=c++17 -O3 -w -pthread $JIT_FLAG -D__USE_MINGW_ANSI_STDIO=1 $CRT_FLAG
 echo "$FLAGS" > "$OUT/flags.new"
 if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/flags.new" "$OUT/flags.txt"; fi
 {
-  ls ${MAIN:-main.cpp} $MORE_SOURCES lib/runtime/error/*.cpp lib/runtime/interrupts/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
-     lib/runtime/sni/*.cpp lib/runtime/cffi/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
-     lib/runtime/*.cpp lib/runtime/telemetry/*.cpp lib/core/*.cpp lib/core/opcode/*.cpp lib/util/*.cpp lib/util/zip/*.cpp \
-     lib/Modules/math/*.cpp lib/Modules/std/*.cpp lib/Modules/std.io/*.cpp
+  ls ${MAIN:-runtime/entry/main.cpp} $MORE_SOURCES runtime/error/*.cpp runtime/interrupts/*.cpp runtime/exe/*.cpp runtime/memory/*.cpp runtime/reflect/*.cpp \
+     runtime/sni/*.cpp runtime/cffi/*.cpp runtime/multitasking/*/*.cpp runtime/types/*.cpp runtime/jit/*.cpp \
+     runtime/*.cpp runtime/telemetry/*.cpp runtime/opcode/*.cpp runtime/util/*.cpp \
+     runtime/interrupts/native/*.cpp
   # the machine-code compiler and the assembler library it uses
-  [ -z "$SHARP_NO_JIT" ] && ls lib/runtime/jit/x64/*.cpp lib/runtime/jit/x64/opcode/*.cpp lib/runtime/jit/x64/sections/*.cpp \
-     lib/util/jit/asmjit/src/asmjit/core/*.cpp lib/util/jit/asmjit/src/asmjit/arm/*.cpp lib/util/jit/asmjit/src/asmjit/x86/*.cpp
+  [ -z "$SHARP_NO_JIT" ] && ls runtime/jit/x64/*.cpp runtime/jit/x64/opcode/*.cpp runtime/jit/x64/sections/*.cpp \
+     runtime/jit/asmjit/src/asmjit/core/*.cpp runtime/jit/asmjit/src/asmjit/arm/*.cpp runtime/jit/asmjit/src/asmjit/x86/*.cpp
 } > "$OUT/files.txt" 2>/dev/null
 # a header changed -> everything older than the newest header is compiled again
-NEWEST_H=$(find lib/runtime lib/core lib/Modules lib/util lib/debugger stdimports.h -name '*.h' -not -path 'lib/util/jit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+NEWEST_H=$(find runtime debugger -name '*.h' -not -path 'runtime/jit/asmjit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
 export OUT FLAGS NEWEST_H
-cat "$OUT/files.txt" | xargs -P $JOBS -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"; if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != lib/util/jit/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then g++ $FLAGS -c "$f" -o "$o" 2>"$o.err" || { echo "FAILED: $f"; grep -m4 "error" "$o.err"; rm -f "$o"; }; fi'
+cat "$OUT/files.txt" | xargs -P $JOBS -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"; if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != runtime/jit/asmjit/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then g++ $FLAGS -c "$f" -o "$o" 2>"$o.err" || { echo "FAILED: $f"; grep -m4 "error" "$o.err"; rm -f "$o"; }; fi'
 # an object whose source file is no longer in the list (a file that was removed or renamed) must not be linked
 for o in "$OUT"/*.o; do n=$(basename "$o" .o); grep -qxF "$n" <(tr "/ " "__" < "$OUT/files.txt") || rm -f "$o"; done
 echo "objects: $(ls "$OUT"/*.o 2>/dev/null | wc -l) of $(wc -l < "$OUT/files.txt")"

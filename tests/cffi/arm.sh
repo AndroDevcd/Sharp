@@ -8,14 +8,14 @@
 # Needs:  sudo apt install qemu-user g++-arm-linux-gnueabihf g++-aarch64-linux-gnu
 #
 # For each: the engine test (tests/cffi/engine_test.sh), then the VM is built for that processor
-# (build-scripts/linux/build_vm.sh with the cross compiler - with the ARM machine-code compiler, lib/runtime/jit/arm;
+# (build-scripts/linux/build_vm.sh with the cross compiler - with the ARM machine-code compiler, runtime/jit/arm;
 # SHARP_NO_JIT=1 leaves it out) and tests/cffi/run.sh runs every Sharp-side test
 # with it. The compiler that compiles the tests is a Sharp program too: it runs on the ARM VM.
 # The last line is ARM: PASS or ARM: FAIL.
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 WORK=${ARM_WORK:-$HOME/sharp_work/arm}
 SOURCES=${SOURCES:-$HOME/sharp_work/src}
-[ -d "$SOURCES/lib/runtime" ] || SOURCES="$ROOT"
+[ -d "$SOURCES/runtime" ] || SOURCES="$ROOT"
 bad=0
 for bits in ${1:-32 64}; do
     if [ "$bits" = 32 ]; then triple=arm-linux-gnueabihf; qemu=qemu-arm; else triple=aarch64-linux-gnu; qemu=qemu-aarch64; fi

@@ -12,7 +12,7 @@
 #
 # Environment:
 #   SHARPC, SHARP    the compiler and the runtime          (default: sharpc, sharp)
-#   LIB              the standard library folder for -L    (default: ../../lib/support/0.4.0)
+#   LIB              the standard library folder for -L    (default: ../../stdlib)
 #   OUT              where executables and results go      (default: ./out)
 #   RUNTIME_FLAGS    extra runtime options, e.g. -nojit
 #   JSON_ENTRIES     entries in the json input             (default 131072, a quarter of the original
@@ -27,7 +27,7 @@ LABEL=${1:-plain}; shift
 FLAGS="$*"
 SHARPC=${SHARPC:-sharpc}
 SHARP=${SHARP:-sharp}
-LIB=${LIB:-$HERE/../../lib/support/0.4.0}
+LIB=${LIB:-$HERE/../../stdlib}
 OUT=${OUT:-$HERE/out}
 JSON_ENTRIES=${JSON_ENTRIES:-131072}
 JSON_FILE=${JSON_FILE:-/tmp/sharp_bench_$JSON_ENTRIES.json}

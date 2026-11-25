@@ -18,7 +18,7 @@
  *
  * WHEN THERE IS NO LIBRARY NODE
  *   - no library folder is known (the setting is empty and the project has no
- *     lib/support/0.4.0), or the folder does not exist;
+ *     stdlib), or the folder does not exist;
  *   - the library lies INSIDE the project (the Sharp repository itself): its files are in
  *     the project tree already, and listing them twice would only confuse.
  *

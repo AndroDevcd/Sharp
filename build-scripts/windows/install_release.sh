@@ -11,7 +11,7 @@
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 # the release of the version in the sources - not simply the highest number: an abandoned higher
 # number (0.7.0, when the sources went back to the 0.4 line) must not win over the current one
-WANTED=$(grep -o 'program_vers : string = "[^"]*"' "$ROOT/lib/compiler/configuration/configuration.sharp" 2>/dev/null | cut -d'"' -f2)
+WANTED=$(grep -o 'program_vers : string = "[^"]*"' "$ROOT/compiler/configuration/configuration.sharp" 2>/dev/null | cut -d'"' -f2)
 ZIP="$ROOT/releases/sharp-$WANTED.zip"
 [ -n "$WANTED" ] && [ -f "$ZIP" ] || ZIP=$(ls "$ROOT"/releases/sharp-*.zip 2>/dev/null | sort -V | tail -1)
 [ -n "$ZIP" ] || { echo "no release in releases/: run  bash build-scripts/release.sh  first"; exit 1; }

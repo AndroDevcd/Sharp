@@ -4,8 +4,8 @@ Sharp versions of the programs from <https://github.com/kostya/benchmarks>:
 brainfuck (`bench.b`, `mandel.b`), base64, json, matmul and primes.
 
 ```
-SHARPC=<sharpc> SHARP=<sharp> LIB=<lib/support/0.4.0> OUT=<folder> ./run.sh plain
-SHARPC=<sharpc> SHARP=<sharp> LIB=<lib/support/0.4.0> OUT=<folder> ./run.sh O -O
+SHARPC=<sharpc> SHARP=<sharp> LIB=<stdlib> OUT=<folder> ./run.sh plain
+SHARPC=<sharpc> SHARP=<sharp> LIB=<stdlib> OUT=<folder> ./run.sh O -O
 ```
 
 `run.sh` explains its options. Each line of the results file is

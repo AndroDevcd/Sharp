@@ -173,7 +173,7 @@ class AnalysisServiceTest : BasePlatformTestCase() {
     }
 
     fun testNoLibraryAtAllIsReportedAndNothingIsRun() {
-        // an empty library path means lib/support/0.4.0 below the project folder, which the test project has not
+        // an empty library path means stdlib below the project folder, which the test project has not
         project.getService(SharpProjectSettings::class.java).state.libraryPath = ""
         val report = service.runOnce(EmptyProgressIndicator())
         assertTrue(report.toString(), report is RunReport.Failed)

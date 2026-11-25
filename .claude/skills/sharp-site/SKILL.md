@@ -1,6 +1,6 @@
 ---
 name: sharp-site
-description: Rebuild the Sharp website (GitHub Pages, branch gh-pages) from the repository and say what changed against the site that is live - above all the standard library's documentation, which is generated from lib/support. Use when the user asks to "update the site", "update the docs", "rebuild the website", "refresh the library documentation", "is the site up to date", or after a release or a library change they want on the site.
+description: Rebuild the Sharp website (GitHub Pages, branch gh-pages) from the repository and say what changed against the site that is live - above all the standard library's documentation, which is generated from stdlib. Use when the user asks to "update the site", "update the docs", "rebuild the website", "refresh the library documentation", "is the site up to date", or after a release or a library change they want on the site.
 ---
 
 # Sharp site: rebuild, compare with what is live, publish on the user's word
@@ -13,7 +13,7 @@ everything comes out of `tools/site/build_site.py`, run on the branch being work
 | the generator | `tools/site/build_site.py` (its top says what it makes) |
 | pages written by hand | `tools/site/pages/*.html` (home, gui, projects, install) |
 | the look, the scripts, the screenshots | `tools/site/site.css`, `site.js`, `shots/` |
-| the library's pages | generated from `lib/support/<version>/std` - never edited |
+| the library's pages | generated from `stdlib/std` - never edited |
 | the built site | `build/site`, a git worktree of `gh-pages` |
 
 ## Ground rules

@@ -1,9 +1,9 @@
 /*
  * TALKING TO sdb, THE SHARP DEBUGGER
  *
- * sdb is a program of its own (lib/debugger in the Sharp repository): the Sharp VM with a debugger
+ * sdb is a program of its own (debugger in the Sharp repository): the Sharp VM with a debugger
  * compiled in. Started as  `sdb -machine <port> program`  it connects to that port of this computer
- * and from then on the two exchange JSON, one object on a line each (lib/debugger/machine/machine.h
+ * and from then on the two exchange JSON, one object on a line each (debugger/machine/machine.h
  * has every request and event):
  *
  *     the IDE asks     {"id": 7, "do": "break", "file": "C:/app/notebook.sharp", "line": 41}

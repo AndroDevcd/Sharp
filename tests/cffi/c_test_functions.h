@@ -3,7 +3,7 @@
  * treat differently. Plain C on purpose (c_test_functions.c is compiled as C, on its own, so the
  * compiler cannot see the callers and has to follow the convention to the letter).
  *
- * engine_test.cpp calls each one twice - directly, and through lib/runtime/cffi - and the two
+ * engine_test.cpp calls each one twice - directly, and through runtime/cffi - and the two
  * results must be the same. The same file is built as a library (c_test.dll / libc_test.so) for
  * the Sharp side's tests.
  */

@@ -12,7 +12,7 @@ import (
  * a fiber therefore act on the main fiber of the program.
  *
  * WHERE
- *   lib/runtime/multitasking/thread/thread_controller.cpp, setup_thread():
+ *   runtime/multitasking/thread/thread_controller.cpp, setup_thread():
  *       assign_numeric_class_field(resolve_field("id", fib->o)->o, thread->task->id);
  *   assign_numeric_class_field expects a number OBJECT (it looks for a field
  *   called "value"), but fiber.id is a native `decimal`, so nothing is written and

@@ -24,7 +24,7 @@
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=${OUT:-$ROOT/build/gui}; mkdir -p "$OUT"
 GLUE=${GLUE:-$ROOT/build/gui/glue}
-LIBRARY="$ROOT/lib/support/$(ls "$ROOT/lib/support" | sort -V | tail -1)"
+LIBRARY="$ROOT/stdlib"
 NATIVE="$LIBRARY/std/guikit/platform/native"
 SDL2=${SDL2:-$(ls -d "$ROOT"/build/deps/SDL2-*/x86_64-w64-mingw32 2>/dev/null | sort -V | tail -1)}
 source "$ROOT/build-scripts/windows/mingw.sh"

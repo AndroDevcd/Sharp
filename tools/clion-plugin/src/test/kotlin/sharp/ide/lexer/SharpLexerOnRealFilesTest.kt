@@ -8,8 +8,8 @@ import java.io.File
 /**
  * THE LEXER ON THE COMPILER'S OWN SHARP CODE
  *
- * The standard library (lib/support/0.4.0), the programs of the language's suite
- * (tests/suite/cases) and the self-hosted compiler (lib/compiler) are all
+ * The standard library (stdlib), the programs of the language's suite
+ * (tests/suite/cases) and the self-hosted compiler (compiler) are all
  * code the compiler accepts. For every file:
  *   1. the tokens cover every character exactly once, in order (so putting the
  *      token texts together gives the file back);
@@ -63,14 +63,14 @@ class SharpLexerOnRealFilesTest {
     }
 
     @Test
-    fun standardLibrary() = check(sharpFilesBelow(File(repoRoot(), "lib/support/0.4.0")), "the standard library")
+    fun standardLibrary() = check(sharpFilesBelow(File(repoRoot(), "stdlib")), "the standard library")
 
     @Test
     fun suiteCases() = check(sharpFilesBelow(File(repoRoot(), "tests/suite/cases")), "the suite cases")
 
     @Test
     fun selfHostedCompiler() {
-        val root = File(repoRoot(), "lib/compiler")
+        val root = File(repoRoot(), "compiler")
         // the compiler's tests include deliberately broken programs
         val files = sharpFilesBelow(root).filter { !it.invariantSeparatorsPath.contains("/tests/") }
         check(files, "the bootstrap compiler")

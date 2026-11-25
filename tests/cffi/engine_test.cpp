@@ -1,13 +1,13 @@
 //
-// Tests lib/runtime/cffi/c_call.cpp on its own (no VM): every function of c_test_functions.c is
+// Tests runtime/cffi/c_call.cpp on its own (no VM): every function of c_test_functions.c is
 // called directly and through c_invoke, and the two results must be equal.
 //
-//      g++ -std=c++17 -O2 engine_test.cpp ../../lib/runtime/cffi/c_call.cpp c_test_functions.o -o engine_test
+//      g++ -std=c++17 -O2 engine_test.cpp ../../runtime/cffi/c_call.cpp c_test_functions.o -o engine_test
 //
 // (c_test_functions.c is compiled as C into its own object first.) The last line it prints is
 // ENGINE: PASS (n checks) or ENGINE: FAIL.
 //
-#include "../../lib/runtime/cffi/c_call.h"
+#include "../../runtime/cffi/c_call.h"
 #include "c_test_functions.h"
 #include <cstdio>
 #include <cstring>

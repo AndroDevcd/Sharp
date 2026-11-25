@@ -13,7 +13,7 @@ import (
  *
  * This is the wider companion of lib_coroutines_resume_after_compile.sharp
  * (read that one first: it explains the bug, fixed 2026-11-14 with
- * continues_in_machine_code in lib/runtime/virtual_machine.cpp). The rule of
+ * continues_in_machine_code in runtime/virtual_machine.cpp). The rule of
  * the VM is: a function is continued in the form it was in when it made its
  * call - interpreted stays interpreted until it returns, machine code gets
  * its machine frame back. Each shape below puts a different mix on the stack

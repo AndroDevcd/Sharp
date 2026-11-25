@@ -6,7 +6,7 @@ import com.intellij.psi.tree.IElementType
  * THE KEYWORDS OF SHARP, BY GROUP
  *
  * The list is copied from `keyword_list()` in
- * lib/compiler/frontend/lexer/lexer.sharp (67 words today). A test
+ * compiler/frontend/lexer/lexer.sharp (67 words today). A test
  * (SharpKeywordsTest) reads that function out of the repository and compares it
  * with the words below, so a keyword added to the compiler turns a test red until
  * it is added here too, in the group where it belongs.

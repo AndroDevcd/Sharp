@@ -10,7 +10,7 @@ import com.intellij.psi.tree.IElementType
  * something special only WHERE THEY STAND:
  *
  *   built-in calls   `mock<note_store>()` - the compiler writes a class for it
- *                    (lib/compiler/frontend/syntax/tree/mocks.sharp). Only `mock`
+ *                    (compiler/frontend/syntax/tree/mocks.sharp). Only `mock`
  *                    directly followed by `<` counts: `class x base mock` and a
  *                    variable named mock stay plain names.
  *
@@ -43,7 +43,7 @@ object SharpBuiltInWords {
         "replaceable", "replaceable_single",
     )
 
-    /** the C types of std.c (lib/support/<version>/std/c/types.sharp): a type wherever they stand */
+    /** the C types of std.c (stdlib/std/c/types.sharp): a type wherever they stand */
     private val cTypes = setOf(
         "c_char", "c_uchar", "c_short", "c_ushort", "c_int", "c_uint", "c_longlong", "c_ulonglong",
         "c_long", "c_ulong", "c_size", "c_ssize", "c_float", "c_double",

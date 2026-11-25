@@ -24,7 +24,7 @@
 #      1  the compiler builds                                   (build.sh compiler)              10 s
 #      2  the standard library compiles with no error                                            20 s
 #      3  every suite case compiles (not run)                                                    8 min
-#      4  frontend: reading and parsing source                  (lib/compiler/tests/run.sh)       1 min
+#      4  frontend: reading and parsing source                  (compiler/tests/run.sh)       1 min
 #      5  backend: types, checks, the error messages            (tests/backend.sh)                1 min
 #      6  helps: the fix every error message proposes compiles  (tests/helps.sh)                  5 min
 #      7  code generation: small programs compiled, run, output compared   (tests/codegen.sh)     8 min
@@ -36,7 +36,7 @@
 #     13  self-hosting: the compiler compiles itself, twice, to the same bytes  (tests/selfhost.sh) 20 min
 #     14  the editor's files: what the CLion plugin reads       (tests/ide.sh)                    1 min
 #     15  the native interface: Sharp calling C++               (tests/sni.sh)                    1 min
-#     16  the debugger: sdb is built and driven by a Sharp program   (lib/debugger/tests/run.sh)  4 min
+#     16  the debugger: sdb is built and driven by a Sharp program   (debugger/tests/run.sh)  4 min
 #     17  the ARM JIT: the VM built for ARM 64 and 32, the -O cases of 8 run on it under qemu
 #         (needs 8; skipped where the cross compilers or qemu are not installed)  (internal/arm_suite.sh)  10 min
 #     18  collector stress: the programs of 8 with a collection every 40 objects   (needs 8)
@@ -46,8 +46,8 @@
 #     the standard library ............ 8
 #     the compiler's analysis ......... 3 6
 #     code generation, the optimizer .. 7 8 11 13
-#     the VM (lib/runtime, lib/core) .. full
-#     the debugger (lib/debugger) ..... 16 is in the short set; on Windows: windows/sdb_tests.sh
+#     the VM (runtime) .. full
+#     the debugger (debugger) ..... 16 is in the short set; on Windows: windows/sdb_tests.sh
 # When a full run fails at one test, fix the cause and rerun just that one (`only 9`) until it
 # passes - then run `full` once more.
 #
@@ -86,7 +86,7 @@ want() {
   esac
   RAN="$RAN $1"; return 0
 }
-T="$REPO/lib/compiler/tests"
+T="$REPO/compiler/tests"
 W="$WORK"
 SHARP="$VM"
 ok=1
@@ -173,7 +173,7 @@ out=$(bash "$T/driver.sh" 2>&1) || ok=0; echo "$out" | tail -20
 test_13() { echo "== [13] self-hosting (the compiler compiles itself: the second and third generation are the same bytes, also on"
 echo "   4 threads and with -O; the second generation then passes the library, the frontend and backend tests, and"
 echo "   writes every suite case as the same bytes as the first)"
-out=$(SOURCES=$W/src/lib/compiler SUITE=$W/suite bash "$T/selfhost.sh" 2>&1) || ok=0; echo "$out" | tail -40
+out=$(SOURCES=$W/src/compiler SUITE=$W/suite bash "$T/selfhost.sh" 2>&1) || ok=0; echo "$out" | tail -40
 }
 
 test_14() { echo "== [14] the editor's files (what -ide writes for the CLion plugin: diagnostics, declarations, types, bodies)"
@@ -184,9 +184,9 @@ test_15() { echo "== [15] the native interface (Sharp calls C++ built from the f
 out=$(bash "$T/sni.sh" 2>&1) || ok=0; echo "$out" | tail -20
 }
 
-test_16() { echo "== [16] the debugger (sdb is built from the VM's sources and lib/debugger, then started on small programs"
+test_16() { echo "== [16] the debugger (sdb is built from the VM's sources and debugger, then started on small programs"
 echo "   by a Sharp program that types commands and reads the answers)"
-out=$(bash "$REPO/lib/debugger/tests/run.sh" 2>&1) || ok=0; echo "$out" | tail -20
+out=$(bash "$REPO/debugger/tests/run.sh" 2>&1) || ok=0; echo "$out" | tail -20
 }
 
 test_17() { echo "== [17] the ARM JIT (the VM built for ARM 64 and 32 bit; the suite's -O cases run on it under qemu)"

@@ -85,8 +85,8 @@ class BuildAndRunTest {
         val plain = ProgramSettings(base.path, emptyList(), emptyList(), "", installed.path)
         assertEquals(ProgramFiles.normalise(installed.path), ProgramFiles.layoutOf(plain).libraryRoot)
         // the project's own library (the Sharp repository) comes first; a folder set by hand before both
-        touch(base, "lib/support/0.4.0/std/list.sharp")
-        assertEquals(ProgramFiles.normalise(base.path) + "/lib/support/0.4.0", ProgramFiles.layoutOf(plain).libraryRoot)
+        touch(base, "stdlib/std/list.sharp")
+        assertEquals(ProgramFiles.normalise(base.path) + "/stdlib", ProgramFiles.layoutOf(plain).libraryRoot)
         val other = temp.newFolder("other lib")
         assertEquals(ProgramFiles.normalise(other.path), ProgramFiles.layoutOf(plain.copy(libraryPath = other.path)).libraryRoot)
     }

@@ -16,7 +16,7 @@ WHAT IT MAKES
                                                         compare two of these to see what changed
     site.css  site.js  shots/  logo.png
 
-THE LIBRARY PAGES are made from lib/support/<version>/std: every .sharp file is read for its
+THE LIBRARY PAGES are made from stdlib/std: every .sharp file is read for its
 `mod` line, its classes, interfaces and enums, their functions and fields, the functions and
 constants that stand alone, and the /** ... */ comment above each. What is private, local or
 protected is left out. Nothing is compiled: a file that does not compile is still read.
@@ -44,7 +44,7 @@ NAV = [("index.html", "Home", ()), ("guide/index.html", "Guide", ("guide/", "pro
 
 # the guide: GETTING_STARTED.md, a page for each of its numbered parts ("## 4. A tour of the language")
 GUIDE_SOURCE = "GETTING_STARTED.md"
-SDB_GUIDE = "lib/debugger/doc/sdb.md"
+SDB_GUIDE = "debugger/doc/sdb.md"
 # the GUI guide, whole, on one page; tools/site/check_gui_guide.py compiles and runs the code in it
 GUI_GUIDE = "doc/gui_guide.md"
 
@@ -710,7 +710,7 @@ def empty(folder):
 
 def main():
     out = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else os.path.join(ROOT, "build", "site")
-    library = os.path.join(ROOT, "lib", "support", newest(os.listdir(os.path.join(ROOT, "lib", "support"))), "std")
+    library = os.path.join(ROOT, "stdlib", "std")
     release = newest([n for n in os.listdir(os.path.join(ROOT, "releases")) if n.endswith(".zip")])
     facts = {"version": re.search(r"(\d+(?:\.\d+)+)\.zip$", release).group(1), "branch": branch()}
 

@@ -34,17 +34,17 @@ tests/cffi/      calls to C (extern blocks), in seconds:
 
 | Piece | Written in | Where | What it becomes |
 |---|---|---|---|
-| The VM | C++ | `lib/runtime`, `lib/core`, `main.cpp` | the program `sharp` (`sharp.exe`) |
-| The debugger | C++ | `lib/debugger` (with the VM's sources) | the program `sdb` (`sdb.exe`) |
-| The compiler | Sharp | `lib/compiler` | one file, `sharpc`, that the VM runs |
-| The standard library | Sharp | `lib/support/0.4.0` | shipped as source files |
-| The GUI's native part | C++ | `lib/support/0.4.0/std/guikit/platform/native` | `sharpgui.so` / `sharpgui.dll` |
+| The VM | C++ | `runtime` | the program `sharp` (`sharp.exe`) |
+| The debugger | C++ | `debugger` (with the VM's sources) | the program `sdb` (`sdb.exe`) |
+| The compiler | Sharp | `compiler` | one file, `sharpc`, that the VM runs |
+| The standard library | Sharp | `stdlib` | shipped as source files |
+| The GUI's native part | C++ | `stdlib/std/guikit/platform/native` | `sharpgui.so` / `sharpgui.dll` |
 
 - **Only the VM, the debugger and the GUI library differ per system**, so those are built once on
   Linux and once on Windows. The compiler and the library are the same files everywhere.
-- **The debugger is the VM**: the same sources, with `lib/debugger` compiled in and the hooks of
-  `lib/debugger/hooks.h` switched on (`linux/build_sdb.sh`, `windows/build_sdb.sh`).
-  [The sdb guide](../lib/debugger/doc/sdb.md) says how it is used and how it is made.
+- **The debugger is the VM**: the same sources, with `debugger` compiled in and the hooks of
+  `debugger/hooks.h` switched on (`linux/build_sdb.sh`, `windows/build_sdb.sh`).
+  [The sdb guide](../debugger/doc/sdb.md) says how it is used and how it is made.
 - **The CLion / IntelliJ plugin** (`tools/clion-plugin`) is built by `windows/build_plugin.sh` and shipped in the
   release's `clion-plugin/` folder, as the zip the IDE installs from disk. It has its own version
   (`pluginVersion` in `tools/clion-plugin/gradle.properties`).
@@ -120,12 +120,12 @@ Tests run side by side: `TEST_GROUPS=<n>` says how many tests at once (default 4
 `TEST_JOBS=<n>` how many compiles and programs inside each (default: one per core).
 
 `test.sh list` shows every test with its number. The tests themselves are in `tests/suite/`
-(the language and the library, one program per case) and `lib/compiler/tests/` (the compiler).
+(the language and the library, one program per case) and `compiler/tests/` (the compiler).
 
 ## Release
 
 1. **Pick the version number** - the language version (compiler + library), for example `0.7.1`.
-   If the VM changed too, raise its revision by hand first: `lib/runtime/main.h`, `#define rev`
+   If the VM changed too, raise its revision by hand first: `runtime/main.h`, `#define rev`
    (`r19` -> `r20`).
 
 2. **Run it**, from Git Bash:

@@ -1,7 +1,7 @@
 #!/bin/bash
 # The suite's programs, run with the garbage collector collecting far more often than it would:
 # after every $EVERY new objects, three minor collections and then a full one (SHARP_GC=stress,
-# lib/runtime/memory/tracing_collector.h, TESTING IT). An object the collector does not find -
+# runtime/memory/tracing_collector.h, TESTING IT). An object the collector does not find -
 # a root nobody told it about, a store without a write barrier - is freed while it is in use,
 # and under stress that shows within moments instead of once in a thousand runs.
 # A PART OF test.sh (test 18 of build-scripts/test.sh).   (Linux / WSL)

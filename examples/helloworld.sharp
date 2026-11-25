@@ -1,6 +1,6 @@
 mod main;
 
-def main(args: string[]) : decimal {
+// the smallest Sharp program
+def main() {
     println("Hello, world!");
-    return 0;
 }

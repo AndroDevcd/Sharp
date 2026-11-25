@@ -4,7 +4,7 @@ import ( std.testing, std.math )
 
 /**
  * std.math - the number classes complex and fraction
- * (lib/support/0.4.0/std/math/numbers/). big_integer has its own file.
+ * (stdlib/std/math/numbers/). big_integer has its own file.
  */
 
 def check_complex() {

@@ -15,7 +15,7 @@ VM=${1:-$ROOT/cmake-build-windows-vm/sharp.exe}
 INSTALLED="$LOCALAPPDATA/Sharp"
 # (COMPILER=<file>: another compiler - the one just built in WSL, when the library uses something the installed one does not know)
 COMPILER=${COMPILER:-$(ls "$INSTALLED"/compiler/sharpc-v* 2>/dev/null | grep -v debug | sort -V | tail -1)}
-LIBRARY="$ROOT/lib/support/$(ls "$ROOT/lib/support" | sort -V | tail -1)"
+LIBRARY="$ROOT/stdlib"
 WORK=${WORK:-$ROOT/build/windows-suite}
 JOBS=${TEST_JOBS:-$(nproc)}
 [ -f "$VM" ] || { echo "no VM at $VM: run  bash build-scripts/windows/build_vm.sh  first"; exit 1; }

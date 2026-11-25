@@ -345,7 +345,7 @@ def main() {
   time passed), and ordinary widgets go over the scene with `hud { ... }`.
 
 [`examples/gui/lantern_hunt`](examples/gui/lantern_hunt) is a complete small game built
-from these; `lib/support/0.4.0/std/guikit/words3d.sharp` lists every word.
+from these; `stdlib/std/guikit/words3d.sharp` lists every word.
 
 Scenes are drawn with OpenGL, which every PC has; on a Raspberry Pi it is OpenGL ES 2.
 
@@ -395,7 +395,7 @@ sorted by C: 3 7 19 42
   message lists what was looked for. A crash inside C names the C function, how it was
   declared and what it was handed.
 
-[`lib/compiler/doc/extern.md`](lib/compiler/doc/extern.md) has all of it.
+[`compiler/doc/extern.md`](compiler/doc/extern.md) has all of it.
 
 ## 9. Where to go next
 

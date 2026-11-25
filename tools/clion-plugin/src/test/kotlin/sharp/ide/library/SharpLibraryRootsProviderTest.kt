@@ -69,7 +69,7 @@ class SharpLibraryRootsProviderTest : BasePlatformTestCase() {
 
     fun testALibraryInsideTheProjectIsNotListedASecondTime() {
         val base = project.basePath ?: return
-        setLibraryPath("$base/lib/support/0.4.0")
+        setLibraryPath("$base/stdlib")
         assertTrue(SharpLibraryRootsProvider().getAdditionalProjectLibraries(project).isEmpty())
     }
 

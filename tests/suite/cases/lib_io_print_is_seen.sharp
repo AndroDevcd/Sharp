@@ -4,7 +4,7 @@ import ( std.io, std.testing, std.system, platform )
 
 /**
  * What a program prints goes into a buffer of the runtime and is flushed by
- * the runtime itself (lib/runtime/console_helper.h) - a program never has to
+ * the runtime itself (runtime/console_helper.h) - a program never has to
  * call flush() for its output to be seen in time:
  *
  *   - a prompt without a line end is out before the program waits for input;

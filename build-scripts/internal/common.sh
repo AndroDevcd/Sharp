@@ -19,7 +19,7 @@
 #     $WORK/out/...    what the tests and the release steps write
 #
 # (The folder names inside are historical - "sharp_dev", "boot" - and are kept because the test
-#  scripts in lib/compiler/tests use them as their defaults.)
+#  scripts in compiler/tests use them as their defaults.)
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 WORK="${SHARP_WORK:-$HOME/sharp_work}"
@@ -29,12 +29,12 @@ COMPILER="$WORK/out/boot/sharpc_boot"       # the compiler they build and use (a
 SEED="$WORK/out/seed/sharpc_boot"           # the compiler that compiles the compiler
 STDLIB="$WORK/stdlib"                       # the copy of the standard library the compiles read
 
-# the standard library's folder in the repository: lib/support/<number>, the newest one
-LIBRARY_SOURCE="$REPO/lib/support/$(ls "$REPO/lib/support" 2>/dev/null | sort -V | tail -1)"
+# the standard library in the repository
+LIBRARY_SOURCE="$REPO/stdlib"
 
 # the two version numbers, read from the sources (never typed anywhere else)
-LANGUAGE_VERSION=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/lib/compiler/configuration/configuration.sharp" 2>/dev/null | cut -d'"' -f2)
-VM_VERSION=$(grep -o '#define progvers "[^"]*"' "$REPO/lib/runtime/main.h" 2>/dev/null | cut -d'"' -f2)$(grep -o '#define rev "[^"]*"' "$REPO/lib/runtime/main.h" 2>/dev/null | cut -d'"' -f2)
+LANGUAGE_VERSION=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/compiler/configuration/configuration.sharp" 2>/dev/null | cut -d'"' -f2)
+VM_VERSION=$(grep -o '#define progvers "[^"]*"' "$REPO/runtime/main.h" 2>/dev/null | cut -d'"' -f2)$(grep -o '#define rev "[^"]*"' "$REPO/runtime/main.h" 2>/dev/null | cut -d'"' -f2)
 
 # Copy what gets compiled from the repository into the work folder (see the top of this file).
 # Cheap when little changed: only changed files are copied.

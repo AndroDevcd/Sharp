@@ -4,7 +4,7 @@
 *.sh                                        text eol=lf
 *.py                                        text eol=lf
 build-scripts/internal/zip-contents/linux/* text eol=lf
-lib/compiler/tests/**                       text eol=lf
+compiler/tests/**                       text eol=lf
 tests/suite/**                              text eol=lf
 
 # ... and what only Windows runs keeps Windows line endings

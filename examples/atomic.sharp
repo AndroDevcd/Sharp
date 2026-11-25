@@ -4,29 +4,26 @@ import (
     std.io
 )
 
-count := new atomic<decimal>(0); // setup our atomic number
+count := new atomic_counter();          // a number several threads may change at once
 
-def foo_main(args: object[]) : decimal {
-   for(i := 0; i < 1000; i++) {
-      count++;
-   }
-
-   return 0;
+def count_up(args: object[]) : decimal {
+    for(i : decimal = 0; i < 1000; i++) {
+        count.increment();
+    }
+    return 0;
 }
 
-/*
- * this program shows how to create atomic 
- * numbers for multithreadding
- *
- * the count number is protected from race conditions
- *
- * if you wanted to use a class you would 
- * use the 'atomic_ref<>' class
+/**
+ * Two threads add to the same number. With a plain number some additions
+ * would be lost; an atomic_counter makes each one whole. (For an object
+ * shared between threads there is atomic_ref<t>.)
  */
 def main() {
-   new thread("counter1", foo_main).start();
-   new thread("counter2", foo_main).start();
-   
-   thread.sleep(1500); // wait for the threads to finish
-   println("count = ${count.read()}");
+    first := new thread("counter 1", count_up);
+    second := new thread("counter 2", count_up);
+    first.start();
+    second.start();
+    first.join();
+    second.join();
+    println("count = " + count.read());    // always 2000
 }

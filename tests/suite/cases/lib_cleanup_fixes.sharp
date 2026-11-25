@@ -4,7 +4,7 @@ import ( std.testing, std.io, std.util, std.math, std.collections, platform )
 
 /**
  * What the library clean-up of November 2026 fixed and added, one test each:
- * the mistakes of doc/library_audit_2026-11-21.md, and the functions that came
+ * the mistakes the audit of 21 November 2026 found, and the functions that came
  * with the merges (hash_map like the other maps, the locked collections as
  * wrappers, char_buffer with what text_buffer had).
  */

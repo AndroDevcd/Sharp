@@ -27,7 +27,7 @@ class SharpProjectSettings(private val project: Project) : PersistentStateCompon
         /** Folders (absolute, or relative to the project folder); empty = automatic. */
         var sourceRoots: MutableList<String> = mutableListOf()
         var excludedFolders: MutableList<String> = SharpDefaults.EXCLUDED_FOLDERS.toMutableList()
-        /** The standard library folder; empty = `lib/support/0.4.0` of the project when it exists. */
+        /** The standard library folder; empty = `stdlib` of the project when it exists. */
         var libraryPath: String = ""
         /**
          * Hover and go-to INSIDE a file need that file's function bodies in the index.

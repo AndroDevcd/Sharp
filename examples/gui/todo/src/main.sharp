@@ -14,10 +14,6 @@ import (
  * A widget's BOX (size, padding, fill, background ...) is only ever changed
  * through a modifier passed in where the widget is made. Looks that repeat
  * are named once (`page`, `card`) and passed to several widgets.
- *
- * Compare examples/gui/showcase, which builds the same kind of screen with
- * .add(...) chains. Both styles are the same framework underneath and can be
- * mixed.
  */
 class todo_app base composable {
     draft := state("");                             // what is typed in the field

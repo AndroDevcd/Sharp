@@ -1,0 +1,387 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * WHAT GOES INTO THE EXECUTABLE: the kept set
+ *
+ * Analysis has walked the program from `main` (`analysed.reached_*`,
+ * backend/compiler/program/usage). Code generation walks it AGAIN, with its own
+ * rules, for two reasons (doc/codegen.md 5.5, 5.8):
+ *
+ *   1. The walk may start somewhere else. A test started with `-entry f` keeps
+ *      only what `f` can come to; `-eager` keeps everything analysis has.
+ *   2. A field must be kept exactly when the C++ compiler calls it "used":
+ *      when some kept code NAMES it (reads or writes it). Analysis reaches every
+ *      field of a reached class that has a value ("a class reaches its
+ *      initialisation lists"); the C++-built program does NOT run the value of
+ *      a field no code names, and that can be seen when the value has an effect
+ *      (probed, codegen.md 12, Q14). So here a class does NOT keep its fields;
+ *      only a use does.
+ *
+ * It is a graph search (a work list), the same textbook walk as analysis's:
+ *
+ *      a function      what its body uses; its class; every function that
+ *                      overrides it in a KEPT class (a virtual call may run any
+ *                      of them - but only on an object, and only a kept class
+ *                      can have objects); the family root it stands in for
+ *                      (`invoke_delegate` names the root); a getter's or
+ *                      setter's field; the classes of its parameter and result
+ *                      types
+ *      a field         what its value uses; its class; its getter and setter;
+ *                      the class of its type
+ *      a class         its base class and interfaces; the class it is nested in;
+ *                      its `init { }` and `static init { }` blocks (they always
+ *                      run when it is set up); for an enum, its values; its
+ *                      functions that override a kept family root (the other
+ *                      half of the rule above: whichever is kept first)
+ *
+ * The C++ compiler keeps EVERY override of a kept root ("a delegate function
+ * marks all its impls"), in classes no object is ever made of too; the
+ * textbook refinement (rapid type analysis) keeps only the overrides in
+ * classes that can have objects. Here "can have objects" is "is kept" - a
+ * little more than needed, never less.
+ *      an enum value   what its `= e` uses; its enum
+ *
+ *      roots, normally     platform.srt_init (where the VM starts), `main`, and
+ *                          platform's static_init / tls_init (code generation
+ *                          writes their bodies)
+ *      roots, -eager       every function and class analysis has
+ *      always              the classes the VM makes objects of itself
+ *                          (`analysed.required_classes`) and the classes the VM
+ *                          looks up by name when it starts (`vm_named_classes`:
+ *                          runtime/vm_initializer.cpp), each with EVERY field
+ *                          of it and of the classes above it - native code
+ *                          writes them by name (codegen.md 3.11)
+ *
+ *      reflected           the classes a program makes and fills BY NAME at run
+ *                          time: the type arguments of std.reflect's
+ *                          `reflects<T>()` (KNOWN TO THE COMPILER BY NAME;
+ *                          stdlib std/reflect/making.sharp). Reading json
+ *                          into a `user` names no field of it and calls no
+ *                          constructor of it in the text of the program, so
+ *                          none of it would be kept. Kept for such a class:
+ *                          every field of it and of the classes above it, its
+ *                          constructor without parameters - and the same for
+ *                          the class of each of those fields (`home : address?`,
+ *                          `tags : list<string>`), as far as that leads.
+ *      reflected whole     the type arguments of std.reflect's
+ *                          `reflects_whole<T>()` (what `reflect.of<T>()` says):
+ *                          the program looks at ALL of T by name - it lists
+ *                          its functions and calls them, makes objects with
+ *                          any constructor. Kept for T and the classes above
+ *                          it: every field (static ones too), every function
+ *                          and every constructor; and for its fields what
+ *                          `reflects` keeps.
+ *
+ * The result is `sharp_declaration.kept = 1` on everything kept, and the
+ * lists `functions`, `classes` and `fields` in the order found.
+ *
+ *      C++ comparison: `mark` in finalizer/optimization/dependency_runner.cpp
+ *      ("a delegate function marks all its impls"), from genesis_method,
+ *      user_main_method and static_init_method.
+ */
+class kept_walk {
+    waiting : list<sharp_declaration>;
+    functions : list<sharp_function>;
+    classes : list<sharp_class>;
+    fields : list<sharp_field>;
+    enum_values : list<sharp_enum_value>;
+    reflected : list<sharp_class>;              // the classes kept whole for std.reflect (keep_reflected)
+
+    kept_walk() {
+        reflected = new list<sharp_class>();
+        waiting = new list<sharp_declaration>();
+        functions = new list<sharp_function>();
+        classes = new list<sharp_class>();
+        fields = new list<sharp_field>();
+        enum_values = new list<sharp_enum_value>();
+    }
+
+    /** keep one declaration (once); what it leads to is followed later */
+    def keep(declared: sharp_declaration?) {
+        if(declared == null) { return; }
+        found : sharp_declaration = declared!!;
+        if(found.kept == 1) { return; }
+        kind : _int64 = found.kind;
+        if(kind == D_FIELD) { fields.add(found as sharp_field); }
+        else if(kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM) {
+            made := found as sharp_class;
+            if(made.is_open()) { return; }      // a blueprint is never generated (its instances are)
+            classes.add(made);
+        }
+        else if(kind == D_FUNCTION || kind == D_CONSTRUCTOR || kind == D_INIT || kind == D_GETTER || kind == D_SETTER) {
+            function := found as sharp_function;
+            if(function.owner != null && function.owner!!.is_open()) { return; }
+            if(function.is_generic() && function.type_arguments == null) { return; }
+            functions.add(function);
+        }
+        else if(kind == D_ENUM_VALUE) { enum_values.add(found as sharp_enum_value); }
+        else { return; }                        // aliases, type parameters: nothing to write
+        found.kept = 1;
+        waiting.add(found);
+    }
+
+    /** keep every declaration of a list */
+    def keep_all(declarations: list<sharp_declaration>?) {
+        if(declarations == null) { return; }
+        for(i : _int64 = 0; i < declarations!!.size(); i++) { keep(declarations!!.at(i)); }
+    }
+
+    /** the class of a type, when it names one (`list<string>[]?` -> list<string>); a function type's parts too */
+    def keep_type(type: resolved_type?) {
+        if(type == null) { return; }
+        if(type!!.kind == RT_CLASS && type!!.class_of != null) { keep(type!!.class_of); }
+        if(type!!.kind == RT_FUNCTION) {
+            for(i : _int64 = 0; i < type!!.parameters!!.size(); i++) { keep_type(type!!.parameters!!.at(i)); }
+            keep_type(type!!.result);
+        }
+    }
+
+    /** a class the VM makes objects of itself: the class and every field of it and of the classes above it */
+    def keep_whole_object(needed: sharp_class) {
+        current : sharp_class? = needed;
+        for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+            keep(current);
+            fields_of := current!!.fields;
+            for(i : _int64 = 0; i < fields_of.size(); i++) { keep(fields_of.at(i)); }
+            current = current!!.base_class;
+        }
+    }
+
+    /**
+     * A class whose objects are made and filled by name at run time (`reflects<T>()`,
+     * the rule at the top of this file): the class of this type and of every field
+     * under it.
+     */
+    def keep_reflected(type: resolved_type?) {
+        if(type == null || type!!.kind != RT_CLASS || type!!.class_of == null) { return; }
+        needed : sharp_class = type!!.class_of!!;
+        if(needed.is_open()) { return; }
+        for(i : _int64 = 0; i < reflected.size(); i++) {
+            if(reflected.at(i) == needed) { return; }
+        }
+        reflected.add(needed);
+        current : sharp_class? = needed;
+        for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+            keep(current);
+            keep(current!!.default_constructor);
+            fields_of := current!!.fields;
+            for(i : _int64 = 0; i < fields_of.size(); i++) {
+                field := fields_of.at(i);
+                if(field.has(FLAG_STATIC)) { continue; }
+                keep(field);
+                keep_reflected(field.value_type);
+            }
+            current = current!!.base_class;
+        }
+    }
+
+    /**
+     * A class a program looks at whole by name (`reflects_whole<T>()`, the rule at
+     * the top of this file): its fields, functions and constructors, and those of
+     * the classes above it.
+     */
+    def keep_reflected_whole(type: resolved_type?) {
+        if(type == null || type!!.kind != RT_CLASS || type!!.class_of == null) { return; }
+        if(type!!.class_of!!.is_open()) { return; }
+        keep_reflected(type);
+        current : sharp_class? = type!!.class_of;
+        for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+            keep(current);
+            fields_of := current!!.fields;
+            for(i : _int64 = 0; i < fields_of.size(); i++) { keep(fields_of.at(i)); }
+            for(i : _int64 = 0; i < current!!.functions.size(); i++) {
+                if(current!!.functions.at(i).has_body()) { keep(current!!.functions.at(i)); }
+            }
+            for(i : _int64 = 0; i < current!!.constructors.size(); i++) { keep(current!!.constructors.at(i)); }
+            current = current!!.base_class;
+        }
+    }
+
+    /** follow everything waiting until nothing is left */
+    def follow_until_done() {
+        while(waiting.size() > 0) {
+            next : sharp_declaration = waiting.pop_last();
+            follow(next);
+        }
+    }
+
+    /** what keeping one declaration keeps in turn (the rules at the top of this file) */
+    def follow(declared: sharp_declaration) {
+        keep_all(declared.uses);
+        keep(declared.owner);
+
+        kind : _int64 = declared.kind;
+        if(kind == D_FUNCTION || kind == D_CONSTRUCTOR || kind == D_INIT || kind == D_GETTER || kind == D_SETTER) {
+            function := declared as sharp_function;
+            keep(function.field);
+            keep(function.family_root);
+            keep(function.extension_of);
+            if(function.overridden_by != null) {
+                for(i : _int64 = 0; i < function.overridden_by!!.size(); i++) {
+                    implementation := function.overridden_by!!.at(i);
+                    if(implementation.owner == null || implementation.owner!!.kept == 1) { keep(implementation); }
+                }
+            }
+            for(i : _int64 = 0; i < function.parameters.size(); i++) { keep_type(function.parameters.at(i).value_type); }
+            keep_type(function.result_type);
+            // reflects<T>(): T is made and filled by name at run time
+            if(function.type_arguments != null && function.name == "reflects" && function.module.name == "std.reflect") {
+                for(i : _int64 = 0; i < function.type_arguments!!.size(); i++) { keep_reflected(function.type_arguments!!.at(i)); }
+            }
+            // reflects_whole<T>(): all of T is looked at by name at run time
+            if(function.type_arguments != null && function.name == "reflects_whole" && function.module.name == "std.reflect") {
+                for(i : _int64 = 0; i < function.type_arguments!!.size(); i++) { keep_reflected_whole(function.type_arguments!!.at(i)); }
+            }
+        } else if(kind == D_FIELD) {
+            field := declared as sharp_field;
+            keep(field.getter);
+            keep(field.setter);
+            keep(field.default_constructor);
+            keep_type(field.value_type);
+        } else if(kind == D_ENUM_VALUE) {
+            keep_type((declared as sharp_enum_value).value_type);
+            // an enum value is made with std#_enum_(name, ordinal) (codegen.md 6.15)
+            keep(enum_value_constructor(declared.owner));
+        } else {
+            made := declared as sharp_class;
+            keep(made.base_class);
+            for(i : _int64 = 0; i < made.interfaces.size(); i++) { keep(made.interfaces.at(i)); }
+            for(i : _int64 = 0; i < made.init_blocks.size(); i++) {
+                block := made.init_blocks.at(i);
+                if(block.parameters.size() == 0) { keep(block); }      // init { } and static init { }; not init(x)
+            }
+            for(i : _int64 = 0; i < made.enum_values.size(); i++) { keep(made.enum_values.at(i)); }
+            // a C struct (a class based on std.c's c_struct): C reads and writes its members by name, so
+            // every field of it is used whether or not Sharp code names it (runtime/cffi/c_bind.cpp)
+            above : sharp_class? = made.base_class;
+            for(depth : _int64 = 0; above != null && depth < 64; depth++) {
+                if(above!!.name == "c_struct") {
+                    for(i : _int64 = 0; i < made.fields.size(); i++) {
+                        if(!made.fields.at(i).has(FLAG_STATIC)) { keep(made.fields.at(i)); }
+                    }
+                    break;
+                }
+                above = above!!.base_class;
+            }
+            for(i : _int64 = 0; i < made.functions.size(); i++) {
+                function := made.functions.at(i);
+                root := function.family_root;
+                if(root != null && root!!.kept == 1 && function.has_body()) { keep(function); }
+            }
+        }
+    }
+}
+
+/** Walk the program from its roots. `eager` keeps everything analysis has. */
+def walk_kept(analysed: analysed_program, eager: _int64) : kept_walk {
+    walk := new kept_walk();
+    walk.keep(analysed.startup_function);
+    walk.keep(analysed.main_function);
+    if(analysed.platform_class != null) {
+        walk.keep(platform_function(analysed.platform_class!!, "static_init"));
+        walk.keep(platform_function(analysed.platform_class!!, "tls_init"));
+    }
+    if(eager == 1) {
+        for(i : _int64 = 0; i < analysed.functions.size(); i++) { walk.keep(analysed.functions.at(i)); }
+        for(i : _int64 = 0; i < analysed.classes.size(); i++) {
+            made := analysed.classes.at(i);
+            walk.keep(made);
+            for(j : _int64 = 0; j < made.functions.size(); j++) { walk.keep(made.functions.at(j)); }
+            for(j : _int64 = 0; j < made.fields.size(); j++) { walk.keep(made.fields.at(j)); }
+        }
+        for(i : _int64 = 0; i < analysed.modules.size(); i++) {
+            module := analysed.modules.at(i);
+            for(j : _int64 = 0; j < module.fields.size(); j++) { walk.keep(module.fields.at(j)); }
+            for(j : _int64 = 0; j < module.functions.size(); j++) { walk.keep(module.functions.at(j)); }
+        }
+    }
+    walk.follow_until_done();
+
+    for(i : _int64 = 0; i < analysed.required_classes.size(); i++) {
+        walk.keep_whole_object(analysed.required_classes.at(i));
+    }
+    named := vm_named_classes();
+    for(i : _int64 = 0; i < analysed.classes.size(); i++) {
+        made := analysed.classes.at(i);
+        if(made.is_open() == 0 && named.at(class_key(made)) != null) { walk.keep_whole_object(made); }
+    }
+    walk.follow_until_done();
+    return walk;
+}
+
+/**
+ * The classes the VM looks up by their full name when it starts
+ * (runtime/vm_initializer.cpp, memory/function_value.cpp) and makes
+ * objects of: the exceptions it throws, the number classes reflection boxes
+ * numbers in (`std#bool`, `std#char` ... with their field `value`), the
+ * thread and fiber classes, function values. The
+ * analysis's `required_classes` is the C++ compiler's list, which leaves some
+ * of them to the program (`std#bool`, `std#long` ...); an executable without
+ * them makes the VM fail as soon as it reflects on a number.
+ */
+def vm_named_classes() : name_table<numbered> {
+    names := new name_table<numbered>();
+    found := split_words("std#throwable std#runtime_exception std#stack_overflow_exception std#thread_stack_exception "
+        + "std#out_of_bounds_exception std#nullptr_exception std#class_cast_exception std#out_of_memory_exception "
+        + "std#invalid_operation_exception std#unsatisfied_link_error std#illegal_state_exception "
+        + "std#incompatible_class_exception std#object_import_error std#string std#int std#char std#boolean std#short "
+        + "std#byte std#uint std#uchar std#ushort std#long std#ulong std#double platform.kernel#stack_state std.io#thread "
+        + "std#exception std#error std#char_array std.io.fiber#fiber platform.kernel#function_value");
+    for(i : _int64 = 0; i < found.size(); i++) { names.put(found.at(i), new numbered(1)); }
+    return names;
+}
+
+/** "a b c" -> [a, b, c] */
+def split_words(text: string) : list<string> {
+    words := new list<string>();
+    current := new string_builder("");
+    characters : _int8[] = text.data!!;
+    for(i : _int64 = 0; i < sizeof(characters); i++) {
+        if(characters[i] == ' ') {
+            if(current.size() > 0) { words.add(current.build()); current = new string_builder(""); }
+        } else {
+            current.append(characters[i]);
+        }
+    }
+    if(current.size() > 0) { words.add(current.build()); }
+    return words;
+}
+
+/**
+ * The constructor enum values are made with: `_enum_(n: _int8[], ord: decimal)`
+ * of std#_enum_, the base of every enum (the C++ compiler makes each value an
+ * object of std#_enum_ with it).
+ */
+def enum_value_constructor(an_enum: sharp_class?) : sharp_function? {
+    current : sharp_class? = an_enum;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        if(current!!.name == "_enum_") {
+            constructors := current!!.constructors;
+            for(i : _int64 = 0; i < constructors.size(); i++) {
+                made := constructors.at(i);
+                if(made.parameters.size() == 2) {
+                    first := made.parameters.at(0).value_type;
+                    if(first != null && first!!.is_array == 1 && first!!.kind == RT_INTEGER) { return made; }
+                }
+            }
+            return null;
+        }
+        current = current!!.base_class;
+    }
+    return null;
+}
+
+/** the function of the platform class called `name` (static_init, tls_init); null when there is none */
+def platform_function(platform: sharp_class, name: string) : sharp_function? {
+    for(i : _int64 = 0; i < platform.functions.size(); i++) {
+        if(platform.functions.at(i).name == name) { return platform.functions.at(i); }
+    }
+    return null;
+}

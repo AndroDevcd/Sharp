@@ -281,7 +281,7 @@ self.notes = std#list<std#string> (2) ["bread", "eggs"]
   5      coroutine  sleeping, 398 ms left  app#refresh  notebook.sharp:88
 ```
 
-In a terminal it opens full screen: your program's output and the prompt on the left; the source, the variables and the calls on the right. See [the sdb guide](lib/debugger/doc/sdb.md).
+In a terminal it opens full screen: your program's output and the prompt on the left; the source, the variables and the calls on the right. See [the sdb guide](debugger/doc/sdb.md).
 
 ## Performance
 
@@ -302,7 +302,7 @@ Six programs of the [Benchmarks Game](benchmark/game), written the same plain si
 | Lua | 15× |
 | PHP | 17× |
 
-The full picture is in [the chart](doc/benchmarks.html) (a page to open in a browser: every test as a dot, hover for the seconds and the memory) and in [the tables](benchmark/game/results/results.md). `bash benchmark/game/run.sh` measures it again on your machine.
+The full picture is in [the chart](doc/benchmarks.html) (a page to open in a browser: every test as a dot, hover for the seconds and the memory). `bash benchmark/game/run.sh` measures it again on your machine and writes its tables and chart into `benchmark/game/results`.
 
 ## Documentation
 
@@ -312,7 +312,7 @@ The full picture is in [the chart](doc/benchmarks.html) (a page to open in a bro
 | [Getting Started](GETTING_STARTED.md) | Your first program, classes, generics, null safety, tests and a window |
 | [Examples](examples) | Sample programs, [GUI apps](examples/gui), and [tests and mocks](examples/testing) |
 | [Language by example](tests/suite/cases) | Small, commented programs that each cover one feature |
-| [The debugger, sdb](lib/debugger/doc/sdb.md) | Breakpoints, stepping, variables, threads and coroutines; `sdb.json` |
+| [The debugger, sdb](debugger/doc/sdb.md) | Breakpoints, stepping, variables, threads and coroutines; `sdb.json` |
 | [Building Sharp](build-scripts/README.md) | How to build, test and release Sharp |
 | [CLion / IntelliJ plugin](tools/clion-plugin) | Editor support for Sharp |
 
@@ -335,8 +335,12 @@ The compiler is written in Sharp and is built by its own last good build. See [B
 
 | Component | Language | Location |
 |---|---|---|
-| Virtual machine | C++ | [`lib/runtime`](lib/runtime), [`lib/core`](lib/core), [`main.cpp`](main.cpp) |
-| Compiler | Sharp | [`lib/compiler`](lib/compiler) |
-| Debugger (`sdb`) | C++ | [`lib/debugger`](lib/debugger): the VM's sources with the debugger compiled in |
-| Standard library | Sharp | [`lib/support/0.4.0`](lib/support/0.4.0) |
-| GUI native layer | C++ | [`lib/support/0.4.0/std/guikit/platform/native`](lib/support/0.4.0/std/guikit/platform/native) |
+| Virtual machine | C++ | [`runtime`](runtime) |
+| Compiler | Sharp | [`compiler`](compiler) |
+| Debugger (`sdb`) | C++ | [`debugger`](debugger): the VM's sources with the debugger compiled in |
+| Standard library | Sharp | [`stdlib`](stdlib) |
+| GUI native layer | C++ | [`stdlib/std/guikit/platform/native`](stdlib/std/guikit/platform/native) |
+
+## License
+
+Sharp is open source under the [Apache License 2.0](LICENSE). Code from other projects that ships with it is listed in [NOTICE](doc/NOTICE), with its terms in [THIRD_PARTY_LICENSES.txt](doc/THIRD_PARTY_LICENSES.txt).

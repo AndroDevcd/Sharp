@@ -23,8 +23,8 @@
 source "$(dirname "$0")/common.sh"
 W=$WORK
 T="$REPO/build-scripts/internal/zip-contents"
-V=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/lib/compiler/configuration/configuration.sharp" | cut -d'"' -f2)
-VM_V=$(grep -o '#define progvers "[^"]*"' "$REPO/lib/runtime/main.h" | cut -d'"' -f2)$(grep -o '#define rev "[^"]*"' "$REPO/lib/runtime/main.h" | cut -d'"' -f2)
+V=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/compiler/configuration/configuration.sharp" | cut -d'"' -f2)
+VM_V=$(grep -o '#define progvers "[^"]*"' "$REPO/runtime/main.h" | cut -d'"' -f2)$(grep -o '#define rev "[^"]*"' "$REPO/runtime/main.h" | cut -d'"' -f2)
 [ -n "$V" ] || { echo "the compiler's version was not found"; exit 1; }
 LINUX_OBJECTS=${LINUX_OBJECTS:-$W/sharp_dev}
 WINDOWS_VM=${WINDOWS_VM:-$REPO/cmake-build-windows-vm/sharp.exe}
@@ -32,9 +32,8 @@ LINUX_SDB_OBJECTS=${LINUX_SDB_OBJECTS:-$W/sdb_dev}
 WINDOWS_SDB=${WINDOWS_SDB:-$REPO/cmake-build-windows-sdb/sdb.exe}
 COMPILERS=${COMPILERS:-$W/out/release_build}
 STAGE=$W/out/release; D=$STAGE/sharp-$V
-# the standard library's folder in the repository (lib/support/<number>): the newest one. Its NAME may be
-# an older number than the language version - the release ships its contents as `lib/`, without a number.
-LIB_SRC="$REPO/lib/support/$(ls "$REPO/lib/support" | sort -V | tail -1)"
+# the standard library in the repository; the release ships its contents as `lib/`
+LIB_SRC="$REPO/stdlib"
 for need in "$LINUX_OBJECTS/sharp" "$LINUX_SDB_OBJECTS/sdb" "$WINDOWS_VM" "$WINDOWS_SDB" "$COMPILERS/O/sharpc" "$COMPILERS/plain/sharpc" "$COMPILERS/debug/sharpc" "$LIB_SRC"; do
   [ -e "$need" ] || { echo "missing: $need   (run  bash build-scripts/release.sh  - it builds everything in order)"; exit 1; }
 done
@@ -46,7 +45,7 @@ g++ -static-libstdc++ -static-libgcc -o "$D/linux/sharp" "$LINUX_OBJECTS"/*.o -p
 strip "$D/linux/sharp" 2>/dev/null
 cp "$WINDOWS_VM" "$D/windows/sharp.exe"
 
-# ---- sdb, the debugger: the same VM with lib/debugger compiled in, beside each VM
+# ---- sdb, the debugger: the same VM with debugger compiled in, beside each VM
 g++ -static-libstdc++ -static-libgcc -o "$D/linux/sdb" "$LINUX_SDB_OBJECTS"/*.o -pthread -ldl -lrt -lm 2>&1 | grep -v warning | head -5
 [ -x "$D/linux/sdb" ] || { echo "the Linux sdb did not link"; exit 1; }
 strip "$D/linux/sdb" 2>/dev/null
@@ -90,6 +89,8 @@ fill() {   # fill <template> <target> <crlf|lf>
   return 0
 }
 fill "$T/START-HERE.txt" "$D/START-HERE.txt" crlf
+# the licence, and the terms of the code by others that is built in: a copy goes with every release
+for f in LICENSE doc/NOTICE doc/THIRD_PARTY_LICENSES.txt; do tr -d '\r' < "$REPO/$f" | sed 's/$/\r/' > "$D/$(basename "$f")"; done
 for f in win-install.cmd win-uninstall.cmd sharpc.cmd; do fill "$T/windows/$f" "$D/windows/$f" crlf; done
 for f in unix-install.sh unix-uninstall.sh sharpc; do fill "$T/linux/$f" "$D/linux/$f" lf; chmod +x "$D/linux/$f"; done
 fill "$T/shared/examples/hello.sharp" "$D/shared/examples/hello.sharp" lf

@@ -47,7 +47,7 @@ class NavigationTargetsTest {
         val t = targetAt("names.size", 6)!!
         assertEquals("size", t.name)
         assertTrue(t.compilerPath, t.compilerPath.endsWith("/std/list.sharp"))
-        val source = File(repoRoot(), "lib/support/0.4.0/std/list.sharp").readText()
+        val source = File(repoRoot(), "stdlib/std/list.sharp").readText()
         val decoded = sharp.ide.run.SavedText.decode(source.toByteArray())
         assertEquals("size", decoded.substring(t.from, t.to))
     }

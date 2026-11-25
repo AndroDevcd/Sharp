@@ -3,7 +3,7 @@
  *
  * The compiler has a project mode: `sharpc -P <folder>` compiles every .sharp file of the folder
  * with the options written in the folder's `settings.json`, into `<folder>/build/outputs/<output>`
- * (lib/compiler/configuration/settings_processor.sharp lists every setting):
+ * (compiler/configuration/settings_processor.sharp lists every setting):
  *
  *     {
  *       "name": "demo",
@@ -57,7 +57,7 @@ data class SharpProjectFile(
     /**
      * THE PROJECT'S TESTS: the files of the tests folder, with a `main` of their own. The compiler
      * leaves that folder out of the program and builds it WITH the program for `-tests`, starting at
-     * the tests' main (lib/compiler/project.sharp in the Sharp repository).
+     * the tests' main (compiler/project.sharp in the Sharp repository).
      */
     val testsPath: String get() = "$folder/$testsFolder"
 

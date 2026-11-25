@@ -16,21 +16,21 @@
 # plain and with -O. (The full proof is the gates' self-hosting step; this is the quick form.)
 #
 #     STAGE1   the compiler to start from   (default ~/sharp_work/out/boot/sharpc_boot, built by build.sh)
-#     SOURCES  the bootstrap's sources      (default ~/sharp_work/src/lib/compiler)
+#     SOURCES  the bootstrap's sources      (default ~/sharp_work/src/compiler)
 #     LIBRARY  the standard library         (default ~/sharp_work/stdlib)
 #     SHARP    the VM                       (default ~/sharp_work/sharp_dev/sharp)
 #     OUT      (default ~/sharp_work/out/release_build)
 source "$(dirname "$0")/common.sh"       # gives REPO and WORK
 W=$WORK
 STAGE1=${STAGE1:-$W/out/boot/sharpc_boot}
-SOURCES=${SOURCES:-$W/src/lib/compiler}
+SOURCES=${SOURCES:-$W/src/compiler}
 LIBRARY=${LIBRARY:-$W/stdlib}
 SHARP=${SHARP:-$W/sharp_dev/sharp}
 OUT=${OUT:-$W/out/release_build}
 HERE="$REPO"
 rm -rf "$OUT"; mkdir -p "$OUT/plain" "$OUT/O" "$OUT/debug" "$OUT/s1" "$OUT/s2"
 # THE STANDARD COMPILER is the sources with one line changed: `debug_compiler` false
-# (lib/compiler/configuration/build_kind.sharp says what that leaves out). The change is made in a copy.
+# (compiler/configuration/build_kind.sharp says what that leaves out). The change is made in a copy.
 STANDARD="$OUT/standard_sources"
 mkdir -p "$STANDARD"; rsync -a --delete --exclude tests "$SOURCES/" "$STANDARD/"
 sed -i 's/^debug_compiler : decimal = true;/debug_compiler : decimal = false;/' "$STANDARD/configuration/build_kind.sharp"
@@ -52,7 +52,7 @@ for k in plain O debug; do
 done
 steady() { grep -av "^Executed in\|^vm exiting\|^time:\|^$"; }
 bad=0; n=0
-for f in "$HERE"/lib/compiler/tests/backend/fail/*.sharp; do
+for f in "$HERE"/compiler/tests/backend/fail/*.sharp; do
   n=$((n+1))
   a=$($VM $OUT/plain/sharpc -c $LIB "$f" 2>&1 | steady | md5sum); b=$($VM $OUT/O/sharpc -c $LIB "$f" 2>&1 | steady | md5sum)
   [ "$a" = "$b" ] || { bad=$((bad+1)); echo "DIFFERENT messages: $(basename $f)"; }
@@ -71,7 +71,7 @@ for c in lib_data_json lambdas_closures nullability lib_collections_functional l
   done
 done
 echo "suite builds: $n compared (same bytes from both compilers, and the program passes), $bad different"
-# THE STANDARD COMPILERS ARE QUIET, THE DEBUG ONE TALKS (lib/compiler/configuration/build_kind.sharp):
+# THE STANDARD COMPILERS ARE QUIET, THE DEBUG ONE TALKS (compiler/configuration/build_kind.sharp):
 # a good compile prints nothing from the standard ones, and they refuse the options that look inside
 # the compiler; the debug compiler prints how the compile went and takes them.
 kind_bad=0

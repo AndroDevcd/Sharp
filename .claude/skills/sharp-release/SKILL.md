@@ -1,6 +1,6 @@
 ---
 name: sharp-release
-description: Build, version-bump, package and install the latest Sharp (VM, compiler, standard library) so the user's machine runs what is in the repository. Use when the user asks to "release", "build and install", "package it", "ship the latest", "update my install", "get me the latest changes", or after a batch of edits to lib/runtime, lib/compiler or lib/support that they want to use. Does NOT cover the CLion plugin (tools/clion-plugin) - that is built and installed separately, by hand.
+description: Build, version-bump, package and install the latest Sharp (VM, compiler, standard library) so the user's machine runs what is in the repository. Use when the user asks to "release", "build and install", "package it", "ship the latest", "update my install", "get me the latest changes", or after a batch of edits to runtime, compiler or stdlib that they want to use. Does NOT cover the CLion plugin (tools/clion-plugin) - that is built and installed separately, by hand.
 ---
 
 # Sharp release: build, bump, package, install
@@ -37,7 +37,7 @@ Pitfalls that have bitten before:
 - Heredocs in Git Bash halve backslashes and break on quotes: write files with the Write tool instead.
 - Never set `debug_compiler` to false in the repository: the release script does that in its own copy.
 - The compiler is built by its own last good build (the seed, see `build.sh`). A change that
-  uses a NEW language feature inside `lib/compiler` needs two builds: the feature first, then its use.
+  uses a NEW language feature inside `compiler` needs two builds: the feature first, then its use.
 
 ## Steps
 
@@ -47,8 +47,8 @@ Pitfalls that have bitten before:
 
 | changed | number that moves |
 |---|---|
-| `lib/runtime/**`, `lib/core/**`, `main.cpp` | the VM's patch number: `4.0.1` -> `4.0.2` (`progvers`). The revision `rN` is only for major VM changes |
-| `lib/compiler/**` or `lib/support/**` | the language version: patch + 1 (`0.4.3` -> `0.4.4`) |
+| `runtime/**` | the VM's patch number: `4.0.1` -> `4.0.2` (`progvers`). The revision `rN` is only for major VM changes |
+| `compiler/**` or `stdlib/**` | the language version: patch + 1 (`0.4.3` -> `0.4.4`) |
 | only docs, tests, build scripts, the plugin | nothing: tell the user there is nothing to release |
 
 **The last number never rolls over.** It counts releases and goes as high as it needs to: after
@@ -60,19 +60,19 @@ the user asks for it - never on your own judgment, also when a change does break
 If the current version was never installed or handed to the user (it was bumped earlier in this same
 piece of work), keep it - do not bump twice for one release.
 
-**Library-only shortcut.** When ONLY `lib/support/**` changed and the user wants it quickly, skip the
+**Library-only shortcut.** When ONLY `stdlib/**` changed and the user wants it quickly, skip the
 build: copy the changed `.sharp` files to the same relative path under `%LOCALAPPDATA%\Sharp\lib\`
 (and `~/.sharp/lib/` in WSL if that exists), say which files were copied, and say that the installed
 version number did not move. Do the full release when they ask for a release or a version.
 
 ### 2. Bump the versions
 
-- VM: `lib/runtime/main.h`, the patch number in `#define progvers "4.0.N" rev`. Leave `#define rev "rN"`
+- VM: `runtime/main.h`, the patch number in `#define progvers "4.0.N" rev`. Leave `#define rev "rN"`
   alone unless the user calls the change major.
 - Language: do NOT edit by hand - pass the new number to `release.sh` in step 3 (`release.sh 0.7.1 install`); it writes
   `program_vers` (configuration.sharp), `library_version` and `supported_versions` (options.sharp).
-- The library folder stays `lib/support/0.4.0` whatever the version (the scripts take the folder that is there).
-- If `lib/runtime/sni/sni.h` changed: `python build-scripts/internal/embed_sni_header.py` (the compiler carries a copy).
+- The standard library is the folder `stdlib`: it has no version in its name and ships with each release.
+- If `runtime/sni/sni.h` changed: `python build-scripts/internal/embed_sni_header.py` (the compiler carries a copy).
 
 ### 3. Build, test, pack and install: one command (background, about 25 minutes)
 

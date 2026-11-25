@@ -14,16 +14,16 @@
 #
 # The same sources build the debugger (build_sdb.sh sets these three; nothing else uses them):
 #     PROGRAM=<name>    what the built program is called             (default: sharp)
-#     MAIN=<file>       the file with `main`                          (default: main.cpp)
+#     MAIN=<file>       the file with `main`                          (default: runtime/entry/main.cpp)
 #     MORE_SOURCES=<..> more .cpp files to compile in, as shell patterns
 #
 # Needs: g++ with C++17 (g++ 8 or newer). On a Raspberry Pi:  sudo apt install g++
 #
 # WHAT DEPENDS ON THE CPU
-#   The machine-code compiler (the JIT) and calls to C (lib/runtime/cffi). The JIT exists for
-#       64-bit x86          lib/runtime/jit/x64             with the AsmJit library
-#       64-bit ARM          lib/runtime/jit/arm, arm64/     with the AsmJit library
-#       32-bit ARM          lib/runtime/jit/arm, arm32/     (hard float, a Raspberry Pi's system; no library)
+#   The machine-code compiler (the JIT) and calls to C (runtime/cffi). The JIT exists for
+#       64-bit x86          runtime/jit/x64             with the AsmJit library
+#       64-bit ARM          runtime/jit/arm, arm64/     with the AsmJit library
+#       32-bit ARM          runtime/jit/arm, arm32/     (hard float, a Raspberry Pi's system; no library)
 #   On every other CPU those files are left out and the interpreter runs everything.
 #   Testing the ARM builds on a PC, under qemu: tests/cffi/arm.sh.
 #
@@ -31,10 +31,9 @@
 # sanitizer, which stops at the first write outside a block and says where it was allocated -
 #     OUT=build/linux-vm-asan LDFLAGS=-fsanitize=address bash build-scripts/linux/build_vm.sh -fsanitize=address -fno-omit-frame-pointer -g -O1
 #
-# The build is incremental: a file is compiled again when it, or ANY header of the VM (lib/runtime, lib/core,
-# lib/Modules, lib/util, stdimports.h), is newer than its object. Change the flags and everything is compiled
-# again. Only the third-party assembler library (lib/util/jit) is left alone when a VM header changes: it
-# includes none of them. (Until 16 Nov 2026 all of lib/util was left alone - so lib/util/File.cpp kept an old
+# The build is incremental: a file is compiled again when it, or ANY header of the VM (runtime), is newer than its object. Change the flags and everything is compiled
+# again. Only the third-party assembler library (runtime/jit/asmjit) is left alone when a VM header changes: it
+# includes none of them. (Until 16 Nov 2026 all of runtime/util was left alone - so runtime/util/File.cpp kept an old
 # layout after a header change, and the VM crashed reading files. A build that mixes old and new objects is
 # worse than a slow one.)
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -47,7 +46,7 @@ command -v "$CXX" > /dev/null || { echo "no C++ compiler \`$CXX\`:  sudo apt ins
 MACHINE=$("$CXX" -dumpmachine 2>/dev/null)          # what the compiler builds FOR: x86_64-linux-gnu, arm-linux-gnueabihf ...
 case "$MACHINE" in
   x86_64*)        JIT=1; JIT_FOLDER=x64; ASMJIT=1 ;;
-  aarch64*)       JIT=1; JIT_FOLDER=arm; ASMJIT=1 ;;       # 64-bit ARM: lib/runtime/jit/arm
+  aarch64*)       JIT=1; JIT_FOLDER=arm; ASMJIT=1 ;;       # 64-bit ARM: runtime/jit/arm
   arm*gnueabihf*) JIT=1; JIT_FOLDER=arm; ASMJIT=0 ;;       # 32-bit ARM (a Raspberry Pi): the same folder, its own assembler
   *)              JIT=0 ;;
 esac
@@ -77,13 +76,13 @@ echo "$CXX $FLAGS" > "$OUT/flags.new"
 if ! cmp -s "$OUT/flags.new" "$OUT/flags.txt"; then rm -f "$OUT"/*.o; cp "$OUT/flags.new" "$OUT/flags.txt"; fi
 
 {
-  ls ${MAIN:-main.cpp} $MORE_SOURCES lib/runtime/*.cpp lib/runtime/error/*.cpp lib/runtime/interrupts/*.cpp lib/runtime/exe/*.cpp lib/runtime/memory/*.cpp lib/runtime/reflect/*.cpp \
-     lib/runtime/sni/*.cpp lib/runtime/cffi/*.cpp lib/runtime/multitasking/*/*.cpp lib/runtime/types/*.cpp lib/runtime/jit/*.cpp \
-     lib/runtime/telemetry/*.cpp lib/core/*.cpp lib/core/opcode/*.cpp lib/util/*.cpp lib/util/zip/*.cpp \
-     lib/Modules/math/*.cpp lib/Modules/std/*.cpp lib/Modules/std.io/*.cpp
+  ls ${MAIN:-runtime/entry/main.cpp} $MORE_SOURCES runtime/*.cpp runtime/error/*.cpp runtime/interrupts/*.cpp runtime/exe/*.cpp runtime/memory/*.cpp runtime/reflect/*.cpp \
+     runtime/sni/*.cpp runtime/cffi/*.cpp runtime/multitasking/*/*.cpp runtime/types/*.cpp runtime/jit/*.cpp \
+     runtime/telemetry/*.cpp runtime/opcode/*.cpp runtime/util/*.cpp \
+     runtime/interrupts/native/*.cpp
   if [ $JIT = 1 ]; then
-    ls lib/runtime/jit/$JIT_FOLDER/*.cpp lib/runtime/jit/$JIT_FOLDER/*/*.cpp
-    [ $ASMJIT = 1 ] && ls lib/util/jit/asmjit/src/asmjit/core/*.cpp lib/util/jit/asmjit/src/asmjit/arm/*.cpp lib/util/jit/asmjit/src/asmjit/x86/*.cpp
+    ls runtime/jit/$JIT_FOLDER/*.cpp runtime/jit/$JIT_FOLDER/*/*.cpp
+    [ $ASMJIT = 1 ] && ls runtime/jit/asmjit/src/asmjit/core/*.cpp runtime/jit/asmjit/src/asmjit/arm/*.cpp runtime/jit/asmjit/src/asmjit/x86/*.cpp
   fi
 } 2>/dev/null > "$OUT/files.txt"
 
@@ -93,11 +92,11 @@ for o in "$OUT"/*.o; do
   n=$(basename "$o" .o); grep -qxF "$n" <(tr "/ " "__" < "$OUT/files.txt") || rm -f "$o"
 done
 
-NEWEST_H=$(find lib/runtime lib/core lib/Modules lib/util lib/debugger stdimports.h -name '*.h' -not -path 'lib/util/jit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
+NEWEST_H=$(find runtime debugger -name '*.h' -not -path 'runtime/jit/asmjit/*' -printf '%T@ %p\n' | sort -n | tail -1 | cut -d' ' -f2-)
 export OUT FLAGS NEWEST_H CXX
 TOTAL=$(wc -l < "$OUT/files.txt")
 cat "$OUT/files.txt" | xargs -P "$JOBS" -I{} bash -c 'f="{}"; o="$OUT/$(echo "$f" | tr "/ " "__").o"
-  if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != lib/util/jit/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then
+  if [ ! -f "$o" ] || [ "$f" -nt "$o" ] || { [[ "$f" != runtime/jit/asmjit/* ]] && [ "$NEWEST_H" -nt "$o" ]; }; then
     "$CXX" $FLAGS -c "$f" -o "$o" 2>"$o.err" || { echo "FAILED: $f"; grep -m8 "error" "$o.err"; rm -f "$o"; }
   fi'
 BUILT=$(ls "$OUT"/*.o 2>/dev/null | wc -l)

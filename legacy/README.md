@@ -36,6 +36,14 @@ or with CMake: set `SHARPC` in `CMakeLists.txt` (the line `#set(SHARPC "build")`
 
 This was checked when the archive was made: the unzipped copy builds and compiles a program that runs.
 
+### Its licence
+
+Sharp is under the Apache License 2.0 (`LICENSE` at the top of the repository), with one exception
+inside this archive: the folder `lib/util/zip` is built on SCZ, the Simple Compression Utilities and
+Library (http://scz-compress.sourceforge.net/), which is under the GNU Lesser General Public License,
+version 2. The Apache header on those files is wrong for the SCZ parts. That code only made large
+compiled programs smaller; it was taken out of the VM on 25 Nov 2026 and is in no release after that.
+
 ### Why it might be needed
 
 - To compare what the two compilers do with the same program (the tests under `lib/compiler/tests`

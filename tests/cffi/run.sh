@@ -8,7 +8,7 @@
 # The engine itself is tested without the VM by tests/cffi/engine_test.sh. The last line is
 # CFFI: PASS or CFFI: FAIL.
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-LIBRARY="$ROOT/lib/support/$(ls "$ROOT/lib/support" | sort -V | tail -1)"
+LIBRARY="$ROOT/stdlib"
 if [ -n "$WINDIR" ]; then
     source "$ROOT/build-scripts/windows/mingw.sh"
     VM=${VM:-$ROOT/cmake-build-windows-vm/sharp.exe}

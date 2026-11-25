@@ -1,18 +1,21 @@
 mod main;
 
-// this program shows how to use the random number generator provided by the standard library
+// random numbers from the standard library
 def main() {
-   set_seed(utc_mills() >> 4); // set random seed to current time in mills
+    set_seed(utc_mills().value % 1000000);               // a different sequence every run (leave it out, or give
+                                                // the same number, for the same sequence every time)
 
-   random_0_to_1        := rand();
-   random_int           := rand_int();
-   random_int_ranged    := rand_int(1, 10);
-   random_double_ranged := rand_double(0.5, 10);
-   random_double        := rand_double();
+    println("0 to 1:        " + rand_unit());
+    println("a die:         " + rand_range(1, 6));
+    println("a coin:        " + rand_bool());
+    println("an index of 5: " + rand_index(5));
+    println("a password:    " + rand_string(12));
 
-   println("0-1: $random_0_to_1");  // print the random values
-   println("random int: $random_int");
-   println("1-10: $random_int_ranged");
-   println("0.5-10: $random_double_ranged");
-   println("random double: $random_double");
+    cards := new decimal[] { 1, 2, 3, 4, 5 };
+    rand_shuffle(cards);
+    print("shuffled:      ");
+    foreach(card in cards) {
+        print("" + card + " ");
+    }
+    println("");
 }

@@ -3,7 +3,7 @@
 #
 #     bash build-scripts/build.sh               the VM, then the compiler
 #     bash build-scripts/build.sh compiler      only the compiler - 10 seconds. Enough after changing
-#                                               only Sharp files (lib/compiler or the standard library).
+#                                               only Sharp files (compiler or the standard library).
 #
 # WHAT IT BUILDS, in the work folder ~/sharp_work (internal/common.sh says why there):
 #
@@ -71,7 +71,7 @@ EOF
     echo "first seed: the compiler of $(basename "$ZIP")"
 fi
 OUT="$WORK/out/boot"; mkdir -p "$OUT"
-cd "$WORK/src/lib/compiler" || exit 1
+cd "$WORK/src/compiler" || exit 1
 rm -f "$COMPILER"
 # every .sharp file of the compiler except its tests; -L: with the standard library
 "$VM" "$SEED" $(find . -name "*.sharp" -not -path "./tests/*" | sort) -j 1 -o "$COMPILER" -L "$STDLIB" > "$OUT/c.txt" 2>&1

@@ -65,7 +65,7 @@ class EndToEndWithRealCompilerTest : BasePlatformTestCase() {
         XmlSerializerUtil.copyBean(SharpApplicationSettings.State(), app)               // the machine's defaults, whatever ran before
         app.debounceMillis = 600_000
         proj.enabled = true
-        proj.libraryPath = ProgramFiles.normalise(File(System.getProperty("sharp.repo"), "lib/support/0.4.0").canonicalPath)
+        proj.libraryPath = ProgramFiles.normalise(File(System.getProperty("sharp.repo"), "stdlib").canonicalPath)
         service = AnalysisService.getInstance(project)
         service.runBaseOverride = root.resolve("runs")
         // The project of the platform's light fixture is shared by the test classes of one run, and other classes put

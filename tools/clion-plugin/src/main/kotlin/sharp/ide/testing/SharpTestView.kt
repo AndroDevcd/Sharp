@@ -12,7 +12,7 @@
  *     ##teamcity[testFinished name='a new basket is empty' duration='3']
  *     ##teamcity[testSuiteFinished name='a basket']
  *
- * (lib/support/.../std/testing/testing.sharp writes them.) A "Sharp Program" run configuration that is
+ * (stdlib/std/testing/testing.sharp writes them.) A "Sharp Program" run configuration that is
  * marked as a test program is started that way (SharpRunState), and its console is the platform's
  * test view, made here: the groups at one level, each with a mark for passed or failed, their tests
  * inside; a failed test shows its message, and a failed comparison the two values side by side.

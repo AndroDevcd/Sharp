@@ -26,17 +26,17 @@ class ProgramFilesTest {
 
     @Test fun libraryComesFirstThenSourcesEachSorted() {
         val base = temp.newFolder("proj")
-        listOf("lib/support/0.4.0/std/b.sharp", "lib/support/0.4.0/std/a.sharp", "z.sharp", "src/a.sharp", "src/notes.txt").forEach { touch(base, it) }
+        listOf("stdlib/std/b.sharp", "stdlib/std/a.sharp", "z.sharp", "src/a.sharp", "src/notes.txt").forEach { touch(base, it) }
         val files = ProgramFiles.list(ProgramSettings(base.path, emptyList(), listOf("tests"), ""))
         assertEquals(
-            listOf("lib/support/0.4.0/std/a.sharp", "lib/support/0.4.0/std/b.sharp", "src/a.sharp", "z.sharp"),
+            listOf("stdlib/std/a.sharp", "stdlib/std/b.sharp", "src/a.sharp", "z.sharp"),
             relative(base, files),
         )
     }
 
     @Test fun theLibraryIsCountedOnceEvenBelowASourceRoot() {
         val base = temp.newFolder("proj")
-        touch(base, "lib/support/0.4.0/std/a.sharp")
+        touch(base, "stdlib/std/a.sharp")
         touch(base, "main.sharp")
         val files = ProgramFiles.list(ProgramSettings(base.path, emptyList(), emptyList(), ""))
         assertEquals(1, files.count { it.endsWith("std/a.sharp") })
@@ -58,16 +58,16 @@ class ProgramFilesTest {
 
     @Test fun theSharpRepositoryDefaultsToTheBootstrapCompiler() {
         val base = temp.newFolder("repo")
-        touch(base, "lib/compiler/main.sharp")
-        touch(base, "lib/compiler/backend/a.sharp")
-        touch(base, "lib/compiler/tests/skipped.sharp")
+        touch(base, "compiler/main.sharp")
+        touch(base, "compiler/backend/a.sharp")
+        touch(base, "compiler/tests/skipped.sharp")
         touch(base, "tests/suite/case.sharp")
-        touch(base, "lib/support/0.4.0/std/a.sharp")
+        touch(base, "stdlib/std/a.sharp")
         val layout = ProgramFiles.layoutOf(ProgramSettings(base.path, emptyList(), listOf("tests"), ""))
-        assertEquals(listOf(ProgramFiles.normalise(base.path) + "/lib/compiler"), layout.sourceRoots)
-        assertEquals(ProgramFiles.normalise(base.path) + "/lib/support/0.4.0", layout.libraryRoot)
+        assertEquals(listOf(ProgramFiles.normalise(base.path) + "/compiler"), layout.sourceRoots)
+        assertEquals(ProgramFiles.normalise(base.path) + "/stdlib", layout.libraryRoot)
         val files = relative(base, ProgramFiles.list(ProgramSettings(base.path, emptyList(), listOf("tests"), "")))
-        assertEquals(listOf("lib/support/0.4.0/std/a.sharp", "lib/compiler/backend/a.sharp", "lib/compiler/main.sharp"), files)
+        assertEquals(listOf("stdlib/std/a.sharp", "compiler/backend/a.sharp", "compiler/main.sharp"), files)
     }
 
     @Test fun noLibraryFolderMeansNoLibraryRoot() {
@@ -87,7 +87,7 @@ class ProgramFilesTest {
 
     @Test fun containsIsAStringTestThatAgreesWithList() {
         val base = temp.newFolder("proj")
-        val names = listOf("src/a.sharp", "src/tests/b.sharp", "lib/support/0.4.0/std/c.sharp", "outside/d.sharp")
+        val names = listOf("src/a.sharp", "src/tests/b.sharp", "stdlib/std/c.sharp", "outside/d.sharp")
         names.forEach { touch(base, it) }
         val settings = ProgramSettings(base.path, listOf("src"), listOf("tests"), "")
         val layout = ProgramFiles.layoutOf(settings)

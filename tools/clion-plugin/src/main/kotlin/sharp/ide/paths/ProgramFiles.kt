@@ -17,8 +17,8 @@
  * AUTOMATIC SETTINGS
  *   An empty list of source roots means "the project's base folder", except for the
  *   Sharp repository itself, where the program is the self-hosted compiler
- *   (`lib/compiler`): the repository as a whole has many `main`s and is not
- *   one program. An empty library path means `lib/support/0.4.0` of the project when
+ *   (`compiler`): the repository as a whole has many `main`s and is not
+ *   one program. An empty library path means `stdlib` of the project when
  *   that folder exists.
  *
  * Paths here are in the EDITOR's form (forward slashes, `C:/x/y`), as
@@ -53,8 +53,8 @@ data class ProgramLayout(val libraryRoot: String?, val sourceRoots: List<String>
 
 object ProgramFiles {
 
-    private const val LIBRARY_FOLDER = "lib/support/0.4.0"
-    private const val BOOTSTRAP_FOLDER = "lib/compiler"
+    private const val LIBRARY_FOLDER = "stdlib"
+    private const val BOOTSTRAP_FOLDER = "compiler"
 
     /** Applies the automatic defaults described at the top of this file. */
     fun layoutOf(settings: ProgramSettings): ProgramLayout {

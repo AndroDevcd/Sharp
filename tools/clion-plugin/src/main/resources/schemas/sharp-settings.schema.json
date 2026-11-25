@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://sharp-lang/schemas/settings.json",
   "title": "Sharp project settings",
-  "description": "The settings of a Sharp project (sharpc -P <folder>). The compiler reads them in lib/compiler/configuration/settings_processor.sharp; keep this file in step with it.",
+  "description": "The settings of a Sharp project (sharpc -P <folder>). The compiler reads them in compiler/configuration/settings_processor.sharp; keep this file in step with it.",
   "type": "object",
   "additionalProperties": false,
   "definitions": {

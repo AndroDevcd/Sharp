@@ -22,7 +22,7 @@ class SdbClientWithRealSdbTest {
     private val root = sharp.ide.lexer.repoRoot()
     private val sdb = File(root, "cmake-build-windows-sdb/sdb.exe")
     private val program = File(root, "build/windows-sdb-tests/values.dbg")
-    private val source = File(root, "lib/debugger/tests/programs/values.sharp")
+    private val source = File(root, "debugger/tests/programs/values.sharp")
 
     private val events = LinkedBlockingQueue<JsonObject>()
     private val client = SdbClient(onEvent = { events.put(it) }, onGone = {})

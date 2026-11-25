@@ -63,6 +63,6 @@ This is **M1** — the base the rest is built on:
 ## The event codes
 
 `window.next_event()` returns an `event`; its `kind` is one of the `EVENT_*`
-constants. Those constants (`lib/support/0.4.0/gui/event.sharp`) and the `EVT_*`
-enum in `lib/support/0.4.0/gui/native/sharpgui.cpp` are the **same numbers** and
+constants. Those constants (`stdlib/gui/event.sharp`) and the `EVT_*`
+enum in `stdlib/gui/native/sharpgui.cpp` are the **same numbers** and
 must stay in step.

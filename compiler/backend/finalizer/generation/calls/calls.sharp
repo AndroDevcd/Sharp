@@ -1,0 +1,181 @@
+mod backend.finalizer.generation.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * CALLS AND `new` (doc/codegen.md 4.4, 4.6, 6.6)
+ *
+ * The object (for a function that has one), then the arguments LEFT TO RIGHT,
+ * each into a slot; then the call. Analysis has already converted every
+ * argument to its parameter's type and decided which body runs (`dispatch`):
+ *
+ *      CALL_STATIC         call f                        no object
+ *      CALL_DIRECT         call f                        `self` is the object
+ *      CALL_BASE           call f                        base->f(): the base's own body
+ *      CALL_CONSTRUCTOR    call f                        -> base(...): `self` of the constructor
+ *      CALL_VIRTUAL        invoke_delegate root          the object's class decides at run time -
+ *                                                        unless no class below the function's own
+ *                                                        has another body of its family: then it is
+ *                                                        called directly (dispatch.sharp)
+ *      a native function   invoke_delegate f, n, 1       linked by name on first use (static only: 4.6)
+ *
+ *      new point(1, 2)     %o = new_object point; call point(%o, 1, 2); the value is %o
+ *      handler(5)          a function VALUE: calld (function_values.sharp)
+ *
+ * THE CALLING CONVENTION (4.4): the caller pushes `self` (instance functions
+ * only), then each argument - a number into a slot's number half, a
+ * reference into its reference half - and calls; a function that returns a
+ * value leaves exactly one slot behind, its result. `written_as` (an
+ * operator, a getter, `o[i]`, a piece of a string template ...) changes
+ * nothing: a call is a call.
+ *
+ * The files of this package (module `backend.finalizer.generation.calls`):
+ *
+ *      calls.sharp             this front door: calls of declared functions, their arguments
+ *      dispatch.sharp          when a virtual call can go straight to its body
+ *      new_objects.sharp       `new c(...)`: the object, then its constructor
+ *      function_values.sharp   function values: a function named as a value, a lambda that
+ *                              captures nothing, the call of a value (calld)
+ */
+
+/**
+ * A call of a declared function; `used` says whether its result is wanted
+ * (0: an expression statement, the step of a `for`). Returns the result's
+ * slot, or -1 when there is none or it is not wanted.
+ *
+ * A CHAIN `text.trim().to_upper().size()` - and `"a" + b + "c" + d`, which is
+ * `"a".operator+(b).operator+("c").operator+(d)` - is calls each of which
+ * is the OBJECT of the next. It is followed in a loop: the innermost call
+ * first, then each call around it with the result so far as its object. One
+ * call of this function per link would run the compiler out of stack on a
+ * text put together from some hundred pieces (backend.md D103).
+ */
+def call_value(g: generator, e: bound_call, used: _int64) : _int64 {
+    if(!object_is_a_call(e)) { return one_call(g, e, used, 0 - 1); }
+
+    chain := new list<bound_call>();            // the calls around the innermost one, the outermost first
+    link : bound_call = e;
+    while(object_is_a_call(link)) {
+        chain.add(link);
+        link = link.on as bound_call;
+    }
+    value : _int64 = one_call(g, link, 1, 0 - 1);
+    for(i : _int64 = chain.size() - 1; i >= 0; i--) {
+        wanted : _int64 = 1;
+        if(i == 0) { wanted = used; }
+        value = one_call(g, chain.at(i), wanted, value);
+    }
+    return value;
+}
+
+/** is the object this call is made on itself the result of a call (the next link of a chain)? */
+def object_is_a_call(e: bound_call) : _int64 {
+    if(e.dispatch == CALL_STATIC || e.dispatch == CALL_CONSTRUCTOR || e.on == null) { return 0; }
+    return e.on!!.kind == BX_CALL && e.on!!.constant == null;
+}
+
+/**
+ * One call: its object and arguments into slots, then the instruction.
+ * `object_value` is the slot that already holds the object the call is made
+ * on (the link before it in a chain), or -1: then the object is evaluated here.
+ */
+def one_call(g: generator, e: bound_call, used: _int64, object_value: _int64) : _int64 {
+    function := e.function;
+    if(e.written_as == AS_TEXT_APPEND && e.on == null) { g.stop("a piece of a string template outside its template", e.unit, e.node); }
+
+    arguments := new number_list();
+    dispatch : _int64 = e.dispatch;
+    if(dispatch == CALL_STATIC) {
+        // `object.static_f()`: the object is evaluated for what it does, then not needed
+        if(e.on != null && e.on!!.kind != BX_TYPE_NAME) { g.b.release(value_of(g, e.on!!)); }
+    } else if(dispatch == CALL_CONSTRUCTOR || e.on == null) {
+        if(g.self_slot < 0) { g.stop("a call that needs `self` outside an object", e.unit, e.node); }
+        arguments.add(g.self_slot);
+    } else if(e.on!!.kind == BX_BASE) {
+        // base->f(): the object is `self` (inside a lambda: the one its closure record keeps, 6.12);
+        // `dispatch` (CALL_BASE) already names the base's own body
+        arguments.add(value_of(g, e.on!!));
+    } else {
+        receiver : _int64 = object_value;
+        if(receiver < 0) { receiver = value_of(g, e.on!!); }
+        arguments.add(held_over_all(g, receiver, e.arguments, 0));
+    }
+    add_arguments(g, arguments, e.arguments);
+
+    // the arguments' slots are given back before the result's is taken: every argument is on the
+    // operand stack before the call runs, so the result may use the slot of one (frames stay small)
+    release_all(g, arguments);
+    target : _int64 = 0 - 1;
+    if(used == 1 && !e.type.is_nil()) { target = g.temp_for(e.type); }
+    g.line_of_node(e.unit, e.node);
+    emit_call(g, target, function, arguments, dispatch, e);
+    return target;
+}
+
+/**
+ * The call instruction itself, its arguments already in slots (`self` first
+ * for a function that has an object): `call` for a body known now,
+ * `invoke_delegate` through the family root when the object's class decides
+ * (`dispatch` CALL_VIRTUAL and not `called_directly`), `invoke_delegate ..., 1`
+ * for a native function. `at` is the node a "not generated yet" names.
+ */
+def emit_call(g: generator, target: _int64, function: sharp_function, arguments: number_list, dispatch: _int64,
+              at: bound_expression) : ir_instruction {
+    // (a native function of a class is called with its object as the first argument, like any function of
+    //  the class: the VM hands that object to the C++ function first - runtime/sni)
+    how : _int64 = CALL_HOW_DIRECT;
+    root_address : _int64 = 0 - 1;
+    if(function.has(FLAG_NATIVE)) {
+        how = CALL_HOW_NATIVE;
+    } else if(dispatch == CALL_VIRTUAL && !called_directly(g, function)) {
+        root : sharp_function = function;
+        if(function.family_root != null) { root = function.family_root!!; }
+        if(root.address < 0) { g.stop("a virtual call of a function that is not kept", at.unit, at.node); }
+        how = CALL_HOW_VIRTUAL;
+        root_address = root.address;
+    }
+    if(function.address < 0 && how != CALL_HOW_VIRTUAL) {
+        g.stop("a call of `" + function.full_name() + "`, which is not in the executable", at.unit, at.node);
+    }
+    call := g.b.call(target, function, arguments, how);
+    call.detail = root_address;
+    return call;
+}
+
+/**
+ * How a function the program did not call by name is called - the getter or
+ * the setter of a property read and written by `+=` / `++` (assignment/
+ * places.sharp): a static function has no object; any other may be overridden, so
+ * it is dispatched as a virtual call (which `emit_call` narrows to a direct
+ * call when nothing can replace it).
+ */
+def dispatch_of(function: sharp_function) : _int64 {
+    if(function.has(FLAG_STATIC) || function.owner == null) { return CALL_STATIC; }
+    return CALL_VIRTUAL;
+}
+
+/**
+ * The arguments into slots, left to right. A local hands over its own slot -
+ * unless an argument after it writes that local (`f(i, i = 5)`): then the
+ * first one must keep the OLD value, so it is copied first (`held_over_all`,
+ * generation/expressions.sharp; codegen.md 5.3, "when a local's slot may stand for its value").
+ */
+def add_arguments(g: generator, arguments: number_list, given: list<bound_expression>?) {
+    if(given == null) { return; }
+    for(i : _int64 = 0; i < given!!.size(); i++) {
+        arguments.add(held_over_all(g, value_of(g, given!!.at(i)), given, i + 1));
+    }
+}
+
+/** give back every slot of a list (the slots of locals are never given back: ir_builder.release) */
+def release_all(g: generator, slots: number_list) {
+    for(i : _int64 = 0; i < slots.count; i++) { g.b.release(slots.at(i)); }
+}

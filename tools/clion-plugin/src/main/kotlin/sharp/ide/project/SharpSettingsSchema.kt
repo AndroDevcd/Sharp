@@ -11,7 +11,7 @@
  *   "for a Sharp project's settings.json, use that schema".
  *
  *   The schema is a description for the editor only. What a setting MEANS is decided by the
- *   compiler (lib/compiler/configuration/settings_processor.sharp); when a setting is added
+ *   compiler (compiler/configuration/settings_processor.sharp); when a setting is added
  *   there, add it to the schema file too. `SettingsSchemaTest` checks the two lists of names
  *   against each other.
  *

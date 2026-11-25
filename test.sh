@@ -38,7 +38,7 @@
 #     ALL TESTS: PASS    or    ALL TESTS: FAIL    (the script then exits 1)
 #
 # What the parts are made of: build-scripts/test.sh (the numbered tests of the Linux half), the
-# scripts of build-scripts/windows, lib/debugger/tests, tools/clion-plugin. They can still be
+# scripts of build-scripts/windows, debugger/tests, tools/clion-plugin. They can still be
 # run alone; this script only chooses them, runs them in order and adds up the result.
 REPO=$(cd "$(dirname "$0")" && pwd)
 S="$REPO/build-scripts"
@@ -123,7 +123,7 @@ if [ $MODE = case ]; then
             echo "== on the Windows VM"
             bash "$S/windows/build_vm.sh" 2>&1 | quiet | tail -1
             linux internal/hand_over_compiler.sh > /dev/null || { echo "the compiler could not be handed over to Windows"; exit 1; }
-            VM="$REPO/cmake-build-windows-vm/sharp.exe"; LIBRARY="$REPO/lib/support/$(ls "$REPO/lib/support" | sort -V | tail -1)"
+            VM="$REPO/cmake-build-windows-vm/sharp.exe"; LIBRARY="$REPO/stdlib"
             for name in $CASES; do
                 program="$LOGS/cases/$name"; mkdir -p "$LOGS/cases"; rm -f "$program"
                 "$VM" "$LOGS/sharpc" "$REPO/tests/suite/cases/$name.sharp" "$REPO/tests/suite/testing.sharp" -o "$program" $CASE_OPTION -L "$LIBRARY" > "$program.compile.txt" 2>&1
@@ -143,11 +143,11 @@ if [ $CHANGED = 1 ]; then
     add() { case " $CHOSEN " in *" $1 "*) ;; *) CHOSEN="$CHOSEN $1" ;; esac; }
     while IFS= read -r file; do
         case "$file" in
-            lib/runtime/*|lib/core/*|main.cpp|stdimports.h|CMakeLists.txt) add vm; add debugger ;;      # (sdb is the VM)
-            lib/debugger/*)             add debugger ;;
-            lib/compiler/backend/ide/*) add compiler; add tools ;;
-            lib/compiler/*)             add compiler; add library ;;
-            lib/support/*|tests/suite/*) add library ;;
+            runtime/*|CMakeLists.txt) add vm; add debugger ;;      # (sdb is the VM)
+            debugger/*)             add debugger ;;
+            compiler/backend/ide/*) add compiler; add tools ;;
+            compiler/*)             add compiler; add library ;;
+            stdlib/*|tests/suite/*) add library ;;
             tools/clion-plugin/*)       add tools ;;
             examples/*|benchmark/*)     add programs ;;
         esac

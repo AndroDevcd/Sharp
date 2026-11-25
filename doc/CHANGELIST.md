@@ -8,21 +8,83 @@ any other versions below that is considered deprecated and no longer supported. 
 to the ability to run older code that has been compiled by the older framework and can be successfully ran on the new system
 Any other compatibility issues/changes will be otherwise noted in the release notes specifically.
 
-##### Version 0.2.422 (August 12, 2019)
-    # Bug Fixes
-        *
+##### Version 0.5.12 (November 25, 2026)
+    The first release since 0.2.9.1. Between the two, almost everything was written again: the
+    compiler, the virtual machine's memory and machine-code compiler, and the whole standard
+    library. A program written for 0.2.x has to be changed and compiled again.
 
-    # QoL Improvements
-        *
+    # The language
+        * `bool` is a type of its own; comparisons, `!`, `&&`, `||` and `is` give a bool
+        * Types that may be null are written `type?`; `!!` says "this is not null here"
+        * Blocks as values (lambdas) that keep what they use from around them (closures)
+        * A block may follow a call: `launch { ... }`, `list.sort { a, b -> ... }`
+        * Generic classes and functions, with a base the type must have: `class box<t base shape>`
+        * Functions added to an existing class from outside: `def list<T>.first_or_null()`
+        * `when`, `alias`, `is`, `foreach` over anything that is `loopable`
+        * Dependency injection in the language: `component`, `single`, `factory`, `inject`
+        * Mocks in the language: `mock<store>()`, `given { }`, `verify { }`
+        * Calls into C and C++: `native "name" { }` blocks (the Sharp Native Interface) and
+          direct calls to a system's C functions (std.c)
+        * Dividing two whole numbers gives a whole number (toward zero); by zero throws
+        * `a = "two"` makes `a` point at a new string; it no longer writes into the old one
 
-    # New Additions
-        *
+    # The compiler
+        * Written in Sharp and compiled by itself (the C++ compiler is in legacy/)
+        * An optimizer, asked for with `-O`
+        * Projects: a folder with a settings.json is built with `sharpc -p`; a build cache
+        * Errors have a number, show the line, and say what to do about it
+        * Three compilers ship: the standard one, one built without the optimizer, a debug one
+
+    # The virtual machine
+        * A generational collector that does not move objects; `std.system` can steer it, and
+          running out of memory is an exception a program can catch
+        * A machine-code compiler (JIT) for 64-bit x86, 64-bit ARM and 32-bit ARM
+        * Whole numbers are 64 bits on every machine
+        * Fibers, and coroutines on top of them
+        * The VM no longer reads compressed program files (the old compression code is gone)
+
+    # The standard library
+        * Coroutines: `launch`, `async`, jobs, scopes, dispatchers, channels
+        * The network: TCP, UDP, TLS, an HTTP client and server, WebSockets
+        * JSON, SQLite, compression, hashes and secure random numbers
+        * Serialization (std.export) with a new, faster format
+        * Reflection (std.reflect) and the list functions Kotlin has (`filter`, `map`, `sorted_by` ...)
+        * Time, text, big numbers, files and paths
+        * One name per thing: the library was gone through for doubles and leftovers
+
+    # GUI (std.guikit)
+        * Screens written as what they look like for the state they have; layout, a modifier for
+          every box, widgets, dialogs, navigation between screens, view models
+        * Charts, 3D scenes, sound, pictures from files and from links
+        * Windows and Linux; nothing to install on Windows
+
+    # Testing
+        * std.testing: tests in groups, `expect(...)`, skipping, the order of calls on mocks
+        * A test can replace what a program depends on: `provide<clock>() { ... }`
+        * UI tests without a window (std.guikit.testing), or watched in a real one with `-watch`
+        * A view model's background work run by the test: `test_dispatcher()`, `run_work()`
+
+    # Tools
+        * sdb, a debugger
+        * A CLion plugin
+        * Installers for Windows and Linux in one release zip
+        * The website, generated from the library's own comments
+
+    # Not compatible with earlier versions
+        * Programs compiled by an earlier version must be compiled again
+        * Data serialized by 0.5.11 or earlier is refused
+        * The licence is now the Apache License 2.0 (LICENSE)
 
     # Known Issues
-        *
+        * `list<decimal>` and other generics over plain numbers do not compile: use `list<int>`
+        * macOS is not supported yet
+        * ARM is tested under an emulator, not yet on a real Raspberry Pi
 
-    Backwards compatibility support tested Version: ()
-    
+    runtime version: 4.0.12r19
+    compiler version: 0.5.12
+
+    Backwards compatibility support tested Version: (n/a)
+
 ##### Version 0.2.9.1 (September 1, 2020)
     # Bug Fixes
         * Several seg faults fixed

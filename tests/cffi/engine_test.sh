@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds and runs the test of the C-call engine (lib/runtime/cffi) on its own, without the VM:
+# Builds and runs the test of the C-call engine (runtime/cffi) on its own, without the VM:
 # seconds, not minutes. Run it from Git Bash (the Windows convention) and from WSL / Linux (the
 # Linux one); each prints  ENGINE: PASS (n checks)  or the checks that failed.
 #
@@ -16,7 +16,7 @@ mkdir -p "$OUT"
 bad=0
 for level in -O0 -O2; do
     $CC $level -w $FLAGS -c "$ROOT/tests/cffi/c_test_functions.c" -o "$OUT/c_test_functions.o" || exit 1
-    $CXX -std=c++17 $level -w $FLAGS $CRT_FLAG "$ROOT/tests/cffi/engine_test.cpp" "$ROOT/lib/runtime/cffi/c_call.cpp" "$OUT/c_test_functions.o" \
+    $CXX -std=c++17 $level -w $FLAGS $CRT_FLAG "$ROOT/tests/cffi/engine_test.cpp" "$ROOT/runtime/cffi/c_call.cpp" "$OUT/c_test_functions.o" \
         -o "$OUT/engine_test" $LINK -pthread || exit 1
     echo "--- $level"
     $RUN "$OUT/engine_test" || bad=1

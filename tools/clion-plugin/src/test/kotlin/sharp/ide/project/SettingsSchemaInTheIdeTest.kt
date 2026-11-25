@@ -103,7 +103,7 @@ class SettingsSchemaInTheIdeTest : BasePlatformTestCase() {
 
         // the compiler's list: known_settings() in settings_processor.sharp (when the repository is around this plugin)
         val compilerFile = generateSequence(File("").absoluteFile) { it.parentFile }
-            .map { File(it, "lib/compiler/configuration/settings_processor.sharp") }.firstOrNull { it.isFile }
+            .map { File(it, "compiler/configuration/settings_processor.sharp") }.firstOrNull { it.isFile }
         if (compilerFile != null) {
             val text = compilerFile.readText()
             val body = text.substring(text.indexOf("def known_settings()")).substringBefore("return names;")

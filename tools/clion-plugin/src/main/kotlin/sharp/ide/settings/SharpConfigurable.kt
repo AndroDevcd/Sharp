@@ -50,7 +50,7 @@ class SharpConfigurable(private val project: Project) :
                         .rows(3).columns(COLUMNS_LARGE)
                         .comment("The folder whose .sharp files are the program (one per line for more than one; absolute or relative to the project folder). " +
                             "Also set by right-clicking a folder in the Project view: Set as Sharp Program Folder. " +
-                            "Empty: automatic (the project folder, or lib/compiler in the Sharp repository).")
+                            "Empty: automatic (the project folder, or compiler in the Sharp repository).")
                         .bindText(
                             { projectState.sourceRoots.joinToString("\n") },
                             { projectState.sourceRoots = splitLines(it) },
@@ -68,7 +68,7 @@ class SharpConfigurable(private val project: Project) :
                 row("Standard library:") {
                     textField()
                         .columns(COLUMNS_LARGE)
-                        .comment("The folder of the standard library. Empty: the one installed with Sharp (in the Sharp repository: lib/support/0.4.0 of the project).")
+                        .comment("The folder of the standard library. Empty: the one installed with Sharp (in the Sharp repository: stdlib of the project).")
                         .bindText(projectState::libraryPath)
                 }
                 row {
