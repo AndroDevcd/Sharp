@@ -122,7 +122,17 @@ sharp hello</pre></div>
 <div class="scroll"><table class="cmds"><tr><th>For</th><th>Words</th></tr><tr><td>Room</td><td><code>padding(16)</code>, <code>padding(sides, top_bottom)</code>, <code>margin(8)</code></td></tr><tr><td>Size</td><td><code>width(200)</code>, <code>height(40)</code>, <code>fill()</code>, <code>fill_width()</code>, <code>grow(1)</code> (a share of the room left over)</td></tr><tr><td>Look</td><td><code>background(colour)</code>, <code>corner(8)</code>, <code>border(1, colour)</code>, <code>shadow(6)</code>, <code>opacity(0.5)</code></td></tr><tr><td>The mouse</td><td><code>click { }</code>, <code>long_press { }</code>, <code>double_click { }</code>, <code>right_click { }</code>, <code>tooltip(&quot;words&quot;)</code></td></tr><tr><td>There or not</td><td><code>show(0)</code> takes no room, <code>visible(0)</code> keeps its room, <code>enable(0)</code> greys it out</td></tr><tr><td>Tests</td><td><code>tag(&quot;save&quot;)</code>: a name a test finds the widget by</td></tr></table></div>
 <p>What a widget <b>is</b> has its own words on the widget: <code>text(...).size(24).bold()</code>, <code>button(...).outline()</code>, <code>text_field(...).label(&quot;Email&quot;)</code>.</p>
 <h2 id="widgets">Widgets</h2>
-<div class="scroll"><table class="cmds"><tr><th>Word</th><th>What it is</th></tr><tr><td><code>text(&quot;words&quot;)</code></td><td>words: <code>.size(24)</code>, <code>.bold()</code>, <code>.dim()</code>, <code>.color(c)</code></td></tr><tr><td><code>button(&quot;Save&quot;) { }</code></td><td>a button: <code>.outline()</code>, <code>.plain()</code>, <code>.danger()</code></td></tr><tr><td><code>text_field(state)</code></td><td>a line to type into: <code>.label(&quot;Name&quot;)</code>, <code>.hint(&quot;...&quot;)</code>, <code>.password()</code>, <code>.on_submit { }</code></td></tr><tr><td><code>text_area(state)</code></td><td>several lines</td></tr><tr><td><code>checkbox(&quot;words&quot;, state)</code></td><td>a tick box; the state is 1 or 0</td></tr><tr><td><code>toggle(state)</code></td><td>a switch</td></tr><tr><td><code>radio(&quot;words&quot;, state, 2)</code></td><td>one of several; it is chosen when the state is its number</td></tr><tr><td><code>slider(state, 0, 100)</code></td><td>a number chosen by dragging</td></tr><tr><td><code>dropdown(state) { option(&quot;A&quot;); option(&quot;B&quot;); }</code></td><td>a list to pick from; the state is the option&#x27;s number</td></tr><tr><td><code>chip(&quot;words&quot;)</code>, <code>badge(3)</code></td><td>small labels</td></tr><tr><td><code>progress(0.4)</code></td><td>how far along something is</td></tr><tr><td><code>image(&quot;picture.png&quot;)</code></td><td>a picture file</td></tr><tr><td><code>divider()</code></td><td>a thin line</td></tr></table></div>
+<div class="scroll"><table class="cmds"><tr><th>Word</th><th>What it is</th></tr><tr><td><code>text(&quot;words&quot;)</code></td><td>words: <code>.size(24)</code>, <code>.bold()</code>, <code>.dim()</code>, <code>.color(c)</code></td></tr><tr><td><code>button(&quot;Save&quot;) { }</code></td><td>a button: <code>.outline()</code>, <code>.plain()</code>, <code>.danger()</code></td></tr><tr><td><code>text_field(state)</code></td><td>a line to type into: <code>.label(&quot;Name&quot;)</code>, <code>.hint(&quot;...&quot;)</code>, <code>.password()</code>, <code>.on_submit { }</code></td></tr><tr><td><code>text_area(state)</code></td><td>several lines</td></tr><tr><td><code>checkbox(&quot;words&quot;, state)</code></td><td>a tick box; the state is 1 or 0</td></tr><tr><td><code>toggle(state)</code></td><td>a switch</td></tr><tr><td><code>radio(&quot;words&quot;, state, 2)</code></td><td>one of several; it is chosen when the state is its number</td></tr><tr><td><code>slider(state, 0, 100)</code></td><td>a number chosen by dragging</td></tr><tr><td><code>dropdown(state) { option(&quot;A&quot;); option(&quot;B&quot;); }</code></td><td>a list to pick from; the state is the option&#x27;s number</td></tr><tr><td><code>chip(&quot;words&quot;)</code>, <code>badge(3)</code></td><td>small labels</td></tr><tr><td><code>progress(0.4)</code></td><td>how far along something is</td></tr><tr><td><code>image(&quot;picture.png&quot;)</code>, <code>image(&quot;https://...&quot;)</code></td><td>a picture, from a file or from a link</td></tr><tr><td><code>divider()</code></td><td>a thin line</td></tr></table></div>
+<h3 id="pictures">Pictures</h3>
+<p><code>image(...)</code> shows a picture file, or one from a link. A link is fetched in the background, so the window never waits for it, and it is fetched once: the file is kept in a cache folder and read from there afterwards, also the next time the program runs.</p>
+<div class="code"><pre>image(&quot;assets/logo.png&quot;);                                                       // a file, at its own size
+image(link, modifier().size(150, 100)).fit(FIT_INSIDE);                         // all of it, as large as fits
+image(link, modifier().size(150, 100).corner(14)).fit(FIT_CROP);                // the box filled, the rest cut off
+image(link, modifier().size(100, 100).clip(shape.circle())).fit(FIT_CROP);      // a round portrait
+image(link, modifier().size(100, 100).rotate(12).shadow(8)).fit(FIT_CROP);      // turned, with a shadow
+image(link, modifier().size(100, 100)).on_error(&quot;assets/logo.png&quot;);             // shown when it cannot be had</pre></div>
+<ul class="plainlist"><li><code>.fit(...)</code> says how the picture sits in a box of another shape: <code>FIT_STRETCH</code> (how it starts), <code>FIT_INSIDE</code> or <code>FIT_CROP</code>.</li><li><code>.placeholder(&quot;file&quot;)</code> is shown while a link is being fetched, <code>.on_error(&quot;file&quot;)</code> when it cannot be fetched or read, and <code>.fade_in(0.2)</code> lets it come in over a fifth of a second.</li><li>Shape, rotation, blur, border and shadow are the modifier&#x27;s, as for every widget.</li><li><code>gui.image_cache(&quot;folder&quot;)</code> says where fetched pictures are kept. Unsaid, they go to a folder of their own in the system&#x27;s place for caches. <code>.cache(&quot;folder&quot;)</code> on one picture keeps that one somewhere else than the rest.</li></ul>
+<p>(These lines were run in a window, not by this page&#x27;s tests: a test without a window reads no picture and fetches no link. There a picture counts as 100 x 100.)</p>
 <p>A form puts them together. The widgets are bound to states, and the rest of the screen reads the same states:</p>
 <div class="code"><pre class="sharp">class settings_form base composable {
     name := state(&quot;&quot;);
@@ -231,17 +241,36 @@ def basket_line(model: basket_model, index: _int64) {
 <p>The screen is dumb on purpose. It <b>reads</b> the model&#x27;s states and <b>calls</b> the model&#x27;s functions, and decides nothing itself.</p>
 <ul class="plainlist"><li><code>model_of&lt;basket_model&gt;()</code> gives the screen its model: made the first time it is asked for, and the same one every time after. A screen is built again and again; its model stays.</li><li>Every part of a screen that asks for the same class gets the same model, so parts of a screen share one.</li><li>The model belongs to the screen. When the screen is closed (gone back from), the model is dropped; <code>when_cleared { }</code> in the model runs then.</li><li><code>shared_model_of&lt;...&gt;()</code> is one model for the whole app, kept until the window closes.</li><li><code>state_list&lt;string&gt;()</code> is a list the screen follows: adding, removing or moving an item builds the screen again.</li><li>A model class is made with no arguments. What it needs from outside, the screen hands it once (<code>model.open(it.number)</code>).</li></ul>
 <p>A model must not make the screen wait. Slow work - a file, a server - is started with the model&#x27;s <code>launch</code>, and the answer comes back with <code>on_main</code>, the one place where states may be changed:</p>
-<div class="code"><pre class="sharp">def load() {
-    busy.value = 1;
-    launch(dispatchers.io()) {
-        found := store.read_all();          // on another thread: the window stays alive
-        on_main {
-            things.replace_all(found);      // back on the main thread: the screen follows
-            busy.value = 0;
+<div class="code"><pre class="sharp">component app {
+    factory { replaceable&lt;coroutine_dispatcher&gt;() { return dispatchers.io(); } }
+}
+
+/** what a file or a server would give */
+def read_the_notes() : list&lt;string&gt; {
+    found := new list&lt;string&gt;();
+    found.add(&quot;call the bank&quot;);
+    found.add(&quot;water the plants&quot;);
+    return found;
+}
+
+class notes_model base view_model {
+    inject background : coroutine_dispatcher;
+    notes := state_list&lt;string&gt;();
+    busy := gui.state(0);
+
+    def load() {
+        busy.value = 1;
+        launch(background) {
+            found := read_the_notes();          // on another thread: the window stays alive
+            on_main {
+                notes.replace_all(found);       // back on the main thread: the screen follows
+                busy.value = 0;
+            };
         };
-    };
+    }
 }</pre></div>
-<p>(This last piece shows the shape and is not run on this page. Work started with the model&#x27;s <code>launch</code> is cancelled when the model is dropped, so an answer that arrives late cannot write to a screen that is gone.)</p>
+<p>The model does not pick its thread itself. It asks for a dispatcher (<code>inject</code>), and the app says which one it gets: here the threads for files and servers, <code>dispatchers.io()</code>. Which thread work runs on matters - one thread may own a database, order may matter - so it is written where it can be read, and a test can give the model another one (below). These need <code>import ( std.di, std.io.coroutines )</code>.</p>
+<p>Work started with the model&#x27;s <code>launch</code> is cancelled when the model is dropped, so an answer that arrives late cannot write to a screen that is gone.</p>
 <p>Because a model is plain logic, it can be tested with no screen at all, and the screen with a few clicks. Both are in the tests at the end of this page.</p>
 <h2 id="several-screens">Several screens</h2>
 <p>An app with more than one screen has a <code>navigator</code>, and one small class for each place it can go: a <b>route</b>. A route&#x27;s fields are what its screen needs.</p>
@@ -313,6 +342,9 @@ def item_line(nav: navigator, n: _int64) {
 <div class="code"><pre class="sharp">mod main;
 
 import (
+    std,
+    std.di,
+    std.io.coroutines,
     std.testing,
     std.guikit.*,
     std.guikit.testing
@@ -385,6 +417,9 @@ def main(args: string[]) {
             on_tag(&quot;item_words&quot;).should_not_exist();
             on_tag(&quot;item_2&quot;).click();
             on_tag(&quot;item_words&quot;).should_say(&quot;This is item 2&quot;);
+            back();
+            advance(1);                                     // the slide back takes a moment
+            on_tag(&quot;item_words&quot;).should_not_exist();
         };
 
         test(&quot;the basket&#x27;s model, with no screen at all&quot;) {
@@ -417,6 +452,20 @@ def main(args: string[]) {
             on_tag(&quot;take_out_0&quot;).click();
             on_tag(&quot;basket_title&quot;).should_say(&quot;Basket (1)&quot;);
             on_tag(&quot;thing_0&quot;).should_say(&quot;bread&quot;);
+        };
+
+        test(&quot;the notes&#x27; model: its background work, run when the test says&quot;) {
+            work := test_dispatcher();
+            provide&lt;coroutine_dispatcher&gt;() { return work; };
+
+            model := new notes_model();
+            seen := watching(model.busy);
+            model.load();
+            expect(model.notes.size()).should_be(0);        // the work is held: nothing has run yet
+
+            run_work();
+            expect(model.notes.size()).should_be(2);
+            seen.should_have_been(0, 1, 0);                 // not busy, busy, not busy again
         };
 
         ui_test(&quot;the stopwatch, without waiting for it&quot;) {
@@ -454,6 +503,10 @@ sharp guide_tests</pre></div>
     on_tag(&quot;price&quot;).should_have_color_at(4, 4, rgb(40, 90, 160));
 }</pre></div>
 <p>Without <code>-watch</code> they stop the test with an error that says so. They never pass quietly.</p>
+<h3 id="a-model-s-background-work">A model&#x27;s background work</h3>
+<p>A model that starts work on another thread is tested in an ordinary <code>test(...)</code> or a <code>ui_test(...)</code>; there is no third kind of test. Three words do it:</p>
+<div class="scroll"><table class="cmds"><tr><th></th><th></th></tr><tr><td><code>test_dispatcher()</code></td><td>a dispatcher that holds the work it is given; hand it to the model with <code>provide&lt;coroutine_dispatcher&gt;() { return work; };</code></td></tr><tr><td><code>run_work()</code></td><td>runs that work, in the order it was started, and what <code>on_main</code> handed back, until nothing is left</td></tr><tr><td><code>watching(state)</code></td><td>writes down every value a state takes: <code>seen.should_have_been(0, 1, 0)</code>, <code>seen.last()</code>, <code>seen.size()</code></td></tr></table></div>
+<p>Until <code>run_work()</code> nothing the model started has run, so a test can also check what the screen shows in between (&quot;Loading&quot;). In a <code>ui_test</code>, <code>run_work()</code> lets the screen follow what changed.</p>
 <h3 id="the-rest-of-testing">The rest of testing</h3>
 <p>The UI words sit on top of <code>std.testing</code>, and everything there works in a UI test too:</p>
 <ul class="plainlist"><li>Groups can hold groups: <code>tests(&quot;a&quot;) { tests(&quot;b&quot;) { test(...) }; };</code>. <code>before_each { }</code> and <code>after_each { }</code> of every group around a test run for it.</li><li><code>skip_test(&quot;why&quot;)</code> leaves a test, counted as skipped.</li><li><code>mock&lt;store&gt;()</code> makes a stand-in for an interface; <code>given { }</code>, <code>verify { }</code> and <code>verify_order { }.then { }</code> set it up and check how it was used.</li></ul>

@@ -671,7 +671,7 @@ while(true) {
 <div class="fn" id="socket_system.last_error"><div class="sig">static def <b>last_error</b>() : string</div><p>the last error in words</p></div>
 <div class="fn" id="socket_system.network_port"><div class="sig">static def <b>network_port</b>(port: _int64) : _int64</div><p>the port as the network carries it: its two bytes the other way round</p></div>
 <div class="fn" id="socket_system.open"><div class="sig">static def <b>open</b>() : _int64</div><p>a new TCP socket; throws when the system has none to give</p></div>
-<div class="fn" id="socket_system.start"><div class="sig">static def <b>start</b>()</div><p>Winsock wants to be started once</p></div>
+<div class="fn" id="socket_system.start"><div class="sig">static def <b>start</b>()</div><p>Winsock wants to be started once. Several threads may ask at the same moment: the others wait until the one that started it is done.</p></div>
 <div class="fn" id="socket_system.timed_out"><div class="sig">static def <b>timed_out</b>(code: _int64) : bool</div><p>was the last error &quot;it took too long&quot;?</p></div>
 </div>
 </section>

@@ -99,9 +99,9 @@
 <a class="modcard" href="std.guikit.navigation.html"><b>std.guikit.navigation</b><span>7 types, 53 functions</span><span class="names">nav_bar, navigator, route, screen_host, screen_kind, typed_screen, ...</span></a>
 <a class="modcard" href="std.guikit.overlay.html"><b>std.guikit.overlay</b><span>2 types, 19 functions</span><span class="names">menu_box, popup</span></a>
 <a class="modcard" href="std.guikit.platform.html"><b>std.guikit.platform</b><span>9 types, 89 functions</span><span class="names">color, event, font, image, painter, shape_batch, ...</span></a>
-<a class="modcard" href="std.guikit.testing.html"><b>std.guikit.testing</b><span>5 types, 128 functions</span><span class="names">query_step, test_screen, ui_node, ui_nodes, ui_query</span></a>
+<a class="modcard" href="std.guikit.testing.html"><b>std.guikit.testing</b><span>7 types, 142 functions</span><span class="names">held_dispatcher, query_step, state_watch, test_screen, ui_node, ui_nodes, ...</span></a>
 <a class="modcard" href="std.guikit.three.html"><b>std.guikit.three</b><span>17 types, 219 functions</span><span class="names">camera, endless, flock, lamp, mesh, motes, ...</span></a>
-<a class="modcard" href="std.guikit.widgets.display.html"><b>std.guikit.widgets.display</b><span>8 types, 53 functions</span><span class="names">badge, chip, divider, label, picture, progress_bar, ...</span></a>
+<a class="modcard" href="std.guikit.widgets.display.html"><b>std.guikit.widgets.display</b><span>10 types, 62 functions</span><span class="names">badge, chip, divider, label, picture, progress_bar, ...</span></a>
 <a class="modcard" href="std.guikit.widgets.drawing.html"><b>std.guikit.widgets.drawing</b><span>2 types, 7 functions</span><span class="names">canvas, frame</span></a>
 <a class="modcard" href="std.guikit.widgets.input.html"><b>std.guikit.widgets.input</b><span>13 types, 115 functions</span><span class="names">button, checkbox, dropdown, fab, form, menu_option, ...</span></a>
 <a class="modcard" href="std.guikit.widgets.pickers.html"><b>std.guikit.widgets.pickers</b><span>2 types, 14 functions</span><span class="names">month_grid, time_spinner</span></a>
@@ -278,8 +278,9 @@ gui.frame_rate(0);      // no limit: as fast as the machine paints</pre></div>
 <div class="fn" id="gui.grid_fit"><div class="sig">static def <b>grid_fit</b>(least: decimal, block: ()()) : grid</div><p>a grid with as many equal columns as fit, each at least <code>least</code> pixels wide (grid.sharp)</p></div>
 <div class="fn" id="gui.grid_fit-2"><div class="sig">static def <b>grid_fit</b>(least: decimal, look: modifier, block: ()()) : grid</div></div>
 <div class="fn" id="gui.grid_lines"><div class="sig">static def <b>grid_lines</b>() : chart_grid</div><p>inside chart { }: level lines behind the marks, one at each number of the y axis</p></div>
-<div class="fn" id="gui.image"><div class="sig">static def <b>image</b>(path: string) : picture</div><p>a picture from a file: PNG, JPG, BMP, GIF (picture.sharp)</p></div>
+<div class="fn" id="gui.image"><div class="sig">static def <b>image</b>(path: string) : picture</div><p>a picture from a file (PNG, JPG, BMP, GIF) or from a link, &quot;https://...&quot; (picture.sharp)</p></div>
 <div class="fn" id="gui.image-2"><div class="sig">static def <b>image</b>(path: string, look: modifier) : picture</div></div>
+<div class="fn" id="gui.image_cache"><div class="sig">static def <b>image_cache</b>(folder: string)</div><p>Keep the pictures fetched from links in this folder (picture.sharp). Say it before the first picture from a link is shown; unsaid, they go to a folder of their own in the system&#x27;s place for caches.</p></div>
 <div class="fn" id="gui.is_fullscreen"><div class="sig">static def <b>is_fullscreen</b>() : bool</div><p>does the app have the whole screen?</p></div>
 <div class="fn" id="gui.item"><div class="sig">static def <b>item</b>(block: ()())</div><p>inside lazy_column { }: one row, built when it scrolls into view</p></div>
 <div class="fn" id="gui.items"><div class="sig">static def <b>items</b>(count: _int64, each: (_int64)())</div><p>inside lazy_column { }: <code>count</code> rows; row i (from 0) is built by the block when it scrolls into view</p></div>

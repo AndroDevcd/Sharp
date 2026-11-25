@@ -80,7 +80,7 @@
     <main>
 <p class="crumbs"><a href="index.html">Standard library</a> / <a href="std.guikit.html">std.guikit</a> / std.guikit.widgets.display</p>
 <h1>std.guikit.widgets.display <small>module</small></h1>
-<p class="contents"><a href="#badge">badge</a> <a href="#chip">chip</a> <a href="#divider">divider</a> <a href="#label">label</a> <a href="#picture">picture</a> <a href="#progress_bar">progress_bar</a> <a href="#rich_label">rich_label</a> <a href="#rich_text">rich_text</a></p>
+<p class="contents"><a href="#badge">badge</a> <a href="#chip">chip</a> <a href="#divider">divider</a> <a href="#label">label</a> <a href="#picture">picture</a> <a href="#progress_bar">progress_bar</a> <a href="#remote_picture">remote_picture</a> <a href="#remote_pictures">remote_pictures</a> <a href="#rich_label">rich_label</a> <a href="#rich_text">rich_text</a> <a href="#constants">constants</a></p>
 <section class="type" id="badge">
 <h2><span class="kind">class</span> badge</h2>
 <p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
@@ -157,19 +157,41 @@ text(long_paragraph, modifier().max_width(400))     // wraps onto several lines<
 <section class="type" id="picture">
 <h2><span class="kind">class</span> picture</h2>
 <p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/picture.sharp">source</a></p>
-<p>picture - an image file on the screen. Made with image(...).</p>
-<div class="code"><pre class="sharp">image(&quot;assets/logo.png&quot;)                              // at its own size
-image(&quot;assets/photo.jpg&quot;, modifier().size(120, 80))   // stretched to a size
-image(&quot;assets/bg.png&quot;, modifier().fill())             // as big as the room there is
-image(&quot;assets/icon.png&quot;).opacity(120)                 // see-through</pre></div>
-<p>The file is loaded the first time the picture is measured and shared from then on (the native side keeps one copy per file), so the same path in a hundred list rows costs one load. PNG transparency is kept. (Compose: Image. Android: ImageView. HTML: img.)</p>
+<p>picture - an image on the screen: from a file, or from a link. Made with image(...).</p>
+<div class="code"><pre class="sharp">image(&quot;assets/logo.png&quot;)                              // a file, at its own size
+image(&quot;assets/photo.jpg&quot;, modifier().size(120, 80))   // in a box of a size
+image(&quot;https://example.com/cat.jpg&quot;, modifier().size(120, 120))    // from the web</pre></div>
+<p>HOW IT SITS IN ITS BOX</p>
+<div class="code"><pre class="sharp">.fit(FIT_CROP)          fill the box and cut off what does not fit - a photo in a card
+.fit(FIT_INSIDE)        show all of it, as large as fits - a logo
+.fit(FIT_STRETCH)       pull it to the box&#x27;s shape (how a picture starts)
+.opacity(120)           see-through: 0 .. 255</pre></div>
+<p>WHAT IT LOOKS LIKE is the modifier&#x27;s business, as for every widget - and all of it works on a picture:</p>
+<div class="code"><pre class="sharp">image(&quot;face.jpg&quot;, modifier().size(96, 96).clip(shape.circle())).fit(FIT_CROP)      // a round portrait
+modifier().corner(12)  .rotate(8)  .scale(1.2)  .blur(4)  .border(2, colour)  .shadow(8)  .opacity(0.6)</pre></div>
+<p>FROM A LINK (http:// or https://). The picture is fetched on a background thread; the window never waits for it. Meanwhile, and if it cannot be had:</p>
+<div class="code"><pre class="sharp">.placeholder(&quot;assets/loading.png&quot;)      shown until the picture is there (without one: nothing)
+.on_error(&quot;assets/broken.png&quot;)          shown when it cannot be fetched or read
+.fade_in(0.2)                           it comes in over a fifth of a second, not at a blow</pre></div>
+<div class="code"><pre class="sharp">image(&quot;https://example.com/cat.jpg&quot;, modifier().size(160, 120).corner(10))
+        .fit(FIT_CROP).placeholder(&quot;assets/loading.png&quot;).on_error(&quot;assets/broken.png&quot;).fade_in(0.2);</pre></div>
+<p>A link is fetched ONCE. The file is kept in a cache folder and read from there from then on - also the next time the program runs, and by every picture that shows the same link (a hundred rows of a list fetch it once). gui.image_cache(&quot;folder&quot;) says where that folder is; unsaid, it is a folder of its own in the system&#x27;s place for caches. One picture can be kept somewhere else than the rest:</p>
+<div class="code"><pre class="sharp">image(&quot;https://example.com/map.png&quot;).cache(&quot;maps&quot;)      // this one goes to the folder &quot;maps&quot;</pre></div>
+<p>A file is loaded the first time the picture is measured and shared from then on (the native side keeps one copy per file). PNG transparency is kept.</p>
+<p>IN A UI TEST without a window no picture is read and no link is fetched: a picture counts as 100 x 100 unless the modifier gives it a size, and one from a link stays as it is while loading (its placeholder).</p>
+<p>(Android: Glide / Picasso / Coil - load(url).placeholder().error().centerCrop(). Compose: AsyncImage. HTML: img with object-fit.)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="picture.picture"><div class="sig"><b>picture</b>(file: string)</div></div>
 <div class="fn" id="picture.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="picture.cache"><div class="sig">def <b>cache</b>(folder: string) : picture</div><p>keep this picture, fetched from its link, in this folder and not in the one all pictures share (gui.image_cache)</p></div>
+<div class="fn" id="picture.fade_in"><div class="sig">def <b>fade_in</b>(seconds: decimal) : picture</div><p>a picture from a link comes in over this many seconds once it is there (one read from the cache is there at once)</p></div>
+<div class="fn" id="picture.fit"><div class="sig">def <b>fit</b>(how: _int64) : picture</div><p>how it sits in a box of another shape: FIT_STRETCH, FIT_INSIDE or FIT_CROP</p></div>
 <div class="fn" id="picture.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="picture.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
+<div class="fn" id="picture.on_error"><div class="sig">def <b>on_error</b>(file: string) : picture</div><p>a picture file to show when the real one cannot be fetched or read</p></div>
 <div class="fn" id="picture.opacity"><div class="sig">def <b>opacity</b>(amount: _int32) : picture</div><p>how solid it is: 0 (invisible) .. 255 (solid)</p></div>
 <div class="fn" id="picture.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="picture.placeholder"><div class="sig">def <b>placeholder</b>(file: string) : picture</div><p>a picture file to show while the real one is being fetched from its link</p></div>
 </div>
 </section>
 <section class="type" id="progress_bar">
@@ -185,6 +207,24 @@ image(&quot;assets/icon.png&quot;).opacity(120)                 // see-through</
 <div class="fn" id="progress_bar.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="progress_bar.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
 <div class="fn" id="progress_bar.value_shown"><div class="sig">override def <b>value_shown</b>() : decimal</div><p>how far along it is, 0 to 1 (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
+</div>
+</section>
+<section class="type" id="remote_picture">
+<h2><span class="kind">class</span> remote_picture</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/picture.sharp">source</a></p>
+<p>one link, and the file it was fetched into</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>link</code></td><td><code>string</code></td><td></td></tr><tr><td><code>folder</code></td><td><code>string</code></td><td>the cache folder it is kept in</td></tr><tr><td><code>file</code></td><td><code>string</code></td><td>where it is kept in that folder</td></tr><tr><td><code>state</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>ready_at</code></td><td><code>decimal</code></td><td>the host&#x27;s clock when it arrived (long ago: it was in the cache already)</td></tr></table></div>
+</section>
+<section class="type" id="remote_pictures">
+<h2><span class="kind">class</span> remote_pictures</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/picture.sharp">source</a></p>
+<p>THE PICTURES FROM LINKS: each link is fetched once, into the cache folder, and every picture that shows it reads that file. FRAMEWORK USE: a program writes image(&quot;https://...&quot;) and, if it wants, gui.image_cache(&quot;folder&quot;).</p>
+<p>Everything here runs on the main thread, except the fetching itself: that is a coroutine on the IO threads, which hands its answer back with on_main.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="remote_pictures.cache_folder"><div class="sig">static def <b>cache_folder</b>() : string</div><p>the folder fetched pictures are kept in</p></div>
+<div class="fn" id="remote_pictures.is_link"><div class="sig">static def <b>is_link</b>(source: string) : bool</div><p>is this a link and not a file?</p></div>
+<div class="fn" id="remote_pictures.keep_in"><div class="sig">static def <b>keep_in</b>(where: string)</div><p>keep fetched pictures in this folder from now on (it is made if it is not there; the folder it is in must be)</p></div>
+<div class="fn" id="remote_pictures.of"><div class="sig">static def <b>of</b>(link: string, own_folder: string) : remote_picture</div><p>What is known of this link, kept in <code>own_folder</code> (&quot;&quot;: the folder all pictures share); asked the first time, the fetching starts.</p></div>
 </div>
 </section>
 <section class="type" id="rich_label">
@@ -220,6 +260,7 @@ image(&quot;assets/icon.png&quot;).opacity(120)                 // see-through</
 <div class="fn" id="rich_text.open"><div class="sig">static def <b>open</b>(written: string) : rich_text</div><p>the open rich text - or an error that says where the word belongs</p></div>
 </div>
 </section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>FIT_CROP</code></td><td><code>_int64</code></td><td><code>2</code></td><td>the box filled, as much of the picture as fits, its middle kept</td></tr><tr><td><code>FIT_INSIDE</code></td><td><code>_int64</code></td><td><code>1</code></td><td>all of it shown, as large as fits, in the middle: bars at two sides</td></tr><tr><td><code>FIT_STRETCH</code></td><td><code>_int64</code></td><td><code>0</code></td><td>pulled to the box&#x27;s shape, whatever that does to it</td></tr><tr><td><code>REMOTE_FAILED</code></td><td><code>_int64</code></td><td><code>2</code></td><td></td></tr><tr><td><code>REMOTE_LOADING</code></td><td><code>_int64</code></td><td><code>0</code></td><td></td></tr><tr><td><code>REMOTE_READY</code></td><td><code>_int64</code></td><td><code>1</code></td><td>it is in the cache folder: <code>file</code></td></tr></table></div></section>
     </main>
 </div></div>
 <script src="search.js"></script>

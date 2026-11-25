@@ -2323,6 +2323,7 @@ std.guikit  gui.static def grid_fit(least: decimal, look: modifier, block: ()())
 std.guikit  gui.static def grid_lines() : chart_grid
 std.guikit  gui.static def image(path: string) : picture
 std.guikit  gui.static def image(path: string, look: modifier) : picture
+std.guikit  gui.static def image_cache(folder: string)
 std.guikit  gui.static def is_fullscreen() : bool
 std.guikit  gui.static def item(block: ()())
 std.guikit  gui.static def items(count: _int64, each: (_int64)())
@@ -3579,6 +3580,7 @@ std.guikit.platform  painter.def tiles(ground: tile_map, camera_x: decimal, came
 std.guikit.platform  painter.def triangles(xs: decimal[], ys: decimal[], colors: _int64[], count: _int64)
 std.guikit.platform  painter.def unclip()
 std.guikit.platform  painter.def unfade(before: decimal)
+std.guikit.platform  painter.silent : bool
 std.guikit.platform  shape_batch.colors : _int64[]
 std.guikit.platform  shape_batch.count : _int64
 std.guikit.platform  shape_batch.data : decimal[]
@@ -3614,7 +3616,9 @@ std.guikit.platform  window.def width() : _int32
 std.guikit.platform  window.window(title: string, w: _int32, h: _int32)
 std.guikit.platform  window.window(title: string, w: _int32, h: _int32, opened_as: window_mode)
 std.guikit.platform  window.window(w: _int32, h: _int32)
+std.guikit.testing  class held_dispatcher
 std.guikit.testing  class query_step
+std.guikit.testing  class state_watch<t>
 std.guikit.testing  class test_screen
 std.guikit.testing  class ui_node
 std.guikit.testing  class ui_nodes
@@ -3653,6 +3657,7 @@ std.guikit.testing  def point_on(node: ui_node, word: string) : view
 std.guikit.testing  def press_there(button: _int64)
 std.guikit.testing  def print_tree()
 std.guikit.testing  def release_at(px: decimal, py: decimal)
+std.guikit.testing  def run_work()
 std.guikit.testing  def same_color(a: color, b: color) : bool
 std.guikit.testing  def screen_size(width: _int32, height: _int32)
 std.guikit.testing  def set_content(block: ()())
@@ -3662,6 +3667,7 @@ std.guikit.testing  def should_show_no_tooltip()
 std.guikit.testing  def should_show_toast(words: string)
 std.guikit.testing  def should_show_tooltip(words: string)
 std.guikit.testing  def take_keyboard(node: ui_node, word: string)
+std.guikit.testing  def test_dispatcher() : coroutine_dispatcher
 std.guikit.testing  def toasts_said(h: ui_host) : string
 std.guikit.testing  def ui_node.clear() : ui_node
 std.guikit.testing  def ui_node.click() : ui_node
@@ -3708,7 +3714,11 @@ std.guikit.testing  def wait_until(condition: ()(bool))
 std.guikit.testing  def wait_until(most: decimal, condition: ()(bool))
 std.guikit.testing  def watch_ui_tests()
 std.guikit.testing  def watch_ui_tests(seconds: decimal)
+std.guikit.testing  def watching<t>(of: state<t>) : state_watch<t>
 std.guikit.testing  def wheel_over(node: ui_node, word: string, turn: _int64) : bool
+std.guikit.testing  held_dispatcher.at_rest : _int64
+std.guikit.testing  held_dispatcher.held_dispatcher()
+std.guikit.testing  held_dispatcher.override def select_thread() : thread?
 std.guikit.testing  query_step.def named() : string
 std.guikit.testing  query_step.def takes(v: view) : bool
 std.guikit.testing  query_step.fits : (view)(bool)?
@@ -3716,6 +3726,15 @@ std.guikit.testing  query_step.how : _int64
 std.guikit.testing  query_step.place : _int64
 std.guikit.testing  query_step.query_step(kind: _int64, words: string)
 std.guikit.testing  query_step.what : string
+std.guikit.testing  state_watch.def at(n: _int64) : t
+std.guikit.testing  state_watch.def last() : t
+std.guikit.testing  state_watch.def should_have_been(a: t) : state_watch<t>
+std.guikit.testing  state_watch.def should_have_been(a: t, b: t) : state_watch<t>
+std.guikit.testing  state_watch.def should_have_been(a: t, b: t, c: t) : state_watch<t>
+std.guikit.testing  state_watch.def should_have_been(a: t, b: t, c: t, d: t) : state_watch<t>
+std.guikit.testing  state_watch.def should_have_been(a: t, b: t, c: t, d: t, e: t) : state_watch<t>
+std.guikit.testing  state_watch.def size() : _int64
+std.guikit.testing  state_watch.state_watch(of: state<t>)
 std.guikit.testing  test_screen.holding : bool
 std.guikit.testing  test_screen.host : ui_host?
 std.guikit.testing  test_screen.part_h : decimal
@@ -4203,8 +4222,16 @@ std.guikit.widgets.display  class divider
 std.guikit.widgets.display  class label
 std.guikit.widgets.display  class picture
 std.guikit.widgets.display  class progress_bar
+std.guikit.widgets.display  class remote_picture
+std.guikit.widgets.display  class remote_pictures
 std.guikit.widgets.display  class rich_label
 std.guikit.widgets.display  class rich_text
+std.guikit.widgets.display  const FIT_CROP : _int64 = 2
+std.guikit.widgets.display  const FIT_INSIDE : _int64 = 1
+std.guikit.widgets.display  const FIT_STRETCH : _int64 = 0
+std.guikit.widgets.display  const REMOTE_FAILED : _int64 = 2
+std.guikit.widgets.display  const REMOTE_LOADING : _int64 = 0
+std.guikit.widgets.display  const REMOTE_READY : _int64 = 1
 std.guikit.widgets.display  divider.def upright() : divider
 std.guikit.widgets.display  divider.divider()
 std.guikit.widgets.display  divider.override def arrange()
@@ -4223,7 +4250,12 @@ std.guikit.widgets.display  label.override def kind() : string
 std.guikit.widgets.display  label.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.display  label.override def paint(p: painter)
 std.guikit.widgets.display  label.override def words_shown() : string
+std.guikit.widgets.display  picture.def cache(folder: string) : picture
+std.guikit.widgets.display  picture.def fade_in(seconds: decimal) : picture
+std.guikit.widgets.display  picture.def fit(how: _int64) : picture
+std.guikit.widgets.display  picture.def on_error(file: string) : picture
 std.guikit.widgets.display  picture.def opacity(amount: _int32) : picture
+std.guikit.widgets.display  picture.def placeholder(file: string) : picture
 std.guikit.widgets.display  picture.override def arrange()
 std.guikit.widgets.display  picture.override def kind() : string
 std.guikit.widgets.display  picture.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
@@ -4235,6 +4267,15 @@ std.guikit.widgets.display  progress_bar.override def measure(min_w: decimal, ma
 std.guikit.widgets.display  progress_bar.override def paint(p: painter)
 std.guikit.widgets.display  progress_bar.override def value_shown() : decimal
 std.guikit.widgets.display  progress_bar.progress_bar(fraction: decimal)
+std.guikit.widgets.display  remote_picture.file : string
+std.guikit.widgets.display  remote_picture.folder : string
+std.guikit.widgets.display  remote_picture.link : string
+std.guikit.widgets.display  remote_picture.ready_at : decimal
+std.guikit.widgets.display  remote_picture.state : _int64
+std.guikit.widgets.display  remote_pictures.static def cache_folder() : string
+std.guikit.widgets.display  remote_pictures.static def is_link(source: string) : bool
+std.guikit.widgets.display  remote_pictures.static def keep_in(where: string)
+std.guikit.widgets.display  remote_pictures.static def of(link: string, own_folder: string) : remote_picture
 std.guikit.widgets.display  rich_label.def size(px: decimal) : rich_label
 std.guikit.widgets.display  rich_label.override def arrange()
 std.guikit.widgets.display  rich_label.override def kind() : string

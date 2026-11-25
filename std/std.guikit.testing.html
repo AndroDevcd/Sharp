@@ -80,7 +80,17 @@
     <main>
 <p class="crumbs"><a href="index.html">Standard library</a> / <a href="std.guikit.html">std.guikit</a> / std.guikit.testing</p>
 <h1>std.guikit.testing <small>module</small></h1>
-<p class="contents"><a href="#query_step">query_step</a> <a href="#test_screen">test_screen</a> <a href="#ui_node">ui_node</a> <a href="#ui_nodes">ui_nodes</a> <a href="#ui_query">ui_query</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
+<p class="contents"><a href="#held_dispatcher">held_dispatcher</a> <a href="#query_step">query_step</a> <a href="#state_watch">state_watch</a> <a href="#test_screen">test_screen</a> <a href="#ui_node">ui_node</a> <a href="#ui_nodes">ui_nodes</a> <a href="#ui_query">ui_query</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
+<section class="type" id="held_dispatcher">
+<h2><span class="kind">class</span> held_dispatcher</h2>
+<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/models.sharp">source</a></p>
+<p>A dispatcher for tests: the work it is given runs on the thread that made the dispatcher - the test&#x27;s - and only when run_work() lets it. Made with test_dispatcher().</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>at_rest</code></td><td><code>_int64</code></td><td>how many fibers the test&#x27;s thread had before any test dispatcher gave it work (-1: not looked yet)</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="held_dispatcher.held_dispatcher"><div class="sig"><b>held_dispatcher</b>()</div></div>
+<div class="fn" id="held_dispatcher.select_thread"><div class="sig">override def <b>select_thread</b>() : thread?</div><p>the thread that made this dispatcher: its work waits there for run_work()</p></div>
+</div>
+</section>
 <section class="type" id="query_step">
 <h2><span class="kind">class</span> query_step</h2>
 <p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/finders.sharp">source</a></p>
@@ -90,6 +100,22 @@
 <div class="fn" id="query_step.query_step"><div class="sig"><b>query_step</b>(kind: _int64, words: string)</div></div>
 <div class="fn" id="query_step.named"><div class="sig">def <b>named</b>() : string</div><p>what it looks for, as words</p></div>
 <div class="fn" id="query_step.takes"><div class="sig">def <b>takes</b>(v: view) : bool</div><p>does this view fit a finding or a keeping step?</p></div>
+</div>
+</section>
+<section class="type" id="state_watch">
+<h2><span class="kind">class</span> state_watch&lt;t&gt;</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/models.sharp">source</a></p>
+<p>What a state has been: its value when watching(...) was called, and every value it was given after that, in order. Made with watching(state).</p>
+<h3>Functions</h3><div>
+<div class="fn" id="state_watch.state_watch"><div class="sig"><b>state_watch</b>(of: state&lt;t&gt;)</div></div>
+<div class="fn" id="state_watch.at"><div class="sig">def <b>at</b>(n: _int64) : t</div><p>the n-th of them, from 0</p></div>
+<div class="fn" id="state_watch.last"><div class="sig">def <b>last</b>() : t</div><p>the value it has now</p></div>
+<div class="fn" id="state_watch.should_have_been"><div class="sig">def <b>should_have_been</b>(a: t) : state_watch&lt;t&gt;</div><p>the state had exactly these values, in this order: the one it started with first</p></div>
+<div class="fn" id="state_watch.should_have_been-2"><div class="sig">def <b>should_have_been</b>(a: t, b: t) : state_watch&lt;t&gt;</div></div>
+<div class="fn" id="state_watch.should_have_been-3"><div class="sig">def <b>should_have_been</b>(a: t, b: t, c: t) : state_watch&lt;t&gt;</div></div>
+<div class="fn" id="state_watch.should_have_been-4"><div class="sig">def <b>should_have_been</b>(a: t, b: t, c: t, d: t) : state_watch&lt;t&gt;</div></div>
+<div class="fn" id="state_watch.should_have_been-5"><div class="sig">def <b>should_have_been</b>(a: t, b: t, c: t, d: t, e: t) : state_watch&lt;t&gt;</div></div>
+<div class="fn" id="state_watch.size"><div class="sig">def <b>size</b>() : _int64</div><p>how many values there were, the first one included</p></div>
 </div>
 </section>
 <section class="type" id="test_screen">
@@ -194,6 +220,8 @@
 <div class="fn" id="press_there"><div class="sig">def <b>press_there</b>(button: _int64)</div><p>the mouse goes to the point point_on left, and a button goes down there</p></div>
 <div class="fn" id="print_tree"><div class="sig">def <b>print_tree</b>()</div><p>print the screen as text: every widget, its tag, its words, where it is</p></div>
 <div class="fn" id="release_at"><div class="sig">def <b>release_at</b>(px: decimal, py: decimal)</div><p>the left button comes up at a point</p></div>
+<div class="fn" id="run_work"><div class="sig">def <b>run_work</b>()</div><p>Run everything that is waiting: the work given to test dispatchers, in the order it was started, and what on_main handed back to the main thread - and whatever those start in turn, until nothing is left. In a ui_test the screen is then built again for what changed.</p>
+<p>Work that waits on purpose (delay(...)) is waited for. Work that never ends fails the test after ten seconds.</p></div>
 <div class="fn" id="same_color"><div class="sig">def <b>same_color</b>(a: color, b: color) : bool</div><p>are two colours the same to the eye: every part within 4 of the other&#x27;s (a card rounds colours a little)</p></div>
 <div class="fn" id="screen_size"><div class="sig">def <b>screen_size</b>(width: _int32, height: _int32)</div><p>The size of the screen, in pixels: for the screens set after it, and - when one is up - for that one at once (as when a window is resized).</p></div>
 <div class="fn" id="set_content"><div class="sig">def <b>set_content</b>(screen: element)</div><p>Put a screen up for the test: a screen of the app, or any widget.</p>
@@ -210,6 +238,7 @@ set_content {
 <div class="fn" id="should_show_toast"><div class="sig">def <b>should_show_toast</b>(words: string)</div><p>a toast (gui.toast) with exactly these words is up</p></div>
 <div class="fn" id="should_show_tooltip"><div class="sig">def <b>should_show_tooltip</b>(words: string)</div><p>the tooltip with exactly these words is up</p></div>
 <div class="fn" id="take_keyboard"><div class="sig">def <b>take_keyboard</b>(node: ui_node, word: string)</div><p>give the widget the keyboard, by clicking it if it has not got it; fails when it cannot take it</p></div>
+<div class="fn" id="test_dispatcher"><div class="sig">def <b>test_dispatcher</b>() : coroutine_dispatcher</div><p>a dispatcher that holds the work it is given until run_work() - hand it to the code under test with provide&lt;...&gt;()</p></div>
 <div class="fn" id="toasts_said"><div class="sig">def <b>toasts_said</b>(h: ui_host) : string</div><p>every toast that is up, as words for a message</p></div>
 <div class="fn" id="ui_node.clear"><div class="sig">def <b>ui_node.clear</b>() : ui_node</div><p>take out everything that is typed in the widget</p></div>
 <div class="fn" id="ui_node.click"><div class="sig">def <b>ui_node.click</b>() : ui_node</div><p>press and release the mouse in the middle of the widget</p></div>
@@ -286,6 +315,7 @@ color_at(4, 4)                                  the colour there, to look at you
 <div class="fn" id="wait_until-2"><div class="sig">def <b>wait_until</b>(most: decimal, condition: ()(bool))</div><p>the same, giving up after <code>most</code> seconds of the test&#x27;s clock</p></div>
 <div class="fn" id="watch_ui_tests"><div class="sig">def <b>watch_ui_tests</b>(seconds: decimal)</div><p>Watch the UI tests that follow: each runs in a real window, resting <code>seconds</code> after every thing it does (see WATCHING A TEST above). The same as starting the program with -watch, for a program that always wants it.</p></div>
 <div class="fn" id="watch_ui_tests-2"><div class="sig">def <b>watch_ui_tests</b>()</div></div>
+<div class="fn" id="watching"><div class="sig">def <b>watching</b>&lt;t&gt;(of: state&lt;t&gt;) : state_watch&lt;t&gt;</div><p>write down every value this state takes from now on (and the one it has): seen := watching(model.busy);</p></div>
 <div class="fn" id="wheel_over"><div class="sig">def <b>wheel_over</b>(node: ui_node, word: string, turn: _int64) : bool</div><p>One step of the wheel over the widget: <code>turn</code> 1 shows what is further up, -1 what is further down. Answers whether anything on the screen moved.</p></div>
 </div></section>
 <section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>STEP_KIDS</code></td><td><code>_int64</code></td><td><code>4</code></td><td>the widgets right inside those found so far</td></tr><tr><td><code>STEP_KIND</code></td><td><code>_int64</code></td><td><code>2</code></td><td>find: the widgets of a class</td></tr><tr><td><code>STEP_ONLY_KIND</code></td><td><code>_int64</code></td><td><code>8</code></td><td>... of a class</td></tr><tr><td><code>STEP_ONLY_STATE</code></td><td><code>_int64</code></td><td><code>10</code></td><td>... that are on, off, enabled, disabled or in sight (query_step.what says which)</td></tr><tr><td><code>STEP_ONLY_TAG</code></td><td><code>_int64</code></td><td><code>6</code></td><td>of those found so far, the ones with this tag</td></tr><tr><td><code>STEP_ONLY_TEXT</code></td><td><code>_int64</code></td><td><code>7</code></td><td>... that show these words</td></tr><tr><td><code>STEP_PARENT</code></td><td><code>_int64</code></td><td><code>5</code></td><td>the widgets those found so far are in</td></tr><tr><td><code>STEP_PICK</code></td><td><code>_int64</code></td><td><code>9</code></td><td>one of those found so far</td></tr><tr><td><code>STEP_ROOT</code></td><td><code>_int64</code></td><td><code>3</code></td><td>the whole screen</td></tr><tr><td><code>STEP_TAG</code></td><td><code>_int64</code></td><td><code>0</code></td><td>find: the widgets with this tag</td></tr><tr><td><code>STEP_TEXT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>find: the widgets that show these words</td></tr><tr><td><code>THE_LAST</code></td><td><code>_int64</code></td><td><code>0 - 2</code></td><td></td></tr><tr><td><code>THE_ONLY</code></td><td><code>_int64</code></td><td><code>0 - 1</code></td><td>query_step.place: there must be exactly one</td></tr></table></div></section>
