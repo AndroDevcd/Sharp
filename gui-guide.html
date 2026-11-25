@@ -38,6 +38,7 @@
         <li><a href="#the-modifier">The modifier</a></li>
         <li><a href="#widgets">Widgets</a></li>
         <li><a href="#dialogs-menus-sheets-and-toasts">Dialogs, menus, sheets and toasts</a></li>
+        <li><a href="#view-models">View models</a></li>
         <li><a href="#several-screens">Several screens</a></li>
         <li><a href="#time">Time</a></li>
         <li><a href="#the-look">The look</a></li>
@@ -48,7 +49,7 @@
     <main>
       <p class="crumbs"><a href="gui.html">GUI</a> / The GUI guide</p>
       <h1>The GUI guide</h1>
-<p>How Sharp&#x27;s GUI library, <code>std.guikit</code>, works: windows, screens, layout, widgets, dialogs, several screens, time, and how to test all of it. It comes with Sharp; there is nothing to install on Windows, and on Linux or a Raspberry Pi only SDL2 (<code>sudo apt install libsdl2-dev</code>).</p>
+<p>How Sharp&#x27;s GUI library, <code>std.guikit</code>, works: windows, screens, layout, widgets, dialogs, view models, several screens, time, and how to test all of it. It comes with Sharp; there is nothing to install on Windows, and on Linux or a Raspberry Pi only SDL2 (<code>sudo apt install libsdl2-dev</code>).</p>
 <p>Every piece of code on this page was compiled and run. The screens shown here are the ones the tests at the end of the page click through.</p>
 <h2 id="a-window">A window</h2>
 <div class="code"><pre class="sharp">mod app;
@@ -178,6 +179,70 @@ sharp hello</pre></div>
 <ul class="plainlist"><li><code>dialog(state) { }</code> is a card in the middle of the window.</li><li><code>sheet(state) { }</code> rises from the bottom.</li><li><code>menu(state) { menu_item(&quot;Copy&quot;) { }; }</code> is a list of choices.</li></ul>
 <p>All three float above the page. While one is up, the page behind it cannot be clicked, a click outside it closes it, and so does Escape.</p>
 <p><code>gui.toast(&quot;Saved&quot;)</code> shows a short message at the bottom of the window for a few seconds.</p>
+<h2 id="view-models">View models</h2>
+<p>A screen that decides things soon becomes hard to read and hard to test. A <b>view model</b> is the logic of a screen, kept apart from what the screen looks like.</p>
+<div class="code"><pre class="sharp">class basket_model base view_model {
+    things := state_list&lt;string&gt;();
+    problem := gui.state(&quot;&quot;);
+
+    def add(name: string) {
+        if(name.size() == 0) {
+            problem.value = &quot;Say what to add&quot;;
+            return;
+        }
+        problem.value = &quot;&quot;;
+        things.add(name);
+    }
+
+    def take_out(index: _int64) {
+        things.remove_at(index);
+    }
+}</pre></div>
+<p>The model holds the states and the functions that change them. It knows nothing about widgets: no <code>text(...)</code>, no modifier, no colours. (In a model a state is made with <code>gui.state(...)</code>; the short <code>state(...)</code> belongs to a screen.)</p>
+<div class="code"><pre class="sharp">class basket_screen base composable {
+    model := model_of&lt;basket_model&gt;();
+    typed := state(&quot;&quot;);
+
+    override def build() : element {
+        return column(modifier().fill().padding(24)) {
+            text(&quot;Basket (&quot; + model.things.size() + &quot;)&quot;, modifier().tag(&quot;basket_title&quot;)).size(24).bold();
+            row {
+                text_field(typed, modifier().width(240).tag(&quot;thing&quot;)).hint(&quot;What to add&quot;);
+                button(&quot;Add&quot;, modifier().tag(&quot;add_thing&quot;)) {
+                    model.add(typed.value);
+                    typed.value = &quot;&quot;;
+                };
+            }.gap(8);
+            text(model.problem.value, modifier().tag(&quot;basket_problem&quot;).show(model.problem.value.size() &gt; 0 ? 1 : 0));
+            for(i : _int64 = 0; i &lt; model.things.size(); i++) {
+                basket_line(model, i);
+            }
+        }.gap(10);
+    }
+}
+
+/** one thing in the basket, and a button that takes it out */
+def basket_line(model: basket_model, index: _int64) {
+    row {
+        text(model.things.at(index), modifier().tag(&quot;thing_&quot; + index));
+        button(&quot;Take out&quot;, modifier().tag(&quot;take_out_&quot; + index)) { model.take_out(index); }.plain();
+    }.gap(12);
+}</pre></div>
+<p>The screen is dumb on purpose. It <b>reads</b> the model&#x27;s states and <b>calls</b> the model&#x27;s functions, and decides nothing itself.</p>
+<ul class="plainlist"><li><code>model_of&lt;basket_model&gt;()</code> gives the screen its model: made the first time it is asked for, and the same one every time after. A screen is built again and again; its model stays.</li><li>Every part of a screen that asks for the same class gets the same model, so parts of a screen share one.</li><li>The model belongs to the screen. When the screen is closed (gone back from), the model is dropped; <code>when_cleared { }</code> in the model runs then.</li><li><code>shared_model_of&lt;...&gt;()</code> is one model for the whole app, kept until the window closes.</li><li><code>state_list&lt;string&gt;()</code> is a list the screen follows: adding, removing or moving an item builds the screen again.</li><li>A model class is made with no arguments. What it needs from outside, the screen hands it once (<code>model.open(it.number)</code>).</li></ul>
+<p>A model must not make the screen wait. Slow work - a file, a server - is started with the model&#x27;s <code>launch</code>, and the answer comes back with <code>on_main</code>, the one place where states may be changed:</p>
+<div class="code"><pre class="sharp">def load() {
+    busy.value = 1;
+    launch(dispatchers.io()) {
+        found := store.read_all();          // on another thread: the window stays alive
+        on_main {
+            things.replace_all(found);      // back on the main thread: the screen follows
+            busy.value = 0;
+        };
+    };
+}</pre></div>
+<p>(This last piece shows the shape and is not run on this page. Work started with the model&#x27;s <code>launch</code> is cancelled when the model is dropped, so an answer that arrives late cannot write to a screen that is gone.)</p>
+<p>Because a model is plain logic, it can be tested with no screen at all, and the screen with a few clicks. Both are in the tests at the end of this page.</p>
 <h2 id="several-screens">Several screens</h2>
 <p>An app with more than one screen has a <code>navigator</code>, and one small class for each place it can go: a <b>route</b>. A route&#x27;s fields are what its screen needs.</p>
 <div class="code"><pre class="sharp">class to_list base route { }
@@ -320,6 +385,38 @@ def main(args: string[]) {
             on_tag(&quot;item_words&quot;).should_not_exist();
             on_tag(&quot;item_2&quot;).click();
             on_tag(&quot;item_words&quot;).should_say(&quot;This is item 2&quot;);
+        };
+
+        test(&quot;the basket&#x27;s model, with no screen at all&quot;) {
+            basket := new basket_model();
+            basket.add(&quot;&quot;);
+            expect(basket.problem.value).should_be(&quot;Say what to add&quot;);
+            expect(basket.things.size()).should_be(0);
+
+            basket.add(&quot;milk&quot;);
+            basket.add(&quot;bread&quot;);
+            expect(basket.problem.value).should_be(&quot;&quot;);
+            expect(basket.things.size()).should_be(2);
+            basket.take_out(0);
+            expect(basket.things.at(0)).should_be(&quot;bread&quot;);
+        };
+
+        ui_test(&quot;the basket&#x27;s screen follows its model&quot;) {
+            set_content(basket_screen());
+            on_tag(&quot;add_thing&quot;).click();
+            on_tag(&quot;basket_problem&quot;).should_say(&quot;Say what to add&quot;);
+
+            on_tag(&quot;thing&quot;).type(&quot;milk&quot;);
+            on_tag(&quot;add_thing&quot;).click();
+            on_tag(&quot;thing&quot;).type(&quot;bread&quot;);
+            on_tag(&quot;add_thing&quot;).click();
+            on_tag(&quot;basket_title&quot;).should_say(&quot;Basket (2)&quot;);
+            on_tag(&quot;basket_problem&quot;).should_not_exist();
+            on_tag(&quot;thing&quot;).should_say(&quot;&quot;);
+
+            on_tag(&quot;take_out_0&quot;).click();
+            on_tag(&quot;basket_title&quot;).should_say(&quot;Basket (1)&quot;);
+            on_tag(&quot;thing_0&quot;).should_say(&quot;bread&quot;);
         };
 
         ui_test(&quot;the stopwatch, without waiting for it&quot;) {

@@ -158,7 +158,7 @@ Windows     %APPDATA%\&lt;app&gt;\</pre></div>
 <p>view_model - the LOGIC of a screen, kept apart from what the screen looks like.</p>
 <div class="code"><pre class="sharp">class tasks_model base view_model {
     tasks := state_list&lt;task&gt;();            // what the screen shows
-    busy  := state(0);</pre></div>
+    busy  := gui.state(0);                  // (gui.state: the short `state(0)` belongs to a composable)</pre></div>
 <div class="code"><pre class="sharp">    def add(title: string) { tasks.add(task(title)); }      // what the screen can ask for
     def remove(t: task)    { tasks.remove(t); }
 }</pre></div>
