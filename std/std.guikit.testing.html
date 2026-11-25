@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>std.guikit.testing - Sharp standard library</title>
+<meta name="description" content="The std.guikit.testing module of the Sharp standard library.">
+<link rel="icon" href="../logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.12</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../guide/index.html">Guide</a>
+      <a href="../std/index.html" aria-current="page">Library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../debugger.html">Debugger</a>
+      <a href="../performance.html">Performance</a>
+      <a href="../install.html">Download</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib"><div class="wrap">
+    <aside>
+      <label class="eyebrow" for="lib-search">Standard library</label>
+      <input id="lib-search" type="search" placeholder="Search classes and functions" autocomplete="off">
+      <ul class="found" id="lib-found" hidden></ul>
+      <ul class="mods">
+        <li><a href="std.html">std</a></li>
+        <li><a href="std.c.html">std.c</a></li>
+        <li><a href="std.collections.html">std.collections</a></li>
+        <li><a href="std.compress.html">std.compress</a></li>
+        <li><a href="std.crypto.html">std.crypto</a></li>
+        <li><a href="std.data.html">std.data</a></li>
+        <li><a href="std.di.html">std.di</a></li>
+        <li><a href="std.export.html">std.export</a></li>
+        <li><a href="std.guikit.html">std.guikit</a></li>
+        <li class="sub"><a href="std.guikit.animation.html">std.guikit.animation</a></li>
+        <li class="sub"><a href="std.guikit.charts.html">std.guikit.charts</a></li>
+        <li class="sub"><a href="std.guikit.core.model.html">std.guikit.core.model</a></li>
+        <li class="sub"><a href="std.guikit.core.runtime.html">std.guikit.core.runtime</a></li>
+        <li class="sub"><a href="std.guikit.core.state.html">std.guikit.core.state</a></li>
+        <li class="sub"><a href="std.guikit.core.style.html">std.guikit.core.style</a></li>
+        <li class="sub"><a href="std.guikit.core.tree.html">std.guikit.core.tree</a></li>
+        <li class="sub"><a href="std.guikit.core.util.html">std.guikit.core.util</a></li>
+        <li class="sub"><a href="std.guikit.game.html">std.guikit.game</a></li>
+        <li class="sub"><a href="std.guikit.gestures.html">std.guikit.gestures</a></li>
+        <li class="sub"><a href="std.guikit.layout.flow.html">std.guikit.layout.flow</a></li>
+        <li class="sub"><a href="std.guikit.layout.grids.html">std.guikit.layout.grids</a></li>
+        <li class="sub"><a href="std.guikit.layout.scrolling.html">std.guikit.layout.scrolling</a></li>
+        <li class="sub"><a href="std.guikit.layout.stacking.html">std.guikit.layout.stacking</a></li>
+        <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
+        <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
+        <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="on sub"><a href="std.guikit.testing.html">std.guikit.testing</a></li>
+        <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
+        <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
+        <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
+        <li class="sub"><a href="std.guikit.widgets.input.html">std.guikit.widgets.input</a></li>
+        <li class="sub"><a href="std.guikit.widgets.pickers.html">std.guikit.widgets.pickers</a></li>
+        <li><a href="std.io.html">std.io</a></li>
+        <li><a href="std.math.html">std.math</a></li>
+        <li><a href="std.net.html">std.net</a></li>
+        <li><a href="std.reflect.html">std.reflect</a></li>
+        <li><a href="std.system.html">std.system</a></li>
+        <li><a href="std.testing.html">std.testing</a></li>
+        <li><a href="std.text.html">std.text</a></li>
+        <li><a href="std.time.html">std.time</a></li>
+        <li><a href="std.util.html">std.util</a></li>
+      </ul>
+    </aside>
+    <main>
+<p class="crumbs"><a href="index.html">Standard library</a> / <a href="std.guikit.html">std.guikit</a> / std.guikit.testing</p>
+<h1>std.guikit.testing <small>module</small></h1>
+<p class="contents"><a href="#query_step">query_step</a> <a href="#test_screen">test_screen</a> <a href="#ui_node">ui_node</a> <a href="#ui_nodes">ui_nodes</a> <a href="#ui_query">ui_query</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
+<section class="type" id="query_step">
+<h2><span class="kind">class</span> query_step</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/finders.sharp">source</a></p>
+<p>one step of a question: what to find, or what to keep of what was found</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>how</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>what</code></td><td><code>string</code></td><td>the tag, or the words</td></tr><tr><td><code>fits</code></td><td><code>(view)(bool)?</code></td><td>STEP_KIND, STEP_ONLY_KIND: is this view&#x27;s widget of the class?</td></tr><tr><td><code>place</code></td><td><code>_int64</code></td><td>STEP_PICK: which one</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="query_step.query_step"><div class="sig"><b>query_step</b>(kind: _int64, words: string)</div></div>
+<div class="fn" id="query_step.named"><div class="sig">def <b>named</b>() : string</div><p>what it looks for, as words</p></div>
+<div class="fn" id="query_step.takes"><div class="sig">def <b>takes</b>(v: view) : bool</div><p>does this view fit a finding or a keeping step?</p></div>
+</div>
+</section>
+<section class="type" id="test_screen">
+<h2><span class="kind">class</span> test_screen</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/ui_test.sharp">source</a></p>
+<p>The screen the running UI test looks at: the host it runs on, and the things every word of this module does through it. (A program does not use this class: it is what the words above are made of.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>host</code></td><td><code>ui_host?</code></td><td></td></tr><tr><td><code>wide</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>tall</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>watching</code></td><td><code>_int64</code></td><td>1: on a real window. 0: not. -1: the arguments were not looked at yet</td></tr><tr><td><code>rest</code></td><td><code>decimal</code></td><td>seconds the screen rests after each thing the test does</td></tr><tr><td><code>title</code></td><td><code>string</code></td><td>the test that is running: the window&#x27;s title</td></tr><tr><td><code>holding</code></td><td><code>bool</code></td><td>hold_on_failure(): a watched test that fails keeps its window up</td></tr><tr><td><code>part_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>part_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>part_w</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>part_h</code></td><td><code>decimal</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="test_screen.close"><div class="sig">static def <b>close</b>()</div><p>take the screen down (the next set_content puts up a new one)</p></div>
+<div class="fn" id="test_screen.event_at"><div class="sig">static def <b>event_at</b>(kind: _int64, px: decimal, py: decimal) : event</div><p>an event at a place: a mouse press, release, move or a turn of the wheel</p></div>
+<div class="fn" id="test_screen.event_key"><div class="sig">static def <b>event_key</b>(kind: _int64, key: _int64) : event</div><p>a key going down or coming up</p></div>
+<div class="fn" id="test_screen.fail"><div class="sig">static def <b>fail</b>(word: string, why: string)</div><p>fail the test: what was asked, what was wrong, and what the screen holds</p></div>
+<div class="fn" id="test_screen.hold"><div class="sig">static def <b>hold</b>(wrong: throwable)</div><p>a watched test failed: its window stays up until it is closed by hand</p></div>
+<div class="fn" id="test_screen.is_there"><div class="sig">static def <b>is_there</b>(v: view) : bool</div><p>is this view there: in the tree, and neither it nor anything around it taken away (show(0))?</p></div>
+<div class="fn" id="test_screen.is_within"><div class="sig">static def <b>is_within</b>(inner: view, outer: view) : bool</div><p>is <code>inner</code> the view <code>outer</code>, or somewhere inside it?</p></div>
+<div class="fn" id="test_screen.linger"><div class="sig">static def <b>linger</b>()</div><p>a watched test rests here a moment, so that what just happened can be seen</p></div>
+<div class="fn" id="test_screen.pass"><div class="sig">static def <b>pass</b>(seconds: decimal)</div><p>Let <code>seconds</code> pass: on a window that is not there its clock is moved on and the loop turned once; on a real one the loop is turned until that much time has really gone.</p></div>
+<div class="fn" id="test_screen.running"><div class="sig">static def <b>running</b>(word: string) : ui_host</div><p>the host of the screen that is up; fails the test when no screen was set</p></div>
+<div class="fn" id="test_screen.says"><div class="sig">static def <b>says</b>(v: view, what: string) : bool</div><p>does this view show these words, or is it named by them (the caption of a text field)?</p></div>
+<div class="fn" id="test_screen.send"><div class="sig">static def <b>send</b>(e: event)</div><p>hand the screen one event, and let it act on it</p></div>
+<div class="fn" id="test_screen.settle"><div class="sig">static def <b>settle</b>()</div><p>turn the loop until nothing is waiting to be built again or laid out</p></div>
+<div class="fn" id="test_screen.tree"><div class="sig">static def <b>tree</b>() : string</div><p>the screen as text: one line for each widget, the ones inside another further in</p></div>
+<div class="fn" id="test_screen.visible_part"><div class="sig">static def <b>visible_part</b>(v: view) : bool</div><p>Can any of this view be seen? It must be there, not hidden, have a size, and lie - at least partly - inside the screen and inside every scrolling area around it. The part that can be seen is left in part_x ... part_h.</p></div>
+<div class="fn" id="test_screen.watched"><div class="sig">static def <b>watched</b>() : bool</div><p>are the tests being watched?</p></div>
+<div class="fn" id="test_screen.words_of"><div class="sig">static def <b>words_of</b>(v: view) : string</div><p>the words a view shows (&quot;&quot; when it shows none)</p></div>
+</div>
+</section>
+<section class="type" id="ui_node">
+<h2><span class="kind">class</span> ui_node</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/finders.sharp">source</a></p>
+<p>one widget of the screen: a question, and which of its answers is meant</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>asks</code></td><td><code>ui_query</code></td><td></td></tr><tr><td><code>place</code></td><td><code>_int64</code></td><td>a number from 0, THE_ONLY or THE_LAST</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="ui_node.ui_node"><div class="sig"><b>ui_node</b>(question: ui_query, which: _int64)</div></div>
+<div class="fn" id="ui_node.all_kinds"><div class="sig">def <b>all_kinds</b>&lt;t&gt;() : ui_nodes</div><p>every widget of this class inside this one</p></div>
+<div class="fn" id="ui_node.all_tags"><div class="sig">def <b>all_tags</b>(name: string) : ui_nodes</div><p>every widget with this tag inside this one</p></div>
+<div class="fn" id="ui_node.all_text"><div class="sig">def <b>all_text</b>(words: string) : ui_nodes</div><p>every widget that shows these words inside this one</p></div>
+<div class="fn" id="ui_node.asked"><div class="sig">def <b>asked</b>() : string</div><p>what was looked for, in words: for the messages</p></div>
+<div class="fn" id="ui_node.children"><div class="sig">def <b>children</b>() : ui_nodes</div><p>the widgets right inside this one</p></div>
+<div class="fn" id="ui_node.matches"><div class="sig">def <b>matches</b>() : list&lt;view&gt;</div><p>every view that fits right now (where ONE is meant: all of them, so that &quot;none&quot; can be checked)</p></div>
+<div class="fn" id="ui_node.on_kind"><div class="sig">def <b>on_kind</b>&lt;t&gt;() : ui_node</div><p>the one widget of this class inside this one: on_tag(&quot;form&quot;).on_kind&lt;button&gt;()</p></div>
+<div class="fn" id="ui_node.on_tag"><div class="sig">def <b>on_tag</b>(name: string) : ui_node</div><p>the one widget with this tag INSIDE this one</p></div>
+<div class="fn" id="ui_node.on_text"><div class="sig">def <b>on_text</b>(words: string) : ui_node</div><p>the one widget that shows these words inside this one</p></div>
+<div class="fn" id="ui_node.parent"><div class="sig">def <b>parent</b>() : ui_node</div><p>the widget this one is in</p></div>
+<div class="fn" id="ui_node.view_now"><div class="sig">def <b>view_now</b>(word: string) : view</div><p>the view; none fails the test</p></div>
+<div class="fn" id="ui_node.view_or_none"><div class="sig">def <b>view_or_none</b>(word: string) : view?</div><p>the view, or null when there is none. More than one where one was meant fails the test.</p></div>
+</div>
+</section>
+<section class="type" id="ui_nodes">
+<h2><span class="kind">class</span> ui_nodes</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/finders.sharp">source</a></p>
+<p>several widgets of the screen: every answer to a question</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>asks</code></td><td><code>ui_query</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="ui_nodes.ui_nodes"><div class="sig"><b>ui_nodes</b>(question: ui_query)</div></div>
+<div class="fn" id="ui_nodes.at"><div class="sig">def <b>at</b>(n: _int64) : ui_node</div><p>one of them, counted from 0 in the order they are on the screen</p></div>
+<div class="fn" id="ui_nodes.count"><div class="sig">def <b>count</b>() : _int64</div><p>how many there are right now</p></div>
+<div class="fn" id="ui_nodes.first"><div class="sig">def <b>first</b>() : ui_node</div></div>
+<div class="fn" id="ui_nodes.last"><div class="sig">def <b>last</b>() : ui_node</div></div>
+<div class="fn" id="ui_nodes.of_kind"><div class="sig">def <b>of_kind</b>&lt;t&gt;() : ui_nodes</div><p>of these, the ones of this class: all_tags(&quot;row&quot;).of_kind&lt;row&gt;()</p></div>
+<div class="fn" id="ui_nodes.should_have_count"><div class="sig">def <b>should_have_count</b>(wanted: _int64) : ui_nodes</div><p>there must be exactly this many</p></div>
+<div class="fn" id="ui_nodes.that_are_disabled"><div class="sig">def <b>that_are_disabled</b>() : ui_nodes</div><p>of these, the ones that are greyed out</p></div>
+<div class="fn" id="ui_nodes.that_are_enabled"><div class="sig">def <b>that_are_enabled</b>() : ui_nodes</div><p>of these, the ones that can be used</p></div>
+<div class="fn" id="ui_nodes.that_are_off"><div class="sig">def <b>that_are_off</b>() : ui_nodes</div><p>of these, the ones that are off (what is neither on nor off - a text - is in neither)</p></div>
+<div class="fn" id="ui_nodes.that_are_on"><div class="sig">def <b>that_are_on</b>() : ui_nodes</div><p>of these, the ones that are on: ticked checkboxes, switches that are on, the radio or chip chosen</p></div>
+<div class="fn" id="ui_nodes.that_are_shown"><div class="sig">def <b>that_are_shown</b>() : ui_nodes</div><p>of these, the ones that can be seen: not hidden, not scrolled out of sight</p></div>
+<div class="fn" id="ui_nodes.with_tag"><div class="sig">def <b>with_tag</b>(name: string) : ui_nodes</div><p>of these, the ones with this tag</p></div>
+<div class="fn" id="ui_nodes.with_text"><div class="sig">def <b>with_text</b>(words: string) : ui_nodes</div><p>of these, the ones that show these words</p></div>
+</div>
+</section>
+<section class="type" id="ui_query">
+<h2><span class="kind">class</span> ui_query</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/testing/finders.sharp">source</a></p>
+<p>a question about the screen: steps, each working on what the one before it found</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>steps</code></td><td><code>list&lt;query_step&gt;</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="ui_query.and_then"><div class="sig">def <b>and_then</b>(next: query_step) : ui_query</div><p>this question with one more step (a new question: this one is not changed)</p></div>
+<div class="fn" id="ui_query.asked"><div class="sig">def <b>asked</b>() : string</div><p>the question in words, for the messages: &quot;the words &quot;Delete&quot; inside the tag <code>row_3</code>&quot;</p></div>
+<div class="fn" id="ui_query.picked"><div class="sig">def <b>picked</b>(which: _int64) : ui_query</div><p>... the step that picks one of what was found</p></div>
+<div class="fn" id="ui_query.run"><div class="sig">def <b>run</b>(word: string) : list&lt;view&gt;</div><p>Ask the question now: the views it finds, in the order they are in the tree. <code>word</code> is the word of the test that asks, for the message when a step that means ONE widget finds several.</p></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="advance"><div class="sig">def <b>advance</b>(seconds: decimal)</div><p>this many seconds pass on the test&#x27;s clock, a sixtieth of a second at a time</p></div>
+<div class="fn" id="all_kinds"><div class="sig">def <b>all_kinds</b>&lt;t&gt;() : ui_nodes</div><p>every widget of this class: all_kinds&lt;button&gt;()</p></div>
+<div class="fn" id="all_tags"><div class="sig">def <b>all_tags</b>(name: string) : ui_nodes</div><p>every widget with this tag</p></div>
+<div class="fn" id="all_text"><div class="sig">def <b>all_text</b>(words: string) : ui_nodes</div><p>every widget that shows exactly these words</p></div>
+<div class="fn" id="asking"><div class="sig">def <b>asking</b>(how: _int64, what: string) : ui_query</div><p>a question of one step, asked of the whole screen</p></div>
+<div class="fn" id="back"><div class="sig">def <b>back</b>()</div><p>the back key: closes the topmost dialog or menu; with none open, goes back one screen</p></div>
+<div class="fn" id="color_words"><div class="sig">def <b>color_words</b>(c: color) : string</div></div>
+<div class="fn" id="hold_on_failure"><div class="sig">def <b>hold_on_failure</b>()</div><p>When a watched UI test fails, keep its window up - as it was when the check did not hold - until it is closed by hand (see WATCHING A TEST).</p></div>
+<div class="fn" id="idle"><div class="sig">def <b>idle</b>()</div><p>let everything that is waiting to be built again or laid out finish; no time passes</p></div>
+<div class="fn" id="kind_step"><div class="sig">def <b>kind_step</b>&lt;t&gt;(how: _int64) : query_step</div><p>The step that finds, or keeps, the widgets of the class t. It carries the class&#x27;s name, for the messages (&quot;2 widgets fit the kind <code>button</code>&quot;).</p></div>
+<div class="fn" id="needs_a_window"><div class="sig">def <b>needs_a_window</b>(word: string) : ui_host</div><p>a word that looks at what is painted: stops with an exception unless the test runs in a real window</p></div>
+<div class="fn" id="on_kind"><div class="sig">def <b>on_kind</b>&lt;t&gt;() : ui_node</div><p>the one widget of this class: on_kind&lt;checkbox&gt;(), on_kind&lt;login_screen&gt;()</p></div>
+<div class="fn" id="on_now"><div class="sig">def <b>on_now</b>(node: ui_node, word: string) : bool</div><p>Is the widget on? Asked of the widget itself or - words found inside a checkbox that was given a block - of the nearest widget around it that is on or off. Fails the test when there is no such widget.</p></div>
+<div class="fn" id="on_root"><div class="sig">def <b>on_root</b>() : ui_node</div><p>the whole screen: the widget everything else is in</p></div>
+<div class="fn" id="on_tag"><div class="sig">def <b>on_tag</b>(name: string) : ui_node</div><p>the one widget with this tag (modifier().tag(...))</p></div>
+<div class="fn" id="on_text"><div class="sig">def <b>on_text</b>(words: string) : ui_node</div><p>the one widget that shows exactly these words - or, a text field, whose caption they are</p></div>
+<div class="fn" id="painted"><div class="sig">def <b>painted</b>(node: ui_node, word: string, dx: decimal, dy: decimal) : color</div><p>the colour painted at a point of the widget, <code>dx</code> across and <code>dy</code> down from its top left corner</p></div>
+<div class="fn" id="point_on"><div class="sig">def <b>point_on</b>(node: ui_node, word: string) : view</div><p>The middle of the part of the widget that can be seen, as a point to press: left in test_screen.part_x / part_y ... The test fails when the widget is not in sight, or when a press there would land on something else.</p></div>
+<div class="fn" id="press_there"><div class="sig">def <b>press_there</b>(button: _int64)</div><p>the mouse goes to the point point_on left, and a button goes down there</p></div>
+<div class="fn" id="print_tree"><div class="sig">def <b>print_tree</b>()</div><p>print the screen as text: every widget, its tag, its words, where it is</p></div>
+<div class="fn" id="release_at"><div class="sig">def <b>release_at</b>(px: decimal, py: decimal)</div><p>the left button comes up at a point</p></div>
+<div class="fn" id="same_color"><div class="sig">def <b>same_color</b>(a: color, b: color) : bool</div><p>are two colours the same to the eye: every part within 4 of the other&#x27;s (a card rounds colours a little)</p></div>
+<div class="fn" id="screen_size"><div class="sig">def <b>screen_size</b>(width: _int32, height: _int32)</div><p>The size of the screen, in pixels: for the screens set after it, and - when one is up - for that one at once (as when a window is resized).</p></div>
+<div class="fn" id="set_content"><div class="sig">def <b>set_content</b>(screen: element)</div><p>Put a screen up for the test: a screen of the app, or any widget.</p>
+<div class="code"><pre class="sharp">set_content(new login_screen());</pre></div>
+<p>It is built and laid out before this returns. Calling it again takes the first screen down and puts the new one up.</p></div>
+<div class="fn" id="set_content-2"><div class="sig">def <b>set_content</b>(block: ()())</div><p>The same with the widgets written right here, as a screen&#x27;s build() writes them. States the block reads are made in the test, before it:</p>
+<div class="code"><pre class="sharp">on := gui.state(0);
+set_content {
+    checkbox(&quot;Remind me&quot;, on, modifier().tag(&quot;remind&quot;));
+};</pre></div>
+<p>The widgets lie in a stack that fills the screen (several are on top of each other: put them in a column or a row to set them out).</p></div>
+<div class="fn" id="should_show_no_toast"><div class="sig">def <b>should_show_no_toast</b>()</div><p>no toast is up</p></div>
+<div class="fn" id="should_show_no_tooltip"><div class="sig">def <b>should_show_no_tooltip</b>()</div><p>no tooltip is up</p></div>
+<div class="fn" id="should_show_toast"><div class="sig">def <b>should_show_toast</b>(words: string)</div><p>a toast (gui.toast) with exactly these words is up</p></div>
+<div class="fn" id="should_show_tooltip"><div class="sig">def <b>should_show_tooltip</b>(words: string)</div><p>the tooltip with exactly these words is up</p></div>
+<div class="fn" id="take_keyboard"><div class="sig">def <b>take_keyboard</b>(node: ui_node, word: string)</div><p>give the widget the keyboard, by clicking it if it has not got it; fails when it cannot take it</p></div>
+<div class="fn" id="toasts_said"><div class="sig">def <b>toasts_said</b>(h: ui_host) : string</div><p>every toast that is up, as words for a message</p></div>
+<div class="fn" id="ui_node.clear"><div class="sig">def <b>ui_node.clear</b>() : ui_node</div><p>take out everything that is typed in the widget</p></div>
+<div class="fn" id="ui_node.click"><div class="sig">def <b>ui_node.click</b>() : ui_node</div><p>press and release the mouse in the middle of the widget</p></div>
+<div class="fn" id="ui_node.color_at"><div class="sig">def <b>ui_node.color_at</b>(dx: decimal, dy: decimal) : color</div><p>the colour painted <code>dx</code> across and <code>dy</code> down from the widget&#x27;s top left corner. A watched test only.</p></div>
+<div class="fn" id="ui_node.double_click"><div class="sig">def <b>ui_node.double_click</b>() : ui_node</div><p>two clicks, one straight after the other</p></div>
+<div class="fn" id="ui_node.drag"><div class="sig">def <b>ui_node.drag</b>(dx: decimal, dy: decimal) : ui_node</div><p>press in the middle of the widget, move the mouse this far across and down in small steps, release</p></div>
+<div class="fn" id="ui_node.exists"><div class="sig">def <b>ui_node.exists</b>() : bool</div><p>is there such a widget on the screen right now?</p></div>
+<div class="fn" id="ui_node.hover"><div class="sig">def <b>ui_node.hover</b>() : ui_node</div><p>The mouse moves to the middle of the widget and rests there. Its tooltip (modifier().tooltip(&quot;...&quot;)) comes up when it has rested a moment: let that pass with advance(1), then should_show_tooltip(&quot;...&quot;).</p></div>
+<div class="fn" id="ui_node.is_shown"><div class="sig">def <b>ui_node.is_shown</b>() : bool</div><p>is it there AND can it be seen: not hidden, not scrolled out of sight, not off the screen?</p></div>
+<div class="fn" id="ui_node.long_click"><div class="sig">def <b>ui_node.long_click</b>() : ui_node</div><p>press, hold for more than half a second of the test&#x27;s clock, and release</p></div>
+<div class="fn" id="ui_node.press"><div class="sig">def <b>ui_node.press</b>(key: _int64) : ui_node</div><p>a key goes down and comes up while the widget has the keyboard: press(KEY_ENTER)</p></div>
+<div class="fn" id="ui_node.press-2"><div class="sig">def <b>ui_node.press</b>(key: _int64, held: _int64) : ui_node</div><p>A key goes down and comes up while the widget has the keyboard, with others held: press(&#x27;s&#x27;, MOD_CTRL) is Ctrl+S, press(KEY_TAB, MOD_SHIFT) Shift+Tab, press(&#x27;z&#x27;, MOD_CTRL + MOD_SHIFT) both.</p></div>
+<div class="fn" id="ui_node.replace"><div class="sig">def <b>ui_node.replace</b>(words: string) : ui_node</div><p>clear(), then type these words</p></div>
+<div class="fn" id="ui_node.right_click"><div class="sig">def <b>ui_node.right_click</b>() : ui_node</div><p>the right mouse button, in the middle of the widget</p></div>
+<div class="fn" id="ui_node.scroll_down"><div class="sig">def <b>ui_node.scroll_down</b>(steps: _int64) : ui_node</div><p>turn the wheel <code>steps</code> steps over the widget, towards what is further down</p></div>
+<div class="fn" id="ui_node.scroll_to"><div class="sig">def <b>ui_node.scroll_to</b>() : ui_node</div><p>Bring the widget into sight: the wheel is turned over the scrolling area around it, a step at a time, until some of it can be seen. A widget that is in sight already is left where it is.</p></div>
+<div class="fn" id="ui_node.scroll_to-2"><div class="sig">def <b>ui_node.scroll_to</b>(target: ui_node) : ui_node</div><p>Turn the wheel over this scrolling area until <code>target</code> is on the screen and can be seen. For a row of a long list (lazy_column) that the list has not made yet - it is not there to be found until the list is scrolled to it:</p>
+<div class="code"><pre class="sharp">on_tag(&quot;inbox&quot;).scroll_to(on_tag(&quot;mail_40&quot;));
+on_tag(&quot;mail_40&quot;).click();</pre></div>
+<p>The area is scrolled down to its end, and if the widget did not turn up, back up to its start. The test fails when it is nowhere in the area.</p></div>
+<div class="fn" id="ui_node.scroll_to_end"><div class="sig">def <b>ui_node.scroll_to_end</b>() : ui_node</div><p>scroll the area down as far as it goes</p></div>
+<div class="fn" id="ui_node.scroll_to_start"><div class="sig">def <b>ui_node.scroll_to_start</b>() : ui_node</div><p>scroll the area up as far as it goes</p></div>
+<div class="fn" id="ui_node.scroll_up"><div class="sig">def <b>ui_node.scroll_up</b>(steps: _int64) : ui_node</div><p>... towards what is further up</p></div>
+<div class="fn" id="ui_node.should_be_disabled"><div class="sig">def <b>ui_node.should_be_disabled</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_be_enabled"><div class="sig">def <b>ui_node.should_be_enabled</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_be_focused"><div class="sig">def <b>ui_node.should_be_focused</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_be_hidden"><div class="sig">def <b>ui_node.should_be_hidden</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_be_off"><div class="sig">def <b>ui_node.should_be_off</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_be_on"><div class="sig">def <b>ui_node.should_be_on</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_be_selected"><div class="sig">def <b>ui_node.should_be_selected</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_be_shown"><div class="sig">def <b>ui_node.should_be_shown</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_contain"><div class="sig">def <b>ui_node.should_contain</b>(part: string) : ui_node</div></div>
+<div class="fn" id="ui_node.should_exist"><div class="sig">def <b>ui_node.should_exist</b>() : ui_node</div><p>CHECKING A WIDGET IN A UI TEST (ui_test.sharp has the overview)</p>
+<div class="code"><pre class="sharp">should_exist()          there is such a widget on the screen
+should_not_exist()      there is none
+should_be_shown()       it is there and can be seen: not hidden, not scrolled out of sight
+should_be_hidden()      it cannot be seen (or is not there at all)</pre></div>
+<div class="code"><pre class="sharp">should_be_enabled()     it can be used
+should_be_disabled()    it is greyed out
+should_be_on()          a checkbox is ticked, a switch on, a radio or a chip the chosen one
+should_be_off()
+should_be_selected()    the same as should_be_on(): for a radio, a chip
+should_be_focused()     it has the keyboard</pre></div>
+<div class="code"><pre class="sharp">should_say(&quot;words&quot;)     it shows exactly these words (a text field: this is typed in it)
+should_contain(&quot;part&quot;)  these words are somewhere in what it shows
+should_have_value(0.5)  a slider or a progress bar stands at this number</pre></div>
+<p>A check that does not hold fails the test THERE, like expect(...) of std.testing, and the message ends with the screen as text. One that holds answers the same ui_node, so more can follow:</p>
+<div class="code"><pre class="sharp">on_tag(&quot;total&quot;).should_be_shown().should_say(&quot;Count: 1&quot;);</pre></div>
+<p>TOASTS AND THE TOOLTIP are not widgets: the window paints them over everything itself. on_text(...) does not find them; these do:</p>
+<div class="code"><pre class="sharp">should_show_toast(&quot;Saved&quot;)      a toast with exactly these words is up
+should_show_no_toast()          none is (after advance(...) let its time pass)
+should_show_tooltip(&quot;Delete&quot;)   the tooltip with these words is up (hover() a widget, advance(1))
+should_show_no_tooltip()</pre></div>
+<div class="code"><pre class="sharp">(a dialog, a menu and a bottom sheet ARE widgets: on_tag and on_text find what is in them)</pre></div>
+<p>WHAT IS PAINTED - a watched test only (-watch, or watch_ui_tests()):</p>
+<div class="code"><pre class="sharp">should_have_color(gui.rgb(230, 90, 90))         the colour painted in the middle of it
+should_have_color_at(4, 4, colour)              ... 4 pixels in from its top left corner
+color_at(4, 4)                                  the colour there, to look at yourself</pre></div>
+<p>A test that is not watched paints nothing, so there is no colour to check: these words then stop the test with an illegal_state_exception that says so. They do not pass quietly, and they are not skipped.</p>
+<p>(They are named should_... because they are checks. The words that only ASK - exists(), is_shown(), words() in finders.sharp - answer and never fail.)</p></div>
+<div class="fn" id="ui_node.should_have_color"><div class="sig">def <b>ui_node.should_have_color</b>(wanted: color) : ui_node</div><p>the colour painted in the middle of the widget must be this one. A watched test only.</p></div>
+<div class="fn" id="ui_node.should_have_color_at"><div class="sig">def <b>ui_node.should_have_color_at</b>(dx: decimal, dy: decimal, wanted: color) : ui_node</div><p>that colour must be this one. A watched test only: without a window this stops with an exception.</p></div>
+<div class="fn" id="ui_node.should_have_value"><div class="sig">def <b>ui_node.should_have_value</b>(wanted: decimal) : ui_node</div><p>a slider or a progress bar stands at this number (to within a thousandth)</p></div>
+<div class="fn" id="ui_node.should_not_exist"><div class="sig">def <b>ui_node.should_not_exist</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.should_say"><div class="sig">def <b>ui_node.should_say</b>(words: string) : ui_node</div></div>
+<div class="fn" id="ui_node.swipe_down"><div class="sig">def <b>ui_node.swipe_down</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.swipe_left"><div class="sig">def <b>ui_node.swipe_left</b>() : ui_node</div><p>drag across most of the widget towards the left, as a finger does (a list then shows what is further right)</p></div>
+<div class="fn" id="ui_node.swipe_right"><div class="sig">def <b>ui_node.swipe_right</b>() : ui_node</div></div>
+<div class="fn" id="ui_node.swipe_up"><div class="sig">def <b>ui_node.swipe_up</b>() : ui_node</div><p>drag upwards: a list then shows what is further down</p></div>
+<div class="fn" id="ui_node.type"><div class="sig">def <b>ui_node.type</b>(words: string) : ui_node</div><p>click the widget so that it has the keyboard, and type these words</p></div>
+<div class="fn" id="ui_node.words"><div class="sig">def <b>ui_node.words</b>() : string</div><p>the words it shows (&quot;&quot; when it shows none)</p></div>
+<div class="fn" id="ui_test"><div class="sig">def <b>ui_test</b>(name: string, body: ()())</div><p>One UI test: a test(...) of std.testing that has a screen of its own. The screen of the test before it is taken down first, and every timer stopped, so that each test starts from nothing.</p></div>
+<div class="fn" id="wait_until"><div class="sig">def <b>wait_until</b>(condition: ()(bool))</div><p>time passes until the block answers true; fails the test after five seconds of the clock</p></div>
+<div class="fn" id="wait_until-2"><div class="sig">def <b>wait_until</b>(most: decimal, condition: ()(bool))</div><p>the same, giving up after <code>most</code> seconds of the test&#x27;s clock</p></div>
+<div class="fn" id="watch_ui_tests"><div class="sig">def <b>watch_ui_tests</b>(seconds: decimal)</div><p>Watch the UI tests that follow: each runs in a real window, resting <code>seconds</code> after every thing it does (see WATCHING A TEST above). The same as starting the program with -watch, for a program that always wants it.</p></div>
+<div class="fn" id="watch_ui_tests-2"><div class="sig">def <b>watch_ui_tests</b>()</div></div>
+<div class="fn" id="wheel_over"><div class="sig">def <b>wheel_over</b>(node: ui_node, word: string, turn: _int64) : bool</div><p>One step of the wheel over the widget: <code>turn</code> 1 shows what is further up, -1 what is further down. Answers whether anything on the screen moved.</p></div>
+</div></section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>STEP_KIDS</code></td><td><code>_int64</code></td><td><code>4</code></td><td>the widgets right inside those found so far</td></tr><tr><td><code>STEP_KIND</code></td><td><code>_int64</code></td><td><code>2</code></td><td>find: the widgets of a class</td></tr><tr><td><code>STEP_ONLY_KIND</code></td><td><code>_int64</code></td><td><code>8</code></td><td>... of a class</td></tr><tr><td><code>STEP_ONLY_STATE</code></td><td><code>_int64</code></td><td><code>10</code></td><td>... that are on, off, enabled, disabled or in sight (query_step.what says which)</td></tr><tr><td><code>STEP_ONLY_TAG</code></td><td><code>_int64</code></td><td><code>6</code></td><td>of those found so far, the ones with this tag</td></tr><tr><td><code>STEP_ONLY_TEXT</code></td><td><code>_int64</code></td><td><code>7</code></td><td>... that show these words</td></tr><tr><td><code>STEP_PARENT</code></td><td><code>_int64</code></td><td><code>5</code></td><td>the widgets those found so far are in</td></tr><tr><td><code>STEP_PICK</code></td><td><code>_int64</code></td><td><code>9</code></td><td>one of those found so far</td></tr><tr><td><code>STEP_ROOT</code></td><td><code>_int64</code></td><td><code>3</code></td><td>the whole screen</td></tr><tr><td><code>STEP_TAG</code></td><td><code>_int64</code></td><td><code>0</code></td><td>find: the widgets with this tag</td></tr><tr><td><code>STEP_TEXT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>find: the widgets that show these words</td></tr><tr><td><code>THE_LAST</code></td><td><code>_int64</code></td><td><code>0 - 2</code></td><td></td></tr><tr><td><code>THE_ONLY</code></td><td><code>_int64</code></td><td><code>0 - 1</code></td><td>query_step.place: there must be exactly one</td></tr></table></div></section>
+    </main>
+</div></div>
+<script src="search.js"></script>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

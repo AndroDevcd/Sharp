@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.11</span>
+    <span class="version">0.5.12</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,6 +60,7 @@
         <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
         <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
         <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.testing.html">std.guikit.testing</a></li>
         <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
         <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
         <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
@@ -161,6 +162,11 @@ column(card.then(modifier().grow(1))) { ... }      // the card look, plus one mo
 <div class="fn" id="modifier.shape"><div class="sig">def <b>shape</b>(outline: shape) : modifier</div><p>the shape of the background and border, when the colour is set elsewhere (a card&#x27;s own surface)</p></div>
 <div class="fn" id="modifier.show"><div class="sig">def <b>show</b>(yes: _int64) : modifier</div><p>show it or not: show(0) takes NO ROOM and paints nothing. show(logged_in.value) (Android: GONE)</p></div>
 <div class="fn" id="modifier.size"><div class="sig">def <b>size</b>(w: decimal, h: decimal) : modifier</div><p>exactly this big</p></div>
+<div class="fn" id="modifier.tag"><div class="sig">def <b>tag</b>(name_for_tests: string) : modifier</div><p>A name for UI tests to find this widget by (std.guikit.testing):</p>
+<div class="code"><pre class="sharp">button(&quot;Save&quot;, modifier().tag(&quot;save&quot;)) { ... };
+// in a test:
+on_tag(&quot;save&quot;).click();</pre></div>
+<p>Every widget takes it, and it changes nothing about how the widget looks or works. Words on the screen change with the language and the wording; a tag stays. (Android: Modifier.testTag.)</p></div>
 <div class="fn" id="modifier.then"><div class="sig">def <b>then</b>(more: modifier) : modifier</div><p>A NEW modifier with everything this one says, and then everything <code>more</code> says - where both mention the same thing, <code>more</code> wins. Neither of the two is changed, so a named look stays reusable:</p>
 <div class="code"><pre class="sharp">card.then(modifier().grow(1))</pre></div></div>
 <div class="fn" id="modifier.tooltip"><div class="sig">def <b>tooltip</b>(words: string) : modifier</div><p>words shown in a small box when the mouse rests on the widget for a moment</p></div>

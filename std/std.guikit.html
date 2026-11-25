@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.11</span>
+    <span class="version">0.5.12</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,6 +60,7 @@
         <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
         <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
         <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.testing.html">std.guikit.testing</a></li>
         <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
         <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
         <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
@@ -84,10 +85,10 @@
 <a class="modcard" href="std.guikit.animation.html"><b>std.guikit.animation</b><span>5 types, 33 functions</span><span class="names">animated, fader, glide, revealer, stagger</span></a>
 <a class="modcard" href="std.guikit.charts.html"><b>std.guikit.charts</b><span>16 types, 113 functions</span><span class="names">axis_label, bar_series, chart, chart_axis, chart_grid, chart_hover, ...</span></a>
 <a class="modcard" href="std.guikit.core.model.html"><b>std.guikit.core.model</b><span>6 types, 21 functions</span><span class="names">model_store, saved_entry, saved_items, saved_maker, saved_store, view_model</span></a>
-<a class="modcard" href="std.guikit.core.runtime.html"><b>std.guikit.core.runtime</b><span>3 types, 29 functions</span><span class="names">main_queue, timer, ui_host</span></a>
+<a class="modcard" href="std.guikit.core.runtime.html"><b>std.guikit.core.runtime</b><span>3 types, 43 functions</span><span class="names">main_queue, timer, ui_host</span></a>
 <a class="modcard" href="std.guikit.core.state.html"><b>std.guikit.core.state</b><span>7 types, 49 functions</span><span class="names">built_by, change_hook, composable, reconciler, state, state_cell, ...</span></a>
-<a class="modcard" href="std.guikit.core.style.html"><b>std.guikit.core.style</b><span>4 types, 72 functions</span><span class="names">modifier, shape, shape_path, theme</span></a>
-<a class="modcard" href="std.guikit.core.tree.html"><b>std.guikit.core.tree</b><span>13 types, 44 functions</span><span class="names">behavior, clipper, drag_scroller, element, floater, key_target, ...</span></a>
+<a class="modcard" href="std.guikit.core.style.html"><b>std.guikit.core.style</b><span>4 types, 73 functions</span><span class="names">modifier, shape, shape_path, theme</span></a>
+<a class="modcard" href="std.guikit.core.tree.html"><b>std.guikit.core.tree</b><span>17 types, 48 functions</span><span class="names">behavior, clipper, drag_scroller, element, floater, has_caption, ...</span></a>
 <a class="modcard" href="std.guikit.core.util.html"><b>std.guikit.core.util</b><span>2 types, 13 functions</span><span class="names">num, txt</span></a>
 <a class="modcard" href="std.guikit.game.html"><b>std.guikit.game</b><span>5 types, 34 functions</span><span class="names">hit_box, sprite_animation, sprite_batch, sprite_sheet, tile_map</span></a>
 <a class="modcard" href="std.guikit.gestures.html"><b>std.guikit.gestures</b><span>2 types, 10 functions</span><span class="names">reorder, swipe_row</span></a>
@@ -97,14 +98,15 @@
 <a class="modcard" href="std.guikit.layout.stacking.html"><b>std.guikit.layout.stacking</b><span>1 types, 9 functions</span><span class="names">stack</span></a>
 <a class="modcard" href="std.guikit.navigation.html"><b>std.guikit.navigation</b><span>7 types, 53 functions</span><span class="names">nav_bar, navigator, route, screen_host, screen_kind, typed_screen, ...</span></a>
 <a class="modcard" href="std.guikit.overlay.html"><b>std.guikit.overlay</b><span>2 types, 19 functions</span><span class="names">menu_box, popup</span></a>
-<a class="modcard" href="std.guikit.platform.html"><b>std.guikit.platform</b><span>9 types, 84 functions</span><span class="names">color, event, font, image, painter, shape_batch, ...</span></a>
-<a class="modcard" href="std.guikit.three.html"><b>std.guikit.three</b><span>13 types, 138 functions</span><span class="names">camera, lamp, mesh, plant, plants, scattering, ...</span></a>
-<a class="modcard" href="std.guikit.widgets.display.html"><b>std.guikit.widgets.display</b><span>8 types, 48 functions</span><span class="names">badge, chip, divider, label, picture, progress_bar, ...</span></a>
+<a class="modcard" href="std.guikit.platform.html"><b>std.guikit.platform</b><span>9 types, 89 functions</span><span class="names">color, event, font, image, painter, shape_batch, ...</span></a>
+<a class="modcard" href="std.guikit.testing.html"><b>std.guikit.testing</b><span>5 types, 128 functions</span><span class="names">query_step, test_screen, ui_node, ui_nodes, ui_query</span></a>
+<a class="modcard" href="std.guikit.three.html"><b>std.guikit.three</b><span>17 types, 219 functions</span><span class="names">camera, endless, flock, lamp, mesh, motes, ...</span></a>
+<a class="modcard" href="std.guikit.widgets.display.html"><b>std.guikit.widgets.display</b><span>8 types, 53 functions</span><span class="names">badge, chip, divider, label, picture, progress_bar, ...</span></a>
 <a class="modcard" href="std.guikit.widgets.drawing.html"><b>std.guikit.widgets.drawing</b><span>2 types, 7 functions</span><span class="names">canvas, frame</span></a>
-<a class="modcard" href="std.guikit.widgets.input.html"><b>std.guikit.widgets.input</b><span>13 types, 101 functions</span><span class="names">button, checkbox, dropdown, fab, form, menu_option, ...</span></a>
+<a class="modcard" href="std.guikit.widgets.input.html"><b>std.guikit.widgets.input</b><span>13 types, 115 functions</span><span class="names">button, checkbox, dropdown, fab, form, menu_option, ...</span></a>
 <a class="modcard" href="std.guikit.widgets.pickers.html"><b>std.guikit.widgets.pickers</b><span>2 types, 14 functions</span><span class="names">month_grid, time_spinner</span></a>
 </div>
-<p class="contents"><a href="#gui">gui</a> <a href="#functions">functions</a></p>
+<p class="contents"><a href="#gui">gui</a> <a href="#sound">sound</a> <a href="#voice">voice</a> <a href="#functions">functions</a></p>
 <section class="type" id="gui">
 <h2><span class="kind">class</span> gui</h2>
 <p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/gui.sharp">source</a></p>
@@ -457,6 +459,46 @@ sheet(adding) {
 <div class="fn" id="gui.y_axis-2"><div class="sig">static def <b>y_axis</b>(label: (axis_label)()) : chart_axis</div></div>
 </div>
 </section>
+<section class="type" id="sound">
+<h2><span class="kind">class</span> sound</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/sound.sharp">source</a></p>
+<p>sound - sound the program makes itself: no sound files. A few VOICES, set up once, go on by themselves and together make a place sound alive.</p>
+<div class="code"><pre class="sharp">sound.rumble(140).volume(0.35);                         // the deep sea, always there
+sound.hum(55).volume(0.12);                             // a low note under it
+sound.chime(520).every(5, 14).volume(0.15);             // a bell-like note, now and then
+sound.call(190, 110, 3.5).every(16, 40).volume(0.2);    // a whale, far off
+sound.pops(900).every(0.4, 2.5).volume(0.08);           // bubbles</pre></div>
+<div class="code"><pre class="sharp">sound.mute(true);       // silence (the voices go on, unheard);  sound.clear() takes them all away</pre></div>
+<p>THE VOICES</p>
+<div class="code"><pre class="sharp">hum(pitch)              a steady note with a slow swell
+rumble(depth)           deep noise that swells and fades: the sea, wind, an engine far off.
+                        `depth` is how high it reaches: 80 is a tremor, 300 is surf
+chime(pitch)            a note that rings out like a bell, each time one of five notes
+                        that sound well together in any order
+call(from, to, seconds) a note that glides from one pitch to another: a whale, a siren
+pops(pitch)             short rising blips: bubbles, drips</pre></div>
+<p>A pitch is in turns of the wave a second (Hz): 110 is a low A, 440 the A an orchestra tunes to.</p>
+<p>Set them up ONCE - when the app starts, not in build(), which runs again and again. A machine without sound stays silent; nothing fails. (Web Audio: OscillatorNode, BiquadFilterNode and GainNode wired by hand.)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="sound.call"><div class="sig">static def <b>call</b>(from: decimal, to: decimal, seconds: decimal) : voice</div></div>
+<div class="fn" id="sound.chime"><div class="sig">static def <b>chime</b>(pitch: decimal) : voice</div><p>rings for about three seconds; ring(seconds) on the voice changes that</p></div>
+<div class="fn" id="sound.clear"><div class="sig">static def <b>clear</b>()</div><p>take every voice away</p></div>
+<div class="fn" id="sound.hum"><div class="sig">static def <b>hum</b>(pitch: decimal) : voice</div></div>
+<div class="fn" id="sound.mute"><div class="sig">static def <b>mute</b>(on: bool)</div><p>true: nothing is heard (the voices go on); false: heard again</p></div>
+<div class="fn" id="sound.pops"><div class="sig">static def <b>pops</b>(pitch: decimal) : voice</div></div>
+<div class="fn" id="sound.rumble"><div class="sig">static def <b>rumble</b>(depth: decimal) : voice</div></div>
+</div>
+</section>
+<section class="type" id="voice">
+<h2><span class="kind">class</span> voice</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/sound.sharp">source</a></p>
+<p>one voice of the program&#x27;s sound (sound.hum(...), sound.chime(...) ...)</p>
+<h3>Functions</h3><div>
+<div class="fn" id="voice.voice"><div class="sig"><b>voice</b>(made: _int64)</div></div>
+<div class="fn" id="voice.every"><div class="sig">def <b>every</b>(least: decimal, most: decimal) : voice</div><p>it rests between soundings: at least <code>least</code> seconds, at most <code>most</code>, a different time every time</p></div>
+<div class="fn" id="voice.volume"><div class="sig">def <b>volume</b>(level: decimal) : voice</div><p>how loud: 0 silent, 1 as loud as it goes (a few voices together want 0.1 .. 0.4 each)</p></div>
+</div>
+</section>
 <section class="type" id="functions"><h2>Functions</h2><div>
 <div class="fn" id="add"><div class="sig">def <b>add</b>(what: thing) : thing</div><p>put a thing you kept in a variable into the scene or group being written</p></div>
 <div class="fn" id="add-2"><div class="sig">def <b>add</b>(shape: mesh) : thing</div><p>a mesh of your own, as a thing</p></div>
@@ -477,6 +519,9 @@ sheet(adding) {
 <div class="fn" id="bars-6"><div class="sig">def <b>bars</b>(name: string, values: decimal[], on_each: (mark)()) : bar_series</div></div>
 <div class="fn" id="bars-7"><div class="sig">def <b>bars</b>(values: list&lt;double&gt;, on_each: (mark)()) : bar_series</div></div>
 <div class="fn" id="bars-8"><div class="sig">def <b>bars</b>(name: string, values: list&lt;double&gt;, on_each: (mark)()) : bar_series</div></div>
+<div class="fn" id="bloom"><div class="sig">def <b>bloom</b>(amount: decimal)</div><p>Bright things spill light round themselves: the sun on water, a lamp, a pale wall in sunlight get a soft glow, as they have through a camera or a tired eye. 0 is none, 0.4 a gentle haze of light, 1 a dream.</p>
+<div class="code"><pre class="sharp">scene { bloom(0.5); ... }</pre></div>
+<p>(It works on the finished picture: nothing in the scene need be told.)</p></div>
 <div class="fn" id="bold"><div class="sig">def <b>bold</b>(words: string)</div></div>
 <div class="fn" id="button"><div class="sig">def <b>button</b>(words: string, action: ()()) : button</div><p>words you can click: button(&quot;Save&quot;) { save(); } (widgets/input/button.sharp)</p></div>
 <div class="fn" id="button-2"><div class="sig">def <b>button</b>(words: string, look: modifier, action: ()()) : button</div></div>
@@ -513,10 +558,12 @@ sheet(adding) {
 <div class="fn" id="divider-2"><div class="sig">def <b>divider</b>(look: modifier) : divider</div></div>
 <div class="fn" id="dropdown"><div class="sig">def <b>dropdown</b>(choice: state&lt;_int64&gt;, block: ()()) : dropdown</div><p>pick one named choice from a drop-down menu: dropdown(choice) { option(&quot;A&quot;); option(&quot;B&quot;); } (widgets/input/dropdown.sharp)</p></div>
 <div class="fn" id="dropdown-2"><div class="sig">def <b>dropdown</b>(choice: state&lt;_int64&gt;, look: modifier, block: ()()) : dropdown</div></div>
+<div class="fn" id="endless"><div class="sig">def <b>endless</b>(tile: decimal, cells: _int64, rise: (decimal, decimal)(decimal)) : endless</div><p>land with no edge, made piece by piece round the eye as it travels: each piece <code>tile</code> metres along its edge and cut into <code>cells</code> squares, its height asked of your function (three/endless.sharp)</p></div>
 <div class="fn" id="fab"><div class="sig">def <b>fab</b>(words: string, action: ()()) : fab</div><p>the floating action button: in a stack, after the content it floats over (widgets/input/fab.sharp)</p></div>
 <div class="fn" id="fab-2"><div class="sig">def <b>fab</b>(words: string, look: modifier, action: ()()) : fab</div></div>
 <div class="fn" id="fade"><div class="sig">def <b>fade</b>(visible: _int64, block: ()()) : fader</div><p>content that fades in while <code>visible</code> is not 0 and fades out when it turns 0 (animation/fader.sharp)</p></div>
 <div class="fn" id="fade-2"><div class="sig">def <b>fade</b>(visible: _int64, look: modifier, block: ()()) : fader</div></div>
+<div class="fn" id="flock"><div class="sig">def <b>flock</b>(what: thing, count: _int64) : flock</div><p><code>count</code> copies of a thing moving together round one place: a school, a flight (three/moving.sharp: flock)</p></div>
 <div class="fn" id="fog"><div class="sig">def <b>fog</b>(color: _int64, from: decimal, to: decimal)</div><p>far things fade into this colour: none of it at <code>from</code> metres, nothing but it at <code>to</code></p></div>
 <div class="fn" id="form"><div class="sig">def <b>form</b>() : form</div><p>the rules a set of fields must pass before something is saved (widgets/input/form.sharp)</p></div>
 <div class="fn" id="gap"><div class="sig">def <b>gap</b>(pixels: decimal) : spacer</div><p>exactly this many pixels of empty room</p></div>
@@ -561,6 +608,7 @@ sheet(adding) {
 <div class="fn" id="modifier"><div class="sig">def <b>modifier</b>() : modifier</div><p>a new, empty modifier: modifier().padding(16).fill_width() ... (core/style/modifier.sharp)</p></div>
 <div class="fn" id="month_view"><div class="sig">def <b>month_view</b>(value: state&lt;date&gt;) : month_grid</div><p>a month as a calendar page to pick a day from (widgets/pickers/month_grid.sharp)</p></div>
 <div class="fn" id="month_view-2"><div class="sig">def <b>month_view</b>(value: state&lt;date&gt;, look: modifier) : month_grid</div></div>
+<div class="fn" id="motes"><div class="sig">def <b>motes</b>(count: _int64) : motes</div><p><code>count</code> small things adrift all round the eye: specks, bubbles, snow (three/moving.sharp: motes)</p></div>
 <div class="fn" id="nav_bar"><div class="sig">def <b>nav_bar</b>(nav: navigator) : nav_bar</div><p>the bar that switches between the app&#x27;s tabs (navigation/nav_bar.sharp)</p></div>
 <div class="fn" id="nav_bar-2"><div class="sig">def <b>nav_bar</b>(nav: navigator, look: modifier) : nav_bar</div></div>
 <div class="fn" id="on_frame"><div class="sig">def <b>on_frame</b>(what: (frame)())</div><p>your code, run before every frame of the scene is drawn. <code>f</code> says how much time passed (f.step, in seconds), what time it is (f.time), where the mouse is and which keys are held (f.key_down(KEY_LEFT), f.key_down(&#x27;a&#x27;)).</p>
@@ -654,6 +702,9 @@ sheet(adding) {
 <div class="fn" id="top_bar-3"><div class="sig">def <b>top_bar</b>(title: string, nav: navigator, actions: ()()) : row</div><p>... with the screen&#x27;s own buttons at its right end: top_bar(&quot;Inbox&quot;, nav) { button(&quot;New&quot;) { compose(); }; }</p></div>
 <div class="fn" id="top_bar-4"><div class="sig">def <b>top_bar</b>(title: string, nav: navigator, look: modifier, actions: ()()) : row</div></div>
 <div class="fn" id="tree"><div class="sig">def <b>tree</b>(seed: decimal) : plant</div><p>a broad-leaved tree, grown from this number: another number, another tree (three/plant.sharp)</p></div>
+<div class="fn" id="underwater"><div class="sig">def <b>underwater</b>(shallow: _int64, deep: _int64) : water</div><p>The eye is IN water: everything fades into the water&#x27;s colour with distance, the surface ripples overhead, and the sun through it throws moving light on what is below. <code>shallow</code> is the water&#x27;s colour near the surface, <code>deep</code> its colour below. What comes back sets the rest:</p>
+<div class="code"><pre class="sharp">underwater(0x35C6D0FF, 0x0A2E4AFF).surface(40).sight(70).caustics(0.8).light_shafts(0.6);</pre></div>
+<p>It takes the place of the sky and of fog(...). The sun still decides where the light comes from, and its shadows fall as on land.</p></div>
 <div class="fn" id="wrap"><div class="sig">def <b>wrap</b>(block: ()()) : wrap</div><p>children side by side, folding onto the next line when the line is full (layout/flow/wrap.sharp)</p></div>
 <div class="fn" id="wrap-2"><div class="sig">def <b>wrap</b>(look: modifier, block: ()()) : wrap</div></div>
 <div class="fn" id="x_axis"><div class="sig">def <b>x_axis</b>() : chart_axis</div><p>inside chart { }: the words along the bottom and the numbers up the side (charts/parts.sharp). With a block, every label is built from widgets: x_axis(months) { text(it.words).size(13); }</p></div>

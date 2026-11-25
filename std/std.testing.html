@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.11</span>
+    <span class="version">0.5.12</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -57,7 +57,7 @@
     <main>
 <p class="crumbs"><a href="index.html">Standard library</a> / std.testing</p>
 <h1>std.testing <small>module</small></h1>
-<p class="contents"><a href="#call_check">call_check</a> <a href="#mock">mock</a> <a href="#mock_arg">mock_arg</a> <a href="#mock_args">mock_args</a> <a href="#mock_call">mock_call</a> <a href="#mock_noted">mock_noted</a> <a href="#mock_recorder">mock_recorder</a> <a href="#mock_stub">mock_stub</a> <a href="#number_check">number_check</a> <a href="#stubbing">stubbing</a> <a href="#test_failure">test_failure</a> <a href="#test_run">test_run</a> <a href="#text_check">text_check</a> <a href="#functions">functions</a></p>
+<p class="contents"><a href="#call_check">call_check</a> <a href="#call_order">call_order</a> <a href="#mock">mock</a> <a href="#mock_arg">mock_arg</a> <a href="#mock_args">mock_args</a> <a href="#mock_call">mock_call</a> <a href="#mock_noted">mock_noted</a> <a href="#mock_recorder">mock_recorder</a> <a href="#mock_stub">mock_stub</a> <a href="#number_check">number_check</a> <a href="#stubbing">stubbing</a> <a href="#test_failure">test_failure</a> <a href="#test_run">test_run</a> <a href="#test_skipped">test_skipped</a> <a href="#text_check">text_check</a> <a href="#functions">functions</a></p>
 <section class="type" id="call_check">
 <h2><span class="kind">class</span> call_check</h2>
 <p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/testing/mock.sharp">source</a></p>
@@ -69,6 +69,14 @@
 <div class="fn" id="call_check.once"><div class="sig">def <b>once</b>()</div><p>exactly once</p></div>
 <div class="fn" id="call_check.times"><div class="sig">def <b>times</b>(count: _int64)</div><p>exactly this many times</p></div>
 <div class="fn" id="call_check.with_any_arguments"><div class="sig">def <b>with_any_arguments</b>() : call_check</div><p>whatever arguments the call had, not only the ones written in the block</p></div>
+</div>
+</section>
+<section class="type" id="call_order">
+<h2><span class="kind">class</span> call_order</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/testing/mock.sharp">source</a></p>
+<p>what verify_order { } gives back: the next call that must have come after</p>
+<h3>Functions</h3><div>
+<div class="fn" id="call_order.then"><div class="sig">def <b>then</b>(block: ()()) : call_order</div><p>the call in the block must have been made - after the ones before it in this order</p></div>
 </div>
 </section>
 <section class="type" id="mock">
@@ -99,6 +107,9 @@ given { store.rename(&quot;a&quot;, &quot;b&quot;); }.with_any_arguments().retur
 given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></div>
 <p>The block must make exactly ONE call on a mock. None, or more than one, is an error that lists what was found - so it is never a guess which call the <code>.returns</code> belongs to. Other code in the block (building an argument, a chain on the result) is fine: only calls ON A MOCK count. When several givens fit a call, the one written last wins.</p>
 <p>------------------------------------------------------------------------ verify { ONE CALL }.once() / .times(n) / .never() / .at_least(n) ------------------------------------------------------------------------ How often was that call made? Arguments are compared as in given. verify_nothing_else(store) fails if the mock was asked anything no verify has covered.</p>
+<p>------------------------------------------------------------------------ verify_order { ONE CALL }.then { ONE CALL }.then { ... } ------------------------------------------------------------------------ Were the calls made in this order? Each block is one call, as in verify; the calls may be on different mocks.</p>
+<div class="code"><pre class="sharp">verify_order { door.unlock(); }.then { alarm.off(); }.then { door.open(); };</pre></div>
+<p>It holds when there is an unlock, an off after it and an open after that. Other calls may lie in between: it is the ORDER that is checked, not that nothing else happened (verify_nothing_else is the word for that).</p>
 <p>(Mockito: mock(), given(x).willReturn(y), verify(mock).call(). MockK: mockk(relaxed = true), every { } returns, verify { }. The block form is MockK&#x27;s; &quot;works without set-up&quot; is Mockito&#x27;s default.)</p>
 <p>------------------------------------------------------------------------ A stand-in for ONE TEST: provide&lt;t&gt;() { ... } ------------------------------------------------------------------------ provide&lt;note_store&gt;() { return store; }; Wherever the program asks for a t through a replaceable&lt;t&gt;() definition (std.di), it gets this object, until the test ends.</p>
 <p>------------------------------------------------------------------------ A mock class written by hand ------------------------------------------------------------------------ Still possible, for a stand-in with some behaviour of its own: a class on top of <code>mock</code> whose functions call called(&quot;name&quot;, argument) or answer(&quot;name&quot;). mock&lt;t&gt;() makes exactly such a class for you.</p>
@@ -109,13 +120,15 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 <div class="fn" id="mock.answer-2"><div class="sig">def <b>answer</b>(function: string, argument: object?) : object</div><p>the same, remembering the argument</p></div>
 <div class="fn" id="mock.called"><div class="sig">def <b>called</b>(function: string)</div><p>&quot;this function was called&quot;: write it in a function that gives nothing back</p></div>
 <div class="fn" id="mock.called-2"><div class="sig">def <b>called</b>(function: string, argument: object?)</div><p>the same, remembering the argument it was called with</p></div>
-<div class="fn" id="mock.count_fitting"><div class="sig">def <b>count_fitting</b>(wanted: mock_stub) : _int64</div><p>how many calls fit <code>wanted</code>; each one that does is marked as checked</p></div>
+<div class="fn" id="mock.count_fitting"><div class="sig">def <b>count_fitting</b>(wanted: mock_stub) : _int64</div></div>
+<div class="fn" id="mock.first_fitting_after"><div class="sig">def <b>first_fitting_after</b>(wanted: mock_stub, after: _int64) : _int64</div><p>the number of the first call that fits and was made after call number <code>after</code>; -1: there is none</p></div>
 <div class="fn" id="mock.forget_calls"><div class="sig">def <b>forget_calls</b>()</div><p>forget every call so far (what was set up stays): to check only what happens from here on</p></div>
 <div class="fn" id="mock.given"><div class="sig">def <b>given</b>(function: string, value: object) : mock</div><p>what <code>function</code> gives back from now on, whatever its arguments (the by-name form of given { })</p></div>
 <div class="fn" id="mock.last_argument"><div class="sig">def <b>last_argument</b>(function: string) : object?</div><p>the first argument of the last call of <code>function</code> (null when never called, or called with none)</p></div>
 <div class="fn" id="mock.mock_call"><div class="sig">def <b>mock_call</b>(function: string, args: mock_args) : object?</div><p>A call arrived. Inside a given { } or verify { } block it is only noted (and null comes back). Otherwise it is written down, and the answer of the newest given that fits is given back - null when there is none.</p></div>
 <div class="fn" id="mock.mock_missing"><div class="sig">def <b>mock_missing</b>(function: string, gives: string)</div><p>A function that must give back an object has no answer and no harmless default. Inside a given / verify block that is fine - the call is noted and the block is left; in a running test it fails the test, saying what to write.</p></div>
 <div class="fn" id="mock.mock_number"><div class="sig">def <b>mock_number</b>(function: string, args: mock_args) : decimal</div><p>the same for a function that gives back a number: 0 when nothing was set up</p></div>
+<div class="fn" id="mock.number_in"><div class="sig">def <b>number_in</b>(function: string, found: object) : decimal</div><p>The number in what a given { } was told to return: returns(4) keeps it as a <code>double</code>, returns(new int(4)) as that object. (A function that gives back a number OBJECT - <code>int</code>, <code>long</code> ... - makes its object from this.)</p></div>
 <div class="fn" id="mock.story"><div class="sig">def <b>story</b>() : string</div><p>every call that was made, in order: <code>load(), save(&quot;milk&quot;)</code></p></div>
 <div class="fn" id="mock.times_called"><div class="sig">def <b>times_called</b>(function: string) : _int64</div><p>how many times a function of this name was called</p></div>
 <div class="fn" id="mock.unchecked_story"><div class="sig">def <b>unchecked_story</b>() : string</div><p>the calls no verify has covered, as words (&quot;&quot; when there are none)</p></div>
@@ -149,7 +162,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 <h2><span class="kind">class</span> mock_call</h2>
 <p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/testing/mock.sharp">source</a></p>
 <p>one call of a mock: which function, with what</p>
-<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>owner</code></td><td><code>mock</code></td><td></td></tr><tr><td><code>function</code></td><td><code>string</code></td><td></td></tr><tr><td><code>args</code></td><td><code>mock_args</code></td><td></td></tr><tr><td><code>checked</code></td><td><code>_int64</code></td><td>1 once a verify has counted it</td></tr></table></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>owner</code></td><td><code>mock</code></td><td></td></tr><tr><td><code>function</code></td><td><code>string</code></td><td></td></tr><tr><td><code>args</code></td><td><code>mock_args</code></td><td></td></tr><tr><td><code>checked</code></td><td><code>_int64</code></td><td>1 once a verify has counted it</td></tr><tr><td><code>number</code></td><td><code>_int64</code></td><td>which call of the whole program it was, counted over every mock (0: only noted)</td></tr></table></div>
 <h3>Functions</h3><div>
 <div class="fn" id="mock_call.mock_call"><div class="sig"><b>mock_call</b>(on: mock, name: string, given_args: mock_args)</div></div>
 <div class="fn" id="mock_call.words"><div class="sig">def <b>words</b>() : string</div></div>
@@ -167,7 +180,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 <h2><span class="kind">class</span> mock_recorder</h2>
 <p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/testing/mock.sharp">source</a></p>
 <p>While a given { } or verify { } block runs, mocks do not act: they add the call to <code>noted</code>. FRAMEWORK USE.</p>
-<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>noting</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>noted</code></td><td><code>list&lt;mock_call&gt;</code></td><td></td></tr><tr><td><code>ANY_NUMBER</code></td><td><code>decimal</code></td><td>what any_number() gives: a number no test would write, recognised as &quot;any&quot;</td></tr><tr><td><code>any_text_mark</code></td><td><code>string</code></td><td>what any_text() gives: one particular text object, recognised by being that very object</td></tr></table></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>noting</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>noted</code></td><td><code>list&lt;mock_call&gt;</code></td><td></td></tr><tr><td><code>made</code></td><td><code>_int64</code></td><td>how many calls every mock together has been asked so far</td></tr><tr><td><code>ANY_NUMBER</code></td><td><code>decimal</code></td><td>what any_number() gives: a number no test would write, recognised as &quot;any&quot;</td></tr><tr><td><code>any_text_mark</code></td><td><code>string</code></td><td>what any_text() gives: one particular text object, recognised by being that very object</td></tr></table></div>
 <h3>Functions</h3><div>
 <div class="fn" id="mock_recorder.the_call_of"><div class="sig">static def <b>the_call_of</b>(block: ()(), word: string) : mock_call</div><p>run <code>block</code> and give back the ONE call it made on a mock; <code>word</code> is &quot;given&quot; or &quot;verify&quot;, for the messages</p></div>
 </div>
@@ -255,6 +268,7 @@ provide&lt;t&gt;() { ... }        for this test, the program gets this object wh
 mock, verify(...)           a stand-in that remembers how it was used (both: mock.sharp)
 before_each { ... }         run before every test of the group (make what each test needs)
 after_each { ... }          run after every test of the group, also when it failed (clean up)
+skip_test(&quot;why&quot;)            leave the test here, counted as skipped and not as failed
 show_only_failures()        say nothing about tests that pass (for a program with thousands of them)
 finish_tests()              print the summary and end the program: exit code 0 when every
                             test passed, 1 when any failed (so a build script can tell)</pre></div>
@@ -277,12 +291,31 @@ sharp basket_tests -test-only &quot;a shopping basket &gt; a new basket is empty
 <div class="fn" id="test_run.add_after"><div class="sig">static def <b>add_after</b>(step: ()())</div></div>
 <div class="fn" id="test_run.add_before"><div class="sig">static def <b>add_before</b>(step: ()())</div></div>
 <div class="fn" id="test_run.count"><div class="sig">static def <b>count</b>() : _int64</div><p>how many tests ran so far, passed and failed together</p></div>
-<div class="fn" id="test_run.group"><div class="sig">static def <b>group</b>(name: string, body: ()())</div></div>
+<div class="fn" id="test_run.group"><div class="sig">static def <b>group</b>(name: string, body: ()())</div><p>A GROUP MAY HOLD GROUPS:</p>
+<div class="code"><pre class="sharp">tests(&quot;the basket&quot;) {
+    before_each { ... }                     // before every test below, the inner group&#x27;s too
+    test(&quot;a new basket is empty&quot;) { ... };</pre></div>
+<div class="code"><pre class="sharp">    tests(&quot;with three things in it&quot;) {
+        before_each { ... }                 // after the outer one, before these tests only
+        test(&quot;the total is their sum&quot;) { ... };
+    };
+};</pre></div>
+<p>A test&#x27;s full name is its groups and itself, joined by &quot; &gt; &quot; (&quot;the basket &gt; with three things in it &gt; the total is their sum&quot;): what a failure is listed as, and what -test-only takes.</p>
+<p>THE LINES OF A GROUP ITSELF - what stands in the block beside the tests - run once, where they stand: lines before the first test are &quot;before all of them&quot;, lines after the last &quot;after all of them&quot;. There is no other word for it. When such a line throws, the group fails (it is listed as &quot;&lt;group&gt; &gt; the group&#x27;s own lines&quot;) and the tests after it in that group do not run; the groups after it do.</p></div>
 <div class="fn" id="test_run.in_a_test"><div class="sig">static def <b>in_a_test</b>() : bool</div><p>is a test running right now?</p></div>
 <div class="fn" id="test_run.one"><div class="sig">static def <b>one</b>(name: string, body: ()())</div></div>
 <div class="fn" id="test_run.only_failures"><div class="sig">static def <b>only_failures</b>()</div><p>from now on, print only the tests that fail (and the summary)</p></div>
 <div class="fn" id="test_run.only_in_tests"><div class="sig">static def <b>only_in_tests</b>(written: string)</div><p><code>written</code> is a word for tests only (mock&lt;...&gt;(), given, verify: mock.sharp). Outside a <code>tests(&quot;...&quot;) { ... }</code> group - in the program itself - it is refused.</p></div>
+<div class="fn" id="test_run.skipped_count"><div class="sig">static def <b>skipped_count</b>() : _int64</div><p>how many tests were skipped so far (skip_test)</p></div>
 <div class="fn" id="test_run.summary"><div class="sig">static def <b>summary</b>() : _int64</div><p>print the summary. Gives how many tests failed.</p></div>
+</div>
+</section>
+<section class="type" id="test_skipped">
+<h2><span class="kind">class</span> test_skipped</h2>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/testing/testing.sharp">source</a></p>
+<p>thrown by skip_test(...): the test ends there, counted as skipped; its message is the reason</p>
+<h3>Functions</h3><div>
+<div class="fn" id="test_skipped.test_skipped"><div class="sig"><b>test_skipped</b>(why: string) -&gt; base(why)</div></div>
 </div>
 </section>
 <section class="type" id="text_check">
@@ -301,10 +334,10 @@ sharp basket_tests -test-only &quot;a shopping basket &gt; a new basket is empty
 </div>
 </section>
 <section class="type" id="functions"><h2>Functions</h2><div>
-<div class="fn" id="after_each"><div class="sig">def <b>after_each</b>(step: ()())</div><p>run this after every test of the group, also when the test failed</p></div>
+<div class="fn" id="after_each"><div class="sig">def <b>after_each</b>(step: ()())</div><p>run this after every test of the group and of the groups inside it, also when the test failed</p></div>
 <div class="fn" id="any_number"><div class="sig">def <b>any_number</b>() : decimal</div><p>in a given / verify block: &quot;any number here&quot;</p></div>
 <div class="fn" id="any_text"><div class="sig">def <b>any_text</b>() : string</div><p>in a given / verify block: &quot;any text here&quot;</p></div>
-<div class="fn" id="before_each"><div class="sig">def <b>before_each</b>(step: ()())</div><p>run this before every test of the group</p></div>
+<div class="fn" id="before_each"><div class="sig">def <b>before_each</b>(step: ()())</div><p>run this before every test of the group - and of the groups inside it</p></div>
 <div class="fn" id="expect"><div class="sig">def <b>expect</b>(value: decimal) : number_check</div><p>a number to check: expect(n).should_be(...)</p></div>
 <div class="fn" id="expect-2"><div class="sig">def <b>expect</b>(value: string) : text_check</div><p>a text to check: expect(s).should_be(...)</p></div>
 <div class="fn" id="expect_false"><div class="sig">def <b>expect_false</b>(condition: decimal)</div><p>the condition must not hold (false, or 0)</p></div>
@@ -323,11 +356,18 @@ RESULT FAIL &lt;name&gt; (&lt;k&gt; of &lt;n&gt; tests failed)</pre></div>
 <div class="fn" id="given"><div class="sig">def <b>given</b>(block: ()()) : stubbing</div><p>set up what ONE call on a mock gives back:  given { store.load(); }.returns(notes);</p></div>
 <div class="fn" id="provide"><div class="sig">def <b>provide</b>&lt;t&gt;(make: ()(t))</div><p>For the rest of this test, wherever the program asks for a t through a replaceable&lt;t&gt;() definition (std.di), it gets what the block makes. The block runs once, now.</p></div>
 <div class="fn" id="show_only_failures"><div class="sig">def <b>show_only_failures</b>()</div><p>Print only the tests that fail, and the summary - not a line for every test that passed. For a program with thousands of small tests (checks made in a loop), where the passing lines would bury the one that matters. Call it before the first tests(...).</p></div>
+<div class="fn" id="skip_test"><div class="sig">def <b>skip_test</b>(why: string)</div><p>Leave the test here: it is counted as SKIPPED - not passed, not failed - and the reason is printed beside it. For a test that cannot run where it is (another system, something not built yet) and should stay visible instead of being deleted or commented out:</p>
+<div class="code"><pre class="sharp">test(&quot;the tray icon follows the theme&quot;) {
+    if(!on_windows()) { skip_test(&quot;only Windows has a tray&quot;); }
+    ...
+};</pre></div>
+<p>Written among the lines of a group, it skips the rest of that group.</p></div>
 <div class="fn" id="test"><div class="sig">def <b>test</b>(name: string, body: ()())</div><p>one test: one thing the code should do, said as a sentence</p></div>
 <div class="fn" id="tests"><div class="sig">def <b>tests</b>(name: string, body: ()())</div><p>a group of tests that belong together</p></div>
 <div class="fn" id="verify"><div class="sig">def <b>verify</b>(block: ()()) : call_check</div><p>check how often ONE call on a mock was made:  verify { store.save(&quot;milk&quot;); }.once();</p></div>
 <div class="fn" id="verify-2"><div class="sig">def <b>verify</b>(on: mock, function: string) : call_check</div><p>the by-name form, for a mock class written by hand: every call of that function, whatever its arguments</p></div>
 <div class="fn" id="verify_nothing_else"><div class="sig">def <b>verify_nothing_else</b>(stand_in: object)</div><p>the mock must not have been asked anything that no verify has covered</p></div>
+<div class="fn" id="verify_order"><div class="sig">def <b>verify_order</b>(block: ()()) : call_order</div><p>check that calls were made in an order:  verify_order { a.first(); }.then { b.second(); };</p></div>
 </div></section>
     </main>
 </div></div>

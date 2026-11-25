@@ -2046,6 +2046,8 @@ std.di  replacements.static def put(stand_in: object)
 std.export  def deserialize(bytes: string) : object
 std.export  def serialize(obj: object) : char_array
 std.guikit  class gui
+std.guikit  class sound
+std.guikit  class voice
 std.guikit  def add(shape: mesh) : thing
 std.guikit  def add(what: thing) : thing
 std.guikit  def animated_show(visible: _int64, block: ()()) : revealer
@@ -2065,6 +2067,7 @@ std.guikit  def bars(values: decimal[]) : bar_series
 std.guikit  def bars(values: decimal[], on_each: (mark)()) : bar_series
 std.guikit  def bars(values: list<double>) : bar_series
 std.guikit  def bars(values: list<double>, on_each: (mark)()) : bar_series
+std.guikit  def bloom(amount: decimal)
 std.guikit  def bold(words: string)
 std.guikit  def button(words: string, action: ()()) : button
 std.guikit  def button(words: string, look: modifier, action: ()()) : button
@@ -2101,10 +2104,12 @@ std.guikit  def divider() : divider
 std.guikit  def divider(look: modifier) : divider
 std.guikit  def dropdown(choice: state<_int64>, block: ()()) : dropdown
 std.guikit  def dropdown(choice: state<_int64>, look: modifier, block: ()()) : dropdown
+std.guikit  def endless(tile: decimal, cells: _int64, rise: (decimal, decimal)(decimal)) : endless
 std.guikit  def fab(words: string, action: ()()) : fab
 std.guikit  def fab(words: string, look: modifier, action: ()()) : fab
 std.guikit  def fade(visible: _int64, block: ()()) : fader
 std.guikit  def fade(visible: _int64, look: modifier, block: ()()) : fader
+std.guikit  def flock(what: thing, count: _int64) : flock
 std.guikit  def fog(color: _int64, from: decimal, to: decimal)
 std.guikit  def form() : form
 std.guikit  def gap(pixels: decimal) : spacer
@@ -2149,6 +2154,7 @@ std.guikit  def model_of<t base view_model>() : t
 std.guikit  def modifier() : modifier
 std.guikit  def month_view(value: state<date>) : month_grid
 std.guikit  def month_view(value: state<date>, look: modifier) : month_grid
+std.guikit  def motes(count: _int64) : motes
 std.guikit  def nav_bar(nav: navigator) : nav_bar
 std.guikit  def nav_bar(nav: navigator, look: modifier) : nav_bar
 std.guikit  def on_frame(what: (frame)())
@@ -2234,6 +2240,7 @@ std.guikit  def top_bar(title: string, nav: navigator, actions: ()()) : row
 std.guikit  def top_bar(title: string, nav: navigator, look: modifier) : row
 std.guikit  def top_bar(title: string, nav: navigator, look: modifier, actions: ()()) : row
 std.guikit  def tree(seed: decimal) : plant
+std.guikit  def underwater(shallow: _int64, deep: _int64) : water
 std.guikit  def wrap(block: ()()) : wrap
 std.guikit  def wrap(look: modifier, block: ()()) : wrap
 std.guikit  def x_axis() : chart_axis
@@ -2455,6 +2462,16 @@ std.guikit  gui.static def x_axis(names: string[]) : chart_axis
 std.guikit  gui.static def x_axis(names: string[], label: (axis_label)()) : chart_axis
 std.guikit  gui.static def y_axis() : chart_axis
 std.guikit  gui.static def y_axis(label: (axis_label)()) : chart_axis
+std.guikit  sound.static def call(from: decimal, to: decimal, seconds: decimal) : voice
+std.guikit  sound.static def chime(pitch: decimal) : voice
+std.guikit  sound.static def clear()
+std.guikit  sound.static def hum(pitch: decimal) : voice
+std.guikit  sound.static def mute(on: bool)
+std.guikit  sound.static def pops(pitch: decimal) : voice
+std.guikit  sound.static def rumble(depth: decimal) : voice
+std.guikit  voice.def every(least: decimal, most: decimal) : voice
+std.guikit  voice.def volume(level: decimal) : voice
+std.guikit  voice.voice(made: _int64)
 std.guikit.animation  animated.animated(first: decimal)
 std.guikit.animation  animated.def go(goal: decimal, duration: decimal)
 std.guikit.animation  animated.def jump(goal: decimal)
@@ -2779,6 +2796,7 @@ std.guikit.core.runtime  main_queue.static def post(action: ()())
 std.guikit.core.runtime  main_queue.static def run_waiting() : _int64
 std.guikit.core.runtime  main_queue.static def waiting_count() : _int64
 std.guikit.core.runtime  timer.def cancel()
+std.guikit.core.runtime  timer.static def cancel_all()
 std.guikit.core.runtime  timer.static def next_due_in(now: decimal) : decimal
 std.guikit.core.runtime  timer.static def run_due(now: decimal)
 std.guikit.core.runtime  timer.timer(wait: decimal, again_every: decimal, what: ()())
@@ -2786,21 +2804,33 @@ std.guikit.core.runtime  ui_host.building : composable?
 std.guikit.core.runtime  ui_host.chosen_theme : theme?
 std.guikit.core.runtime  ui_host.current : ui_host?
 std.guikit.core.runtime  ui_host.def add_overlay(floating: view)
+std.guikit.core.runtime  ui_host.def at_point(px: decimal, py: decimal) : view?
+std.guikit.core.runtime  ui_host.def begin(root: element)
+std.guikit.core.runtime  ui_host.def color_painted_at(px: decimal, py: decimal) : _int64
+std.guikit.core.runtime  ui_host.def end()
 std.guikit.core.runtime  ui_host.def focus_on(v: view?)
+std.guikit.core.runtime  ui_host.def focused() : view?
 std.guikit.core.runtime  ui_host.def font_of(size: decimal) : font
 std.guikit.core.runtime  ui_host.def font_of(size: decimal, bold: _int64) : font
+std.guikit.core.runtime  ui_host.def forget_last_click()
 std.guikit.core.runtime  ui_host.def has_focus(v: view) : _int64
 std.guikit.core.runtime  ui_host.def key_held(key: _int64) : _int64
+std.guikit.core.runtime  ui_host.def mark_touch(px: decimal, py: decimal)
 std.guikit.core.runtime  ui_host.def relayout()
 std.guikit.core.runtime  ui_host.def repaint()
 std.guikit.core.runtime  ui_host.def replace_view(before: view, fresh: view)
 std.guikit.core.runtime  ui_host.def request_frame()
+std.guikit.core.runtime  ui_host.def root() : view?
 std.guikit.core.runtime  ui_host.def run(root: element)
 std.guikit.core.runtime  ui_host.def schedule_rebuild(part: composable)
 std.guikit.core.runtime  ui_host.def scroll_by_hand(from: view, dx: decimal, dy: decimal)
 std.guikit.core.runtime  ui_host.def set_back_stack(stack: navigator)
 std.guikit.core.runtime  ui_host.def set_theme(next: theme)
+std.guikit.core.runtime  ui_host.def settled() : bool
 std.guikit.core.runtime  ui_host.def show_toast(words: string, seconds: decimal)
+std.guikit.core.runtime  ui_host.def tip_words() : string
+std.guikit.core.runtime  ui_host.def toast_words() : list<string>
+std.guikit.core.runtime  ui_host.def turn()
 std.guikit.core.runtime  ui_host.def wake_in(seconds: decimal)
 std.guikit.core.runtime  ui_host.fps_shown : bool
 std.guikit.core.runtime  ui_host.frame_limit : _int64
@@ -2821,6 +2851,7 @@ std.guikit.core.runtime  ui_host.static def off_main_thread() : _int64
 std.guikit.core.runtime  ui_host.step : decimal
 std.guikit.core.runtime  ui_host.ui_host(title: string, width: _int32, height: _int32)
 std.guikit.core.runtime  ui_host.ui_host(title: string, width: _int32, height: _int32, opened_as: window_mode)
+std.guikit.core.runtime  ui_host.ui_host(width: _int32, height: _int32)
 std.guikit.core.runtime  ui_host.vsync_wanted : bool
 std.guikit.core.runtime  ui_host.win : window
 std.guikit.core.state  built_by.built_by(maker: ()(element))
@@ -2933,6 +2964,7 @@ std.guikit.core.style  modifier.def shadow(pixels: decimal) : modifier
 std.guikit.core.style  modifier.def shape(outline: shape) : modifier
 std.guikit.core.style  modifier.def show(yes: _int64) : modifier
 std.guikit.core.style  modifier.def size(w: decimal, h: decimal) : modifier
+std.guikit.core.style  modifier.def tag(name_for_tests: string) : modifier
 std.guikit.core.style  modifier.def then(more: modifier) : modifier
 std.guikit.core.style  modifier.def tooltip(words: string) : modifier
 std.guikit.core.style  modifier.def visible(yes: _int64) : modifier
@@ -2992,18 +3024,25 @@ std.guikit.core.tree  const POINTER_RELEASE : _int64 = 3
 std.guikit.core.tree  drag_scroller.def drag_by(dx: decimal, dy: decimal)
 std.guikit.core.tree  element.def node() : view
 std.guikit.core.tree  floater.def floats() : _int64
+std.guikit.core.tree  has_caption.def caption_shown() : string
+std.guikit.core.tree  has_value.def value_shown() : decimal
 std.guikit.core.tree  interface behavior
 std.guikit.core.tree  interface clipper
 std.guikit.core.tree  interface drag_scroller
 std.guikit.core.tree  interface element
 std.guikit.core.tree  interface floater
+std.guikit.core.tree  interface has_caption
+std.guikit.core.tree  interface has_value
 std.guikit.core.tree  interface key_target
+std.guikit.core.tree  interface on_or_off
 std.guikit.core.tree  interface overlay_painter
 std.guikit.core.tree  interface pointer_target
+std.guikit.core.tree  interface shows_words
 std.guikit.core.tree  interface stateful
 std.guikit.core.tree  interface wheel_target
 std.guikit.core.tree  key_target.def key(e: event) : _int64
 std.guikit.core.tree  key_target.def typed(words: string)
+std.guikit.core.tree  on_or_off.def is_on() : bool
 std.guikit.core.tree  overlay_painter.def paint_over(p: painter)
 std.guikit.core.tree  pointer_target.def pointer(what: _int64, x: decimal, y: decimal)
 std.guikit.core.tree  scope.open : view?
@@ -3012,6 +3051,7 @@ std.guikit.core.tree  scope.static def collect(as_kind: string, block: ()()) : v
 std.guikit.core.tree  scope.static def fill(container: view, block: ()())
 std.guikit.core.tree  scope.static def inside(wanted_kind: string, written: string, belongs_in: string) : view
 std.guikit.core.tree  scope.static def lone_row(space: decimal, block: ()()) : view
+std.guikit.core.tree  shows_words.def words_shown() : string
 std.guikit.core.tree  stateful.def adopt(old: behavior)
 std.guikit.core.tree  view.aspect : decimal
 std.guikit.core.tree  view.at_across : decimal
@@ -3111,6 +3151,7 @@ std.guikit.core.tree  view.size_shown : decimal
 std.guikit.core.tree  view.size_start : decimal
 std.guikit.core.tree  view.size_target : decimal
 std.guikit.core.tree  view.sway_y : decimal
+std.guikit.core.tree  view.tag : string
 std.guikit.core.tree  view.tip : string
 std.guikit.core.tree  view.turn : decimal
 std.guikit.core.tree  view.veil : decimal
@@ -3449,6 +3490,7 @@ std.guikit.platform  const KEY_LEFT : _int64 = 1073741904
 std.guikit.platform  const KEY_PAGE_DOWN : _int64 = 1073741902
 std.guikit.platform  const KEY_PAGE_UP : _int64 = 1073741899
 std.guikit.platform  const KEY_RIGHT : _int64 = 1073741903
+std.guikit.platform  const KEY_SHIFT : _int64 = 1073742049
 std.guikit.platform  const KEY_SPACE : _int64 = 32
 std.guikit.platform  const KEY_TAB : _int64 = 9
 std.guikit.platform  const KEY_UP : _int64 = 1073741906
@@ -3477,6 +3519,7 @@ std.guikit.platform  event.wheel_y : _int64
 std.guikit.platform  event.width : _int64
 std.guikit.platform  event.x : _int64
 std.guikit.platform  event.y : _int64
+std.guikit.platform  font.by_rule : bool
 std.guikit.platform  font.def width_of(words: string) : decimal
 std.guikit.platform  font.font(path: string, pixels: decimal)
 std.guikit.platform  font.id : _int64
@@ -3557,20 +3600,191 @@ std.guikit.platform  window.def fullscreen(on: bool)
 std.guikit.platform  window.def height() : _int32
 std.guikit.platform  window.def is_fullscreen() : bool
 std.guikit.platform  window.def is_open() : bool
+std.guikit.platform  window.def is_pretend() : bool
 std.guikit.platform  window.def mode() : window_mode
 std.guikit.platform  window.def next_event() : event
 std.guikit.platform  window.def painter() : painter
+std.guikit.platform  window.def pass_time(seconds: decimal)
+std.guikit.platform  window.def resize(w: _int32, h: _int32)
+std.guikit.platform  window.def send(e: event)
 std.guikit.platform  window.def set_mode(next: window_mode)
 std.guikit.platform  window.def show()
 std.guikit.platform  window.def time() : decimal
 std.guikit.platform  window.def width() : _int32
 std.guikit.platform  window.window(title: string, w: _int32, h: _int32)
 std.guikit.platform  window.window(title: string, w: _int32, h: _int32, opened_as: window_mode)
+std.guikit.platform  window.window(w: _int32, h: _int32)
+std.guikit.testing  class query_step
+std.guikit.testing  class test_screen
+std.guikit.testing  class ui_node
+std.guikit.testing  class ui_nodes
+std.guikit.testing  class ui_query
+std.guikit.testing  const STEP_KIDS : _int64 = 4
+std.guikit.testing  const STEP_KIND : _int64 = 2
+std.guikit.testing  const STEP_ONLY_KIND : _int64 = 8
+std.guikit.testing  const STEP_ONLY_STATE : _int64 = 10
+std.guikit.testing  const STEP_ONLY_TAG : _int64 = 6
+std.guikit.testing  const STEP_ONLY_TEXT : _int64 = 7
+std.guikit.testing  const STEP_PARENT : _int64 = 5
+std.guikit.testing  const STEP_PICK : _int64 = 9
+std.guikit.testing  const STEP_ROOT : _int64 = 3
+std.guikit.testing  const STEP_TAG : _int64 = 0
+std.guikit.testing  const STEP_TEXT : _int64 = 1
+std.guikit.testing  const THE_LAST : _int64 = 0 - 2
+std.guikit.testing  const THE_ONLY : _int64 = 0 - 1
+std.guikit.testing  def advance(seconds: decimal)
+std.guikit.testing  def all_kinds<t>() : ui_nodes
+std.guikit.testing  def all_tags(name: string) : ui_nodes
+std.guikit.testing  def all_text(words: string) : ui_nodes
+std.guikit.testing  def asking(how: _int64, what: string) : ui_query
+std.guikit.testing  def back()
+std.guikit.testing  def color_words(c: color) : string
+std.guikit.testing  def hold_on_failure()
+std.guikit.testing  def idle()
+std.guikit.testing  def kind_step<t>(how: _int64) : query_step
+std.guikit.testing  def needs_a_window(word: string) : ui_host
+std.guikit.testing  def on_kind<t>() : ui_node
+std.guikit.testing  def on_now(node: ui_node, word: string) : bool
+std.guikit.testing  def on_root() : ui_node
+std.guikit.testing  def on_tag(name: string) : ui_node
+std.guikit.testing  def on_text(words: string) : ui_node
+std.guikit.testing  def painted(node: ui_node, word: string, dx: decimal, dy: decimal) : color
+std.guikit.testing  def point_on(node: ui_node, word: string) : view
+std.guikit.testing  def press_there(button: _int64)
+std.guikit.testing  def print_tree()
+std.guikit.testing  def release_at(px: decimal, py: decimal)
+std.guikit.testing  def same_color(a: color, b: color) : bool
+std.guikit.testing  def screen_size(width: _int32, height: _int32)
+std.guikit.testing  def set_content(block: ()())
+std.guikit.testing  def set_content(screen: element)
+std.guikit.testing  def should_show_no_toast()
+std.guikit.testing  def should_show_no_tooltip()
+std.guikit.testing  def should_show_toast(words: string)
+std.guikit.testing  def should_show_tooltip(words: string)
+std.guikit.testing  def take_keyboard(node: ui_node, word: string)
+std.guikit.testing  def toasts_said(h: ui_host) : string
+std.guikit.testing  def ui_node.clear() : ui_node
+std.guikit.testing  def ui_node.click() : ui_node
+std.guikit.testing  def ui_node.color_at(dx: decimal, dy: decimal) : color
+std.guikit.testing  def ui_node.double_click() : ui_node
+std.guikit.testing  def ui_node.drag(dx: decimal, dy: decimal) : ui_node
+std.guikit.testing  def ui_node.exists() : bool
+std.guikit.testing  def ui_node.hover() : ui_node
+std.guikit.testing  def ui_node.is_shown() : bool
+std.guikit.testing  def ui_node.long_click() : ui_node
+std.guikit.testing  def ui_node.press(key: _int64) : ui_node
+std.guikit.testing  def ui_node.press(key: _int64, held: _int64) : ui_node
+std.guikit.testing  def ui_node.replace(words: string) : ui_node
+std.guikit.testing  def ui_node.right_click() : ui_node
+std.guikit.testing  def ui_node.scroll_down(steps: _int64) : ui_node
+std.guikit.testing  def ui_node.scroll_to() : ui_node
+std.guikit.testing  def ui_node.scroll_to(target: ui_node) : ui_node
+std.guikit.testing  def ui_node.scroll_to_end() : ui_node
+std.guikit.testing  def ui_node.scroll_to_start() : ui_node
+std.guikit.testing  def ui_node.scroll_up(steps: _int64) : ui_node
+std.guikit.testing  def ui_node.should_be_disabled() : ui_node
+std.guikit.testing  def ui_node.should_be_enabled() : ui_node
+std.guikit.testing  def ui_node.should_be_focused() : ui_node
+std.guikit.testing  def ui_node.should_be_hidden() : ui_node
+std.guikit.testing  def ui_node.should_be_off() : ui_node
+std.guikit.testing  def ui_node.should_be_on() : ui_node
+std.guikit.testing  def ui_node.should_be_selected() : ui_node
+std.guikit.testing  def ui_node.should_be_shown() : ui_node
+std.guikit.testing  def ui_node.should_contain(part: string) : ui_node
+std.guikit.testing  def ui_node.should_exist() : ui_node
+std.guikit.testing  def ui_node.should_have_color(wanted: color) : ui_node
+std.guikit.testing  def ui_node.should_have_color_at(dx: decimal, dy: decimal, wanted: color) : ui_node
+std.guikit.testing  def ui_node.should_have_value(wanted: decimal) : ui_node
+std.guikit.testing  def ui_node.should_not_exist() : ui_node
+std.guikit.testing  def ui_node.should_say(words: string) : ui_node
+std.guikit.testing  def ui_node.swipe_down() : ui_node
+std.guikit.testing  def ui_node.swipe_left() : ui_node
+std.guikit.testing  def ui_node.swipe_right() : ui_node
+std.guikit.testing  def ui_node.swipe_up() : ui_node
+std.guikit.testing  def ui_node.type(words: string) : ui_node
+std.guikit.testing  def ui_node.words() : string
+std.guikit.testing  def ui_test(name: string, body: ()())
+std.guikit.testing  def wait_until(condition: ()(bool))
+std.guikit.testing  def wait_until(most: decimal, condition: ()(bool))
+std.guikit.testing  def watch_ui_tests()
+std.guikit.testing  def watch_ui_tests(seconds: decimal)
+std.guikit.testing  def wheel_over(node: ui_node, word: string, turn: _int64) : bool
+std.guikit.testing  query_step.def named() : string
+std.guikit.testing  query_step.def takes(v: view) : bool
+std.guikit.testing  query_step.fits : (view)(bool)?
+std.guikit.testing  query_step.how : _int64
+std.guikit.testing  query_step.place : _int64
+std.guikit.testing  query_step.query_step(kind: _int64, words: string)
+std.guikit.testing  query_step.what : string
+std.guikit.testing  test_screen.holding : bool
+std.guikit.testing  test_screen.host : ui_host?
+std.guikit.testing  test_screen.part_h : decimal
+std.guikit.testing  test_screen.part_w : decimal
+std.guikit.testing  test_screen.part_x : decimal
+std.guikit.testing  test_screen.part_y : decimal
+std.guikit.testing  test_screen.rest : decimal
+std.guikit.testing  test_screen.static def close()
+std.guikit.testing  test_screen.static def event_at(kind: _int64, px: decimal, py: decimal) : event
+std.guikit.testing  test_screen.static def event_key(kind: _int64, key: _int64) : event
+std.guikit.testing  test_screen.static def fail(word: string, why: string)
+std.guikit.testing  test_screen.static def hold(wrong: throwable)
+std.guikit.testing  test_screen.static def is_there(v: view) : bool
+std.guikit.testing  test_screen.static def is_within(inner: view, outer: view) : bool
+std.guikit.testing  test_screen.static def linger()
+std.guikit.testing  test_screen.static def pass(seconds: decimal)
+std.guikit.testing  test_screen.static def running(word: string) : ui_host
+std.guikit.testing  test_screen.static def says(v: view, what: string) : bool
+std.guikit.testing  test_screen.static def send(e: event)
+std.guikit.testing  test_screen.static def settle()
+std.guikit.testing  test_screen.static def tree() : string
+std.guikit.testing  test_screen.static def visible_part(v: view) : bool
+std.guikit.testing  test_screen.static def watched() : bool
+std.guikit.testing  test_screen.static def words_of(v: view) : string
+std.guikit.testing  test_screen.tall : _int32
+std.guikit.testing  test_screen.title : string
+std.guikit.testing  test_screen.watching : _int64
+std.guikit.testing  test_screen.wide : _int32
+std.guikit.testing  ui_node.asks : ui_query
+std.guikit.testing  ui_node.def all_kinds<t>() : ui_nodes
+std.guikit.testing  ui_node.def all_tags(name: string) : ui_nodes
+std.guikit.testing  ui_node.def all_text(words: string) : ui_nodes
+std.guikit.testing  ui_node.def asked() : string
+std.guikit.testing  ui_node.def children() : ui_nodes
+std.guikit.testing  ui_node.def matches() : list<view>
+std.guikit.testing  ui_node.def on_kind<t>() : ui_node
+std.guikit.testing  ui_node.def on_tag(name: string) : ui_node
+std.guikit.testing  ui_node.def on_text(words: string) : ui_node
+std.guikit.testing  ui_node.def parent() : ui_node
+std.guikit.testing  ui_node.def view_now(word: string) : view
+std.guikit.testing  ui_node.def view_or_none(word: string) : view?
+std.guikit.testing  ui_node.place : _int64
+std.guikit.testing  ui_node.ui_node(question: ui_query, which: _int64)
+std.guikit.testing  ui_nodes.asks : ui_query
+std.guikit.testing  ui_nodes.def at(n: _int64) : ui_node
+std.guikit.testing  ui_nodes.def count() : _int64
+std.guikit.testing  ui_nodes.def first() : ui_node
+std.guikit.testing  ui_nodes.def last() : ui_node
+std.guikit.testing  ui_nodes.def of_kind<t>() : ui_nodes
+std.guikit.testing  ui_nodes.def should_have_count(wanted: _int64) : ui_nodes
+std.guikit.testing  ui_nodes.def that_are_disabled() : ui_nodes
+std.guikit.testing  ui_nodes.def that_are_enabled() : ui_nodes
+std.guikit.testing  ui_nodes.def that_are_off() : ui_nodes
+std.guikit.testing  ui_nodes.def that_are_on() : ui_nodes
+std.guikit.testing  ui_nodes.def that_are_shown() : ui_nodes
+std.guikit.testing  ui_nodes.def with_tag(name: string) : ui_nodes
+std.guikit.testing  ui_nodes.def with_text(words: string) : ui_nodes
+std.guikit.testing  ui_nodes.ui_nodes(question: ui_query)
+std.guikit.testing  ui_query.def and_then(next: query_step) : ui_query
+std.guikit.testing  ui_query.def asked() : string
+std.guikit.testing  ui_query.def picked(which: _int64) : ui_query
+std.guikit.testing  ui_query.def run(word: string) : list<view>
+std.guikit.testing  ui_query.steps : list<query_step>
 std.guikit.three  camera.aim_x : decimal
 std.guikit.three  camera.aim_y : decimal
 std.guikit.three  camera.aim_z : decimal
 std.guikit.three  camera.aimed : bool
 std.guikit.three  camera.away : decimal
+std.guikit.three  camera.def above(land: thing) : camera
 std.guikit.three  camera.def at(px: decimal, py: decimal, pz: decimal) : camera
 std.guikit.three  camera.def continue_from(old: camera)
 std.guikit.three  camera.def dragged(dx: decimal, dy: decimal)
@@ -3586,6 +3800,7 @@ std.guikit.three  camera.def sees(near: decimal, far: decimal) : camera
 std.guikit.three  camera.def settle_orbit()
 std.guikit.three  camera.def speed(metres_a_second: decimal) : camera
 std.guikit.three  camera.def stepped(f: frame) : bool
+std.guikit.three  camera.def swim() : camera
 std.guikit.three  camera.def walk() : camera
 std.guikit.three  camera.def walk(land: thing) : camera
 std.guikit.three  camera.def wheeled(turn: decimal) : bool
@@ -3607,8 +3822,11 @@ std.guikit.three  camera.x : decimal
 std.guikit.three  camera.y : decimal
 std.guikit.three  camera.z : decimal
 std.guikit.three  class camera
+std.guikit.three  class endless
+std.guikit.three  class flock
 std.guikit.three  class lamp
 std.guikit.three  class mesh
+std.guikit.three  class motes
 std.guikit.three  class plant
 std.guikit.three  class plants
 std.guikit.three  class scattering
@@ -3619,17 +3837,72 @@ std.guikit.three  class stage
 std.guikit.three  class sun
 std.guikit.three  class terrain
 std.guikit.three  class thing
+std.guikit.three  class water
 std.guikit.three  const CAMERA_FLY : _int64 = 3
 std.guikit.three  const CAMERA_ORBIT : _int64 = 1
 std.guikit.three  const CAMERA_STILL : _int64 = 0
+std.guikit.three  const CAMERA_SWIM : _int64 = 4
 std.guikit.three  const CAMERA_WALK : _int64 = 2
 std.guikit.three  const LAMP_NUMBERS : _int64 = 8
-std.guikit.three  const LOOK_NUMBERS : _int64 = 32
+std.guikit.three  const LOOK_NUMBERS : _int64 = 48
 std.guikit.three  const MADE_BLENDED : _int64 = 4
 std.guikit.three  const MADE_CUT_OUT : _int64 = 2
 std.guikit.three  const MADE_TWO_SIDED : _int64 = 1
 std.guikit.three  const MADE_UNLIT : _int64 = 8
-std.guikit.three  const NODE_NUMBERS : _int64 = 26
+std.guikit.three  const NODE_NUMBERS : _int64 = 35
+std.guikit.three  def blade(length: decimal, width: decimal) : mesh
+std.guikit.three  def blade(length: decimal, width: decimal, fine: decimal) : mesh
+std.guikit.three  def fan_of(piece: mesh, count: _int64, spread: decimal) : mesh
+std.guikit.three  def lump(w: decimal, h: decimal, d: decimal) : mesh
+std.guikit.three  def lump(w: decimal, h: decimal, d: decimal, fine: decimal) : mesh
+std.guikit.three  def mesh.bent(degrees: decimal) : mesh
+std.guikit.three  def mesh.curled(degrees: decimal) : mesh
+std.guikit.three  def mesh.grown(piece: mesh, count: _int64, lean: decimal) : mesh
+std.guikit.three  def mesh.height() : decimal
+std.guikit.three  def mesh.lumpy(amount: decimal) : mesh
+std.guikit.three  def mesh.lumpy(amount: decimal, seed: decimal) : mesh
+std.guikit.three  def mesh.painted(packed: _int64) : mesh
+std.guikit.three  def mesh.set_in(piece: mesh, x: decimal, y: decimal, z: decimal, turn: decimal, lean: decimal, size: decimal) : mesh
+std.guikit.three  def mesh.shaded(foot: _int64, tip: _int64) : mesh
+std.guikit.three  def mesh.tapered(amount: decimal) : mesh
+std.guikit.three  def ring_of(piece: mesh, count: _int64, radius: decimal) : mesh
+std.guikit.three  def tube(length: decimal, bottom: decimal, top: decimal) : mesh
+std.guikit.three  def tube(length: decimal, bottom: decimal, top: decimal, sides: _int64) : mesh
+std.guikit.three  def tube(length: decimal, thick: decimal) : mesh
+std.guikit.three  endless.cut : _int64
+std.guikit.three  endless.def colored(by: (decimal, decimal)(_int64)) : endless
+std.guikit.three  endless.def follow(px: decimal, pz: decimal) : bool
+std.guikit.three  endless.def high(px: decimal, pz: decimal) : decimal
+std.guikit.three  endless.def number_of(p: terrain) : decimal
+std.guikit.three  endless.def piece(n: _int64) : terrain
+std.guikit.three  endless.def piece_of(v: decimal) : _int64
+std.guikit.three  endless.def piece_under(px: decimal, pz: decimal) : terrain?
+std.guikit.three  endless.def reach(pieces_each_way: _int64) : endless
+std.guikit.three  endless.def ready_round(px: decimal, pz: decimal)
+std.guikit.three  endless.def shown() : _int64
+std.guikit.three  endless.def steep_at(px: decimal, pz: decimal) : decimal
+std.guikit.three  endless.endless(size: decimal, cells: _int64, height: (decimal, decimal)(decimal))
+std.guikit.three  endless.near : _int64
+std.guikit.three  endless.paint : (decimal, decimal)(_int64)?
+std.guikit.three  endless.rise : (decimal, decimal)(decimal)?
+std.guikit.three  endless.rows_a_frame : _int64
+std.guikit.three  endless.tile : decimal
+std.guikit.three  flock.def at(px: decimal, py: decimal, pz: decimal) : flock
+std.guikit.three  flock.def circling(radius: decimal, seconds: decimal) : flock
+std.guikit.three  flock.def color(packed: _int64) : flock
+std.guikit.three  flock.def glow(amount: decimal) : flock
+std.guikit.three  flock.def no_shadow() : flock
+std.guikit.three  flock.def place_all()
+std.guikit.three  flock.def rough(amount: decimal) : flock
+std.guikit.three  flock.def speed(metres_a_second: decimal) : flock
+std.guikit.three  flock.def spread(metres: decimal) : flock
+std.guikit.three  flock.def sway(amount: decimal) : flock
+std.guikit.three  flock.def turn(degrees: decimal) : flock
+std.guikit.three  flock.flock(of: thing, how_many: _int64)
+std.guikit.three  flock.original : thing
+std.guikit.three  flock.reach : decimal
+std.guikit.three  flock.tall : decimal
+std.guikit.three  flock.wanted : _int64
 std.guikit.three  lamp.bright : decimal
 std.guikit.three  lamp.def at(px: decimal, py: decimal, pz: decimal) : lamp
 std.guikit.three  lamp.def color(packed: _int64) : lamp
@@ -3654,6 +3927,7 @@ std.guikit.three  mesh.def corner(x: decimal, y: decimal, z: decimal, nx: decima
 std.guikit.three  mesh.def corner(x: decimal, y: decimal, z: decimal, nx: decimal, ny: decimal, nz: decimal, u: decimal, v: decimal) : _int64
 std.guikit.three  mesh.def cut_out() : mesh
 std.guikit.three  mesh.def faceted() : mesh
+std.guikit.three  mesh.def forget()
 std.guikit.three  mesh.def glow(amount: decimal) : mesh
 std.guikit.three  mesh.def moved(dx: decimal, dy: decimal, dz: decimal) : mesh
 std.guikit.three  mesh.def quad(a: _int64, b: _int64, c: _int64, d: _int64)
@@ -3684,6 +3958,20 @@ std.guikit.three  mesh.points : decimal[]
 std.guikit.three  mesh.shine : decimal
 std.guikit.three  mesh.tints : _int64[]
 std.guikit.three  mesh.uvs : decimal[]
+std.guikit.three  motes.def at(px: decimal, py: decimal, pz: decimal) : motes
+std.guikit.three  motes.def bubbles() : motes
+std.guikit.three  motes.def circling(radius: decimal, seconds: decimal) : motes
+std.guikit.three  motes.def color(packed: _int64) : motes
+std.guikit.three  motes.def glow(amount: decimal) : motes
+std.guikit.three  motes.def no_shadow() : motes
+std.guikit.three  motes.def rising(metres_a_second: decimal) : motes
+std.guikit.three  motes.def rough(amount: decimal) : motes
+std.guikit.three  motes.def size(metres: decimal) : motes
+std.guikit.three  motes.def sway(amount: decimal) : motes
+std.guikit.three  motes.def turn(degrees: decimal) : motes
+std.guikit.three  motes.def wander(metres: decimal) : motes
+std.guikit.three  motes.def within(metres: decimal) : motes
+std.guikit.three  motes.motes(how_many: _int64)
 std.guikit.three  plant.def bark(path: string) : plant
 std.guikit.three  plant.def leaves(path: string) : plant
 std.guikit.three  plant.foliage : mesh
@@ -3695,22 +3983,33 @@ std.guikit.three  plants.static def whole(kind: string, seed: decimal) : plant
 std.guikit.three  scattering.area_set : bool
 std.guikit.three  scattering.arrangement : decimal
 std.guikit.three  scattering.cheaper : thing?
+std.guikit.three  scattering.def at(px: decimal, py: decimal, pz: decimal) : scattering
 std.guikit.three  scattering.def between(low: decimal, high: decimal) : scattering
+std.guikit.three  scattering.def circling(radius: decimal, seconds: decimal) : scattering
 std.guikit.three  scattering.def clear_of(px: decimal, pz: decimal, radius: decimal) : scattering
+std.guikit.three  scattering.def color(packed: _int64) : scattering
 std.guikit.three  scattering.def far(simpler: thing, from: decimal) : scattering
+std.guikit.three  scattering.def glow(amount: decimal) : scattering
+std.guikit.three  scattering.def no_shadow() : scattering
 std.guikit.three  scattering.def on(ground: thing) : scattering
 std.guikit.three  scattering.def place_copies()
+std.guikit.three  scattering.def rough(amount: decimal) : scattering
 std.guikit.three  scattering.def seed(n: decimal) : scattering
 std.guikit.three  scattering.def sizes(least: decimal, most: decimal) : scattering
 std.guikit.three  scattering.def slopes(most: decimal) : scattering
+std.guikit.three  scattering.def steeper(least: decimal) : scattering
+std.guikit.three  scattering.def sway(amount: decimal) : scattering
+std.guikit.three  scattering.def turn(degrees: decimal) : scattering
 std.guikit.three  scattering.def within(from_x: decimal, from_z: decimal, to_x: decimal, to_z: decimal) : scattering
 std.guikit.three  scattering.highest : decimal
 std.guikit.three  scattering.land : thing?
 std.guikit.three  scattering.largest : decimal
+std.guikit.three  scattering.least_steep : decimal
 std.guikit.three  scattering.lowest : decimal
 std.guikit.three  scattering.original : thing
 std.guikit.three  scattering.scattering(of: thing, how_many: _int64)
 std.guikit.three  scattering.smallest : decimal
+std.guikit.three  scattering.static def forget_within(from_x: decimal, from_z: decimal, to_x: decimal, to_z: decimal)
 std.guikit.three  scattering.steepest : decimal
 std.guikit.three  scattering.wanted : _int64
 std.guikit.three  scattering.x0 : decimal
@@ -3718,6 +4017,7 @@ std.guikit.three  scattering.x1 : decimal
 std.guikit.three  scattering.z0 : decimal
 std.guikit.three  scattering.z1 : decimal
 std.guikit.three  scene.behind : _int64
+std.guikit.three  scene.bloom_amount : decimal
 std.guikit.three  scene.def each_frame(what: (frame)()) : scene
 std.guikit.three  scene.def hit_point() : decimal[]
 std.guikit.three  scene.def still() : scene
@@ -3739,6 +4039,7 @@ std.guikit.three  scene.override def pointer(what: _int64, px: decimal, py: deci
 std.guikit.three  scene.override def wheel(dx: decimal, dy: decimal) : _int64
 std.guikit.three  scene.root : thing
 std.guikit.three  scene.scene(block: ()())
+std.guikit.three  scene.sea : water?
 std.guikit.three  scene.sky_below : _int64
 std.guikit.three  scene.sky_horizon : _int64
 std.guikit.three  scene.sky_light : _int64
@@ -3776,22 +4077,29 @@ std.guikit.three  terrain.def steep_at(px: decimal, pz: decimal) : decimal
 std.guikit.three  terrain.heights : decimal[]
 std.guikit.three  terrain.side : decimal
 std.guikit.three  terrain.squares : _int64
+std.guikit.three  terrain.terrain(size: decimal, cells: _int64, around: decimal[])
 std.guikit.three  terrain.terrain(size: decimal, cells: _int64, rise: (decimal, decimal)(decimal))
+std.guikit.three  thing.beat : decimal
 std.guikit.three  thing.bob_height : decimal
 std.guikit.three  thing.bob_rate : decimal
+std.guikit.three  thing.bubble_look : bool
 std.guikit.three  thing.changes : _int64
+std.guikit.three  thing.circle_radius : decimal
+std.guikit.three  thing.circle_seconds : decimal
 std.guikit.three  thing.copies : _int64
 std.guikit.three  thing.deaf : bool
 std.guikit.three  thing.def add(kid: thing) : thing
 std.guikit.three  thing.def at(px: decimal, py: decimal, pz: decimal) : thing
 std.guikit.three  thing.def back(distance: decimal) : thing
 std.guikit.three  thing.def bob(height: decimal, rate: decimal) : thing
+std.guikit.three  thing.def circling(radius: decimal, seconds: decimal) : thing
 std.guikit.three  thing.def click(what: ()()) : thing
 std.guikit.three  thing.def color(packed: _int64) : thing
 std.guikit.three  thing.def distance_to(other: thing) : decimal
 std.guikit.three  thing.def double_click(what: ()()) : thing
 std.guikit.three  thing.def empty() : thing
 std.guikit.three  thing.def face_camera() : thing
+std.guikit.three  thing.def flap(degrees: decimal, times_a_second: decimal) : thing
 std.guikit.three  thing.def forward(distance: decimal) : thing
 std.guikit.three  thing.def glow(amount: decimal) : thing
 std.guikit.three  thing.def height_at(px: decimal, pz: decimal) : decimal
@@ -3802,6 +4110,7 @@ std.guikit.three  thing.def prepare()
 std.guikit.three  thing.def reach() : decimal[]?
 std.guikit.three  thing.def remove(kid: thing) : thing
 std.guikit.three  thing.def right_click(what: ()()) : thing
+std.guikit.three  thing.def rough(amount: decimal) : thing
 std.guikit.three  thing.def scale(s: decimal) : thing
 std.guikit.three  thing.def scale(sx: decimal, sy: decimal, sz: decimal) : thing
 std.guikit.three  thing.def shader(code: string) : thing
@@ -3811,6 +4120,7 @@ std.guikit.three  thing.def shown(yes: bool) : thing
 std.guikit.three  thing.def sideways(distance: decimal) : thing
 std.guikit.three  thing.def spin(degrees_a_second: decimal) : thing
 std.guikit.three  thing.def spin(heading_rate: decimal, pitch_rate: decimal, roll_rate: decimal) : thing
+std.guikit.three  thing.def sway(amount: decimal) : thing
 std.guikit.three  thing.def texture(id: _int64) : thing
 std.guikit.three  thing.def texture(id: _int64, times: decimal) : thing
 std.guikit.three  thing.def texture(path: string) : thing
@@ -3821,14 +4131,18 @@ std.guikit.three  thing.def turn(degrees: decimal, nose_up: decimal, rolled: dec
 std.guikit.three  thing.def turn_by(degrees: decimal) : thing
 std.guikit.three  thing.def unclickable() : thing
 std.guikit.three  thing.def unlit() : thing
+std.guikit.three  thing.def wag(degrees: decimal, times_a_second: decimal) : thing
 std.guikit.three  thing.faces_eye : bool
 std.guikit.three  thing.far_from : decimal
 std.guikit.three  thing.far_model : _int64
+std.guikit.three  thing.flap_degrees : decimal
+std.guikit.three  thing.flock_speed : decimal
 std.guikit.three  thing.heading : decimal
 std.guikit.three  thing.hidden : bool
 std.guikit.three  thing.kids : list<thing>?
 std.guikit.three  thing.light : decimal
 std.guikit.three  thing.model : _int64
+std.guikit.three  thing.mote_count : _int64
 std.guikit.three  thing.on_click : ()()?
 std.guikit.three  thing.on_double_click : ()()?
 std.guikit.three  thing.on_right_click : ()()?
@@ -3839,6 +4153,7 @@ std.guikit.three  thing.pitch : decimal
 std.guikit.three  thing.plain : bool
 std.guikit.three  thing.repeats : decimal
 std.guikit.three  thing.roll : decimal
+std.guikit.three  thing.roughness : decimal
 std.guikit.three  thing.shadowless : bool
 std.guikit.three  thing.shape : mesh?
 std.guikit.three  thing.shine : decimal
@@ -3849,23 +4164,39 @@ std.guikit.three  thing.slot : _int64
 std.guikit.three  thing.spin_heading : decimal
 std.guikit.three  thing.spin_pitch : decimal
 std.guikit.three  thing.spin_roll : decimal
+std.guikit.three  thing.sway_amount : decimal
 std.guikit.three  thing.thing()
 std.guikit.three  thing.tinted : _int64
+std.guikit.three  thing.wag_degrees : decimal
 std.guikit.three  thing.x : decimal
 std.guikit.three  thing.y : decimal
 std.guikit.three  thing.z : decimal
+std.guikit.three  water.deep : _int64
+std.guikit.three  water.def caustics(strength: decimal) : water
+std.guikit.three  water.def light_shafts(strength: decimal) : water
+std.guikit.three  water.def sight(metres: decimal) : water
+std.guikit.three  water.def surface(height: decimal) : water
+std.guikit.three  water.ripple_light : decimal
+std.guikit.three  water.seen_to : decimal
+std.guikit.three  water.shafts : decimal
+std.guikit.three  water.shallow : _int64
+std.guikit.three  water.top : decimal
+std.guikit.three  water.water(near_surface: _int64, below: _int64)
 std.guikit.widgets.display  badge.badge(count: _int64)
 std.guikit.widgets.display  badge.override def arrange()
 std.guikit.widgets.display  badge.override def kind() : string
 std.guikit.widgets.display  badge.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.display  badge.override def paint(p: painter)
+std.guikit.widgets.display  badge.override def words_shown() : string
 std.guikit.widgets.display  chip.chip(caption: string)
 std.guikit.widgets.display  chip.chip(caption: string, action: ()())
 std.guikit.widgets.display  chip.def selected(on: _int64) : chip
 std.guikit.widgets.display  chip.override def arrange()
+std.guikit.widgets.display  chip.override def is_on() : bool
 std.guikit.widgets.display  chip.override def kind() : string
 std.guikit.widgets.display  chip.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.display  chip.override def paint(p: painter)
+std.guikit.widgets.display  chip.override def words_shown() : string
 std.guikit.widgets.display  class badge
 std.guikit.widgets.display  class chip
 std.guikit.widgets.display  class divider
@@ -3891,6 +4222,7 @@ std.guikit.widgets.display  label.override def arrange()
 std.guikit.widgets.display  label.override def kind() : string
 std.guikit.widgets.display  label.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.display  label.override def paint(p: painter)
+std.guikit.widgets.display  label.override def words_shown() : string
 std.guikit.widgets.display  picture.def opacity(amount: _int32) : picture
 std.guikit.widgets.display  picture.override def arrange()
 std.guikit.widgets.display  picture.override def kind() : string
@@ -3901,6 +4233,7 @@ std.guikit.widgets.display  progress_bar.override def arrange()
 std.guikit.widgets.display  progress_bar.override def kind() : string
 std.guikit.widgets.display  progress_bar.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.display  progress_bar.override def paint(p: painter)
+std.guikit.widgets.display  progress_bar.override def value_shown() : decimal
 std.guikit.widgets.display  progress_bar.progress_bar(fraction: decimal)
 std.guikit.widgets.display  rich_label.def size(px: decimal) : rich_label
 std.guikit.widgets.display  rich_label.override def arrange()
@@ -3938,12 +4271,15 @@ std.guikit.widgets.input  button.override def arrange()
 std.guikit.widgets.input  button.override def kind() : string
 std.guikit.widgets.input  button.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  button.override def paint(p: painter)
+std.guikit.widgets.input  button.override def words_shown() : string
 std.guikit.widgets.input  checkbox.checkbox(caption: string, value: state<_int64>)
 std.guikit.widgets.input  checkbox.checkbox(value: state<_int64>, caption_of: ()())
 std.guikit.widgets.input  checkbox.override def arrange()
+std.guikit.widgets.input  checkbox.override def is_on() : bool
 std.guikit.widgets.input  checkbox.override def kind() : string
 std.guikit.widgets.input  checkbox.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  checkbox.override def paint(p: painter)
+std.guikit.widgets.input  checkbox.override def words_shown() : string
 std.guikit.widgets.input  class button
 std.guikit.widgets.input  class checkbox
 std.guikit.widgets.input  class dropdown
@@ -3968,6 +4304,7 @@ std.guikit.widgets.input  fab.override def arrange()
 std.guikit.widgets.input  fab.override def kind() : string
 std.guikit.widgets.input  fab.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  fab.override def paint(p: painter)
+std.guikit.widgets.input  fab.override def words_shown() : string
 std.guikit.widgets.input  form.def at_most(field: state<string>, letters: _int64, message: string) : form
 std.guikit.widgets.input  form.def check() : _int64
 std.guikit.widgets.input  form.def clear()
@@ -3981,11 +4318,14 @@ std.guikit.widgets.input  menu_option.override def arrange()
 std.guikit.widgets.input  menu_option.override def kind() : string
 std.guikit.widgets.input  menu_option.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  menu_option.override def paint(p: painter)
+std.guikit.widgets.input  menu_option.override def words_shown() : string
 std.guikit.widgets.input  menu_option.words : string
 std.guikit.widgets.input  radio.override def arrange()
+std.guikit.widgets.input  radio.override def is_on() : bool
 std.guikit.widgets.input  radio.override def kind() : string
 std.guikit.widgets.input  radio.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  radio.override def paint(p: painter)
+std.guikit.widgets.input  radio.override def words_shown() : string
 std.guikit.widgets.input  radio.radio(caption: string, choice: state<_int64>, stands_for: _int64)
 std.guikit.widgets.input  radio.radio(choice: state<_int64>, stands_for: _int64, caption_of: ()())
 std.guikit.widgets.input  slider.def whole() : slider
@@ -3996,11 +4336,13 @@ std.guikit.widgets.input  slider.override def measure(min_w: decimal, max_w: dec
 std.guikit.widgets.input  slider.override def paint(p: painter)
 std.guikit.widgets.input  slider.override def pointer(what: _int64, x: decimal, y: decimal)
 std.guikit.widgets.input  slider.override def typed(words: string)
+std.guikit.widgets.input  slider.override def value_shown() : decimal
 std.guikit.widgets.input  slider.slider(value: state<decimal>, from: decimal, to: decimal)
 std.guikit.widgets.input  tab_item.override def arrange()
 std.guikit.widgets.input  tab_item.override def kind() : string
 std.guikit.widgets.input  tab_item.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  tab_item.override def paint(p: painter)
+std.guikit.widgets.input  tab_item.override def words_shown() : string
 std.guikit.widgets.input  tab_item.tab_item(title: string)
 std.guikit.widgets.input  tab_item.tab_item(title_of: ()())
 std.guikit.widgets.input  tab_strip.def choose(index: _int64)
@@ -4019,6 +4361,7 @@ std.guikit.widgets.input  text_area.def label(words: string) : text_area
 std.guikit.widgets.input  text_area.def limit(letters: _int64) : text_area
 std.guikit.widgets.input  text_area.override def adopt(old: behavior)
 std.guikit.widgets.input  text_area.override def arrange()
+std.guikit.widgets.input  text_area.override def caption_shown() : string
 std.guikit.widgets.input  text_area.override def key(e: event) : _int64
 std.guikit.widgets.input  text_area.override def kind() : string
 std.guikit.widgets.input  text_area.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
@@ -4026,6 +4369,7 @@ std.guikit.widgets.input  text_area.override def paint(p: painter)
 std.guikit.widgets.input  text_area.override def pointer(what: _int64, x: decimal, y: decimal)
 std.guikit.widgets.input  text_area.override def typed(words: string)
 std.guikit.widgets.input  text_area.override def wheel(dx: decimal, dy: decimal) : _int64
+std.guikit.widgets.input  text_area.override def words_shown() : string
 std.guikit.widgets.input  text_area.text_area(value: state<string>)
 std.guikit.widgets.input  text_field.def error(words: string) : text_field
 std.guikit.widgets.input  text_field.def helper(words: string) : text_field
@@ -4037,15 +4381,18 @@ std.guikit.widgets.input  text_field.def on_submit(action: ()()) : text_field
 std.guikit.widgets.input  text_field.def password() : text_field
 std.guikit.widgets.input  text_field.override def adopt(old: behavior)
 std.guikit.widgets.input  text_field.override def arrange()
+std.guikit.widgets.input  text_field.override def caption_shown() : string
 std.guikit.widgets.input  text_field.override def key(e: event) : _int64
 std.guikit.widgets.input  text_field.override def kind() : string
 std.guikit.widgets.input  text_field.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  text_field.override def paint(p: painter)
 std.guikit.widgets.input  text_field.override def pointer(what: _int64, x: decimal, y: decimal)
 std.guikit.widgets.input  text_field.override def typed(words: string)
+std.guikit.widgets.input  text_field.override def words_shown() : string
 std.guikit.widgets.input  text_field.text_field(value: state<string>)
 std.guikit.widgets.input  toggle.override def adopt(old: behavior)
 std.guikit.widgets.input  toggle.override def arrange()
+std.guikit.widgets.input  toggle.override def is_on() : bool
 std.guikit.widgets.input  toggle.override def kind() : string
 std.guikit.widgets.input  toggle.override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)
 std.guikit.widgets.input  toggle.override def paint(p: painter)
@@ -6780,7 +7127,9 @@ std.testing  call_check.def never()
 std.testing  call_check.def once()
 std.testing  call_check.def times(count: _int64)
 std.testing  call_check.def with_any_arguments() : call_check
+std.testing  call_order.def then(block: ()()) : call_order
 std.testing  class call_check
+std.testing  class call_order
 std.testing  class mock
 std.testing  class mock_arg
 std.testing  class mock_args
@@ -6792,6 +7141,7 @@ std.testing  class number_check
 std.testing  class stubbing
 std.testing  class test_failure
 std.testing  class test_run
+std.testing  class test_skipped
 std.testing  class text_check
 std.testing  def after_each(step: ()())
 std.testing  def any_number() : decimal
@@ -6811,23 +7161,27 @@ std.testing  def finish_tests(name: string)
 std.testing  def given(block: ()()) : stubbing
 std.testing  def provide<t>(make: ()(t))
 std.testing  def show_only_failures()
+std.testing  def skip_test(why: string)
 std.testing  def test(name: string, body: ()())
 std.testing  def tests(name: string, body: ()())
 std.testing  def verify(block: ()()) : call_check
 std.testing  def verify(on: mock, function: string) : call_check
 std.testing  def verify_nothing_else(stand_in: object)
+std.testing  def verify_order(block: ()()) : call_order
 std.testing  mock.def add_stub(stub: mock_stub)
 std.testing  mock.def answer(function: string) : object
 std.testing  mock.def answer(function: string, argument: object?) : object
 std.testing  mock.def called(function: string)
 std.testing  mock.def called(function: string, argument: object?)
 std.testing  mock.def count_fitting(wanted: mock_stub) : _int64
+std.testing  mock.def first_fitting_after(wanted: mock_stub, after: _int64) : _int64
 std.testing  mock.def forget_calls()
 std.testing  mock.def given(function: string, value: object) : mock
 std.testing  mock.def last_argument(function: string) : object?
 std.testing  mock.def mock_call(function: string, args: mock_args) : object?
 std.testing  mock.def mock_missing(function: string, gives: string)
 std.testing  mock.def mock_number(function: string, args: mock_args) : decimal
+std.testing  mock.def number_in(function: string, found: object) : decimal
 std.testing  mock.def story() : string
 std.testing  mock.def times_called(function: string) : _int64
 std.testing  mock.def unchecked_story() : string
@@ -6849,10 +7203,12 @@ std.testing  mock_call.checked : _int64
 std.testing  mock_call.def words() : string
 std.testing  mock_call.function : string
 std.testing  mock_call.mock_call(on: mock, name: string, given_args: mock_args)
+std.testing  mock_call.number : _int64
 std.testing  mock_call.owner : mock
 std.testing  mock_noted.mock_noted() -> base("")
 std.testing  mock_recorder.ANY_NUMBER : decimal
 std.testing  mock_recorder.any_text_mark : string
+std.testing  mock_recorder.made : _int64
 std.testing  mock_recorder.noted : list<mock_call>
 std.testing  mock_recorder.noting : _int64
 std.testing  mock_recorder.static def the_call_of(block: ()(), word: string) : mock_call
@@ -6888,7 +7244,9 @@ std.testing  test_run.static def in_a_test() : bool
 std.testing  test_run.static def one(name: string, body: ()())
 std.testing  test_run.static def only_failures()
 std.testing  test_run.static def only_in_tests(written: string)
+std.testing  test_run.static def skipped_count() : _int64
 std.testing  test_run.static def summary() : _int64
+std.testing  test_skipped.test_skipped(why: string) -> base(why)
 std.testing  text_check.def named(what: string) : text_check
 std.testing  text_check.def should_be(wanted: string)
 std.testing  text_check.def should_be_empty()

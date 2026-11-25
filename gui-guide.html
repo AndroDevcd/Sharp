@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The GUI guide - Sharp</title>
+<meta name="description" content="How Sharp&#x27;s GUI library works: screens, layout, widgets, dialogs, navigation and UI tests.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="mark">#</span>Sharp</a>
+    <span class="version">0.5.12</span>
+    <nav class="main" aria-label="Site">
+      <a href="index.html">Home</a>
+      <a href="guide/index.html">Guide</a>
+      <a href="std/index.html">Library</a>
+      <a href="gui.html" aria-current="page">GUI</a>
+      <a href="debugger.html">Debugger</a>
+      <a href="performance.html">Performance</a>
+      <a href="install.html">Download</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="lib guide"><div class="wrap">
+    <aside>
+      <p class="eyebrow">The GUI guide</p>
+      <ul class="mods">
+        <li><a href="#a-window">A window</a></li>
+        <li><a href="#a-screen-follows-its-state">A screen follows its state</a></li>
+        <li><a href="#laying-things-out">Laying things out</a></li>
+        <li><a href="#the-modifier">The modifier</a></li>
+        <li><a href="#widgets">Widgets</a></li>
+        <li><a href="#dialogs-menus-sheets-and-toasts">Dialogs, menus, sheets and toasts</a></li>
+        <li><a href="#several-screens">Several screens</a></li>
+        <li><a href="#time">Time</a></li>
+        <li><a href="#the-look">The look</a></li>
+        <li><a href="#charts-and-3d">Charts and 3D</a></li>
+        <li><a href="#testing-a-screen">Testing a screen</a></li>
+      </ul>
+    </aside>
+    <main>
+      <p class="crumbs"><a href="gui.html">GUI</a> / The GUI guide</p>
+      <h1>The GUI guide</h1>
+<p>How Sharp&#x27;s GUI library, <code>std.guikit</code>, works: windows, screens, layout, widgets, dialogs, several screens, time, and how to test all of it. It comes with Sharp; there is nothing to install on Windows, and on Linux or a Raspberry Pi only SDL2 (<code>sudo apt install libsdl2-dev</code>).</p>
+<p>Every piece of code on this page was compiled and run. The screens shown here are the ones the tests at the end of the page click through.</p>
+<h2 id="a-window">A window</h2>
+<div class="code"><pre class="sharp">mod app;
+
+import (
+    std.guikit.*
+)
+
+class hello base composable {
+    override def build() : element {
+        return column(modifier().fill()) {
+            text(&quot;Hello&quot;).size(32);
+        }.center();
+    }
+}
+
+def main() {
+    gui.run(&quot;Hello&quot;, 360, 240, hello());
+}</pre></div>
+<div class="code"><pre>sharpc hello.sharp -o hello
+sharp hello</pre></div>
+<p><code>gui.run</code> opens the window, shows the screen and runs until the window is closed. A screen is a class on top of <code>composable</code>; its <code>build()</code> says what is on it.</p>
+<h2 id="a-screen-follows-its-state">A screen follows its state</h2>
+<div class="code"><pre class="sharp">class counter base composable {
+    count := state(0);
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            text(&quot;Count: &quot; + count.value, modifier().tag(&quot;total&quot;)).size(32);
+            row {
+                button(&quot;-&quot;, modifier().tag(&quot;less&quot;)) { count.value -= 1; }.outline();
+                button(&quot;+&quot;, modifier().tag(&quot;more&quot;)) { count.value += 1; };
+            }.gap(8);
+        }.center().gap(16);
+    }
+}</pre></div>
+<p>This is the whole idea of the library:</p>
+<ul class="plainlist"><li>A <b>state</b> is a value the screen depends on: <code>state(0)</code> for a number, <code>state(&quot;&quot;)</code> for text. Read and change it through <code>.value</code>.</li><li><code>build()</code> describes the screen for the state as it is <b>now</b>.</li><li>When a state changes, <code>build()</code> runs again and the screen follows. A button never changes what is on the screen; it only changes a state.</li></ul>
+<p>Nothing is shown, hidden or updated by hand. If the words on the screen are wrong, the state is wrong.</p>
+<p>A state that several screens share is made outside them, with <code>gui.state(0)</code>.</p>
+<p>The window does not redraw while nothing changes: an app that is standing still uses no processor.</p>
+<h2 id="laying-things-out">Laying things out</h2>
+<p>Three containers do most of the work. What is written inside a container&#x27;s block is in it, in the order it is written; ordinary <code>if</code> and <code>for</code> work there.</p>
+<div class="scroll"><table class="cmds"><tr><th>Word</th><th>Its children</th></tr><tr><td><code>column { }</code></td><td>one under the other</td></tr><tr><td><code>row { }</code></td><td>side by side</td></tr><tr><td><code>stack { }</code></td><td>on top of each other</td></tr></table></div>
+<div class="code"><pre class="sharp">def profile_row(name: string, role: string) {
+    row(modifier().fill_width().padding(12).tag(&quot;profile&quot;)) {
+        column {
+            text(name).bold();
+            text(role).dim();
+        }.gap(2);
+        spacer();
+        button(&quot;Message&quot;) { }.outline();
+    }.gap(12);
+}</pre></div>
+<ul class="plainlist"><li><code>.gap(8)</code> is the room between the children.</li><li><code>spacer()</code> takes all the room that is left: here it pushes the button to the right.</li><li><code>.center()</code> puts the children in the middle.</li></ul>
+<p>More containers: <code>scroll { }</code> for content taller than the window, <code>grid_fit(170) { }</code> for cards that take as many columns as fit, <code>wrap { }</code> for things that flow onto the next line, <code>card { }</code>.</p>
+<p>A long list is a <code>lazy_column</code>. It only builds the rows that are in sight, so ten thousand rows cost the same as ten:</p>
+<div class="code"><pre class="sharp">def inbox(count: _int64) {
+    lazy_column(modifier().fill().tag(&quot;inbox&quot;)) {
+        items(count) { i: _int64 -&gt;
+            text(&quot;mail &quot; + i, modifier().tag(&quot;mail_&quot; + i).height(40));
+        };
+    };
+}</pre></div>
+<h2 id="the-modifier">The modifier</h2>
+<p>Every widget takes a modifier, and the modifier is the one place a widget&#x27;s box is changed. The settings chain:</p>
+<div class="code"><pre class="sharp">def price_tag(words: string) {
+    text(words, modifier().padding(10, 5).background(rgb(40, 90, 160)).corner(12).tag(&quot;price&quot;));
+}</pre></div>
+<div class="scroll"><table class="cmds"><tr><th>For</th><th>Words</th></tr><tr><td>Room</td><td><code>padding(16)</code>, <code>padding(sides, top_bottom)</code>, <code>margin(8)</code></td></tr><tr><td>Size</td><td><code>width(200)</code>, <code>height(40)</code>, <code>fill()</code>, <code>fill_width()</code>, <code>grow(1)</code> (a share of the room left over)</td></tr><tr><td>Look</td><td><code>background(colour)</code>, <code>corner(8)</code>, <code>border(1, colour)</code>, <code>shadow(6)</code>, <code>opacity(0.5)</code></td></tr><tr><td>The mouse</td><td><code>click { }</code>, <code>long_press { }</code>, <code>double_click { }</code>, <code>right_click { }</code>, <code>tooltip(&quot;words&quot;)</code></td></tr><tr><td>There or not</td><td><code>show(0)</code> takes no room, <code>visible(0)</code> keeps its room, <code>enable(0)</code> greys it out</td></tr><tr><td>Tests</td><td><code>tag(&quot;save&quot;)</code>: a name a test finds the widget by</td></tr></table></div>
+<p>What a widget <b>is</b> has its own words on the widget: <code>text(...).size(24).bold()</code>, <code>button(...).outline()</code>, <code>text_field(...).label(&quot;Email&quot;)</code>.</p>
+<h2 id="widgets">Widgets</h2>
+<div class="scroll"><table class="cmds"><tr><th>Word</th><th>What it is</th></tr><tr><td><code>text(&quot;words&quot;)</code></td><td>words: <code>.size(24)</code>, <code>.bold()</code>, <code>.dim()</code>, <code>.color(c)</code></td></tr><tr><td><code>button(&quot;Save&quot;) { }</code></td><td>a button: <code>.outline()</code>, <code>.plain()</code>, <code>.danger()</code></td></tr><tr><td><code>text_field(state)</code></td><td>a line to type into: <code>.label(&quot;Name&quot;)</code>, <code>.hint(&quot;...&quot;)</code>, <code>.password()</code>, <code>.on_submit { }</code></td></tr><tr><td><code>text_area(state)</code></td><td>several lines</td></tr><tr><td><code>checkbox(&quot;words&quot;, state)</code></td><td>a tick box; the state is 1 or 0</td></tr><tr><td><code>toggle(state)</code></td><td>a switch</td></tr><tr><td><code>radio(&quot;words&quot;, state, 2)</code></td><td>one of several; it is chosen when the state is its number</td></tr><tr><td><code>slider(state, 0, 100)</code></td><td>a number chosen by dragging</td></tr><tr><td><code>dropdown(state) { option(&quot;A&quot;); option(&quot;B&quot;); }</code></td><td>a list to pick from; the state is the option&#x27;s number</td></tr><tr><td><code>chip(&quot;words&quot;)</code>, <code>badge(3)</code></td><td>small labels</td></tr><tr><td><code>progress(0.4)</code></td><td>how far along something is</td></tr><tr><td><code>image(&quot;picture.png&quot;)</code></td><td>a picture file</td></tr><tr><td><code>divider()</code></td><td>a thin line</td></tr></table></div>
+<p>A form puts them together. The widgets are bound to states, and the rest of the screen reads the same states:</p>
+<div class="code"><pre class="sharp">class settings_form base composable {
+    name := state(&quot;&quot;);
+    updates := state(1);
+    dark := state(0);
+    plan := state(1);
+    volume := state(0.5);
+
+    override def build() : element {
+        return column(modifier().fill().padding(24)) {
+            text(&quot;Settings&quot;).size(24).bold();
+            text_field(name, modifier().width(300).tag(&quot;name&quot;)).label(&quot;Your name&quot;);
+            checkbox(&quot;Email me about updates&quot;, updates, modifier().tag(&quot;updates&quot;));
+            row {
+                text(&quot;Dark mode&quot;);
+                toggle(dark, modifier().tag(&quot;dark&quot;));
+            }.gap(12);
+            row {
+                radio(&quot;Monthly&quot;, plan, 1, modifier().tag(&quot;monthly&quot;));
+                radio(&quot;Yearly&quot;, plan, 2, modifier().tag(&quot;yearly&quot;));
+            }.gap(16);
+            slider(volume, 0, 1, modifier().width(300).tag(&quot;volume&quot;));
+            // (the button cannot be used until there is a name)
+            button(&quot;Save&quot;, modifier().tag(&quot;save&quot;).enable(name.value.size() &gt; 0 ? 1 : 0)) {
+                gui.toast(&quot;Saved for &quot; + name.value);
+            };
+        }.gap(14);
+    }
+}</pre></div>
+<h2 id="dialogs-menus-sheets-and-toasts">Dialogs, menus, sheets and toasts</h2>
+<p>A dialog is not opened and closed. It is there while its state is not 0:</p>
+<div class="code"><pre class="sharp">class delete_button base composable {
+    asking := state(0);
+    deleted := state(0);
+
+    override def build() : element {
+        return column(modifier().fill().padding(24)) {
+            text(deleted.value == 1 ? &quot;The file is gone&quot; : &quot;report.txt&quot;, modifier().tag(&quot;file&quot;));
+            button(&quot;Delete&quot;, modifier().tag(&quot;delete&quot;)) { asking.value = 1; }.danger();
+
+            dialog(asking) {
+                text(&quot;Delete report.txt?&quot;).bold();
+                row {
+                    button(&quot;Keep it&quot;, modifier().tag(&quot;keep&quot;)) { asking.value = 0; }.outline();
+                    button(&quot;Delete it&quot;, modifier().tag(&quot;really&quot;)) {
+                        asking.value = 0;
+                        deleted.value = 1;
+                    }.danger();
+                }.gap(8);
+            };
+        }.gap(12);
+    }
+}</pre></div>
+<ul class="plainlist"><li><code>dialog(state) { }</code> is a card in the middle of the window.</li><li><code>sheet(state) { }</code> rises from the bottom.</li><li><code>menu(state) { menu_item(&quot;Copy&quot;) { }; }</code> is a list of choices.</li></ul>
+<p>All three float above the page. While one is up, the page behind it cannot be clicked, a click outside it closes it, and so does Escape.</p>
+<p><code>gui.toast(&quot;Saved&quot;)</code> shows a short message at the bottom of the window for a few seconds.</p>
+<h2 id="several-screens">Several screens</h2>
+<p>An app with more than one screen has a <code>navigator</code>, and one small class for each place it can go: a <b>route</b>. A route&#x27;s fields are what its screen needs.</p>
+<div class="code"><pre class="sharp">class to_list base route { }
+
+class to_item base route {
+    number : _int64;
+    to_item(n: _int64) { number = n; }
+}
+
+class shop base composable {
+    nav : navigator = navigator();
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            screens(nav, to_list(), modifier().grow(1).fill_width()) {
+                screen&lt;to_list&gt;() {
+                    column(modifier().fill().padding(16)) {
+                        text(&quot;The shop&quot;).size(24).bold();
+                        for(i : _int64 = 1; i &lt;= 3; i++) {
+                            item_line(nav, i);
+                        }
+                    }.gap(8);
+                };
+                screen&lt;to_item&gt;() {
+                    column(modifier().fill()) {
+                        top_bar(&quot;Item &quot; + it.number, nav);
+                        text(&quot;This is item &quot; + it.number, modifier().padding(16).tag(&quot;item_words&quot;));
+                    };
+                };
+            };
+        };
+    }
+}
+
+/** one line of the list: clicking it opens that item */
+def item_line(nav: navigator, n: _int64) {
+    text(&quot;Item &quot; + n, modifier().fill_width().padding(12).tag(&quot;item_&quot; + n).click { nav.go(to_item(n)); });
+}</pre></div>
+<ul class="plainlist"><li><code>screens(nav, first_route) { }</code> lists every screen of the app in one place.</li><li><code>nav.go(to_item(7))</code> goes there. A screen never needs to know another screen, only a route.</li><li><code>nav.back()</code> goes back, and so does Escape. <code>top_bar(title, nav)</code> is a title with a back arrow.</li><li>Inside a <code>screen&lt;...&gt;() { }</code> block, <code>it</code> is the route that was gone to.</li></ul>
+<p>For tabs along the bottom, write <code>tab&lt;to_list&gt;(&quot;List&quot;) { }</code> in place of <code>screen&lt;...&gt;</code> and put <code>nav_bar(nav)</code> under the screens. Each tab keeps its own way back.</p>
+<h2 id="time">Time</h2>
+<div class="code"><pre class="sharp">class stopwatch base composable {
+    seconds := state(0);
+
+    stopwatch() {
+        every(1) { seconds.value += 1; };
+    }
+
+    override def build() : element {
+        return text(&quot;&quot; + seconds.value + &quot; s&quot;, modifier().tag(&quot;seconds&quot;)).size(32);
+    }
+}</pre></div>
+<ul class="plainlist"><li><code>every(1) { }</code> in a screen&#x27;s constructor runs each second while that screen is up.</li><li><code>gui.after(2) { }</code> runs once, two seconds from now; <code>gui.every(1) { }</code> runs until the timer it gives back is cancelled.</li><li><code>animated(0)</code> is a number that glides: <code>width.go(240, 0.25)</code> takes a quarter of a second to get there, and the screen follows on the way.</li></ul>
+<h2 id="the-look">The look</h2>
+<div class="code"><pre class="sharp">def theme_buttons() {
+    row {
+        button(&quot;Light&quot;, modifier().tag(&quot;light&quot;)) { gui.use_theme(theme.light()); }.outline();
+        button(&quot;Dark&quot;, modifier().tag(&quot;dark_theme&quot;)) { gui.use_theme(theme.dark()); }.outline();
+    }.gap(8);
+}</pre></div>
+<p><code>gui.use_theme(...)</code> changes the whole app on the spot. For a widget of your own, <code>gui.current_theme()</code> has the colours in use: <code>t.surface</code>, <code>t.primary</code>, <code>t.text</code>.</p>
+<p><code>gui.app_name(&quot;My app&quot;)</code> and <code>gui.app_icon(&quot;icon.png&quot;)</code> set what the title bar and the task bar show (an <code>.ico</code>, an <code>.svg</code> or a picture file).</p>
+<h2 id="charts-and-3d">Charts and 3D</h2>
+<p>Both are part of the same library and go on a screen like any widget:</p>
+<ul class="plainlist"><li><code>chart { bars(...); line(...); }</code> draws charts: see <a href="std/std.guikit.charts.html">std.guikit.charts</a>.</li><li><code>scene { }</code> is a 3D scene with a camera, lights, shapes, land and water: see <a href="guide/your-first-3d-scene.html">Your first 3D scene</a> and <a href="std/std.guikit.three.html">std.guikit.three</a>.</li></ul>
+<h2 id="testing-a-screen">Testing a screen</h2>
+<p><code>std.guikit.testing</code> runs a screen without opening a window, uses it the way a person does, and checks what happens. These are the tests of the screens on this page:</p>
+<div class="code"><pre class="sharp">mod main;
+
+import (
+    std.testing,
+    std.guikit.*,
+    std.guikit.testing
+)
+
+def main(args: string[]) {
+    tests(&quot;the screens of the GUI guide&quot;) {
+        ui_test(&quot;the counter counts&quot;) {
+            set_content(counter());
+            on_tag(&quot;total&quot;).should_say(&quot;Count: 0&quot;);
+            on_tag(&quot;more&quot;).click().click();
+            on_tag(&quot;less&quot;).click();
+            on_tag(&quot;total&quot;).should_say(&quot;Count: 1&quot;);
+        };
+
+        ui_test(&quot;widgets written right in the test&quot;) {
+            set_content {
+                column {
+                    profile_row(&quot;Ann&quot;, &quot;Designer&quot;);
+                    price_tag(&quot;12.50&quot;);
+                    theme_buttons();
+                };
+            };
+            on_tag(&quot;profile&quot;).on_text(&quot;Ann&quot;).should_be_shown();
+            on_tag(&quot;profile&quot;).on_kind&lt;button&gt;().should_say(&quot;Message&quot;);
+            on_tag(&quot;price&quot;).should_say(&quot;12.50&quot;);
+            all_kinds&lt;button&gt;().should_have_count(3);
+        };
+
+        ui_test(&quot;a row far down a long list&quot;) {
+            set_content { inbox(5000); };
+            on_tag(&quot;mail_4000&quot;).should_not_exist();
+            on_tag(&quot;inbox&quot;).scroll_to(on_tag(&quot;mail_4000&quot;));
+            on_tag(&quot;mail_4000&quot;).should_be_shown();
+        };
+
+        ui_test(&quot;the form: typing, ticking, choosing, saving&quot;) {
+            set_content(settings_form());
+            on_tag(&quot;save&quot;).should_be_disabled();
+            on_tag(&quot;name&quot;).type(&quot;Ann&quot;);
+            on_tag(&quot;save&quot;).should_be_enabled();
+
+            on_tag(&quot;updates&quot;).should_be_on().click().should_be_off();
+            on_tag(&quot;dark&quot;).click().should_be_on();
+            on_tag(&quot;yearly&quot;).click().should_be_selected();
+            on_tag(&quot;monthly&quot;).should_be_off();
+            on_tag(&quot;volume&quot;).should_have_value(0.5);
+
+            on_tag(&quot;save&quot;).click();
+            should_show_toast(&quot;Saved for Ann&quot;);
+            advance(20);
+            should_show_no_toast();
+        };
+
+        ui_test(&quot;deleting asks first&quot;) {
+            set_content(delete_button());
+            on_tag(&quot;really&quot;).should_not_exist();
+            on_tag(&quot;delete&quot;).click();
+            on_text(&quot;Delete report.txt?&quot;).should_be_shown();
+            on_tag(&quot;keep&quot;).click();
+            on_tag(&quot;file&quot;).should_say(&quot;report.txt&quot;);
+
+            on_tag(&quot;delete&quot;).click();
+            on_tag(&quot;really&quot;).click();
+            on_tag(&quot;file&quot;).should_say(&quot;The file is gone&quot;);
+        };
+
+        ui_test(&quot;from the list to an item&quot;) {
+            set_content(shop());
+            on_tag(&quot;item_words&quot;).should_not_exist();
+            on_tag(&quot;item_2&quot;).click();
+            on_tag(&quot;item_words&quot;).should_say(&quot;This is item 2&quot;);
+        };
+
+        ui_test(&quot;the stopwatch, without waiting for it&quot;) {
+            set_content(stopwatch());
+            on_tag(&quot;seconds&quot;).should_say(&quot;0 s&quot;);
+            advance(3.5);
+            on_tag(&quot;seconds&quot;).should_say(&quot;3 s&quot;);
+        };
+    };
+    finish_tests();
+}</pre></div>
+<div class="code"><pre>sharpc guide_tests.sharp -o guide_tests
+sharp guide_tests</pre></div>
+<h3 id="how-it-works">How it works</h3>
+<ul class="plainlist"><li><code>ui_test(&quot;...&quot;) { }</code> is one test, inside a <code>tests(...)</code> group like any other test.</li><li><code>set_content(counter())</code> puts a screen up. <code>set_content { ... }</code> takes widgets written right there.</li><li>No window opens. The screen is built, laid out, clicked and typed into through the same code a real window uses, so a click on a disabled button does nothing and a click on something a dialog covers fails the test.</li><li>A check that does not hold fails the test there and prints the whole screen as text: every widget, its tag, its words, where it is.</li></ul>
+<h3 id="finding">Finding</h3>
+<div class="scroll"><table class="cmds"><tr><th>Word</th><th>Finds</th></tr><tr><td><code>on_tag(&quot;save&quot;)</code></td><td>the widget tagged <code>modifier().tag(&quot;save&quot;)</code></td></tr><tr><td><code>on_text(&quot;Save&quot;)</code></td><td>the widget that shows these words</td></tr><tr><td><code>on_kind&lt;button&gt;()</code></td><td>the widget of this class</td></tr><tr><td><code>all_tags(...)</code>, <code>all_text(...)</code>, <code>all_kinds&lt;...&gt;()</code></td><td>every such widget: <code>.first()</code>, <code>.last()</code>, <code>.at(2)</code>, <code>.count()</code></td></tr><tr><td><code>on_tag(&quot;row_3&quot;).on_text(&quot;Delete&quot;)</code></td><td>one inside another</td></tr><tr><td><code>all_kinds&lt;checkbox&gt;().that_are_on()</code></td><td>of those, the ones that are on, off, enabled, disabled or shown</td></tr><tr><td><code>all_kinds&lt;button&gt;().with_text(&quot;Save&quot;)</code></td><td>of those, the ones with these words, or <code>.with_tag(...)</code></td></tr></table></div>
+<p><code>on_tag</code>, <code>on_text</code> and <code>on_kind</code> mean exactly one widget. When there is none, or more than one, the test fails and says so; it never picks one for you.</p>
+<p>Find by tag where you can. The words on a screen change with the wording and the language; a tag stays.</p>
+<h3 id="doing">Doing</h3>
+<div class="scroll"><table class="cmds"><tr><th>Word</th><th>Does</th></tr><tr><td><code>click()</code>, <code>double_click()</code>, <code>long_click()</code>, <code>right_click()</code></td><td>the mouse, in the middle of the widget</td></tr><tr><td><code>type(&quot;words&quot;)</code>, <code>replace(&quot;words&quot;)</code>, <code>clear()</code></td><td>typing into a field</td></tr><tr><td><code>press(KEY_ENTER)</code>, <code>press(&#x27;s&#x27;, MOD_CTRL)</code></td><td>a key, alone or with Ctrl, Shift or Alt held</td></tr><tr><td><code>hover()</code></td><td>the mouse rests on it</td></tr><tr><td><code>scroll_to()</code></td><td>brings the widget into sight</td></tr><tr><td><code>on_tag(&quot;list&quot;).scroll_to(on_tag(&quot;row_40&quot;))</code></td><td>scrolls a list until that row is there</td></tr><tr><td><code>scroll_to_end()</code>, <code>scroll_to_start()</code>, <code>scroll_down(3)</code>, <code>scroll_up(3)</code></td><td>on a scrolling area</td></tr><tr><td><code>swipe_left()</code>, <code>swipe_up()</code>, <code>drag(dx, dy)</code></td><td>dragging</td></tr><tr><td><code>back()</code></td><td>the back key</td></tr></table></div>
+<h3 id="checking">Checking</h3>
+<div class="scroll"><table class="cmds"><tr><th>Word</th><th>Holds when</th></tr><tr><td><code>should_exist()</code>, <code>should_not_exist()</code></td><td>it is on the screen, or not</td></tr><tr><td><code>should_be_shown()</code>, <code>should_be_hidden()</code></td><td>it can be seen, or not (hidden, scrolled away)</td></tr><tr><td><code>should_be_enabled()</code>, <code>should_be_disabled()</code></td><td>it can be used, or is greyed out</td></tr><tr><td><code>should_be_on()</code>, <code>should_be_off()</code>, <code>should_be_selected()</code></td><td>a checkbox, a switch, a radio</td></tr><tr><td><code>should_be_focused()</code></td><td>it has the keyboard</td></tr><tr><td><code>should_say(&quot;words&quot;)</code>, <code>should_contain(&quot;part&quot;)</code></td><td>its words</td></tr><tr><td><code>should_have_value(0.5)</code></td><td>a slider or a progress bar</td></tr><tr><td><code>should_have_count(3)</code></td><td>on a group</td></tr><tr><td><code>should_show_toast(&quot;Saved&quot;)</code>, <code>should_show_no_toast()</code></td><td>a toast</td></tr><tr><td><code>should_show_tooltip(&quot;words&quot;)</code></td><td>a tooltip, after <code>hover()</code> and <code>advance(1)</code></td></tr></table></div>
+<p>They chain: <code>on_tag(&quot;agree&quot;).click().should_be_on();</code></p>
+<h3 id="time">Time</h3>
+<p>The clock of a test stands still. A timer does not ring and a toast does not go away until the test lets time pass, so a test of something that takes a minute takes no time and gives the same answer on every machine.</p>
+<div class="scroll"><table class="cmds"><tr><th>Word</th><th>Does</th></tr><tr><td><code>advance(2)</code></td><td>two seconds pass</td></tr><tr><td><code>wait_until { return on_text(&quot;Done&quot;).exists(); }</code></td><td>time passes until the block answers true</td></tr><tr><td><code>idle()</code></td><td>no time passes; everything waiting to be built again finishes</td></tr></table></div>
+<h3 id="watching-a-test">Watching a test</h3>
+<div class="code"><pre>sharp guide_tests -watch</pre></div>
+<p>The same tests run in a real window, slowly enough to follow: the screen comes up, a ring shows where the test presses, the words appear as it types. Nothing in the tests changes for it.</p>
+<p><code>hold_on_failure()</code> at the top of <code>main</code> keeps the window of a failed test up, as it was when the check did not hold, until you close it.</p>
+<h3 id="what-something-looks-like">What something looks like</h3>
+<p>A test that is not watched paints nothing, so it cannot see a colour. The words that look at colours work in a watched test only:</p>
+<div class="code"><pre class="sharp">def check_the_price_tag() {
+    on_tag(&quot;price&quot;).should_have_color_at(4, 4, rgb(40, 90, 160));
+}</pre></div>
+<p>Without <code>-watch</code> they stop the test with an error that says so. They never pass quietly.</p>
+<h3 id="the-rest-of-testing">The rest of testing</h3>
+<p>The UI words sit on top of <code>std.testing</code>, and everything there works in a UI test too:</p>
+<ul class="plainlist"><li>Groups can hold groups: <code>tests(&quot;a&quot;) { tests(&quot;b&quot;) { test(...) }; };</code>. <code>before_each { }</code> and <code>after_each { }</code> of every group around a test run for it.</li><li><code>skip_test(&quot;why&quot;)</code> leaves a test, counted as skipped.</li><li><code>mock&lt;store&gt;()</code> makes a stand-in for an interface; <code>given { }</code>, <code>verify { }</code> and <code>verify_order { }.then { }</code> set it up and check how it was used.</li></ul>
+<p>See <a href="std/std.guikit.testing.html">std.guikit.testing</a> and <a href="std/std.testing.html">std.testing</a> for every word.</p>
+    </main>
+</div></div>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="site.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.11</span>
+    <span class="version">0.5.12</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,6 +60,7 @@
         <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
         <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
         <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.testing.html">std.guikit.testing</a></li>
         <li class="on sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
         <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
         <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
@@ -79,7 +80,7 @@
     <main>
 <p class="crumbs"><a href="index.html">Standard library</a> / <a href="std.guikit.html">std.guikit</a> / std.guikit.three</p>
 <h1>std.guikit.three <small>module</small></h1>
-<p class="contents"><a href="#camera">camera</a> <a href="#lamp">lamp</a> <a href="#mesh">mesh</a> <a href="#plant">plant</a> <a href="#plants">plants</a> <a href="#scattering">scattering</a> <a href="#scene">scene</a> <a href="#shape_store">shape_store</a> <a href="#shapes">shapes</a> <a href="#stage">stage</a> <a href="#sun">sun</a> <a href="#terrain">terrain</a> <a href="#thing">thing</a> <a href="#constants">constants</a></p>
+<p class="contents"><a href="#camera">camera</a> <a href="#endless">endless</a> <a href="#flock">flock</a> <a href="#lamp">lamp</a> <a href="#mesh">mesh</a> <a href="#motes">motes</a> <a href="#plant">plant</a> <a href="#plants">plants</a> <a href="#scattering">scattering</a> <a href="#scene">scene</a> <a href="#shape_store">shape_store</a> <a href="#shapes">shapes</a> <a href="#stage">stage</a> <a href="#sun">sun</a> <a href="#terrain">terrain</a> <a href="#thing">thing</a> <a href="#water">water</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
 <section class="type" id="camera">
 <h2><span class="kind">class</span> camera</h2>
 <p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/camera.sharp">source</a></p>
@@ -102,6 +103,7 @@ fly()       like walk, but forward is wherever the eye looks - up included.</pre
 <p>(three.js: PerspectiveCamera + OrbitControls / PointerLockControls. Godot: Camera3D.)</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>heading</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>tilt</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>aimed</code></td><td><code>bool</code></td><td>looks at a point (look_at) instead of along heading and tilt</td></tr><tr><td><code>aim_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>aim_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>aim_z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>wide</code></td><td><code>decimal</code></td><td>how much it takes in, top to bottom, in degrees</td></tr><tr><td><code>nearest</code></td><td><code>decimal</code></td><td>nothing nearer than this is drawn ...</td></tr><tr><td><code>furthest</code></td><td><code>decimal</code></td><td>... or further than this</td></tr><tr><td><code>mode</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>placed</code></td><td><code>bool</code></td><td>the program said where it stands (else: far enough back to see it all)</td></tr><tr><td><code>round_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>round_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>round_z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>round_set</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>away</code></td><td><code>decimal</code></td><td>0: far enough to see everything</td></tr><tr><td><code>pace</code></td><td><code>decimal</code></td><td>metres a second</td></tr><tr><td><code>eye_height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>ground</code></td><td><code>thing?</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
+<div class="fn" id="camera.above"><div class="sig">def <b>above</b>(land: thing) : camera</div><p>swimming: never nearer the land than 0.8 metres</p></div>
 <div class="fn" id="camera.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : camera</div></div>
 <div class="fn" id="camera.continue_from"><div class="sig">def <b>continue_from</b>(old: camera)</div><p>take over where a camera of the screen before had got to (the scene calls this on a rebuild)</p></div>
 <div class="fn" id="camera.dragged"><div class="sig">def <b>dragged</b>(dx: decimal, dy: decimal)</div><p>the mouse was dragged this far, in pixels</p></div>
@@ -117,9 +119,78 @@ fly()       like walk, but forward is wherever the eye looks - up included.</pre
 <div class="fn" id="camera.settle_orbit"><div class="sig">def <b>settle_orbit</b>()</div><p>orbit: put the eye where its heading, tilt and distance say</p></div>
 <div class="fn" id="camera.speed"><div class="sig">def <b>speed</b>(metres_a_second: decimal) : camera</div><p>how fast it walks or flies, in metres a second</p></div>
 <div class="fn" id="camera.stepped"><div class="sig">def <b>stepped</b>(f: frame) : bool</div><p>walk or fly for <code>step</code> seconds by the keys that are held; true when it moved</p></div>
+<div class="fn" id="camera.swim"><div class="sig">def <b>swim</b>() : camera</div><p>Swimming, or floating in space: the mouse looks round - the window keeps it, so there is no edge to stop at - and the keys move the way the eye looks: W A S D, E up, Q down, Shift three times as fast. Escape gives the mouse back; a click in the scene takes it again.</p>
+<div class="code"><pre class="sharp">camera().at(60, 12, 60).swim().speed(7).above(seabed);</pre></div></div>
 <div class="fn" id="camera.walk"><div class="sig">def <b>walk</b>() : camera</div><p>walk with the keys, look with the mouse, at the height the camera was put</p></div>
 <div class="fn" id="camera.walk-2"><div class="sig">def <b>walk</b>(land: thing) : camera</div><p>the same with the eye a person&#x27;s height above this land</p></div>
 <div class="fn" id="camera.wheeled"><div class="sig">def <b>wheeled</b>(turn: decimal) : bool</div><p>the wheel was turned; true when the camera used it</p></div>
+</div>
+</section>
+<section class="type" id="endless">
+<h2><span class="kind">class</span> endless</h2>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/endless.sharp">source</a></p>
+<p>endless - land with no edge. It is made piece by piece round the eye as the eye travels, and the pieces left far behind are let go: however far you go there is land ahead, and the machine holds only what is near.</p>
+<div class="code"><pre class="sharp">hills := endless(128, 64, { x: decimal, z: decimal -&gt; return rolling(x, z); });
+hills.colored({ height: decimal, steep: decimal -&gt; return steep &gt; 0.6 ? 0x6D675FFF : 0x5E7740FF; });
+around := state(0);</pre></div>
+<div class="code"><pre class="sharp">// in build():
+hills.ready_round(eye_x, eye_z);                    // the first pieces, all at once
+scene {
+    for(i : _int64 = 0; i &lt; hills.shown(); i++) {
+        add(hills.piece(i));                        // the pieces round the eye
+    }
+    eye := camera().walk(hills);                    // the eye stays above it, wherever it goes
+    on_frame { f: frame -&gt;
+        if(hills.follow(eye.x, eye.z)) { around.value = around.value + 1; }    // new land: build again
+    };
+}</pre></div>
+<p>Your function is the land: it must answer for ANY x and z (noise does), and the same answer every time. Each piece is <code>tile</code> metres along its edge, cut into <code>cells</code> squares; piece (0, 0) has its corner at (0, 0), piece (1, 0) lies next to it towards +x, piece (-1, 0) on the other side.</p>
+<p>follow(x, z) is asked every frame. It works on the next missing piece for a moment only - a few rows of heights - so that the picture never stops while land is made, and answers true when the pieces to show have changed.</p>
+<p>What stands on the land is yours to put there, piece by piece:</p>
+<div class="code"><pre class="sharp">for(i : _int64 = 0; i &lt; hills.shown(); i++) {
+    p := hills.piece(i);
+    scatter(pine, 300).on(hills).within(p.x, p.z, p.x + hills.tile, p.z + hills.tile)
+            .seed(hills.number_of(p));              // every piece its own forest
+}</pre></div>
+<p>(height_at and steep_at ask your function itself, so they answer anywhere, whether that land has been made or not.)</p>
+<p>(Godot, Unity: &quot;chunks&quot;, &quot;terrain streaming&quot;.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>tile</code></td><td><code>decimal</code></td><td>metres along a piece&#x27;s edge</td></tr><tr><td><code>cut</code></td><td><code>_int64</code></td><td>squares along a piece&#x27;s edge</td></tr><tr><td><code>near</code></td><td><code>_int64</code></td><td>pieces shown each way from the one the eye is over (1: three by three)</td></tr><tr><td><code>rows_a_frame</code></td><td><code>_int64</code></td><td>rows of heights worked out in one follow(...)</td></tr><tr><td><code>rise</code></td><td><code>(decimal, decimal)(decimal)?</code></td><td></td></tr><tr><td><code>paint</code></td><td><code>(decimal, decimal)(_int64)?</code></td><td></td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="endless.endless"><div class="sig"><b>endless</b>(size: decimal, cells: _int64, height: (decimal, decimal)(decimal))</div></div>
+<div class="fn" id="endless.colored"><div class="sig">def <b>colored</b>(by: (decimal, decimal)(_int64)) : endless</div><p>paint the land: your function is asked for a colour (0xRRGGBBAA) at every corner, given the height there and how steep it is. Returns the land.</p></div>
+<div class="fn" id="endless.follow"><div class="sig">def <b>follow</b>(px: decimal, pz: decimal) : bool</div><p>The eye is at (px, pz): asked every frame. Makes a little more of the next piece that is missing, lets go of the pieces left far behind, and answers true when the pieces to show have changed - build the scene again.</p></div>
+<div class="fn" id="endless.high"><div class="sig">def <b>high</b>(px: decimal, pz: decimal) : decimal</div><p>how high the land is at (px, pz)</p></div>
+<div class="fn" id="endless.number_of"><div class="sig">def <b>number_of</b>(p: terrain) : decimal</div><p>a number of a piece&#x27;s own, the same every time it is made: a seed for what stands on it</p></div>
+<div class="fn" id="endless.piece"><div class="sig">def <b>piece</b>(n: _int64) : terrain</div><p>the n-th of them</p></div>
+<div class="fn" id="endless.piece_of"><div class="sig">def <b>piece_of</b>(v: decimal) : _int64</div><p>which piece a place is over, along x or along z: 0 for 0 up to <code>tile</code>, -1 for the one before</p></div>
+<div class="fn" id="endless.piece_under"><div class="sig">def <b>piece_under</b>(px: decimal, pz: decimal) : terrain?</div><p>the piece that is made under (px, pz); null: that land is not made (yet, or any more)</p></div>
+<div class="fn" id="endless.reach"><div class="sig">def <b>reach</b>(pieces_each_way: _int64) : endless</div><p>show <code>pieces</code> each way from the one the eye is over: 1 is three by three, 2 five by five</p></div>
+<div class="fn" id="endless.ready_round"><div class="sig">def <b>ready_round</b>(px: decimal, pz: decimal)</div><p>make every piece round (px, pz) at once: before the first picture, or after a jump to a far place</p></div>
+<div class="fn" id="endless.shown"><div class="sig">def <b>shown</b>() : _int64</div><p>how many pieces there are to show round the eye</p></div>
+<div class="fn" id="endless.steep_at"><div class="sig">def <b>steep_at</b>(px: decimal, pz: decimal) : decimal</div><p>how steep the land is at (px, pz): 0 flat, 1 rising a metre for every metre across</p></div>
+</div>
+</section>
+<section class="type" id="flock">
+<h2><span class="kind">class</span> flock</h2>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/moving.sharp">source</a></p>
+<p>flock - many copies of one thing that move together, round the place the flock stands at: a school of fish, a flight of birds, gnats over a pond.</p>
+<div class="code"><pre class="sharp">school := flock(fish, 300).at(80, 12, 90).spread(9).speed(3);</pre></div>
+<p>Each goes round the middle at its own distance, nose first, the inner ones quicker, rising and sinking a little as it goes. The flock itself is a thing: move it, bob it, send it round a circle (circling) and all of them go along. The copies cost what a scatter&#x27;s do - one shape on the card.</p>
+<p>(Give it a thing whose nose points along -z, as a thing&#x27;s &quot;forward&quot; is.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>original</code></td><td><code>thing</code></td><td>the thing they are copies of</td></tr><tr><td><code>wanted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>reach</code></td><td><code>decimal</code></td><td>how far from the middle the outermost swim</td></tr><tr><td><code>tall</code></td><td><code>decimal</code></td><td>how high the flock is, against its width</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="flock.flock"><div class="sig"><b>flock</b>(of: thing, how_many: _int64)</div></div>
+<div class="fn" id="flock.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : flock</div></div>
+<div class="fn" id="flock.circling"><div class="sig">def <b>circling</b>(radius: decimal, seconds: decimal) : flock</div></div>
+<div class="fn" id="flock.color"><div class="sig">def <b>color</b>(packed: _int64) : flock</div></div>
+<div class="fn" id="flock.glow"><div class="sig">def <b>glow</b>(amount: decimal) : flock</div></div>
+<div class="fn" id="flock.no_shadow"><div class="sig">def <b>no_shadow</b>() : flock</div></div>
+<div class="fn" id="flock.place_all"><div class="sig">def <b>place_all</b>()</div><p>where each starts: the scene asks for this before it is shown</p></div>
+<div class="fn" id="flock.rough"><div class="sig">def <b>rough</b>(amount: decimal) : flock</div></div>
+<div class="fn" id="flock.speed"><div class="sig">def <b>speed</b>(metres_a_second: decimal) : flock</div><p>how fast they go, in metres a second (below 0: the other way round)</p></div>
+<div class="fn" id="flock.spread"><div class="sig">def <b>spread</b>(metres: decimal) : flock</div><p>how far from the middle the outermost swim, in metres</p></div>
+<div class="fn" id="flock.sway"><div class="sig">def <b>sway</b>(amount: decimal) : flock</div></div>
+<div class="fn" id="flock.turn"><div class="sig">def <b>turn</b>(degrees: decimal) : flock</div></div>
 </div>
 </section>
 <section class="type" id="lamp">
@@ -176,6 +247,7 @@ a colour            multiplied into the surface there (tint): shade a model by h
 <div class="fn" id="mesh.corner-3"><div class="sig">def <b>corner</b>(x: decimal, y: decimal, z: decimal, nx: decimal, ny: decimal, nz: decimal, u: decimal, v: decimal) : _int64</div><p>a new corner with its facing and its point of the texture</p></div>
 <div class="fn" id="mesh.cut_out"><div class="sig">def <b>cut_out</b>() : mesh</div><p>the see-through pixels of its texture are holes: leaves, a fence, a grate. (Also seen from both sides.)</p></div>
 <div class="fn" id="mesh.faceted"><div class="sig">def <b>faceted</b>() : mesh</div><p>give every triangle corners of its own, all facing the way the triangle does: the surface then shows its facets - the cut-gem, &quot;low-poly&quot; look.</p></div>
+<div class="fn" id="mesh.forget"><div class="sig">def <b>forget</b>()</div><p>take this mesh off the graphics card: for a large shape that will not be shown again (land left far behind). Shown again, it is sent again.</p></div>
 <div class="fn" id="mesh.glow"><div class="sig">def <b>glow</b>(amount: decimal) : mesh</div><p>how much of its own colour it gives off whatever the light: 0 none, 1 fully (a lamp, a screen, lava)</p></div>
 <div class="fn" id="mesh.moved"><div class="sig">def <b>moved</b>(dx: decimal, dy: decimal, dz: decimal) : mesh</div><p>move every corner</p></div>
 <div class="fn" id="mesh.quad"><div class="sig">def <b>quad</b>(a: _int64, b: _int64, c: _int64, d: _int64)</div><p>a four-cornered face (two triangles), counter-clockwise as seen from the side that shows</p></div>
@@ -193,6 +265,31 @@ a colour            multiplied into the surface there (tint): shade a model by h
 <div class="fn" id="mesh.turned"><div class="sig">def <b>turned</b>(yaw: decimal, pitch: decimal, roll: decimal) : mesh</div><p>turn round (0, 0, 0), in degrees, as a thing is turned: heading, then nose up, then rolled</p></div>
 <div class="fn" id="mesh.two_sided"><div class="sig">def <b>two_sided</b>() : mesh</div><p>seen from the back too (a leaf, a flag, a sheet of paper)</p></div>
 <div class="fn" id="mesh.unlit"><div class="sig">def <b>unlit</b>() : mesh</div><p>its own colour whatever the light</p></div>
+</div>
+</section>
+<section class="type" id="motes">
+<h2><span class="kind">class</span> motes</h2>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/moving.sharp">source</a></p>
+<p>motes - small things adrift all round the eye: specks of light, bubbles, snow, dust in a sunbeam, fireflies. There are always <code>count</code> of them near the eye, however far it goes: one that drifts out of reach comes back in on the other side.</p>
+<div class="code"><pre class="sharp">motes(1500).color(0xE8D36AFF).size(0.03);               // glowing specks
+motes(300).bubbles().rising(0.8).size(0.06);            // bubbles going up
+motes(4000).rising(0 - 1.5).size(0.02).color(0xFFFFFFFF);   // snow</pre></div>
+<p>Under water none is shown above the surface, and they fade into the water with distance like everything else.</p>
+<h3>Functions</h3><div>
+<div class="fn" id="motes.motes"><div class="sig"><b>motes</b>(how_many: _int64)</div></div>
+<div class="fn" id="motes.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : motes</div></div>
+<div class="fn" id="motes.bubbles"><div class="sig">def <b>bubbles</b>() : motes</div><p>bubbles: a bright rim and a glint, instead of a soft speck</p></div>
+<div class="fn" id="motes.circling"><div class="sig">def <b>circling</b>(radius: decimal, seconds: decimal) : motes</div></div>
+<div class="fn" id="motes.color"><div class="sig">def <b>color</b>(packed: _int64) : motes</div></div>
+<div class="fn" id="motes.glow"><div class="sig">def <b>glow</b>(amount: decimal) : motes</div></div>
+<div class="fn" id="motes.no_shadow"><div class="sig">def <b>no_shadow</b>() : motes</div></div>
+<div class="fn" id="motes.rising"><div class="sig">def <b>rising</b>(metres_a_second: decimal) : motes</div><p>drifting up at so many metres a second (below 0: falling)</p></div>
+<div class="fn" id="motes.rough"><div class="sig">def <b>rough</b>(amount: decimal) : motes</div></div>
+<div class="fn" id="motes.size"><div class="sig">def <b>size</b>(metres: decimal) : motes</div><p>how large one is, in metres (they vary a little)</p></div>
+<div class="fn" id="motes.sway"><div class="sig">def <b>sway</b>(amount: decimal) : motes</div></div>
+<div class="fn" id="motes.turn"><div class="sig">def <b>turn</b>(degrees: decimal) : motes</div></div>
+<div class="fn" id="motes.wander"><div class="sig">def <b>wander</b>(metres: decimal) : motes</div><p>how far one wanders about as it goes, in metres</p></div>
+<div class="fn" id="motes.within"><div class="sig">def <b>within</b>(metres: decimal) : motes</div><p>how far from the eye they reach, in metres</p></div>
 </div>
 </section>
 <section class="type" id="plant">
@@ -241,23 +338,35 @@ scene {
 <div class="code"><pre class="sharp">on(land)                on this land, each copy at the land&#x27;s height
 between(low, high)      only where the land is between these heights
 slopes(most)            only where it is no steeper than this (trees do not stand on cliffs)
+steeper(least)          only where it is at least this steep (rocks on a cliff&#x27;s face, moss on a bank)
 within(x0, z0, x1, z1)  only inside this area (else: the whole land)
 clear_of(x, z, radius)  none within this far of a point: a clearing, a path, where the player starts
 sizes(smallest, largest)    each copy&#x27;s size, picked between these (1: the thing&#x27;s own)
 seed(n)                 another arrangement
 far(cheaper, 80)        beyond 80 metres draw this simpler thing in its place</pre></div>
+<p>On endless land say within(...) too: it has no edges to stand in for it.</p>
 <p>(three.js: InstancedMesh. Godot: MultiMeshInstance3D.)</p>
-<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>original</code></td><td><code>thing</code></td><td></td></tr><tr><td><code>wanted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>land</code></td><td><code>thing?</code></td><td></td></tr><tr><td><code>lowest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>highest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>steepest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>area_set</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>x0</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z0</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>x1</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z1</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>smallest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>largest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>arrangement</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>cheaper</code></td><td><code>thing?</code></td><td></td></tr></table></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>original</code></td><td><code>thing</code></td><td></td></tr><tr><td><code>wanted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>land</code></td><td><code>thing?</code></td><td></td></tr><tr><td><code>lowest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>highest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>steepest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>least_steep</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>area_set</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>x0</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z0</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>x1</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z1</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>smallest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>largest</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>arrangement</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>cheaper</code></td><td><code>thing?</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
 <div class="fn" id="scattering.scattering"><div class="sig"><b>scattering</b>(of: thing, how_many: _int64)</div></div>
+<div class="fn" id="scattering.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : scattering</div></div>
 <div class="fn" id="scattering.between"><div class="sig">def <b>between</b>(low: decimal, high: decimal) : scattering</div></div>
+<div class="fn" id="scattering.circling"><div class="sig">def <b>circling</b>(radius: decimal, seconds: decimal) : scattering</div></div>
 <div class="fn" id="scattering.clear_of"><div class="sig">def <b>clear_of</b>(px: decimal, pz: decimal, radius: decimal) : scattering</div><p>keep the ground within <code>radius</code> metres of (px, pz) clear (up to sixteen such places)</p></div>
+<div class="fn" id="scattering.color"><div class="sig">def <b>color</b>(packed: _int64) : scattering</div></div>
 <div class="fn" id="scattering.far"><div class="sig">def <b>far</b>(simpler: thing, from: decimal) : scattering</div><p>beyond <code>from</code> metres draw <code>simpler</code> in the original&#x27;s place</p></div>
+<div class="fn" id="scattering.forget_within"><div class="sig">static def <b>forget_within</b>(from_x: decimal, from_z: decimal, to_x: decimal, to_z: decimal)</div><p>Forget where the copies of every scattering stand whose area - its within(...) - lies inside this one. Their places are worked out again if they are shown again. (Endless land does this for each piece it leaves far behind, so that a long journey does not fill the machine.)</p></div>
+<div class="fn" id="scattering.glow"><div class="sig">def <b>glow</b>(amount: decimal) : scattering</div></div>
+<div class="fn" id="scattering.no_shadow"><div class="sig">def <b>no_shadow</b>() : scattering</div></div>
 <div class="fn" id="scattering.on"><div class="sig">def <b>on</b>(ground: thing) : scattering</div></div>
 <div class="fn" id="scattering.place_copies"><div class="sig">def <b>place_copies</b>()</div><p>work out where the copies stand (once), and which models they show</p></div>
+<div class="fn" id="scattering.rough"><div class="sig">def <b>rough</b>(amount: decimal) : scattering</div></div>
 <div class="fn" id="scattering.seed"><div class="sig">def <b>seed</b>(n: decimal) : scattering</div></div>
 <div class="fn" id="scattering.sizes"><div class="sig">def <b>sizes</b>(least: decimal, most: decimal) : scattering</div></div>
 <div class="fn" id="scattering.slopes"><div class="sig">def <b>slopes</b>(most: decimal) : scattering</div></div>
+<div class="fn" id="scattering.steeper"><div class="sig">def <b>steeper</b>(least: decimal) : scattering</div><p>only where the land is at least this steep (as steep_at): what stands on a cliff&#x27;s face</p></div>
+<div class="fn" id="scattering.sway"><div class="sig">def <b>sway</b>(amount: decimal) : scattering</div></div>
+<div class="fn" id="scattering.turn"><div class="sig">def <b>turn</b>(degrees: decimal) : scattering</div></div>
 <div class="fn" id="scattering.within"><div class="sig">def <b>within</b>(from_x: decimal, from_z: decimal, to_x: decimal, to_z: decimal) : scattering</div></div>
 </div>
 </section>
@@ -291,7 +400,7 @@ on_frame { f -&gt; ... }   your code, run before every frame: move things, read 
 <p>(hud { ... } groups such widgets in one place of the block; it adds nothing else.)</p>
 <p>EVERY FRAME the scene is drawn again by the graphics card (native/g3_core.cpp), in one call, however much is in it. Things that only spin or bob cost the program nothing; what on_frame changes is handed over again.</p>
 <p>(three.js / react-three-fiber: Canvas + Scene. Godot: SubViewport with a world. SwiftUI: RealityView.)</p>
-<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>root</code></td><td><code>thing</code></td><td>everything in the scene is inside it</td></tr><tr><td><code>eye</code></td><td><code>camera</code></td><td></td></tr><tr><td><code>light</code></td><td><code>sun</code></td><td></td></tr><tr><td><code>lamps</code></td><td><code>list&lt;lamp&gt;</code></td><td></td></tr><tr><td><code>sky_shown</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>sky_top</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>sky_horizon</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>sky_below</code></td><td><code>_int64</code></td><td>what shows under the horizon where no ground is</td></tr><tr><td><code>behind</code></td><td><code>_int64</code></td><td>the colour behind everything when there is no sky (backdrop)</td></tr><tr><td><code>sky_light</code></td><td><code>_int64</code></td><td>the light from the sky on what faces up ...</td></tr><tr><td><code>ground_light</code></td><td><code>_int64</code></td><td>... and from the ground on what faces down</td></tr><tr><td><code>fog_color</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>fog_from</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>fog_to</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>drawn</code></td><td><code>_int64</code></td><td>the triangles the last frame sent to the graphics card</td></tr></table></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>root</code></td><td><code>thing</code></td><td>everything in the scene is inside it</td></tr><tr><td><code>eye</code></td><td><code>camera</code></td><td></td></tr><tr><td><code>light</code></td><td><code>sun</code></td><td></td></tr><tr><td><code>lamps</code></td><td><code>list&lt;lamp&gt;</code></td><td></td></tr><tr><td><code>sky_shown</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>sky_top</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>sky_horizon</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>sky_below</code></td><td><code>_int64</code></td><td>what shows under the horizon where no ground is</td></tr><tr><td><code>behind</code></td><td><code>_int64</code></td><td>the colour behind everything when there is no sky (backdrop)</td></tr><tr><td><code>sky_light</code></td><td><code>_int64</code></td><td>the light from the sky on what faces up ...</td></tr><tr><td><code>ground_light</code></td><td><code>_int64</code></td><td>... and from the ground on what faces down</td></tr><tr><td><code>fog_color</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>fog_from</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>fog_to</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>sea</code></td><td><code>water?</code></td><td>the water the eye is inside of (underwater(...)); null: air</td></tr><tr><td><code>bloom_amount</code></td><td><code>decimal</code></td><td>how much light bright things spill round themselves (bloom)</td></tr><tr><td><code>drawn</code></td><td><code>_int64</code></td><td>the triangles the last frame sent to the graphics card</td></tr></table></div>
 <h3>Functions</h3><div>
 <div class="fn" id="scene.scene"><div class="sig"><b>scene</b>(block: ()())</div></div>
 <div class="fn" id="scene.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
@@ -398,6 +507,7 @@ land.texture(&quot;assets/grass.png&quot;, 60);</pre></div>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>side</code></td><td><code>decimal</code></td><td>metres along one edge</td></tr><tr><td><code>squares</code></td><td><code>_int64</code></td><td>squares along one edge</td></tr><tr><td><code>heights</code></td><td><code>decimal[]</code></td><td>the height at every corner of the grid, row after row along z</td></tr></table></div>
 <h3>Functions</h3><div>
 <div class="fn" id="terrain.terrain"><div class="sig"><b>terrain</b>(size: decimal, cells: _int64, rise: (decimal, decimal)(decimal))</div></div>
+<div class="fn" id="terrain.terrain-2"><div class="sig"><b>terrain</b>(size: decimal, cells: _int64, around: decimal[])</div><p>Land whose heights are already worked out. <code>around</code> holds them for the grid AND for one more corner beyond it on every side - (cells + 3) by (cells + 3) of them, row after row along z - so that the land&#x27;s edge faces the way the land beyond it does: two such pieces side by side show no seam. (What endless land is made of. It is not put into the scene being written: add(...) it.)</p></div>
 <div class="fn" id="terrain.colored"><div class="sig">def <b>colored</b>(paint: (decimal, decimal)(_int64)) : terrain</div><p>paint the land: your function is asked for a colour (0xRRGGBBAA) at every corner of the grid, given the height there and how steep it is (as steep_at). Returns the land.</p></div>
 <div class="fn" id="terrain.land_height"><div class="sig">def <b>land_height</b>(px: decimal, pz: decimal) : decimal</div><p>how high the land is at (px, pz) of the scene</p></div>
 <div class="fn" id="terrain.steep_at"><div class="sig">def <b>steep_at</b>(px: decimal, pz: decimal) : decimal</div><p>how steep the land is at (px, pz): 0 flat, 1 rising a metre for every metre across, more for a cliff</p></div>
@@ -417,22 +527,24 @@ land.texture(&quot;assets/grass.png&quot;, 60);</pre></div>
 <div class="code"><pre class="sharp">ship.turn_by(90 * f.step);
 ship.forward(12 * f.step);</pre></div>
 <p>(three.js: Object3D / Mesh. Godot: Node3D.)</p>
-<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>model</code></td><td><code>_int64</code></td><td>what it looks like: a model on the graphics card (0: only a group)</td></tr><tr><td><code>shape</code></td><td><code>mesh?</code></td><td>the mesh it was made from, when it was: sent again when it changes</td></tr><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>heading</code></td><td><code>decimal</code></td><td>degrees</td></tr><tr><td><code>pitch</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>roll</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>spin_heading</code></td><td><code>decimal</code></td><td>degrees a second</td></tr><tr><td><code>spin_pitch</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>spin_roll</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bob_height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bob_rate</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>tinted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>picture</code></td><td><code>_int64</code></td><td>a texture over the model&#x27;s own (0: the model&#x27;s)</td></tr><tr><td><code>repeats</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>shine</code></td><td><code>decimal</code></td><td>below 0: the model&#x27;s own</td></tr><tr><td><code>light</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>own_shader</code></td><td><code>_int64</code></td><td>its own pixel code (shader): 0, the library&#x27;s</td></tr><tr><td><code>hidden</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>faces_eye</code></td><td><code>bool</code></td><td>always turned towards the camera (billboard)</td></tr><tr><td><code>shadowless</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>plain</code></td><td><code>bool</code></td><td>unlit</td></tr><tr><td><code>deaf</code></td><td><code>bool</code></td><td>clicks go through it</td></tr><tr><td><code>kids</code></td><td><code>list&lt;thing&gt;?</code></td><td></td></tr><tr><td><code>parent</code></td><td><code>thing?</code></td><td></td></tr><tr><td><code>copies</code></td><td><code>_int64</code></td><td>many copies of the model (scatter): the id of their places</td></tr><tr><td><code>far_model</code></td><td><code>_int64</code></td><td>... and the cheaper model the far ones are drawn with</td></tr><tr><td><code>far_from</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>on_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>on_double_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>on_right_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>slot</code></td><td><code>_int64</code></td><td>its number in the scene, as last packed (scene.sharp)</td></tr><tr><td><code>changes</code></td><td><code>_int64</code></td><td>counted up by everything that changes a thing: a scene packs itself again when it has moved on</td></tr></table></div>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>model</code></td><td><code>_int64</code></td><td>what it looks like: a model on the graphics card (0: only a group)</td></tr><tr><td><code>shape</code></td><td><code>mesh?</code></td><td>the mesh it was made from, when it was: sent again when it changes</td></tr><tr><td><code>x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>heading</code></td><td><code>decimal</code></td><td>degrees</td></tr><tr><td><code>pitch</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>roll</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>size_z</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>spin_heading</code></td><td><code>decimal</code></td><td>degrees a second</td></tr><tr><td><code>spin_pitch</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>spin_roll</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bob_height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bob_rate</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>sway_amount</code></td><td><code>decimal</code></td><td>how far it bends in a current or a wind (sway): 0, it stands still</td></tr><tr><td><code>roughness</code></td><td><code>decimal</code></td><td>how much of the grain of stone its surface has (rough): 0, smooth</td></tr><tr><td><code>wag_degrees</code></td><td><code>decimal</code></td><td>swinging round its up axis, this far each way (wag) ...</td></tr><tr><td><code>flap_degrees</code></td><td><code>decimal</code></td><td>... or round its length (flap) ...</td></tr><tr><td><code>beat</code></td><td><code>decimal</code></td><td>... so many swings in 6.28 seconds</td></tr><tr><td><code>circle_radius</code></td><td><code>decimal</code></td><td>going round a circle this wide (circling) ...</td></tr><tr><td><code>circle_seconds</code></td><td><code>decimal</code></td><td>... once in so many seconds</td></tr><tr><td><code>flock_speed</code></td><td><code>decimal</code></td><td>a flock: how fast its copies go round it</td></tr><tr><td><code>mote_count</code></td><td><code>_int64</code></td><td>motes: how many</td></tr><tr><td><code>bubble_look</code></td><td><code>bool</code></td><td>motes: drawn as bubbles</td></tr><tr><td><code>tinted</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>picture</code></td><td><code>_int64</code></td><td>a texture over the model&#x27;s own (0: the model&#x27;s)</td></tr><tr><td><code>repeats</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>shine</code></td><td><code>decimal</code></td><td>below 0: the model&#x27;s own</td></tr><tr><td><code>light</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>own_shader</code></td><td><code>_int64</code></td><td>its own pixel code (shader): 0, the library&#x27;s</td></tr><tr><td><code>hidden</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>faces_eye</code></td><td><code>bool</code></td><td>always turned towards the camera (billboard)</td></tr><tr><td><code>shadowless</code></td><td><code>bool</code></td><td></td></tr><tr><td><code>plain</code></td><td><code>bool</code></td><td>unlit</td></tr><tr><td><code>deaf</code></td><td><code>bool</code></td><td>clicks go through it</td></tr><tr><td><code>kids</code></td><td><code>list&lt;thing&gt;?</code></td><td></td></tr><tr><td><code>parent</code></td><td><code>thing?</code></td><td></td></tr><tr><td><code>copies</code></td><td><code>_int64</code></td><td>many copies of the model (scatter): the id of their places</td></tr><tr><td><code>far_model</code></td><td><code>_int64</code></td><td>... and the cheaper model the far ones are drawn with</td></tr><tr><td><code>far_from</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>on_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>on_double_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>on_right_click</code></td><td><code>()()?</code></td><td></td></tr><tr><td><code>slot</code></td><td><code>_int64</code></td><td>its number in the scene, as last packed (scene.sharp)</td></tr><tr><td><code>changes</code></td><td><code>_int64</code></td><td>counted up by everything that changes a thing: a scene packs itself again when it has moved on</td></tr></table></div>
 <h3>Functions</h3><div>
 <div class="fn" id="thing.thing"><div class="sig"><b>thing</b>()</div></div>
 <div class="fn" id="thing.add"><div class="sig">def <b>add</b>(kid: thing) : thing</div><p>put another thing into this one: it is then placed, turned and scaled relative to it. Returns this thing.</p></div>
 <div class="fn" id="thing.at"><div class="sig">def <b>at</b>(px: decimal, py: decimal, pz: decimal) : thing</div></div>
 <div class="fn" id="thing.back"><div class="sig">def <b>back</b>(distance: decimal) : thing</div></div>
 <div class="fn" id="thing.bob"><div class="sig">def <b>bob</b>(height: decimal, rate: decimal) : thing</div><p>floating up and down: <code>height</code> metres each way, <code>rate</code> turns of the wave a second times 6.28</p></div>
+<div class="fn" id="thing.circling"><div class="sig">def <b>circling</b>(radius: decimal, seconds: decimal) : thing</div><p>Going round a circle <code>radius</code> metres wide about the place it stands at, nose first, once in <code>seconds</code> (below 0: the other way round). A shark on patrol, a bird over a field, a car on a track.</p></div>
 <div class="fn" id="thing.click"><div class="sig">def <b>click</b>(what: ()()) : thing</div><p>what happens when it is clicked (the same word a view&#x27;s modifier uses)</p></div>
 <div class="fn" id="thing.color"><div class="sig">def <b>color</b>(packed: _int64) : thing</div></div>
 <div class="fn" id="thing.distance_to"><div class="sig">def <b>distance_to</b>(other: thing) : decimal</div><p>how far from another thing, middle to middle, in metres (both in the same scene or group)</p></div>
 <div class="fn" id="thing.double_click"><div class="sig">def <b>double_click</b>(what: ()()) : thing</div></div>
 <div class="fn" id="thing.empty"><div class="sig">def <b>empty</b>() : thing</div><p>take every thing out of it</p></div>
 <div class="fn" id="thing.face_camera"><div class="sig">def <b>face_camera</b>() : thing</div><p>always turned towards the camera: a name tag, a far-off tree drawn as a picture</p></div>
+<div class="fn" id="thing.flap"><div class="sig">def <b>flap</b>(degrees: decimal, times_a_second: decimal) : thing</div><p>swinging up and down, round its own length (its z axis): a wing, a flipper, a lid</p></div>
 <div class="fn" id="thing.forward"><div class="sig">def <b>forward</b>(distance: decimal) : thing</div><p>this far the way it faces (below 0: backwards)</p></div>
 <div class="fn" id="thing.glow"><div class="sig">def <b>glow</b>(amount: decimal) : thing</div></div>
-<div class="fn" id="thing.height_at"><div class="sig">def <b>height_at</b>(px: decimal, pz: decimal) : decimal</div><p>how high the ground of this thing is at (px, pz) of the scene. Land (terrain) answers from its heights; any other thing is flat ground at its own height.</p></div>
+<div class="fn" id="thing.height_at"><div class="sig">def <b>height_at</b>(px: decimal, pz: decimal) : decimal</div><p>how high the ground of this thing is at (px, pz) of the scene. Land (terrain, endless) answers from its heights; any other thing is flat ground at its own height.</p></div>
 <div class="fn" id="thing.hide"><div class="sig">def <b>hide</b>() : thing</div></div>
 <div class="fn" id="thing.move_by"><div class="sig">def <b>move_by</b>(dx: decimal, dy: decimal, dz: decimal) : thing</div></div>
 <div class="fn" id="thing.no_shadow"><div class="sig">def <b>no_shadow</b>() : thing</div><p>throws no shadow (a cloud, a beam of light)</p></div>
@@ -440,6 +552,10 @@ ship.forward(12 * f.step);</pre></div>
 <div class="fn" id="thing.reach"><div class="sig">def <b>reach</b>() : decimal[]?</div><p>the upright box round it where it stands: low x y z, high x y z (null: nothing to measure)</p></div>
 <div class="fn" id="thing.remove"><div class="sig">def <b>remove</b>(kid: thing) : thing</div></div>
 <div class="fn" id="thing.right_click"><div class="sig">def <b>right_click</b>(what: ()()) : thing</div></div>
+<div class="fn" id="thing.rough"><div class="sig">def <b>rough</b>(amount: decimal) : thing</div><p>A rough surface: the grain of stone. Small bumps that catch the light, hollows that stay dark and blotches of lighter and darker - laid over the thing&#x27;s own colour from every side, so it never stretches whatever the shape is. 0.4 is weathered concrete, 1 raw rock.</p>
+<div class="code"><pre class="sharp">sphere(2).color(0x7A7F78FF).rough(1);       // a boulder
+add(cliff).rough(0.8);</pre></div>
+<p>(It needs no picture file and no texture points on the shape.)</p></div>
 <div class="fn" id="thing.scale"><div class="sig">def <b>scale</b>(s: decimal) : thing</div></div>
 <div class="fn" id="thing.scale-2"><div class="sig">def <b>scale</b>(sx: decimal, sy: decimal, sz: decimal) : thing</div></div>
 <div class="fn" id="thing.shader"><div class="sig">def <b>shader</b>(code: string) : thing</div><p>your own last word on every pixel of it, in the graphics card&#x27;s language (GLSL) - the way out when no setting does what you want, as canvas is in 2D. The code is one function; it is handed the colour the library worked out (texture, light, shadow) and returns the colour to show:</p>
@@ -454,6 +570,9 @@ ship.forward(12 * f.step);</pre></div>
 <div class="fn" id="thing.sideways"><div class="sig">def <b>sideways</b>(distance: decimal) : thing</div><p>this far to its right (below 0: to its left)</p></div>
 <div class="fn" id="thing.spin"><div class="sig">def <b>spin</b>(degrees_a_second: decimal) : thing</div><p>turning round the up axis, this many degrees a second</p></div>
 <div class="fn" id="thing.spin-2"><div class="sig">def <b>spin</b>(heading_rate: decimal, pitch_rate: decimal, roll_rate: decimal) : thing</div></div>
+<div class="fn" id="thing.sway"><div class="sig">def <b>sway</b>(amount: decimal) : thing</div><p>Bending in a current, or in the wind: its foot stays where it is and the rest leans this way and that, more the higher up it is - grass, reeds, a tree&#x27;s crown, weed under water. 0.3 is a breeze, 1 a strong current. Things that stand near each other move together, but not alike.</p>
+<div class="code"><pre class="sharp">scatter(reed, 500).on(shore).sway(0.4);</pre></div>
+<p>(It is the shape&#x27;s own &quot;up&quot; that leans: make the shape standing on y = 0.)</p></div>
 <div class="fn" id="thing.texture"><div class="sig">def <b>texture</b>(path: string) : thing</div></div>
 <div class="fn" id="thing.texture-2"><div class="sig">def <b>texture</b>(path: string, times: decimal) : thing</div><p>a picture laid <code>times</code> times across it (a floor of tiles, a field of grass)</p></div>
 <div class="fn" id="thing.texture-3"><div class="sig">def <b>texture</b>(id: _int64) : thing</div><p>a texture that is already loaded or made, by its id</p></div>
@@ -464,9 +583,62 @@ ship.forward(12 * f.step);</pre></div>
 <div class="fn" id="thing.turn_by"><div class="sig">def <b>turn_by</b>(degrees: decimal) : thing</div></div>
 <div class="fn" id="thing.unclickable"><div class="sig">def <b>unclickable</b>() : thing</div><p>clicks go through it to what is behind</p></div>
 <div class="fn" id="thing.unlit"><div class="sig">def <b>unlit</b>() : thing</div><p>its own colour whatever the light</p></div>
+<div class="fn" id="thing.wag"><div class="sig">def <b>wag</b>(degrees: decimal, times_a_second: decimal) : thing</div><p>Swinging from side to side, round its own up axis: <code>degrees</code> each way, <code>times_a_second</code> there and back. A tail, a rudder, a head saying no. (Put the part where its hinge is: it swings round its own (0, 0, 0).)</p></div>
 </div>
 </section>
-<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>CAMERA_FLY</code></td><td><code>_int64</code></td><td><code>3</code></td><td>the same, moving the way it looks</td></tr><tr><td><code>CAMERA_ORBIT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>drag to look round a point, wheel to come closer</td></tr><tr><td><code>CAMERA_STILL</code></td><td><code>_int64</code></td><td><code>0</code></td><td>where the program puts it</td></tr><tr><td><code>CAMERA_WALK</code></td><td><code>_int64</code></td><td><code>2</code></td><td>keys to walk, drag to look; feet on the ground</td></tr><tr><td><code>LAMP_NUMBERS</code></td><td><code>_int64</code></td><td><code>8</code></td><td></td></tr><tr><td><code>LOOK_NUMBERS</code></td><td><code>_int64</code></td><td><code>32</code></td><td></td></tr><tr><td><code>MADE_BLENDED</code></td><td><code>_int64</code></td><td><code>4</code></td><td>see-through, mixed with what is behind it (glass, water)</td></tr><tr><td><code>MADE_CUT_OUT</code></td><td><code>_int64</code></td><td><code>2</code></td><td>the see-through pixels of its texture are holes (leaves, a fence)</td></tr><tr><td><code>MADE_TWO_SIDED</code></td><td><code>_int64</code></td><td><code>1</code></td><td>seen from the back too</td></tr><tr><td><code>MADE_UNLIT</code></td><td><code>_int64</code></td><td><code>8</code></td><td>its own colour whatever the light (a sign, a flame)</td></tr><tr><td><code>NODE_NUMBERS</code></td><td><code>_int64</code></td><td><code>26</code></td><td></td></tr></table></div></section>
+<section class="type" id="water">
+<h2><span class="kind">class</span> water</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/three/water.sharp">source</a></p>
+<p>water - the water a scene is in, when the eye is under its surface. Made with underwater(shallow, deep) inside a scene; every setting has a value already, so underwater(...) alone is a sea.</p>
+<div class="code"><pre class="sharp">scene {
+    underwater(0x35C6D0FF, 0x0A2E4AFF)
+        .surface(40)            // how high the surface is above y = 0
+        .sight(70)              // how many metres one sees through it
+        .caustics(0.8)          // the moving net of light on things: 0 none, 1 strong
+        .light_shafts(0.6);     // the beams slanting down from the surface: 0 none, 1 strong
+    sun().from(0.3, 1, 0.2).shadows(80);
+    ...
+}</pre></div>
+<p>WHAT IT DOES TO THE PICTURE</p>
+<div class="code"><pre class="sharp">colour      a thing loses its own colour with distance and takes the
+            water&#x27;s: bright towards the surface, `deep` looking down
+the surface seen from below, rippling, brightest straight overhead
+caustics    the surface&#x27;s ripples focus the sun into bright lines that
+            wander over everything the sun reaches, fainter with depth
+shafts      beams of light from the surface down the sun&#x27;s slant</pre></div>
+<p>The same water serves a lake, a flooded cave or a pool: the colours and the sight decide which. (Godot: an Environment with volumetric fog and a water shader. three.js: FogExp2 and a hand-written caustics pass.)</p>
+<h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>shallow</code></td><td><code>_int64</code></td><td>its colour near the surface</td></tr><tr><td><code>deep</code></td><td><code>_int64</code></td><td>... and in the deep</td></tr><tr><td><code>top</code></td><td><code>decimal</code></td><td>the height of the surface</td></tr><tr><td><code>seen_to</code></td><td><code>decimal</code></td><td>metres one sees through it</td></tr><tr><td><code>ripple_light</code></td><td><code>decimal</code></td><td>caustics, 0 .. 1</td></tr><tr><td><code>shafts</code></td><td><code>decimal</code></td><td>light shafts, 0 .. 1</td></tr></table></div>
+<h3>Functions</h3><div>
+<div class="fn" id="water.water"><div class="sig"><b>water</b>(near_surface: _int64, below: _int64)</div></div>
+<div class="fn" id="water.caustics"><div class="sig">def <b>caustics</b>(strength: decimal) : water</div><p>the moving light on things: 0 none, 1 strong</p></div>
+<div class="fn" id="water.light_shafts"><div class="sig">def <b>light_shafts</b>(strength: decimal) : water</div><p>the beams of light from the surface: 0 none, 1 strong</p></div>
+<div class="fn" id="water.sight"><div class="sig">def <b>sight</b>(metres: decimal) : water</div><p>how many metres one sees through the water: 15 is murky, 70 clear, 150 a tropical sea</p></div>
+<div class="fn" id="water.surface"><div class="sig">def <b>surface</b>(height: decimal) : water</div><p>how high the surface is</p></div>
+</div>
+</section>
+<section class="type" id="functions"><h2>Functions</h2><div>
+<div class="fn" id="blade"><div class="sig">def <b>blade</b>(length: decimal, width: decimal) : mesh</div><p>a flat leaf (a fin, a petal, a feather) <code>length</code> long and <code>width</code> across at its widest, a third of the way up; pointed at the tip, narrow at the foot, with a crease down its middle. It faces +z and shows from both sides.</p></div>
+<div class="fn" id="blade-2"><div class="sig">def <b>blade</b>(length: decimal, width: decimal, fine: decimal) : mesh</div><p>the same cut <code>fine</code> times as finely along it: 1.6 for a leaf that is seen close and curls a long way, 0.5 for the cheap one far away</p></div>
+<div class="fn" id="fan_of"><div class="sig">def <b>fan_of</b>(piece: mesh, count: _int64, spread: decimal) : mesh</div><p><code>count</code> copies of <code>piece</code> rising from one foot, spread evenly over <code>spread</code> degrees (a tail, a hand of coral)</p></div>
+<div class="fn" id="lump"><div class="sig">def <b>lump</b>(w: decimal, h: decimal, d: decimal) : mesh</div><p>a rounded body <code>w</code> wide, <code>h</code> high and <code>d</code> deep, standing on y = 0</p></div>
+<div class="fn" id="lump-2"><div class="sig">def <b>lump</b>(w: decimal, h: decimal, d: decimal, fine: decimal) : mesh</div><p>the same cut <code>fine</code> times as finely each way: 2 has four times the triangles, so that a large one seen close - a boulder, a hull - is round where its outline shows, and lumpy(...) has more to shape; 0.5 is a cheap one for far away (the same shape, lumpy or not: scatter(...).far(...) it)</p></div>
+<div class="fn" id="mesh.bent"><div class="sig">def <b>mesh.bent</b>(degrees: decimal) : mesh</div><p>Curve the shape over towards +x, by <code>degrees</code> from its foot to its tip: the foot stays as it stands, and the further up, the more it has turned. 90 bends a stalk into a quarter circle; a negative number bends it the other way.</p></div>
+<div class="fn" id="mesh.curled"><div class="sig">def <b>mesh.curled</b>(degrees: decimal) : mesh</div><p>Curl the shape over towards +z - the way a blade faces - by <code>degrees</code> from foot to tip: a leaf that droops, a petal that opens, a claw. (bent(...) curves it sideways, towards +x; curled(...) curves it forwards.)</p></div>
+<div class="fn" id="mesh.grown"><div class="sig">def <b>mesh.grown</b>(piece: mesh, count: _int64, lean: decimal) : mesh</div><p><code>count</code> copies of <code>piece</code> set up this shape - a stalk - from near its foot to its tip: each turned further round than the one below (by the angle leaves really grow at, so that none hides another) and leaning <code>lean</code> degrees out from upright. They vary a little in size.</p>
+<div class="code"><pre class="sharp">fern := tube(1.2, 0.02).grown(blade(0.5, 0.08), 24, 60);</pre></div></div>
+<div class="fn" id="mesh.height"><div class="sig">def <b>mesh.height</b>() : decimal</div><p>how high the shape reaches</p></div>
+<div class="fn" id="mesh.lumpy"><div class="sig">def <b>mesh.lumpy</b>(amount: decimal, seed: decimal) : mesh</div><p>Knobbly: every part of the surface pushed out or in a little, in soft bumps and smaller ones on them - a rock, a root, a lump of clay. <code>amount</code> is how far, against the shape&#x27;s own size: 0.15 is a river stone, 0.4 a crag. Another <code>seed</code> gives another shape.</p></div>
+<div class="fn" id="mesh.lumpy-2"><div class="sig">def <b>mesh.lumpy</b>(amount: decimal) : mesh</div></div>
+<div class="fn" id="mesh.painted"><div class="sig">def <b>mesh.painted</b>(packed: _int64) : mesh</div><p>one colour all over (a colour that stays with the shape when it is put into another). Where the shape was made lighter and darker - a blade&#x27;s rib - that stays: the colour is laid over it.</p></div>
+<div class="fn" id="mesh.set_in"><div class="sig">def <b>mesh.set_in</b>(piece: mesh, x: decimal, y: decimal, z: decimal, turn: decimal, lean: decimal, size: decimal) : mesh</div><p>one copy of <code>piece</code> put into this shape with its foot at (x, y, z): leaning <code>lean</code> degrees out from upright, turned <code>turn</code> degrees round the up axis, <code>size</code> times as large. (What grown, fan_of and ring_of are made from.)</p></div>
+<div class="fn" id="mesh.shaded"><div class="sig">def <b>mesh.shaded</b>(foot: _int64, tip: _int64) : mesh</div><p><code>foot</code> colour at the bottom running into <code>tip</code> colour at the top</p></div>
+<div class="fn" id="mesh.tapered"><div class="sig">def <b>mesh.tapered</b>(amount: decimal) : mesh</div><p>Thinner towards the top: at its full height the shape is <code>amount</code> narrower than at its foot (0.5: half as wide, 1: it comes to a point). A horn, a tail, a tooth, a spire.</p></div>
+<div class="fn" id="ring_of"><div class="sig">def <b>ring_of</b>(piece: mesh, count: _int64, radius: decimal) : mesh</div><p><code>count</code> copies of <code>piece</code> in a circle <code>radius</code> out from the middle, each facing outwards</p></div>
+<div class="fn" id="tube"><div class="sig">def <b>tube</b>(length: decimal, thick: decimal) : mesh</div><p>a stalk <code>length</code> high and <code>thick</code> across</p></div>
+<div class="fn" id="tube-2"><div class="sig">def <b>tube</b>(length: decimal, bottom: decimal, top: decimal) : mesh</div><p>a stalk that is <code>bottom</code> across at its foot and <code>top</code> across at its tip</p></div>
+<div class="fn" id="tube-3"><div class="sig">def <b>tube</b>(length: decimal, bottom: decimal, top: decimal, sides: _int64) : mesh</div><p>the same with <code>sides</code> flat sides round it: 7 is enough for a stalk, a wide one - a pipe, a tunnel, a tower - wants 16 or more to be round. It has no ends: looked into, it is hollow (two_sided() shows its inside).</p></div>
+</div></section>
+<section class="type" id="constants"><h2>Constants</h2><div class="scroll"><table class="fields"><tr><td><code>CAMERA_FLY</code></td><td><code>_int64</code></td><td><code>3</code></td><td>the same, moving the way it looks</td></tr><tr><td><code>CAMERA_ORBIT</code></td><td><code>_int64</code></td><td><code>1</code></td><td>drag to look round a point, wheel to come closer</td></tr><tr><td><code>CAMERA_STILL</code></td><td><code>_int64</code></td><td><code>0</code></td><td>where the program puts it</td></tr><tr><td><code>CAMERA_SWIM</code></td><td><code>_int64</code></td><td><code>4</code></td><td>the mouse looks (kept in the window), keys move the way it looks, also up and down</td></tr><tr><td><code>CAMERA_WALK</code></td><td><code>_int64</code></td><td><code>2</code></td><td>keys to walk, drag to look; feet on the ground</td></tr><tr><td><code>LAMP_NUMBERS</code></td><td><code>_int64</code></td><td><code>8</code></td><td></td></tr><tr><td><code>LOOK_NUMBERS</code></td><td><code>_int64</code></td><td><code>48</code></td><td></td></tr><tr><td><code>MADE_BLENDED</code></td><td><code>_int64</code></td><td><code>4</code></td><td>see-through, mixed with what is behind it (glass, water)</td></tr><tr><td><code>MADE_CUT_OUT</code></td><td><code>_int64</code></td><td><code>2</code></td><td>the see-through pixels of its texture are holes (leaves, a fence)</td></tr><tr><td><code>MADE_TWO_SIDED</code></td><td><code>_int64</code></td><td><code>1</code></td><td>seen from the back too</td></tr><tr><td><code>MADE_UNLIT</code></td><td><code>_int64</code></td><td><code>8</code></td><td>its own colour whatever the light (a sign, a flame)</td></tr><tr><td><code>NODE_NUMBERS</code></td><td><code>_int64</code></td><td><code>35</code></td><td></td></tr></table></div></section>
     </main>
 </div></div>
 <script src="search.js"></script>

@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.11</span>
+    <span class="version">0.5.12</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,6 +60,7 @@
         <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
         <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
         <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.testing.html">std.guikit.testing</a></li>
         <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
         <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
         <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
@@ -115,6 +116,7 @@ tick.cancel();                                   // stop it</pre></div>
 <h3>Functions</h3><div>
 <div class="fn" id="timer.timer"><div class="sig"><b>timer</b>(wait: decimal, again_every: decimal, what: ()())</div></div>
 <div class="fn" id="timer.cancel"><div class="sig">def <b>cancel</b>()</div><p>stop the timer: it does not run again</p></div>
+<div class="fn" id="timer.cancel_all"><div class="sig">static def <b>cancel_all</b>()</div><p>stop every timer there is. (A UI test starts with none left over from the test before it.)</p></div>
 <div class="fn" id="timer.next_due_in"><div class="sig">static def <b>next_due_in</b>(now: decimal) : decimal</div><p>seconds until the soonest timer is due (0 when one is due already); -1 when there is none</p></div>
 <div class="fn" id="timer.run_due"><div class="sig">static def <b>run_due</b>(now: decimal)</div><p>run every timer whose time has come (<code>now</code>: the host&#x27;s clock, in seconds). Called once per turn of the loop.</p></div>
 </div>
@@ -142,27 +144,40 @@ tick.cancel();                                   // stop it</pre></div>
 <p>hover / active / focus are pointers INTO THE TREE. When a rebuild replaces the views they point at, the reconciler tells the host (replace_view) and the pointers move to the new views - so focus survives a rebuild.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>current</code></td><td><code>ui_host?</code></td><td>the host that is running (null when no app runs)</td></tr><tr><td><code>chosen_theme</code></td><td><code>theme?</code></td><td>the theme the next host starts with (gui.use_theme)</td></tr><tr><td><code>building</code></td><td><code>composable?</code></td><td>The composable whose build() is running right now (null: none).</td></tr><tr><td><code>pass</code></td><td><code>_int64</code></td><td>The number of the layout pass.</td></tr><tr><td><code>frame_limit</code></td><td><code>_int64</code></td><td>the most frames painted in a second (gui.frame_rate); 0: no limit</td></tr><tr><td><code>fps_shown</code></td><td><code>bool</code></td><td>is the frames-per-second box painted in the top right corner?</td></tr><tr><td><code>vsync_wanted</code></td><td><code>bool</code></td><td>does showing a frame wait for the screen&#x27;s refresh?</td></tr><tr><td><code>name_wanted</code></td><td><code>string</code></td><td>the app&#x27;s name and icon as the program chose them (&quot;&quot;: not chosen) (gui.app_name, gui.app_icon)</td></tr><tr><td><code>icon_wanted</code></td><td><code>string</code></td><td></td></tr><tr><td><code>win</code></td><td><code>window</code></td><td></td></tr><tr><td><code>look</code></td><td><code>theme</code></td><td></td></tr><tr><td><code>mouse_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_held</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>moved_x</code></td><td><code>decimal</code></td><td>how far the mouse moved since the previous frame was painted (frame.moved_x)</td></tr><tr><td><code>moved_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>now</code></td><td><code>decimal</code></td><td>seconds since the window opened, at the start of this turn</td></tr><tr><td><code>step</code></td><td><code>decimal</code></td><td>seconds since the previous FRAME was painted (frame.step; never over 0.1)</td></tr><tr><td><code>main_thread</code></td><td><code>thread?</code></td><td>the thread that runs the window: the only one that may change what the screen reads (main_queue.sharp)</td></tr></table></div>
 <h3>Functions</h3><div>
-<div class="fn" id="ui_host.ui_host"><div class="sig"><b>ui_host</b>(title: string, width: _int32, height: _int32)</div></div>
-<div class="fn" id="ui_host.ui_host-2"><div class="sig"><b>ui_host</b>(title: string, width: _int32, height: _int32, opened_as: window_mode)</div><p>the same, with the window opened maximized or fullscreen (window_mode in window.sharp)</p></div>
+<div class="fn" id="ui_host.ui_host"><div class="sig"><b>ui_host</b>(width: _int32, height: _int32)</div><p>A host on a window that is not there (window.sharp): for UI tests. Nothing opens; begin(...), turn() and end() run the screen (see THE LOOP IN THREE PARTS).</p></div>
+<div class="fn" id="ui_host.ui_host-2"><div class="sig"><b>ui_host</b>(title: string, width: _int32, height: _int32)</div></div>
+<div class="fn" id="ui_host.ui_host-3"><div class="sig"><b>ui_host</b>(title: string, width: _int32, height: _int32, opened_as: window_mode)</div><p>the same, with the window opened maximized or fullscreen (window_mode in window.sharp)</p></div>
 <div class="fn" id="ui_host.add_overlay"><div class="sig">def <b>add_overlay</b>(floating: view)</div><p>a popup is open: remember it for placing, painting and input (called while the page is arranged)</p></div>
 <div class="fn" id="ui_host.apply_name_and_icon"><div class="sig">static def <b>apply_name_and_icon</b>()</div><p>give the open window the chosen name and icon</p></div>
 <div class="fn" id="ui_host.apply_vsync"><div class="sig">static def <b>apply_vsync</b>()</div><p>Set the open window&#x27;s vsync to vsync_wanted. Off by default because the loop keeps the frame rate itself, and where showing a frame does wait for the refresh - a Raspberry Pi has no compositor - a frame that misses one waits for the next: a limit of 30 or 60 came out at 24 frames a second on a Pi that paints 100 without vsync.</p></div>
+<div class="fn" id="ui_host.at_point"><div class="sig">def <b>at_point</b>(px: decimal, py: decimal) : view?</div><p>the view a press at this point of the window would land on: in the topmost open popup, else on the page</p></div>
+<div class="fn" id="ui_host.begin"><div class="sig">def <b>begin</b>(root: element)</div><p>THE LOOP IN THREE PARTS: begin(root), turn() again and again, end(). run() is exactly that. A UI test (std.guikit.testing) calls them itself, on a window that is not there (ui_host(width, height)): it turns the loop when it has sent an event or moved the clock, and looks at the tree in between.</p></div>
+<div class="fn" id="ui_host.color_painted_at"><div class="sig">def <b>color_painted_at</b>(px: decimal, py: decimal) : _int64</div><p>The colour that is painted at a point of the window, as 0xRRGGBBAA (-1: it could not be read). A frame is painted to find out. Only a real window paints: on one that is not there this answers -1.</p></div>
+<div class="fn" id="ui_host.end"><div class="sig">def <b>end</b>()</div><p>the window closed: everything that was on the screen is gone (timers of composables stop)</p></div>
 <div class="fn" id="ui_host.focus_on"><div class="sig">def <b>focus_on</b>(v: view?)</div><p>give the keyboard to this view (null: to nobody)</p></div>
+<div class="fn" id="ui_host.focused"><div class="sig">def <b>focused</b>() : view?</div><p>the view that has the keyboard (null: none)</p></div>
 <div class="fn" id="ui_host.font_of"><div class="sig">def <b>font_of</b>(size: decimal) : font</div><p>the standard font at a size - made once per size and kept</p></div>
 <div class="fn" id="ui_host.font_of-2"><div class="sig">def <b>font_of</b>(size: decimal, bold: _int64) : font</div><p>the standard font at a size, regular (bold 0) or bold (1) - made once per size and weight and kept</p></div>
+<div class="fn" id="ui_host.forget_last_click"><div class="sig">def <b>forget_last_click</b>()</div><p>the next click is a first click, whatever was clicked a moment ago (a test&#x27;s two clicks are not a double click)</p></div>
 <div class="fn" id="ui_host.has_focus"><div class="sig">def <b>has_focus</b>(v: view) : _int64</div><p>does this view have the keyboard focus?</p></div>
 <div class="fn" id="ui_host.key_held"><div class="sig">def <b>key_held</b>(key: _int64) : _int64</div><p>is this key held down right now? (games: host.key_held(KEY_LEFT))</p></div>
+<div class="fn" id="ui_host.mark_touch"><div class="sig">def <b>mark_touch</b>(px: decimal, py: decimal)</div><p>a UI test that is being watched presses here: a ring shows where, for a moment</p></div>
 <div class="fn" id="ui_host.off_main_thread"><div class="sig">static def <b>off_main_thread</b>() : _int64</div><p>is the calling thread NOT the one that runs the window? (always 0 while no window is open)</p></div>
 <div class="fn" id="ui_host.relayout"><div class="sig">def <b>relayout</b>()</div><p>something changed size or place: lay the tree out again (and paint)</p></div>
 <div class="fn" id="ui_host.repaint"><div class="sig">def <b>repaint</b>()</div><p>something looks different: paint again</p></div>
 <div class="fn" id="ui_host.replace_view"><div class="sig">def <b>replace_view</b>(before: view, fresh: view)</div><p>the reconciler replaced <code>before</code> with <code>fresh</code>: move the pointers that were on <code>before</code></p></div>
 <div class="fn" id="ui_host.request_frame"><div class="sig">def <b>request_frame</b>()</div><p>paint another frame right after this one (an animation is running)</p></div>
+<div class="fn" id="ui_host.root"><div class="sig">def <b>root</b>() : view?</div><p>the root of the tree (null before begin)</p></div>
 <div class="fn" id="ui_host.run"><div class="sig">def <b>run</b>(root: element)</div></div>
 <div class="fn" id="ui_host.schedule_rebuild"><div class="sig">def <b>schedule_rebuild</b>(part: composable)</div><p>a state of this composable changed: build it again before the next frame</p></div>
 <div class="fn" id="ui_host.scroll_by_hand"><div class="sig">def <b>scroll_by_hand</b>(from: view, dx: decimal, dy: decimal)</div><p>Scroll whatever scrolling area is around <code>from</code> by hand, as if its content had been dragged this far. For a widget that owns a drag (a row that can be swiped sideways) and finds the drag is not for it.</p></div>
 <div class="fn" id="ui_host.set_back_stack"><div class="sig">def <b>set_back_stack</b>(stack: navigator)</div><p>the screen stack that the back key steps back in (called by screens while the page is arranged)</p></div>
 <div class="fn" id="ui_host.set_theme"><div class="sig">def <b>set_theme</b>(next: theme)</div><p>change the theme while the app runs: everything is built and laid out again with the new look</p></div>
+<div class="fn" id="ui_host.settled"><div class="sig">def <b>settled</b>() : bool</div><p>is nothing waiting to be built again or laid out?</p></div>
 <div class="fn" id="ui_host.show_toast"><div class="sig">def <b>show_toast</b>(words: string, seconds: decimal)</div><p>show a short message at the bottom of the window for a few seconds (gui.toast)</p></div>
+<div class="fn" id="ui_host.tip_words"><div class="sig">def <b>tip_words</b>() : string</div><p>the words of the tooltip that is showing (&quot;&quot;: none is)</p></div>
+<div class="fn" id="ui_host.toast_words"><div class="sig">def <b>toast_words</b>() : list&lt;string&gt;</div><p>The words of the toasts that are up, the oldest first. (Toasts and the tooltip are painted by the host itself: they are not widgets of the tree, so a test cannot find them there.)</p></div>
+<div class="fn" id="ui_host.turn"><div class="sig">def <b>turn</b>()</div><p>one turn of the loop: events, timers, rebuilding, layout, and - when one is due - a frame</p></div>
 <div class="fn" id="ui_host.wake_in"><div class="sig">def <b>wake_in</b>(seconds: decimal)</div><p>repaint in about this many seconds even if nothing happens (a blinking cursor)</p></div>
 </div>
 </section>

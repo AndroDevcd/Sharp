@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.11</span>
+    <span class="version">0.5.12</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,6 +60,7 @@
         <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
         <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
         <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.testing.html">std.guikit.testing</a></li>
         <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
         <li class="on sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
         <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
@@ -82,7 +83,7 @@
 <p class="contents"><a href="#badge">badge</a> <a href="#chip">chip</a> <a href="#divider">divider</a> <a href="#label">label</a> <a href="#picture">picture</a> <a href="#progress_bar">progress_bar</a> <a href="#rich_label">rich_label</a> <a href="#rich_text">rich_text</a></p>
 <section class="type" id="badge">
 <h2><span class="kind">class</span> badge</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
 <p>badge - a small filled dot with a number in it: &quot;3 unread&quot;. Made with badge(count). A count of 0 shows nothing and takes no room. (Compose: Badge.)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="badge.badge"><div class="sig"><b>badge</b>(count: _int64)</div></div>
@@ -90,11 +91,12 @@
 <div class="fn" id="badge.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="badge.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="badge.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="badge.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="chip">
 <h2><span class="kind">class</span> chip</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
 <p>chip - a small rounded label: a tag (&quot;work&quot;), a filter you switch on and off, a choice among a few. Made with chip(...).</p>
 <div class="code"><pre class="sharp">chip(&quot;work&quot;);                                   // just a tag
 chip(&quot;urgent&quot;).selected(only_urgent.value);     // drawn filled while the value is not 0
@@ -104,10 +106,12 @@ chip(&quot;urgent&quot;) { only_urgent.value = 1 - only_urgent.value; }.selected
 <div class="fn" id="chip.chip"><div class="sig"><b>chip</b>(caption: string)</div></div>
 <div class="fn" id="chip.chip-2"><div class="sig"><b>chip</b>(caption: string, action: ()())</div></div>
 <div class="fn" id="chip.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="chip.is_on"><div class="sig">override def <b>is_on</b>() : bool</div><p>is it the chosen one?</p></div>
 <div class="fn" id="chip.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="chip.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="chip.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
 <div class="fn" id="chip.selected"><div class="sig">def <b>selected</b>(on: _int64) : chip</div><p>drawn filled in the app&#x27;s colour while <code>on</code> is not 0</p></div>
+<div class="fn" id="chip.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="divider">
@@ -127,7 +131,7 @@ chip(&quot;urgent&quot;) { only_urgent.value = 1 - only_urgent.value; }.selected
 </section>
 <section class="type" id="label">
 <h2><span class="kind">class</span> label</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/label.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/label.sharp">source</a></p>
 <p>label - text on the screen. Made with text(...).</p>
 <div class="code"><pre class="sharp">text(&quot;Hello&quot;)
 text(&quot;Total: &quot; + total.value).size(24).color(theme_green)
@@ -147,6 +151,7 @@ text(long_paragraph, modifier().max_width(400))     // wraps onto several lines<
 <div class="fn" id="label.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="label.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
 <div class="fn" id="label.size"><div class="sig">def <b>size</b>(px: decimal) : label</div><p>the font size in pixels</p></div>
+<div class="fn" id="label.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="picture">
@@ -169,7 +174,7 @@ image(&quot;assets/icon.png&quot;).opacity(120)                 // see-through</
 </section>
 <section class="type" id="progress_bar">
 <h2><span class="kind">class</span> progress_bar</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/progress_bar.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, has_value</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/progress_bar.sharp">source</a></p>
 <p>progress_bar - how far along something is. Made with gui.progress(...).</p>
 <div class="code"><pre class="sharp">gui.progress(done.value / total)            // a fraction: 0 = nothing, 1 = finished</pre></div>
 <p>It only SHOWS a number (nobody drags it), so it takes a plain value, not a state: build() runs again when your state changes and makes a bar with the new fraction. It is as wide as the room on offer. (Compose: LinearProgressIndicator. HTML: progress.)</p>
@@ -179,6 +184,7 @@ image(&quot;assets/icon.png&quot;).opacity(120)                 // see-through</
 <div class="fn" id="progress_bar.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="progress_bar.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="progress_bar.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="progress_bar.value_shown"><div class="sig">override def <b>value_shown</b>() : decimal</div><p>how far along it is, 0 to 1 (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="rich_label">

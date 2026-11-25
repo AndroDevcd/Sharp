@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.11</span>
+    <span class="version">0.5.12</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,6 +60,7 @@
         <li class="sub"><a href="std.guikit.navigation.html">std.guikit.navigation</a></li>
         <li class="sub"><a href="std.guikit.overlay.html">std.guikit.overlay</a></li>
         <li class="sub"><a href="std.guikit.platform.html">std.guikit.platform</a></li>
+        <li class="sub"><a href="std.guikit.testing.html">std.guikit.testing</a></li>
         <li class="sub"><a href="std.guikit.three.html">std.guikit.three</a></li>
         <li class="sub"><a href="std.guikit.widgets.display.html">std.guikit.widgets.display</a></li>
         <li class="sub"><a href="std.guikit.widgets.drawing.html">std.guikit.widgets.drawing</a></li>
@@ -82,7 +83,7 @@
 <p class="contents"><a href="#button">button</a> <a href="#checkbox">checkbox</a> <a href="#dropdown">dropdown</a> <a href="#fab">fab</a> <a href="#form">form</a> <a href="#menu_option">menu_option</a> <a href="#radio">radio</a> <a href="#slider">slider</a> <a href="#tab_item">tab_item</a> <a href="#tab_strip">tab_strip</a> <a href="#text_area">text_area</a> <a href="#text_field">text_field</a> <a href="#toggle">toggle</a> <a href="#constants">constants</a></p>
 <section class="type" id="button">
 <h2><span class="kind">class</span> button</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/button.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/button.sharp">source</a></p>
 <p>button - words you can click. Made with button(...).</p>
 <div class="code"><pre class="sharp">button(&quot;Save&quot;) { save(); }
 button(&quot;Cancel&quot;) { close(); }.outline()
@@ -99,11 +100,12 @@ button(&quot;Delete&quot;, modifier().enable(can_delete.value)) { remove(item); 
 <div class="fn" id="button.outline"><div class="sig">def <b>outline</b>() : button</div><p>a border and no fill: a secondary action</p></div>
 <div class="fn" id="button.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
 <div class="fn" id="button.plain"><div class="sig">def <b>plain</b>() : button</div><p>just the words</p></div>
+<div class="fn" id="button.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="checkbox">
 <h2><span class="kind">class</span> checkbox</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/checkbox.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/checkbox.sharp">source</a></p>
 <p>checkbox - a box you tick, with words next to it. Made with checkbox(...).</p>
 <div class="code"><pre class="sharp">agreed := state(0);                                     // 0 = off, 1 = on
 checkbox(&quot;I agree to the terms&quot;, agreed)
@@ -115,9 +117,11 @@ button(&quot;Continue&quot;, modifier().enable(agreed.value)) { go(); }</pre></d
 <div class="fn" id="checkbox.checkbox"><div class="sig"><b>checkbox</b>(caption: string, value: state&lt;_int64&gt;)</div></div>
 <div class="fn" id="checkbox.checkbox-2"><div class="sig"><b>checkbox</b>(value: state&lt;_int64&gt;, caption_of: ()())</div><p>the caption built from the widgets <code>caption_of</code> makes, instead of words</p></div>
 <div class="fn" id="checkbox.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="checkbox.is_on"><div class="sig">override def <b>is_on</b>() : bool</div><p>is it ticked?</p></div>
 <div class="fn" id="checkbox.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="checkbox.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="checkbox.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="checkbox.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="dropdown">
@@ -144,7 +148,7 @@ button(&quot;Continue&quot;, modifier().enable(agreed.value)) { go(); }</pre></d
 </section>
 <section class="type" id="fab">
 <h2><span class="kind">class</span> fab</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/fab.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/fab.sharp">source</a></p>
 <p>fab - the floating action button: a round button that floats over the page, for THE thing people do on this screen (&quot;new task&quot;). Made with fab(...).</p>
 <div class="code"><pre class="sharp">stack(modifier().fill()) {
     task_list();
@@ -158,6 +162,7 @@ button(&quot;Continue&quot;, modifier().enable(agreed.value)) { go(); }</pre></d
 <div class="fn" id="fab.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="fab.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="fab.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="fab.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="form">
@@ -191,7 +196,7 @@ text_field(model.title).label(&quot;Title&quot;).error(model.rules.problem_of(mo
 </section>
 <section class="type" id="menu_option">
 <h2><span class="kind">class</span> menu_option</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/dropdown.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/dropdown.sharp">source</a></p>
 <p>One choice of a dropdown, as written in its block: option(&quot;Small&quot;), or option { ... } with widgets. It only carries its words - or the block that makes its widgets - to the dropdown that collects it; it is never shown itself.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>words</code></td><td><code>string</code></td><td></td></tr><tr><td><code>fill</code></td><td><code>()()?</code></td><td>makes the option&#x27;s widgets (the block form); null: the words are shown</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -201,11 +206,12 @@ text_field(model.title).label(&quot;Title&quot;).error(model.rules.problem_of(mo
 <div class="fn" id="menu_option.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="menu_option.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="menu_option.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="menu_option.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="radio">
 <h2><span class="kind">class</span> radio</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/radio.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/radio.sharp">source</a></p>
 <p>radio - one choice out of several: a round dot with words next to it. Made with radio(...).</p>
 <div class="code"><pre class="sharp">size := state(1);                       // which one is chosen</pre></div>
 <div class="code"><pre class="sharp">radio(&quot;Small&quot;,  size, 0);
@@ -218,14 +224,16 @@ radio(&quot;Large&quot;,  size, 2);</pre></div>
 <div class="fn" id="radio.radio"><div class="sig"><b>radio</b>(caption: string, choice: state&lt;_int64&gt;, stands_for: _int64)</div></div>
 <div class="fn" id="radio.radio-2"><div class="sig"><b>radio</b>(choice: state&lt;_int64&gt;, stands_for: _int64, caption_of: ()())</div><p>the caption built from the widgets <code>caption_of</code> makes, instead of words</p></div>
 <div class="fn" id="radio.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="radio.is_on"><div class="sig">override def <b>is_on</b>() : bool</div><p>is it the one chosen?</p></div>
 <div class="fn" id="radio.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="radio.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="radio.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="radio.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="slider">
 <h2><span class="kind">class</span> slider</h2>
-<p class="meta"><code>base widget : behavior, pointer_target, key_target</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/slider.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, pointer_target, key_target, has_value</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/slider.sharp">source</a></p>
 <p>slider - pick a number by dragging a knob along a track. Made with gui.slider(...).</p>
 <div class="code"><pre class="sharp">volume := state(0.5);
 gui.slider(volume, 0, 1)                    // from 0 to 1
@@ -242,12 +250,13 @@ gui.text(&quot;volume: &quot; + volume.value)</pre></div>
 <div class="fn" id="slider.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
 <div class="fn" id="slider.pointer"><div class="sig">override def <b>pointer</b>(what: _int64, x: decimal, y: decimal)</div></div>
 <div class="fn" id="slider.typed"><div class="sig">override def <b>typed</b>(words: string)</div></div>
+<div class="fn" id="slider.value_shown"><div class="sig">override def <b>value_shown</b>() : decimal</div><p>the number it stands at (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 <div class="fn" id="slider.whole"><div class="sig">def <b>whole</b>() : slider</div><p>only whole numbers</p></div>
 </div>
 </section>
 <section class="type" id="tab_item">
 <h2><span class="kind">class</span> tab_item</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/tabs.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/tabs.sharp">source</a></p>
 <p>one title in a tab strip. Made with tab(...), inside tabs { }.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="tab_item.tab_item"><div class="sig"><b>tab_item</b>(title: string)</div></div>
@@ -256,6 +265,7 @@ gui.text(&quot;volume: &quot; + volume.value)</pre></div>
 <div class="fn" id="tab_item.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="tab_item.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="tab_item.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
+<div class="fn" id="tab_item.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="tab_strip">
@@ -290,7 +300,7 @@ else { settings(); }</pre></div>
 </section>
 <section class="type" id="text_area">
 <h2><span class="kind">class</span> text_area</h2>
-<p class="meta"><code>base widget : behavior, key_target, pointer_target, wheel_target, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/text_area.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, key_target, pointer_target, wheel_target, stateful, shows_words, has_caption</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/text_area.sharp">source</a></p>
 <p>text_area - a box for text of several lines: notes, a description, a message. Made with text_area(state).</p>
 <div class="code"><pre class="sharp">notes := state(&quot;&quot;);
 text_area(notes, modifier().fill_width().height(140))
@@ -308,6 +318,7 @@ text_area(notes, modifier().fill_width().height(140))
 <div class="fn" id="text_area.text_area"><div class="sig"><b>text_area</b>(value: state&lt;string&gt;)</div></div>
 <div class="fn" id="text_area.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
 <div class="fn" id="text_area.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="text_area.caption_shown"><div class="sig">override def <b>caption_shown</b>() : string</div><p>the words that name it: its caption, or - without one - what it says while it is empty</p></div>
 <div class="fn" id="text_area.error"><div class="sig">def <b>error</b>(words: string) : text_area</div><p>what is wrong with what was typed: shown in red under the box, which turns red too. &quot;&quot; means nothing is wrong.</p></div>
 <div class="fn" id="text_area.helper"><div class="sig">def <b>helper</b>(words: string) : text_area</div><p>a quiet line under the box (an error, when there is one, is shown instead)</p></div>
 <div class="fn" id="text_area.hint"><div class="sig">def <b>hint</b>(words: string) : text_area</div><p>grey words shown while the box is empty</p></div>
@@ -320,11 +331,12 @@ text_area(notes, modifier().fill_width().height(140))
 <div class="fn" id="text_area.pointer"><div class="sig">override def <b>pointer</b>(what: _int64, x: decimal, y: decimal)</div></div>
 <div class="fn" id="text_area.typed"><div class="sig">override def <b>typed</b>(words: string)</div></div>
 <div class="fn" id="text_area.wheel"><div class="sig">override def <b>wheel</b>(dx: decimal, dy: decimal) : _int64</div><p>the wheel scrolls the text when there is more of it than fits</p></div>
+<div class="fn" id="text_area.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>what is typed in it (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="text_field">
 <h2><span class="kind">class</span> text_field</h2>
-<p class="meta"><code>base widget : behavior, key_target, pointer_target, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/text_field.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, key_target, pointer_target, stateful, shows_words, has_caption</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/text_field.sharp">source</a></p>
 <p>text_field - a box to type one line of text into. Made with text_field(...).</p>
 <div class="code"><pre class="sharp">name := state(&quot;&quot;);
 text_field(name).hint(&quot;Your name&quot;).on_submit({ -&gt; greet(); })
@@ -351,6 +363,7 @@ Ctrl+C / Ctrl+X / Ctrl+V    copy / cut / paste - the system clipboard,
 <div class="fn" id="text_field.text_field"><div class="sig"><b>text_field</b>(value: state&lt;string&gt;)</div></div>
 <div class="fn" id="text_field.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
 <div class="fn" id="text_field.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="text_field.caption_shown"><div class="sig">override def <b>caption_shown</b>() : string</div><p>the words that name it: its caption, or - without one - what it says while it is empty</p></div>
 <div class="fn" id="text_field.error"><div class="sig">def <b>error</b>(words: string) : text_field</div><p>What is wrong with what was typed: shown in red under the box, which turns red too. &quot;&quot; means nothing is wrong - so the usual way to use it is with a state the logic sets: .error(model.title_problem.value) (Compose: isError + supportingText.)</p></div>
 <div class="fn" id="text_field.helper"><div class="sig">def <b>helper</b>(words: string) : text_field</div><p>a quiet line under the box (an error, when there is one, is shown instead)</p></div>
 <div class="fn" id="text_field.hint"><div class="sig">def <b>hint</b>(words: string) : text_field</div><p>grey words shown while the field is empty</p></div>
@@ -365,11 +378,12 @@ Ctrl+C / Ctrl+X / Ctrl+V    copy / cut / paste - the system clipboard,
 <div class="fn" id="text_field.password"><div class="sig">def <b>password</b>() : text_field</div><p>hide what is typed: every letter is shown as a dot, and the field will not copy or cut</p></div>
 <div class="fn" id="text_field.pointer"><div class="sig">override def <b>pointer</b>(what: _int64, x: decimal, y: decimal)</div><p>press: the cursor goes there, and a selection may begin there. drag: the cursor follows, so the selection stretches. the second click of a double click: the word under it is selected.</p></div>
 <div class="fn" id="text_field.typed"><div class="sig">override def <b>typed</b>(words: string)</div></div>
+<div class="fn" id="text_field.words_shown"><div class="sig">override def <b>words_shown</b>() : string</div><p>what is typed in it (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 </div>
 </section>
 <section class="type" id="toggle">
 <h2><span class="kind">class</span> toggle</h2>
-<p class="meta"><code>base widget : behavior, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/toggle.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, stateful, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/input/toggle.sharp">source</a></p>
 <p>toggle - an on/off switch. Made with gui.toggle(...).</p>
 <div class="code"><pre class="sharp">dark_mode := state(1);                  // 0 = off, 1 = on
 gui.row().gap(12)
@@ -382,6 +396,7 @@ gui.row().gap(12)
 <div class="fn" id="toggle.toggle"><div class="sig"><b>toggle</b>(value: state&lt;_int64&gt;)</div></div>
 <div class="fn" id="toggle.adopt"><div class="sig">override def <b>adopt</b>(old: behavior)</div></div>
 <div class="fn" id="toggle.arrange"><div class="sig">override def <b>arrange</b>()</div></div>
+<div class="fn" id="toggle.is_on"><div class="sig">override def <b>is_on</b>() : bool</div><p>is it switched on? (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF)</p></div>
 <div class="fn" id="toggle.kind"><div class="sig">override def <b>kind</b>() : string</div></div>
 <div class="fn" id="toggle.measure"><div class="sig">override def <b>measure</b>(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal)</div></div>
 <div class="fn" id="toggle.paint"><div class="sig">override def <b>paint</b>(p: painter)</div></div>
