@@ -55,6 +55,13 @@ stable class timer {
         live = 0;
     }
 
+    /** stop every timer there is. (A UI test starts with none left over from the test before it.) */
+    static def cancel_all() {
+        count : _int64 = all.size();
+        for(i : _int64 = 0; i < count; i++) { all.at(i).live = 0; }
+        all.clear();
+    }
+
     /** run every timer whose time has come (`now`: the host's clock, in seconds). Called once per turn of the loop. */
     static def run_due(now: decimal) {
         // by index, and re-reading the size: a timer's function may start new timers

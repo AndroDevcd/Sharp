@@ -112,4 +112,22 @@ inline Int vm_remainder(Int left, Int right) {
     return left % right;
 }
 
+/**
+ * a / b on whole numbers as the VM defines it: the quotient, toward zero (-7 / 2 is -3), as
+ * Java and Kotlin have it.
+ *
+ * A division by zero raises invalid_operation_exception (in C++ it is a hardware trap that
+ * would end the whole VM). INT64_MIN / -1 traps the same way on x86: its result does not fit
+ * 64 bits, and wraps round to INT64_MIN - which is what dividing by -1 does here for every number.
+ *
+ * Used by WDIV in the interpreter, and through jit_rt_quotient by machine code.
+ */
+inline Int vm_quotient(Int left, Int right) {
+    if(right == 0)
+        throw vm_exception(vm.invalid_operation_except, "division by zero");
+    if(right == -1)
+        return (Int) (0 - (uInt) left);
+    return left / right;
+}
+
 #endif //SHARP_VIRTUAL_MACHINE_H

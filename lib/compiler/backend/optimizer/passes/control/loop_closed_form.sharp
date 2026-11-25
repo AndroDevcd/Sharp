@@ -268,7 +268,7 @@ def plan_formula(code: ir_function, graph: flow_graph, forest: loop_forest, l: _
             if(made.number == ARITH_ADD) { result = formula_sum(holds[made.first], holds[made.second], 1); }
             else if(made.number == ARITH_SUB) { result = formula_sum(holds[made.first], holds[made.second], 0 - 1); }
             else if(made.number == ARITH_MUL) { result = formula_product(holds[made.first], holds[made.second]); }
-            else if(made.number == ARITH_REM) { return null; }       // (may raise: the loop must stay)
+            else if(made.number == ARITH_REM || made.number == ARITH_DIV) { return null; }   // (may raise: the loop must stay)
             else { result.known = 0; }
         } else if(kind == IR_INT_IMMEDIATE) {
             constant := new formula();

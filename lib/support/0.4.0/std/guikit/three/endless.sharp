@@ -1,0 +1,280 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * endless - land with no edge. It is made piece by piece round the eye as the
+ * eye travels, and the pieces left far behind are let go: however far you go
+ * there is land ahead, and the machine holds only what is near.
+ *
+ *      hills := endless(128, 64, { x: decimal, z: decimal -> return rolling(x, z); });
+ *      hills.colored({ height: decimal, steep: decimal -> return steep > 0.6 ? 0x6D675FFF : 0x5E7740FF; });
+ *      around := state(0);
+ *
+ *      // in build():
+ *      hills.ready_round(eye_x, eye_z);                    // the first pieces, all at once
+ *      scene {
+ *          for(i : _int64 = 0; i < hills.shown(); i++) {
+ *              add(hills.piece(i));                        // the pieces round the eye
+ *          }
+ *          eye := camera().walk(hills);                    // the eye stays above it, wherever it goes
+ *          on_frame { f: frame ->
+ *              if(hills.follow(eye.x, eye.z)) { around.value = around.value + 1; }    // new land: build again
+ *          };
+ *      }
+ *
+ * Your function is the land: it must answer for ANY x and z (noise does), and
+ * the same answer every time. Each piece is `tile` metres along its edge, cut
+ * into `cells` squares; piece (0, 0) has its corner at (0, 0), piece (1, 0)
+ * lies next to it towards +x, piece (-1, 0) on the other side.
+ *
+ * follow(x, z) is asked every frame. It works on the next missing piece for a
+ * moment only - a few rows of heights - so that the picture never stops while
+ * land is made, and answers true when the pieces to show have changed.
+ *
+ * What stands on the land is yours to put there, piece by piece:
+ *
+ *      for(i : _int64 = 0; i < hills.shown(); i++) {
+ *          p := hills.piece(i);
+ *          scatter(pine, 300).on(hills).within(p.x, p.z, p.x + hills.tile, p.z + hills.tile)
+ *                  .seed(hills.number_of(p));              // every piece its own forest
+ *      }
+ *
+ * (height_at and steep_at ask your function itself, so they answer anywhere,
+ * whether that land has been made or not.)
+ *
+ * (Godot, Unity: "chunks", "terrain streaming".)
+ */
+class endless base thing {
+    tile : decimal = 128;               // metres along a piece's edge
+    cut : _int64 = 64;                  // squares along a piece's edge
+    near : _int64 = 1;                  // pieces shown each way from the one the eye is over (1: three by three)
+    rows_a_frame : _int64 = 8;          // rows of heights worked out in one follow(...)
+    rise : (decimal, decimal)(decimal)?;
+    paint : (decimal, decimal)(_int64)?;
+
+    private pieces : list<terrain> = new list<terrain>();
+    private last_under : terrain? = null;           // the piece piece_under(...) found last: asked again and again
+    private middle_x : _int64 = 0;      // the piece the eye is over
+    private middle_z : _int64 = 0;
+    private settled : bool = false;     // has the eye been anywhere yet?
+    private making : decimal[] = new decimal[1];    // the heights of the piece being made, with one more all round
+    private making_x : _int64 = 0;
+    private making_z : _int64 = 0;
+    private making_row : _int64 = 0 - 1;            // rows done (-1: no piece is being made)
+
+    endless(size: decimal, cells: _int64, height: (decimal, decimal)(decimal)) {
+        if(cells < 1) { cells = 1; }
+        tile = size;
+        cut = cells;
+        rise = height;
+    }
+
+    /**
+     * paint the land: your function is asked for a colour (0xRRGGBBAA) at every
+     * corner, given the height there and how steep it is. Returns the land.
+     */
+    def colored(by: (decimal, decimal)(_int64)) : endless {
+        paint = by;
+        return self;
+    }
+
+    /** show `pieces` each way from the one the eye is over: 1 is three by three, 2 five by five */
+    def reach(pieces_each_way: _int64) : endless {
+        if(pieces_each_way < 1) { pieces_each_way = 1; }
+        near = pieces_each_way;
+        return self;
+    }
+
+    // ---------------------------------------------------------------- questions
+
+    /** how high the land is at (px, pz) */
+    def high(px: decimal, pz: decimal) : decimal {
+        return y + rise!!(px, pz);
+    }
+
+    /** how steep the land is at (px, pz): 0 flat, 1 rising a metre for every metre across */
+    def steep_at(px: decimal, pz: decimal) : decimal {
+        east : decimal = (rise!!(px + 1, pz) - rise!!(px - 1, pz)) / 2;
+        south : decimal = (rise!!(px, pz + 1) - rise!!(px, pz - 1)) / 2;
+        return sqrt(east * east + south * south);
+    }
+
+    /** which piece a place is over, along x or along z: 0 for 0 up to `tile`, -1 for the one before */
+    def piece_of(v: decimal) : _int64 {
+        return floor(v / tile) as _int64;
+    }
+
+    /** a number of a piece's own, the same every time it is made: a seed for what stands on it */
+    def number_of(p: terrain) : decimal {
+        return piece_of(p.x + tile / 2) * 37.31 + piece_of(p.z + tile / 2) * 91.73;
+    }
+
+    /** the piece that is made under (px, pz); null: that land is not made (yet, or any more) */
+    def piece_under(px: decimal, pz: decimal) : terrain? {
+        if(last_under != null) {
+            p := last_under!!;
+            if(px >= p.x && px < p.x + tile && pz >= p.z && pz < p.z + tile) { return last_under; }
+        }
+        all : _int64 = pieces.size();
+        for(i : _int64 = 0; i < all; i++) {
+            p := pieces.at(i);
+            if(px >= p.x && px < p.x + tile && pz >= p.z && pz < p.z + tile) {
+                last_under = p;
+                return last_under;
+            }
+        }
+        return null;
+    }
+
+    /** how many pieces there are to show round the eye */
+    def shown() : _int64 {
+        count : _int64 = 0;
+        all : _int64 = pieces.size();
+        for(i : _int64 = 0; i < all; i++) {
+            if(is_near(pieces.at(i), near)) { count = count + 1; }
+        }
+        return count;
+    }
+
+    /** the n-th of them */
+    def piece(n: _int64) : terrain {
+        all : _int64 = pieces.size();
+        for(i : _int64 = 0; i < all; i++) {
+            if(is_near(pieces.at(i), near)) {
+                if(n == 0) { return pieces.at(i); }
+                n = n - 1;
+            }
+        }
+        throw new illegal_state_exception("endless land has no piece " + n + ": ask shown() how many there are");
+    }
+
+    // ---------------------------------------------------------------- making it
+
+    /**
+     * The eye is at (px, pz): asked every frame. Makes a little more of the
+     * next piece that is missing, lets go of the pieces left far behind, and
+     * answers true when the pieces to show have changed - build the scene again.
+     */
+    def follow(px: decimal, pz: decimal) : bool {
+        moved : bool = step_to(px, pz);
+        if(making_row >= 0 && !wanted(making_x, making_z)) { making_row = 0 - 1; }     // (left behind before it was done)
+        if(making_row < 0 && !next_missing()) { return moved; }
+        if(!work(rows_a_frame)) { return moved; }
+        // (one piece done: say so when the last of them is, so that the scene is built once for them all)
+        return moved || !next_missing();
+    }
+
+    /** make every piece round (px, pz) at once: before the first picture, or after a jump to a far place */
+    def ready_round(px: decimal, pz: decimal) {
+        step_to(px, pz);
+        if(making_row >= 0 && !wanted(making_x, making_z)) { making_row = 0 - 1; }
+        while(making_row >= 0 || next_missing()) {
+            work(cut + 3);
+        }
+    }
+
+    private def step_to(px: decimal, pz: decimal) : bool {
+        ix : _int64 = piece_of(px);
+        iz : _int64 = piece_of(pz);
+        if(settled && ix == middle_x && iz == middle_z) { return false; }
+        settled = true;
+        middle_x = ix;
+        middle_z = iz;
+        // the pieces more than one beyond what is shown are let go
+        kept := new list<terrain>();
+        all : _int64 = pieces.size();
+        for(i : _int64 = 0; i < all; i++) {
+            p := pieces.at(i);
+            if(is_near(p, near + 1)) {
+                kept.add(p);
+            } else {
+                scattering.forget_within(p.x, p.z, p.x + tile, p.z + tile);
+                p.shape!!.forget();
+            }
+        }
+        pieces = kept;
+        last_under = null;
+        return true;
+    }
+
+    private def is_near(p: terrain, within: _int64) : bool {
+        dx : _int64 = piece_of(p.x + tile / 2) - middle_x;
+        dz : _int64 = piece_of(p.z + tile / 2) - middle_z;
+        return dx <= within && dx >= 0 - within && dz <= within && dz >= 0 - within;
+    }
+
+    private def wanted(ix: _int64, iz: _int64) : bool {
+        dx : _int64 = ix - middle_x;
+        dz : _int64 = iz - middle_z;
+        return dx <= near && dx >= 0 - near && dz <= near && dz >= 0 - near;
+    }
+
+    private def made(ix: _int64, iz: _int64) : bool {
+        all : _int64 = pieces.size();
+        for(i : _int64 = 0; i < all; i++) {
+            p := pieces.at(i);
+            if(piece_of(p.x + tile / 2) == ix && piece_of(p.z + tile / 2) == iz) { return true; }
+        }
+        return false;
+    }
+
+    /** start on the nearest piece that is wanted and not made; false: there is none */
+    private def next_missing() : bool {
+        for(ring : _int64 = 0; ring <= near; ring++) {
+            for(dz : _int64 = 0 - ring; dz <= ring; dz++) {
+                for(dx : _int64 = 0 - ring; dx <= ring; dx++) {
+                    on_ring : bool = dx == ring || dx == 0 - ring || dz == ring || dz == 0 - ring;
+                    if(!on_ring || made(middle_x + dx, middle_z + dz)) { continue; }
+                    making_x = middle_x + dx;
+                    making_z = middle_z + dz;
+                    making_row = 0;
+                    wide : _int64 = cut + 3;
+                    if(sizeof(making) != wide * wide) { making = new decimal[wide * wide]; }
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** `rows` more rows of the piece being made; true when it is finished and among the pieces */
+    private def work(rows: _int64) : bool {
+        wide : _int64 = cut + 3;
+        step : decimal = tile / cut;
+        from_x : decimal = making_x * tile - step;
+        from_z : decimal = making_z * tile - step;
+        for(r : _int64 = 0; r < rows && making_row < wide; r++) {
+            at : _int64 = making_row * wide;
+            pz : decimal = from_z + making_row * step;
+            for(i : _int64 = 0; i < wide; i++) {
+                making[at + i] = rise!!(from_x + i * step, pz);
+            }
+            making_row = making_row + 1;
+        }
+        if(making_row < wide) { return false; }
+
+        made_piece := new terrain(tile, cut, making);
+        made_piece.at(making_x * tile, y, making_z * tile);
+        if(paint != null) {
+            land := made_piece.shape!!;
+            row : _int64 = cut + 1;
+            for(j : _int64 = 0; j <= cut; j++) {
+                for(i : _int64 = 0; i <= cut; i++) {
+                    here : _int64 = (j + 1) * wide + i + 1;
+                    east : decimal = (making[here + 1] - making[here - 1]) / (step * 2);
+                    south : decimal = (making[here + wide] - making[here - wide]) / (step * 2);
+                    land.tint(j * row + i, paint!!(making[here], sqrt(east * east + south * south)));
+                }
+            }
+            land.changed();
+        }
+        pieces.add(made_piece);
+        making_row = 0 - 1;
+        return true;
+    }
+}

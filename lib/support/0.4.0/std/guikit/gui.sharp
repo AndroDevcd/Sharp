@@ -270,6 +270,77 @@ stable class gui {
     }
 
     /**
+     * The app's name: the words in the window's title bar and in the taskbar.
+     * gui.run's title is the name an app starts with; this changes it - before
+     * gui.run (it then wins over run's title) or while the app runs.
+     *
+     *      gui.app_name("Sharpcraft - world 4711");
+     */
+    static def app_name(name: string) {
+        ui_host.name_wanted = name;
+        if(ui_host.current != null) {
+            ui_host.apply_name_and_icon();
+        }
+    }
+
+    /**
+     * The app's icon: the picture in the title bar, the taskbar and the list of
+     * open windows. Before gui.run or while the app runs.
+     *
+     *      gui.app_icon("art/icon.svg");
+     *      gui.run("Sharpcraft", 1280, 720, game);
+     *
+     * The file is one of:
+     *
+     *      .ico        Windows' icon file with several sizes in it: the largest is used
+     *      .svg        a drawing, painted 256 pixels a side: sharp at every size
+     *      a picture   PNG, JPG, BMP, GIF, TGA or PSD; square, and 256 pixels a
+     *                  side for an icon that stays sharp where it is shown large
+     *
+     * A file that cannot be read leaves the icon as it was: an app does not
+     * stop for want of its icon.
+     */
+    static def app_icon(path: string) {
+        ui_host.icon_wanted = path;
+        if(ui_host.current != null) {
+            ui_host.apply_name_and_icon();
+        }
+    }
+
+    /**
+     * true: the window keeps the mouse. The pointer is hidden and cannot leave
+     * the window, and a frame's moved_x and moved_y go on saying how far the
+     * mouse moved, with no edge of the screen to stop at - what a game needs
+     * that looks round with the mouse. false: the pointer is back.
+     *
+     *      gui.keep_mouse(true);
+     *      on_frame { f: frame -> heading = heading + f.moved_x * 0.2; }
+     *
+     * Only while the app runs (before gui.run there is no window to keep it).
+     * The mouse is let go by itself when another window comes to the front
+     * (Alt+Tab, the Windows key): ask gui.mouse_kept() and show a pause screen.
+     * ALWAYS give the person a key that lets the mouse go - Escape, by custom.
+     */
+    static def keep_mouse(on: bool) {
+        if(ui_host.current != null) {
+            surface_keep_mouse(on ? 1 : 0);
+        }
+    }
+
+    /** does the window keep the mouse right now? (gui.keep_mouse) */
+    static def mouse_kept() : bool {
+        if(ui_host.current == null) { return false; }
+        return surface_keep_mouse(0 - 1) == 1;
+    }
+
+    /** close the window and end the app: gui.run returns */
+    static def quit() {
+        if(ui_host.current != null) {
+            ui_host.current!!.win.close();
+        }
+    }
+
+    /**
      * true: a small box in the top right corner, over everything the app paints,
      * says how many frames were painted in the last second and how long the
      * last one took ("60 fps  3.2 ms"). false: gone. An app that stands still

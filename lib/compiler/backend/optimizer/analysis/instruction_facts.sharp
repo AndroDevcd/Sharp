@@ -158,7 +158,7 @@ def slot_written(made: ir_instruction) : _int64 {
  * BEFORE the instruction (the VM writes the target last: 4.7 of codegen.md).
  * The answer leans to yes: a field of an object that may be null, an
  * element (null, or out of range), a call (whatever the callee raises), a
- * cast, `%` (by zero), anything that makes an object (memory), a lock.
+ * cast, `%` and `/` on whole numbers (by zero), anything that makes an object (memory), a lock.
  */
 def may_raise(made: ir_instruction) : _int64 {
     kind : _int64 = made.kind;
@@ -166,7 +166,7 @@ def may_raise(made: ir_instruction) : _int64 {
         // a `localized` field lives in the fiber, not in an object: nothing can be null
         return made.first >= 0;
     }
-    if(kind == IR_INT_BINARY) { return made.number == ARITH_REM; }
+    if(kind == IR_INT_BINARY) { return made.number == ARITH_REM || made.number == ARITH_DIV; }
     // an element the optimizer proved to be there (bounds_checks.sharp): no null array, no position outside it
     if((kind == IR_GET_ELEMENT || kind == IR_SET_ELEMENT) && made.in_range == 1) { return 0; }
     return kind == IR_GET_ELEMENT || kind == IR_SET_ELEMENT || kind == IR_CALL || kind == IR_CALL_VALUE

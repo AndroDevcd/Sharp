@@ -14,7 +14,7 @@ const EVENT_KEY_DOWN   : _int64 = 2;    // a key went down          -> key, modi
 const EVENT_KEY_UP     : _int64 = 3;    // a key came back up       -> key, modifiers
 const EVENT_MOUSE_DOWN : _int64 = 4;    // a mouse button went down -> x, y, button
 const EVENT_MOUSE_UP   : _int64 = 5;    // a mouse button came up   -> x, y, button
-const EVENT_MOUSE_MOVE : _int64 = 6;    // the mouse moved          -> x, y
+const EVENT_MOUSE_MOVE : _int64 = 6;    // the mouse moved          -> x, y, moved_x, moved_y
 const EVENT_WHEEL      : _int64 = 7;    // the wheel turned         -> x, y, wheel_x, wheel_y
 const EVENT_RESIZE     : _int64 = 8;    // the window changed size  -> width, height
 const EVENT_TEXT       : _int64 = 9;    // text was typed           -> text
@@ -44,6 +44,7 @@ const KEY_RIGHT     : _int64 = 1073741903;
 const KEY_LEFT      : _int64 = 1073741904;
 const KEY_DOWN      : _int64 = 1073741905;
 const KEY_UP        : _int64 = 1073741906;
+const KEY_SHIFT     : _int64 = 1073742049;      // the left Shift key held (f.key_down(KEY_SHIFT)); the right one is KEY_SHIFT + 4
 const KEY_HOME      : _int64 = 1073741898;
 const KEY_END       : _int64 = 1073741901;
 const KEY_PAGE_UP   : _int64 = 1073741899;
@@ -79,6 +80,8 @@ stable class event {
     x : _int64 = 0;             // mouse position, in pixels from the window's top-left corner
     y : _int64 = 0;
     button : _int64 = 0;        // MOUSE_LEFT, MOUSE_MIDDLE, MOUSE_RIGHT
+    moved_x : _int64 = 0;       // how far the mouse moved, across and down (also while the window keeps it: gui.keep_mouse)
+    moved_y : _int64 = 0;
 
     key : _int64 = 0;           // which key (a character, or a KEY_ name)
     modifiers : _int64 = 0;     // MOD_SHIFT + MOD_CTRL + MOD_ALT that were held
@@ -104,6 +107,7 @@ stable class event {
     def refill() {
         kind = surface_poll();
         x = 0; y = 0; button = 0;
+        moved_x = 0; moved_y = 0;
         key = 0; modifiers = 0; repeat = 0;
         wheel_x = 0; wheel_y = 0;
         width = 0; height = 0;
@@ -119,6 +123,8 @@ stable class event {
         } else if(kind == EVENT_MOUSE_MOVE) {
             x = surface_event_a();
             y = surface_event_b();
+            moved_x = surface_event_c();
+            moved_y = surface_event_d();
         } else if(kind == EVENT_WHEEL) {
             x = surface_event_a();
             y = surface_event_b();

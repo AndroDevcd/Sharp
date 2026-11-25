@@ -35,7 +35,7 @@ def main(args: string[]) {
     n.fill();
     expect_str("nullable field = literal inside a method", n.text!!, "filled");
     n.title = "named";
-    expect_str("non nullable field still uses operator=", n.title, "named");
+    expect_str("non nullable field = literal", n.title, "named");
     n.count = 5;
     expect("nullable int field = number", n.count!!.value, 5);
 
@@ -47,6 +47,8 @@ def main(args: string[]) {
     keep : string = "first";
     other : string = keep;
     keep = "second";
-    expect_str("operator= on a non nullable local changes the object", other, "second");
+    // (a string is stored, never written into: the other name keeps the string it has)
+    expect_str("a string local = literal is a new string: the other name keeps its own", other, "first");
+    expect_str("... and the local assigned to has the new text", keep, "second");
     finish("assign_to_null_targets");
 }

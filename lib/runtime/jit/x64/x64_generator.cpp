@@ -432,6 +432,7 @@ void X64Generator::pick_slot_homes() {
             case Opcode::CALL: case Opcode::CALLD: case Opcode::INVOKE_DELEGATE: case Opcode::INT:
             case Opcode::NEWCLASS: case Opcode::NEWARRAY: case Opcode::NEWOBJARRAY: case Opcode::NEWCLASSARRAY:
             case Opcode::NEWSTRING: case Opcode::CAST: case Opcode::VARCAST: case Opcode::IS:
+            case Opcode::WDIV:
                 reloads += now;
                 break;
             // a number written through sp or the fiber's stack could be one of our slots: no homes
@@ -629,6 +630,23 @@ void X64Generator::divide_for_remainder(const Label &zero) {
     a.jmp(done);
     a.bind(minus_one);
     a.xor_(x86::edx, x86::edx);
+    a.bind(done);
+}
+
+// THE QUOTIENT, `/` on two whole numbers, the same way (vm_quotient): a divisor of 0 goes to the
+// runtime, which raises; a divisor of -1 is a change of sign, which wraps round for the smallest
+// number where the processor's division would fault. The quotient is left in rax.
+void X64Generator::divide_for_quotient(const Label &zero) {
+    Label minus_one = a.newLabel(), done = a.newLabel();
+    a.test(rcx, rcx);
+    a.jz(zero);
+    a.cmp(rcx, -1);
+    a.je(minus_one);
+    a.cqo();
+    a.idiv(rcx);
+    a.jmp(done);
+    a.bind(minus_one);
+    a.neg(rax);
     a.bind(done);
 }
 

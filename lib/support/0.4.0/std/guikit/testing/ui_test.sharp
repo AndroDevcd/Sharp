@@ -1,0 +1,499 @@
+mod std.guikit.testing;
+
+import (
+    std,
+    std.io,
+    std.testing,
+    std.guikit.*,
+    platform
+)
+
+/**
+ * UI TESTS - a screen is put up, used the way a person uses it, and checked.
+ *
+ *      import ( std.testing, std.guikit.*, std.guikit.testing )
+ *
+ *      def main(args: string[]) {
+ *          tests("counter") {
+ *              ui_test("the button adds one") {
+ *                  count := gui.state(0);
+ *
+ *                  set_content {
+ *                      column {
+ *                          text("Count: " + count.value, modifier().tag("total"));
+ *                          button("Add", modifier().tag("add")) { count.value = count.value + 1; };
+ *                      };
+ *                  };
+ *
+ *                  on_tag("add").click();
+ *                  on_tag("total").should_say("Count: 1");
+ *              };
+ *          };
+ *          finish_tests();
+ *      }
+ *
+ * NO WINDOW OPENS. The screen runs on a window that is not there
+ * (platform/window.sharp): it is built, laid out, clicked and typed into
+ * through the same code a real window uses - a click is a mouse press and a
+ * release at the middle of the widget, and goes wherever a real one would -
+ * but nothing is painted, and the clock only moves when the test moves it.
+ * So a test takes no time, is the same on every run, and runs on a machine
+ * without a display. (How things LOOK is not there to be checked: nothing is
+ * painted. The words that look at colours stop the test with an exception
+ * unless it is watched - see WATCHING A TEST.)
+ *
+ * THE WORDS
+ *
+ *      ui_test(name) { ... }       one UI test, inside tests(...) - a test(...) with a screen of its own
+ *      set_content { ... }         the widgets the block makes are the screen
+ *      set_content(screen)         ... or a screen of the app: set_content(new login_screen())
+ *      screen_size(400, 700)       the size of the screen (960 x 640 until it is said)
+ *
+ *      FINDING (finders.sharp)
+ *      on_tag("save")              the one widget with this tag (modifier().tag("save"))
+ *      on_text("Save")             the one widget that shows these words
+ *      on_kind<checkbox>()         the one widget of this class
+ *      all_tags / all_text / all_kinds<...>    every such widget: .at(2) .first() .last() .count()
+ *      on_root()                   the whole screen
+ *      on_tag("row").on_text("Delete")         inside another: every finder is also a word of a widget
+ *      all_kinds<button>().with_text("Save")   of those, the ones that ... : with_tag, with_text, of_kind<...>,
+ *                                              that_are_on / _off / _enabled / _disabled / _shown
+ *      .parent()  .children()      from one widget to those around it
+ *
+ *      DOING (actions.sharp)
+ *      click()  long_click()  double_click()  right_click()
+ *      type("words")  replace("words")  clear()  press(KEY_ENTER)  press('s', MOD_CTRL)  hover()
+ *      scroll_to()  swipe_left() / right / up / down  drag(dx, dy)
+ *      on a scrolling area: scroll_to(on_tag("row_40"))  scroll_to_end()  scroll_to_start()  scroll_down(3)  scroll_up(3)
+ *
+ *      CHECKING (assertions.sharp)
+ *      should_exist()  should_not_exist()  should_be_shown()  should_be_hidden()
+ *      should_be_enabled()  should_be_disabled()  should_be_on()  should_be_off()
+ *      should_be_selected()  should_be_focused()
+ *      should_say("words")  should_contain("part")  should_have_value(0.5)  should_have_count(3)
+ *      should_have_color(colour)  should_have_color_at(4, 4, colour)      a watched test only (see below)
+ *      should_show_toast("Saved")  should_show_no_toast()  should_show_tooltip("...")      what is not a widget
+ *
+ *      TIME (clock.sharp)
+ *      idle()                      let everything that is waiting to be built again finish
+ *      advance(0.5)                half a second passes: animations move, timers ring
+ *      wait_until { ... }          time passes until the block answers true
+ *      back()                      the back key
+ *      print_tree()                the screen as text, to see what a test sees
+ *
+ * A check that does not hold fails the test there, and says what the screen
+ * held at that moment (the same text print_tree() prints).
+ *
+ * WATCHING A TEST. Start the test program with the argument -watch
+ * (`sharp my_tests -watch`), or call watch_ui_tests() before the tests: every
+ * UI test then runs in a REAL window, slowly enough to follow - the screen
+ * comes up, a ring shows where the test presses, the words appear as it types,
+ * and it rests a moment after each thing it does. Nothing in the tests
+ * changes for it. (It is for a person to look at: on a real window the text
+ * has its real size and time is real time, so a test that waits two seconds
+ * takes two seconds.)
+ *
+ * hold_on_failure(), called before the tests: when a watched test fails, its
+ * window stays up as it was at that moment, until you close it. Then the
+ * failure is reported and the next test runs. (It does nothing for tests that
+ * are not watched: there is no window to keep.)
+ *
+ * Finding by TAG is the one to prefer: the words on a screen change with the
+ * wording and the language, a tag does not. Every widget takes one.
+ *
+ * (Android: Compose's createComposeRule, onNodeWithTag, performClick, assertIsDisplayed.)
+ */
+
+/**
+ * The screen the running UI test looks at: the host it runs on, and the
+ * things every word of this module does through it. (A program does not use
+ * this class: it is what the words above are made of.)
+ */
+stable class test_screen {
+    static host : ui_host?;
+    static wide : _int32 = 960;
+    static tall : _int32 = 640;
+
+    // ---- a test that is watched (watch_ui_tests, or the argument -watch)
+    static watching : _int64 = 0 - 1;       // 1: on a real window. 0: not. -1: the arguments were not looked at yet
+    static rest : decimal = 0.6;            // seconds the screen rests after each thing the test does
+    static title : string = "";             // the test that is running: the window's title
+    static holding : bool = false;          // hold_on_failure(): a watched test that fails keeps its window up
+
+    /** are the tests being watched? */
+    static def watched() : bool {
+        if(watching < 0) {
+            watching = 0;
+            given : string[] = program_arguments();
+            for(i : _int64 = 0; i < sizeof(given); i++) {
+                if(given[i] == "-watch") { watching = 1; }
+            }
+        }
+        return watching == 1;
+    }
+
+    /** a watched test's window was closed by hand: the test cannot go on */
+    private static def open_still(h: ui_host) {
+        if(!h.win.is_open()) {
+            host = null;
+            fail_test("the window of the watched test was closed");
+        }
+    }
+
+    /**
+     * Let `seconds` pass: on a window that is not there its clock is moved on
+     * and the loop turned once; on a real one the loop is turned until that
+     * much time has really gone.
+     */
+    static def pass(seconds: decimal) {
+        h := running("the clock");
+        if(h.win.is_pretend()) {
+            h.win.pass_time(seconds);
+            h.turn();
+            return;
+        }
+        from : decimal = h.win.time();
+        while(h.win.is_open() && h.win.time() - from < seconds) {
+            h.turn();
+        }
+        open_still(h);
+    }
+
+    /** a watched test failed: its window stays up until it is closed by hand */
+    static def hold(wrong: throwable) {
+        if(host == null || host!!.win.is_pretend() || !host!!.win.is_open()) {
+            return;
+        }
+        h := host!!;
+        println("        `" + title + "` failed: its window stays up as it was - close it to go on");
+        flush();
+        while(h.win.is_open()) {
+            h.turn();
+        }
+        host = null;
+    }
+
+    /** a watched test rests here a moment, so that what just happened can be seen */
+    static def linger() {
+        if(host != null && !host!!.win.is_pretend()) {
+            pass(rest);
+        }
+    }
+
+    /** the host of the screen that is up; fails the test when no screen was set */
+    static def running(word: string) : ui_host {
+        if(host == null) {
+            fail_test("`" + word + "` needs a screen to look at: call set_content(...) first");
+        }
+        return host!!;
+    }
+
+    /** take the screen down (the next set_content puts up a new one) */
+    static def close() {
+        if(host != null) {
+            h := host!!;
+            host = null;
+            if(h.win.is_open()) {
+                h.end();
+                if(!h.win.is_pretend()) { h.win.close(); }
+            }
+        }
+    }
+
+    /** turn the loop until nothing is waiting to be built again or laid out */
+    static def settle() {
+        h := running("idle()");
+        for(i : _int64 = 0; i < 100; i++) {
+            open_still(h);
+            h.turn();
+            if(h.settled()) { return; }
+        }
+        fail_test("the screen does not come to rest: after 100 turns something is still being built again "
+                + "(does a state change every time the screen is built?)");
+    }
+
+    /** hand the screen one event, and let it act on it */
+    static def send(e: event) {
+        h := running("an event");
+        open_still(h);
+        h.win.send(e);
+        h.turn();
+    }
+
+    /** an event at a place: a mouse press, release, move or a turn of the wheel */
+    static def event_at(kind: _int64, px: decimal, py: decimal) : event {
+        e := new event();
+        e.kind = kind;
+        e.x = px;
+        e.y = py;
+        e.button = MOUSE_LEFT;
+        return e;
+    }
+
+    /** a key going down or coming up */
+    static def event_key(kind: _int64, key: _int64) : event {
+        e := new event();
+        e.kind = kind;
+        e.key = key;
+        return e;
+    }
+
+    // ---------------------------------------------------------------- what is on the screen
+
+    /** is this view there: in the tree, and neither it nor anything around it taken away (show(0))? */
+    static def is_there(v: view) : bool {
+        h := running("a check");
+        at : view? = v;
+        last : view = v;
+        while(at != null) {
+            if(at!!.shown == 0) { return false; }
+            last = at!!;
+            at = at!!.parent;
+        }
+        return h.root() != null && last == h.root()!!;
+    }
+
+    // the part of a view that can be seen: worked out by visible_part
+    static part_x : decimal = 0;
+    static part_y : decimal = 0;
+    static part_w : decimal = 0;
+    static part_h : decimal = 0;
+
+    /**
+     * Can any of this view be seen? It must be there, not hidden, have a size,
+     * and lie - at least partly - inside the screen and inside every scrolling
+     * area around it. The part that can be seen is left in part_x ... part_h.
+     */
+    static def visible_part(v: view) : bool {
+        h := running("a check");
+        if(!is_there(v) || v.w <= 0 || v.h <= 0) { return false; }
+        left : decimal = v.x;
+        top : decimal = v.y;
+        right : decimal = v.x + v.w;
+        bottom : decimal = v.y + v.h;
+        if(left < 0) { left = 0; }
+        if(top < 0) { top = 0; }
+        if(right > h.win.width()) { right = h.win.width(); }
+        if(bottom > h.win.height()) { bottom = h.win.height(); }
+
+        at : view? = v;
+        floating : bool = false;
+        while(at != null) {
+            around : view = at!!;
+            if(around.hidden == 1) { return false; }
+            // (what floats above the page - a dialog, a menu - is not cut off by what is around it)
+            if(around.how is floater) { floating = true; }
+            if(!floating && around != v && around.how is clipper) {
+                if(left < around.x) { left = around.x; }
+                if(top < around.y) { top = around.y; }
+                if(right > around.x + around.w) { right = around.x + around.w; }
+                if(bottom > around.y + around.h) { bottom = around.y + around.h; }
+            }
+            at = around.parent;
+        }
+        if(right - left < 1 || bottom - top < 1) { return false; }
+        part_x = left;
+        part_y = top;
+        part_w = right - left;
+        part_h = bottom - top;
+        return true;
+    }
+
+    /** is `inner` the view `outer`, or somewhere inside it? */
+    static def is_within(inner: view, outer: view) : bool {
+        at : view? = inner;
+        while(at != null) {
+            if(at!! == outer) { return true; }
+            at = at!!.parent;
+        }
+        return false;
+    }
+
+    /** the words a view shows ("" when it shows none) */
+    static def words_of(v: view) : string {
+        if(v.how is shows_words) {
+            teller := v.how as shows_words;
+            return teller.words_shown();
+        }
+        return "";
+    }
+
+    /** does this view show these words, or is it named by them (the caption of a text field)? */
+    static def says(v: view, what: string) : bool {
+        if(v.how is shows_words) {
+            teller := v.how as shows_words;
+            if(teller.words_shown() == what) { return true; }
+        }
+        if(v.how is has_caption) {
+            named := v.how as has_caption;
+            if(named.caption_shown() == what) { return true; }
+        }
+        return false;
+    }
+
+    // ---------------------------------------------------------------- the screen as text
+
+    /** the screen as text: one line for each widget, the ones inside another further in */
+    static def tree() : string {
+        if(host == null || host!!.root() == null) {
+            return "    (no screen: set_content was not called)";
+        }
+        return lines_of(host!!.root()!!, 1);
+    }
+
+    private static def lines_of(v: view, depth: _int64) : string {
+        if(v.shown == 0) {
+            return "";
+        }
+        line : string = "";
+        for(i : _int64 = 0; i < depth; i++) { line = line + "    "; }
+        line = line + v.how.kind();
+        if(v.tag != "") { line = line + "  tag `" + v.tag + "`"; }
+        if(v.how is shows_words) {
+            line = line + "  \"" + words_of(v) + "\"";
+        }
+        if(v.how is has_caption) {
+            named := v.how as has_caption;
+            if(named.caption_shown() != "") { line = line + "  named \"" + named.caption_shown() + "\""; }
+        }
+        if(v.how is on_or_off) {
+            flips := v.how as on_or_off;
+            line = line + (flips.is_on() ? "  on" : "  off");
+        }
+        if(v.how is has_value) {
+            counted := v.how as has_value;
+            line = line + "  at " + counted.value_shown();
+        }
+        if(v.enabled == 0) { line = line + "  disabled"; }
+        if(v.hidden == 1) { line = line + "  hidden"; }
+        if(host!!.focused() != null && host!!.focused()!! == v) { line = line + "  has the keyboard"; }
+        left : _int64 = v.x;
+        top : _int64 = v.y;
+        wide_now : _int64 = v.w;
+        tall_now : _int64 = v.h;
+        line = line + "   (" + left + ", " + top + "  " + wide_now + " x " + tall_now + ")\n";
+
+        count : _int64 = v.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            line = line + lines_of(v.kids.at(i), depth + 1);
+        }
+        return line;
+    }
+
+    /** fail the test: what was asked, what was wrong, and what the screen holds */
+    static def fail(word: string, why: string) {
+        fail_test("`" + word + "`: " + why + "\n\n    the screen:\n" + tree());
+    }
+}
+
+/**
+ * One UI test: a test(...) of std.testing that has a screen of its own. The
+ * screen of the test before it is taken down first, and every timer stopped,
+ * so that each test starts from nothing.
+ */
+def ui_test(name: string, body: ()()) {
+    test(name) {
+        test_screen.close();
+        timer.cancel_all();
+        test_screen.title = name;
+        if(test_screen.holding && test_screen.watched()) {
+            try {
+                body();
+            } catch(left: test_skipped) {
+                throw left;
+            } catch(wrong: throwable) {
+                test_screen.hold(wrong);
+                throw wrong;
+            }
+        } else {
+            body();
+        }
+        test_screen.close();
+    };
+}
+
+/**
+ * When a watched UI test fails, keep its window up - as it was when the check
+ * did not hold - until it is closed by hand (see WATCHING A TEST).
+ */
+def hold_on_failure() {
+    test_screen.holding = true;
+}
+
+/**
+ * Watch the UI tests that follow: each runs in a real window, resting
+ * `seconds` after every thing it does (see WATCHING A TEST above). The same
+ * as starting the program with -watch, for a program that always wants it.
+ */
+def watch_ui_tests(seconds: decimal) {
+    test_screen.watching = 1;
+    test_screen.rest = seconds;
+}
+
+def watch_ui_tests() {
+    test_screen.watching = 1;
+}
+
+/**
+ * Put a screen up for the test: a screen of the app, or any widget.
+ *
+ *      set_content(new login_screen());
+ *
+ * It is built and laid out before this returns. Calling it again takes the
+ * first screen down and puts the new one up.
+ */
+def set_content(screen: element) {
+    test_screen.close();
+    if(test_screen.watched()) {
+        made := new ui_host("UI test: " + test_screen.title, test_screen.wide, test_screen.tall);
+        test_screen.host = made;
+        made.begin(screen);
+    } else {
+        made := new ui_host(test_screen.wide, test_screen.tall);
+        test_screen.host = made;
+        made.begin(screen);
+    }
+    test_screen.settle();
+    test_screen.linger();
+}
+
+/**
+ * The same with the widgets written right here, as a screen's build() writes
+ * them. States the block reads are made in the test, before it:
+ *
+ *      on := gui.state(0);
+ *      set_content {
+ *          checkbox("Remind me", on, modifier().tag("remind"));
+ *      };
+ *
+ * The widgets lie in a stack that fills the screen (several are on top of each
+ * other: put them in a column or a row to set them out).
+ */
+def set_content(block: ()()) {
+    set_content(new built_by({ -> return stack(modifier().fill()) { block(); }; }));
+}
+
+/**
+ * The size of the screen, in pixels: for the screens set after it, and - when
+ * one is up - for that one at once (as when a window is resized).
+ */
+def screen_size(width: _int32, height: _int32) {
+    test_screen.wide = width;
+    test_screen.tall = height;
+    if(test_screen.host != null) {
+        h := test_screen.host!!;
+        h.win.resize(width, height);
+        e := new event();
+        e.kind = EVENT_RESIZE;
+        e.width = width;
+        e.height = height;
+        test_screen.send(e);
+        test_screen.settle();
+    }
+}
+
+/** print the screen as text: every widget, its tag, its words, where it is */
+def print_tree() {
+    println("the screen:");
+    println(test_screen.tree());
+}

@@ -106,6 +106,15 @@ def fold_whole_operation(operation: _int64, a: _int64, b: _int64, out: folded) {
         out.set_whole(a % b);
         return;
     }
+    if(operation == ARITH_DIV) {
+        // toward zero, as the VM divides (vm_quotient). By zero it raises: left for the program to do.
+        // (Written with `%` so that it is exact whichever way the compiler that builds this divides.)
+        if(b == 0 || b == 0 - 1) { out.unknown(); return; }
+        if(a > 4503599627370496 || a < 0 - 4503599627370496) { out.unknown(); return; }
+        quotient : _int64 = (a - a % b) / b;
+        out.set_whole(quotient);
+        return;
+    }
     if(operation == ARITH_SHL || operation == ARITH_SHR) {
         if(b < 0 || b > 63) { out.unknown(); return; }
         if(operation == ARITH_SHL) { out.set_whole(a << b); } else { out.set_whole(a >> b); }

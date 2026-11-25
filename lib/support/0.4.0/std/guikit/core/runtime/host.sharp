@@ -97,6 +97,16 @@ stable class ui_host {
         else { surface_pace(0); }
     }
 
+    /** the app's name and icon as the program chose them ("": not chosen) (gui.app_name, gui.app_icon) */
+    static name_wanted : string = "";
+    static icon_wanted : string = "";
+
+    /** give the open window the chosen name and icon */
+    static def apply_name_and_icon() {
+        if(name_wanted != "") { surface_title(name_wanted); }
+        if(icon_wanted != "") { surface_icon(icon_wanted); }
+    }
+
     win : window;
     look : theme;
 
@@ -161,9 +171,24 @@ stable class ui_host {
     mouse_x : decimal = 0;
     mouse_y : decimal = 0;
     mouse_held : _int64 = 0;
+    moved_x : decimal = 0;              // how far the mouse moved since the previous frame was painted (frame.moved_x)
+    moved_y : decimal = 0;
     now : decimal = 0;                  // seconds since the window opened, at the start of this turn
     step : decimal = 0;                 // seconds since the previous FRAME was painted (frame.step; never over 0.1)
     private keys_held : list<int> = new list<int>();
+
+    /**
+     * A host on a window that is not there (window.sharp): for UI tests. Nothing
+     * opens; begin(...), turn() and end() run the screen (see THE LOOP IN THREE PARTS).
+     */
+    ui_host(width: _int32, height: _int32) {
+        if(chosen_theme == null) {
+            chosen_theme = theme.dark();
+        }
+        look = chosen_theme!!;
+        win = new window(width, height);
+        title_given = "";
+    }
 
     ui_host(title: string, width: _int32, height: _int32) {
         if(chosen_theme == null) {
@@ -204,120 +229,268 @@ stable class ui_host {
     }
 
     def run(root: element) {
+        begin(root);
+        while(win.is_open()) {
+            turn();
+        }
+        end();
+    }
+
+    private painted_at : decimal = 0;       // when the last frame was painted (win.time())
+
+    /**
+     * THE LOOP IN THREE PARTS: begin(root), turn() again and again, end().
+     * run() is exactly that. A UI test (std.guikit.testing) calls them itself,
+     * on a window that is not there (ui_host(width, height)): it turns the loop
+     * when it has sent an event or moved the clock, and looks at the tree in
+     * between.
+     */
+    def begin(root: element) {
         current = self;
         main_thread = thread.current();
-        saved_store.open(title_given);              // saved states take their values from their files (saved.sharp)
+        if(!win.is_pretend()) {
+            saved_store.open(title_given);          // saved states take their values from their files (saved.sharp)
+        }
         top = root.node();
         reconciler.settle(top!!, null);          // builds every composable in the tree
-        apply_vsync();                           // a window opens waiting for the refresh; this is what the program chose
+        if(!win.is_pretend()) {
+            apply_vsync();                       // a window opens waiting for the refresh; this is what the program chose
+            apply_name_and_icon();
+        }
+        painted_at = win.time();
+    }
 
-        p := win.painter();
-        painted_at : decimal = win.time();          // when the last frame was painted
+    /** one turn of the loop: events, timers, rebuilding, layout, and - when one is due - a frame */
+    def turn() {
+        now = win.time();
 
-        while(win.is_open()) {
-            now = win.time();
-
-            read_events();
-            if(!win.is_open()) {
-                break;
-            }
-            main_queue.run_waiting();             // what background threads handed over with on_main (main_queue.sharp)
-            timer.run_due(now);                   // gui.after / gui.every (timer.sharp)
-            if(!win.is_open()) {
-                break;                            // what just ran closed the window: nothing left to paint on
-            }
-            if(animated.step_all(now) == 1) {     // numbers that are gliding (animated.sharp)
-                frame_wanted = 1;
-            }
-            if(glide.step(now) == 1) {            // boxes that are gliding to a new place (glide.sharp)
-                frame_wanted = 1;
-            }
-            watch_the_clock();                    // long presses, tooltips and toasts are about time passing
-            if(fps_shown) {
-                count_frames();                   // once a second: what the frames-per-second box says
-            }
-
-            rebuild_stale();
-
-            width : decimal = win.width();
-            height : decimal = win.height();
-
-            if(layout_due == 1) {
-                layout_due = 0;
-                pass = pass + 1;
-                overlays.clear();                 // open popups and the back stack announce themselves while arranging
-                back_stack = null;
-                top!!.measure(width, width, height, height);      // the root is exactly the window
-                top!!.arrange(0, 0, width, height);
-                place_overlays(width, height);
-                glide.settle(top!!);              // boxes that are somewhere new start gliding there
-                paint_due = 1;
-            }
-
-            if(paint_due == 1 || frame_wanted == 1) {
-                follow_frame_limit();             // gui.frame_rate(...) may have changed since the last frame
-                started : decimal = win.time();
-
-                if(frame_gap > 0 && started < next_frame_at) {
-                    // There is something to paint, but the frame rate says not
-                    // yet: sleep until it is time. This sleep is what the limit
-                    // saves. (An event ends it early; the event is read, and the
-                    // loop comes back here to sleep out the rest.)
-                    wait_for_frame(next_frame_at - started);
-                } else {
-                    // How long since the last frame: what everything that moves by itself moves by.
-                    // (Measured frame to frame. This loop turns several times between two frames when
-                    // the frame rate is limited - it wakes for events and timers - and a step measured
-                    // turn to turn made everything run slow under a limit.) After a pause - the app
-                    // was idle, the window was dragged - things carry on from where they were: they
-                    // do not jump ahead by the whole pause.
-                    step = started - painted_at;
-                    if(step > 0.1) { step = 0.1; }
-                    painted_at = started;
-
-                    paint_due = 0;
-                    frame_wanted = 0;
-                    wake_at = 0;                  // widgets that still need waking ask again while painting
-                    p.reset();
-                    win.clear(look.background);
-                    top!!.paint(p);
-                    paint_overlays(p, width, height);
-                    paint_focus_ring(p);
-                    paint_tip(p, width, height);
-                    paint_toasts(p, width, height);
-                    if(fps_shown) {
-                        paint_frames_box(p, width);    // last: on top of everything
-                    }
-
-                    if(fps_own_frame) {
-                        fps_own_frame = false;        // painted only to update the box: not a frame of the app
-                    } else {
-                        fps_frames += 1;
-                        fps_ms = (win.time() - started) * 1000;
-                    }
-                    win.show();
-
-                    // when the next frame may come: one gap after this one was DUE
-                    // (not after it was painted, which would let the rate drift
-                    // down) - unless the loop was resting, then one gap from now
-                    if(frame_gap > 0) {
-                        if(next_frame_at + frame_gap < started) {
-                            next_frame_at = started + frame_gap;
-                        } else {
-                            next_frame_at = next_frame_at + frame_gap;
-                        }
-                    }
-                }
-            } else {
-                rest();
-            }
+        read_events();
+        if(!win.is_open()) {
+            return;
+        }
+        main_queue.run_waiting();             // what background threads handed over with on_main (main_queue.sharp)
+        timer.run_due(now);                   // gui.after / gui.every (timer.sharp)
+        if(!win.is_open()) {
+            return;                           // what just ran closed the window: nothing left to paint on
+        }
+        if(animated.step_all(now) == 1) {     // numbers that are gliding (animated.sharp)
+            frame_wanted = 1;
+        }
+        if(glide.step(now) == 1) {            // boxes that are gliding to a new place (glide.sharp)
+            frame_wanted = 1;
+        }
+        watch_the_clock();                    // long presses, tooltips and toasts are about time passing
+        if(fps_shown) {
+            count_frames();                   // once a second: what the frames-per-second box says
         }
 
-        // the window closed: everything that was on the screen is gone (timers of composables stop)
-        reconciler.retire(top!!);
+        rebuild_stale();
+
+        width : decimal = win.width();
+        height : decimal = win.height();
+
+        if(layout_due == 1) {
+            layout_due = 0;
+            pass = pass + 1;
+            overlays.clear();                 // open popups and the back stack announce themselves while arranging
+            back_stack = null;
+            top!!.measure(width, width, height, height);      // the root is exactly the window
+            top!!.arrange(0, 0, width, height);
+            place_overlays(width, height);
+            glide.settle(top!!);              // boxes that are somewhere new start gliding there
+            paint_due = 1;
+        }
+
+        if(win.is_pretend()) {
+            // A window that is not there (a UI test): there is nothing to paint on, and no time to
+            // sleep through - the test turns the loop itself. A frame that was due counts as painted.
+            if(paint_due == 1 || frame_wanted == 1) {
+                step = now - painted_at;
+                if(step > 0.1) { step = 0.1; }
+                painted_at = now;
+                paint_due = 0;
+                frame_wanted = 0;
+                wake_at = 0;
+                moved_x = 0;
+                moved_y = 0;
+            }
+            return;
+        }
+
+        p := win.painter();
+        if(paint_due == 1 || frame_wanted == 1) {
+            follow_frame_limit();             // gui.frame_rate(...) may have changed since the last frame
+            started : decimal = win.time();
+
+            if(frame_gap > 0 && started < next_frame_at) {
+                // There is something to paint, but the frame rate says not
+                // yet: sleep until it is time. This sleep is what the limit
+                // saves. (An event ends it early; the event is read, and the
+                // loop comes back here to sleep out the rest.)
+                wait_for_frame(next_frame_at - started);
+            } else {
+                // How long since the last frame: what everything that moves by itself moves by.
+                // (Measured frame to frame. This loop turns several times between two frames when
+                // the frame rate is limited - it wakes for events and timers - and a step measured
+                // turn to turn made everything run slow under a limit.) After a pause - the app
+                // was idle, the window was dragged - things carry on from where they were: they
+                // do not jump ahead by the whole pause.
+                step = started - painted_at;
+                if(step > 0.1) { step = 0.1; }
+                painted_at = started;
+
+                paint_due = 0;
+                frame_wanted = 0;
+                wake_at = 0;                  // widgets that still need waking ask again while painting
+                p.reset();
+                win.clear(look.background);
+                top!!.paint(p);
+                paint_overlays(p, width, height);
+                paint_focus_ring(p);
+                paint_tip(p, width, height);
+                paint_toasts(p, width, height);
+                paint_touch(p);
+                if(fps_shown) {
+                    paint_frames_box(p, width);    // last: on top of everything
+                }
+
+                if(fps_own_frame) {
+                    fps_own_frame = false;        // painted only to update the box: not a frame of the app
+                } else {
+                    fps_frames += 1;
+                    fps_ms = (win.time() - started) * 1000;
+                }
+                if(pixel_wanted) {
+                    pixel_got = surface_pixel(pixel_x, pixel_y);     // (before it is shown: after that the picture is the screen's)
+                    pixel_wanted = false;
+                }
+                win.show();
+                moved_x = 0;                  // the frame has seen how far the mouse moved: count again
+                moved_y = 0;
+
+                // when the next frame may come: one gap after this one was DUE
+                // (not after it was painted, which would let the rate drift
+                // down) - unless the loop was resting, then one gap from now
+                if(frame_gap > 0) {
+                    if(next_frame_at + frame_gap < started) {
+                        next_frame_at = started + frame_gap;
+                    } else {
+                        next_frame_at = next_frame_at + frame_gap;
+                    }
+                }
+            }
+        } else {
+            rest();
+        }
+    }
+
+    /** the window closed: everything that was on the screen is gone (timers of composables stop) */
+    def end() {
+        if(top != null) { reconciler.retire(top!!); }
         model_store.app.drop_all();                 // the models that belonged to no screen
         current = null;
         main_thread = null;
+    }
+
+    // ------------------------------------------------------------ what a UI test asks the host (std.guikit.testing)
+
+    /** the root of the tree (null before begin) */
+    def root() : view? {
+        return top;
+    }
+
+    /** the view that has the keyboard (null: none) */
+    def focused() : view? {
+        return focus;
+    }
+
+    /** is nothing waiting to be built again or laid out? */
+    def settled() : bool {
+        return stale.size() == 0 && layout_due == 0;
+    }
+
+    private pixel_wanted : bool = false;
+    private pixel_x : decimal = 0;
+    private pixel_y : decimal = 0;
+    private pixel_got : _int64 = 0 - 1;
+
+    /**
+     * The colour that is painted at a point of the window, as 0xRRGGBBAA (-1:
+     * it could not be read). A frame is painted to find out. Only a real
+     * window paints: on one that is not there this answers -1.
+     */
+    def color_painted_at(px: decimal, py: decimal) : _int64 {
+        if(win.is_pretend()) {
+            return 0 - 1;
+        }
+        pixel_wanted = true;
+        pixel_x = px;
+        pixel_y = py;
+        pixel_got = 0 - 1;
+        for(i : _int64 = 0; i < 400 && pixel_wanted && win.is_open(); i++) {
+            paint_due = 1;
+            turn();
+        }
+        pixel_wanted = false;
+        return pixel_got;
+    }
+
+    // where a UI test that is being watched pressed last, and when (mark_touch)
+    private touch_x : decimal = 0;
+    private touch_y : decimal = 0;
+    private touch_at : decimal = 0 - 10;
+
+    /** a UI test that is being watched presses here: a ring shows where, for a moment */
+    def mark_touch(px: decimal, py: decimal) {
+        touch_x = px;
+        touch_y = py;
+        touch_at = win.time();
+        paint_due = 1;
+    }
+
+    private def paint_touch(p: painter) {
+        age : decimal = win.time() - touch_at;
+        if(age < 0 || age > 0.45) {
+            return;
+        }
+        gone : decimal = age / 0.45;
+        solid : _int64 = 230 * (1 - gone);
+        p.circle(touch_x, touch_y, 7, look.primary.with_alpha(solid));
+        p.ring(touch_x, touch_y, 10 + gone * 18, 3, look.primary.with_alpha(solid));
+        frame_wanted = 1;
+    }
+
+    /**
+     * The words of the toasts that are up, the oldest first. (Toasts and the
+     * tooltip are painted by the host itself: they are not widgets of the tree,
+     * so a test cannot find them there.)
+     */
+    def toast_words() : list<string> {
+        said := new list<string>();
+        count : _int64 = toasts.size();
+        for(i : _int64 = 0; i < count; i++) {
+            said.add(toasts.at(i).words);
+        }
+        return said;
+    }
+
+    /** the words of the tooltip that is showing ("": none is) */
+    def tip_words() : string {
+        if(tip_on == 0 || tip_owner == null) {
+            return "";
+        }
+        return tip_owner!!.tip;
+    }
+
+    /** the next click is a first click, whatever was clicked a moment ago (a test's two clicks are not a double click) */
+    def forget_last_click() {
+        clicked_last = null;
+    }
+
+    /** the view a press at this point of the window would land on: in the topmost open popup, else on the page */
+    def at_point(px: decimal, py: decimal) : view? {
+        if(top == null) { return null; }
+        return view_under(px, py);
     }
 
     // ------------------------------------------------------------ overlays: content that floats above the page
@@ -393,6 +566,7 @@ stable class ui_host {
 
     /** nothing to paint: sleep until an event arrives (or a widget asked to be woken) */
     private def rest() {
+        if(win.is_pretend()) { return; }
         // Sleep in short naps (at most a tenth of a second), so the loop stays
         // responsive to the window being closed from the program's side.
         nap_ms : _int64 = 100;
@@ -649,6 +823,8 @@ stable class ui_host {
         } else if(e.kind == EVENT_RESIZE) {
             layout_due = 1;
         } else if(e.kind == EVENT_MOUSE_MOVE) {
+            moved_x = moved_x + e.moved_x;
+            moved_y = moved_y + e.moved_y;
             mouse_moved(e.x, e.y);
         } else if(e.kind == EVENT_MOUSE_DOWN) {
             if(e.button == MOUSE_LEFT) { mouse_pressed(e.x, e.y); }

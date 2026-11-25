@@ -110,6 +110,16 @@ class thing {
     spin_roll : decimal = 0;
     bob_height : decimal = 0;
     bob_rate : decimal = 0;
+    sway_amount : decimal = 0;      // how far it bends in a current or a wind (sway): 0, it stands still
+    roughness : decimal = 0;        // how much of the grain of stone its surface has (rough): 0, smooth
+    wag_degrees : decimal = 0;      // swinging round its up axis, this far each way (wag) ...
+    flap_degrees : decimal = 0;     // ... or round its length (flap) ...
+    beat : decimal = 0;             // ... so many swings in 6.28 seconds
+    circle_radius : decimal = 0;    // going round a circle this wide (circling) ...
+    circle_seconds : decimal = 0;   // ... once in so many seconds
+    flock_speed : decimal = 0;      // a flock: how fast its copies go round it
+    mote_count : _int64 = 0;        // motes: how many
+    bubble_look : bool = false;     // motes: drawn as bubbles
 
     tinted : _int64 = 0xFFFFFFFF;
     picture : _int64 = 0;           // a texture over the model's own (0: the model's)
@@ -333,6 +343,66 @@ class thing {
         return touched();
     }
 
+    /**
+     * Bending in a current, or in the wind: its foot stays where it is and the
+     * rest leans this way and that, more the higher up it is - grass, reeds, a
+     * tree's crown, weed under water. 0.3 is a breeze, 1 a strong current.
+     * Things that stand near each other move together, but not alike.
+     *
+     *      scatter(reed, 500).on(shore).sway(0.4);
+     *
+     * (It is the shape's own "up" that leans: make the shape standing on y = 0.)
+     */
+    def sway(amount: decimal) : thing {
+        sway_amount = amount;
+        return touched();
+    }
+
+    /**
+     * Swinging from side to side, round its own up axis: `degrees` each way,
+     * `times_a_second` there and back. A tail, a rudder, a head saying no.
+     * (Put the part where its hinge is: it swings round its own (0, 0, 0).)
+     */
+    def wag(degrees: decimal, times_a_second: decimal) : thing {
+        wag_degrees = degrees;
+        beat = times_a_second * 6.2832;
+        return touched();
+    }
+
+    /** swinging up and down, round its own length (its z axis): a wing, a flipper, a lid */
+    def flap(degrees: decimal, times_a_second: decimal) : thing {
+        flap_degrees = degrees;
+        beat = times_a_second * 6.2832;
+        return touched();
+    }
+
+    /**
+     * Going round a circle `radius` metres wide about the place it stands at,
+     * nose first, once in `seconds` (below 0: the other way round). A shark on
+     * patrol, a bird over a field, a car on a track.
+     */
+    def circling(radius: decimal, seconds: decimal) : thing {
+        circle_radius = radius;
+        circle_seconds = seconds;
+        return touched();
+    }
+
+    /**
+     * A rough surface: the grain of stone. Small bumps that catch the light,
+     * hollows that stay dark and blotches of lighter and darker - laid over the
+     * thing's own colour from every side, so it never stretches whatever the
+     * shape is. 0.4 is weathered concrete, 1 raw rock.
+     *
+     *      sphere(2).color(0x7A7F78FF).rough(1);       // a boulder
+     *      add(cliff).rough(0.8);
+     *
+     * (It needs no picture file and no texture points on the shape.)
+     */
+    def rough(amount: decimal) : thing {
+        roughness = amount;
+        return touched();
+    }
+
     // ---------------------------------------------------------------- clicks
 
     /** what happens when it is clicked (the same word a view's modifier uses) */
@@ -397,16 +467,22 @@ class thing {
         if(self is scattering) {
             (self as scattering).place_copies();
         }
+        if(self is flock) {
+            (self as flock).place_all();
+        }
     }
 
     /**
      * how high the ground of this thing is at (px, pz) of the scene. Land
-     * (terrain) answers from its heights; any other thing is flat ground at
+     * (terrain, endless) answers from its heights; any other thing is flat ground at
      * its own height.
      */
     def height_at(px: decimal, pz: decimal) : decimal {
         if(self is terrain) {
             return (self as terrain).land_height(px, pz);
+        }
+        if(self is endless) {
+            return (self as endless).high(px, pz);
         }
         return y;
     }

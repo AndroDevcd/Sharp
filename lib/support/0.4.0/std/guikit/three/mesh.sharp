@@ -456,6 +456,19 @@ stable class mesh {
         return model_id;
     }
 
+    /**
+     * take this mesh off the graphics card: for a large shape that will not be
+     * shown again (land left far behind). Shown again, it is sent again.
+     */
+    def forget() {
+        if(model_id != 0) {
+            g3_drop(model_id, 0);
+            model_id = 0;
+            part = 0 - 1;
+            stale = true;
+        }
+    }
+
     /** put this mesh on the card as a part of that model (its own part number is kept for the next time) */
     def send(into: _int64) {
         if(stale && corner_count > 0 && face_count > 0) {

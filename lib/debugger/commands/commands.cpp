@@ -229,13 +229,13 @@ command_result run_command(debug_session &session, const string &line) {
     }
 
     // a word that begins like a command, or goes on after one (`breakpoint`): those are named
-    string near;
+    string alike;
     for(command &one : commands) {
         if(one.name.compare(0, word.size(), word) == 0 || word.compare(0, one.name.size(), one.name) == 0) {
-            near += (near.empty() ? "`" : ", `") + one.name + "`";
+            alike += (alike.empty() ? "`" : ", `") + one.name + "`";
         }
     }
-    if(!near.empty()) say("no command `" + word + "`: did you mean " + near + "?   (`help` lists them all; Tab finishes a word)");
+    if(!alike.empty()) say("no command `" + word + "`: did you mean " + alike + "?   (`help` lists them all; Tab finishes a word)");
     else say("no command `" + word + "`: `help` lists them");
     return COMMAND_STAY;
 }

@@ -228,6 +228,10 @@ void main_vm_loop(sharp_function *frame)
                 TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
                 regs[triple_arg3].i = vm_remainder((Int)regs[triple_arg1].i, (Int)regs[triple_arg2].i);
                 branch
+            WDIV:   // whole numbers divided: the quotient, toward zero (raises on a divisor of 0)
+                TC(TC_REG_INT(triple_arg1) TC_REG_INT(triple_arg2) TC_RT(triple_arg3) = tk_int;)
+                regs[triple_arg3].i = vm_quotient((Int)regs[triple_arg1].i, (Int)regs[triple_arg2].i);
+                branch
             IADD:
                 TC(TC_REG_INT(single_arg))
                 regs[single_arg].i += raw_arg2;

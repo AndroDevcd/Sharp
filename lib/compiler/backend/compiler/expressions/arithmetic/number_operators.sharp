@@ -25,11 +25,14 @@ import (
  *
  *      operator             worked out as                      result type
  *      -------------------  ---------------------------------  -----------------------------------
- *      /                    decimals, always (7 / 2 is 3.5)    decimal
- *      + - * **             decimals when either is one        decimal when either is one; else
- *                           (** always: it is a power)         _int64 when either is a 64-bit whole
- *                                                              number (_uint64 when both are
+ *      + - * / **           decimals when either is one        decimal when either is one; else
+ *                           (** always: it is a power;         _int64 when either is a 64-bit whole
+ *                           7 / 2 is 3, 7 / 2.0 is 3.5)        number (_uint64 when both are
  *                                                              unsigned); else _int32
+ *
+ *      Two whole numbers divide to a whole number, toward zero (-7 / 2 is -3), as in Java and
+ *      Kotlin; by zero the program stops with invalid_operation_exception. For the fraction make
+ *      one side a decimal: `7 / 2.0`, `count as decimal / total`.
  *      % & | ^ << >>        whole numbers                      _int64 / _uint64 as above, else _int32
  *      == != < > <= >=      decimals when either is one        bool
  *
@@ -65,8 +68,9 @@ def number_operation(context: analysis_context, node: _int64, operation: _int64,
         // W1044 is the one message: the division is left as it is written and not worked out
         // here, so that "infinity does not fit `_int64`" (W1037) is not said about it as well
         warn_division_by_zero(context, right_number);
-        return new bound_binary(context.unit, node, operation, left, right_number, OPERANDS_DECIMAL,
-                                context.session.types.decimal_type);
+        return new bound_binary(context.unit, node, operation, left, right_number,
+                                operands_of(operation, left.type, right_number.type),
+                                number_result_type(context.session.types, operation, left.type, right_number.type));
     }
     if(is_number_literal(left) && is_number_literal(right_number)) {
         folded := fold_literals(context, node, operation, left, right_number);
@@ -113,7 +117,7 @@ def report_bool_operands(context: analysis_context, node: _int64, left: bound_ex
 
 /** how the VM works it out: OPERANDS_DECIMAL or OPERANDS_INTEGER */
 def operands_of(operation: _int64, left: resolved_type, right: resolved_type) : _int64 {
-    if(operation == P_SLASH || operation == P_EXPONENT) { return OPERANDS_DECIMAL; }
+    if(operation == P_EXPONENT) { return OPERANDS_DECIMAL; }
     if(is_whole_operation(operation)) { return OPERANDS_INTEGER; }
     if(left.kind == RT_DECIMAL || right.kind == RT_DECIMAL) { return OPERANDS_DECIMAL; }
     return OPERANDS_INTEGER;
@@ -122,8 +126,8 @@ def operands_of(operation: _int64, left: resolved_type, right: resolved_type) : 
 /** the type of `left op right` for two plain numbers (the table above) */
 def number_result_type(types: type_table, operation: _int64, left: resolved_type, right: resolved_type) : resolved_type {
     if(is_comparison(operation) || operation == P_ANDAND || operation == P_OROR || left.is_boolean()) { return types.bool_type; }
-    if(operation == P_SLASH) { return types.decimal_type; }
-    is_arithmetic : _int64 = operation == P_PLUS || operation == P_MINUS || operation == P_STAR || operation == P_EXPONENT;
+    if(operation == P_EXPONENT) { return types.decimal_type; }
+    is_arithmetic : _int64 = operation == P_PLUS || operation == P_MINUS || operation == P_STAR || operation == P_SLASH;
     if(is_arithmetic == 1 && (left.kind == RT_DECIMAL || right.kind == RT_DECIMAL)) { return types.decimal_type; }
     return whole_result_type(types, left, right);
 }

@@ -197,7 +197,10 @@ def main(args: string[]) {
     one := "one";
     two := one;
     two = "two";
-    expect_str("= with a literal writes into the shared string", one, "two");
+    // (an assignment points the variable at a string: it never writes into the one it held.
+    //  `+=` above is what changes a string for everybody who holds it.)
+    expect_str("= with a literal leaves the other name's string alone", one, "one");
+    expect_str("... and the name assigned to has the new text", two, "two");
     original := "one";
     separate := new string(original);
     separate += "x";

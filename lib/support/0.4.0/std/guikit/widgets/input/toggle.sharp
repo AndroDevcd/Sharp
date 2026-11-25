@@ -24,7 +24,7 @@ import (
  * a rebuilt toggle adopts it from the one it replaces; otherwise every rebuild
  * would snap the knob to the end. (Compose: Switch. Android: SwitchCompat.)
  */
-stable class toggle base widget : behavior, stateful {
+stable class toggle base widget : behavior, stateful, on_or_off {
     private bound : state<_int64>;
     private slid : decimal = 0 - 1;         // 0 .. 1; -1: not placed yet (the first paint puts it at its side, no slide)
 
@@ -44,6 +44,9 @@ stable class toggle base widget : behavior, stateful {
     }
 
     override def kind() : string { return "toggle"; }
+
+    /** is it switched on? (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def is_on() : bool { return bound.value != 0; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         me.content_w = WIDE;

@@ -31,6 +31,12 @@ emit_result ArmGenerator::emit_integer_math() {
             remainder_into_v0();
             store_register(triple3, V0);
             return emitted;
+        case Opcode::WDIV:      // regs[c] = vm_quotient(regs[a], regs[b])   (raises on 0)
+            load_register(V0, triple1);
+            load_register(V1, triple2);
+            quotient_into_v0();
+            store_register(triple3, V0);
+            return emitted;
         case Opcode::IADD:      // regs[a] += b
             integer_operation_with_constant(V_ADD, single, (int64_t) raw);
             return emitted;

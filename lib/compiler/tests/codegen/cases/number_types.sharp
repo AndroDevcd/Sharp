@@ -67,7 +67,7 @@ mod main;
  * bits until it is stored, then cut), wrap-around of `_int32` and `_int64`,
  * `_uint64` and `_uint32` compared as the VM compares (signed 64-bit), `%`
  * with negative operands, shifts (arithmetic `>>`, counts of 64 and more as
- * the VM takes them), the bit operators, `/` and `**` (always decimals), `%`
+ * the VM takes them), the bit operators, `/` with a decimal and `**` (worked out as decimals), `%`
  * written with a decimal, decimal to whole numbers (cut toward 0, then to
  * the type), `!`, `-` of the smallest `_int8`, `++` / `+=` cutting at the
  * type's edge, and `**` of two whole numbers (a whole number again).
@@ -119,10 +119,10 @@ def main() {
     m : _int64 = 9223372036854775807;
     show(m + 1);
     show(m * 2);
-    show_decimal(7 / 2);
+    show_decimal(7 / 2.0);
     show_decimal(7.5 % 2);
     show_decimal(2 ** 10);
-    show_decimal(0 - 7 / 2);
+    show_decimal(0 - 7 / 2.0);
     d : decimal = 3.75;
     show(d as _int64);
     show((0 - d) as _int64);
@@ -131,7 +131,7 @@ def main() {
     show(e as _int8);
     show(e as _uint8);
     n : _int64 = 10;
-    show_decimal(n / 4);
+    show_decimal(n / 4.0);
     show_decimal(n * 0.5);
     show(n == 10.0);
     show(d > 3);

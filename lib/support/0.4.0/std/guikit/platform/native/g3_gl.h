@@ -175,10 +175,15 @@ typedef ptrdiff_t GLintptr;
     G3_GL(void, glBindRenderbuffer, (GLenum target, GLuint buffer)) \
     G3_GL(void, glRenderbufferStorage, (GLenum target, GLenum format, GLsizei w, GLsizei h))
 
-// optional: anti-aliased off-screen drawing (desktop OpenGL 3 and later). Null where missing.
+// optional: anti-aliased off-screen drawing, reading a picture back without waiting, and many copies
+// of a model in one draw (desktop OpenGL 3 and later). Null where missing.
 #define G3_GL_OPTIONAL \
     G3_GL(void, glRenderbufferStorageMultisample, (GLenum target, GLsizei samples, GLenum format, GLsizei w, GLsizei h)) \
-    G3_GL(void, glBlitFramebuffer, (GLint sx0, GLint sy0, GLint sx1, GLint sy1, GLint dx0, GLint dy0, GLint dx1, GLint dy1, GLbitfield mask, GLenum filter))
+    G3_GL(void, glBlitFramebuffer, (GLint sx0, GLint sy0, GLint sx1, GLint sy1, GLint dx0, GLint dy0, GLint dx1, GLint dy1, GLbitfield mask, GLenum filter)) \
+    G3_GL(void*, glMapBufferRange, (GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access)) \
+    G3_GL(GLboolean, glUnmapBuffer, (GLenum target)) \
+    G3_GL(void, glVertexAttribDivisor, (GLuint index, GLuint every)) \
+    G3_GL(void, glDrawElementsInstanced, (GLenum mode, GLsizei count, GLenum type, const void* numbers, GLsizei copies))
 
 #define G3_GL(result, name, arguments) extern result (G3_CALL *name) arguments;
 G3_GL_FUNCTIONS

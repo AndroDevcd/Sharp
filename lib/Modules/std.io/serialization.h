@@ -2,6 +2,7 @@
 // Created by BNunnally on 9/14/2020.
 // Optimized by Claude on 3/26/2025
 // Further performance optimizations by Claude on 4/4/2025
+// The format and both directions rewritten for speed by Claude on 11/25/2026 (serialization.cpp says how)
 //
 
 #ifndef SHARP_SERIALIZATION_H
@@ -9,56 +10,10 @@
 
 #include "../../runtime/memory/sharp_object.h"
 
-#define BUFFER_ALLOC_CHUNK_SIZE_STANDARD KB_TO_BYTES(24)
-#define BUFFER_ALLOC_CHUNK_SIZE_LARGE MB_TO_BYTES(2)
-#define SERIALIZE_START (0x3b)
-#define SERIALIZE_END (0x3d)
-#define REFERENCE_OBJECT (0xf)
-#define DATA_BEGIN (0xe)
-#define DATA_END (0x2e)
-#define CLASS_SECTION_BEGIN (0x002)
-#define CLASS_SECTION_END (0x1c)
-#define NULL_OBJECT (0x008)
-// a number field of a class instance: followed by the 8 bytes of its slot
-#define NUMBER_FIELD (0x009)
-#define OBJECT_ID_START (0x0)
-#define STANDARD_OBJECT (0x009)
-#define NUMERIC_OBJECT (0x3a)
-#define CLASS_OBJECT (0x1a)
-#define CLASS_ARRAY_OBJECT (0x1b)
-
-struct serialize_buffer_t
-{
-    char *buf = nullptr;
-    int32_t size = 0;
-    int32_t pos = -1;
-};
-
-struct deserialize_buffer_t
-{
-    unsigned char *buf = nullptr;   // the bytes being read (an _int8[]'s data)
-    int32_t size = 0;
-    int32_t pos = -1;
-    sharp_object **references = nullptr;
-};
-
-struct serialized_classes_t
-{
-    sharp_class **serialized = nullptr;
-    int32_t size = 0;
-    int32_t count = 0;
-};
-
-// Main serialization functions
+// serialize(from, to): the object in `from`, and everything it refers to, as bytes: an _int8[] put into `to`.
+// deserialize(from, to): the objects those bytes (an _int8[] in `from`) describe, built again: the first one into `to`.
+// Both throw a vm_exception when they cannot (and leave null in `to`).
 void serialize(object *from, object *to);
 void deserialize(object *from, object *to);
-
-// Helper functions for buffer management
-void init_serialization();
-void reset_serialization_state();
-void clean_serialization_resources();
-
-// For debugging and profiling
-void print_serialization_stats();
 
 #endif //SHARP_SERIALIZATION_H

@@ -8,9 +8,9 @@ import (
 )
 
 // how a thing is packed for the graphics side: 26 numbers (native/g3_core.cpp, NODE_...)
-const NODE_NUMBERS : _int64 = 26;
+const NODE_NUMBERS : _int64 = 35;
 const LAMP_NUMBERS : _int64 = 8;
-const LOOK_NUMBERS : _int64 = 32;
+const LOOK_NUMBERS : _int64 = 48;
 
 /** one piece of on_frame code, kept by its scene */
 local stable class frame_code {
@@ -85,6 +85,8 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
     fog_color : _int64 = 0;
     fog_from : decimal = 0;
     fog_to : decimal = 0;
+    sea : water? = null;                        // the water the eye is inside of (underwater(...)); null: air
+    bloom_amount : decimal = 0;                 // how much light bright things spill round themselves (bloom)
 
     private every_frame : list<frame_code> = new list<frame_code>();
     private id : _int64 = 0;                    // the scene on the graphics side (0: not made yet)
@@ -252,6 +254,8 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         info.mouse_x = host.mouse_x - left;
         info.mouse_y = host.mouse_y - top;
         info.mouse_down = host.mouse_held;
+        info.moved_x = host.moved_x;
+        info.moved_y = host.moved_y;
 
         // your code first: what it moves is in this frame
         count : _int64 = every_frame.size();
@@ -345,6 +349,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         if(what.shadowless) { flags = flags + 4; }
         if(what.plain) { flags = flags + 8; }
         if(what.deaf) { flags = flags + 16; }
+        if(what.bubble_look) { flags = flags + 32; }
         nodes[at + 18] = flags;
         nodes[at + 19] = what.copies;
         nodes[at + 20] = what.far_model;
@@ -353,6 +358,15 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         nodes[at + 23] = what.bob_rate;
         nodes[at + 24] = what.repeats;
         nodes[at + 25] = what.own_shader;
+        nodes[at + 26] = what.sway_amount;
+        nodes[at + 27] = what.roughness;
+        nodes[at + 28] = what.wag_degrees;
+        nodes[at + 29] = what.flap_degrees;
+        nodes[at + 30] = what.beat;
+        nodes[at + 31] = what.circle_radius;
+        nodes[at + 32] = what.circle_seconds;
+        nodes[at + 33] = what.flock_speed;
+        nodes[at + 34] = what.mote_count;
 
         if(what.kids != null) {
             count : _int64 = what.kids!!.size();
@@ -362,7 +376,7 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         }
     }
 
-    /** the camera, the sun, the sky and the fog as 32 numbers (native/g3_core.cpp, LOOK_...) */
+    /** the camera, the sun, the sky, the fog and the water as 48 numbers (native/g3_core.cpp, LOOK_...) */
     private def pack_look() {
         look[0] = eye.x;
         look[1] = eye.y;
@@ -396,6 +410,18 @@ stable class scene base widget : behavior, pointer_target, wheel_target, statefu
         look[26] = eye.aim_y;
         look[27] = eye.aim_z;
         look[28] = sky_below;
+        look[36] = bloom_amount;
+        look[29] = 0;
+        if(sea != null) {
+            wet : water = sea!!;
+            look[29] = 1;
+            look[30] = wet.shallow;
+            look[31] = wet.deep;
+            look[32] = wet.top;
+            look[33] = wet.ripple_light;
+            look[34] = 4.6 / wet.seen_to;       // (the engine takes "how much is lost a metre": 99 in 100 at that distance)
+            look[35] = wet.shafts;
+        }
     }
 
     /**

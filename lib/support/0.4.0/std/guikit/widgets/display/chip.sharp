@@ -16,7 +16,7 @@ import (
  * a state says, and the click changes the state.
  * (Compose: AssistChip, FilterChip. Android: Chip.)
  */
-stable class chip base widget : behavior {
+stable class chip base widget : behavior, shows_words, on_or_off {
     private words : string = "";
     private chosen : _int64 = 0;
 
@@ -38,6 +38,11 @@ stable class chip base widget : behavior {
     }
 
     override def kind() : string { return "chip"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
+    /** is it the chosen one? */
+    override def is_on() : bool { return chosen != 0; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         host := ui_host.current!!;
@@ -73,7 +78,7 @@ stable class chip base widget : behavior {
  * badge(count). A count of 0 shows nothing and takes no room.
  * (Compose: Badge.)
  */
-stable class badge base widget : behavior {
+stable class badge base widget : behavior, shows_words {
     private words : string = "";
 
     badge(count: _int64) {
@@ -84,6 +89,9 @@ stable class badge base widget : behavior {
     }
 
     override def kind() : string { return "badge"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         host := ui_host.current!!;

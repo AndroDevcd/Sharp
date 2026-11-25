@@ -117,6 +117,7 @@ stable class modifier {
     private drag_move : (decimal, decimal)()?;
     private drag_finish : ()()?;
     private hint : string = "";
+    private tagged : string = "";
     private shown : _int64 = 0 - 1;
     private unseen : _int64 = 0 - 1;
     private enabled : _int64 = 0 - 1;
@@ -515,6 +516,22 @@ stable class modifier {
         return self;
     }
 
+    /**
+     * A name for UI tests to find this widget by (std.guikit.testing):
+     *
+     *      button("Save", modifier().tag("save")) { ... };
+     *      // in a test:
+     *      on_tag("save").click();
+     *
+     * Every widget takes it, and it changes nothing about how the widget looks
+     * or works. Words on the screen change with the language and the wording; a
+     * tag stays. (Android: Modifier.testTag.)
+     */
+    def tag(name_for_tests: string) : modifier {
+        tagged = name_for_tests;
+        return self;
+    }
+
     // ------------------------------------------------------------ a place in the parent's own terms
     //
     // Some parents put their children where their CONTENT says, not in a row
@@ -621,6 +638,7 @@ stable class modifier {
         if(drag_move != null) { other.drag_move = drag_move; }
         if(drag_finish != null) { other.drag_finish = drag_finish; }
         if(hint != "") { other.hint = hint; }
+        if(tagged != "") { other.tagged = tagged; }
         if(shown >= 0) { other.shown = shown; }
         if(unseen >= 0) { other.unseen = unseen; }
         if(enabled >= 0) { other.enabled = enabled; }
@@ -691,6 +709,7 @@ stable class modifier {
         if(drag_move != null) { target.on_drag = drag_move; }
         if(drag_finish != null) { target.on_drag_end = drag_finish; }
         if(hint != "") { target.tip = hint; }
+        if(tagged != "") { target.tag = tagged; }
         if(shown >= 0) { target.shown = shown; }
         if(unseen >= 0) { target.hidden = unseen; }
         if(enabled >= 0) { target.enabled = enabled; }

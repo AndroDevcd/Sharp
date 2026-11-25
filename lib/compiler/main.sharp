@@ -169,7 +169,7 @@ def throttle_max_threads() {
 
 /** the clock, in milliseconds: for timing the stages */
 def now_ms() : decimal {
-    return vm.time_in_nanoseconds().value / 1000000;
+    return vm.time_in_nanoseconds().value / 1000000.0;
 }
 
 /**

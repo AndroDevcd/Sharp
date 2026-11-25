@@ -125,7 +125,7 @@ stable class dropdown base composable {
  * option { ... } with widgets. It only carries its words - or the block that
  * makes its widgets - to the dropdown that collects it; it is never shown itself.
  */
-stable class menu_option base widget : behavior {
+stable class menu_option base widget : behavior, shows_words {
     words : string = "";
     fill : ()()?;                           // makes the option's widgets (the block form); null: the words are shown
 
@@ -140,6 +140,9 @@ stable class menu_option base widget : behavior {
     }
 
     override def kind() : string { return "option"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
     }

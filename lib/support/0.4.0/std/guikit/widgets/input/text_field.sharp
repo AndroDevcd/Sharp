@@ -55,7 +55,7 @@ import (
  * bytes that continue a letter).
  * (Compose: TextField. Android: EditText. HTML: input type=text.)
  */
-stable class text_field base widget : behavior, key_target, pointer_target, stateful {
+stable class text_field base widget : behavior, key_target, pointer_target, stateful, shows_words, has_caption {
     private bound : state<string>;
     private placeholder : string = "";
     private submit : ()()?;
@@ -166,6 +166,15 @@ stable class text_field base widget : behavior, key_target, pointer_target, stat
     }
 
     override def kind() : string { return "text_field"; }
+
+    /** what is typed in it (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return bound.value; }
+
+    /** the words that name it: its caption, or - without one - what it says while it is empty */
+    override def caption_shown() : string {
+        if(caption != "") { return caption; }
+        return placeholder;
+    }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         t : theme = ui_host.current!!.look;

@@ -185,6 +185,15 @@ def terrain(size: decimal, cells: _int64, rise: (decimal, decimal)(decimal)) : t
     return new terrain(size, cells, rise);
 }
 
+/**
+ * land with no edge, made piece by piece round the eye as it travels: each
+ * piece `tile` metres along its edge and cut into `cells` squares, its height
+ * asked of your function (three/endless.sharp)
+ */
+def endless(tile: decimal, cells: _int64, rise: (decimal, decimal)(decimal)) : endless {
+    return new endless(tile, cells, rise);
+}
+
 /** a broad-leaved tree, grown from this number: another number, another tree (three/plant.sharp) */
 def tree(seed: decimal) : plant {
     return plants.whole("tree", seed);
@@ -207,6 +216,16 @@ def made_texture(kind: string, which: _int64) : _int64 {
 /** `count` copies of a thing, strewn about (three/terrain.sharp: scattering) */
 def scatter(what: thing, count: _int64) : scattering {
     return new scattering(what, count);
+}
+
+/** `count` copies of a thing moving together round one place: a school, a flight (three/moving.sharp: flock) */
+def flock(what: thing, count: _int64) : flock {
+    return new flock(what, count);
+}
+
+/** `count` small things adrift all round the eye: specks, bubbles, snow (three/moving.sharp: motes) */
+def motes(count: _int64) : motes {
+    return new motes(count);
 }
 
 // ==================================================================== the view
@@ -238,6 +257,39 @@ def sky(top: _int64, horizon: _int64) {
     on.sky_top = top;
     on.sky_horizon = horizon;
     on.sky_below = horizon;
+}
+
+/**
+ * The eye is IN water: everything fades into the water's colour with distance,
+ * the surface ripples overhead, and the sun through it throws moving light on
+ * what is below. `shallow` is the water's colour near the surface, `deep` its
+ * colour below. What comes back sets the rest:
+ *
+ *      underwater(0x35C6D0FF, 0x0A2E4AFF).surface(40).sight(70).caustics(0.8).light_shafts(0.6);
+ *
+ * It takes the place of the sky and of fog(...). The sun still decides where
+ * the light comes from, and its shadows fall as on land.
+ */
+def underwater(shallow: _int64, deep: _int64) : water {
+    on := stage.the_scene("underwater(...)");
+    wet := new water(shallow, deep);
+    on.sea = wet;
+    return wet;
+}
+
+/**
+ * Bright things spill light round themselves: the sun on water, a lamp, a
+ * pale wall in sunlight get a soft glow, as they have through a camera or a
+ * tired eye. 0 is none, 0.4 a gentle haze of light, 1 a dream.
+ *
+ *      scene { bloom(0.5); ... }
+ *
+ * (It works on the finished picture: nothing in the scene need be told.)
+ */
+def bloom(amount: decimal) {
+    on := stage.the_scene("bloom(...)");
+    on.bloom_amount = amount;
+    thing.changes = thing.changes + 1;
 }
 
 /** one flat colour behind everything, instead of a sky */

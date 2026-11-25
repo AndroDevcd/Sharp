@@ -38,11 +38,15 @@ native "sharpgui" {
     def surface_time() : decimal;                                              // seconds since the window opened
     def surface_fill(color: _int64);                                           // paint the whole surface one colour
     def surface_present();                                                     // show the painted frame
+    def surface_pixel(x: decimal, y: decimal) : _int64;                        // the colour painted at a point of this frame, 0xRRGGBBAA (-1: none)
     def surface_mode(mode: _int64) : _int64;                                   // 0 windowed, 1 maximized, 2 fullscreen; else: only ask
     def surface_screen_width() : _int32;                                       // the whole screen, in units
     def surface_screen_height() : _int32;
     def surface_paced() : _int64;                                              // frames a second surface_present holds to, 0 = none
     def surface_pace(on: _int64) : _int64;                                     // wait for the screen's refresh (1) or not (0)
+    def surface_keep_mouse(on: _int64) : _int64;                               // 1 keep the mouse in the window, 0 let it go; else: only ask
+    def surface_title(title: string);                                          // the words in the title bar: the app's name
+    def surface_icon(path: string) : _int64;                                   // the window's icon from an .ico, .svg or picture file; 1 when it is set (native/icon.cpp)
 
     // --- events (native/sharpgui.cpp; what a, b, c, d mean per kind: event.sharp) ---
     def surface_poll() : _int64;                                               // the kind of the next event, 0 when none
@@ -53,6 +57,12 @@ native "sharpgui" {
     def surface_event_c() : _int64;
     def surface_event_d() : _int64;
     def surface_event_text() : string;                                         // the typed text of a text event
+
+    // --- sound the program makes itself (native/sound.cpp; gui/sound.sharp is what programs use)
+    def sound_voice(kind: _int64, from: decimal, to: decimal, seconds: decimal) : _int64;    // a new voice; its id (0: no sound here)
+    def sound_set(voice: _int64, volume: decimal, every_least: decimal, every_most: decimal); // how loud, and its rests
+    def sound_mute(on: _int64);                                                // 1: nothing is heard
+    def sound_clear();                                                         // take every voice away
 
     // --- the clipboard (native/sharpgui.cpp): the system's, shared with every other program
     def clipboard_read() : string;                                             // the text on the clipboard ("" when none)
@@ -128,6 +138,7 @@ native "sharpgui" {
     def g3_model_load(path: string) : _int64;                                  // an .obj, .gltf or .glb file with its textures: its id
     def g3_model_box(model: _int64, into: decimal[]) : _int64;                 // the box round it (low x y z, high x y z); returns its triangles
     def g3_copies(places: decimal[], count: _int64) : _int64;                  // where many copies stand: x y z heading scale each. Its id
+    def g3_drop(model: _int64, copies: _int64) : _int64;                       // take a model off the card and forget the places of copies (0: none)
     def g3_scene() : _int64;                                                   // a new scene: its id
     def g3_scene_nodes(scene: _int64, nodes: decimal[], count: _int64, lamps: decimal[], lamp_count: _int64);   // what is in it (scene.sharp packs it)
     def g3_scene_look(scene: _int64, look: decimal[]);                         // its camera, sun, sky and fog: 32 numbers

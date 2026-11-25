@@ -167,3 +167,35 @@ interface drag_scroller {
 interface overlay_painter {
     def paint_over(p: painter);
 }
+
+/**
+ * WHAT A WIDGET TELLS ABOUT ITSELF
+ *
+ * Four small questions a widget may answer about what it shows. Nothing in the
+ * framework needs the answers to run an app: they are what a UI test asks
+ * (std.guikit.testing - on_text("Save"), should_say(...), should_be_on(),
+ * should_have_value(...)), and what a screen reader would ask.
+ *
+ * A widget of your own answers the ones that fit it, and tests can then find
+ * and check it like the built-in ones.
+ */
+
+/** A widget that shows words: a text, a button, a chip. A text field answers with what is typed in it. */
+interface shows_words {
+    def words_shown() : string;
+}
+
+/** A widget with words that NAME it besides what it shows: the caption above a text field. */
+interface has_caption {
+    def caption_shown() : string;
+}
+
+/** A widget that is on or off: a checkbox, a switch, a radio (on: it is the one chosen), a chip. */
+interface on_or_off {
+    def is_on() : bool;
+}
+
+/** A widget that stands at a number: a slider, a progress bar. */
+interface has_value {
+    def value_shown() : decimal;
+}

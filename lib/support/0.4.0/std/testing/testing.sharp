@@ -41,6 +41,7 @@ import ( std.di, platform )
  *      mock, verify(...)           a stand-in that remembers how it was used (both: mock.sharp)
  *      before_each { ... }         run before every test of the group (make what each test needs)
  *      after_each { ... }          run after every test of the group, also when it failed (clean up)
+ *      skip_test("why")            leave the test here, counted as skipped and not as failed
  *      show_only_failures()        say nothing about tests that pass (for a program with thousands of them)
  *      finish_tests()              print the summary and end the program: exit code 0 when every
  *                                  test passed, 1 when any failed (so a build script can tell)
@@ -88,17 +89,16 @@ import ( std.di, platform )
  * top to bottom is what happens.
  */
 stable class test_run {
-    private static group_name : string = "";
+    private static group_name : string = "";        // the open group, with the groups around it: "shop > the basket"
     private static inside_group : _int64 = 0;
     private static inside_test : _int64 = 0;
+    private static levels : list<test_group> = new list<test_group>();     // the open groups, the outermost first
     private static quiet : _int64 = 0;              // 1: say nothing about a test that passed (show_only_failures)
 
     private static passed : _int64 = 0;
     private static failed : _int64 = 0;
+    private static skipped : _int64 = 0;
     private static failures : list<string> = new list<string>();        // "group > test" of every test that failed
-
-    private static before : list<test_step> = new list<test_step>();   // the open group's before_each blocks
-    private static after : list<test_step> = new list<test_step>();
 
     // -test-only: what to run ("group", or "group > test"); empty: everything
     private static only : list<string> = new list<string>();
@@ -111,40 +111,98 @@ stable class test_run {
 
     // ------------------------------------------------------------ groups
 
+    /**
+     * A GROUP MAY HOLD GROUPS:
+     *
+     *      tests("the basket") {
+     *          before_each { ... }                     // before every test below, the inner group's too
+     *          test("a new basket is empty") { ... };
+     *
+     *          tests("with three things in it") {
+     *              before_each { ... }                 // after the outer one, before these tests only
+     *              test("the total is their sum") { ... };
+     *          };
+     *      };
+     *
+     * A test's full name is its groups and itself, joined by " > "
+     * ("the basket > with three things in it > the total is their sum"): what a
+     * failure is listed as, and what -test-only takes.
+     *
+     * THE LINES OF A GROUP ITSELF - what stands in the block beside the tests -
+     * run once, where they stand: lines before the first test are "before all of
+     * them", lines after the last "after all of them". There is no other word for
+     * it. When such a line throws, the group fails (it is listed as
+     * "<group> > the group's own lines") and the tests after it in that group do
+     * not run; the groups after it do.
+     */
     static def group(name: string, body: ()()) {
-        if(inside_group == 1) {
-            throw new illegal_state_exception("`tests(\"" + name + "\") { ... }` was written inside another `tests { ... }`: groups do not nest - write them one after the other");
+        if(inside_test == 1) {
+            throw new illegal_state_exception("`tests(\"" + name + "\") { ... }` was written inside a `test { ... }`: a group holds tests, a test does not hold groups");
         }
-        if(!is_wanted(name, "")) { return; }       // -test-only names other tests: this group is passed by
-        group_name = new string(name);
+        full : string = new string(name);
+        if(levels.size() > 0) { full = group_name + " > " + name; }
+        if(!is_wanted(full, "")) { return; }       // -test-only names other tests: this group is passed by
+
+        outer : string = group_name;
+        group_name = full;
         inside_group = 1;
-        before.clear();
-        after.clear();
+        levels.add(new test_group());
 
         if(to_editor()) {
             tell_editor("testSuiteStarted name='" + escaped(name) + "'" + written_at());
         } else if(quiet == 0) {
             println("");
-            println(name);
+            println(moved_in(levels.size() - 1) + name);
         }
-        body();
+        try {
+            body();
+        } catch(left: test_skipped) {
+            skipped = skipped + 1;
+            if(to_editor()) {
+                tell_editor("testIgnored name='" + escaped("the rest of the group") + "' message='" + escaped(left.get_message()) + "'");
+            } else if(quiet == 0) {
+                println(moved_in(levels.size() - 1) + "  skip  the rest of the group   (" + left.get_message() + ")");
+            }
+        } catch(broke: throwable) {
+            // a line of the group itself threw: that is a failure with a name, not the end of the program
+            inside_test = 0;
+            failed = failed + 1;
+            failures.add(full + " > the group's own lines");
+            problem : string = unexpected(broke);
+            if(to_editor()) {
+                tell_editor("testStarted name='the group|'s own lines'");
+                tell_editor("testFailed name='the group|'s own lines'" + failure_for_editor(problem));
+                tell_editor("testFinished name='the group|'s own lines'");
+            } else {
+                if(quiet == 1) { println("  FAIL  " + full + " > the group's own lines"); }
+                else { println(moved_in(levels.size() - 1) + "  FAIL  the group's own lines"); }
+                print_indented(problem);
+            }
+        }
         if(to_editor()) {
             tell_editor("testSuiteFinished name='" + escaped(name) + "'");
         }
 
-        inside_group = 0;
-        before.clear();
-        after.clear();
+        levels.pop_last();
+        group_name = outer;
+        if(levels.size() == 0) { inside_group = 0; }
+    }
+
+    /** the room in front of a line that belongs to a group `depth` groups deep (none for the outermost) */
+    private static def moved_in(depth: _int64) : string {
+        room : string = "";
+        for(i : _int64 = 0; i < depth; i++) { room = room + "  "; }
+        return room;
     }
 
     static def add_before(step: ()()) {
         must_be_in_group("before_each { ... }");
-        before.add(new test_step(step));
+        levels.last().before.add(new test_step(step));
     }
 
     static def add_after(step: ()()) {
         must_be_in_group("after_each { ... }");
-        after.add(new test_step(step));
+        levels.last().after.add(new test_step(step));
     }
 
     private static def must_be_in_group(written: string) {
@@ -191,13 +249,21 @@ stable class test_run {
             began = utc_mills().value;
         }
 
-        // the group's preparation, the test itself, the group's clean-up: the
-        // clean-up runs whatever happened before it
+        // the groups' preparation (the outermost group's first), the test itself, the groups'
+        // clean-up (the innermost first): the clean-up runs whatever happened before it
+        left_out : _int64 = 0;
+        why_left_out : string = "";
         try {
-            for(i : _int64 = 0; i < before.size(); i++) {
-                before.at(i).run();
+            for(g : _int64 = 0; g < levels.size(); g++) {
+                before : list<test_step> = levels.at(g).before;
+                for(i : _int64 = 0; i < before.size(); i++) {
+                    before.at(i).run();
+                }
             }
             body();
+        } catch(left: test_skipped) {
+            left_out = 1;
+            why_left_out = left.get_message();
         } catch(failure: test_failure) {
             went_wrong = 1;
             problem = failure.get_message() + place_of(failure);
@@ -206,8 +272,11 @@ stable class test_run {
             problem = unexpected(other);
         }
         try {
-            for(i : _int64 = 0; i < after.size(); i++) {
-                after.at(i).run();
+            for(g : _int64 = levels.size() - 1; g >= 0; g--) {
+                after : list<test_step> = levels.at(g).after;
+                for(i : _int64 = 0; i < after.size(); i++) {
+                    after.at(i).run();
+                }
             }
         } catch(late: throwable) {
             if(went_wrong == 0) {
@@ -218,7 +287,17 @@ stable class test_run {
         inside_test = 0;
         replacements.clear();                   // the stand-ins a test provided end with it (mock.sharp)
 
-        if(to_editor()) {
+        room : string = moved_in(levels.size() - 1);
+        if(left_out == 1 && went_wrong == 0) {
+            // skip_test(...): neither passed nor failed
+            skipped = skipped + 1;
+            if(to_editor()) {
+                tell_editor("testIgnored name='" + escaped(name) + "' message='" + escaped(why_left_out) + "'");
+                tell_editor("testFinished name='" + escaped(name) + "' duration='0'");
+            } else if(quiet == 0) {
+                println(room + "  skip  " + name + "   (" + why_left_out + ")");
+            }
+        } else if(to_editor()) {
             if(went_wrong == 0) {
                 passed = passed + 1;
             } else {
@@ -229,12 +308,12 @@ stable class test_run {
             tell_editor("testFinished name='" + escaped(name) + "' duration='" + (utc_mills().value - began) + "'");
         } else if(went_wrong == 0) {
             passed = passed + 1;
-            if(quiet == 0) { println("  ok    " + name); }
+            if(quiet == 0) { println(room + "  ok    " + name); }
         } else {
             failed = failed + 1;
             failures.add(group_name + " > " + name);
             if(quiet == 1) { println("  FAIL  " + group_name + " > " + name); }
-            else { println("  FAIL  " + name); }
+            else { println(room + "  FAIL  " + name); }
             print_indented(problem);
         }
     }
@@ -260,6 +339,7 @@ stable class test_run {
         for(i : _int64 = 0; i < only.size(); i++) {
             named : string = only.at(i);
             if(named == group) { return true; }                         // the whole group
+            if(index_of(group, named + " > ") == 0) { return true; }    // a group inside a group that is named
             if(index_of(named, group + " > ") != 0) { continue; }       // a test of another group
             if(test.size() == 0) { return true; }                       // the group of a test that is named
             if(named == group + " > " + test) { return true; }
@@ -456,6 +536,16 @@ stable class test_run {
         return passed + failed;
     }
 
+    private static def and_skipped() : string {
+        if(skipped == 0) { return ""; }
+        return ", " + skipped + " skipped";
+    }
+
+    /** how many tests were skipped so far (skip_test) */
+    static def skipped_count() : _int64 {
+        return skipped;
+    }
+
     /** print the summary. Gives how many tests failed. */
     static def summary() : _int64 {
         println("");
@@ -465,14 +555,20 @@ stable class test_run {
                 println("  " + failures.at(i));
             }
             println("");
-            println("" + failed + " failed, " + passed + " passed (" + (failed + passed) + " tests)");
+            println("" + failed + " failed, " + passed + " passed (" + (failed + passed) + " tests)" + and_skipped());
         } else if(passed == 0) {
-            println("no tests were run");
+            println("no tests were run" + and_skipped());
         } else {
-            println("all " + passed + " tests passed");
+            println("all " + passed + " tests passed" + and_skipped());
         }
         return failed;
     }
+}
+
+/** one open group: the before_each and after_each blocks written in it */
+local stable class test_group {
+    before : list<test_step> = new list<test_step>();
+    after : list<test_step> = new list<test_step>();
 }
 
 /** a block of before_each / after_each, wrapped so it can be kept in a list */
@@ -491,6 +587,11 @@ local stable class test_step {
 /** thrown by a check that does not hold; its message is what the report shows */
 stable class test_failure base exception {
     test_failure(message: string) -> base(message) {}
+}
+
+/** thrown by skip_test(...): the test ends there, counted as skipped; its message is the reason */
+stable class test_skipped base exception {
+    test_skipped(why: string) -> base(why) {}
 }
 
 // ============================================================================ the words
@@ -515,12 +616,29 @@ def show_only_failures() {
     test_run.only_failures();
 }
 
-/** run this before every test of the group */
+/**
+ * Leave the test here: it is counted as SKIPPED - not passed, not failed - and
+ * the reason is printed beside it. For a test that cannot run where it is
+ * (another system, something not built yet) and should stay visible instead of
+ * being deleted or commented out:
+ *
+ *      test("the tray icon follows the theme") {
+ *          if(!on_windows()) { skip_test("only Windows has a tray"); }
+ *          ...
+ *      };
+ *
+ * Written among the lines of a group, it skips the rest of that group.
+ */
+def skip_test(why: string) {
+    throw new test_skipped(why);
+}
+
+/** run this before every test of the group - and of the groups inside it */
 def before_each(step: ()()) {
     test_run.add_before(step);
 }
 
-/** run this after every test of the group, also when the test failed */
+/** run this after every test of the group and of the groups inside it, also when the test failed */
 def after_each(step: ()()) {
     test_run.add_after(step);
 }

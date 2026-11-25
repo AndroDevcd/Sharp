@@ -29,9 +29,9 @@ def main(args: string[]) {
     expect_str("-45 as text", "$minus", "-45");
 
     // ---- fractions
-    expect("0.5 is a half", 0.5, 1 / 2);
-    expect("0.25 is a quarter", 0.25, 1 / 4);
-    expect("0.125 is an eighth", 0.125, 1 / 8);
+    expect("0.5 is a half", 0.5, 1.0 / 2);
+    expect("0.25 is a quarter", 0.25, 1.0 / 4);
+    expect("0.125 is an eighth", 0.125, 1.0 / 8);
     expect("1.0 is 1", 1.0, 1);
     expect("2.50 is 2.5", 2.50, 2.5);
     expect("0.5 + 0.5", 0.5 + 0.5, 1);

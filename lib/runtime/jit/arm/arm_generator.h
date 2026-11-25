@@ -190,6 +190,7 @@ private:
     void local_decimal_operation(DOp how, Int local, Int n);
     void local_decimal_operation_with_constant(DOp how, Int local, double value);
     void remainder_into_v0(void);                   // V0 = vm_remainder(V0, V1), or the exception section
+    void quotient_into_v0(void);                    // V0 = vm_quotient(V0, V1), or the exception section
 };
 
 } // namespace armjit

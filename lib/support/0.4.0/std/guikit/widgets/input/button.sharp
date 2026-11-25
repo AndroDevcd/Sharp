@@ -29,7 +29,7 @@ const BUTTON_DANGER  : _int64 = 3;      // solid in the theme's danger colour: d
  * big it is and how it looks for the view's hovered / pressed flags.
  * (Compose: Button / OutlinedButton / TextButton. Android: Button.)
  */
-stable class button base widget : behavior {
+stable class button base widget : behavior, shows_words {
     private words : string = "";
     private look : _int64 = BUTTON_FILLED;
 
@@ -58,6 +58,9 @@ stable class button base widget : behavior {
     }
 
     override def kind() : string { return "button"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         host := ui_host.current!!;

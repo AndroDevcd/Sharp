@@ -71,6 +71,18 @@ import ( std.di )
  * verify_nothing_else(store) fails if the mock was asked anything no verify
  * has covered.
  *
+ * ------------------------------------------------------------------------
+ * verify_order { ONE CALL }.then { ONE CALL }.then { ... }
+ * ------------------------------------------------------------------------
+ * Were the calls made in this order? Each block is one call, as in verify;
+ * the calls may be on different mocks.
+ *
+ *      verify_order { door.unlock(); }.then { alarm.off(); }.then { door.open(); };
+ *
+ * It holds when there is an unlock, an off after it and an open after that.
+ * Other calls may lie in between: it is the ORDER that is checked, not that
+ * nothing else happened (verify_nothing_else is the word for that).
+ *
  * (Mockito: mock(), given(x).willReturn(y), verify(mock).call(). MockK:
  * mockk(relaxed = true), every { } returns, verify { }. The block form is
  * MockK's; "works without set-up" is Mockito's default.)
@@ -115,6 +127,8 @@ class mock {
             mock_recorder.noted.add(arrived);
             return null;
         }
+        mock_recorder.made = mock_recorder.made + 1;
+        arrived.number = mock_recorder.made;        // which call of the whole program this is: the order across mocks
         calls.add(arrived);
         for(i : _int64 = stubs.size() - 1; i >= 0; i--) {
             stub : mock_stub = stubs.at(i);
@@ -134,11 +148,23 @@ class mock {
         if(found == null) {
             return 0;
         }
+        return number_in(function, found!!);
+    }
+
+    /**
+     * The number in what a given { } was told to return: returns(4) keeps it
+     * as a `double`, returns(new int(4)) as that object. (A function that
+     * gives back a number OBJECT - `int`, `long` ... - makes its object from this.)
+     */
+    def number_in(function: string, found: object) : decimal {
         if(found is double) {
             return (found as double).value;
         }
         if(found is int) {
             return (found as int).value;
+        }
+        if(found is long) {
+            return (found as long).value;
         }
         throw new test_failure("`" + function + "` gives back a number, but its given { } was told to return something that is not one");
     }
@@ -251,6 +277,17 @@ class mock {
     }
 
     /** how many calls fit `wanted`; each one that does is marked as checked */
+    /** the number of the first call that fits and was made after call number `after`; -1: there is none */
+    def first_fitting_after(wanted: mock_stub, after: _int64) : _int64 {
+        for(i : _int64 = 0; i < calls.size(); i++) {
+            if(calls.at(i).number > after && wanted.fits(calls.at(i))) {
+                calls.at(i).checked = 1;
+                return calls.at(i).number;
+            }
+        }
+        return 0 - 1;
+    }
+
     def count_fitting(wanted: mock_stub) : _int64 {
         count : _int64 = 0;
         for(i : _int64 = 0; i < calls.size(); i++) {
@@ -400,6 +437,7 @@ stable class mock_call {
     function : string = "";
     args : mock_args;
     checked : _int64 = 0;           // 1 once a verify has counted it
+    number : _int64 = 0;            // which call of the whole program it was, counted over every mock (0: only noted)
 
     mock_call(on: mock, name: string, given_args: mock_args) {
         owner = on;
@@ -449,6 +487,7 @@ stable class mock_noted base exception {
 stable class mock_recorder {
     static noting : _int64 = 0;
     static noted : list<mock_call> = new list<mock_call>();
+    static made : _int64 = 0;       // how many calls every mock together has been asked so far
 
     /** what any_number() gives: a number no test would write, recognised as "any" */
     // (a WHOLE number: it must come through a parameter of a whole-number type unchanged)
@@ -599,6 +638,35 @@ def given(block: ()()) : stubbing {
 def verify(block: ()()) : call_check {
     test_run.only_in_tests("verify { ... }");
     return new call_check(mock_recorder.the_call_of(block, "verify"));
+}
+
+/** what verify_order { } gives back: the next call that must have come after */
+stable class call_order {
+    private reached : _int64 = 0;       // the number of the call the order has come to
+    private so_far : string = "";       // the calls found so far, for the message
+
+    /** the call in the block must have been made - after the ones before it in this order */
+    def then(block: ()()) : call_order {
+        wanted := new mock_stub(mock_recorder.the_call_of(block, "verify_order"));
+        found : _int64 = wanted.pattern.owner.first_fitting_after(wanted, reached);
+        if(found < 0) {
+            after : string = "it was never called";
+            if(so_far != "") { after = "it was not called after " + so_far; }
+            throw new test_failure("expected " + wanted.pattern.words() + " to be called" + (so_far != "" ? " next" : "")
+                + "\nbut " + after
+                + "\nthe mock was asked: " + wanted.pattern.owner.story());
+        }
+        reached = found;
+        if(so_far != "") { so_far = so_far + ", "; }
+        so_far = so_far + wanted.pattern.words();
+        return self;
+    }
+}
+
+/** check that calls were made in an order:  verify_order { a.first(); }.then { b.second(); }; */
+def verify_order(block: ()()) : call_order {
+    test_run.only_in_tests("verify_order { ... }");
+    return new call_order().then(block);
 }
 
 /** the by-name form, for a mock class written by hand: every call of that function, whatever its arguments */

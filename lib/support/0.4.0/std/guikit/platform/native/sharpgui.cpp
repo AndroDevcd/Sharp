@@ -66,7 +66,7 @@ enum {
     EVT_KEY_UP     = 3,     // a: key code, b: modifier keys
     EVT_MOUSE_DOWN = 4,     // a: x, b: y, c: button (1 left, 2 middle, 3 right)
     EVT_MOUSE_UP   = 5,     // a: x, b: y, c: button
-    EVT_MOUSE_MOVE = 6,     // a: x, b: y
+    EVT_MOUSE_MOVE = 6,     // a: x, b: y, c: how far it moved across, d: how far down
     EVT_WHEEL      = 7,     // a: x, b: y (of the mouse), c: sideways steps, d: up/down steps
     EVT_RESIZE     = 8,     // a: new width, b: new height
     EVT_TEXT       = 9      // typed text, read with surface_event_text()
@@ -267,6 +267,37 @@ int64_t sharpgui_surface_pace(sni_env* env, int64_t on) {
     return g_waits_for_refresh ? 1 : 0;
 }
 
+//
+// surface_keep_mouse(on): 1 keeps the mouse in the window - the pointer is
+// hidden and cannot leave, and moving the mouse still reports how far it moved
+// (EVT_MOUSE_MOVE c, d) with no edge to stop at: what a game that looks round
+// with the mouse needs. 0 gives the pointer back. Any other number only asks.
+// Returns whether the mouse is kept afterwards.
+//
+// The mouse is let go by itself when the window stops being the one in use
+// (Alt+Tab, the Windows key): a program can never trap the pointer.
+//
+static bool g_mouse_kept = false;
+
+int64_t sharpgui_surface_keep_mouse(sni_env* env, int64_t on) {
+    if(g_window == nullptr) return 0;
+    if(on == 0 || on == 1) {
+        if(SDL_SetRelativeMouseMode(on == 1 ? SDL_TRUE : SDL_FALSE) == 0)
+            g_mouse_kept = on == 1;
+    }
+    return g_mouse_kept ? 1 : 0;
+}
+
+//
+// surface_title(title): the words in the window's title bar, which are also the
+// app's name in the taskbar. Does nothing while no window is open.
+//
+void sharpgui_surface_title(sni_env* env, sni_ref title) {
+    if(g_window == nullptr) return;
+    std::string name = env->text(title);
+    SDL_SetWindowTitle(g_window, name.c_str());
+}
+
 // surface_width() / surface_height(): the size of the drawing area right now
 // (the window can be resized by the user).
 int32_t sharpgui_surface_width(sni_env* env) {
@@ -362,6 +393,8 @@ int64_t sharpgui_surface_poll(sni_env* env) {
             case SDL_MOUSEMOTION:
                 g_event_a = (int64_t) (e.motion.x / g_scale);
                 g_event_b = (int64_t) (e.motion.y / g_scale);
+                g_event_c = e.motion.xrel;         // how far, in real pixels: a kept mouse has no position worth reading
+                g_event_d = e.motion.yrel;
                 return EVT_MOUSE_MOVE;
 
             case SDL_MOUSEWHEEL: {
@@ -387,6 +420,11 @@ int64_t sharpgui_surface_poll(sni_env* env) {
                 // the user maximized or restored the window with its own buttons: surface_mode() must say so
                 if(e.window.event == SDL_WINDOWEVENT_MAXIMIZED && g_mode != MODE_FULLSCREEN) g_mode = MODE_MAXIMIZED;
                 if(e.window.event == SDL_WINDOWEVENT_RESTORED && g_mode == MODE_MAXIMIZED) g_mode = MODE_WINDOWED;
+                // another window is in use now: a kept mouse is let go (surface_keep_mouse)
+                if(e.window.event == SDL_WINDOWEVENT_FOCUS_LOST && g_mouse_kept) {
+                    SDL_SetRelativeMouseMode(SDL_FALSE);
+                    g_mouse_kept = false;
+                }
                 break;                              // other window news: skip
 
             default:
@@ -465,6 +503,24 @@ void sharpgui_surface_fill(sni_env* env, int64_t color) {
     SDL_Color c = gui_color(color);
     SDL_SetRenderDrawColor(g_renderer, c.r, c.g, c.b, 255);
     SDL_RenderClear(g_renderer);
+}
+
+//
+// surface_pixel(x, y): the colour of the frame that is being painted, at a point (in units from the
+// top left corner): 0xRRGGBBAA, or -1 when there is no window or the point is outside it.
+//
+// It answers for what was painted since surface_fill and BEFORE surface_present: once a frame is
+// shown, the card may throw the picture away. (UI tests that check a colour: std.guikit.testing.)
+//
+int64_t sharpgui_surface_pixel(sni_env* env, double x, double y) {
+    if(g_renderer == nullptr) return -1;
+    int wide = 0, high = 0;
+    SDL_GetRendererOutputSize(g_renderer, &wide, &high);
+    SDL_Rect at = { (int) (x * g_scale), (int) (y * g_scale), 1, 1 };
+    if(at.x < 0 || at.y < 0 || at.x >= wide || at.y >= high) return -1;
+    unsigned char seen[4] = { 0, 0, 0, 255 };
+    if(SDL_RenderReadPixels(g_renderer, &at, SDL_PIXELFORMAT_RGBA32, seen, 4) != 0) return -1;
+    return ((int64_t) seen[0] << 24) | ((int64_t) seen[1] << 16) | ((int64_t) seen[2] << 8) | 255;
 }
 
 //

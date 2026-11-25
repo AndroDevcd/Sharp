@@ -499,6 +499,6 @@ class waiter {
             smovr2 [now], bmr
         }
 
-        return now / 1000000;
+        return now / 1000000.0;
     }
 }

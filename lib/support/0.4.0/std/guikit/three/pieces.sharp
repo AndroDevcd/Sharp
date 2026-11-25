@@ -1,0 +1,462 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * PIECES - shapes to put together like a puzzle, and ways to bend, roughen
+ * and repeat them, so that a plant, an animal or a rock is a few lines and no
+ * arithmetic. Every piece is a mesh: what comes back can be changed and added
+ * to like any other, and shown with add(...).
+ *
+ *      THE PIECES                      all stand on y = 0 and grow UP the y axis
+ *
+ *      lump(w, h, d)                   a rounded body: a pebble, a head, a hull; a fourth number cuts it
+ *                                      finer (2: twice as fine each way) or cheaper (0.5)
+ *      tube(length, thick)             a stalk; tube(length, bottom, top) thins it; a fourth number
+ *                                      is how many sides it has (a wide one is a pipe, hollow)
+ *      blade(length, width)            a flat leaf, fin or petal with a pointed tip; a third number cuts
+ *                                      it finer along it (1.6) or cheaper (0.5)
+ *
+ *      CHANGING ONE
+ *
+ *      .lumpy(0.3)                     knobbly, like rock or a root (another number: another rock)
+ *      .bent(40)                       curved over sideways, by so many degrees from foot to tip
+ *      .curled(40)                     curved over forwards, the way a blade faces: a leaf that droops
+ *      .tapered(0.7)                   thinner towards the top: 1 comes to a point
+ *      .painted(colour)                one colour all over; .shaded(foot, tip) from one into another
+ *
+ *      PUTTING THEM TOGETHER
+ *
+ *      stalk.grown(leaf, 40, 55)       40 leaves up the stalk, each turned further round and
+ *                                      leaning 55 degrees out - the way leaves grow
+ *      fan_of(branch, 7, 120)          7 of them from one foot, spread over 120 degrees
+ *      ring_of(petal, 12, 0.4)         12 of them in a circle 0.4 metres out, facing outwards
+ *      a.add(b)                        two shapes as one (mesh.add); b.moved(...) first to place it
+ *
+ * A reed:      tube(2, 0.03).grown(blade(0.7, 0.05).bent(30), 9, 35).painted(0x6E8F3AFF)
+ * A boulder:   lump(3, 2, 2.6).lumpy(0.35)
+ * A fish:      lump(0.16, 0.5, 0.08).add(fan_of(blade(0.2, 0.09), 2, 60).moved(0, 0.5, 0))
+ *
+ * Things made from pieces sway(...), spin, bob and scatter like any others.
+ * (Blender: metaballs, curves and array modifiers. Godot: CSG shapes.)
+ */
+
+/** a rounded body `w` wide, `h` high and `d` deep, standing on y = 0 */
+def lump(w: decimal, h: decimal, d: decimal) : mesh {
+    return lump(w, h, d, 1);
+}
+
+/**
+ * the same cut `fine` times as finely each way: 2 has four times the
+ * triangles, so that a large one seen close - a boulder, a hull - is round
+ * where its outline shows, and lumpy(...) has more to shape; 0.5 is a cheap
+ * one for far away (the same shape, lumpy or not: scatter(...).far(...) it)
+ */
+def lump(w: decimal, h: decimal, d: decimal, fine: decimal) : mesh {
+    around : _int64 = (24 * fine) as _int64;
+    down : _int64 = (16 * fine) as _int64;
+    if(around < 6) { around = 6; }
+    if(down < 4) { down = 4; }
+    return shapes.sphere(0.5, around, down).stretched(w, h, d).moved(0, h / 2, 0).smooth();
+}
+
+/** a stalk `length` high and `thick` across */
+def tube(length: decimal, thick: decimal) : mesh {
+    return tube(length, thick, thick);
+}
+
+/** a stalk that is `bottom` across at its foot and `top` across at its tip */
+def tube(length: decimal, bottom: decimal, top: decimal) : mesh {
+    return tube(length, bottom, top, 7);
+}
+
+/**
+ * the same with `sides` flat sides round it: 7 is enough for a stalk, a wide
+ * one - a pipe, a tunnel, a tower - wants 16 or more to be round. It has no
+ * ends: looked into, it is hollow (two_sided() shows its inside).
+ */
+def tube(length: decimal, bottom: decimal, top: decimal, sides: _int64) : mesh {
+    m := new mesh();
+    if(sides < 3) { sides = 3; }
+    rings : _int64 = 3 + (length / 0.8) as _int64;
+    if(rings > 44) { rings = 44; }
+    for(i : _int64 = 0; i <= rings; i++) {
+        t : decimal = 1.0 * i / rings;
+        radius : decimal = (bottom + (top - bottom) * t) / 2;
+        for(j : _int64 = 0; j <= sides; j++) {
+            turn : decimal = PI_VALUE * 2 * j / sides;
+            m.corner(cos(turn) * radius, length * t, sin(turn) * radius, cos(turn), 0, sin(turn), 1.0 * j / sides, t);
+        }
+    }
+    row : _int64 = sides + 1;
+    for(i : _int64 = 0; i < rings; i++) {
+        for(j : _int64 = 0; j < sides; j++) {
+            a : _int64 = i * row + j;
+            m.quad(a, a + row, a + row + 1, a + 1);
+        }
+    }
+    return m;
+}
+
+/**
+ * a flat leaf (a fin, a petal, a feather) `length` long and `width` across at
+ * its widest, a third of the way up; pointed at the tip, narrow at the foot,
+ * with a crease down its middle. It faces +z and shows from both sides.
+ */
+def blade(length: decimal, width: decimal) : mesh {
+    return blade(length, width, 1);
+}
+
+/**
+ * the same cut `fine` times as finely along it: 1.6 for a leaf that is seen
+ * close and curls a long way, 0.5 for the cheap one far away
+ */
+def blade(length: decimal, width: decimal, fine: decimal) : mesh {
+    m := new mesh();
+    // (a long blade is cut finer along it, so that it curls smoothly and its edges can ripple; a
+    //  broad one is cut finer across it too, so that it is cupped and not a flat card)
+    rows : _int64 = ((3 + length * 3.6) * fine) as _int64;
+    if(rows > 14 * fine) { rows = (14 * fine) as _int64; }
+    if(rows < 2) { rows = 2; }
+    across : _int64 = 3;
+    if(width >= 0.25) { across = 5; }
+    for(i : _int64 = 0; i <= rows; i++) {
+        t : decimal = 1.0 * i / rows;
+        // (narrow foot, widest at a third, a point at the tip)
+        half : decimal = width / 2 * (0.18 + 0.82 * sin(PI_VALUE * pow(t, 0.62))) * (1 - t * t * t);
+        if(i == rows) { half = 0; }
+        // its edges ripple, one up where the other is down, with a finer frill on the ripple
+        ripple : decimal = (sin(t * 19) * 0.42 + sin(t * 47 + 1) * 0.16) * half;
+        for(c : _int64 = 0; c < across; c++) {
+            side : decimal = 2.0 * c / (across - 1) - 1;         // -1 at one edge, 0 at the rib, 1 at the other
+            lift : decimal = 0 - half * 0.25;                    // the rib lies lowest ...
+            shade : _int64 = 0xA8A8A8FF;                         // ... and is darkest
+            if(side != 0) {
+                if(side == 1 || side == 0 - 1) {
+                    lift = ripple * side;                        // ... the edges ripple ...
+                    shade = (i % 2 == 0) ? 0xE0E0E0FF : 0xC6C6C6FF;
+                } else {
+                    lift = half * 0.1;                           // ... and between them it is cupped
+                    shade = 0xF6F6F6FF;
+                }
+            }
+            made : _int64 = m.corner(side * half, length * t, lift, side * 0.4, 0, 1, (side + 1) / 2, t);
+            // (lighter and darker across and along it: painted and shaded lay their colour over that)
+            m.tint(made, shade);
+        }
+    }
+    for(i : _int64 = 0; i < rows; i++) {
+        for(c : _int64 = 0; c < across - 1; c++) {
+            from : _int64 = i * across + c;
+            m.quad(from, from + 1, from + across + 1, from + across);
+        }
+    }
+    return m.two_sided();
+}
+
+// ------------------------------------------------------------------------------ changing one
+
+/** how high the shape reaches */
+def mesh.height() : decimal {
+    high : decimal = 0;
+    for(i : _int64 = 0; i < corner_count; i++) {
+        if(points[i * 3 + 1] > high) { high = points[i * 3 + 1]; }
+    }
+    return high;
+}
+
+/**
+ * Curve the shape over towards +x, by `degrees` from its foot to its tip: the
+ * foot stays as it stands, and the further up, the more it has turned. 90
+ * bends a stalk into a quarter circle; a negative number bends it the other way.
+ */
+def mesh.bent(degrees: decimal) : mesh {
+    high : decimal = height();
+    whole : decimal = degrees * PI_VALUE / 180;
+    if(high <= 0 || whole == 0) { return self; }
+    radius : decimal = high / whole;
+    for(i : _int64 = 0; i < corner_count; i++) {
+        at : _int64 = i * 3;
+        angle : decimal = whole * points[at + 1] / high;
+        out : decimal = points[at];
+        points[at] = radius * (1 - cos(angle)) + out * cos(angle);
+        points[at + 1] = radius * sin(angle) - out * sin(angle);
+        nx : decimal = normals[at];
+        ny : decimal = normals[at + 1];
+        normals[at] = nx * cos(angle) + ny * sin(angle);
+        normals[at + 1] = ny * cos(angle) - nx * sin(angle);
+    }
+    changed();
+    return self;
+}
+
+/**
+ * Curl the shape over towards +z - the way a blade faces - by `degrees` from
+ * foot to tip: a leaf that droops, a petal that opens, a claw. (bent(...)
+ * curves it sideways, towards +x; curled(...) curves it forwards.)
+ */
+def mesh.curled(degrees: decimal) : mesh {
+    high : decimal = height();
+    whole : decimal = degrees * PI_VALUE / 180;
+    if(high <= 0 || whole == 0) { return self; }
+    radius : decimal = high / whole;
+    for(i : _int64 = 0; i < corner_count; i++) {
+        at : _int64 = i * 3;
+        angle : decimal = whole * points[at + 1] / high;
+        out : decimal = points[at + 2];
+        points[at + 2] = radius * (1 - cos(angle)) + out * cos(angle);
+        points[at + 1] = radius * sin(angle) - out * sin(angle);
+        nz : decimal = normals[at + 2];
+        ny : decimal = normals[at + 1];
+        normals[at + 2] = nz * cos(angle) + ny * sin(angle);
+        normals[at + 1] = ny * cos(angle) - nz * sin(angle);
+    }
+    changed();
+    return self;
+}
+
+/**
+ * Knobbly: every part of the surface pushed out or in a little, in soft
+ * bumps and smaller ones on them - a rock, a root, a lump of clay. `amount`
+ * is how far, against the shape's own size: 0.15 is a river stone, 0.4 a
+ * crag. Another `seed` gives another shape.
+ */
+def mesh.lumpy(amount: decimal, seed: decimal) : mesh {
+    // the shape's middle and its size
+    mx : decimal = 0;
+    my : decimal = 0;
+    mz : decimal = 0;
+    for(i : _int64 = 0; i < corner_count; i++) {
+        mx = mx + points[i * 3];
+        my = my + points[i * 3 + 1];
+        mz = mz + points[i * 3 + 2];
+    }
+    if(corner_count == 0) { return self; }
+    mx = mx / corner_count;
+    my = my / corner_count;
+    mz = mz / corner_count;
+    size : decimal = 0;
+    for(i : _int64 = 0; i < corner_count; i++) {
+        size = size + piece_length(points[i * 3] - mx, points[i * 3 + 1] - my, points[i * 3 + 2] - mz);
+    }
+    size = size / corner_count;
+
+    for(i : _int64 = 0; i < corner_count; i++) {
+        at : _int64 = i * 3;
+        dx : decimal = points[at] - mx;
+        dy : decimal = points[at + 1] - my;
+        dz : decimal = points[at + 2] - mz;
+        far : decimal = piece_length(dx, dy, dz);
+        if(far < 0.000001) { continue; }
+        // (asked by DIRECTION from the middle, so that corners at the same place move alike: no cracks)
+        ux : decimal = dx / far;
+        uy : decimal = dy / far;
+        uz : decimal = dz / far;
+        bump : decimal = piece_noise(ux * 1.7 + seed, uy * 1.7 + seed * 1.3, uz * 1.7 - seed) - 0.5
+                       + (piece_noise(ux * 4.1 - seed, uy * 4.1 + 9, uz * 4.1 + seed) - 0.5) * 0.45
+                       + (piece_noise(ux * 9.3 + 4, uy * 9.3 - seed, uz * 9.3 + 2) - 0.5) * 0.18
+                       // (two finer layers: they show on a shape that is cut finely enough to carry them)
+                       + (piece_noise(ux * 19.1 - 3, uy * 19.1 + seed, uz * 19.1 - 7) - 0.5) * 0.08
+                       + (piece_noise(ux * 37.7 + seed, uy * 37.7 + 5, uz * 37.7 - seed) - 0.5) * 0.035;
+        push : decimal = bump * 2 * amount * size;
+        points[at] = points[at] + ux * push;
+        points[at + 1] = points[at + 1] + uy * push;
+        points[at + 2] = points[at + 2] + uz * push;
+    }
+    return smooth();
+}
+
+def mesh.lumpy(amount: decimal) : mesh {
+    return lumpy(amount, 1);
+}
+
+/**
+ * Thinner towards the top: at its full height the shape is `amount` narrower
+ * than at its foot (0.5: half as wide, 1: it comes to a point). A horn, a
+ * tail, a tooth, a spire.
+ */
+def mesh.tapered(amount: decimal) : mesh {
+    high : decimal = height();
+    if(high <= 0) { return self; }
+    for(i : _int64 = 0; i < corner_count; i++) {
+        keep : decimal = 1 - amount * points[i * 3 + 1] / high;
+        if(keep < 0) { keep = 0; }
+        points[i * 3] = points[i * 3] * keep;
+        points[i * 3 + 2] = points[i * 3 + 2] * keep;
+    }
+    return smooth();
+}
+
+/**
+ * one colour all over (a colour that stays with the shape when it is put into
+ * another). Where the shape was made lighter and darker - a blade's rib -
+ * that stays: the colour is laid over it.
+ */
+def mesh.painted(packed: _int64) : mesh {
+    for(i : _int64 = 0; i < corner_count; i++) { tints[i] = piece_scaled(packed, piece_grey(tints[i])); }
+    changed();
+    return self;
+}
+
+/** `foot` colour at the bottom running into `tip` colour at the top */
+def mesh.shaded(foot: _int64, tip: _int64) : mesh {
+    high : decimal = height();
+    if(high <= 0) { return painted(foot); }
+    for(i : _int64 = 0; i < corner_count; i++) {
+        tints[i] = piece_scaled(piece_between(foot, tip, points[i * 3 + 1] / high), piece_grey(tints[i]));
+    }
+    changed();
+    return self;
+}
+
+// ------------------------------------------------------------------------------ putting them together
+
+/**
+ * `count` copies of `piece` set up this shape - a stalk - from near its foot
+ * to its tip: each turned further round than the one below (by the angle
+ * leaves really grow at, so that none hides another) and leaning `lean`
+ * degrees out from upright. They vary a little in size.
+ *
+ *      fern := tube(1.2, 0.02).grown(blade(0.5, 0.08), 24, 60);
+ */
+def mesh.grown(piece: mesh, count: _int64, lean: decimal) : mesh {
+    high : decimal = height();
+    for(k : _int64 = 0; k < count; k++) {
+        t : decimal = 0.06 + 0.94 * (k + 0.5) / count;
+        size : decimal = 0.72 + 0.56 * piece_chance(k * 7.31 + count);
+        first : _int64 = corner_count;
+        set_in(piece, 0, high * t, 0, k * 137.5, lean + (piece_chance(k * 3.7) - 0.5) * 24, size);
+        // no two leaves are quite the same colour: each a little darker or lighter than the pattern
+        shade : decimal = 0.78 + 0.4 * piece_chance(k * 5.13 + 2);
+        for(c : _int64 = first; c < corner_count; c++) { tints[c] = piece_scaled(tints[c], shade); }
+    }
+    changed();
+    return self;
+}
+
+/** `count` copies of `piece` rising from one foot, spread evenly over `spread` degrees (a tail, a hand of coral) */
+def fan_of(piece: mesh, count: _int64, spread: decimal) : mesh {
+    m := new mesh();
+    for(k : _int64 = 0; k < count; k++) {
+        lean : decimal = 0;
+        if(count > 1) { lean = 0 - spread / 2 + spread * k / (count - 1); }
+        m.set_in(piece, 0, 0, 0, 90, lean, 1);
+    }
+    if(piece.both_sides) { m.two_sided(); }
+    return m;
+}
+
+/** `count` copies of `piece` in a circle `radius` out from the middle, each facing outwards */
+def ring_of(piece: mesh, count: _int64, radius: decimal) : mesh {
+    m := new mesh();
+    for(k : _int64 = 0; k < count; k++) {
+        turn : decimal = 360.0 * k / count;
+        round : decimal = turn * PI_VALUE / 180;
+        m.set_in(piece, sin(round) * radius, 0, cos(round) * radius, turn, 0, 1);
+    }
+    if(piece.both_sides) { m.two_sided(); }
+    return m;
+}
+
+/**
+ * one copy of `piece` put into this shape with its foot at (x, y, z): leaning
+ * `lean` degrees out from upright, turned `turn` degrees round the up axis,
+ * `size` times as large. (What grown, fan_of and ring_of are made from.)
+ */
+def mesh.set_in(piece: mesh, x: decimal, y: decimal, z: decimal, turn: decimal, lean: decimal, size: decimal) : mesh {
+    cl : decimal = cos(lean * PI_VALUE / 180);
+    sl : decimal = sin(lean * PI_VALUE / 180);
+    ct : decimal = cos(turn * PI_VALUE / 180);
+    st : decimal = sin(turn * PI_VALUE / 180);
+    first : _int64 = corner_count;
+    for(i : _int64 = 0; i < piece.corner_count; i++) {
+        at : _int64 = i * 3;
+        // lean it over towards +z, then turn it round
+        px : decimal = piece.points[at] * size;
+        py : decimal = (piece.points[at + 1] * cl - piece.points[at + 2] * sl) * size;
+        pz : decimal = (piece.points[at + 1] * sl + piece.points[at + 2] * cl) * size;
+        nx : decimal = piece.normals[at];
+        ny : decimal = piece.normals[at + 1] * cl - piece.normals[at + 2] * sl;
+        nz : decimal = piece.normals[at + 1] * sl + piece.normals[at + 2] * cl;
+        made : _int64 = corner(x + px * ct + pz * st, y + py, z + pz * ct - px * st,
+                               nx * ct + nz * st, ny, nz * ct - nx * st,
+                               piece.uvs[i * 2], piece.uvs[i * 2 + 1]);
+        tint(made, piece.tints[i]);
+    }
+    for(f : _int64 = 0; f < piece.face_count; f++) {
+        triangle(first + piece.faces[f * 3], first + piece.faces[f * 3 + 1], first + piece.faces[f * 3 + 2]);
+    }
+    if(piece.both_sides) { two_sided(); }
+    return self;
+}
+
+// ------------------------------------------------------------------------------ the numbers behind them
+
+local def piece_length(x: decimal, y: decimal, z: decimal) : decimal {
+    return sqrt(x * x + y * y + z * z);
+}
+
+/** a number from 0 up to 1 that is always the same for the same `n` */
+local def piece_chance(n: decimal) : decimal {
+    v : decimal = sin(n * 12.9898 + 4.1) * 43758.5453;
+    return v - floor(v);
+}
+
+local def piece_corner(x: decimal, y: decimal, z: decimal) : decimal {
+    return piece_chance(x * 127.1 + y * 311.7 + z * 74.7);
+}
+
+/** numbers that change smoothly from place to place: 0 .. 1 */
+local def piece_noise(x: decimal, y: decimal, z: decimal) : decimal {
+    x0 : decimal = floor(x);
+    y0 : decimal = floor(y);
+    z0 : decimal = floor(z);
+    fx : decimal = x - x0;
+    fy : decimal = y - y0;
+    fz : decimal = z - z0;
+    fx = fx * fx * (3 - 2 * fx);
+    fy = fy * fy * (3 - 2 * fy);
+    fz = fz * fz * (3 - 2 * fz);
+    a : decimal = piece_mix(piece_corner(x0, y0, z0), piece_corner(x0 + 1, y0, z0), fx);
+    b : decimal = piece_mix(piece_corner(x0, y0 + 1, z0), piece_corner(x0 + 1, y0 + 1, z0), fx);
+    c : decimal = piece_mix(piece_corner(x0, y0, z0 + 1), piece_corner(x0 + 1, y0, z0 + 1), fx);
+    d : decimal = piece_mix(piece_corner(x0, y0 + 1, z0 + 1), piece_corner(x0 + 1, y0 + 1, z0 + 1), fx);
+    return piece_mix(piece_mix(a, b, fy), piece_mix(c, d, fy), fz);
+}
+
+local def piece_mix(a: decimal, b: decimal, t: decimal) : decimal {
+    return a + (b - a) * t;
+}
+
+/** how light a packed colour is, 0 .. 1 (white, the colour a new corner has: 1) */
+local def piece_grey(packed: _int64) : decimal {
+    return (((packed >> 24) & 0xff) + ((packed >> 16) & 0xff) + ((packed >> 8) & 0xff)) / 765.0;
+}
+
+/** a packed colour made darker (below 1) or lighter (above 1); how see-through it is stays */
+local def piece_scaled(packed: _int64, by: decimal) : _int64 {
+    out : _int64 = 0;
+    for(shift : _int64 = 24; shift >= 8; shift -= 8) {
+        part : decimal = ((packed >> shift) & 0xff) * by;
+        if(part > 255) { part = 255; }
+        out = out * 256 + (part as _int64);
+    }
+    return out * 256 + (packed & 0xff);
+}
+
+/** the colour `t` of the way from one packed colour to another */
+local def piece_between(from: _int64, to: _int64, t: decimal) : _int64 {
+    if(t < 0) { t = 0; }
+    if(t > 1) { t = 1; }
+    packed : _int64 = 0;
+    for(shift : _int64 = 24; shift >= 0; shift -= 8) {
+        a : _int64 = (from >> shift) & 0xff;
+        b : _int64 = (to >> shift) & 0xff;
+        packed = packed * 256 + ((a + (b - a) * t) as _int64);
+    }
+    return packed;
+}

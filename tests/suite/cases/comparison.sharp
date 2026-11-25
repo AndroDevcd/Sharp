@@ -86,8 +86,8 @@ def main(args: string[]) {
 
     // ---- fractions
     half : decimal = 0.5;
-    third : decimal = 1 / 3;
-    expect_true("0.5 == 1 / 2", half == 1 / 2);
+    third : decimal = 1.0 / 3;
+    expect_true("0.5 == 1.0 / 2", half == 1.0 / 2);
     expect_true("0.5 > 1 / 3", half > third);
     expect_true("1 / 3 < 0.34", third < 0.34);
     expect_true("1 / 3 > 0.33", third > 0.33);

@@ -257,6 +257,11 @@ Int jit_rt_remainder(Int left, Int right) {
     return 0;
 }
 
+Int jit_rt_quotient(Int left, Int right) {
+    GUARDED( return vm_quotient(left, right); )
+    return 0;
+}
+
 Int jit_rt_decimal_to_integer(double value) {
     return decimal_to_integer(value);
 }

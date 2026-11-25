@@ -269,6 +269,57 @@ def main(args: string[]) {
         }
         test("deserialize of other text throws") { expect(threw).should_be(1); };
 
+        // ---- bytes that end too soon are refused, wherever they are cut
+        refused : decimal = 0;
+        cuts : decimal = 0;
+        for(cut : _int64 = 1; cut < kept.size(); cut = cut + 7) {
+            cuts++;
+            try {
+                deserialize(kept.substring(0, cut));
+            } catch(e: exception) {
+                refused++;
+            }
+        }
+        test("bytes cut off at any place throw") { expect(refused).should_be(cuts); };
+        test("...and the whole bytes still read afterwards") { expect((deserialize(kept) as person).name).should_be("Ann"); };
+
+        // ---- a chain of 300 000 objects, each referring to the next: it is as deep as it is long
+        chain_first := new node(0);
+        chain_last := chain_first;
+        for(i : _int64 = 1; i < 300000; i++) {
+            link := new node(i);
+            chain_last.next = link;
+            chain_last = link;
+        }
+        chain_copy := round_trip(chain_first) as node;
+        links : _int64 = 0;
+        in_order : bool = true;
+        at : node? = chain_copy;
+        while(at != null) {
+            if(at!!.id != links) { in_order = false; }
+            links++;
+            at = at!!.next;
+        }
+        test("a chain of 300 000 objects: all of them come back") { expect(links).should_be(300000); };
+        test("a chain of 300 000 objects: in order") { expect_true(in_order); };
+
+        // ---- a large array of numbers, and many small objects in one array
+        many_scores := make_person("scores", 1);
+        many_scores.scores = new decimal[200000];
+        for(i : _int64 = 0; i < 200000; i++) { many_scores.scores[i] = i * 0.5; }
+        scores_copy := round_trip(many_scores) as person;
+        test("an array of 200 000 numbers: its length") { expect(sizeof(scores_copy.scores)).should_be(200000); };
+        test("an array of 200 000 numbers: the last one") { expect(scores_copy.scores[199999]).should_be(99999.5); };
+        crowd := new team();
+        crowd.title = "crowd";
+        crowd.members = new person[20000];
+        for(i : _int64 = 0; i < 20000; i++) { crowd.members[i] = make_person("member " + i, i); }
+        crowd.lead = crowd.members[19999];
+        crowd_copy := round_trip(crowd) as team;
+        test("20 000 objects in an array: the last one") { expect(crowd_copy.members[19999].name).should_be("member 19999"); };
+        test("20 000 objects in an array: one in the middle") { expect(crowd_copy.members[7777].age).should_be(7777); };
+        test("...and the one two fields share is one object") { expect_true(crowd_copy.lead == crowd_copy.members[19999]); };
+
         // ---- many round trips
         good : decimal = 0;
         for(i : decimal = 0; i < 200; i++) {

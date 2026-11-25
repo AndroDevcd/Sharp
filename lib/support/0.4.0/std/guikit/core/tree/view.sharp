@@ -61,6 +61,12 @@ stable class view {
     key : string = "";
 
     /**
+     * A name a UI test finds this box by (modifier().tag("save"), then
+     * on_tag("save") in std.guikit.testing). It changes nothing about the box.
+     */
+    tag : string = "";
+
+    /**
      * A place in the PARENT'S own terms, for a parent that puts its children
      * where its content says rather than in a row or a column: in a chart, the
      * place across and the number up (modifier().at(4, 80)). What the two

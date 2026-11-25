@@ -93,7 +93,7 @@ stable class tab_strip base widget : behavior {
 }
 
 /** one title in a tab strip. Made with tab(...), inside tabs { }. */
-stable class tab_item base widget : behavior {
+stable class tab_item base widget : behavior, shows_words {
     private words : string = "";
     private face : view?;                   // the title built from widgets (the block form); null: the words are painted
 
@@ -122,6 +122,9 @@ stable class tab_item base widget : behavior {
     }
 
     override def kind() : string { return "tab"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         host := ui_host.current!!;

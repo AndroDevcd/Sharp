@@ -18,6 +18,13 @@ interface note_store {
     def title() : string;
 }
 
+// functions that give back number OBJECTS: returns(4) must reach them as one
+interface gauge {
+    def level() : int;
+    def total() : long;
+    def reading() : int?;
+}
+
 interface clock {
     def now() : string;
 }
@@ -99,6 +106,18 @@ def main(args: string[]) {
             expect(store.remove("whatever")).should_be(7);
             verify { store.load(); }.once();
             verify { store.save(any_text()); }.never();
+        };
+
+        test("a function that gives back a number object takes returns(<a number>)") {
+            dial := mock<gauge>();
+            expect(dial.level().value).should_be(0);
+            expect(dial.reading() == null).should_be(true);
+            given { dial.level(); }.returns(4);
+            given { dial.total(); }.returns(5000000000);
+            given { dial.reading(); }.returns(9);
+            expect(dial.level().value).should_be(4);
+            expect(dial.total().value).should_be(5000000000);
+            expect(dial.reading()!!.value).should_be(9);
         };
 
         test("provide puts a stand-in where the program asks for one") {

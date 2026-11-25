@@ -165,7 +165,7 @@ stable class month_grid base widget : behavior, pointer_target, stateful {
         for(day : _int64 = 1; day <= length; day++) {
             place : _int64 = lead + day - 1;
             cx : decimal = me.x + cell_w * (place % 7) + cell_w / 2;
-            cy : decimal = top + CELL * num.whole(place / 7) + CELL / 2;      // whole(): dividing two whole numbers gives a fraction
+            cy : decimal = top + CELL * num.whole(place / 7) + CELL / 2;
 
             is_chosen : _int64 = 0;
             if(chosen.year() == shown_year && chosen.month_value() == shown_month && chosen.day() == day) { is_chosen = 1; }

@@ -128,7 +128,7 @@ class generation_result {
 
 /** the time now, in milliseconds (for the `time:` line) */
 def clock_ms() : decimal {
-    return vm.time_in_nanoseconds().value / 1000000;
+    return vm.time_in_nanoseconds().value / 1000000.0;
 }
 
 /** generate the executable for an analysed program without errors */

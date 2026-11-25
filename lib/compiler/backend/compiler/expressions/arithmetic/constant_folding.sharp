@@ -27,10 +27,10 @@ import (
  *
  *      operator                            on two literals gives
  *      ----------------------------------  ----------------------------------------------
- *      + - *    (no decimal literal)       a whole-number literal: 2 + 3 is the literal 5
+ *      + - * /  (no decimal literal)       a whole-number literal: 2 + 3 is the literal 5, 7 / 2 the literal 3
  *      % & | ^ << >> && ||                 a whole-number literal
- *      + - *    (a decimal literal)        a decimal literal
- *      / ** == != < > <= >=                a decimal literal: 7 / 2 is 3.5, 1 < 2 is 1.0
+ *      + - * /  (a decimal literal)        a decimal literal: 7 / 2.0 is 3.5
+ *      ** == != < > <= >=                  a decimal literal: 2 ** 3 is 8.0, 1 < 2 is 1.0
  *
  * A whole-number literal result is an `_int32` when it fits 32 bits and an
  * `_int64` otherwise, like a literal written out. Operands that are
@@ -82,7 +82,7 @@ def fold_literals(context: analysis_context, node: _int64, operation: _int64, le
         }
         return bool_literal(context, node, whole_result(operation, whole_of(a), whole_of(b)));
     }
-    if((operation == P_PLUS || operation == P_MINUS || operation == P_STAR) && any_decimal == 0) {
+    if((operation == P_PLUS || operation == P_MINUS || operation == P_STAR || operation == P_SLASH) && any_decimal == 0) {
         return whole_literal(context, node, whole_result(operation, whole_of(a), whole_of(b)));
     }
     if(is_whole_operation(operation)) {
@@ -136,8 +136,12 @@ def whole_result(operation: _int64, a: _int64, b: _int64) : _int64 {
     if(operation == P_ANDAND) { return a != 0 && b != 0; }
     if(operation == P_OROR) { return a != 0 || b != 0; }
     if(operation == P_SLASH) {
+        // toward zero, as the VM divides (-7 / 2 is -3). Written with `%` so that it is exact
+        // whichever way the compiler that builds this one divides.
         if(b == 0) { return 0; }
-        return a / b;
+        if(b == 0 - 1) { return 0 - a; }
+        quotient : _int64 = (a - a % b) / b;
+        return quotient;
     }
     return truth_of(operation, a, b);
 }
@@ -182,7 +186,7 @@ def folded_constant(operation: _int64, left: bound_expression, right: bound_expr
         if(is_comparison(operation)) { return integer_constant(result as _int64); }
         return decimal_constant(result);
     }
-    if(operation == P_PERCENT && whole_of(right.constant!!) == 0) { return null; }
+    if((operation == P_PERCENT || operation == P_SLASH) && whole_of(right.constant!!) == 0) { return null; }
     return integer_constant(whole_result(operation, whole_of(left.constant!!), whole_of(right.constant!!)));
 }
 
@@ -202,13 +206,11 @@ def report_remainder_by_zero(context: analysis_context, right: bound_expression)
 /**
  * W1044: `x / 0` with a WHOLE-NUMBER zero the compiler knows.
  *
- * `/` always divides as decimals (7.8.1), and a decimal divided by zero
- * does not stop the program: the VM gives infinity (`4 / 0`), minus
- * infinity, or "not a number" (`0 / 0`) - and stored in a whole number
- * (`n : _int64 = a / 0;`) that becomes -9223372036854775808 (checked by
- * running what the C++ compiler builds; it says nothing). `%` by zero, which
- * has no value at all, is the error E0427. A constant zero divisor is
- * nearly always a slip, so it is a warning here.
+ * Two whole numbers: the program stops there with invalid_operation_exception
+ * when it runs (7.8.1). A decimal divided by zero does not stop the program:
+ * the VM gives infinity (`4.5 / 0`), minus infinity, or "not a number". `%` by
+ * zero, which has no value at all, is the error E0427. A constant zero divisor
+ * is nearly always a slip, so it is a warning here.
  *
  * A zero written as a decimal (`1.0 / 0.0`, `0.0 / 0.0`) is left alone: that
  * is how infinity and NaN are written on purpose (std.math, byte_buffer).
@@ -217,7 +219,7 @@ def report_remainder_by_zero(context: analysis_context, right: bound_expression)
 def warn_division_by_zero(context: analysis_context, right: bound_expression) {
     d := problem_over(context, "W1044", "a division by zero", right.node);
     d.with_label("this is 0");
-    d.with_note("`/` divides as decimals: by zero the result is infinity (`0 / 0`: not a number), and as a whole number -9223372036854775808");
+    d.with_note("a whole number divided by zero stops the program with invalid_operation_exception; a decimal divided by zero is infinity");
     d.with_help("divide by the value you meant, or test the divisor first: `if(divisor != 0) { ... }`");
     report(context, d);
 }

@@ -138,12 +138,13 @@ def select_binary(out: code_emitter, made: ir_instruction) {
             out.class_c(OP_SMOVR_2, REG_BMR, made.target);
             return;
         }
-        // (division and `**` are done on decimals: analysis decides that, backend.md 7.8.1)
+        // (`**` is done on decimals, and `/` when either side is one: analysis decides that, backend.md 7.8.1)
         opcode : _int64 = 0 - 1;
         if(operation == ARITH_ADD) { opcode = OP_ADD; }
         else if(operation == ARITH_SUB) { opcode = OP_SUB; }
         else if(operation == ARITH_MUL) { opcode = OP_MUL; }
         else if(operation == ARITH_REM) { opcode = OP_MOD; }
+        else if(operation == ARITH_DIV) { opcode = OP_WDIV; }
         else if(operation == ARITH_SHL) { opcode = OP_SHL; }
         else if(operation == ARITH_SHR) { opcode = OP_SHR; }
         if(opcode < 0) { out.cannot_select("the integer operation " + operation); return; }

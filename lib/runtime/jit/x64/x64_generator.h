@@ -299,6 +299,7 @@ private:
     void call_runtime(void *target);        // call a C++ function (arguments already placed)
     void call_runtime_checked(void *target);// ... and go to the exception section if it raised one
     void divide_for_remainder(const asmjit::Label &zero);     // rdx = rax % rcx the way vm_remainder gives it; to `zero` when rcx is 0
+    void divide_for_quotient(const asmjit::Label &zero);        // rax = rax / rcx the way vm_quotient gives it
     bool constant_remainder(int64_t divisor);                 // rdx = rax % divisor; false: not here (0 - the runtime raises)
     void prepare_runtime_call();          // set_current_instruction(pc) + save_stack_registers() + save_vm_registers(): what a jit_rt_ helper relies on
     asmjit::Label request_slow_path(slow_kind kind, Int at, asmjit::Label back = asmjit::Label());

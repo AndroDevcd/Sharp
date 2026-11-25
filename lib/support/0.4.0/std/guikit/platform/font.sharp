@@ -19,20 +19,36 @@ import (
  * asking for the same file and size again hands back the one already made, so
  * calling gui.font(16) inside a draw loop is cheap. A font belongs to the open
  * window and ends with it. Java comparison: java.awt.Font + FontMetrics in one.
+ *
+ * WITHOUT A WINDOW (a UI test: window.sharp, "a window that is not there") no
+ * font file is read. A font then measures by rule: every character is half
+ * the font's size wide, a line 1.3 times its size high. Text in a test is so
+ * the same size on every machine, whatever fonts it has.
  */
 stable class font {
-    id : _int64;                // the native side's number for this font
+    /** true while the window is one that is not there: fonts measure by rule (set by window) */
+    static by_rule : bool = false;
+
+    id : _int64;                // the native side's number for this font (0: it measures by rule)
     size : decimal;             // the size it was made at, in pixels
     line_height : decimal;      // pixels from one line of text down to the next
 
     font(path: string, pixels: decimal) {
-        id = font_load(path, pixels);
         size = pixels;
+        if(by_rule) {
+            id = 0;
+            line_height = pixels * 1.3;
+            return;
+        }
+        id = font_load(path, pixels);
         line_height = font_line_height(id);
     }
 
     /** how many pixels wide this text is in this font (one line) */
     def width_of(words: string) : decimal {
+        if(id == 0) {
+            return words.size() * size * 0.5;
+        }
         return text_width(id, words);
     }
 }

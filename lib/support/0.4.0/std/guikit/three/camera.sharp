@@ -10,6 +10,7 @@ const CAMERA_STILL : _int64 = 0;        // where the program puts it
 const CAMERA_ORBIT : _int64 = 1;        // drag to look round a point, wheel to come closer
 const CAMERA_WALK  : _int64 = 2;        // keys to walk, drag to look; feet on the ground
 const CAMERA_FLY   : _int64 = 3;        // the same, moving the way it looks
+const CAMERA_SWIM  : _int64 = 4;        // the mouse looks (kept in the window), keys move the way it looks, also up and down
 
 /**
  * camera - the eye a scene is seen through. Inside a scene:
@@ -145,6 +146,25 @@ stable class camera {
         return self;
     }
 
+    /**
+     * Swimming, or floating in space: the mouse looks round - the window keeps
+     * it, so there is no edge to stop at - and the keys move the way the eye
+     * looks: W A S D, E up, Q down, Shift three times as fast. Escape gives the
+     * mouse back; a click in the scene takes it again.
+     *
+     *      camera().at(60, 12, 60).swim().speed(7).above(seabed);
+     */
+    def swim() : camera {
+        mode = CAMERA_SWIM;
+        return self;
+    }
+
+    /** swimming: never nearer the land than 0.8 metres */
+    def above(land: thing) : camera {
+        ground = land;
+        return self;
+    }
+
     /** how fast it walks or flies, in metres a second */
     def speed(metres_a_second: decimal) : camera {
         pace = metres_a_second;
@@ -237,6 +257,7 @@ stable class camera {
 
     /** walk or fly for `step` seconds by the keys that are held; true when it moved */
     def stepped(f: frame) : bool {
+        if(mode == CAMERA_SWIM) { return swum(f); }
         if(mode != CAMERA_WALK && mode != CAMERA_FLY) { return false; }
         ahead : decimal = 0;
         aside : decimal = 0;
@@ -268,5 +289,55 @@ stable class camera {
         }
         aimed = false;
         return moved;
+    }
+
+    private mouse_asked : bool = false;         // swim: the window was asked to keep the mouse
+    private let_go : bool = false;              // ... and Escape gave it back, until the next click
+
+    /** one frame of swimming (swim, above) */
+    private def swum(f: frame) : bool {
+        if(f.key_down(KEY_ESCAPE) == 1 && !let_go) {
+            let_go = true;
+            gui.keep_mouse(false);
+        } else if(let_go && f.mouse_down == 1) {
+            let_go = false;
+            mouse_asked = false;
+        }
+        if(!let_go && !mouse_asked) {
+            gui.keep_mouse(true);
+            mouse_asked = true;
+        }
+        // (the window lets the mouse go by itself when another window comes to the front)
+        if(!let_go && mouse_asked && !gui.mouse_kept()) { let_go = true; }
+        if(let_go) { return false; }
+
+        heading = heading + f.moved_x * 0.12;
+        tilt = tilt + f.moved_y * 0.12;
+        if(tilt > 88) { tilt = 88; }
+        if(tilt < 0 - 88) { tilt = 0 - 88; }
+
+        ahead : decimal = 0;
+        aside : decimal = 0;
+        up : decimal = 0;
+        if(f.key_down('w') == 1 || f.key_down(KEY_UP) == 1) { ahead = ahead + 1; }
+        if(f.key_down('s') == 1 || f.key_down(KEY_DOWN) == 1) { ahead = ahead - 1; }
+        if(f.key_down('d') == 1) { aside = aside + 1; }
+        if(f.key_down('a') == 1) { aside = aside - 1; }
+        if(f.key_down('e') == 1 || f.key_down(KEY_SPACE) == 1) { up = up + 1; }
+        if(f.key_down('q') == 1) { up = up - 1; }
+        far : decimal = pace * f.step;
+        if(f.key_down(KEY_SHIFT) == 1) { far = far * 3; }
+
+        round : decimal = heading * PI_VALUE / 180;
+        along := looks_along();
+        x = x + along[0] * ahead * far + cos(round) * aside * far;
+        y = y + along[1] * ahead * far + up * far;
+        z = z + along[2] * ahead * far + sin(round) * aside * far;
+        if(ground != null) {
+            lowest : decimal = ground!!.height_at(x, z) + 0.8;
+            if(y < lowest) { y = lowest; }
+        }
+        aimed = false;
+        return true;
     }
 }

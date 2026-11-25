@@ -43,7 +43,7 @@ import (
  *   how far across"; to place them with the mouse, a point is turned back
  *   into a position.
  */
-stable class text_area base widget : behavior, key_target, pointer_target, wheel_target, stateful {
+stable class text_area base widget : behavior, key_target, pointer_target, wheel_target, stateful, shows_words, has_caption {
     private bound : state<string>;
     private placeholder : string = "";
     private caption : string = "";              // words above the box
@@ -100,6 +100,15 @@ stable class text_area base widget : behavior, key_target, pointer_target, wheel
     }
 
     override def kind() : string { return "text_area"; }
+
+    /** what is typed in it (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return bound.value; }
+
+    /** the words that name it: its caption, or - without one - what it says while it is empty */
+    override def caption_shown() : string {
+        if(caption != "") { return caption; }
+        return placeholder;
+    }
 
     // ------------------------------------------------------------ the parts: label, box, the line below
 

@@ -143,7 +143,7 @@ def math_takes_two(which: _int64) : _int64 {
 const ARITH_ADD : _int64 = 1;
 const ARITH_SUB : _int64 = 2;
 const ARITH_MUL : _int64 = 3;
-const ARITH_DIV : _int64 = 4;      // decimals only
+const ARITH_DIV : _int64 = 4;      // on integers: the quotient, toward zero (may raise: a divisor of 0)
 const ARITH_REM : _int64 = 5;      // integers only
 const ARITH_AND : _int64 = 6;      // bits
 const ARITH_OR  : _int64 = 7;

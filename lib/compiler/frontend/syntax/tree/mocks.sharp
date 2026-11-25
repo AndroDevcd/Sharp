@@ -58,6 +58,7 @@ import (
  *
  *      no result                               nothing
  *      a plain number (_int64, decimal ...)    0            (mock_number)
+ *      a number object (int, long, double ...) one that holds 0 (number_in gives the number set up)
  *      bool                                    false
  *      string                                  ""
  *      list<...>, hash_map<...>                a new, empty one
@@ -519,6 +520,14 @@ def mock_is_number_type(type_name: string) : _int64 {
     return 0;
 }
 
+/** is this the name of a number CLASS of the library (an object that holds a number)? */
+def mock_is_number_class(type_name: string) : _int64 {
+    if(type_name == "int" || type_name == "long" || type_name == "short" || type_name == "double") { return 1; }
+    if(type_name == "uint" || type_name == "ulong" || type_name == "ushort") { return 1; }
+    if(type_name == "char" || type_name == "uchar" || type_name == "byte") { return 1; }
+    return 0;
+}
+
 /** one function of the mock class (the table at the top of this file says what each kind gives back) */
 def mock_write_function(text: string_builder, function: mock_function) {
     text.append("    override def " + function.name + "(" + function.parameters + ")");
@@ -546,7 +555,19 @@ def mock_write_function(text: string_builder, function: mock_function) {
         gives_chars : _int8[] = mock_chars(gives);
         last : _int64 = sizeof(gives_chars) - 1;
         text.append("        r : object? = mock_call" + call + ";\n");
-        if(last >= 0 && gives_chars[last] == '?') {
+        may_be_null : _int64 = last >= 0 && gives_chars[last] == '?';
+        class_name : string = gives;
+        if(may_be_null == 1) { class_name = mock_piece(gives_chars, 0, last); }
+        if(mock_is_number_class(class_name) == 1) {
+            // a number object: returns(4) keeps its number as a `double`, so the object is made here
+            // from the number (a cast from `double` to `int` is not one the VM allows)
+            if(may_be_null == 1) {
+                text.append("        if(r == null) { return null; }\n");
+            } else {
+                text.append("        if(r == null) { return new " + class_name + "(0); }\n");
+            }
+            text.append("        return new " + class_name + "(number_in(\"" + function.name + "\", r!!));\n");
+        } else if(may_be_null == 1) {
             // may be null: null is the answer when nothing was set up
             text.append("        if(r == null) { return null; }\n");
             text.append("        return (r as " + mock_piece(gives_chars, 0, last) + ");\n");

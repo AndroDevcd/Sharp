@@ -1,0 +1,470 @@
+mod main;
+import ( std.testing, std.guikit.*, std.guikit.testing )
+
+/**
+ * std.guikit.testing: UI tests. A screen is put up on a window that is not
+ * there, found into by tag, by words and by kind, clicked, typed into and
+ * checked - and a check that does not hold fails the test.
+ */
+
+/** a screen of an app: a counter with a state of its own */
+class counter_screen base composable {
+    count := state(0);
+
+    override def build() : element {
+        return column {
+            text("Count: " + count.value, modifier().tag("total"));
+            button("Add", modifier().tag("add")) { count.value = count.value + 1; };
+            button("Reset", modifier().tag("reset").enable(count.value > 0 ? 1 : 0)) { count.value = 0; };
+        };
+    }
+}
+
+/** one row of a list: its words and a Delete button that says which row it was */
+def item_row(n: _int64, removed: state<_int64>) {
+    row(modifier().tag("row_" + n)) {
+        text("item " + n);
+        button("Delete") { removed.value = n + 1; };
+    };
+}
+
+/** does the block fail the test it is in? (the failure is caught: the test around it goes on) */
+def fails(body: ()()) : bool {
+    try {
+        body();
+    } catch(e: test_failure) {
+        return true;
+    }
+    return false;
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_guikit_ui_test") {
+        ui_test("a block of widgets is a screen: click, and the words follow") {
+            count := gui.state(0);
+            set_content {
+                column {
+                    text("Count: " + count.value, modifier().tag("total"));
+                    button("Add", modifier().tag("add")) { count.value = count.value + 1; };
+                };
+            };
+            on_tag("total").should_say("Count: 0");
+            on_tag("add").click();
+            on_tag("total").should_say("Count: 1");
+            on_tag("add").click().click();
+            on_tag("total").should_say("Count: 3").should_contain("3").should_be_shown();
+            expect(count.value).should_be(3);
+        };
+
+        ui_test("a screen of the app, with its own state") {
+            set_content(new counter_screen());
+            on_tag("reset").should_be_disabled();
+            on_tag("add").should_be_enabled().click();
+            on_tag("total").should_say("Count: 1");
+            on_tag("reset").should_be_enabled().click();
+            on_tag("total").should_say("Count: 0");
+            on_tag("reset").should_be_disabled();
+        };
+
+        ui_test("a click on a disabled button does nothing") {
+            set_content(new counter_screen());
+            on_tag("reset").click();
+            on_tag("total").should_say("Count: 0");
+        };
+
+        ui_test("finding by words and by the class of the widget") {
+            set_content {
+                column {
+                    text("Title");
+                    button("Save") { };
+                    button("Cancel") { };
+                };
+            };
+            on_text("Save").should_exist().should_be_shown();
+            on_text("Nothing like this").should_not_exist();
+            on_kind<label>().should_say("Title");
+            all_kinds<button>().should_have_count(2);
+            expect(all_kinds<button>().count()).should_be(2);
+            all_kinds<button>().first().should_say("Save");
+            all_kinds<button>().last().should_say("Cancel");
+            all_kinds<button>().at(1).should_say("Cancel");
+            expect(on_text("Save").exists()).should_be(true);
+            expect(on_text("Gone").exists()).should_be(false);
+            expect(on_text("Save").words()).should_be("Save");
+        };
+
+        ui_test("from one widget to those around it") {
+            set_content {
+                column(modifier().tag("list")) {
+                    text("one");
+                    text("two");
+                    text("three");
+                };
+            };
+            on_tag("list").children().should_have_count(3);
+            on_tag("list").children().at(1).should_say("two");
+            expect(on_text("two").parent().matches().at(0).tag).should_be("list");
+            on_root().should_exist();
+        };
+
+        ui_test("a checkbox, a switch and a radio are on or off") {
+            agreed := gui.state(0);
+            wifi := gui.state(1);
+            size := gui.state(1);
+            set_content {
+                column {
+                    checkbox("I agree", agreed, modifier().tag("agree"));
+                    toggle(wifi, modifier().tag("wifi"));
+                    radio("Small", size, 1, modifier().tag("small"));
+                    radio("Large", size, 2, modifier().tag("large"));
+                };
+            };
+            on_tag("agree").should_be_off().click().should_be_on();
+            expect(agreed.value).should_be(1);
+            on_tag("wifi").should_be_on().click().should_be_off();
+            on_tag("small").should_be_selected();
+            on_tag("large").should_be_off().click().should_be_on();
+            on_tag("small").should_be_off();
+            on_text("I agree").should_be_on();
+        };
+
+        ui_test("typing into a field, replacing and clearing") {
+            name := gui.state("");
+            set_content {
+                column {
+                    text_field(name, modifier().tag("name").width(300)).label("Your name");
+                    text("Hello " + name.value, modifier().tag("greeting"));
+                };
+            };
+            on_tag("name").type("Ann").should_say("Ann").should_be_focused();
+            expect(name.value).should_be("Ann");
+            on_tag("greeting").should_say("Hello Ann");
+            on_tag("name").type("a").should_say("Anna");
+            on_tag("name").replace("Bob").should_say("Bob");
+            on_tag("greeting").should_say("Hello Bob");
+            on_tag("name").clear().should_say("");
+            on_text("Your name").should_exist();
+        };
+
+        ui_test("what is taken away is not there; what is hidden is there and not seen") {
+            there := gui.state(1);
+            set_content {
+                column {
+                    text("sometimes", modifier().tag("gone").show(there.value));
+                    text("unseen", modifier().tag("hidden").visible(0));
+                    button("Take away", modifier().tag("take")) { there.value = 0; };
+                };
+            };
+            on_tag("gone").should_exist().should_be_shown();
+            on_tag("hidden").should_exist().should_be_hidden();
+            expect(on_tag("hidden").is_shown()).should_be(false);
+            on_tag("take").click();
+            on_tag("gone").should_not_exist().should_be_hidden();
+        };
+
+        ui_test("a long click and a double click") {
+            held := gui.state(0);
+            twice := gui.state(0);
+            plain := gui.state(0);
+            set_content {
+                column {
+                    text("press me", modifier().tag("target")
+                            .click { plain.value = plain.value + 1; }
+                            .long_press { held.value = held.value + 1; }
+                            .double_click { twice.value = twice.value + 1; });
+                };
+            };
+            on_tag("target").click();
+            expect(plain.value).should_be(1);
+            on_tag("target").click();
+            expect(plain.value).should_be(2);
+            expect(twice.value).should_be(0);
+            on_tag("target").long_click();
+            expect(held.value).should_be(1);
+            expect(plain.value).should_be(2);
+            on_tag("target").double_click();
+            expect(twice.value).should_be(1);
+        };
+
+        ui_test("time stands still until the test moves it") {
+            done := gui.state(0);
+            set_content {
+                column {
+                    text(done.value == 1 ? "finished" : "working", modifier().tag("status"));
+                    button("Start", modifier().tag("start")) { gui.after(2) { done.value = 1; }; };
+                };
+            };
+            on_tag("start").click();
+            on_tag("status").should_say("working");
+            advance(1);
+            on_tag("status").should_say("working");
+            advance(1.5);
+            on_tag("status").should_say("finished");
+        };
+
+        ui_test("wait_until lets time pass until something is so") {
+            done := gui.state(0);
+            set_content {
+                column {
+                    text(done.value == 1 ? "finished" : "working", modifier().tag("status"));
+                    button("Start", modifier().tag("start")) { gui.after(0.7) { done.value = 1; }; };
+                };
+            };
+            on_tag("start").click();
+            wait_until { return on_text("finished").exists(); };
+            on_tag("status").should_say("finished");
+        };
+
+        ui_test("scrolling to a widget that is out of sight") {
+            picked := gui.state(0);
+            set_content {
+                scroll(modifier().fill()) {
+                    column {
+                        for(i : _int64 = 0; i < 60; i++) {
+                            text("row " + i, modifier().height(40));
+                        }
+                        button("At the bottom", modifier().tag("bottom")) { picked.value = 1; };
+                    };
+                };
+            };
+            on_tag("bottom").should_exist().should_be_hidden();
+            expect(fails({ -> on_tag("bottom").click(); })).should_be(true);
+            on_tag("bottom").scroll_to().should_be_shown().click();
+            expect(picked.value).should_be(1);
+            on_text("row 0").should_be_hidden();
+        };
+
+        ui_test("a dialog shields the page, and back closes it") {
+            open := gui.state(0);
+            behind := gui.state(0);
+            set_content {
+                column(modifier().fill()) {
+                    button("Open", modifier().tag("open")) { open.value = 1; };
+                    button("Behind", modifier().tag("behind").fill()) { behind.value = 1; };
+                    dialog(open) {
+                        text("Are you sure?");
+                        button("Yes", modifier().tag("yes")) { open.value = 0; };
+                    };
+                };
+            };
+            on_tag("yes").should_not_exist();
+            on_tag("open").click();
+            on_text("Are you sure?").should_be_shown();
+            expect(fails({ -> on_tag("behind").click(); })).should_be(true);
+            expect(behind.value).should_be(0);
+            back();
+            expect(open.value).should_be(0);
+            on_tag("open").click();
+            on_tag("yes").click();
+            expect(open.value).should_be(0);
+            on_tag("behind").click();
+            expect(behind.value).should_be(1);
+        };
+
+        ui_test("a slider and a progress bar stand at a number") {
+            volume := gui.state(0.25);
+            set_content {
+                column {
+                    slider(volume, 0, 1, modifier().tag("volume").width(200));
+                    progress(0.5, modifier().tag("done"));
+                };
+            };
+            on_tag("volume").should_have_value(0.25);
+            on_tag("done").should_have_value(0.5);
+            on_tag("volume").click();
+            on_tag("volume").should_have_value(0.5);
+        };
+
+        ui_test("finders put together: inside another, and of those the ones that fit") {
+            removed := gui.state(0);
+            set_content {
+                column(modifier().tag("list")) {
+                    for(i : _int64 = 0; i < 3; i++) {
+                        item_row(i, removed);
+                    }
+                    button("Save", modifier().tag("save")) { };
+                };
+            };
+            all_text("Delete").should_have_count(3);
+            on_tag("row_1").on_text("Delete").click();
+            expect(removed.value).should_be(2);
+            on_tag("row_2").on_kind<button>().click();
+            expect(removed.value).should_be(3);
+            on_tag("list").all_kinds<button>().should_have_count(4);
+            on_tag("row_0").all_kinds<button>().should_have_count(1);
+            all_kinds<button>().with_text("Save").should_have_count(1);
+            all_kinds<button>().with_text("Delete").should_have_count(3);
+            all_kinds<button>().with_tag("save").first().should_say("Save");
+            all_tags("save").of_kind<button>().should_have_count(1);
+            all_tags("save").of_kind<label>().should_have_count(0);
+            on_tag("list").children().of_kind<row>().should_have_count(3);
+            on_tag("row_0").on_text("item 0").should_exist();
+            on_tag("row_0").on_text("item 1").should_not_exist();
+            all_tags("list").first().on_tag("row_2").on_text("item 2").should_be_shown();
+            expect(fails({ -> on_tag("list").on_text("Delete").click(); })).should_be(true);     // three of them: which?
+        };
+
+        ui_test("a row of a long list is not there until the list is scrolled to it") {
+            picked := gui.state(0 - 1);
+            set_content {
+                lazy_column(modifier().fill().tag("inbox")) {
+                    items(500) { i: _int64 ->
+                        text("mail " + i, modifier().tag("mail_" + i).height(40).click { picked.value = i; });
+                    };
+                };
+            };
+            on_tag("mail_0").should_be_shown();
+            on_tag("mail_300").should_not_exist();
+            on_tag("inbox").scroll_to(on_tag("mail_300"));
+            on_tag("mail_300").should_be_shown().click();
+            expect(picked.value).should_be(300);
+            on_tag("mail_0").should_not_exist();
+            on_tag("inbox").scroll_to(on_tag("mail_2"));
+            on_tag("mail_2").should_be_shown();
+            on_tag("inbox").scroll_to_end();
+            on_tag("mail_499").should_be_shown();
+            on_tag("inbox").scroll_to_start();
+            on_tag("mail_0").should_be_shown();
+            on_tag("inbox").scroll_down(4);
+            on_tag("mail_0").should_be_hidden();
+            on_tag("inbox").scroll_up(4);
+            on_tag("mail_0").should_be_shown();
+            expect(fails({ -> on_tag("inbox").scroll_to(on_tag("mail_9999")); })).should_be(true);
+        };
+
+        ui_test("a check of what is painted needs a real window, and says so") {
+            set_content {
+                column { text("x", modifier().tag("x")); };
+            };
+            expect_throws<illegal_state_exception>() { on_tag("x").should_have_color(gui.rgb(255, 0, 0)); };
+            expect_throws<illegal_state_exception>() { on_tag("x").should_have_color_at(1, 1, gui.rgb(255, 0, 0)); };
+            expect_throws<illegal_state_exception>() { on_tag("x").color_at(1, 1); };
+        };
+
+        ui_test("a toast and a tooltip are not widgets: they have checks of their own") {
+            set_content {
+                column {
+                    button("Save", modifier().tag("save").tooltip("Save the file")) { gui.toast("Saved"); };
+                };
+            };
+            should_show_no_toast();
+            should_show_no_tooltip();
+            on_tag("save").click();
+            should_show_toast("Saved");
+            on_text("Saved").should_not_exist();
+            expect(fails({ -> should_show_toast("Deleted"); })).should_be(true);
+            expect(fails({ -> should_show_no_toast(); })).should_be(true);
+            advance(20);
+            should_show_no_toast();
+
+            on_tag("save").hover();
+            should_show_no_tooltip();
+            advance(1);
+            should_show_tooltip("Save the file");
+            expect(fails({ -> should_show_tooltip("Something else"); })).should_be(true);
+            expect(fails({ -> should_show_no_tooltip(); })).should_be(true);
+        };
+
+        ui_test("keys with Shift held, and narrowing by what a widget is right now") {
+            first := gui.state("");
+            second := gui.state("");
+            one := gui.state(1);
+            two := gui.state(0);
+            set_content {
+                column {
+                    text_field(first, modifier().tag("first").width(200));
+                    text_field(second, modifier().tag("second").width(200));
+                    checkbox("one", one, modifier().tag("one"));
+                    checkbox("two", two, modifier().tag("two"));
+                    button("Off", modifier().tag("off").enable(0)) { };
+                };
+            };
+            on_tag("first").press(KEY_TAB);
+            on_tag("second").should_be_focused();
+            on_tag("second").press(KEY_TAB, MOD_SHIFT);
+            on_tag("first").should_be_focused();
+
+            all_kinds<checkbox>().that_are_on().should_have_count(1);
+            all_kinds<checkbox>().that_are_on().first().should_say("one");
+            all_kinds<checkbox>().that_are_off().first().should_say("two");
+            all_kinds<button>().that_are_disabled().should_have_count(1);
+            all_kinds<button>().that_are_enabled().should_have_count(0);
+            all_kinds<checkbox>().that_are_shown().should_have_count(2);
+            on_tag("two").click();
+            all_kinds<checkbox>().that_are_on().should_have_count(2);
+            all_kinds<checkbox>().that_are_off().should_have_count(0);
+        };
+
+        ui_test("a failure names the class that was looked for") {
+            set_content {
+                column {
+                    button("A") { };
+                    button("B") { };
+                };
+            };
+            said : string = "";
+            try {
+                on_kind<button>().click();
+            } catch(e: test_failure) {
+                said = e.get_message();
+            }
+            expect(said.find("2 widgets fit the kind `button`")).should_be(true);
+        };
+
+        ui_test("the size of the screen") {
+            set_content {
+                column(modifier().fill().tag("page")) { text("x"); };
+            };
+            expect(on_tag("page").view_now("test").w).should_be(960);
+            screen_size(400, 700);
+            expect(on_tag("page").view_now("test").w).should_be(400);
+            expect(on_tag("page").view_now("test").h).should_be(700);
+            screen_size(960, 640);
+        };
+
+        ui_test("checks that do not hold fail the test") {
+            on := gui.state(0);
+            set_content {
+                column {
+                    text("Hello", modifier().tag("hello"));
+                    text("Hello", modifier().tag("again"));
+                    checkbox("Tick", on, modifier().tag("tick"));
+                };
+            };
+            expect(fails({ -> on_tag("hello").should_say("Goodbye"); })).should_be(true);
+            expect(fails({ -> on_tag("missing").should_exist(); })).should_be(true);
+            expect(fails({ -> on_tag("missing").click(); })).should_be(true);
+            expect(fails({ -> on_tag("hello").should_not_exist(); })).should_be(true);
+            expect(fails({ -> on_text("Hello").click(); })).should_be(true);            // two widgets say it
+            expect(fails({ -> on_tag("tick").should_be_on(); })).should_be(true);
+            expect(fails({ -> on_tag("hello").should_be_on(); })).should_be(true);       // a text is not on or off
+            expect(fails({ -> on_tag("hello").type("x"); })).should_be(true);            // nor something to type into
+            expect(fails({ -> all_text("Hello").should_have_count(3); })).should_be(true);
+            expect(fails({ -> on_tag("hello").should_have_value(1); })).should_be(true);
+            expect(fails({ -> wait_until(0.2) { return false; }; })).should_be(true);
+            expect(fails({ -> on_tag("hello").should_say("Hello"); })).should_be(false);
+        };
+
+        ui_test("a failure says what the screen held") {
+            set_content {
+                column { text("Hello", modifier().tag("hello")); };
+            };
+            said : string = "";
+            try {
+                on_tag("hello").should_say("Goodbye");
+            } catch(e: test_failure) {
+                said = e.get_message();
+            }
+            expect(said.find("says \"Hello\"")).should_be(true);
+            expect(said.find("tag `hello`")).should_be(true);
+            expect(said.find("column")).should_be(true);
+        };
+
+        test("without a screen, the words say that one is needed") {
+            test_screen.close();
+            expect(fails({ -> on_tag("x").click(); })).should_be(true);
+        };
+    };
+    finish_tests("lib_guikit_ui_test");
+}

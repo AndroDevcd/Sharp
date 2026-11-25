@@ -1,0 +1,96 @@
+mod std.guikit;
+
+import (
+    std,
+    std.guikit.platform
+)
+
+/**
+ * sound - sound the program makes itself: no sound files. A few VOICES, set up
+ * once, go on by themselves and together make a place sound alive.
+ *
+ *      sound.rumble(140).volume(0.35);                         // the deep sea, always there
+ *      sound.hum(55).volume(0.12);                             // a low note under it
+ *      sound.chime(520).every(5, 14).volume(0.15);             // a bell-like note, now and then
+ *      sound.call(190, 110, 3.5).every(16, 40).volume(0.2);    // a whale, far off
+ *      sound.pops(900).every(0.4, 2.5).volume(0.08);           // bubbles
+ *
+ *      sound.mute(true);       // silence (the voices go on, unheard);  sound.clear() takes them all away
+ *
+ * THE VOICES
+ *
+ *      hum(pitch)              a steady note with a slow swell
+ *      rumble(depth)           deep noise that swells and fades: the sea, wind, an engine far off.
+ *                              `depth` is how high it reaches: 80 is a tremor, 300 is surf
+ *      chime(pitch)            a note that rings out like a bell, each time one of five notes
+ *                              that sound well together in any order
+ *      call(from, to, seconds) a note that glides from one pitch to another: a whale, a siren
+ *      pops(pitch)             short rising blips: bubbles, drips
+ *
+ * A pitch is in turns of the wave a second (Hz): 110 is a low A, 440 the A an orchestra tunes to.
+ *
+ * Set them up ONCE - when the app starts, not in build(), which runs again and
+ * again. A machine without sound stays silent; nothing fails.
+ * (Web Audio: OscillatorNode, BiquadFilterNode and GainNode wired by hand.)
+ */
+stable class sound {
+    static def hum(pitch: decimal) : voice {
+        return new voice(sound_voice(0, pitch, pitch, 1));
+    }
+
+    static def rumble(depth: decimal) : voice {
+        return new voice(sound_voice(1, depth, depth, 1));
+    }
+
+    /** rings for about three seconds; ring(seconds) on the voice changes that */
+    static def chime(pitch: decimal) : voice {
+        return new voice(sound_voice(2, pitch, pitch, 3));
+    }
+
+    static def call(from: decimal, to: decimal, seconds: decimal) : voice {
+        return new voice(sound_voice(3, from, to, seconds));
+    }
+
+    static def pops(pitch: decimal) : voice {
+        made := new voice(sound_voice(4, pitch, pitch, 1));
+        return made.every(0.5, 3);
+    }
+
+    /** true: nothing is heard (the voices go on); false: heard again */
+    static def mute(on: bool) {
+        sound_mute(on ? 1 : 0);
+    }
+
+    /** take every voice away */
+    static def clear() {
+        sound_clear();
+    }
+}
+
+/** one voice of the program's sound (sound.hum(...), sound.chime(...) ...) */
+stable class voice {
+    private id : _int64 = 0;
+    private loud : decimal = 0.2;
+    private rest_least : decimal = 0;
+    private rest_most : decimal = 0;
+
+    voice(made: _int64) {
+        id = made;
+        sound_set(id, loud, rest_least, rest_most);
+    }
+
+    /** how loud: 0 silent, 1 as loud as it goes (a few voices together want 0.1 .. 0.4 each) */
+    def volume(level: decimal) : voice {
+        loud = level;
+        sound_set(id, loud, rest_least, rest_most);
+        return self;
+    }
+
+    /** it rests between soundings: at least `least` seconds, at most `most`, a different time every time */
+    def every(least: decimal, most: decimal) : voice {
+        rest_least = least;
+        rest_most = most;
+        sound_set(id, loud, rest_least, rest_most);
+        return self;
+    }
+}

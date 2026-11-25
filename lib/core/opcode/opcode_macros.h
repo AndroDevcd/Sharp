@@ -397,7 +397,8 @@ require( \
             &&DCEIL, \
             &&DABS, \
             &&DMATH, \
-            &&DMATH_S \
+            &&DMATH_S, \
+            &&WDIV \
         };
 
 #endif //SHARP_OPCODE_MACROS_H

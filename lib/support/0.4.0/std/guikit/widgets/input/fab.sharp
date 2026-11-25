@@ -21,7 +21,7 @@ import (
  * into a pill.
  * (Android / Compose: FloatingActionButton, ExtendedFloatingActionButton.)
  */
-stable class fab base widget : behavior {
+stable class fab base widget : behavior, shows_words {
     private words : string = "";
 
     private static const SIZE : decimal = 56;       // across, and the height of the pill
@@ -41,6 +41,9 @@ stable class fab base widget : behavior {
     }
 
     override def kind() : string { return "fab"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
 
     /** the font of the words: a single sign ("+") is drawn large, words at the ordinary size */
     private def face() : font {

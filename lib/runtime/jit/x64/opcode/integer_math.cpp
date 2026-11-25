@@ -63,6 +63,24 @@ emit_result X64Generator::emit_integer_math() {
             return emitted;
         }
 
+        case Opcode::WDIV: {    // regs[c] = vm_quotient(regs[a], regs[b])   (raises on 0)
+            Label zero = a.newLabel(), done = a.newLabel();
+            a.emit(x86::Inst::kIdMov, rcx, vm_register(triple2));
+            a.emit(x86::Inst::kIdMov, rax, vm_register(triple1));
+            divide_for_quotient(zero);
+            store_vm_register(triple3, rax);
+            a.jmp(done);
+            a.bind(zero);                       // a divisor of 0: the runtime raises
+            prepare_runtime_call();
+            a.mov(rdi, vm_register_in_memory(triple1));
+            a.mov(rsi, vm_register_in_memory(triple2));
+            call_runtime_checked(reinterpret_cast<void*>(jit_rt_quotient));
+            load_vm_registers();
+            store_vm_register(triple3, rax);
+            a.bind(done);
+            return emitted;
+        }
+
         case Opcode::IADD:      // regs[a] += b
             a.emit(x86::Inst::kIdAdd, vm_register(single), Imm(raw));
             return emitted;

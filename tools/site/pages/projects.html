@@ -1,0 +1,71 @@
+<div class="proj">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Projects</p>
+      <h1>One folder, one command.</h1>
+      <p>A project is a folder with a <code>settings.json</code> and your code in <code>src</code>. The compiler finds the files itself.</p>
+    </div>
+
+    <div class="pair">
+      <div class="col">
+        <h2>Project layout</h2>
+        <p>Sharpcraft, a small block-building game written in Sharp. Each file names its module with a <code>mod</code> line.</p>
+        <div class="code"><pre>sharpcraft/
+  settings.json
+  src/
+    main.sharp              <span class="c">mod app</span>
+    game/game.sharp         <span class="c">mod craft.game</span>
+    world/blocks.sharp      <span class="c">mod craft.world</span>
+    world/noise.sharp       <span class="c">mod craft.world</span>
+    player/walker.sharp     <span class="c">mod craft.player</span>
+    items/pockets.sharp     <span class="c">mod craft.items</span>
+    ui/hud.sharp            <span class="c">mod craft.ui</span>
+  build/
+    outputs/sharpcraft      <span class="c">the built program</span></pre></div>
+      </div>
+      <div class="col">
+        <h2>settings.json</h2>
+        <p>The project's configuration.</p>
+        <div class="code"><pre>{
+  <span class="k">"name"</span>: <span class="s">"sharpcraft"</span>,
+  <span class="k">"version"</span>: <span class="s">"1.0"</span>,
+  <span class="k">"output"</span>: <span class="s">"sharpcraft"</span>,
+  <span class="k">"ignore_folders"</span>: [ <span class="s">"build"</span> ]
+}</pre></div>
+        <dl class="keys">
+          <dt>output</dt><dd>the program's name, written to <code>build/outputs</code></dd>
+          <dt>ignore_folders</dt><dd>folders the compiler should skip</dd>
+          <dt>optimize_level</dt><dd>turn the optimizer on for every build</dd>
+          <dt>extern_lib</dt><dd>extra Sharp libraries to include</dd>
+          <dt>c_libraries</dt><dd>where to find the C libraries you call</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="col">
+        <h2>Build and run</h2>
+        <p>Build with <code>sharpc -p</code>, then run the program.</p>
+        <div class="code"><pre>$ cd sharpcraft
+$ sharpc -p
+$ sharp build/outputs/sharpcraft</pre></div>
+      </div>
+      <div class="col">
+        <h2>Importing modules</h2>
+        <p>Import a module to use its code.</p>
+        <div class="code"><pre class="sharp">mod app;
+
+import (
+    std,
+    std.guikit.*,
+    craft.game
+)
+
+def main(args: string[]) {
+    game := new sharpcraft();
+    gui.run("Sharpcraft", 1280, 720, game);
+}</pre></div>
+      </div>
+    </div>
+  </div>
+</div>

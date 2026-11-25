@@ -1,0 +1,78 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.guikit.*
+)
+
+/**
+ * water - the water a scene is in, when the eye is under its surface. Made
+ * with underwater(shallow, deep) inside a scene; every setting has a value
+ * already, so underwater(...) alone is a sea.
+ *
+ *      scene {
+ *          underwater(0x35C6D0FF, 0x0A2E4AFF)
+ *              .surface(40)            // how high the surface is above y = 0
+ *              .sight(70)              // how many metres one sees through it
+ *              .caustics(0.8)          // the moving net of light on things: 0 none, 1 strong
+ *              .light_shafts(0.6);     // the beams slanting down from the surface: 0 none, 1 strong
+ *          sun().from(0.3, 1, 0.2).shadows(80);
+ *          ...
+ *      }
+ *
+ * WHAT IT DOES TO THE PICTURE
+ *
+ *      colour      a thing loses its own colour with distance and takes the
+ *                  water's: bright towards the surface, `deep` looking down
+ *      the surface seen from below, rippling, brightest straight overhead
+ *      caustics    the surface's ripples focus the sun into bright lines that
+ *                  wander over everything the sun reaches, fainter with depth
+ *      shafts      beams of light from the surface down the sun's slant
+ *
+ * The same water serves a lake, a flooded cave or a pool: the colours and the
+ * sight decide which. (Godot: an Environment with volumetric fog and a water
+ * shader. three.js: FogExp2 and a hand-written caustics pass.)
+ */
+stable class water {
+    shallow : _int64 = 0x35C6D0FF;      // its colour near the surface
+    deep : _int64 = 0x0A2E4AFF;         // ... and in the deep
+    top : decimal = 40;                 // the height of the surface
+    seen_to : decimal = 70;             // metres one sees through it
+    ripple_light : decimal = 0.7;       // caustics, 0 .. 1
+    shafts : decimal = 0.5;             // light shafts, 0 .. 1
+
+    water(near_surface: _int64, below: _int64) {
+        shallow = near_surface;
+        deep = below;
+    }
+
+    /** how high the surface is */
+    def surface(height: decimal) : water {
+        top = height;
+        return changed();
+    }
+
+    /** how many metres one sees through the water: 15 is murky, 70 clear, 150 a tropical sea */
+    def sight(metres: decimal) : water {
+        if(metres < 1) { metres = 1; }
+        seen_to = metres;
+        return changed();
+    }
+
+    /** the moving light on things: 0 none, 1 strong */
+    def caustics(strength: decimal) : water {
+        ripple_light = strength;
+        return changed();
+    }
+
+    /** the beams of light from the surface: 0 none, 1 strong */
+    def light_shafts(strength: decimal) : water {
+        shafts = strength;
+        return changed();
+    }
+
+    private def changed() : water {
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+}

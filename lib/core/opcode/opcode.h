@@ -327,6 +327,9 @@ public:
     //                          number (sqrt, floor, ceil and abs are numbers too: 0xe, 0x10, 0xf, 0x11).
     //                          The compiler writes this one; the four above are for `asm` blocks.
     static const uint8_t DMATH_S      = 0xf6;
+    //      WDIV a, b, c        regs[c] = regs[a] / regs[b] on whole numbers: the quotient, toward zero
+    //                          (-7 / 2 is -3). A divisor of 0 raises invalid_operation_exception.
+    static const uint8_t WDIV         = 0xf7;
 
     enum instr_class {
         E_CLASS,

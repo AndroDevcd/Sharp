@@ -29,7 +29,7 @@ import (
  * lines are kept for paint(). Measuring text is not free, so the result is
  * remembered for the width it was made for.
  */
-stable class label base widget : behavior {
+stable class label base widget : behavior, shows_words {
     private words : string = "";
     private pixels : decimal = 0;                   // 0: the theme's text size
     private tint : color?;                          // null: the theme's text colour
@@ -100,6 +100,9 @@ stable class label base widget : behavior {
     }
 
     override def kind() : string { return "label"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         f : font = face();

@@ -25,7 +25,7 @@ import (
  * the choice. (Compose: RadioButton(selected, onClick), with the selection
  * hoisted the same way. Android: RadioGroup + RadioButton.)
  */
-stable class radio base widget : behavior {
+stable class radio base widget : behavior, shows_words, on_or_off {
     private words : string = "";
     private caption : view?;                // the caption built from widgets (the block form); null: the words are painted
     private bound : state<_int64>;
@@ -52,6 +52,11 @@ stable class radio base widget : behavior {
     }
 
     override def kind() : string { return "radio"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
+    /** is it the one chosen? */
+    override def is_on() : bool { return bound.value == mine; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         host := ui_host.current!!;

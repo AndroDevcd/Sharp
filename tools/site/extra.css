@@ -1,0 +1,50 @@
+/* ---- the library's pages (made by build_site.py) */
+.lib aside { position: sticky; top: 64px; max-height: calc(100vh - 80px); overflow-y: auto; }
+.lib .mods li { padding: 0; }
+.lib .mods li a { display: block; padding: 4px 10px; color: inherit; text-decoration: none; }
+.lib .mods li.sub a { padding-left: 24px; }
+.lib .mods li a:hover { color: var(--ink); }
+.lib .found { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); background: var(--surface); max-height: 360px; overflow-y: auto; }
+.lib .found li a { display: flex; flex-direction: column; padding: 7px 10px; text-decoration: none; color: var(--ink); border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 13px; }
+.lib .found li a span { font-family: var(--body); font-size: 12px; color: var(--muted); }
+.lib .found li a:hover { background: var(--accent-soft); }
+.lib .crumbs a { color: inherit; }
+.lib .contents { display: flex; flex-wrap: wrap; gap: 6px 14px; font-family: var(--mono); font-size: 13.5px; }
+.lib .type { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 3px solid var(--ink); scroll-margin-top: 70px; }
+.lib .type h2 { border: 0; padding: 0; font-size: 26px; }
+.lib .type h2 .kind { font: 500 14px var(--mono); color: var(--muted); }
+.lib .type h3 { font-size: 15px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
+.lib .type p { color: var(--muted); max-width: 72ch; }
+.lib .type .meta { font-size: 13px; }
+.lib .type .meta code, .lib p code, .lib td code { font-size: 13px; }
+.lib p code { background: var(--accent-soft); color: var(--ink); padding: 1px 5px; }
+.lib .fn { scroll-margin-top: 70px; }
+.lib .fn .code, .lib .type > .code { max-width: 100%; }
+.lib .scroll { overflow-x: auto; }
+.lib table.fields { border-collapse: collapse; font-size: 14px; width: 100%; }
+.lib table.fields td { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+.lib table.fields td:first-child code { color: var(--ink); font-weight: 600; }
+.modgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.modcard { display: flex; flex-direction: column; gap: 4px; padding: 14px; background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--ink); min-width: 0; }
+.modcard:hover { border-color: var(--accent); }
+.modcard b { font-family: var(--mono); font-size: 14.5px; }
+.modcard span { font-size: 12.5px; color: var(--muted); }
+.modcard .names { font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+footer a { color: inherit; }
+@media (max-width: 860px) { .lib aside { position: static; max-height: none; } }
+.lib .wrap { grid-template-columns: 270px minmax(0, 1fr); }
+.lib .mods li a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+@media (max-width: 860px) { .lib .wrap { grid-template-columns: minmax(0, 1fr); } }
+.lib h2.inside { border: 0; padding: 0; font-size: 15px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* ---- the guide and the sdb guide (made from Markdown by build_site.py) */
+.guide main { gap: 16px; }
+.guide main > p, .guide main li { max-width: 72ch; color: var(--muted); }
+.guide main h2 { margin-top: 14px; }
+.guide main h3 { font-size: 17px; font-weight: 700; margin-top: 8px; }
+.guide main h4 { font-size: 15px; font-weight: 700; }
+.guide main code { font-size: 13.5px; }
+.guide main p code, .guide main li code, .guide main td code { background: var(--accent-soft); color: var(--ink); padding: 1px 5px; }
+.guide .wrap.one { grid-template-columns: minmax(0, 1fr); max-width: 900px; }
+.guide .mods li a { white-space: normal; }
+.lib .mods li.on a { color: var(--ink); }

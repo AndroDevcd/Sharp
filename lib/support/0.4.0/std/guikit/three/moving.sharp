@@ -1,0 +1,171 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * flock - many copies of one thing that move together, round the place the
+ * flock stands at: a school of fish, a flight of birds, gnats over a pond.
+ *
+ *      school := flock(fish, 300).at(80, 12, 90).spread(9).speed(3);
+ *
+ * Each goes round the middle at its own distance, nose first, the inner ones
+ * quicker, rising and sinking a little as it goes. The flock itself is a
+ * thing: move it, bob it, send it round a circle (circling) and all of them
+ * go along. The copies cost what a scatter's do - one shape on the card.
+ *
+ * (Give it a thing whose nose points along -z, as a thing's "forward" is.)
+ */
+class flock base thing {
+    original : thing;               // the thing they are copies of
+    wanted : _int64 = 0;
+    reach : decimal = 6;            // how far from the middle the outermost swim
+    tall : decimal = 0.35;          // how high the flock is, against its width
+    private placed : bool = false;
+
+    private static keys : list<string> = new list<string>();
+    private static ids : list<long> = new list<long>();
+
+    flock(of: thing, how_many: _int64) {
+        stage.adopt(self);
+        original = of;
+        wanted = how_many;
+        if(of.parent != null) { of.parent!!.remove(of); }       // the original is the pattern, not one more
+        tinted = of.tinted;
+        picture = of.picture;
+        shine = of.shine;
+        light = of.light;
+        flock_speed = 2;
+    }
+
+    /** how far from the middle the outermost swim, in metres */
+    def spread(metres: decimal) : flock {
+        reach = metres;
+        placed = false;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    /** how fast they go, in metres a second (below 0: the other way round) */
+    def speed(metres_a_second: decimal) : flock {
+        flock_speed = metres_a_second;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    /** where each starts: the scene asks for this before it is shown */
+    def place_all() {
+        // (a thing made from a mesh has its shape on the graphics card only from now on)
+        if(original.shape != null) { original.model = original.shape!!.ready(); }
+        model = original.model;
+        if(placed || wanted <= 0) { return; }
+        placed = true;
+        key : string = "" + wanted + " " + reach + " " + tall + " " + model;
+        for(i : _int64 = 0; i < keys.size(); i++) {
+            if(keys.at(i) == key) { copies = ids.at(i).value; return; }
+        }
+        places := new decimal[wanted * 5];
+        for(i : _int64 = 0; i < wanted; i++) {
+            // (more of them towards the middle, none right at it)
+            far : decimal = reach * (0.18 + 0.82 * sqrt(flock_chance(i * 3.1)));
+            turn : decimal = flock_chance(i * 7.7 + 1) * PI_VALUE * 2;
+            places[i * 5] = cos(turn) * far;
+            places[i * 5 + 1] = (flock_chance(i * 5.3 + 2) - 0.5) * 2 * reach * tall;
+            places[i * 5 + 2] = sin(turn) * far;
+            places[i * 5 + 3] = 0;
+            places[i * 5 + 4] = 0.75 + 0.5 * flock_chance(i * 1.9 + 3);
+        }
+        copies = g3_copies(places, wanted);
+        keys.add(key);
+        ids.add(new long(copies));
+    }
+
+    // ---- a thing's own settings again, handing back a `flock`: so that they chain in any order -
+    //      flock(...).at(1, 2, 3).spread(9) - until Sharp has a way to say "returns what it was called on"
+    def at(px: decimal, py: decimal, pz: decimal) : flock { x = px; y = py; z = pz; thing.changes = thing.changes + 1; return self; }
+    def turn(degrees: decimal) : flock { heading = degrees; thing.changes = thing.changes + 1; return self; }
+    def color(packed: _int64) : flock { tinted = packed; thing.changes = thing.changes + 1; return self; }
+    def glow(amount: decimal) : flock { light = amount; thing.changes = thing.changes + 1; return self; }
+    def sway(amount: decimal) : flock { sway_amount = amount; thing.changes = thing.changes + 1; return self; }
+    def rough(amount: decimal) : flock { roughness = amount; thing.changes = thing.changes + 1; return self; }
+    def no_shadow() : flock { shadowless = true; thing.changes = thing.changes + 1; return self; }
+    def circling(radius: decimal, seconds: decimal) : flock { circle_radius = radius; circle_seconds = seconds; thing.changes = thing.changes + 1; return self; }
+}
+
+/**
+ * motes - small things adrift all round the eye: specks of light, bubbles,
+ * snow, dust in a sunbeam, fireflies. There are always `count` of them near
+ * the eye, however far it goes: one that drifts out of reach comes back in on
+ * the other side.
+ *
+ *      motes(1500).color(0xE8D36AFF).size(0.03);               // glowing specks
+ *      motes(300).bubbles().rising(0.8).size(0.06);            // bubbles going up
+ *      motes(4000).rising(0 - 1.5).size(0.02).color(0xFFFFFFFF);   // snow
+ *
+ * Under water none is shown above the surface, and they fade into the water
+ * with distance like everything else.
+ */
+class motes base thing {
+    motes(how_many: _int64) {
+        stage.adopt(self);
+        mote_count = how_many;
+        size_x = 0.03;          // how large one is
+        size_y = 40;            // the box round the eye they are in
+        size_z = 0.4;           // how far one wanders about its path
+        light = 1;
+    }
+
+    /** how large one is, in metres (they vary a little) */
+    def size(metres: decimal) : motes {
+        size_x = metres;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    /** how far from the eye they reach, in metres */
+    def within(metres: decimal) : motes {
+        size_y = metres * 2;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    /** drifting up at so many metres a second (below 0: falling) */
+    def rising(metres_a_second: decimal) : motes {
+        bob_height = metres_a_second;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    /** how far one wanders about as it goes, in metres */
+    def wander(metres: decimal) : motes {
+        size_z = metres;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    /** bubbles: a bright rim and a glint, instead of a soft speck */
+    def bubbles() : motes {
+        bubble_look = true;
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    // ---- a thing's own settings again, handing back a `motes`: so that they chain in any order -
+    //      motes(...).at(1, 2, 3).size(0.03) - until Sharp has a way to say "returns what it was called on"
+    def at(px: decimal, py: decimal, pz: decimal) : motes { x = px; y = py; z = pz; thing.changes = thing.changes + 1; return self; }
+    def turn(degrees: decimal) : motes { heading = degrees; thing.changes = thing.changes + 1; return self; }
+    def color(packed: _int64) : motes { tinted = packed; thing.changes = thing.changes + 1; return self; }
+    def glow(amount: decimal) : motes { light = amount; thing.changes = thing.changes + 1; return self; }
+    def sway(amount: decimal) : motes { sway_amount = amount; thing.changes = thing.changes + 1; return self; }
+    def rough(amount: decimal) : motes { roughness = amount; thing.changes = thing.changes + 1; return self; }
+    def no_shadow() : motes { shadowless = true; thing.changes = thing.changes + 1; return self; }
+    def circling(radius: decimal, seconds: decimal) : motes { circle_radius = radius; circle_seconds = seconds; thing.changes = thing.changes + 1; return self; }
+}
+
+local def flock_chance(n: decimal) : decimal {
+    v : decimal = sin(n * 12.9898 + 1.7) * 43758.5453;
+    return v - floor(v);
+}

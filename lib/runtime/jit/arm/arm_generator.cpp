@@ -150,7 +150,7 @@ void ArmGenerator::pick_local_homes() {
             case Opcode::CALL: case Opcode::CALLD: case Opcode::INVOKE_DELEGATE: case Opcode::INT:
             case Opcode::NEWCLASS: case Opcode::NEWARRAY: case Opcode::NEWOBJARRAY: case Opcode::NEWCLASSARRAY:
             case Opcode::NEWSTRING: case Opcode::CAST: case Opcode::VARCAST: case Opcode::IS:
-            case Opcode::MOD: case Opcode::IMOD:
+            case Opcode::MOD: case Opcode::IMOD: case Opcode::WDIV:
                 reloads += now;
                 break;
             // a number written through sp or the fiber's stack at a place the instruction names
@@ -432,6 +432,13 @@ void ArmGenerator::local_operation_with_constant(VOp how, Int local, int64_t val
 void ArmGenerator::remainder_into_v0() {
     prepare_runtime_call();
     call_checked(reinterpret_cast<void*>(jit_rt_remainder), { Arg::value(V0), Arg::value(V1) });
+    m.result_to_value(V0);
+}
+
+/** V0 = vm_quotient(V0, V1): the runtime does it (it raises on a zero divisor) */
+void ArmGenerator::quotient_into_v0() {
+    prepare_runtime_call();
+    call_checked(reinterpret_cast<void*>(jit_rt_quotient), { Arg::value(V0), Arg::value(V1) });
     m.result_to_value(V0);
 }
 

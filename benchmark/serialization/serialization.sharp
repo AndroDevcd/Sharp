@@ -1,0 +1,215 @@
+mod main;
+
+import ( std, std.io, std.export )
+
+/**
+ * HOW FAST IS serialize / deserialize (std.export)?
+ *
+ *      bash test.sh try benchmark/serialization/serialization.sharp
+ *
+ * Each line is one kind of data, picked so that one cost stands out:
+ *
+ *      bytes       one array of 8 million bytes            how fast plain bytes are copied
+ *      decimals    one array of a million decimals         ... and numbers of 8 bytes
+ *      strings     200 000 short strings                   many small arrays of bytes, each an object
+ *      boxes       300 000 number boxes (int)              many tiny objects: the price of one object
+ *      records     150 000 records with a string, numbers  what a program really stores
+ *                  and an address each
+ *      kinds       160 000 objects of 16 classes           the price of finding a class
+ *      shared      100 000 places that share 1 000 objects references to objects already written
+ *
+ * For each: the size of the data, the best time of five to write it and to
+ * read it back, and megabytes a second. The data read back is checked against
+ * the original (a wrong answer is said, and counts as a failure).
+ *
+ * Keep the output of a run next to a change to serialization.cpp: the numbers
+ * are only worth something as a before and an after on the same machine.
+ */
+
+class byte_holder { data : _int8[]; }
+class decimal_holder { data : decimal[]; }
+class string_holder { data : string[]; }
+class box_holder { data : int[]; }
+
+class address {
+    street : string = "";
+    number : decimal = 0;
+}
+
+class record {
+    name : string = "";
+    age : decimal = 0;
+    height : decimal = 0;
+    balance : decimal = 0;
+    home : address;
+    tags : decimal[];
+}
+class record_holder { data : record[]; }
+
+class kind0 { v : decimal = 0; }
+class kind1 { v : decimal = 0; }
+class kind2 { v : decimal = 0; }
+class kind3 { v : decimal = 0; }
+class kind4 { v : decimal = 0; }
+class kind5 { v : decimal = 0; }
+class kind6 { v : decimal = 0; }
+class kind7 { v : decimal = 0; }
+class kind8 { v : decimal = 0; }
+class kind9 { v : decimal = 0; }
+class kind10 { v : decimal = 0; }
+class kind11 { v : decimal = 0; }
+class kind12 { v : decimal = 0; }
+class kind13 { v : decimal = 0; }
+class kind14 { v : decimal = 0; }
+class kind15 { v : decimal = 0; }
+class kind_holder { data : object[]; }
+
+class shared_holder { data : address[]; }
+
+failures : _int64 = 0;
+
+def a_kind(n: _int64, v: decimal) : object {
+    which : _int64 = n % 16;
+    if(which == 0) { made := new kind0(); made.v = v; return made; }
+    if(which == 1) { made := new kind1(); made.v = v; return made; }
+    if(which == 2) { made := new kind2(); made.v = v; return made; }
+    if(which == 3) { made := new kind3(); made.v = v; return made; }
+    if(which == 4) { made := new kind4(); made.v = v; return made; }
+    if(which == 5) { made := new kind5(); made.v = v; return made; }
+    if(which == 6) { made := new kind6(); made.v = v; return made; }
+    if(which == 7) { made := new kind7(); made.v = v; return made; }
+    if(which == 8) { made := new kind8(); made.v = v; return made; }
+    if(which == 9) { made := new kind9(); made.v = v; return made; }
+    if(which == 10) { made := new kind10(); made.v = v; return made; }
+    if(which == 11) { made := new kind11(); made.v = v; return made; }
+    if(which == 12) { made := new kind12(); made.v = v; return made; }
+    if(which == 13) { made := new kind13(); made.v = v; return made; }
+    if(which == 14) { made := new kind14(); made.v = v; return made; }
+    made := new kind15();
+    made.v = v;
+    return made;
+}
+
+/** a number with two places after the point, as text */
+def two_places(v: decimal) : string {
+    whole : _int64 = v as _int64;
+    part : _int64 = ((v - whole) * 100) as _int64;
+    return "" + whole + "." + (part < 10 ? "0" : "") + part;
+}
+
+/**
+ * Write `what` five times and read it back five times; say the best of each.
+ * Returns what was read back the last time, for the caller to check.
+ */
+def measure(name: string, what: object) : object {
+    best_write : decimal = 1000000000000;
+    best_read : decimal = 1000000000000;
+    text : string = "";
+    back : object = what;
+    for(round : _int64 = 0; round < 5; round++) {
+        start : decimal = nano_time().value;
+        bytes := serialize(what);
+        took : decimal = nano_time().value - start;
+        if(took > 0 && took < best_write) { best_write = took; }       // (above 0: the clock has been seen to step back)
+        text = bytes.to_string();
+
+        start = nano_time().value;
+        back = deserialize(text);
+        took = nano_time().value - start;
+        if(took > 0 && took < best_read) { best_read = took; }
+    }
+    megabytes : decimal = text.size() / 1048576.0;
+    println(name + "   " + two_places(megabytes) + " MB   write " + two_places(best_write / 1000000) + " ms  ("
+            + two_places(megabytes / (best_write / 1000000000)) + " MB/s)   read " + two_places(best_read / 1000000) + " ms  ("
+            + two_places(megabytes / (best_read / 1000000000)) + " MB/s)");
+    return back;
+}
+
+def check(name: string, right: bool) {
+    if(!right) {
+        println("    WRONG: " + name + " came back different");
+        failures = failures + 1;
+    }
+}
+
+def main(args: string[]) {
+    // ---- bytes
+    bytes := new byte_holder();
+    bytes.data = new _int8[8000000];
+    for(i : _int64 = 0; i < 8000000; i++) { bytes.data[i] = (i * 7) % 120; }
+    bytes_back := measure("bytes   ", bytes) as byte_holder;
+    check("bytes", sizeof(bytes_back.data) == 8000000 && bytes_back.data[7654321] == bytes.data[7654321] && bytes_back.data[0] == bytes.data[0]);
+
+    // ---- decimals
+    decimals := new decimal_holder();
+    decimals.data = new decimal[1000000];
+    for(i : _int64 = 0; i < 1000000; i++) { decimals.data[i] = i * 1.5 - 300000; }
+    decimals_back := measure("decimals", decimals) as decimal_holder;
+    check("decimals", sizeof(decimals_back.data) == 1000000 && decimals_back.data[999999] == decimals.data[999999] && decimals_back.data[3] == 0 - 299995.5);
+
+    // ---- strings
+    strings := new string_holder();
+    strings.data = new string[200000];
+    for(i : _int64 = 0; i < 200000; i++) { strings.data[i] = "customer number " + i; }
+    strings_back := measure("strings ", strings) as string_holder;
+    check("strings", sizeof(strings_back.data) == 200000 && strings_back.data[123456] == "customer number 123456" && strings_back.data[0] == "customer number 0");
+
+    // ---- boxes
+    boxes := new box_holder();
+    boxes.data = new int[300000];
+    for(i : _int64 = 0; i < 300000; i++) { boxes.data[i] = new int(i); }
+    boxes_back := measure("boxes   ", boxes) as box_holder;
+    check("boxes", sizeof(boxes_back.data) == 300000 && boxes_back.data[299999].value == 299999 && boxes_back.data[17].value == 17);
+
+    // ---- records
+    records := new record_holder();
+    records.data = new record[150000];
+    for(i : _int64 = 0; i < 150000; i++) {
+        one := new record();
+        one.name = "person " + i;
+        one.age = 20 + i % 60;
+        one.height = 1.5 + (i % 50) / 100.0;
+        one.balance = i * 3.25;
+        one.home = new address();
+        one.home.street = "street " + (i % 900);
+        one.home.number = i % 200;
+        one.tags = new decimal[4];
+        one.tags[0] = i;
+        one.tags[3] = 0 - i;
+        records.data[i] = one;
+    }
+    records_back := measure("records ", records) as record_holder;
+    last := records_back.data[149999];
+    check("records", sizeof(records_back.data) == 150000 && last.name == "person 149999" && last.balance == 149999 * 3.25
+            && last.home.street == "street " + (149999 % 900) && last.tags[3] == 0 - 149999 && records_back.data[5].age == 25);
+
+    // ---- kinds
+    kinds := new kind_holder();
+    kinds.data = new object[160000];
+    for(i : _int64 = 0; i < 160000; i++) { kinds.data[i] = a_kind(i, i * 2); }
+    kinds_back := measure("kinds   ", kinds) as kind_holder;
+    check("kinds", sizeof(kinds_back.data) == 160000 && (kinds_back.data[159999] as kind15).v == 159999 * 2
+            && (kinds_back.data[3] as kind3).v == 6);
+
+    // ---- shared
+    shared := new shared_holder();
+    shared.data = new address[100000];
+    few := new address[1000];
+    for(i : _int64 = 0; i < 1000; i++) {
+        few[i] = new address();
+        few[i].street = "shared street " + i;
+        few[i].number = i;
+    }
+    for(i : _int64 = 0; i < 100000; i++) { shared.data[i] = few[i % 1000]; }
+    shared_back := measure("shared  ", shared) as shared_holder;
+    // (the same object again where it was the same object before, and not a copy of it)
+    shared_back.data[5].number = 4242;
+    check("shared", sizeof(shared_back.data) == 100000 && shared_back.data[1005].number == 4242
+            && shared_back.data[99999].street == "shared street 999" && shared_back.data[6].number == 6);
+
+    if(failures > 0) {
+        println("FAILED: " + failures + " came back wrong");
+    } else {
+        println("all of it came back right");
+    }
+}

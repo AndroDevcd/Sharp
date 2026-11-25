@@ -33,14 +33,29 @@ import (
  * `operator=` that takes it, that function is called on the object the
  * target holds:
  *
- *      text : string = "a";
- *      text = "b";             text.operator=("b") - the string changes its contents
+ *      count : int = 1;
+ *      count = 2;              count.operator=(2) - the number box changes its contents
  *
  * - unless the target may hold no object (it is nullable, or an item of an
  * array, which starts out null): then a new object is built from the value
  * when a constructor takes it, and stored (`names[1] = "one"` stores
  * `new string("one")`). Without `operator=` a value that only fits through a
  * constructor is built and stored too - the one rule of 7.5.4.
+ *
+ * A STRING IS THE EXCEPTION: it is always stored, never written into.
+ *
+ *      a : string = "one";
+ *      b : string = a;         // b and a are the same string object
+ *      a = "two";              // a is a NEW string; b is still "one"
+ *
+ * Quoted text is an array of bytes, not a string object, so `a = "two"` used
+ * to be `a.operator=("two")`: the bytes were copied into the object a held -
+ * and b, holding the same object, read "two" as well. `a = a + "!"` and
+ * `a = other` did not do that (a string was assigned: the variable was
+ * pointed at it). Two assignments that look the same did opposite things, and
+ * no other language lets `b` follow a plain `a = ...`. Now every assignment
+ * to a string variable points it at a string; the one that changes a string
+ * for everybody who holds it is `+=`.
  *
  *      E0711   the target is not a place that holds a value
  *      E0713   a property's setter takes the field's type, but the value only fits through
@@ -93,7 +108,9 @@ def assign_operator_call(context: analysis_context, node: _int64, storage: bound
     if(chosen == null) { return null; }
 
     may_hold_nothing : _int64 = storage.type.is_nullable == 1 || storage.kind == BX_INDEX;
-    if(may_hold_nothing == 1) {
+    // A STRING IS STORED, never written into (see the top of this file): `text = "b"` is `text = new string("b")`.
+    is_string : _int64 = context.session.known.string_class != null && storage.type.class_of == context.session.known.string_class;
+    if(may_hold_nothing == 1 || is_string == 1) {
         built := conversion_by_construction(context.session, value.type, storage.type);
         if(built != null && built!!.function != null) {
             return new bound_assign(context.unit, node, storage, apply_conversion(context, value, built!!));

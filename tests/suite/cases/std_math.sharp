@@ -51,7 +51,7 @@ def main(args: string[]) {
         test("pow(2, 0.5)") { expect(pow(2, 0.5)).should_be_near(1.4142135623730951, tolerance); };
         test("pow(10, -2)") { expect(pow(10, 0 - 2)).should_be_near(0.01, tolerance); };
         test("pow(1.5, 3)") { expect(pow(1.5, 3)).should_be_near(3.375, tolerance); };
-        test("pow(27, 1/3)") { expect(pow(27, 1 / 3)).should_be_near(3, tolerance); };
+        test("pow(27, 1/3)") { expect(pow(27, 1.0 / 3)).should_be_near(3, tolerance); };
 
         // ---- exp
         test("exp(0)") { expect(exp(0)).should_be(1); };

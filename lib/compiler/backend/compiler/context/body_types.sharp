@@ -99,10 +99,20 @@ def give_local_alias_its_target(context: analysis_context, written: sharp_type) 
  * The function whose type parameters a type name may mean. For an instance
  * of a generic function that is the function as written: its `T` objects are
  * the ones the environment has answers for.
+ *
+ * Inside a lambda it is the function the lambda is written in (however many
+ * lambdas deep): a lambda has no type parameters of its own, and the `T` in
+ *
+ *      def checker<T>() : (animal)(bool) { return { a: animal -> return a is T; }; }
+ *
+ * is the T of `checker`. (Asked of the lambda itself, the name found the T of
+ * the INSTANCE - checker<dog>'s own copy - which the environment has no
+ * answer for: the type stayed `T` and the generator had no code for it.)
  */
 def blueprint_function_of(context: analysis_context) : sharp_function? {
     if(context.function == null) { return null; }
     function : sharp_function = context.function!!;
+    while(function.is_lambda == 1 && function.enclosing != null) { function = function.enclosing!!; }
     if(function.blueprint != null) { return function.blueprint; }
     return function;
 }

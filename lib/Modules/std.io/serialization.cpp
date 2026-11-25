@@ -1,676 +1,627 @@
+//
+// SERIALIZATION: an object, and everything it refers to, as bytes - and back.     (std.export)
+//
+//      bytes := serialize(order);                      // Sharp
+//      copy := deserialize(bytes.to_string()) as order;
+//
+// THE BYTES
+//
+//      START  VERSION
+//      the classes:  how many, then for each: its hash (4 bytes), how many fields an instance has
+//                    (4 bytes), the length of its name (1 byte), its name
+//      the first object - and inside it, where each reference is, the object it refers to
+//      END
+//
+// An object is one byte that says what it is, then:
+//
+//      NOTHING       null
+//      SEEN          an object that was written before: its number
+//      NUMBERS       a number array (a string's characters, a decimal[] ...): the element type (1 byte),
+//                    how many, then the elements exactly as they lie in memory
+//      OBJECTS       an object[]: how many, then each element
+//      INSTANCE      a class instance: which class (its place in the list above), then each field in
+//                    order: a number field as its 8 bytes, a reference field as an object
+//      INSTANCES     an array of a class: which class, how many, then each element
+//
+// "How many", "which class" and "its number" are whole numbers written short: 7 bits to a byte, the
+// eighth saying that another byte follows (so anything below 128 is one byte).
+//
+// AN OBJECT'S NUMBER is not written: the first object written is 0, the next 1, and so on, and the
+// reader counts the same way as it builds them. SEEN is how two fields that hold the SAME object come
+// back holding the same object, and how objects that refer to each other in a circle end.
+//
+// FIELDS have no names or numbers in the bytes either: they are written in the order the class has
+// them, instance fields only (static fields belong to the class, not to an object). What keeps the
+// reader and the writer in step is the list of classes: a class is found again by its hash, and its
+// name and its number of fields must match - a program whose class changed refuses the old bytes
+// instead of reading them wrongly.
+//
+// WHY IT IS FAST
+//
+//  - Number arrays, and so every string, are copied as one block (memcpy), not a byte at a time.
+//  - "Was this object written before?" is asked of a table made for exactly that (seen_before): one
+//    multiplication and, nearly always, one look, into a table of 4 bytes an object.
+//  - A class is looked up in its list by its place among the program's classes, not searched for.
+//  - Nothing is written that the reader can work out: no object numbers, no sizes of 4 bytes where
+//    1 will do, no mark in front of every number field.
+//  - The bytes are built in one buffer and copied once into the array that is handed back.
+//  - Reading stores each new object into its owner without the lock a store of unknown ownership
+//    takes (put_into).
+//  - No function calls itself: the objects still to be finished are kept in a list (writing,
+//    reading). A chain of a million objects - a long linked list - needs a longer list, not a
+//    deeper stack, so it cannot overflow the thread's stack.
+//
+// (benchmark/serialization measures all of it:  bash test.sh try benchmark/serialization/serialization.sharp)
+//
 #include "serialization.h"
-#include "../../util/linked_list.h"
 #include "../../runtime/memory/memory_helpers.h"
 #include "../../runtime/memory/garbage_collector.h"
-#include "../../core/exe_macros.h"
 #include "../../runtime/virtual_machine.h"
-#include "../../util/KeyPair.h"
 #include "../../runtime/error/vm_exception.h"
 #include "../../runtime/reflect/reflect_helpers.h"
 #include "../../runtime/types/sharp_field.h"
-#include "../../runtime/memory/garbage_collector.h"
 #include <climits>
-#include <unordered_map>
+#include <cstring>
 #include <vector>
 
-// Thread-local serialization state
 namespace {
-    // Use hash map for faster object lookups (O(1) instead of O(n))
-    thread_local std::unordered_map<sharp_object*, Int> objectMap;
-    thread_local std::vector<sharp_object*> objectVector;
-    thread_local serialized_classes_t serializedClasses;
+    // what the first two bytes are. (The format before this one began with 0x3b.)
+    constexpr unsigned char START = 0x3c;
+    constexpr unsigned char VERSION = 2;
+    constexpr unsigned char OLD_START = 0x3b;
+    constexpr unsigned char END = 0x3d;
 
-    // Pre-allocated buffers
-    thread_local serialize_buffer_t header;
-    thread_local serialize_buffer_t body;
-    thread_local deserialize_buffer_t dBuffer;
+    // what an object is
+    constexpr unsigned char NOTHING = 0x08;
+    constexpr unsigned char SEEN = 0x0f;
+    constexpr unsigned char NUMBERS = 0x3a;
+    constexpr unsigned char OBJECTS = 0x09;
+    constexpr unsigned char INSTANCE = 0x1a;
+    constexpr unsigned char INSTANCES = 0x1b;
 
-    // Reusable byte arrays
-    thread_local unsigned char doubleBytes[sizeof(vm_cell)];
-    thread_local unsigned char _64Bytes[sizeof(int64_t)];
-    thread_local unsigned char _16Bytes[sizeof(int16_t)];
+    // =============================================================================================
+    // writing
+    // =============================================================================================
 
-    // Global counter
-    thread_local Int guidCounter = OBJECT_ID_START;
+    // the bytes written so far. Kept from one call to the next (a program that serializes often
+    // does not ask for memory each time), unless it grew very large (give_back).
+    struct out_buffer {
+        char *at = nullptr;
+        Int size = 0;       // bytes there is room for
+        Int used = 0;       // bytes written
+    };
+    thread_local out_buffer body;           // the objects
+    thread_local out_buffer head;           // START, VERSION and the classes: known only when the objects are written
 
-    // Constants for initial buffer sizes
-    constexpr Int INITIAL_HEADER_SIZE = KB_TO_BYTES(4);
-    constexpr Int INITIAL_BODY_SIZE = KB_TO_BYTES(16);
-    constexpr Int INITIAL_OBJECT_CAPACITY = 256;
-}
+    void room_for(out_buffer &b, Int more) {
+        if(b.used + more <= b.size) return;
+        Int larger = b.size == 0 ? KB_TO_BYTES(16) : b.size * 2;
+        while(larger < b.used + more) larger *= 2;
+        b.at = b.at == nullptr ? malloc_mem<char>(larger) : realloc_mem<char>(b.at, larger, b.size);
+        b.size = larger;
+    }
 
-// Fast buffer allocation with exponential growth
-CXX11_INLINE void ensure_buffer_capacity(serialize_buffer_t& buffer, Int requiredSpace) {
-    if (buffer.pos + requiredSpace >= buffer.size) {
-        Int newSize = buffer.size == 0 ?
-                      (&buffer == &header ? INITIAL_HEADER_SIZE : INITIAL_BODY_SIZE) :
-                      buffer.size * 2;
+    inline void put_byte(out_buffer &b, unsigned char value) {
+        if(b.used == b.size) room_for(b, 1);
+        b.at[b.used++] = (char) value;
+    }
 
-        if (buffer.buf == nullptr) {
-            buffer.buf = malloc_mem<char>(sizeof(char) * newSize);
-            buffer.size = newSize;
-        } else {
-            buffer.buf = realloc_mem<char>(buffer.buf,
-                                           sizeof(char) * newSize,
-                                           sizeof(char) * buffer.size);
-            buffer.size = newSize;
+    // a whole number, short: 7 bits to a byte, the lowest first, the eighth bit set on all but the last
+    inline void put_count(out_buffer &b, uint32_t value) {
+        if(b.used + 5 > b.size) room_for(b, 5);
+        while(value >= 0x80) {
+            b.at[b.used++] = (char) (value | 0x80);
+            value >>= 7;
+        }
+        b.at[b.used++] = (char) value;
+    }
+
+    inline void put_bytes(out_buffer &b, const void *from, Int count) {
+        if(b.used + count > b.size) room_for(b, count);
+        memcpy(b.at + b.used, from, (size_t) count);
+        b.used += count;
+    }
+
+    // 4 bytes, the lowest first, on every machine
+    inline void put_int32(out_buffer &b, uint32_t value) {
+        unsigned char four[4] = { (unsigned char) value, (unsigned char) (value >> 8), (unsigned char) (value >> 16), (unsigned char) (value >> 24) };
+        put_bytes(b, four, 4);
+    }
+
+    // a buffer that grew to a large part of what the program may use is handed back; a small one is kept
+    void give_back(out_buffer &b) {
+        if(b.at != nullptr && b.size >= (Int) (gc.memoryLimit * 0.3)) {
+            std::free(b.at);
+            release_bytes((size_t) b.size);
+            b = out_buffer();
         }
     }
-}
 
-// Reset state between serialization operations
-void reset_serialization_state() {
-    objectMap.clear();
-    objectVector.clear();
-    guidCounter = OBJECT_ID_START;
+    // ---- THE OBJECTS WRITTEN SO FAR, and the number of each.
+    //
+    // `order` is the objects in the order they were written: an object's number is its place in it.
+    //
+    // `seen` finds an object's number from its address. It is a table of numbers (each one more
+    // than the object's, so that 0 is "empty"): the place to look first is worked out from the
+    // address (place_for), and when another object's number is there the next place is tried, and
+    // the next. It is kept at most half full, so the first look is nearly always the right one.
+    //
+    // An entry is 4 bytes - not the address and the number, 16 - because the table is what a large
+    // call spends its time in: a million objects are a table far larger than the processor's cache,
+    // and every look into it waits for memory. A quarter of the size is far fewer waits.
+    //
+    // Every call starts with a small table and makes it larger as objects come (grow_seen), so a
+    // small object after a large one does not pay for clearing a large table. The memory itself is
+    // kept from call to call unless it grew very large (end_seen).
+    thread_local std::vector<sharp_object*> order;
+    thread_local uint32_t *seen = nullptr;
+    thread_local uint32_t seen_room = 0;        // how many entries the memory at `seen` holds
+    thread_local uint32_t seen_size = 0;        // how many of them this call uses: a power of two
 
-    // Don't clear buffers, just reset position
-    header.pos = -1;
-    body.pos = -1;
-}
+    constexpr uint32_t SEEN_FIRST = 1024;           // the table a call starts with
+    constexpr uint32_t SEEN_KEPT = 1u << 20;        // memory for more entries than this (4 MB) is handed back after the call
 
-// Clean up resources when done
-void clean_serialization_resources() {
-    if (header.size >= (gc.memoryLimit * 0.3)) {
-        std::free(header.buf);
-        header.buf = nullptr;
-        release_bytes(sizeof(char) * header.size);
-        header.size = 0;
+    inline uint32_t place_for(const sharp_object *o) {
+        // (objects are 16 bytes apart at least: the low bits say nothing. The multiplication spreads
+        //  the rest over the table.)
+        return (uint32_t) ((((uint64_t) (uintptr_t) o >> 4) * 0x9E3779B97F4A7C15ull) >> 32) & (seen_size - 1);
     }
 
-    if (body.size >= (gc.memoryLimit * 0.3)) {
-        std::free(body.buf);
-        body.buf = nullptr;
-        release_bytes(sizeof(char) * body.size);
-        body.size = 0;
+    // a table of `size` entries, empty, with every object written so far put into it again
+    void size_seen(uint32_t size) {
+        if(size > seen_room) {
+            if(seen != nullptr) {
+                std::free(seen);
+                release_bytes((size_t) seen_room * sizeof(uint32_t));
+            }
+            seen = malloc_mem<uint32_t>((uInt) size * sizeof(uint32_t));
+            seen_room = size;
+        }
+        seen_size = size;
+        memset(seen, 0, (size_t) size * sizeof(uint32_t));
+        const uint32_t count = (uint32_t) order.size();
+        for(uint32_t i = 0; i < count; i++) {
+            uint32_t at = place_for(order[i]);
+            while(seen[at] != 0) at = (at + 1) & (seen_size - 1);
+            seen[at] = i + 1;
+        }
     }
 
-    objectMap.clear();
-    objectVector.clear();
-}
-
-// Inline push functions for better performance
-CXX11_INLINE void push_byte(serialize_buffer_t& buffer, char data) {
-    if ((buffer.pos + 1) >= buffer.size) {
-        ensure_buffer_capacity(buffer, 1);
-    }
-    buffer.buf[++buffer.pos] = data;
-}
-
-CXX11_INLINE void push_int32(serialize_buffer_t& buffer, int32_t data) {
-    if ((buffer.pos + 4) >= buffer.size) {
-        ensure_buffer_capacity(buffer, 4);
-    }
-    buffer.buf[++buffer.pos] = GET_i32w(data);
-    buffer.buf[++buffer.pos] = GET_i32x(data);
-    buffer.buf[++buffer.pos] = GET_i32y(data);
-    buffer.buf[++buffer.pos] = GET_i32z(data);
-}
-
-// Template function for pushing any primitive type
-template<typename T>
-CXX11_INLINE void push_primitive(serialize_buffer_t& buffer, T data) {
-    if ((buffer.pos + sizeof(T)) >= buffer.size) {
-        ensure_buffer_capacity(buffer, sizeof(T));
+    // Was `o` written before? Yes: its number. No: it gets the next number, and is remembered.
+    inline bool seen_before(sharp_object *o, uint32_t &number) {
+        if((order.size() + 1) * 2 > seen_size) size_seen(seen_size * 2);
+        uint32_t at = place_for(o);
+        while(true) {
+            uint32_t there = seen[at];
+            if(there == 0) {
+                number = (uint32_t) order.size();
+                order.push_back(o);
+                seen[at] = number + 1;
+                return false;
+            }
+            if(order[there - 1] == o) {
+                number = there - 1;
+                return true;
+            }
+            at = (at + 1) & (seen_size - 1);
+        }
     }
 
-    const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&data);
-    for (size_t i = 0; i < sizeof(T); i++) {
-        buffer.buf[++buffer.pos] = bytes[i];
-    }
-}
-
-// Initialize serialization data structures
-void init_serialization() {
-    // Pre-allocate buffers if needed
-    if (header.buf == nullptr && header.size == 0) {
-        header.buf = malloc_mem<char>(INITIAL_HEADER_SIZE);
-        header.size = INITIAL_HEADER_SIZE;
+    void begin_seen() {
+        order.clear();
+        size_seen(SEEN_FIRST);
     }
 
-    if (body.buf == nullptr && body.size == 0) {
-        body.buf = malloc_mem<char>(INITIAL_BODY_SIZE);
-        body.size = INITIAL_BODY_SIZE;
+    void end_seen() {
+        order.clear();
+        if(seen_room > SEEN_KEPT) {
+            std::free(seen);
+            release_bytes((size_t) seen_room * sizeof(uint32_t));
+            seen = nullptr;
+            seen_room = 0;
+            seen_size = 0;
+        }
     }
 
-    // Pre-allocate object vector capacity
-    objectVector.reserve(INITIAL_OBJECT_CAPACITY);
+    // ---- THE CLASSES of the objects written, in the order they were first met. An instance says
+    // which class it is by its place in this list.
+    thread_local std::vector<sharp_class*> listed;
+    thread_local std::vector<uint32_t> listed_in;       // for every class of the program: the call that listed it last ...
+    thread_local std::vector<uint32_t> listed_at;       // ... and its place in the list then
+    thread_local uint32_t this_call = 0;                // which call to serialize() this is (never 0)
 
-    // Initialize serialized classes
-    if (serializedClasses.serialized == nullptr) {
-        serializedClasses.serialized = malloc_mem<sharp_class*>(vm.mf.classes * sizeof(sharp_class*));
-        serializedClasses.size = vm.mf.classes;
+    void begin_listed() {
+        listed.clear();
+        this_call++;
+        if(listed_in.size() != (size_t) vm.mf.classes || this_call == 0) {
+            // (the first call - or, four thousand million calls later, the count starting again)
+            listed_in.assign((size_t) vm.mf.classes, 0);
+            listed_at.assign((size_t) vm.mf.classes, 0);
+            this_call = 1;
+        }
     }
-    serializedClasses.count = 0;
-}
 
-// Add a class to the serialized classes list
-void add_serialized_class(sharp_class* sc) {
-    for (Int i = 0; i < serializedClasses.count; i++) {
-        if (sc->hash == serializedClasses.serialized[i]->hash) {
+    inline uint32_t place_of(sharp_class *klass) {
+        size_t which = (size_t) (klass - vm.classes);
+        if(listed_in[which] != this_call) {
+            listed_in[which] = this_call;
+            listed_at[which] = (uint32_t) listed.size();
+            listed.push_back(klass);
+        }
+        return listed_at[which];
+    }
+
+    // an object whose fields or elements are being written: `next` is the one that comes next
+    struct write_step {
+        sharp_object *o;
+        uint32_t next;
+        const bool *numbers;        // which of its slots are number fields (null: none)
+    };
+    thread_local std::vector<write_step> writing;
+
+    // Write what `o` is. When it has fields or elements they are NOT written here: it is put on
+    // `writing`, and write_all() goes through them.
+    void write_object(sharp_object *o) {
+        if(o == nullptr) {
+            put_byte(body, NOTHING);
             return;
         }
-    }
-
-    if (serializedClasses.count >= serializedClasses.size) {
-        throw vm_exception("internal error: failed to add serialized class to buffer.");
-    }
-
-    serializedClasses.serialized[serializedClasses.count++] = sc;
-}
-
-// Push class section to the header buffer
-void push_class_section() {
-    push_byte(header, CLASS_SECTION_BEGIN);
-    push_int32(header, serializedClasses.count);
-
-    for (Int i = 0; i < serializedClasses.count; i++) {
-        auto klass = serializedClasses.serialized[i];
-        push_int32(header, klass->hash);
-        push_int32(header, klass->instanceFields);
-
-        if (klass->fullName.size() <= SCHAR_MAX) {
-            push_byte(header, klass->fullName.size());
-        } else {
-            throw vm_exception("serialized class name too long for `" + klass->fullName + "`");
+        uint32_t number;
+        if(seen_before(o, number)) {
+            put_byte(body, SEEN);
+            put_count(body, number);
+            return;
         }
 
-        const char* name = klass->fullName.c_str();
-        const size_t nameLen = klass->fullName.size();
-
-        // Ensure we have enough buffer space for the whole name
-        ensure_buffer_capacity(header, nameLen);
-
-        // Copy the entire name at once
-        for (size_t i = 0; i < nameLen; i++) {
-            header.buf[++header.pos] = name[i];
-        }
-    }
-
-    push_byte(header, CLASS_SECTION_END);
-}
-
-// Recursive function to serialize an object
-void serialize_object(sharp_object* o) {
-    if (o == nullptr) {
-        push_byte(body, NULL_OBJECT);
-        return;
-    }
-
-    // Check if we've already processed this object
-    auto it = objectMap.find(o);
-    if (it != objectMap.end()) {
-        // Reference to previously processed object
-        push_byte(body, REFERENCE_OBJECT);
-        push_int32(body, it->second);
-        return;
-    }
-
-    // Add to processed objects
-    Int id = guidCounter++;
-    objectMap[o] = id;
-    objectVector.push_back(o);
-
-    // Serialize based on object type
-    if (o->type == type_class) {
-        if (o->arrayFlag == 1) {
-            push_byte(body, CLASS_ARRAY_OBJECT);
-        } else {
-            push_byte(body, CLASS_OBJECT);
-        }
-
-        push_int32(body, id);
-
-        if (o->arrayFlag == 1) {
-            push_int32(body, o->size);
-        }
-
-        auto klass = vm.classes + CLASS(o->info);
-        push_int32(body, klass->hash);
-        add_serialized_class(klass);
-
-        // Pre-check buffer capacity for all elements
-        ensure_buffer_capacity(body, o->size * 9);  // a reference is at least 5 bytes, a number field 9
-
-        // An instance has number fields in some slots: those are written as
-        // the 8 bytes of the slot. (The class is checked by its hash when the
-        // data is read back, so both sides agree on which slots these are.)
-        const bool *numbers = number_slots_of(o);
-        for (Int i = 0; i < o->size; i++) {
-            if(numbers != nullptr && numbers[i]) {
-                push_byte(body, NUMBER_FIELD);
-                push_primitive<int64_t>(body, number_slot(o, i).i);
+        if(o->type == type_class) {
+            if(o->staticObject) throw vm_exception("cannot serialize static objects");
+            sharp_class *klass = vm.classes + CLASS(o->info);
+            if(o->arrayFlag) {
+                put_byte(body, INSTANCES);
+                put_count(body, place_of(klass));
+                put_count(body, o->size);
+                if(o->size > 0) writing.push_back({ o, 0, nullptr });
             } else {
-                serialize_object(o->node[i].o);
+                // (the reader builds an instance from its class: both must mean the same number of fields)
+                if((Int) o->size != klass->instanceFields) {
+                    throw vm_exception("cannot serialize an instance of `" + klass->fullName + "`: it does not have the fields of its class");
+                }
+                put_byte(body, INSTANCE);
+                put_count(body, place_of(klass));
+                if(o->size > 0) writing.push_back({ o, 0, number_slots_of(o) });
+            }
+        }
+        else if(o->type == type_object) {
+            put_byte(body, OBJECTS);
+            put_count(body, o->size);
+            if(o->size > 0) writing.push_back({ o, 0, nullptr });
+        }
+        else if(o->type <= type_var && o->type != type_unused_8) {
+            put_byte(body, NUMBERS);
+            put_byte(body, (unsigned char) o->type);
+            put_count(body, o->size);
+            put_bytes(body, o->data, (Int) o->size * element_size(o->type));
+        }
+        else {
+            throw vm_exception("invalid type found while serializing object");
+        }
+    }
+
+    void write_all(sharp_object *first) {
+        writing.clear();
+        write_object(first);
+        while(!writing.empty()) {
+            write_step &step = writing.back();
+            if(step.next == step.o->size) {
+                writing.pop_back();
+                continue;
+            }
+            uint32_t at = step.next++;
+            if(step.numbers != nullptr && step.numbers[at]) {
+                put_bytes(body, &number_slot(step.o, at).i, 8);
+            } else {
+                write_object(step.o->node[at].o);       // (may add to `writing`: `step` is not used after it)
             }
         }
     }
-    else if (o->type == type_object) {
-        push_byte(body, STANDARD_OBJECT);
-        push_int32(body, id);
-        push_int32(body, o->size);
 
-        // Pre-check buffer capacity
-        ensure_buffer_capacity(body, o->size * 5);
-
-        for (Int i = 0; i < o->size; i++) {
-            serialize_object(o->node[i].o);
+    void write_head() {
+        head.used = 0;
+        put_byte(head, START);
+        put_byte(head, VERSION);
+        put_count(head, (uint32_t) listed.size());
+        for(sharp_class *klass : listed) {
+            if(klass->fullName.size() > 255) {
+                throw vm_exception("serialized class name too long for `" + klass->fullName + "`");
+            }
+            put_int32(head, klass->hash);
+            put_int32(head, (uint32_t) klass->instanceFields);
+            put_byte(head, (unsigned char) klass->fullName.size());
+            put_bytes(head, klass->fullName.data(), (Int) klass->fullName.size());
         }
     }
-    else if (o->type <= type_var) {
-        push_byte(body, NUMERIC_OBJECT);
-        push_int32(body, id);
-        push_int32(body, o->size);
-        push_byte(body, o->type);
 
-        // Pre-allocate enough space for all primitive data
-        Int elementSize = 0;
-        switch (o->type) {
-            case type_var: elementSize = sizeof(double); break;
-            case type_function_ptr:
-            case type_int32:
-            case type_uint32: elementSize = sizeof(int32_t); break;
-            case type_int64:
-            case type_uint64: elementSize = sizeof(int64_t); break;
-            case type_int16:
-            case type_uint16: elementSize = sizeof(int16_t); break;
-            case type_int8:
-            case type_uint8: elementSize = 1; break;
-            default:
-                throw vm_exception("invalid numeric type found while serializing object");
-        }
+    // =============================================================================================
+    // reading
+    // =============================================================================================
 
-        ensure_buffer_capacity(body, o->size * elementSize);
+    struct in_buffer {
+        const unsigned char *at = nullptr;
+        Int size = 0;
+        Int pos = 0;        // the next byte to read
+    };
+    thread_local in_buffer in;
 
-        // Batch serialize primitive arrays
-        switch (o->type) {
-            case type_var: {
-                for (Int i = 0; i < o->size; i++) {
-                    push_primitive<double>(body, ((double*)o->data)[i]);    // a var[] holds decimals
-                }
-                return;
-            }
-            case type_function_ptr: {
-                for (Int i = 0; i < o->size; i++) {
-                    push_int32(body, (int32_t)integer_at(o, i));
-                }
-                return;
-            }
-            case type_int64:
-            case type_uint64: {
-                for (Int i = 0; i < o->size; i++) {
-                    push_primitive<int64_t>(body, (int64_t)integer_at(o, i));
-                }
-                return;
-            }
-            case type_int32:
-            case type_uint32: {
-                for (Int i = 0; i < o->size; i++) {
-                    push_int32(body, (int32_t)integer_at(o, i));
-                }
-                return;
-            }
-            case type_int16:
-            case type_uint16: {
-                for (Int i = 0; i < o->size; i++) {
-                    push_primitive<int16_t>(body, (int16_t)integer_at(o, i));
-                }
-                return;
-            }
-            case type_int8:
-            case type_uint8: {
-                for (Int i = 0; i < o->size; i++) {
-                    push_byte(body, (int8_t)integer_at(o, i));
-                }
-                return;
-            }
-            default:
-                throw vm_exception("invalid numeric type found while serializing object");
+    thread_local std::vector<sharp_object*> made;       // the objects built so far: an object's number is its place here
+
+    inline void need(Int count) {
+        if(count < 0 || in.pos + count > in.size) {
+            throw vm_exception("invalid format: unexpected end of deserialization buffer");
         }
     }
-    else {
-        throw vm_exception("invalid type found while serializing object");
+
+    inline unsigned char get_byte() {
+        need(1);
+        return in.at[in.pos++];
+    }
+
+    inline uint32_t get_count() {
+        uint32_t value = 0;
+        for(int shift = 0; shift < 35; shift += 7) {
+            unsigned char piece = get_byte();
+            value |= (uint32_t) (piece & 0x7f) << shift;
+            if((piece & 0x80) == 0) return value;
+        }
+        throw vm_exception("invalid format: a number in the deserialization buffer is too long");
+    }
+
+    inline uint32_t get_int32() {
+        need(4);
+        const unsigned char *four = in.at + in.pos;
+        in.pos += 4;
+        return (uint32_t) four[0] | ((uint32_t) four[1] << 8) | ((uint32_t) four[2] << 16) | ((uint32_t) four[3] << 24);
+    }
+
+    void read_classes() {
+        listed.clear();
+        uint32_t count = get_count();
+        for(uint32_t i = 0; i < count; i++) {
+            uint32_t hash = get_int32();
+            Int fields = (Int) get_int32();
+            Int name_size = get_byte();
+            need(name_size);
+            string name((const char*) in.at + in.pos, (size_t) name_size);
+            in.pos += name_size;
+
+            sharp_class *klass = locate_class_hashed(hash);
+            if(klass == nullptr) {
+                throw vm_exception("class not found: unable to locate serialized class `" + name + "`");
+            }
+            if(klass->fullName != name) {
+                throw vm_exception("hash mismatch: unexpected hash mismatch when trying to deserialize class `" + name + "`");
+            }
+            if(klass->instanceFields != fields) {
+                throw vm_exception("field count mismatch: mismatching field sizes found when trying to deserialize class `" + name + "`");
+            }
+            listed.push_back(klass);
+        }
+    }
+
+    // an object whose fields or elements are being read
+    struct read_step {
+        sharp_object *o;
+        uint32_t next;
+        uint32_t count;
+        sharp_class *klass;         // the class of an instance, or of the elements of an array of a class (null: an object[])
+        const bool *numbers;        // an instance: which of its slots are number fields
+        bool instance;
+    };
+    thread_local std::vector<read_step> reading;
+
+    // Put `value` into the slot `to` of the object `owner` (null: `to` is not a slot of an object -
+    // it is where the caller wants the first object).
+    //
+    // copy_object() is the store for code that does not know whose slot it has: it takes a lock and
+    // keeps the value alive through the next collection, every time. Here the owner IS known, and it
+    // was made a moment ago by this very call: storing into it is what the write barrier is for,
+    // and for an owner that is young - as a new object is - that is nothing at all. A million
+    // objects read back are a million locks not taken.
+    inline void put_into(object *to, sharp_object *owner, sharp_object *value) {
+        if(owner == nullptr) {
+            copy_object(to, value);
+        } else {
+            store_object(to, value);
+            write_barrier(owner, value, to);
+        }
+    }
+
+    // Read what comes next and put it into `to`, a slot of `owner` (put_into). `kind` is the type
+    // the place it goes into has (-1: any), `of` the class its elements must be (an array of a
+    // class). An object with fields or elements is built EMPTY and put on `reading`: read_all()
+    // fills it.
+    void read_object(object *to, sharp_object *owner, int kind, sharp_class *of) {
+        unsigned char what = get_byte();
+
+        if(what == NOTHING) {
+            put_into(to, owner, nullptr);
+        }
+        else if(what == SEEN) {
+            uint32_t number = get_count();
+            if(number >= made.size()) {
+                throw vm_exception("invalid object reference found in deserialization buffer");
+            }
+            sharp_object *o = made[number];
+            if(kind != -1 && o->type != kind) {
+                throw vm_exception("invalid type found when processing deserialization buffer`");
+            }
+            if(of != nullptr && !are_classes_related(vm.classes + CLASS(o->info), of)) {
+                throw vm_exception("type mismatch when deserializing buffer, expected class `" + of->fullName + "`");
+            }
+            put_into(to, owner, o);
+        }
+        else if(what == NUMBERS) {
+            int type = get_byte();
+            uint32_t size = get_count();
+            if(type > type_var || type == type_unused_8) {
+                throw vm_exception("invalid numeric type found while deserializing object");
+            }
+            if(kind != -1 && type != kind) {
+                throw vm_exception("invalid type found when processing deserialization buffer`");
+            }
+            if(of != nullptr) {
+                throw vm_exception("type mismatch when deserializing buffer, expected class `" + of->fullName + "` but number was found.");
+            }
+            Int bytes = (Int) size * element_size(type);
+            need(bytes);                                        // (before anything is made: bytes that lie cannot ask for memory)
+            sharp_object *o = create_object(size, (data_type) type);
+            made.push_back(o);
+            put_into(to, owner, o);
+            memcpy(o->data, in.at + in.pos, (size_t) bytes);
+            in.pos += bytes;
+        }
+        else if(what == OBJECTS) {
+            uint32_t size = get_count();
+            if(kind != -1 && kind <= type_var) {
+                throw vm_exception("invalid type found when processing deserialization buffer`");
+            }
+            need(size);                                         // (every element is a byte at least)
+            sharp_object *o = create_object((Int) size);
+            made.push_back(o);
+            put_into(to, owner, o);
+            if(size > 0) reading.push_back({ o, 0, size, nullptr, nullptr, false });
+        }
+        else if(what == INSTANCE || what == INSTANCES) {
+            uint32_t place = get_count();
+            if(place >= listed.size()) {
+                throw vm_exception("invalid class found in deserialization buffer");
+            }
+            sharp_class *klass = listed[place];
+            if(kind != -1 && kind != type_object && kind != type_class) {
+                throw vm_exception("invalid type found when processing deserialization buffer`");
+            }
+            if(of != nullptr && !are_classes_related(klass, of)) {
+                throw vm_exception("type mismatch when deserializing buffer, expected class `" + of->fullName + "` but class `" + klass->fullName + "` was found.");
+            }
+
+            if(what == INSTANCES) {
+                uint32_t size = get_count();
+                need(size);
+                sharp_object *o = create_object(klass, (Int) size);
+                made.push_back(o);
+                put_into(to, owner, o);
+                if(size > 0) reading.push_back({ o, 0, size, klass, nullptr, false });
+            } else {
+                sharp_object *o = create_object(klass);
+                made.push_back(o);
+                put_into(to, owner, o);
+                if(klass->instanceFields > 0) {
+                    reading.push_back({ o, 0, (uint32_t) klass->instanceFields, klass, number_slots_of(o), true });
+                }
+            }
+        }
+        else {
+            throw vm_exception("unexpected data found in deserialization buffer");
+        }
+    }
+
+    void read_all(object *first) {
+        reading.clear();
+        made.clear();
+        read_object(first, nullptr, -1, nullptr);
+        while(!reading.empty()) {
+            read_step step = reading.back();        // (a copy: read_object may add to `reading`)
+            if(step.next == step.count) {
+                reading.pop_back();
+                continue;
+            }
+            reading.back().next++;
+            uint32_t at = step.next;
+            if(step.instance) {
+                if(step.numbers != nullptr && step.numbers[at]) {
+                    need(8);
+                    memcpy(&number_slot(step.o, at).i, in.at + in.pos, 8);
+                    in.pos += 8;
+                } else {
+                    read_object(step.o->node + at, step.o, step.klass->fields[at].type->type, nullptr);
+                }
+            } else {
+                read_object(step.o->node + at, step.o, -1, step.klass);
+            }
+        }
     }
 }
 
-// Main serialization function
-void serialize(object* from, object* to) {
+void serialize(object *from, object *to) {
     try {
-        if (GENERATION(from->o->info) == gc_perm) {
+        if(from->o != nullptr && GENERATION(from->o->info) == gc_perm) {
             throw vm_exception("cannot serialize static objects");
         }
 
-        // Initialize data structures
-        init_serialization();
-        reset_serialization_state();
+        body.used = 0;
+        begin_seen();
+        begin_listed();
 
-        // Start serialization
-        push_byte(header, SERIALIZE_START);
-        serialize_object(from->o);
+        write_all(from->o);
+        put_byte(body, END);
+        write_head();
 
-        // Write metadata
-        push_int32(header, objectVector.size());
-        push_class_section();
-        push_byte(body, SERIALIZE_END);
+        // the head and the objects, one after the other, in the array that is handed back
+        sharp_object *bytes = create_object(head.used + body.used, type_int8);
+        copy_object(to, bytes);
+        memcpy(bytes->data, head.at, (size_t) head.used);
+        memcpy((char*) bytes->data + head.used, body.at, (size_t) body.used);
 
-        // Create the combined buffer
-        const Int totalSize = (header.pos + 1) + (body.pos + 1);
-        auto serializedData = create_object(totalSize, type_int8);
-        copy_object(to, serializedData);
-
-        // Copy header and body into the final buffer
-        Int destPos = 0;
-        for (Int i = 0; i <= header.pos; i++) {
-            ((int8_t*)serializedData->data)[destPos++] = header.buf[i];
-        }
-
-        for (Int i = 0; i <= body.pos; i++) {
-            ((int8_t*)serializedData->data)[destPos++] = body.buf[i];
-        }
-
-        // Clean up
-        clean_serialization_resources();
+        give_back(body);
+        give_back(head);
+        end_seen();
     }
-    catch (runtime_error& err) {
-        copy_object(to, (sharp_object*)nullptr);
-        clean_serialization_resources();
+    catch(runtime_error &err) {
+        copy_object(to, (sharp_object*) nullptr);
+        writing.clear();
+        give_back(body);
+        give_back(head);
+        end_seen();
         throw vm_exception(err.what());
     }
 }
 
-// Locate a serialized class by hash
-sharp_class* locate_serialized_class(Int hash) {
-    for (Int i = 0; i < serializedClasses.count; i++) {
-        if (hash == serializedClasses.serialized[i]->hash) {
-            return serializedClasses.serialized[i];
-        }
-    }
-
-    throw vm_exception("internal error: could not find class.");
-    return nullptr;
-}
-
-// Initialize deserialization buffer
-void init_deserialization_buffer(unsigned char* bytes, Int len) {
-    dBuffer.buf = bytes;
-    dBuffer.pos = -1;
-    dBuffer.size = len;
-    dBuffer.references = nullptr;
-}
-
-// Macros for reading data
-#define expect_data(data) \
-    if ((dBuffer.pos + 1) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } else if (formatted_buffer(++dBuffer.pos) != data) { \
-        throw vm_exception("unexpected data found in deserialization buffer");\
-    }
-
-#define overflow_check \
-    if ((dBuffer.pos + 1) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    }
-
-#define read_int32(out) \
-    if ((dBuffer.pos + 4) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } \
-    (out) = SET_i32(formatted_buffer(dBuffer.pos+1), formatted_buffer(dBuffer.pos+2), \
-                formatted_buffer(dBuffer.pos+3), formatted_buffer(dBuffer.pos+4)); \
-    dBuffer.pos += 4;
-
-#define read_data \
-    formatted_buffer(++dBuffer.pos)
-
-#define formatted_buffer(pos) \
-    ((uint8_t) dBuffer.buf[(pos)])
-
-#define read_bytes(type, bytes, out) \
-    if ((dBuffer.pos + sizeof(type)) >= dBuffer.size) { \
-        throw vm_exception("invalid format: unexpected end of deserialization buffer");\
-    } \
-    for (int jj = 0; jj < sizeof(type); jj++) { \
-        bytes[jj] = read_data; \
-    } \
-    out = *reinterpret_cast<type*>(bytes);
-
-// Deserialize class section
-void deserialize_class_section() {
-    expect_data(CLASS_SECTION_BEGIN)
-    Int classes;
-    read_int32(classes)
-
-    for (Int i = 0; i < classes; i++) {
-        Int hash, fieldCount, classNameSize;
-        read_int32(hash)
-        read_int32(fieldCount)
-        overflow_check
-        classNameSize = read_data;
-
-        string className;
-        if ((dBuffer.pos + classNameSize) >= dBuffer.size) {
-            throw vm_exception("invalid format: unexpected end of deserialization buffer");
-        }
-
-        for (int i = 0; i < classNameSize; i++) {
-            className += read_data;
-        }
-
-        auto klass = locate_class_hashed(hash);
-        if (klass == nullptr) {
-            throw vm_exception("class not found: unable to locate serialized class `" + className + "`");
-        }
-
-        if (klass->fullName != className) {
-            throw vm_exception("hash mismatch: unexpected hash mismatch when trying to deserialize class `" + className + "`");
-        }
-
-        if (klass->instanceFields != fieldCount) {
-            throw vm_exception("field count mismatch: mismatching field sizes found when trying to deserialize class `" + className + "`");
-        }
-
-        add_serialized_class(klass);
-    }
-
-    expect_data(CLASS_SECTION_END)
-}
-
-// Deserialize an object
-void deserialize_object(object* to, int expectedType, sharp_class* sc) {
-    overflow_check
-    Int objType = read_data;
-
-    if (objType == NULL_OBJECT) {
-        copy_object(to, (sharp_object*)nullptr);
-    }
-    else if (objType == REFERENCE_OBJECT) {
-        Int id;
-        read_int32(id)
-        auto processedObj = dBuffer.references[id];
-
-        if (processedObj != nullptr) {
-            if (expectedType != -1 && processedObj->type != expectedType) {
-                throw vm_exception("invalid type found when processing deserialization buffer`");
-            }
-            if (sc && !are_classes_related(vm.classes + CLASS(processedObj->info), sc)) {
-                throw vm_exception("type mismatch when deserializing buffer, expected class `" + sc->fullName + "`");
-            }
-
-            copy_object(to, processedObj);
-        } else {
-            throw vm_exception("invalid object reference found in deserialization buffer");
-        }
-    }
-    else if (objType == NUMERIC_OBJECT) {
-        Int size, type, id;
-        sharp_object* deserializedObject;
-        read_int32(id)
-        read_int32(size)
-        overflow_check
-        type = read_data;
-
-        if (expectedType != -1 && type != expectedType) {
-            throw vm_exception("invalid type found when processing deserialization buffer`");
-        }
-        if (sc) {
-            throw vm_exception("type mismatch when deserializing buffer, expected class `" + sc->fullName + "` but number was found.");
-        }
-
-        deserializedObject = create_object(size, (data_type)type);
-        dBuffer.references[id] = deserializedObject;
-        copy_object(to, deserializedObject);
-
-        switch (type) {
-            case type_var: {
-                for (Int i = 0; i < size; i++) {
-                    read_bytes(double, doubleBytes, ((double*)deserializedObject->data)[i])
-                }
-                break;
-            }
-            case type_function_ptr: {
-                for (Int i = 0; i < size; i++) {
-                    { int32_t element; read_int32(element) set_integer_at(deserializedObject, i, element); }
-                }
-                break;
-            }
-            case type_int64:
-            case type_uint64: {
-                for (Int i = 0; i < size; i++) {
-                    { int64_t element; read_bytes(int64_t, _64Bytes, element) set_integer_at(deserializedObject, i, element); }
-                }
-                break;
-            }
-            case type_int32:
-            case type_uint32: {
-                for (Int i = 0; i < size; i++) {
-                    { int32_t element; read_int32(element) set_integer_at(deserializedObject, i, element); }
-                }
-                break;
-            }
-            case type_int16:
-            case type_uint16: {
-                for (Int i = 0; i < size; i++) {
-                    { int16_t element; read_bytes(int16_t, _16Bytes, element) set_integer_at(deserializedObject, i, element); }
-                }
-                break;
-            }
-            case type_int8:
-            case type_uint8: {
-                for (Int i = 0; i < size; i++) {
-                    set_integer_at(deserializedObject, i, (int8_t)read_data);
-                }
-                break;
-            }
-            default:
-                throw vm_exception("invalid numeric type found while serializing object");
-                break;
-        }
-    }
-    else if (objType == STANDARD_OBJECT) {
-        Int size, id;
-        sharp_object* deserializedObject;
-        read_int32(id)
-        read_int32(size)
-
-        if (expectedType != -1 && expectedType <= type_var) {
-            throw vm_exception("invalid type found when processing deserialization buffer`");
-        }
-
-        deserializedObject = create_object(size);
-        dBuffer.references[id] = deserializedObject;
-        copy_object(to, deserializedObject);
-
-        for (Int i = 0; i < size; i++) {
-            deserialize_object(deserializedObject->node + i, -1, nullptr);
-        }
-    }
-    else if (objType == CLASS_OBJECT || objType == CLASS_ARRAY_OBJECT) {
-        Int size, id;
-        uint32_t hash;
-        sharp_object* deserializedObject;
-        read_int32(id)
-        if (objType == CLASS_ARRAY_OBJECT) {
-            read_int32(size)
-        }
-        read_int32(hash)
-
-        auto klass = locate_serialized_class(hash);
-        if (expectedType != -1 && expectedType != type_object && expectedType != type_class) {
-            throw vm_exception("invalid type found when processing deserialization buffer`");
-        }
-        if (sc && !are_classes_related(klass, sc)) {
-            throw vm_exception("type mismatch when deserializing buffer, expected class `" + sc->fullName + "` but class `" + klass->fullName + "` was found.");
-        }
-
-        if (objType == CLASS_OBJECT) {
-            deserializedObject = create_object(klass);
-        } else {
-            deserializedObject = create_object(klass, size);
-        }
-
-        dBuffer.references[id] = deserializedObject;
-        copy_object(to, deserializedObject);
-
-        if (objType == CLASS_ARRAY_OBJECT) {
-            for (Int i = 0; i < size; i++) {
-                deserialize_object(deserializedObject->node + i, -1, klass);
-            }
-        } else {
-            const bool *numbers = number_slots_of(deserializedObject);
-            for (Int i = 0; i < klass->instanceFields; i++) {
-                if(numbers != nullptr && numbers[i]) {
-                    expect_data(NUMBER_FIELD)
-                    read_bytes(int64_t, _64Bytes, number_slot(deserializedObject, i).i)
-                } else {
-                    deserialize_object(deserializedObject->node + i, klass->fields[i].type->type, nullptr);
-                }
-            }
-        }
-    } else {
-        throw vm_exception("unexpected data found in deserialization buffer");
-    }
-}
-
-// Main deserialization function
-void deserialize(object* from, object* to) {
-    Int objects = 0;
+void deserialize(object *from, object *to) {
     try {
-        if (from->o && from->o->type <= type_var) {
-            // the data to read is an array of bytes (what serialize() produces)
-            if(from->o->type != type_int8 && from->o->type != type_uint8)
-                throw vm_exception("deserialize: the data must be an _int8[]");
-            init_deserialization_buffer((unsigned char*)from->o->data, from->o->size);
-            init_serialization();
-
-            expect_data(SERIALIZE_START)
-            read_int32(objects)
-            dBuffer.references = (sharp_object**)calloc_mem<sharp_object*>(objects, sizeof(sharp_object*));
-            deserialize_class_section();
-
-            deserialize_object(to, -1, nullptr);
-            expect_data(SERIALIZE_END)
-
-            // Clean up
-            std::free(dBuffer.references);
-            dBuffer.references = nullptr;
-            release_bytes(objects * sizeof(sharp_object*));
-            dBuffer.buf = nullptr;
-            dBuffer.pos = -1;
-            dBuffer.size = 0;
-        } else {
+        if(from->o == nullptr || from->o->type > type_var) {
             throw vm_exception("attempting to deserialize null or non-string object");
         }
-    } catch (runtime_error& err) {
-        if (dBuffer.references) {
-            std::free(dBuffer.references);
-            dBuffer.references = nullptr;
-            release_bytes(objects * sizeof(sharp_object*));
+        // the data to read is an array of bytes (what serialize() produces)
+        if(from->o->type != type_int8 && from->o->type != type_uint8) {
+            throw vm_exception("deserialize: the data must be an _int8[]");
         }
-        dBuffer.buf = nullptr;
-        dBuffer.pos = -1;
-        dBuffer.size = 0;
+        in.at = (const unsigned char*) from->o->data;
+        in.size = from->o->size;
+        in.pos = 0;
 
-        copy_object(to, (sharp_object*)nullptr);
+        unsigned char start = get_byte();
+        if(start == OLD_START) {
+            throw vm_exception("this data was serialized by an older Sharp: its format is not read any more (serialize it again)");
+        }
+        if(start != START) {
+            throw vm_exception("unexpected data found in deserialization buffer");
+        }
+        if(get_byte() != VERSION) {
+            throw vm_exception("this data was serialized by another version of Sharp: its format is not known here");
+        }
+        read_classes();
+        read_all(to);
+        if(get_byte() != END) {
+            throw vm_exception("unexpected data found in deserialization buffer");
+        }
+
+        made.clear();
+        in = in_buffer();
+    }
+    catch(runtime_error &err) {
+        made.clear();
+        reading.clear();
+        in = in_buffer();
+        copy_object(to, (sharp_object*) nullptr);
         throw vm_exception(err.what());
     }
 }

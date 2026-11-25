@@ -106,6 +106,7 @@ void jit_rt_swap(sharp_thread *thread);                     // SWAP
 
 // ---- numbers ----------------------------------------------------------------------
 Int jit_rt_remainder(Int left, Int right);                  // % : raises on a zero divisor
+Int jit_rt_quotient(Int left, Int right);                   // / on whole numbers: raises on a zero divisor
 Int jit_rt_decimal_to_integer(double value);                // D2I for the values the CPU instruction cannot convert
 double jit_rt_power(double base, double exponent);          // **
 double jit_rt_floor(double value);                          // dfloor, where the processor has no instruction for it

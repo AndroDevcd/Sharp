@@ -22,7 +22,7 @@ import (
  * the track the mouse is, as a fraction, scaled into low .. high.
  * (Compose: Slider. Android: SeekBar. HTML: input type=range.)
  */
-stable class slider base widget : behavior, pointer_target, key_target {
+stable class slider base widget : behavior, pointer_target, key_target, has_value {
     private bound : state<decimal>;
     private low : decimal = 0;
     private high : decimal = 1;
@@ -60,6 +60,9 @@ stable class slider base widget : behavior, pointer_target, key_target {
     }
 
     override def kind() : string { return "slider"; }
+
+    /** the number it stands at (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def value_shown() : decimal { return bound.value; }
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
         me.content_w = 120;

@@ -29,12 +29,20 @@ def name_every_native() {
     surface_height();
     surface_time();
     surface_fill(0);
+    surface_pixel(0, 0);
     surface_present();
     surface_mode(0);
     surface_screen_width();
     surface_screen_height();
     surface_paced();
     surface_pace(1);
+    surface_keep_mouse(0);
+    surface_title("");
+    sound_voice(0, 0, 0, 0);
+    sound_set(0, 0, 0, 0);
+    sound_mute(0);
+    sound_clear();
+    surface_icon("");
     surface_poll();
     surface_wait(0);
     surface_wake();
@@ -89,6 +97,7 @@ def name_every_native() {
     g3_model_load("");
     g3_model_box(shape, new decimal[6]);
     g3_copies(new decimal[5], 1);
+    g3_drop(0, 0);
     world : _int64 = g3_scene();
     g3_scene_nodes(world, new decimal[26], 1, new decimal[8], 1);
     g3_scene_look(world, new decimal[32]);

@@ -16,7 +16,8 @@ def main(args: string[]) {
     expect("3 - 8 is negative", 3 - 8, 0 - 5);
     expect("6 * 7", 6 * 7, 42);
     expect("20 / 4", 20 / 4, 5);
-    expect("7 / 2 keeps the fraction", 7 / 2, 3.5);
+    expect("7 / 2 is a whole number", 7 / 2, 3);
+    expect("7 / 2.0 keeps the fraction", 7 / 2.0, 3.5);
     expect("17 % 5", 17 % 5, 2);
     expect("20 % 5", 20 % 5, 0);
 
@@ -44,9 +45,9 @@ def main(args: string[]) {
     // ---- fractions
     expect("0.5 + 0.25", 0.5 + 0.25, 0.75);
     expect("1.5 * 4", 1.5 * 4, 6);
-    expect("9 / 4", 9 / 4, 2.25);
+    expect("9 / 4.0", 9 / 4.0, 2.25);
     expect_near("0.1 + 0.2", 0.1 + 0.2, 0.3, 0.000000001);
-    expect_near("1 / 3 * 3", 1 / 3 * 3, 1, 0.000000001);
+    expect_near("1.0 / 3 * 3", 1.0 / 3 * 3, 1, 0.000000001);
 
     // ---- compound assignment
     c : decimal = 10;
@@ -75,7 +76,7 @@ def main(args: string[]) {
     // ---- large and small numbers
     expect("one million squared", 1000000 * 1000000, 1000000000000);
     expect("digit separators", 1_000_000 + 1, 1000001);
-    expect("small fraction", 1 / 1024, 0.0009765625);
+    expect("small fraction", 1.0 / 1024, 0.0009765625);
 
     // ---- through a function
     expect("add(2, 3)", add(2, 3), 5);

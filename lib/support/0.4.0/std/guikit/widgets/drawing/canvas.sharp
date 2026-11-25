@@ -17,6 +17,8 @@ stable class frame {
     mouse_x : decimal = 0;          // the mouse, measured from the canvas's top-left corner
     mouse_y : decimal = 0;
     mouse_down : _int64 = 0;        // 1 while the left button is held
+    moved_x : decimal = 0;          // how far the mouse moved since the previous frame, across and down:
+    moved_y : decimal = 0;          // it goes on counting when the window keeps the mouse (gui.keep_mouse)
 
     /** is this key held down right now? f.key_down(KEY_LEFT), f.key_down('a') */
     def key_down(key: _int64) : _int64 {
@@ -91,6 +93,8 @@ stable class canvas base widget : behavior {
         info.mouse_x = host.mouse_x - left;
         info.mouse_y = host.mouse_y - top;
         info.mouse_down = host.mouse_held;
+        info.moved_x = host.moved_x;
+        info.moved_y = host.moved_y;
 
         // the drawing function gets a painter whose (0, 0) is the canvas's corner,
         // cut off at the canvas's edges; both are put back afterwards

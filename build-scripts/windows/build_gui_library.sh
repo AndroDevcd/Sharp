@@ -32,8 +32,12 @@ source "$ROOT/build-scripts/windows/mingw.sh"
 
 # ---- the bridge
 if [ ! -f "$GLUE/sharpgui_sni.cpp" ]; then
-    command -v sharpc.cmd > /dev/null || { echo "no bridge in $GLUE: run  bash build-scripts/linux/build_gui_library.sh  in WSL first"; exit 1; }
-    sharpc.cmd "$ROOT/build-scripts/internal/every_native.sharp" -j 1 -L "$LIBRARY" -sni "$GLUE" -o "$OUT/every_native" > "$OUT/bridge_compile.txt" 2>&1
+    # (the installed compiler is started directly, not through sharpc.cmd: a .cmd started
+    #  from this shell breaks on a folder with a space in its name)
+    INSTALLED="$LOCALAPPDATA/Sharp"
+    COMPILER=$(ls "$INSTALLED"/compiler/sharpc-v* 2>/dev/null | sort -V | tail -1)
+    [ -n "$COMPILER" ] || { echo "no bridge in $GLUE: run  bash build-scripts/linux/build_gui_library.sh  in WSL first"; exit 1; }
+    "$INSTALLED/bin/sharp.exe" "$COMPILER" "$ROOT/build-scripts/internal/every_native.sharp" -j 1 -L "$LIBRARY" -sni "$GLUE" -o "$OUT/every_native" > "$OUT/bridge_compile.txt" 2>&1
     [ -f "$GLUE/sharpgui_sni.cpp" ] || { echo "the bridge was not written:"; grep -v "^$" "$OUT/bridge_compile.txt" | head -20; exit 1; }
 fi
 echo "bridge: $(grep -c 'sharpgui_' "$GLUE/sharpgui_sni.h" 2>/dev/null) native functions in $GLUE"
