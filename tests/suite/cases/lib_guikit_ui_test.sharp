@@ -28,6 +28,37 @@ def item_row(n: _int64, removed: state<_int64>) {
     };
 }
 
+/** two places an app can go, and the app: a list, and an item opened from it */
+class to_list base route { }
+
+class to_item base route {
+    number : _int64;
+    to_item(n: _int64) { number = n; }
+}
+
+class two_screens base composable {
+    nav : navigator = navigator();
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            screens(nav, to_list(), modifier().grow(1).fill_width()) {
+                screen<to_list>() {
+                    column(modifier().fill()) {
+                        text("The list", modifier().tag("list_title"));
+                        text("Open 7", modifier().tag("open").click { nav.go(to_item(7)); });
+                    };
+                };
+                screen<to_item>() {
+                    column(modifier().fill()) {
+                        top_bar("Item " + it.number, nav);
+                        text("This is item " + it.number, modifier().tag("item_words"));
+                    };
+                };
+            };
+        };
+    }
+}
+
 /** does the block fail the test it is in? (the failure is caught: the test around it goes on) */
 def fails(body: ()()) : bool {
     try {
@@ -410,6 +441,47 @@ def main(args: string[]) {
                 said = e.get_message();
             }
             expect(said.find("2 widgets fit the kind `button`")).should_be(true);
+        };
+
+        ui_test("going to another screen and back: the slide runs while the test's clock does") {
+            set_content(new two_screens());
+            on_tag("item_words").should_not_exist();
+            on_tag("open").click();
+            on_tag("item_words").should_say("This is item 7");
+            advance(1);
+            on_tag("item_words").should_be_shown();
+            on_tag("list_title").should_not_exist();        // the screen that was left is gone once the slide is over
+            back();
+            advance(1);
+            on_tag("list_title").should_be_shown();
+            on_tag("item_words").should_not_exist();
+        };
+
+        ui_test("a switch that is painted sliding over is still on at once") {
+            wifi := gui.state(0);
+            set_content {
+                column { toggle(wifi, modifier().tag("wifi")); };
+            };
+            on_tag("wifi").click().should_be_on();
+            advance(1);
+            on_tag("wifi").should_be_on();
+        };
+
+        ui_test("pictures without a window: a file and a link have a place on the screen, nothing is read or fetched") {
+            set_content {
+                column {
+                    image("assets/not_there.png", modifier().tag("file"));
+                    image("https://example.invalid/cat.jpg", modifier().size(120, 80).tag("link"))
+                            .fit(FIT_CROP).placeholder("assets/loading.png").on_error("assets/broken.png").fade_in(0.2).cache("own_cache");
+                    image("https://example.invalid/dog.jpg", modifier().tag("bare"));
+                };
+            };
+            on_tag("file").should_be_shown();
+            on_tag("link").should_be_shown();
+            on_tag("bare").should_exist();              // still loading and no placeholder: there, with no size
+            all_kinds<picture>().should_have_count(3);
+            expect(remote_pictures.is_link("https://a.b/c.png")).should_be(true);
+            expect(remote_pictures.is_link("assets/c.png")).should_be(false);
         };
 
         ui_test("the size of the screen") {

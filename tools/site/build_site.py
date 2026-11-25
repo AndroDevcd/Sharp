@@ -38,13 +38,15 @@ GITHUB = "https://github.com/AndroDevcd/Sharp"
 
 # the top bar: address, words, and the pages that light it up besides its own
 NAV = [("index.html", "Home", ()), ("guide/index.html", "Guide", ("guide/", "projects.html")),
-       ("std/index.html", "Library", ("std/",)), ("gui.html", "GUI", ()),
+       ("std/index.html", "Library", ("std/",)), ("gui.html", "GUI", ("gui-guide.html",)),
        ("debugger.html", "Debugger", ("sdb.html",)), ("performance.html", "Performance", ("benchmarks.html",)),
        ("install.html", "Download", ())]
 
 # the guide: GETTING_STARTED.md, a page for each of its numbered parts ("## 4. A tour of the language")
 GUIDE_SOURCE = "GETTING_STARTED.md"
 SDB_GUIDE = "lib/debugger/doc/sdb.md"
+# the GUI guide, whole, on one page; tools/site/check_gui_guide.py compiles and runs the code in it
+GUI_GUIDE = "doc/gui_guide.md"
 
 HAND_WRITTEN = [
     # file, the name in the browser's tab, one sentence for search engines
@@ -145,7 +147,7 @@ def inline(text, facts):
     """one line of Markdown: `code`, **bold**, [words](address)"""
     def link(found):
         words_, address = found.group(1), found.group(2)
-        if not re.match(r"^(https?:|#)", address):         # a file of the repository
+        if not re.match(r"^(https?:|#)", address) and not re.search(r"\.html(#.*)?$", address):   # a file of the repository (a .html is a page of the site)
             address = "%s/blob/%s/%s" % (GITHUB, facts["branch"], address.lstrip("./"))
         return '<a href="%s">%s</a>' % (address, words_)
     text = esc(text)
@@ -222,6 +224,7 @@ def guide_pages(facts):
             items.append('<li%s><a href="%s">%s</a></li>' % (' class="on"' if other == file else "", other, esc(name)))
         items.append('<li><a href="../projects.html">Projects</a></li>')
         items.append('<li><a href="../gui.html">GUI development</a></li>')
+        items.append('<li><a href="../gui-guide.html">The GUI guide</a></li>')
         items.append('<li><a href="../debugger.html">Debugging with sdb</a></li>')
         pager = []
         if n > 0:
@@ -259,6 +262,28 @@ def sdb_guide(facts):
     </main>
 </div></div>
 """ % markdown(read(os.path.join(ROOT, SDB_GUIDE)), facts)
+
+
+def gui_guide(facts):
+    """the GUI guide, whole, on one page; its parts listed down the side"""
+    text = read(os.path.join(ROOT, GUI_GUIDE))
+    parts = []
+    for title in re.findall(r"^## (.+)$", text, flags=re.M):
+        parts.append('<li><a href="#%s">%s</a></li>' % (re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-"), esc(title)))
+    return """<div class="lib guide"><div class="wrap">
+    <aside>
+      <p class="eyebrow">The GUI guide</p>
+      <ul class="mods">
+        %s
+      </ul>
+    </aside>
+    <main>
+      <p class="crumbs"><a href="gui.html">GUI</a> / The GUI guide</p>
+      <h1>The GUI guide</h1>
+%s
+    </main>
+</div></div>
+""" % ("\n        ".join(parts), markdown(text, facts))
 
 
 # ------------------------------------------------------------------------------------------ reading the library
@@ -700,6 +725,9 @@ def main():
         write(os.path.join(out, file), page(file, "%s - Sharp guide" % title, "The Sharp guide: %s." % title, body, facts))
     write(os.path.join(out, "sdb.html"), page("sdb.html", "The sdb guide - Sharp",
                                               "Everything sdb, the Sharp debugger, can do.", sdb_guide(facts), facts))
+    write(os.path.join(out, "gui-guide.html"), page("gui-guide.html", "The GUI guide - Sharp",
+                                                    "How Sharp's GUI library works: screens, layout, widgets, dialogs, navigation and UI tests.",
+                                                    gui_guide(facts), facts))
     for name in ("site.css", "site.js"):
         shutil.copy(os.path.join(HERE, name), os.path.join(out, name))
     shutil.copytree(os.path.join(HERE, "shots"), os.path.join(out, "shots"))

@@ -1034,7 +1034,16 @@ stable class gui {
         return made;
     }
 
-    /** a picture from a file: PNG, JPG, BMP, GIF (picture.sharp) */
+    /**
+     * Keep the pictures fetched from links in this folder (picture.sharp).
+     * Say it before the first picture from a link is shown; unsaid, they go
+     * to a folder of their own in the system's place for caches.
+     */
+    static def image_cache(folder: string) {
+        remote_pictures.keep_in(folder);
+    }
+
+    /** a picture from a file (PNG, JPG, BMP, GIF) or from a link, "https://..." (picture.sharp) */
     static def image(path: string) : picture {
         return new picture(path);
     }

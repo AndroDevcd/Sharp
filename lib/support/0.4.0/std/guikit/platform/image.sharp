@@ -14,6 +14,8 @@ import (
  * Load a picture ONCE (before the frame loop) and draw it as often as you
  * like; loading the same file again hands back the one already loaded. PNG
  * transparency is kept. A picture belongs to the open window and ends with it.
+ * In a window that is not there (a UI test) no file is read: every picture
+ * counts as 100 x 100.
  * Android comparison: a Bitmap; in a game: a sprite sheet or texture.
  */
 stable class image {
@@ -22,6 +24,12 @@ stable class image {
     height : _int32;
 
     image(path: string) {
+        if(font.by_rule) {
+            id = 0;                 // a window that is not there: no native side to read the file
+            width = 100;
+            height = 100;
+            return;
+        }
         id = image_load(path);
         width = image_width(id);
         height = image_height(id);
@@ -33,6 +41,7 @@ stable class image {
      * false keeps every pixel a sharp square, which is what pixel art needs.
      */
     def smooth(on: bool) {
+        if(id == 0) { return; }
         if(on) { image_smooth(id, 1); }
         else { image_smooth(id, 0); }
     }

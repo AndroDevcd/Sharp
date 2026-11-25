@@ -54,6 +54,15 @@ local stable class clip_area {
  * Android: Canvas. HTML: the 2D canvas context.
  */
 stable class painter {
+    /**
+     * A SILENT painter draws nothing: every function that would reach the
+     * screen returns at once. It is the painter of a window that is not there
+     * (window.sharp), where a UI test runs a screen: the tree is still painted,
+     * so that what a widget does WHILE it is painted - a screen sliding in, a
+     * switch gliding over - happens there too; only the pixels are left out.
+     */
+    silent : bool = false;
+
     // where (0, 0) is right now, in window pixels
     private ox : decimal = 0;
     private oy : decimal = 0;
@@ -68,11 +77,13 @@ stable class painter {
 
     /** a filled rectangle */
     def rect(x: decimal, y: decimal, w: decimal, h: decimal, c: color) {
+        if(silent) { return; }
         draw_rect(ox + x, oy + y, w, h, 0, ink(c));
     }
 
     /** a filled rectangle with round corners (`radius` pixels) */
     def rect(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, c: color) {
+        if(silent) { return; }
         draw_rect(ox + x, oy + y, w, h, radius, ink(c));
     }
 
@@ -81,6 +92,7 @@ stable class painter {
      * the area (a border never makes the box bigger). radius 0: square corners.
      */
     def outline(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, thickness: decimal, c: color) {
+        if(silent) { return; }
         draw_rect_line(ox + x, oy + y, w, h, radius, thickness, ink(c));
     }
 
@@ -88,16 +100,19 @@ stable class painter {
 
     /** a straight line from (x1, y1) to (x2, y2), `thickness` pixels wide */
     def line(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, c: color) {
+        if(silent) { return; }
         draw_line(ox + x1, oy + y1, ox + x2, oy + y2, thickness, ink(c));
     }
 
     /** a filled circle around the centre (cx, cy) */
     def circle(cx: decimal, cy: decimal, radius: decimal, c: color) {
+        if(silent) { return; }
         draw_circle(ox + cx, oy + cy, radius, ink(c));
     }
 
     /** only the ring of a circle, `thickness` pixels wide, inside the radius */
     def ring(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, c: color) {
+        if(silent) { return; }
         draw_circle_line(ox + cx, oy + cy, radius, thickness, ink(c));
     }
 
@@ -114,38 +129,47 @@ stable class painter {
     // that draws hundreds of shapes a frame.
 
     def rect(x: decimal, y: decimal, w: decimal, h: decimal, packed: _int64) {
+        if(silent) { return; }
         draw_rect(ox + x, oy + y, w, h, 0, ink(packed));
     }
 
     def rect(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, packed: _int64) {
+        if(silent) { return; }
         draw_rect(ox + x, oy + y, w, h, radius, ink(packed));
     }
 
     def outline(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal, thickness: decimal, packed: _int64) {
+        if(silent) { return; }
         draw_rect_line(ox + x, oy + y, w, h, radius, thickness, ink(packed));
     }
 
     def line(x1: decimal, y1: decimal, x2: decimal, y2: decimal, thickness: decimal, packed: _int64) {
+        if(silent) { return; }
         draw_line(ox + x1, oy + y1, ox + x2, oy + y2, thickness, ink(packed));
     }
 
     def circle(cx: decimal, cy: decimal, radius: decimal, packed: _int64) {
+        if(silent) { return; }
         draw_circle(ox + cx, oy + cy, radius, ink(packed));
     }
 
     def ring(cx: decimal, cy: decimal, radius: decimal, thickness: decimal, packed: _int64) {
+        if(silent) { return; }
         draw_circle_line(ox + cx, oy + cy, radius, thickness, ink(packed));
     }
 
     def polygon(xs: decimal[], ys: decimal[], packed: _int64) {
+        if(silent) { return; }
         fill_polygon(xs, ys, sizeof(xs), ox, oy, ink(packed));
     }
 
     def polygon(xs: decimal[], ys: decimal[], count: _int64, packed: _int64) {
+        if(silent) { return; }
         fill_polygon(xs, ys, count, ox, oy, ink(packed));
     }
 
     def text(words: string, x: decimal, y: decimal, f: font, packed: _int64) {
+        if(silent) { return; }
         draw_text(f.id, words, ox + x, oy + y, ink(packed));
     }
 
@@ -162,26 +186,31 @@ stable class painter {
 
     /** `count` plain rectangles: rectangle i is at (xs[i], ys[i]) and ws[i] x hs[i] */
     def rects(xs: decimal[], ys: decimal[], ws: decimal[], hs: decimal[], colors: _int64[], count: _int64) {
+        if(silent) { return; }
         fill_rects(xs, ys, ws, hs, colors, count, ox, oy, level);
     }
 
     /** `count` filled circles: circle i is around (xs[i], ys[i]) */
     def circles(xs: decimal[], ys: decimal[], radii: decimal[], colors: _int64[], count: _int64) {
+        if(silent) { return; }
         fill_circles(xs, ys, radii, colors, count, ox, oy, level);
     }
 
     /** `count` lines, all `thickness` wide: line i runs from (x1s[i], y1s[i]) to (x2s[i], y2s[i]) */
     def lines(x1s: decimal[], y1s: decimal[], x2s: decimal[], y2s: decimal[], thickness: decimal, colors: _int64[], count: _int64) {
+        if(silent) { return; }
         draw_lines(x1s, y1s, x2s, y2s, thickness, colors, count, ox, oy, level);
     }
 
     /** `count` triangles: triangle i has the corners 3i, 3i + 1 and 3i + 2 of xs and ys */
     def triangles(xs: decimal[], ys: decimal[], colors: _int64[], count: _int64) {
+        if(silent) { return; }
         fill_triangles(xs, ys, colors, count, ox, oy, level);
     }
 
     /** everything a shape_batch holds, in the order it was added (the batch is not emptied: clear() does that) */
     def draw(shapes: shape_batch) {
+        if(silent) { return; }
         draw_shapes(shapes.kinds, shapes.data, shapes.colors, shapes.count, ox, oy, level);
     }
 
@@ -191,11 +220,13 @@ stable class painter {
      *      p.polygon(new decimal[] { 10, 60, 35 }, new decimal[] { 50, 50, 10 }, red);     // a triangle
      */
     def polygon(xs: decimal[], ys: decimal[], c: color) {
+        if(silent) { return; }
         fill_polygon(xs, ys, sizeof(xs), ox, oy, ink(c));
     }
 
     /** the same from only the first `count` corners - so one pair of arrays can be filled again every frame */
     def polygon(xs: decimal[], ys: decimal[], count: _int64, c: color) {
+        if(silent) { return; }
         fill_polygon(xs, ys, count, ox, oy, ink(c));
     }
 
@@ -205,6 +236,7 @@ stable class painter {
      * turned into text here and read back on the other side.
      */
     def polygon(points: string, c: color) {
+        if(silent) { return; }
         draw_polygon(points, ink(c));
     }
 
@@ -217,6 +249,7 @@ stable class painter {
 
     /** from now on paint into a new layer. Gives 1 - or 0 when no layer could be made (then do not call end_layer) */
     def begin_layer() : _int64 {
+        if(silent) { return 0; }
         made : _int64 = layer_begin();
         if(made == 1) {
             reclip();                       // the new layer starts with nothing cut off: put the open clip back
@@ -226,6 +259,7 @@ stable class painter {
 
     /** of what the open layer holds, keep only what is inside this box with round corners */
     def mask_layer(x: decimal, y: decimal, w: decimal, h: decimal, radius: decimal) {
+        if(silent) { return; }
         layer_mask(ox + x, oy + y, w, h, radius);
         reclip();
     }
@@ -236,12 +270,14 @@ stable class painter {
      * around the area's middle, and blurred by about `blur` pixels (0: sharp).
      */
     def end_layer(x: decimal, y: decimal, w: decimal, h: decimal, angle: decimal, scale: decimal, blur: decimal) {
+        if(silent) { return; }
         layer_end(ox + x, oy + y, w, h, angle, scale, 255, blur);
         reclip();
     }
 
     /** make the graphics card's clip area the innermost open one again (a change of layer forgets it) */
     private def reclip() {
+        if(silent) { return; }
         open : _int64 = clips.size();
         if(open == 0) {
             draw_unclip();
@@ -262,6 +298,7 @@ stable class painter {
      * other shape. For more lines, step y by f.line_height.
      */
     def text(words: string, x: decimal, y: decimal, f: font, c: color) {
+        if(silent) { return; }
         draw_text(f.id, words, ox + x, oy + y, ink(c));
     }
 
@@ -269,21 +306,25 @@ stable class painter {
 
     /** a picture at its own size */
     def image(picture: image, x: decimal, y: decimal) {
+        if(silent) { return; }
         draw_image(picture.id, ox + x, oy + y, picture.width, picture.height, solid(255));
     }
 
     /** a picture stretched (or shrunk) to w x h */
     def image(picture: image, x: decimal, y: decimal, w: decimal, h: decimal) {
+        if(silent) { return; }
         draw_image(picture.id, ox + x, oy + y, w, h, solid(255));
     }
 
     /** a picture stretched to w x h and see-through: opacity 0 (invisible) .. 255 (solid) */
     def image(picture: image, x: decimal, y: decimal, w: decimal, h: decimal, opacity: _int32) {
+        if(silent) { return; }
         draw_image(picture.id, ox + x, oy + y, w, h, solid(opacity));
     }
 
     /** only the box (sx, sy, sw, sh) of a picture - in the picture's own pixels - stretched to the area (x, y, w, h) */
     def image(picture: image, sx: decimal, sy: decimal, sw: decimal, sh: decimal, x: decimal, y: decimal, w: decimal, h: decimal) {
+        if(silent) { return; }
         draw_image_part(picture.id, sx, sy, sw, sh, ox + x, oy + y, w, h, solid(255), 0, 0);
     }
 
@@ -291,18 +332,21 @@ stable class painter {
 
     /** frame number `frame` of a sprite sheet, at the frame's own size */
     def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal) {
+        if(silent) { return; }
         draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
                         ox + x, oy + y, sheet.frame_width, sheet.frame_height, solid(255), 0, 0);
     }
 
     /** a frame stretched to w x h */
     def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal) {
+        if(silent) { return; }
         draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
                         ox + x, oy + y, w, h, solid(255), 0, 0);
     }
 
     /** a frame stretched to w x h, and mirrored left to right when `flipped` (a character walking the other way) */
     def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal, flipped: bool) {
+        if(silent) { return; }
         mirror : _int32 = 0;
         if(flipped) { mirror = 1; }
         draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
@@ -315,6 +359,7 @@ stable class painter {
      */
     def sprite(sheet: sprite_sheet, frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal,
                flipped: bool, angle: decimal, opacity: _int32) {
+        if(silent) { return; }
         mirror : _int32 = 0;
         if(flipped) { mirror = 1; }
         draw_image_part(sheet.picture.id, sheet.frame_x(frame), sheet.frame_y(frame), sheet.frame_width, sheet.frame_height,
@@ -323,6 +368,7 @@ stable class painter {
 
     /** every sprite a sprite_batch holds, in one call (the batch is not emptied: clear() does that) */
     def draw(sprites: sprite_batch) {
+        if(silent) { return; }
         draw_image_parts(sprites.sheet.picture.id, sprites.sources, sprites.places, sprites.count, ox, oy, solid(255));
     }
 
@@ -333,6 +379,7 @@ stable class painter {
      * view are painted, all in one call, however large the map is.
      */
     def tiles(ground: tile_map, camera_x: decimal, camera_y: decimal, view_w: decimal, view_h: decimal) {
+        if(silent) { return; }
         first_column : _int64 = camera_x / ground.tile_width;
         first_row : _int64 = camera_y / ground.tile_height;
         if(camera_x < 0) { first_column = 0; }
@@ -359,6 +406,7 @@ stable class painter {
      * Every clip() needs its unclip().
      */
     def clip(x: decimal, y: decimal, w: decimal, h: decimal) {
+        if(silent) { return; }
         left : decimal = ox + x;
         top : decimal = oy + y;
         right : decimal = left + w;
@@ -382,6 +430,7 @@ stable class painter {
 
     /** end the innermost clip(): back to the area that was open before it */
     def unclip() {
+        if(silent) { return; }
         open : _int64 = clips.size();
         if(open == 0) {
             return;
@@ -474,6 +523,7 @@ stable class painter {
 
     /** forget every clip, move and fade: the start of a frame (the framework calls this) */
     def reset() {
+        if(silent) { return; }
         ox = 0;
         oy = 0;
         level = 1;

@@ -11,7 +11,7 @@ import (
  *
  *      class tasks_model base view_model {
  *          tasks := state_list<task>();            // what the screen shows
- *          busy  := state(0);
+ *          busy  := gui.state(0);                  // (gui.state: the short `state(0)` belongs to a composable)
  *
  *          def add(title: string) { tasks.add(task(title)); }      // what the screen can ask for
  *          def remove(t: task)    { tasks.remove(t); }

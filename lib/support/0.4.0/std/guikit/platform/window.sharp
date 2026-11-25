@@ -81,13 +81,14 @@ stable class window {
      *      pass_time(0.5)      the clock moves on by half a second
      *      resize(w, h)        the size changes
      *
-     * Painting on it paints nowhere. It is what a UI test runs a screen on
+     * Painting on it paints nowhere (its painter is silent). It is what a UI test runs a screen on
      * (std.guikit.testing): the screen is built, laid out and clicked exactly
      * as on a real window, in no time, on a machine without a display.
      */
     window(w: _int32, h: _int32) {
         current = new event();
         brush = new painter();
+        brush.silent = true;                           // it paints nowhere (painter.sharp)
         pretend = true;
         pretend_open = true;
         pretend_w = w;

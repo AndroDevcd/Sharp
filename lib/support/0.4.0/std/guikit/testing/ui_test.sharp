@@ -81,6 +81,11 @@ import (
  *      back()                      the back key
  *      print_tree()                the screen as text, to see what a test sees
  *
+ *      A VIEW MODEL'S BACKGROUND WORK (models.sharp) - in a ui_test or an ordinary test(...)
+ *      test_dispatcher()           a dispatcher that holds the work it is given: provide<...>() it to the model
+ *      run_work()                  run that work and what on_main handed back, until nothing is left
+ *      watching(state)             every value a state takes: seen.should_have_been(0, 1, 0)
+ *
  * A check that does not hold fails the test there, and says what the screen
  * held at that moment (the same text print_tree() prints).
  *

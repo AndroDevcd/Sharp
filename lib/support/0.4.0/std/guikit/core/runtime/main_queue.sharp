@@ -46,7 +46,8 @@ stable class main_queue {
         lock(guard) {
             waiting.add(new queued_action(action));
         }
-        if(ui_host.current != null) {
+        // (a window that is not there - a UI test - never sleeps, and has no native side to wake)
+        if(ui_host.current != null && !ui_host.current!!.win.is_pretend()) {
             surface_wake();                     // the loop may be asleep waiting for the mouse: wake it
         }
     }

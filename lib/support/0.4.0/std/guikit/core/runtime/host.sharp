@@ -302,8 +302,9 @@ stable class ui_host {
         }
 
         if(win.is_pretend()) {
-            // A window that is not there (a UI test): there is nothing to paint on, and no time to
-            // sleep through - the test turns the loop itself. A frame that was due counts as painted.
+            // A window that is not there (a UI test): no time to sleep through - the test turns the
+            // loop itself - and nothing to paint ON. The tree is painted all the same, with a painter
+            // that draws nothing: what a widget does while it is painted (a screen sliding in) happens.
             if(paint_due == 1 || frame_wanted == 1) {
                 step = now - painted_at;
                 if(step > 0.1) { step = 0.1; }
@@ -311,6 +312,11 @@ stable class ui_host {
                 paint_due = 0;
                 frame_wanted = 0;
                 wake_at = 0;
+                quiet := win.painter();
+                quiet.reset();
+                top!!.paint(quiet);
+                paint_overlays(quiet, width, height);
+                paint_toasts(quiet, width, height);
                 moved_x = 0;
                 moved_y = 0;
             }

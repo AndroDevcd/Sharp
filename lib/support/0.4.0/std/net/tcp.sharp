@@ -52,20 +52,27 @@ class socket_timeout base socket_exception {
 /** what tcp_socket and tcp_server share: the system's calls, whichever system it is */
 class socket_system {
     private static started : bool = false;
+    private static guard : object = new _object_();     // one thread at a time starts the network, and looks up a name
     static const NONE : _int64 = 0 - 1;
 
     static def is_windows() : bool {
         return build.is_windows();
     }
 
-    /** Winsock wants to be started once */
+    /**
+     * Winsock wants to be started once. Several threads may ask at the same
+     * moment: the others wait until the one that started it is done.
+     */
     static def start() {
         if(started) { return; }
-        started = true;
-        if(is_windows()) {
-            data := new _int8[512];
-            code : _int64 = windows_sockets.WSAStartup(0x0202, data);
-            if(code != 0) { throw new socket_exception("the network could not be started (Winsock error " + code + ")"); }
+        lock(guard) {
+            if(started) { return; }
+            if(is_windows()) {
+                data := new _int8[512];
+                code : _int64 = windows_sockets.WSAStartup(0x0202, data);
+                if(code != 0) { throw new socket_exception("the network could not be started (Winsock error " + code + ")"); }
+            }
+            started = true;
         }
     }
 
@@ -126,17 +133,20 @@ class socket_system {
      */
     static def address_of(host: string) : _int64 {
         start();
-        entry : pointer = 0;
-        if(is_windows()) { entry = windows_sockets.gethostbyname(host); }
-        else { entry = posix_sockets.gethostbyname(host); }
-        if(entry == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
-        // struct hostent: two addresses, two numbers (8 bytes together), then the list of addresses
-        size : _int64 = c_memory.pointer_size();
-        list : pointer = c_memory.view(entry, 3 * size + 8).pointer_at(2 * size + 8);
-        if(list == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
-        first : pointer = c_memory.view(list, size).pointer_at(0);
-        if(first == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
-        return c_memory.view(first, 4).uint32_at(0);
+        // (the system answers into memory of its own, which the next lookup may write over: one at a time)
+        lock(guard) {
+            entry : pointer = 0;
+            if(is_windows()) { entry = windows_sockets.gethostbyname(host); }
+            else { entry = posix_sockets.gethostbyname(host); }
+            if(entry == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+            // struct hostent: two addresses, two numbers (8 bytes together), then the list of addresses
+            size : _int64 = c_memory.pointer_size();
+            list : pointer = c_memory.view(entry, 3 * size + 8).pointer_at(2 * size + 8);
+            if(list == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+            first : pointer = c_memory.view(list, size).pointer_at(0);
+            if(first == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+            return c_memory.view(first, 4).uint32_at(0);
+        }
     }
 
     /** an address the system's calls take: this host (0: every address of this machine) and port */
