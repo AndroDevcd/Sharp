@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <!-- the file icon: a sharp sign (two slanted bars, two cross bars) -->
-  <g fill="none" stroke="#6E6E6E" stroke-width="1.6" stroke-linecap="round">
-    <path d="M6 2.5 L5 13.5"/>
-    <path d="M11 2.5 L10 13.5"/>
-    <path d="M2.8 6 L13.2 5"/>
-    <path d="M2.8 11 L13.2 10"/>
-  </g>
-</svg>

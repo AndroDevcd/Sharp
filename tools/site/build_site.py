@@ -14,7 +14,7 @@ WHAT IT MAKES
     std/search.js                                       every name, for the search box
     std/api.txt                                         every documented name on a line of its own:
                                                         compare two of these to see what changed
-    site.css  site.js  shots/  logo.png
+    site.css  site.js  shots/  logo.png  logo-dark.png  favicon.ico ...  (brand/: the browser-tab icons)
 
 THE LIBRARY PAGES are made from stdlib/std: every .sharp file is read for its
 `mod` line, its classes, interfaces and enums, their functions and fields, the functions and
@@ -115,30 +115,35 @@ def page(file, title, description, body, facts):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>%s</title>
-<meta name="description" content="%s">
-<link rel="icon" href="%slogo.png">
+<title>%(title)s</title>
+<meta name="description" content="%(description)s">
+<link rel="icon" href="%(root)sfavicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="%(root)sfavicon-32.png">
+<link rel="apple-touch-icon" href="%(root)sapple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="%ssite.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="%(root)ssite.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="%sindex.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">%s</span>
+    <a class="brand" href="%(root)sindex.html"><img class="on-light" src="%(root)slogo.png" alt="Sharp"><img class="on-dark" src="%(root)slogo-dark.png" alt="Sharp"></a>
+    <span class="version">%(version)s</span>
     <nav class="main" aria-label="Site">
-      %s
+      %(links)s
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
-%s
-<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="%s">github.com/AndroDevcd/Sharp</a></div></footer>
-<script src="%ssite.js"></script>
+%(body)s
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="%(github)s">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="%(root)ssite.js"></script>
 </body>
 </html>
-""" % (esc(title), esc(description), root, root, root, facts["version"], "\n      ".join(links), body, GITHUB, root)
+""" % {"title": esc(title), "description": esc(description), "root": root, "version": facts["version"],
+       "links": "\n      ".join(links), "body": body, "github": GITHUB}
 
 
 # ------------------------------------------------------------------------------------------ pages from Markdown
@@ -731,7 +736,10 @@ def main():
     for name in ("site.css", "site.js"):
         shutil.copy(os.path.join(HERE, name), os.path.join(out, name))
     shutil.copytree(os.path.join(HERE, "shots"), os.path.join(out, "shots"))
-    shutil.copy(os.path.join(ROOT, "doc", "logo.png"), os.path.join(out, "logo.png"))
+    for name in ("logo.png", "logo-dark.png"):          # the logo for a light page and for a dark one
+        shutil.copy(os.path.join(ROOT, "doc", name), os.path.join(out, name))
+    for name in os.listdir(os.path.join(HERE, "brand")):                # the browser-tab icons
+        shutil.copy(os.path.join(HERE, "brand", name), os.path.join(out, name))
     shutil.copy(os.path.join(ROOT, "doc", "benchmarks.html"), os.path.join(out, "benchmarks.html"))
 
     modules = read_library(library)

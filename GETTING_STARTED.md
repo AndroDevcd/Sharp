@@ -6,13 +6,17 @@ From nothing to a running program, a passing test and a window.
 2. [Your first program](#2-your-first-program)
 3. [A program with a class](#3-a-program-with-a-class)
 4. [A tour of the language](#4-a-tour-of-the-language)
-5. [Your first test](#5-your-first-test)
-6. [Your first window](#6-your-first-window)
-7. [Where to go next](#7-where-to-go-next)
+5. [Dictionaries, with and apply](#5-dictionaries-with-and-apply)
+6. [Your first test](#6-your-first-test)
+7. [Your first window](#7-your-first-window)
+8. [Your first 3D scene](#8-your-first-3d-scene)
+9. [Calling a C library](#9-calling-a-c-library)
+10. [Where to go next](#10-where-to-go-next)
 
 ## 1. Install
 
-Download the newest `sharp-<version>.zip` from the [`releases`](releases) folder and unpack
+Download `sharp-<version>.zip` from the
+[latest release](https://github.com/AndroDevcd/Sharp/releases/latest) and unpack
 the WHOLE archive (the installers need the folders next to them). `START-HERE.txt` inside
 says the same as below.
 
@@ -71,6 +75,7 @@ There are two commands:
 |---|---|
 | `sharpc file.sharp -o name` | the compiler: writes the program `name`. The standard library is always included. Add `-O` to make the program faster; `sharpc --h` lists every option. |
 | `sharp name` | runs a compiled program |
+| `sharpc file.sharp -o name -watch` | keeps running: builds again every time you save the file, until Ctrl+C. Its own lines start with `[watch]`. |
 
 Every file starts with `mod <name>;` (the module it belongs to), and a program starts at `main`.
 
@@ -219,7 +224,82 @@ What that used:
 | `f(a) { it.area() }` | a trailing block; `{ a, b -> ... }` names its parameters |
 | `(T)(decimal)` | the type of a function that takes a `T` and gives a `decimal` |
 
-## 5. Your first test
+## 5. Dictionaries, with and apply
+
+```javascript
+mod app;
+
+class car {
+    plate : string = "";
+    wheels : _int64 = 4;
+
+    def describe() : string { return "$plate on $wheels wheels"; }
+}
+
+def find_car(cars: dictionary<string, car>, plate: string) : car? {
+    if(cars.contains_key(plate)) { return cars[plate]; }
+    return null;
+}
+
+def main() {
+    // a dictionary: keys and values in braces, read and written with [ ]
+    prices := { "wash": 12, "polish": 30 };
+    prices["wax"] = 18;
+    foreach(service in prices.keys()) {
+        println(service + " costs " + prices[service]);
+    }
+
+    // apply: the block runs inside the object, so its fields need nothing in front
+    van := apply(new car()) {
+        plate = "VAN 1";
+        wheels = 6;
+    };
+
+    cars := new dictionary<string, car>();
+    cars[van.plate] = van;
+
+    // with: the block runs when the value is there, the else block when it is null
+    with(find_car(cars, "VAN 1")) as found {
+        println("found: " + found.describe());
+    } else {
+        println("no such car");
+    }
+    with(find_car(cars, "BIKE 9")) as found {
+        println("found: " + found.describe());
+    } else {
+        println("no such car");
+    }
+
+    // two whole numbers divide to a whole number; a fraction needs a decimal
+    println("7 / 2 is " + (7 / 2) + ", 7 / 2.0 is " + (7 / 2.0));
+}
+```
+
+```
+wash costs 12
+polish costs 30
+wax costs 18
+found: VAN 1 on 6 wheels
+no such car
+7 / 2 is 3, 7 / 2.0 is 3.5
+```
+
+What that used:
+
+| | |
+|---|---|
+| `{ "wash": 12 }` | a dictionary written out; `new dictionary<string, car>()` makes an empty one |
+| `d[key]`, `d[key] = value` | read and write an entry. A dictionary keeps the order its keys were added in. |
+| `d.keys()`, `d.values()`, `d.contains_key(k)`, `d.remove(k)`, `d.size()` | the rest of what a dictionary does is in the library pages |
+| `apply(value) { ... }` | runs the block inside the object: a name is looked up in the object first. Its value is the object, so it can be assigned or passed on. |
+| `with(value) as name { ... } else { ... }` | `name` is the value inside the block, known not to be null; the `else` block runs when it is null |
+| `7 / 2` | two whole numbers give a whole number (3). Write `7 / 2.0` for 3.5. Dividing a whole number by zero throws. |
+
+Both blocks are part of the function they are written in: a `return` inside one leaves that
+function, and `break` and `continue` act on the loop around it. `apply` also takes an `else`
+block, for a value that may be null.
+
+## 6. Your first test
 
 Tests are an ordinary program that uses `std.testing`:
 
@@ -258,7 +338,7 @@ The program's exit code is 0 only when every test passed. Mocks (`mock<an_interf
 and stand-ins for injected objects are shown in the [README](README.md) and in
 [`examples/testing`](examples/testing).
 
-## 6. Your first window
+## 7. Your first window
 
 ```javascript
 mod app;
@@ -300,7 +380,7 @@ The GUI draws through SDL2:
 - **Windows** - nothing to install: SDL2 is inside the `sharpgui.dll` that came with Sharp.
 - **Raspberry Pi / Debian / Ubuntu** - `sudo apt install libsdl2-dev`
 
-## 7. Your first 3D scene
+## 8. Your first 3D scene
 
 A scene is a widget, written the way a screen is: the block says what is in it.
 
@@ -349,7 +429,7 @@ from these; `stdlib/std/guikit/words3d.sharp` lists every word.
 
 Scenes are drawn with OpenGL, which every PC has; on a Raspberry Pi it is OpenGL ES 2.
 
-## 8. Calling a C library
+## 9. Calling a C library
 
 A Sharp program can call the functions of any C library directly. List them in an `extern`
 block, each without a body and under its C name:
@@ -397,7 +477,7 @@ sorted by C: 3 7 19 42
 
 [`compiler/doc/extern.md`](compiler/doc/extern.md) has all of it.
 
-## 9. Where to go next
+## 10. Where to go next
 
 - The [README](README.md) shows what sets Sharp apart: dependency injection in the
   language, mocks the compiler writes, the GUI toolkit and coroutines.

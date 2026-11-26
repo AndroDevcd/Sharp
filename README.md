@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="https://github.com/AndroDevcd/Sharp/blob/master/doc/logo.png?raw=true" alt="Sharp Logo" width="210" height="142">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="doc/logo-dark.png">
+  <img src="doc/logo.png" alt="Sharp" width="340">
+</picture>
 
 # The Sharp Programming Language
 
@@ -28,7 +31,7 @@ This repository contains the compiler, the VM, the standard library, and the doc
 
 ## Install
 
-Download the latest `sharp-<version>.zip` from the [`releases`](releases) folder and unpack the whole archive, then run the installer for your system:
+Download `sharp-<version>.zip` from the [latest release](https://github.com/AndroDevcd/Sharp/releases/latest) and unpack the whole archive, then run the installer for your system:
 
 | System | Command |
 |---|---|
