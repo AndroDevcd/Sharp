@@ -120,6 +120,14 @@ def note_first_uses_in_expression(expression: bound_expression, uses: first_uses
             uses.see(read!!, FIRST_READ);
             continue;
         }
+        if(next.kind == BX_WITH) {
+            // its value, then its blocks: statements, walked as such (once per `with`, never deep)
+            held := next as bound_with;
+            note_first_uses_in_expression(held.subject, uses);
+            note_first_uses_in_statement(held.then_part, uses);
+            if(held.else_part != null) { note_first_uses_in_statement(held.else_part!!, uses); }
+            continue;
+        }
         parts.clear();
         add_parts(next, parts);
         for(i : _int64 = parts.size() - 1; i >= 0; i--) { waiting.add(parts.at(i)); }

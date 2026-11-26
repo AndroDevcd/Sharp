@@ -62,6 +62,7 @@ import (
  *      broken_declarations.sharp   the body stages on a program whose declarations have errors
  *      executable.sharp            the options handed to the backend: the executable, the warnings
  *      project.sharp               --new-project, where the output goes, -run
+ *      watch.sharp                 -watch: build again whenever a file changes
  * and below it:
  *      configuration/              the options: the command line, settings.json (module `configuration`)
  *      cache/                      the build cache of a project
@@ -85,6 +86,9 @@ def compile_from_command_line(args: string[]) : int {
     read_command_line(args);
     files := options.source_files;
     warn_about_options_that_do_nothing();
+
+    // -watch: this run only watches; every build is the same command without it (watch.sharp)
+    if(options.watch) { return watch_and_build(args); }
 
     if(options.new_project_dir != "") {
        create_project();

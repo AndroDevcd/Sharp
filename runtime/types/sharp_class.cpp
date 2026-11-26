@@ -2,6 +2,7 @@
 // Created by bknun on 9/18/2022.
 //
 
+#include <vector>
 #include "sharp_class.h"
 #include "sharp_field.h"
 #include "sharp_type.h"
@@ -85,24 +86,51 @@ bool are_classes_related(sharp_class *base, sharp_class *reference) {
     if(base == NULL || reference == NULL)
         return false;
 
+    // an interface of the class that has interfaces of its own (`interface b : a`): looked at
+    // after the usual search, and only when there is one
+    bool deeper = false;
+
     for(sharp_class *c = base; c != NULL; c = c->base) {
         if(c->guid == reference->guid)
             return true;
 
-        // Each interface, and what that interface itself derives from. This
-        // walks base chains only and does not recurse into the interface
-        // lists of interfaces: those can refer back to each other (a
-        // recursive version ran until the stack overflowed).
+        // Each interface, and what that interface itself derives from.
         for(Int i = 0; i < c->interfaceCount; i++) {
             for(sharp_class *in = c->interfaces[i]; in != NULL; in = in->base) {
                 if(in->guid == reference->guid)
                     return true;
+                if(in->interfaceCount > 0) deeper = true;
                 if(in->base == in) break;
             }
         }
         if(c->base == c) break;
     }
 
+    if(!deeper)
+        return false;
+
+    // The interfaces OF the interfaces: `class c : b` with `interface b : a` is an `a` too.
+    // Interface lists can refer back to each other (a recursive search ran until the stack
+    // overflowed), so this keeps a list of what is still to be looked at and of what was seen.
+    std::vector<sharp_class*> waiting, seen;
+    for(sharp_class *c = base; c != NULL; c = c->base) {
+        for(Int i = 0; i < c->interfaceCount; i++) waiting.push_back(c->interfaces[i]);
+        if(c->base == c) break;
+    }
+    while(!waiting.empty()) {
+        sharp_class *next = waiting.back();
+        waiting.pop_back();
+        for(sharp_class *in = next; in != NULL; in = in->base) {
+            bool known = false;
+            for(sharp_class *one : seen) { if(one == in) { known = true; break; } }
+            if(known) break;
+            seen.push_back(in);
+            if(in->guid == reference->guid)
+                return true;
+            for(Int i = 0; i < in->interfaceCount; i++) waiting.push_back(in->interfaces[i]);
+            if(in->base == in) break;
+        }
+    }
     return false;
 }
 

@@ -19,7 +19,8 @@ import (
     backend.compiler.expressions.arithmetic,
     backend.compiler.expressions.assignment,
     backend.compiler.lambdas,
-    backend.compiler.components
+    backend.compiler.components,
+    backend.compiler.statements
 )
 
 /**
@@ -110,6 +111,7 @@ def analyse_expression(context: analysis_context, node: _int64, wanted: resolved
     if(kind == N_ARRAY_LITERAL) { return analyse_array_literal(context, node, wanted); }
     if(kind == N_LAMBDA) { return analyse_lambda(context, node, wanted); }
     if(kind == N_GET_COMPONENT) { return analyse_get(context, node, wanted); }
+    if(kind == N_WITH) { return analyse_scope_block(context, node); }
 
     // the parser gave up on this piece and has said so
     if(kind == N_ERROR) { return new bound_error(context.unit, node, context.session.types.error_type); }

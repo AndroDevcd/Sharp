@@ -19,16 +19,21 @@ import (
 /**
  * DICTIONARY LITERALS
  *
- *      ages := { "ann" : 31, "bob" : 45 };         dictionary<_int8[], _int32>
+ *      ages := { "ann" : 31, "bob" : 45 };         dictionary<string, int>
  *      empty := { as <string, int> : };            dictionary<string, int>, no pairs
  *
  * A `std#dictionary<k, v>` made from an array of `std#pair<k, v>`, one pair
  * per `key : value`. The key and value types are the ones written after
- * `as`, or else the types of the FIRST pair as they are - a text literal is
- * an `_int8[]`, a whole-number literal an `_int32` (the suite says so:
- * dictionaries.sharp, "keys and values are NATIVE"). A later pair whose key
- * (or value) does not fit the type so far, while the type so far fits IT,
- * widens the type to its own (`{ "a" : 1, "b" : 2.5 }` has decimal values).
+ * `as`, or else the types of the FIRST pair. A later pair whose key (or
+ * value) does not fit the type so far, while the type so far fits IT, widens
+ * the type to its own (`{ "a" : 1, "b" : 2.5 }` has `double` values).
+ *
+ * Types that were not written are then given their OBJECT form, as
+ * `name := value` does (conversions/inferred_types.sharp): text is a
+ * `string`, a whole number an `int`, a number with a fraction a `double`. A
+ * dictionary looks its keys up by `hash()` and `==`, which a plain number or
+ * a plain text array does not have. (Until November 2026 they stayed plain
+ * - dictionary<_int8[], _int32> - and a dictionary could not look anything up.)
  * Then every key and value must convert to its type (a construction
  * included).
  *
@@ -70,6 +75,11 @@ def analyse_dictionary(context: analysis_context, node: _int64) : bound_expressi
         child = tree.next_sibling!![child];
     }
 
+    if(written_types == 0 && key_type != null && value_type != null) {
+        key_type = object_form(context, key_type!!);
+        value_type = object_form(context, value_type!!);
+    }
+
     if(key_type == null || value_type == null || key_type!!.kind == RT_NULL || value_type!!.kind == RT_NULL) {
         d := problem_at(context, "E0419", "the types of this dictionary cannot be told", node);
         d.with_label("no pair says what its keys and values are");
@@ -81,10 +91,30 @@ def analyse_dictionary(context: analysis_context, node: _int64) : bound_expressi
     return build_dictionary(context, node, key_type!!, value_type!!, keys, values, written_types);
 }
 
+/**
+ * The object form of a key or value type nobody wrote: `string` for text, `int`
+ * (`long` for 64 bits) for a whole number, `double` for a number with a fraction.
+ * Every other type, a class above all, is given back as it is.
+ */
+def object_form(context: analysis_context, type: resolved_type) : resolved_type {
+    known : well_known_classes = context.session.known;
+    made : sharp_class? = null;
+    if(is_text_array(type) == 1) { made = known.string_class; }
+    else if(type.is_array == 0 && type.is_boolean() == 0 && type.is_number() == 1) {
+        if(type.kind != RT_INTEGER) { made = known.double_class; }
+        else if(type.bits == 64) { made = known.long_class; }
+        else { made = known.int_class; }
+    }
+    if(made == null) { return type; }
+    return type_of_class(made!!);
+}
+
 /** the key (or value) type so far, after one more pair */
 def widened(context: analysis_context, so_far: resolved_type?, given: resolved_type) : resolved_type? {
     if(so_far == null) { return given; }
     if(given.kind == RT_ERROR) { return so_far; }
+    // whole numbers so far and now one with a fraction: the fraction must not be cut off
+    if(so_far!!.is_array == 0 && given.is_array == 0 && so_far!!.kind == RT_INTEGER && given.kind == RT_DECIMAL) { return given; }
     if(find_conversion(context.session, given, so_far!!, 1).converts()) { return so_far; }
     if(find_conversion(context.session, so_far!!, given, 1).converts()) { return given; }
     return so_far;

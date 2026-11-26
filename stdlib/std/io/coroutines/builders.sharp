@@ -149,6 +149,11 @@ def start_coroutine(coroutine: job, owner: job?, where: coroutine_dispatcher?) :
         return coroutine;
     }
 
+    // a dispatcher that keeps its coroutines until it is told to start them (a test's: holding_dispatcher.sharp)
+    if(placer is holding_dispatcher) {
+        (placer as holding_dispatcher).hold(coroutine);
+        return coroutine;
+    }
     coroutine.start();
     return coroutine;
 }

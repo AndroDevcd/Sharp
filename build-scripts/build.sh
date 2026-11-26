@@ -30,7 +30,8 @@
 #   - After a build with NO errors, the new compiler becomes the seed.
 #   - A build WITH errors changes nothing: fix the error and run again.
 #   - No seed yet (a fresh machine, or the work folder was deleted): the compiler of the newest
-#     release in releases/ is the first seed.
+#     release in releases/ is the first seed. That folder is not in the repository: put the zip of
+#     the newest release there (the project's GitHub Releases page has it).
 #   - A change that USES a new language feature inside the compiler's own source needs two builds:
 #     first add the feature (the seed can compile that), then use it.
 #
@@ -59,7 +60,7 @@ if [ ! -f "$SEED" ]; then
     # number (0.7.0, when the sources went back to the 0.4 line) must not win over the current one
     ZIP="$REPO/releases/sharp-$LANGUAGE_VERSION.zip"
     [ -f "$ZIP" ] || ZIP=$(ls "$REPO"/releases/sharp-*.zip 2>/dev/null | sort -V | tail -1)
-    [ -n "$ZIP" ] || fail "no seed compiler at $SEED and no release in releases/ to take one from"
+    [ -n "$ZIP" ] || fail "no seed compiler at $SEED and no release in releases/ to take one from: download the newest sharp-<version>.zip from the project's GitHub Releases page into $REPO/releases/"
     mkdir -p "$(dirname "$SEED")"
     python3 - "$ZIP" "$SEED" <<'EOF' || fail "could not take the compiler out of the release (python3 is needed)"
 import sys, zipfile

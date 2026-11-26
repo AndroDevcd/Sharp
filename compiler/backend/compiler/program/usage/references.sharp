@@ -97,6 +97,13 @@ def collect_in_statement(statement: bound_statement, collector: use_collector) {
 def collect_in_expression(expression: bound_expression, collector: use_collector) {
     collector.expressions.add(expression);
     drain(collector);
+    // (a `with` / `apply` in it holds statements: tree_parts.sharp, statements_inside)
+    while(collector.statements.size() > 0) {
+        next : bound_statement = collector.statements.pop_last();
+        note_statement(next, collector);
+        statement_parts(next, collector.expressions, collector.statements);
+        drain(collector);
+    }
 }
 
 /** the expressions on the work list, and their parts, until it is empty */
@@ -105,6 +112,7 @@ def drain(collector: use_collector) {
         expression : bound_expression = collector.expressions.pop_last();
         note_expression(expression, collector);
         add_parts(expression, collector.expressions);
+        statements_inside(expression, collector.statements);
     }
 }
 

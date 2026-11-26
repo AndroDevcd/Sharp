@@ -6,10 +6,10 @@ import ( testing )
  * Dictionary literals and the standard library class hash_map.
  *
  * A dictionary literal `{ key : value, ... }` makes a std `dictionary<k, v>`:
- * an ordered list of pairs, reached through its `map` field
- * (`map.size()`, `map.at(i).first`, `map.at(i).second`).
+ * values under keys, in the order they were added, read and written with
+ * `d[key]` (`size()`, `keys()`, `values()`, `at(key)`, `remove(key)`).
  *
- *   { "a" : 1 }                     keys and values are NATIVE: _int8[] and a number
+ *   { "a" : 1 }                     keys and values in their object form: string and int
  *   { as <string, int> "a" : 1 }    keys and values are the classes named after `as`
  *
  * hash_map<k, v> is the class to look values up by key: put, at, size, clear.
@@ -29,11 +29,11 @@ class person {
     person(n: string, a: decimal) { name = n; age = a; }
 }
 
-def count_pairs(d: dictionary<string, int>) : decimal { return d.map.size(); }
+def count_pairs(d: dictionary<string, int>) : decimal { return d.size(); }
 
 def sum_values(d: dictionary<string, int>) : decimal {
     total : decimal = 0;
-    foreach(entry in d.map) {
+    foreach(entry in d) {
         total += entry.second.value;
     }
     return total;
@@ -44,71 +44,104 @@ def make_scores() : dictionary<string, int> {
 }
 
 def main(args: string[]) {
-    // ---- a plain literal: native keys and values, in the order written
+    // ---- a plain literal: string keys and int values, in the order written
     ages := { "ann" : 31, "bob" : 45 };
-    expect("two pairs", ages.map.size(), 2);
-    expect_str("first key", ages.map.at(0).first, "ann");
-    expect("first value", ages.map.at(0).second, 31);
-    expect_str("second key", ages.map.at(1).first, "bob");
-    expect("second value", ages.map.at(1).second, 45);
-    expect("[] on the list of pairs", ages.map[1].second, 45);
+    expect("two pairs", ages.size(), 2);
+    expect_str("first key", ages.keys().at(0), "ann");
+    expect("first value", ages.values().at(0).value, 31);
+    expect_str("second key", ages.keys().at(1), "bob");
+    expect("second value", ages.values().at(1).value, 45);
+    expect("[] with a key", ages["bob"].value, 45);
 
     total : decimal = 0;
-    foreach(entry in ages.map) {
+    foreach(entry in ages) {
         total += entry.second;
     }
     expect("foreach over the pairs: 31 + 45", total, 76);
 
     // ---- other kinds of keys and values
     names := { 1 : "one", 2 : "two", 3 : "three" };
-    expect("number keys: size", names.map.size(), 3);
-    expect("number keys: first key", names.map.at(0).first, 1);
-    expect_str("number keys: last value", names.map.at(2).second, "three");
+    expect("number keys: size", names.size(), 3);
+    expect("number keys: first key", names.keys().at(0).value, 1);
+    expect_str("number keys: last value", names.values().at(2), "three");
     constants := { "half" : 0.5, "quarter" : 0.25 };
-    expect("fraction values", constants.map.at(0).second + constants.map.at(1).second, 0.75);
+    expect("fraction values", constants.values().at(0).value + constants.values().at(1).value, 0.75);
     one_pair := { "only" : 7 };
-    expect("a single pair", one_pair.map.size(), 1);
+    expect("a single pair", one_pair.size(), 1);
 
     // values can be any expression
     x : decimal = 4;
     computed := { "square" : x * x, "next" : x + 1 };
-    expect("expression value: 4 * 4", computed.map.at(0).second, 16);
-    expect("expression value: 4 + 1", computed.map.at(1).second, 5);
+    expect("expression value: 4 * 4", computed.values().at(0).value, 16);
+    expect("expression value: 4 + 1", computed.values().at(1).value, 5);
 
-    // a literal is only a list of pairs: writing a key twice keeps both
+    // a key written twice is one key: the later value is kept
     twice := { "a" : 1, "a" : 2 };
-    expect("the same key twice gives two pairs", twice.map.size(), 2);
-    expect("...the second one", twice.map.at(1).second, 2);
+    expect("the same key twice is one key", twice.size(), 1);
+    expect("...with the later value", twice["a"].value, 2);
+
+    // reading, writing and removing by key
+    stock := { "tea" : 4, "cake" : 0 };
+    stock["tea"] = 3;
+    stock["milk"] = 9;
+    expect("a value replaced", stock["tea"].value, 3);
+    expect("a key added: size", stock.size(), 3);
+    expect_str("a key added goes last", stock.keys().at(2), "milk");
+    expect("contains_key: there", stock.contains_key("cake") ? 1 : 0, 1);
+    expect("contains_key: not there", stock.contains_key("jam") ? 1 : 0, 0);
+    expect("at: null for a key that is not there", stock.at("jam") == null ? 1 : 0, 1);
+    expect("at_or_default", stock.at_or_default("jam", 7).value, 7);
+    missing : decimal = 0;
+    try { n := stock["jam"]; } catch(e: no_such_element_exception) { missing = 1; }
+    expect("[] throws for a key that is not there", missing, 1);
+    expect("remove: was there", stock.remove("tea") ? 1 : 0, 1);
+    expect("remove: not there", stock.remove("tea") ? 1 : 0, 0);
+    expect_str("the order after a removal", stock.keys().at(0), "cake");
+    expect("take gives the value", stock.take("milk")!!.value, 9);
+    expect("size after two removals", stock.size(), 1);
+
+    // many keys: the table grows, the order stays
+    many := { as <int, int> : };
+    for(i : _int64 = 0; i < 2000; i++) { many[i] = i * 3; }
+    expect("2000 keys", many.size(), 2000);
+    expect("the last one", many[1999].value, 5997);
+    expect("the first key is still first", many.keys().at(0).value, 0);
+    for(i : _int64 = 0; i < 2000; i = i + 2) { many.remove(i); }
+    expect("half removed", many.size(), 1000);
+    expect("an odd key is still there", many[1001].value, 3003);
+    expect("the first key is now 1", many.keys().at(0).value, 1);
+    many.clear();
+    expect("cleared", many.size(), 0);
 
     // ---- a typed literal: keys and values are objects
     scores := { as <string, int> "a" : 1, "b" : 2 };
-    expect("typed: size", scores.map.size(), 2);
-    expect_str("typed: key is a string object", scores.map.at(1).first, "b");
-    expect("typed: key size", scores.map.at(1).first.size(), 1);
-    expect("typed: value is an int object", scores.map.at(1).second.value, 2);
+    expect("typed: size", scores.size(), 2);
+    expect_str("typed: key is a string object", scores.keys().at(1), "b");
+    expect("typed: key size", scores.keys().at(1).size(), 1);
+    expect("typed: value is an int object", scores.values().at(1).value, 2);
     expect("typed: sum of the values", sum_values(scores), 3);
 
     // the values are objects, so they can be changed in place
-    scores.map.at(0).second += 10;
-    expect("value changed through the pair", scores.map.at(0).second.value, 11);
-    expect("...the other pair is untouched", scores.map.at(1).second.value, 2);
+    scores.values().at(0) += 10;
+    expect("value changed through the pair", scores.values().at(0).value, 11);
+    expect("...the other pair is untouched", scores.values().at(1).value, 2);
     expect("...the sum follows", sum_values(scores), 13);
 
     // pairs can be added afterwards
-    scores.map.add(new pair<string, int>("z", 26));
-    expect("pair added: size", scores.map.size(), 3);
-    expect("pair added: value", scores.map.at(2).second.value, 26);
+    scores["z"] = 26;
+    expect("pair added: size", scores.size(), 3);
+    expect("pair added: value", scores.values().at(2).value, 26);
 
     words := { as <string, string> "hello" : "bonjour", "bye" : "au revoir" };
-    expect_str("string values", words.map.at(0).second, "bonjour");
-    expect("string value size", words.map.at(1).second.size(), 9);
+    expect_str("string values", words.values().at(0), "bonjour");
+    expect("string value size", words.values().at(1).size(), 9);
 
     // ---- dictionaries as arguments and results
     expect("as an argument", count_pairs(scores), 3);
     expect("a literal as an argument", count_pairs({ as <string, int> "k" : 1 }), 1);
     made := make_scores();
-    expect("as a result: size", made.map.size(), 3);
-    expect("as a result: last value", made.map.at(2).second.value, 30);
+    expect("as a result: size", made.size(), 3);
+    expect("as a result: last value", made.values().at(2).value, 30);
     expect("as a result: sum", sum_values(made), 60);
     expect("result passed straight on", sum_values(make_scores()), 60);
 

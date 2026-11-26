@@ -147,6 +147,9 @@ def read_command_line(args: string[]) {
         else if(arg == "-run"){
             options.run_source = true;
         }
+        else if(arg == "-watch"){
+            options.watch = true;
+        }
         else if(arg == "--clean"){
             options.clean_build = true;
         }
@@ -404,6 +407,7 @@ def help() {
     println(              "    -o <file>         set the output file (default: out; in a project: build/outputs/<output>)" );
     println(              "    -c                compile only and do not generate exe"                      );
     println(              "    -run              run the program after a successful compile (with `sharp` from the PATH)" );
+    println(              "    -watch            build, then build again whenever a file of the program is saved (Ctrl+C stops)" );
     println(              "    -a                show every error (this compiler always does; accepted for scripts)" );
     println(              "    -L <path>         library directory path: every .sharp file in it and below" );
     println(              "    -files <list>     more source files: a text file with one path on each line"  );

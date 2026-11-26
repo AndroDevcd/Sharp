@@ -219,6 +219,11 @@ def parse_postfix(p: parse_state, operand: _int64) : _int64 {
             parse_arguments(p, call);
             if(trailing_lambda_follows(p)) {
                 p.tree.append(call, parse_lambda(p));
+                // apply(value) { ... } else { ... }: the `else` of the built-in `apply` - an N_BLOCK after the lambda
+                if(p.at(K_ELSE) && is_apply_name(p, operand) == 1) {
+                    p.advance();
+                    parse_else_block(p, call, "apply");
+                }
             }
             operand = call;
         } else if(kind == P_LBRACE && is_callable_name(p, operand) && trailing_lambda_follows(p)) {
@@ -386,6 +391,7 @@ def parse_primary(p: parse_state) : _int64 {
     }
 
     if(kind == T_IDENTIFIER) {
+        if(scope_block_follows(p) == 1) { return parse_scope_block(p); }
         if(module_path_follows(p)) {
             // std.io#name
             named : _int64 = p.node(N_MODULE_NAME);
@@ -913,6 +919,78 @@ def lambda_return_type_follows(p: parse_state) : _int64 {
         return 0;
     }
     return binary_power(after) == 0;
+}
+
+/**
+ * `with(value) as name { ... } else { ... }`: a value, and a block that works on it
+ *
+ *      with(find_car("ABCD")) as car { car.wheels = 8; } else { println("no such car"); }
+ *
+ * The block runs when the value is not null, with the value under `name`;
+ * the `else` block when it is null. The whole thing is an expression whose
+ * value is the one in the parentheses.
+ *
+ * `with` IS NOT A RESERVED WORD (`statement.with(7)` is an ordinary call). It
+ * starts one of these only when written exactly in its shape, which nothing
+ * else has:    with ( ... ) as name {
+ *
+ * Its sibling `apply(value) { ... }` has no shape of its own: it is read as
+ * the call with a lambda block it looks like, and the analysis decides
+ * (backend/compiler/statements/scope_blocks.sharp). Only its `else` is read
+ * here: parse_postfix.
+ * @return 1 when a `with` block starts at the current token
+ */
+def scope_block_follows(p: parse_state) : _int64 {
+    if(p.peek(1) != P_LPAREN || p.current_text() != "with") { return 0; }
+
+    // the `)` that closes the `(`
+    depth : _int64 = 0;
+    ahead : _int64 = 1;
+    while(true) {
+        kind : _int64 = p.peek(ahead);
+        if(kind == T_EOF) { return 0; }
+        if(kind == P_LPAREN) { depth++; }
+        else if(kind == P_RPAREN) {
+            depth--;
+            if(depth == 0) { break; }
+        }
+        ahead++;
+    }
+    return p.peek(ahead + 1) == K_AS && p.peek(ahead + 2) == T_IDENTIFIER && p.peek(ahead + 3) == P_LBRACE;
+}
+
+/** see scope_block_follows; the current token is the word `with` */
+def parse_scope_block(p: parse_state) : _int64 {
+    node : _int64 = p.node(N_WITH);
+    p.advance();
+
+    p.expect(P_LPAREN, "`(`");
+    p.tree.append(node, parse_expression(p));
+    p.expect(P_RPAREN, "`)`");
+    p.expect(K_AS, "`as` and the name for the value");
+    p.child(node, N_PARAMETER);
+    p.expect(T_IDENTIFIER, "the name for the value");
+    if(p.at(P_LBRACE)) { parse_block(p, node); }
+
+    if(p.accept(K_ELSE) == 1) { parse_else_block(p, node, "with"); }
+    return node;
+}
+
+/** the block after the `else` of a `with` or an `apply` (the `else` is read): the last child of `parent` */
+def parse_else_block(p: parse_state, parent: _int64, word: string) {
+    if(p.at(P_LBRACE)) {
+        parse_block(p, parent);
+        return;
+    }
+    p.error("expected `{` after the `else` of `" + word + "`")
+     .with_label("the block that runs when the value is null")
+     .with_help("write the block in braces: `else { ... }`");
+}
+
+/** is the node the plain name `apply`? (what an `else` after a call with a lambda block may belong to) */
+def is_apply_name(p: parse_state, operand: _int64) : _int64 {
+    if(p.tree.kinds!![operand] != N_IDENTIFIER) { return 0; }
+    return token_text(p.source, p.table, p.tree.tokens!![operand]) == "apply";
 }
 
 /**

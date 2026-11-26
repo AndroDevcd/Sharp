@@ -11,7 +11,8 @@ import (
     backend.types.typed_tree,
     backend.postprocessor.names,
     backend.compiler.context,
-    backend.compiler.names
+    backend.compiler.names,
+    backend.compiler.expressions.primary.members
 )
 
 /**
@@ -32,6 +33,13 @@ import (
  */
 def expression_for_found(context: analysis_context, found: lookup_result, node: _int64, name: string) : bound_expression {
     kind : _int64 = found.kind;
+
+    if(found.applied != null) {
+        // a member of the object of an `apply(...) { }`: `wheels` there is `<the object>.wheels`
+        receiver := applied_object(context, found.applied!!, found.depth, node);
+        found.applied = null;
+        return member_of_value(context, receiver, found, name, node);
+    }
 
     if(kind == FOUND_LOCAL) {
         variable : local_variable = found.variable!!;
@@ -95,6 +103,15 @@ def type_hidden_by_function(context: analysis_context, node: _int64) : resolved_
     if(declared == null) { return null; }
     check_access(context, declared!!, node);
     return type_named_by(context, declared!!, node);
+}
+
+/** the object of an `apply(...) { }`, read from the hidden variable that holds it inside the block */
+def applied_object(context: analysis_context, variable: local_variable, depth: _int64, node: _int64) : bound_expression {
+    variable.reads++;
+    used := new bound_local(context.unit, node, variable);
+    used.depth = depth;
+    if(depth > 0) { note_local_capture(context, variable, depth); }
+    return used;
 }
 
 /** the `self` the programmer did not write: `x` meaning `self->x` */

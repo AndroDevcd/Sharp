@@ -4,8 +4,13 @@
 mod tests.helps;
 import (std, std.io);
 
+/** a word kept as plain characters, the way a text literal is */
+class kept_word {
+    first : _int8[] = "the";
+}
+
 def main() {
-    d := { "the" : 1 };
+    p := new kept_word();
     w : string = "the";
-    foreach(p in d) { if(p.first == w) { println("found"); } }
+    if(p.first == w) { println("found"); }
 }

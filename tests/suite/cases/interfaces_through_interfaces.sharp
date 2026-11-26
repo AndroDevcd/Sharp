@@ -1,0 +1,62 @@
+mod main;
+
+import ( testing )
+
+/**
+ * An interface that extends an interface: an object of a class that names
+ * only the outer one IS the inner one too - `is` says so and `as` gets it.
+ * (Until VM 4.0.13 the runtime looked at the interfaces a class names and at
+ * their base classes, not at the interfaces of those interfaces: `is` said
+ * false and `as` threw class_cast_exception.)
+ */
+interface shape { def area() : decimal; }
+interface solid : shape { def volume() : decimal; }
+interface heavy : solid { def weight() : decimal; }
+interface other { def nothing(); }
+
+class cube : solid {
+    override def area() : decimal { return 6; }
+    override def volume() : decimal { return 1; }
+}
+
+class lead_cube : heavy {
+    override def area() : decimal { return 24; }
+    override def volume() : decimal { return 8; }
+    override def weight() : decimal { return 90; }
+}
+
+class small_cube base cube { }
+
+def is_shape(o: object) : decimal { return (o is shape) ? 1 : 0; }
+def is_solid(o: object) : decimal { return (o is solid) ? 1 : 0; }
+def is_heavy(o: object) : decimal { return (o is heavy) ? 1 : 0; }
+def is_other(o: object) : decimal { return (o is other) ? 1 : 0; }
+
+def main(args: string[]) {
+    c : object = new cube();
+    l : object = new lead_cube();
+    s : object = new small_cube();
+
+    expect("one step: the interface the class names", is_solid(c), 1);
+    expect("one step: the interface that one extends", is_shape(c), 1);
+    expect("one step: not a later one", is_heavy(c), 0);
+    expect("an unrelated interface", is_other(c), 0);
+
+    expect("two steps: the class's own", is_heavy(l), 1);
+    expect("two steps: the middle one", is_solid(l), 1);
+    expect("two steps: the first one", is_shape(l), 1);
+    expect("two steps: an unrelated interface", is_other(l), 0);
+
+    expect("through a base class: the interface it names", is_solid(s), 1);
+    expect("through a base class: the one that extends", is_shape(s), 1);
+
+    expect("a cast through two interfaces", (l as shape).area(), 24);
+    expect("a cast through one", (c as shape).area(), 6);
+    expect("a cast to the middle one", (l as solid).volume(), 8);
+
+    refused : decimal = 0;
+    try { wrong := c as other; } catch(e: class_cast_exception) { refused = 1; }
+    expect("a cast to an unrelated interface still fails", refused, 1);
+
+    finish("interfaces_through_interfaces");
+}

@@ -60,7 +60,7 @@ def main(args: string[]) {
         try {
             empty := { as <string, city> : };
             built = 1;
-            test("an empty dictionary has no pairs") { expect(empty.map.size()).should_be(0); };
+            test("an empty dictionary has no pairs") { expect(empty.size()).should_be(0); };
         } catch(e: exception) {
             built = 2;
         }

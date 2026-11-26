@@ -38,6 +38,8 @@ class local_variable {
     is_const : _int64 = 0;
     is_localized : _int64 = 0;          // one value per fiber
     is_hidden : _int64 = 0;             // made by the compiler, not written by the programmer
+    is_applied : _int64 = 0;            // the value of an `apply(value) { }` inside its block: a name written there is
+                                        // looked up in this variable's class before the class the code is in
     is_captured : _int64 = 0;           // a lambda inside the function uses it (set by the lambda stage)
     reads : _int64 = 0;                 // how often it is read (for later warnings)
     writes : _int64 = 0;

@@ -47,13 +47,33 @@ import (
  *      its helpers), primary/new_expression.cpp, post_ast_expression.cpp.
  */
 
+/**
+ * E0622: `apply(value) { ... } else { ... }` where `apply` turned out to be a
+ * function of the program. The parser reads an `else` after a call named
+ * `apply` that ends in a lambda block (the built-in has one); a call of an
+ * ordinary function has none.
+ */
+def report_else_without_apply(context: analysis_context, node: _int64, made: bound_expression) {
+    else_node : _int64 = context.tree.child_of_kind(node, N_BLOCK);
+    if(else_node < 0 || made.kind == BX_WITH || made.kind == BX_ERROR) { return; }
+    d := problem_at(context, "E0622", "this `else` has nothing to belong to: `apply` here is a function of the program, not the language's `apply`", else_node);
+    d.with_label("only `apply(value) { ... }` of the language has an `else`");
+    d.with_note("the language's `apply` is used when nothing called `apply` is in reach; a function of that name hides it");
+    d.with_help("if the `else` belongs to an `if` around the call, put the call in braces: `if(...) { apply(...) { ... } } else { ... }`");
+    report(context, d);
+}
+
 /** `callee(arguments)` at `node` (an N_CALL) */
 def analyse_call(context: analysis_context, node: _int64) : bound_expression {
     tree : syntax_tree = context.tree;
     callee : _int64 = tree.first_child!![node];
     kind : _int64 = tree.kinds!![callee];
     if(kind == N_MEMBER) { return call_member(context, node, callee, node); }
-    if(kind == N_IDENTIFIER) { return call_by_name(context, node, callee, arguments_of(context, node)); }
+    if(kind == N_IDENTIFIER) {
+        made := call_by_name(context, node, callee, arguments_of(context, node));
+        report_else_without_apply(context, node, made);
+        return made;
+    }
     if(kind == N_MODULE_NAME) { return call_in_module(context, node, callee, arguments_of(context, node)); }
 
     // anything else in front of `(` must be a function value: (pick())(x), handlers[i](x)

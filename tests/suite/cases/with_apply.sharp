@@ -1,0 +1,178 @@
+mod main;
+
+import ( testing )
+
+/**
+ * `with(value) as name { } else { }` and `apply(value) { } else { }`:
+ * a value, and a block that works on it.
+ *
+ *   - the block runs when the value is not null, the `else` block when it is
+ *   - inside a `with` block the value has a name and is known not to be null
+ *   - inside an `apply` block the value's fields and functions are named
+ *     without anything in front; a local variable of the same name wins
+ *   - both are expressions: their value is the value in the parentheses, with
+ *     the type it had, and can be kept or passed on
+ *   - the blocks belong to the function around them: `return` leaves it,
+ *     `break` and `continue` act on the loop around
+ */
+class car {
+    vin : string = "";
+    wheels : decimal = 4;
+    honked : decimal = 0;
+
+    def describe() : string { return vin + ":" + wheels; }
+    def honk() { honked = honked + 1; }
+    def add_wheels(more: decimal) : car { wheels = wheels + more; return self; }
+}
+
+class garage {
+    cars := new list<car>();
+    doors : decimal = 1;
+
+    def find(vin: string) : car? {
+        foreach(c in cars) { if(c.vin == vin) { return c; } }
+        return null;
+    }
+
+    // `apply` inside a class: the applied object first, then this class
+    def park(vin: string) : car {
+        return apply(new car()) {
+            self->cars.add(self_of_apply());
+            wheels = 4 + doors;             // `wheels` is the car's, `doors` the garage's
+        };
+    }
+
+    def self_of_apply() : car { return new car(); }
+}
+
+def wheels_of(c: car?) : decimal {
+    if(c == null) { return 0 - 1; }
+    return c!!.wheels;
+}
+
+def first_with(cars: list<car>, wanted: decimal) : string {
+    foreach(c in cars) {
+        with(c) as found {
+            if(found.wheels == wanted) { return found.vin; }        // leaves first_with
+        }
+    }
+    return "none";
+}
+
+def both_return(c: car?) : decimal {
+    with(c) as there { return 1; } else { return 2; }               // every way returns: nothing is missing after it
+}
+
+def main(args: string[]) {
+    place := new garage();
+
+    // ---- apply: set an object up and keep it
+    audi := apply(new car()) {
+        vin = "ABCD";
+        wheels = 4;
+    };
+    place.cars.add(audi);
+    place.cars.add(apply(new car()) { vin = "TRUCK"; wheels = 6; });
+    expect_str("apply gives the object back", audi.describe(), "ABCD:4");
+    expect("apply as an argument", place.cars.size(), 2);
+    expect_str("...the second one", place.cars.at(1).describe(), "TRUCK:6");
+
+    // ---- with: the block when there is a value, the else when there is none
+    ran : decimal = 0;
+    with(place.find("ABCD")) as c { c.wheels = 8; ran = 1; } else { ran = 2; }
+    expect("with: the block ran", ran, 1);
+    expect("with: the value was changed through its name", audi.wheels, 8);
+    with(place.find("NOPE")) as c { ran = 3; } else { ran = 4; }
+    expect("with: the else ran", ran, 4);
+    with(place.find("NOPE")) as c { ran = 5; }
+    expect("with, no else, no value: nothing ran", ran, 4);
+
+    // ---- as a value
+    found := with(place.find("TRUCK")) as c { c.honk(); } else { ran = 6; };
+    expect("with as a value: the value", found == null ? 0 : 1, 1);
+    expect("...its block ran", found!!.honked, 1);
+    gone := with(place.find("GONE")) as c { c.honk(); } else { ran = 7; };
+    expect("with as a value: null when there was none", gone == null ? 1 : 0, 1);
+    expect("...its else ran", ran, 7);
+    expect("with as an argument", wheels_of(with(place.find("ABCD")) as c { c.wheels = 5; }), 5);
+    expect("with as an argument: null", wheels_of(with(place.find("XYZ")) as c { c.wheels = 0; }), 0 - 1);
+    expect("a member of the value of an apply", (apply(new car()) { wheels = 3; }).wheels, 3);
+    expect("the order of arguments is kept", order_of(note(1), with(note_car(2)) as c { note(3); }, note(4)), 1234);
+
+    // ---- apply on a value that may be null; a function of the object by its bare name
+    apply(place.find("TRUCK")) { honk(); wheels = wheels + 2; } else { ran = 8; }
+    expect("apply: a function of the object", place.find("TRUCK")!!.honked, 2);
+    expect("apply: a field read and written", place.find("TRUCK")!!.wheels, 8);
+    apply(place.find("GONE")) { honk(); } else { ran = 9; }
+    expect("apply: the else ran", ran, 9);
+    chained := apply(new car()) { add_wheels(2).add_wheels(3); };
+    expect("apply: a call chain on the object", chained.wheels, 9);
+
+    // ---- names inside apply: a local wins, then the object, then the class around
+    wheels : decimal = 99;
+    apply(audi) { vin = "L" + wheels; }
+    expect_str("a local wins over the object's field", audi.vin, "L99");
+    parked := place.park("P");
+    expect("the object's field, then the class's", parked.wheels, 5);
+    expect("a function of the class around is still reached", place.cars.size(), 3);
+
+    // ---- the blocks belong to the function
+    expect_str("return from inside a block", first_with(place.cars, 8), "TRUCK");
+    expect_str("...and when nothing returns", first_with(place.cars, 77), "none");
+    expect("both blocks return", both_return(audi) * 10 + both_return(null), 12);
+
+    rounds : decimal = 0;
+    foreach(c in place.cars) {
+        with(c) as each {
+            rounds = rounds + 1;
+            if(rounds == 2) { break; }
+        }
+    }
+    expect("break from inside a block leaves the loop", rounds, 2);
+
+    kept : decimal = 0;
+    for(i : decimal = 0; i < 5; i++) {
+        apply(audi) {
+            if(i == 1 || i == 3) { continue; }
+            kept = kept + 1;
+        }
+    }
+    expect("continue from inside a block", kept, 3);
+
+    for {
+        with(audi) as a { break; }
+    }
+    expect("a loop that only a block breaks out of ends", 1, 1);
+
+    // ---- lambdas inside the blocks see the value
+    apply(audi) {
+        again := { -> (string) return describe(); };
+        expect_str("a lambda in an apply block", again(), "L99:5");
+    }
+    with(audi) as a {
+        later := { -> (decimal) return a.wheels + 1; };
+        expect("a lambda in a with block", later(), 6);
+    }
+
+    // ---- nested, and other kinds of value
+    total : decimal = 0;
+    with(place.find("TRUCK")) as outer {
+        apply(outer) {
+            with(place.find("L99")) as inner { total = honked * 100 + inner.wheels; }
+        }
+    }
+    expect("nested blocks", total, 205);
+    n := with(5) as five { total = five.value * 2; };
+    expect("with on a number: its value is an int object", n.value, 5);
+    expect("...and its block", total, 10);
+    words := with("text") as t { total = t.size(); };
+    expect("with on a string", total, 4);
+    expect_str("...its value", words, "text");
+
+    finish("with_apply");
+}
+
+seen : decimal = 0;
+def note(n: decimal) : decimal { seen = seen * 10 + n; return n; }
+def note_car(n: decimal) : car { seen = seen * 10 + n; return new car(); }
+def order_of(a: decimal, c: car, b: decimal) : decimal { return seen; }

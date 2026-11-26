@@ -1,6 +1,6 @@
 # What is left before the release on the main branch
 
-Rewritten 2026-11-25, after the repository clean-up. The version to be released is 0.5.12.
+Rewritten 2026-11-25, after the repository clean-up. The version to be released is 0.5.13 (VM 4.0.13).
 Tick a line off by deleting it.
 
 ## Done (kept for one release, so it is clear what was decided)
@@ -25,12 +25,13 @@ Tick a line off by deleting it.
 4. Rebuild the site: its "source" links point at the old paths until then.
 5. Commit and push.
 
-**New in the language, decided 2026-11-25** (after the steps above)
+**New in the language, built 2026-11-25**
 
-6. Dictionary literals.
-7. `--watch`: build again when a file changes.
-8. The shorter `for`.
-9. `with(x) as c { } else { }` - still to be decided.
+6. Done: the dictionary (`d["key"]`, literals with object types), `with ... as ... else`, `apply ... else`,
+   `-watch`. `is` and `as` now follow an interface that extends an interface.
+7. Left alone on purpose: the shorter `for`.
+8. `-watch` has no automated test yet (it was tried by hand).
+9. The docs do not know the new things yet: GETTING_STARTED.md, the site.
 
 **Clean-up left**
 
@@ -56,8 +57,11 @@ Tick a line off by deleting it.
 
 ## Only Braxton can do
 
-1. Publish on GitHub Releases (the newest there is v0.2.9 from 2020); then the site's download button
-   is pointed at it, and the zips in `releases/` can leave the repository.
+1. Publish on GitHub Releases (the newest there is v0.2.9 from 2020), with the zip that
+   `release.sh` makes in `releases/`. Tag it `v<version>`, attach the zip, and do NOT tick
+   "pre-release": the site's download button follows the newest full release by itself.
+   (`releases/` is not in the repository any more: a fresh checkout takes its first compiler
+   from a zip put there by hand - build-scripts/build.sh says so.)
 2. Check GitHub Pages is on: Settings > Pages, source `gh-pages`.
 3. Play-test Sharpcraft and Abyss by hand.
 4. Decide whether Escape always lets a kept mouse go, in the library itself.

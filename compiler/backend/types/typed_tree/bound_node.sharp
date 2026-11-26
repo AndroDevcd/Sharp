@@ -73,6 +73,7 @@ const BX_ASSIGN          : _int64 = 32;     // a = b, a += b into storage
 const BX_DICTIONARY      : _int64 = 33;     // { "a" : 1 }
 const BX_FUNCTION_REFERENCE : _int64 = 34;  // `twice` used as a value: a function value without captures
 const BX_LAMBDA          : _int64 = 35;     // { x -> ... }: a function written in place, and what it captures
+const BX_WITH            : _int64 = 37;     // with(value) as name { } else { }, apply(value) { } else { }: an expression that holds statements
 const BX_GET_COMPONENT   : _int64 = 36;     // get<database>(): the value a component definition makes
 
 // ---- what a literal was written as
@@ -121,6 +122,8 @@ class bound_expression base bound_node {
  */
 class bound_statement base bound_node {
     completes : _int64 = 1;     // can execution continue after it (worked out by the flow analysis, backend/compiler/flow)
+    holds_blocks : _int64 = 0;  // 1: a `with` / `apply` was analysed while this statement was (in one of its own
+                                // expressions, or deeper): the flow analysis looks for its blocks there
 
     bound_statement(kind: _int64, unit: source_unit, node: _int64) -> base(kind, unit, node) {
     }

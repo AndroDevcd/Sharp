@@ -66,6 +66,7 @@ def has_effect(expression: bound_expression) : _int64 {
     kind : _int64 = expression.kind;
     if(kind == BX_CALL || kind == BX_VALUE_CALL || kind == BX_NEW || kind == BX_ASSIGN || kind == BX_INCREMENT) { return 1; }
     if(kind == BX_ERROR) { return 1; }          // reported already: one message is enough
+    if(kind == BX_WITH) { return 1; }           // `with(...) as x { }` / `apply(...) { }`: its blocks are what it is for
     if(kind == BX_GET_COMPONENT) { return 1; }  // `get<t>();`: a factory definition makes an object, a single one may
     if(kind == BX_CONVERSION) { return has_effect((expression as bound_conversion).operand); }
     if(kind == BX_NOT_NULL) { return has_effect((expression as bound_not_null).operand); }

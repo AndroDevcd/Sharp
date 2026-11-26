@@ -70,11 +70,12 @@ import (
  *          seen.should_have_been(0, 1, 0);                 // not busy, busy, not busy again
  *      };
  *
- * HOW A TEST DISPATCHER HOLDS WORK. It gives every piece of work to the
- * test's own thread. That thread is busy running the test, so the work waits;
- * run_work() lets the thread turn to it. The pieces run one after the other,
- * in the order they were started, and when run_work() returns all of them are
- * done - so the test reads the same every time it runs.
+ * HOW A TEST DISPATCHER HOLDS WORK. A piece of work given to it is not
+ * started at all: it is kept on a list. run_work() starts the pieces one
+ * after the other, in the order they were given, each on the test's own
+ * thread, and waits for each to finish before the next - so the test reads
+ * the same every time it runs. Work that a piece of work starts in turn is
+ * kept the same way, and run by the same run_work().
  *
  * In a ui_test the same words work, with a screen in front of the model:
  * run_work() also lets the screen follow what the work changed.
@@ -89,26 +90,28 @@ import (
  */
 
 /**
- * A dispatcher for tests: the work it is given runs on the thread that made
- * the dispatcher - the test's - and only when run_work() lets it. Made with
- * test_dispatcher().
+ * A dispatcher for tests: the work it is given is kept, not started, until
+ * run_work() - which runs it on the thread that made the dispatcher, the
+ * test's. Made with test_dispatcher().
  */
-stable class held_dispatcher : coroutine_dispatcher {
+stable class held_dispatcher : coroutine_dispatcher, holding_dispatcher {
     private owner : thread;
 
-    /** how many fibers the test's thread had before any test dispatcher gave it work (-1: not looked yet) */
-    static at_rest : _int64 = 0 - 1;
+    /** the work every test dispatcher has been given and that has not run yet, in the order it was given */
+    static waiting : list<job> = new list<job>();
 
     held_dispatcher() {
         owner = thread.current();
-        if(at_rest < 0) {
-            at_rest = fiber.poll(owner).value;
-        }
     }
 
-    /** the thread that made this dispatcher: its work waits there for run_work() */
+    /** the thread that made this dispatcher: where its work runs once run_work() starts it */
     override def select_thread() : thread? {
         return owner;
+    }
+
+    /** keep a piece of work for run_work() */
+    override def hold(coroutine: job) {
+        waiting.add(coroutine);
     }
 }
 
@@ -127,24 +130,25 @@ def test_dispatcher() : coroutine_dispatcher {
  * fails the test after ten seconds.
  */
 def run_work() {
-    here : thread = thread.current();
-    resting : _int64 = held_dispatcher.at_rest;
-    if(resting < 0) {
-        resting = fiber.poll(here).value;           // (no test dispatcher was made: only the main thread's queue to run)
-    }
     began : decimal = nano_time().value;
-    quiet_turns : _int64 = 0;
-    while(quiet_turns < 2) {
-        delay(1);                                   // the test's thread turns to the work that waits on it
+    while(true) {
+        // what was handed back to the main thread so far (it may start more work)
         handed_back : _int64 = main_queue.run_waiting();
-        if(fiber.poll(here).value <= resting && handed_back == 0) {
-            quiet_turns = quiet_turns + 1;          // (nothing ran this turn; one more turn to be sure of it)
-        } else {
-            quiet_turns = 0;
+        if(held_dispatcher.waiting.size() == 0) {
+            if(handed_back == 0) { break; }
+            continue;
         }
-        if(nano_time().value - began > 10000000000) {
-            fail_test("run_work(): after ten seconds there is still work that has not finished "
-                    + "(does it wait for something that never comes, or loop for ever?)");
+
+        // the piece of work that was given first: started now, and waited for
+        next : job = held_dispatcher.waiting.at(0);
+        held_dispatcher.waiting.remove_at(0);
+        start_held(next);
+        while(!next.is_completed()) {
+            delay(1);                               // the test's thread turns to the work
+            if(nano_time().value - began > 10000000000) {
+                fail_test("run_work(): after ten seconds there is still work that has not finished "
+                        + "(does it wait for something that never comes, or loop for ever?)");
+            }
         }
     }
     if(test_screen.host != null) {

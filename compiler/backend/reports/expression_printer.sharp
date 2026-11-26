@@ -91,6 +91,8 @@ def print_expression(expression: bound_expression, depth: _int64) {
     } else if(kind == BX_ELVIS) {
         print_expression((expression as bound_elvis).value, next);
         print_expression((expression as bound_elvis).fallback, next);
+    } else if(kind == BX_WITH) {
+        print_expression((expression as bound_with).subject, next);
     } else if(kind == BX_TERNARY) {
         ternary := expression as bound_ternary;
         print_expression(ternary.condition, next);
@@ -176,6 +178,10 @@ def described_node(expression: bound_expression) : string {
     if(kind == BX_RECEIVER) { return "receiver"; }
     if(kind == BX_ELVIS) { return "elvis (?:)"; }
     if(kind == BX_TERNARY) { return "ternary (? :)"; }
+    if(kind == BX_WITH) {
+        if((expression as bound_with).applies == 1) { return "apply (its blocks are statements of this function)"; }
+        return "with (its blocks are statements of this function)";
+    }
     if(kind == BX_SIZEOF) { return "sizeof"; }
     if(kind == BX_INDEX) { return "index"; }
     if(kind == BX_NEW_ARRAY) { return "new array of " + type_text((expression as bound_new_array).element); }

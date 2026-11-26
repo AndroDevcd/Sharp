@@ -71,6 +71,8 @@ class analysis_context {
     // analysing the node again. -1: nothing waiting.
     ready_node : _int64 = 0 - 1;
     statement_depth : _int64 = 0;           // how many statements the analysis is inside of (ANALYSIS_NESTING_LIMIT, reporting.sharp)
+    scope_blocks : _int64 = 0;              // how many `with` / `apply` expressions this body has had so far (statements.sharp marks
+                                            // the statements they are in for the flow analysis)
     ready_value : bound_expression?;
     reading_a_target : _int64 = 0;          // 1 while the left side of an assignment is analysed (assignment_targets.sharp)
 

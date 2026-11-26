@@ -63,8 +63,42 @@ def flow_of(context: analysis_context, statement: bound_statement, reachable: _i
     else if(kind == BS_LOCK) { completes = flow_of(context, (statement as bound_lock).body, reachable); }
     else if(kind == BS_TRY) { completes = flow_of_try(context, statement as bound_try, reachable); }
     else if(kind == BS_WHEN) { completes = flow_of_when(context, statement as bound_when, reachable); }
+    if(statement.holds_blocks == 1) { completes = flow_of_held_blocks(context, statement, reachable, completes); }
     statement.completes = completes;
     return completes;
+}
+
+/**
+ * The blocks of the `with` / `apply` expressions written directly in a
+ * statement (in its condition, its value, its arguments ...): they are
+ * statements of this function too, so a `break` in one leaves a loop and a
+ * statement after a `return` in one cannot be reached.
+ *
+ * What the statement itself does afterwards is what it did anyway (`was`),
+ * with one exception: `with(...) as x { } else { }` standing alone as a
+ * statement goes on only when one of its blocks does - like an `if`.
+ */
+def flow_of_held_blocks(context: analysis_context, statement: bound_statement, reachable: _int64, was: _int64) : _int64 {
+    expressions := new list<bound_expression>();
+    below := new list<bound_statement>();           // (the statements inside it are walked by their own rules)
+    statement_parts(statement, expressions, below);
+    for(i : _int64 = 0; i < expressions.size(); i++) {
+        every := all_expressions_in(expressions.at(i));
+        for(j : _int64 = 0; j < every.size(); j++) {
+            if(every.at(j).kind != BX_WITH) { continue; }
+            held := every.at(j) as bound_with;
+            flow_of(context, held.then_part, reachable);
+            if(held.else_part != null) { flow_of(context, held.else_part!!, reachable); }
+        }
+    }
+
+    if(statement.kind != BS_EXPRESSION_STATEMENT) { return was; }
+    alone : bound_expression = (statement as bound_expression_statement).expression;
+    if(alone.kind != BX_WITH) { return was; }
+    held := alone as bound_with;
+    if(held.may_be_null == 0) { return held.then_part.completes; }
+    if(held.else_part == null) { return 1; }
+    return held.then_part.completes == 1 || held.else_part!!.completes == 1;
 }
 
 /** `break`: the loop it leaves is left by a break (when this one can run) */

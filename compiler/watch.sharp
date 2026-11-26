@@ -1,0 +1,184 @@
+mod main;
+
+import (
+    std.io,
+    std.system,
+    platform,
+    platform.kernel,
+    configuration
+)
+
+/*
+ * -watch: BUILD AGAIN WHENEVER A FILE CHANGES
+ *
+ *      sharpc -p -watch                    a project: every .sharp file below it, and its settings.json
+ *      sharpc main.sharp -o app -watch     the files named
+ *      sharpc -p -run -watch               ... and run the program after every build that worked
+ *
+ * It builds once, then waits. When a watched file is saved, added or deleted
+ * it says which, builds again, and waits again - until Ctrl+C. Every line it
+ * prints itself starts with `[watch]`, so its own lines are told from the
+ * compiler's messages at a glance:
+ *
+ *      [watch] building ...
+ *      (what the compiler prints: errors, warnings, or nothing)
+ *      [watch] built in 1.4 s
+ *      [watch] watching 12 files in /home/me/shop - save a file to build again (Ctrl+C stops)
+ *      [watch] changed: src/cart.sharp
+ *      [watch] building ...
+ *
+ * EVERY BUILD IS A PROGRAM OF ITS OWN: the same command without `-watch`,
+ * started on the same runtime. A build keeps what it worked out in static
+ * fields for its whole run (the options, the tables of the program); a
+ * second build inside the same run would start from the leftovers of the
+ * first. A fresh program starts clean, and a project's build cache already
+ * makes the second build a short one.
+ *
+ * WHAT IS WATCHED is decided again before every build, so a file added to
+ * the project is watched from the next build on. A file is "changed" when
+ * the time it was last written differs from the time noted before the
+ * build - a save DURING a build is therefore seen right after it. The
+ * library's own files (-L) are not watched.
+ * (Other tools: `tsc --watch`, `cargo watch`, Gradle's `--continuous`.)
+ */
+
+/** how often the files are looked at, in milliseconds */
+const WATCH_PAUSE : _int64 = 300;
+
+/** what a watched file was like when it was last looked at */
+class watched_file {
+    path : string;
+    written : _int64;           // file.last_modified(); -1: it was not there
+
+    watched_file(path: string, written: _int64) {
+        self->path = path;
+        self->written = written;
+    }
+}
+
+/** `-watch`: never returns by itself (Ctrl+C ends it) */
+def watch_and_build(args: string[]) : int {
+    // the command of one build: this compiler on this runtime, with what was typed, less `-watch`
+    command := process.quote(runtime_path()) + " " + process.quote(vm.program_path());
+    foreach(arg in args) {
+        if(arg != "-watch") { command = command + " " + process.quote(arg); }
+    }
+
+    while(true) {
+        watched := files_to_watch();
+
+        println("[watch] building ...");
+        began : _int64 = nano_time().value;
+        code : _int64 = process.execute(command);
+        tenths : _int64 = (nano_time().value - began) / 100000000;
+        took := "" + (tenths / 10) + "." + (tenths % 10) + " s";
+        if(code == 0) { println("[watch] built in " + took); }
+        else { println("[watch] the build did not succeed (" + took + "): fix what it says above and save"); }
+
+        println("[watch] watching " + watched.size() + " " + (watched.size() == 1 ? "file" : "files") + where_watched()
+                + " - save a file to build again (Ctrl+C stops)");
+
+        changed := wait_for_a_change(watched);
+        println("");
+        println("[watch] changed: " + changed);
+    }
+    return 0;
+}
+
+/** the files whose change starts a build, each with the time it was last written */
+def files_to_watch() : list<watched_file> {
+    paths := new list<string>();
+    foreach(named in options.source_files) { paths.add(new file(named).absolute_path()); }
+    if(options.compile_mode == compilation_mode.project_mode) {
+        folder := project_folder();
+        try {
+            foreach(found in sharp_files_below(folder)) {
+                if(!contains(paths, found)) { paths.add(found); }
+            }
+        } catch(io_exception) {
+            // (the build itself says that the folder cannot be read)
+        }
+        paths.add(folder + "/settings.json");
+    }
+
+    watched := new list<watched_file>();
+    foreach(path in paths) { watched.add(new watched_file(path, written_time_of(path))); }
+    return watched;
+}
+
+/** the folder of the project being built: the one named with -P, or the one the compiler was started in */
+def project_folder() : string {
+    if(options.project_dir != "") { return new file(options.project_dir).absolute_path(); }
+    return new file(file.current_directory()).absolute_path();
+}
+
+/** " in <folder>" for a project; nothing for files named one by one */
+def where_watched() : string {
+    if(options.compile_mode == compilation_mode.project_mode) { return " in " + project_folder(); }
+    return "";
+}
+
+/** when a file was last written; -1 when it is not there */
+def written_time_of(path: string) : _int64 {
+    watched := new file(path);
+    if(!watched.exists()) { return 0 - 1; }
+    return watched.last_modified();
+}
+
+/**
+ * Wait until something changed, and say what: the files that were written,
+ * deleted or (in a project) added, by their names below the project. More
+ * than three are counted, not listed.
+ */
+def wait_for_a_change(watched: list<watched_file>) : string {
+    while(true) {
+        thread.sleep(WATCH_PAUSE);
+        changed := new list<string>();
+        foreach(one in watched) {
+            now : _int64 = written_time_of(one.path);
+            if(now != one.written) {
+                if(now < 0) { changed.add(short_name_of(one.path) + " (deleted)"); }
+                else if(one.written < 0) { changed.add(short_name_of(one.path) + " (new)"); }
+                else { changed.add(short_name_of(one.path)); }
+            }
+        }
+        if(options.compile_mode == compilation_mode.project_mode) {
+            try {
+                foreach(found in sharp_files_below(project_folder())) {
+                    if(!is_watched(watched, found)) { changed.add(short_name_of(found) + " (new)"); }
+                }
+            } catch(io_exception) {
+            }
+        }
+        if(changed.size() == 0) { continue; }
+
+        // (an editor may write a file in several steps: let it finish before the build reads it)
+        thread.sleep(WATCH_PAUSE / 3);
+        said := "";
+        for(i : _int64 = 0; i < changed.size() && i < 3; i++) {
+            if(i > 0) { said = said + ", "; }
+            said = said + changed.at(i);
+        }
+        if(changed.size() > 3) { said = said + " and " + (changed.size() - 3) + " more"; }
+        return said;
+    }
+    return "";
+}
+
+/** is this path one of the watched files? */
+def is_watched(watched: list<watched_file>, path: string) : bool {
+    foreach(one in watched) {
+        if(one.path == path) { return true; }
+    }
+    return false;
+}
+
+/** a path as it is written below the project's folder (`src/cart.sharp`); the whole path for a file outside it */
+def short_name_of(path: string) : string {
+    if(options.compile_mode != compilation_mode.project_mode) { return path; }
+    folder := project_folder();
+    if(path.size() > folder.size() + 1 && path.starts_with(folder)) {
+        return path.substring(folder.size() + 1, path.size());
+    }
+    return path;
+}

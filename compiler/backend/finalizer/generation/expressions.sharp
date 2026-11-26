@@ -14,7 +14,8 @@ import (
     backend.finalizer.generation.collections,
     backend.finalizer.generation.null_safety,
     backend.finalizer.generation.closures,
-    backend.finalizer.generation.setup
+    backend.finalizer.generation.setup,
+    backend.finalizer.generation.statements
 )
 
 /**
@@ -98,6 +99,7 @@ def value_of(g: generator, e: bound_expression) : _int64 {
     if(kind == BX_BINARY) { return binary_value(g, e as bound_binary); }
     if(kind == BX_LOGICAL) { return logical_value(g, e as bound_logical); }
     if(kind == BX_TERNARY) { return ternary_value(g, e as bound_ternary); }
+    if(kind == BX_WITH) { return with_value(g, e as bound_with); }
     if(kind == BX_UNARY) { return unary_value(g, e as bound_unary); }
     if(kind == BX_ASSIGN) { return assign_value(g, e as bound_assign); }
     if(kind == BX_INCREMENT) { return increment_value(g, e as bound_increment); }
@@ -145,6 +147,7 @@ def stores_into_slot(e: bound_expression, slot: _int64) : _int64 {
     parts := all_expressions_in(e);
     for(i : _int64 = 0; i < parts.size(); i++) {
         part := parts.at(i);
+        if(part.kind == BX_WITH) { return 1; }      // its blocks are statements: they may store into anything
         target : bound_expression? = null;
         if(part.kind == BX_ASSIGN) { target = (part as bound_assign).target; }
         if(part.kind == BX_INCREMENT) { target = (part as bound_increment).target; }
@@ -167,7 +170,7 @@ def has_no_effect(e: bound_expression) : _int64 {
     for(i : _int64 = 0; i < parts.size(); i++) {
         kind : _int64 = parts.at(i).kind;
         if(kind == BX_CALL || kind == BX_NEW || kind == BX_ASSIGN || kind == BX_INCREMENT || kind == BX_VALUE_CALL
-           || kind == BX_NEW_ARRAY || kind == BX_ARRAY_LITERAL || kind == BX_DICTIONARY || kind == BX_GET_COMPONENT) {
+           || kind == BX_WITH || kind == BX_NEW_ARRAY || kind == BX_ARRAY_LITERAL || kind == BX_DICTIONARY || kind == BX_GET_COMPONENT) {
             return 0;
         }
     }

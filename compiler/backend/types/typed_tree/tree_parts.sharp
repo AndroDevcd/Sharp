@@ -20,6 +20,9 @@ import (
  *
  * A lambda has no parts here: its body belongs to its own function
  * (`bound_lambda.function.bound_body`), which is visited as a function.
+ * A `with` / `apply` has one part here, its value; its BLOCKS are statements
+ * of the same function, and a pass over a body asks for them with
+ * `statements_inside`.
  * The receiver of a `?.` chain appears once, as the receiver; the
  * `bound_receiver` inside the rest of the chain stands for it and has no
  * parts of its own.
@@ -59,6 +62,13 @@ def all_expressions_in(expression: bound_expression) : list<bound_expression> {
  * The same, added to a list the caller keeps: a pass over a whole tree can
  * use ONE list as its stack instead of making a list per node.
  */
+def statements_inside(expression: bound_expression, statements: list<bound_statement>) {
+    if(expression.kind != BX_WITH) { return; }
+    held := expression as bound_with;
+    statements.add(held.then_part);
+    if(held.else_part != null) { statements.add(held.else_part!!); }
+}
+
 def add_parts(expression: bound_expression, parts: list<bound_expression>) {
     kind : _int64 = expression.kind;
     if(kind == BX_ERROR) { add_if_there(parts, (expression as bound_error).inner); }
@@ -75,6 +85,7 @@ def add_parts(expression: bound_expression, parts: list<bound_expression>) {
         add_all(parts, (expression as bound_value_call).arguments);
     }
     else if(kind == BX_NEW) { add_all(parts, (expression as bound_new).arguments); }
+    else if(kind == BX_WITH) { parts.add((expression as bound_with).subject); }
     else if(kind == BX_CONVERSION) { parts.add((expression as bound_conversion).operand); }
     else if(kind == BX_CAST) { parts.add((expression as bound_cast).operand); }
     else if(kind == BX_IS) { parts.add((expression as bound_is).operand); }

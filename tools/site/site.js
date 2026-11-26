@@ -25,6 +25,23 @@ document.querySelectorAll("#tour .bar button").forEach(function (tab) {
   });
 });
 
+// the download button: ask GitHub for the newest release, and offer its zip and its version.
+// When GitHub does not answer, the button stays as it was written: a link to the newest release's page.
+(function () {
+  var button = document.getElementById("get-sharp");
+  if (!button || !window.fetch) { return; }
+  var asked = button.href.replace("https://github.com/", "https://api.github.com/repos/");
+  fetch(asked).then(function (answer) { return answer.ok ? answer.json() : null; }).then(function (release) {
+    if (!release) { return; }
+    var zip = (release.assets || []).filter(function (a) { return /\.zip$/.test(a.name); })[0];
+    if (!zip) { return; }
+    button.href = zip.browser_download_url;
+    var version = String(release.tag_name || "").replace(/^v/, "");
+    if (!version) { return; }
+    document.querySelectorAll("[data-newest-version]").forEach(function (place) { place.textContent = version; });
+  }).catch(function () { });
+})();
+
 // the library's search box: every name is in std/search.js (name, module, page, what it does)
 (function () {
   var box = document.getElementById("lib-search"), found = document.getElementById("lib-found");

@@ -54,4 +54,6 @@ class lookup_result {
     owner : sharp_class?;                   // the class the member was found in (the context's class or one above it)
     in_module : sharp_module?;              // the module a global was found in
     through_class : _int64 = 0;             // 1: found as a member of the class the code is in
+    applied : local_variable?;              // found as a member of the object of an `apply(...) { }`: the variable that
+                                            // holds the object (`depth` says how many functions out it is)
 }

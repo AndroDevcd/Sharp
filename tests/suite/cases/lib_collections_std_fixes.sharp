@@ -260,8 +260,8 @@ def test_dictionary() {
     foreach(entry in none) { visited++; }
     test("empty dict foreach") { expect(visited).should_be(0); };
     // the old way to reach the pairs still works
-    test("dict map field") { expect(ages.map.size()).should_be(3); };
-    test("dict map pair") { expect(ages.map.at(1).second).should_be(45); };
+    test("dict map field") { expect(ages.size()).should_be(3); };
+    test("dict map pair") { expect(ages.values().at(1).value).should_be(45); };
 }
 
 def main(args: string[]) {

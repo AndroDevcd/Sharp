@@ -141,6 +141,7 @@ const N_STRING_TEMPLATE : _int64 = 130; // "a ${x + 1} b $name c"     children, 
 const N_NATIVE_LIBRARY  : _int64 = 131; // "sensors" of `native "sensors" { ... }`: a child of every N_FUNCTION declared in the block
 const N_EXTERN_LIBRARY  : _int64 = 132; // "sdl" of `extern "sdl" { ... }`: a child of every N_FUNCTION declared in the block
 const N_VARIADIC        : _int64 = 133; // `...` in the parameters of an extern function: a child of N_PARAMETERS, where C's variable arguments begin
+const N_WITH            : _int64 = 134; // with(value) as name { } else { }    children: expression, N_PARAMETER (the name), N_BLOCK [N_BLOCK]
 const N_ERROR           : _int64 = 129; // where something could not be parsed (an error was reported)
 
 /** the name of a node kind, for tree dumps and messages about the tree itself */
@@ -254,6 +255,7 @@ def node_kind_name(kind: _int64) : string {
     if(kind == N_SIZEOF) { return "sizeof"; }
     if(kind == N_PAREN) { return "paren"; }
     if(kind == N_GET_COMPONENT) { return "get_component"; }
+    if(kind == N_WITH) { return "with"; }
     if(kind == N_ERROR) { return "error"; }
     return "?";
 }

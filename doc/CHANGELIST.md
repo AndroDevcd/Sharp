@@ -8,7 +8,7 @@ any other versions below that is considered deprecated and no longer supported. 
 to the ability to run older code that has been compiled by the older framework and can be successfully ran on the new system
 Any other compatibility issues/changes will be otherwise noted in the release notes specifically.
 
-##### Version 0.5.12 (November 25, 2026)
+##### Version 0.5.13 (November 25, 2026)
     The first release since 0.2.9.1. Between the two, almost everything was written again: the
     compiler, the virtual machine's memory and machine-code compiler, and the whole standard
     library. A program written for 0.2.x has to be changed and compiled again.
@@ -21,6 +21,9 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Generic classes and functions, with a base the type must have: `class box<t base shape>`
         * Functions added to an existing class from outside: `def list<T>.first_or_null()`
         * `when`, `alias`, `is`, `foreach` over anything that is `loopable`
+        * `with(value) as name { } else { }` and `apply(value) { } else { }`: a value and a block
+          that works on it when it is not null; both are expressions that give the value back
+        * Dictionary literals, `{ "ann" : 31, "bob" : 45 }`, read and written with `ages["ann"]`
         * Dependency injection in the language: `component`, `single`, `factory`, `inject`
         * Mocks in the language: `mock<store>()`, `given { }`, `verify { }`
         * Calls into C and C++: `native "name" { }` blocks (the Sharp Native Interface) and
@@ -34,6 +37,7 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * Projects: a folder with a settings.json is built with `sharpc -p`; a build cache
         * Errors have a number, show the line, and say what to do about it
         * Three compilers ship: the standard one, one built without the optimizer, a debug one
+        * `-watch`: build again whenever a file of the program is saved
 
     # The virtual machine
         * A generational collector that does not move objects; `std.system` can steer it, and
@@ -80,8 +84,8 @@ Any other compatibility issues/changes will be otherwise noted in the release no
         * macOS is not supported yet
         * ARM is tested under an emulator, not yet on a real Raspberry Pi
 
-    runtime version: 4.0.12r19
-    compiler version: 0.5.12
+    runtime version: 4.0.13r19
+    compiler version: 0.5.13
 
     Backwards compatibility support tested Version: (n/a)
 

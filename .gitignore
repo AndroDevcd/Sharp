@@ -7,8 +7,9 @@ out
 present/
 mapping.txt
 claude/
-# the release archives ARE kept (releases/sharp-<version>.zip, made by build-scripts/release.sh)
-!/releases/*.zip
+# The release archives (releases/sharp-<version>.zip, made by build-scripts/release.sh) are NOT in
+# the repository: a release is published on the project's GitHub Releases page, with its zip.
+/releases/
 # ... and the archive of the C++ compiler (legacy/sharpc++.zip)
 !/legacy/*.zip
 

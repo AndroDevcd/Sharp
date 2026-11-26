@@ -19,7 +19,10 @@ import (
  *                | do_while_statement | throw_statement | break_statement
  *                | continue_statement | lock_statement | trycatch_statement
  *                | when_statement | asm_statement | alias_decl | ";"
- *                | expression_statement ;
+ *                | scope_block | expression_statement ;
+ *
+ * (scope_block: `with(value) as name { }`, which is an expression -
+ * parse_expressions.sharp - that may stand as a statement.)
  *
  * The FIRST TOKEN says which statement it is: `if` starts an if statement and
  * nothing else does. The one case that needs a second token is a name:
@@ -94,6 +97,13 @@ def parse_statement(p: parse_state, parent: _int64) {
     else if(kind == P_SEMICOLON) {
         p.child(parent, N_EMPTY_STATEMENT);
         p.advance();
+    }
+    else if(kind == T_IDENTIFIER && scope_block_follows(p) == 1) {
+        // `with(...) as x { }` as a statement: it ends with its last block, and what comes after is the
+        // next statement (a `;` after it is allowed)
+        statement : _int64 = p.child(parent, N_EXPRESSION_STATEMENT);
+        p.tree.append(statement, parse_scope_block(p));
+        p.accept(P_SEMICOLON);
     }
     else if((kind == K_GET || kind == K_SET) && parse_local_accessor(p, parent) == 1) {
         // `x : int = 0; get { ... }` in a function: reported, the accessor read and dropped (habits/declaration_habits.sharp)

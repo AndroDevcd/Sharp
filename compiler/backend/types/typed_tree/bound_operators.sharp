@@ -127,6 +127,33 @@ class bound_ternary base bound_expression {
     }
 }
 
+/**
+ * `with(value) as name { ... } else { ... }` and `apply(value) { ... } else { ... }`
+ * (compiler/statements/scope_blocks.sharp): the one expression that holds
+ * STATEMENTS. Its value is `subject`, kept in `holder` while a block runs.
+ *
+ * Whoever walks a body must walk these blocks too: `statements_inside`
+ * (tree_parts.sharp) hands them over.
+ */
+class bound_with base bound_expression {
+    subject : bound_expression;
+    holder : local_variable;            // hidden: the value, with the type it has (the result is read from it)
+    inside : local_variable;            // the value inside the block, its `?` taken off: the name of a `with`,
+                                        // a hidden variable marked `is_applied` for an `apply`
+    then_part : bound_statement;        // runs when the value is not null
+    else_part : bound_statement?;       // runs when it is
+    may_be_null : _int64 = 0;           // 0: no test is made, `then_part` always runs
+    applies : _int64 = 0;               // 1: written `apply`
+
+    bound_with(unit: source_unit, node: _int64, subject: bound_expression, holder: local_variable, inside: local_variable,
+               then_part: bound_statement, type: resolved_type) -> base(BX_WITH, unit, node, type) {
+        self->subject = subject;
+        self->holder = holder;
+        self->inside = inside;
+        self->then_part = then_part;
+    }
+}
+
 /** `sizeof(value)`: the length of an array, the number of fields of an object */
 class bound_sizeof base bound_expression {
     operand : bound_expression;

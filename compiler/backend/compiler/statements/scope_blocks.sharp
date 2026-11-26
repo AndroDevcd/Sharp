@@ -1,0 +1,164 @@
+mod backend.compiler.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * `with` AND `apply`: a value, and a block that works on it
+ *
+ *      with(find_car("ABCD")) as car { car.wheels = 8; } else { println("no such car"); }
+ *      audi := apply(new car()) { vin = "ABCD"; wheels = 4; };
+ *
+ * Both are EXPRESSIONS that hold statements: the value in the parentheses is
+ * worked out once, the block runs when it is not null, the `else` block when
+ * it is, and the value of the whole thing is that value, with the type it
+ * had - `car?` for the first line above, `car` for the second.
+ *
+ *      with(value) as name { }     `name` is the value inside the block, known not to be null
+ *      apply(value) { }            the block runs "inside" the value: a name that is not a local
+ *                                  variable is looked up in the value's class first, so its fields
+ *                                  and functions are written without anything in front
+ *                                  (names/name_lookup.sharp, step 1b; calls/call_by_name.sharp)
+ *
+ * The blocks are ordinary blocks of the function they are in: `return`
+ * leaves that function, `break` and `continue` act on the loop around. (They
+ * are not lambdas.)
+ *
+ * WHERE EACH COMES FROM. `with ... as name {` is a shape of its own, and the
+ * parser makes an N_WITH of it (analyse_scope_block). `apply(value) { ... }`
+ * is, to the parser, a call that ends in a lambda block - which is also what
+ * it IS when the program has a function called `apply`. So it is decided
+ * where calls are (calls/call_by_name.sharp): when nothing called `apply` is
+ * in reach, a call of that name with one value and a block without
+ * parameters is the built-in, and its block is analysed here as the block it
+ * is (apply_block). A function of the program's own always wins.
+ *
+ * In the typed tree the value is kept in a hidden variable (`holder`) while
+ * the blocks run, and inside the block it is a second variable with the `?`
+ * taken off (`inside`): the one `with` names, or for `apply` a hidden one
+ * marked `is_applied`, which is what name lookup looks for.
+ *
+ *      E0620   an `else` on a value that cannot be null: it could never run
+ *      E0621   `apply` on something that is not an object of a class; `with` or `apply` on `null` itself
+ *      E0622   an `else` after `apply(...) { }` where `apply` is a function of the program
+ *              (calls/calls.sharp): only the built-in has one
+ */
+def analyse_scope_block(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    subject_node : _int64 = tree.first_child!![node];
+    name_node : _int64 = 0 - 1;
+    then_node : _int64 = 0 - 1;
+    else_node : _int64 = 0 - 1;
+    next : _int64 = tree.next_sibling!![subject_node];
+    if(next >= 0 && tree.kinds!![next] == N_PARAMETER) {
+        name_node = next;
+        next = tree.next_sibling!![next];
+    }
+    if(next >= 0 && tree.kinds!![next] == N_BLOCK) {
+        then_node = next;
+        else_node = tree.next_sibling!![next];
+    }
+    context.scope_blocks++;
+    subject := analyse_value(context, subject_node, null);
+    return scope_block_from(context, node, subject, subject_node, name_node, then_node, else_node, 0);
+}
+
+/**
+ * The built-in `apply(value) { ... } else { ... }`, found where a call of
+ * that name was written (see the top of this file).
+ *
+ * @param node          the call
+ * @param subject       its one argument, analysed already
+ * @param then_node     the block of the lambda written after the call
+ * @param else_node     the block after `else`, or -1
+ */
+def apply_block(context: analysis_context, node: _int64, subject: bound_expression, subject_node: _int64,
+                then_node: _int64, else_node: _int64) : bound_expression {
+    context.scope_blocks++;
+    return scope_block_from(context, node, subject, subject_node, 0 - 1, then_node, else_node, 1);
+}
+
+/** the rules both share, from the value on */
+def scope_block_from(context: analysis_context, node: _int64, value: bound_expression, subject_node: _int64, name_node: _int64,
+                     then_node: _int64, else_node: _int64, applies: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    word := "with";
+    if(applies == 1) { word = "apply"; }
+
+    subject : bound_expression = value;
+    if(subject.type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+    // a literal is what `name := literal` would be: "text" a string, 5 an int (conversions/inferred_types.sharp)
+    natural : resolved_type = inferred_type_of(context.session, subject);
+    if(subject.literal != LIT_NONE && natural.kind != RT_ERROR) {
+        how := find_conversion(context.session, subject.type, natural, 1);
+        if(how.converts()) { subject = apply_conversion(context, subject, how); }
+    }
+    type : resolved_type = subject.type;
+    if(type.kind == RT_NULL) {
+        d := problem_over(context, "E0621", "`" + word + "` has nothing to work on: this is `null` itself", subject_node);
+        d.with_label("always null");
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(applies == 1 && (type.kind != RT_CLASS || type.is_array == 1)) {
+        d := problem_over(context, "E0621", "`apply` works on an object of a class, and this is " + described_type(type), subject_node);
+        d.with_label("has no fields or functions to name");
+        d.with_note("inside the block of an `apply`, a name is looked up in the class of the value");
+        d.with_help("to work on any value under a name, write `with(...) as name { ... }`");
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    may_be_null : _int64 = type.can_be_null();
+    inside_type : resolved_type = type.with_marks(type.is_array, 0, type.has_nullable_items);
+    holder := context.hidden_local(word + " value", type, node);
+
+    // the block, with the value in a variable of its own: the name of a `with`, the hidden one of an `apply`
+    context.open_scope();
+    inside : local_variable? = null;
+    if(applies == 1) {
+        inside = new local_variable("<applied object>", inside_type, context.unit, node);
+        inside!!.is_hidden = 1;
+        inside!!.is_applied = 1;
+    } else {
+        name := "it";
+        declared_at : _int64 = node;
+        if(name_node >= 0) {
+            name = name_at(context, name_node);
+            declared_at = name_node;
+            report_if_already_local(context, name, name_node);
+        }
+        inside = new local_variable(name, inside_type, context.unit, declared_at);
+    }
+    inside!!.writes++;
+    context.declare(inside!!);
+    then_part := analyse_part(context, then_node);
+    context.close_scope();
+
+    made := new bound_with(context.unit, node, subject, holder, inside!!, then_part, type);
+    made.applies = applies;
+    made.may_be_null = may_be_null;
+
+    if(else_node >= 0) {
+        if(may_be_null == 0) {
+            d := problem_at(context, "E0620", "this `else` can never run: the value of the `" + word + "` cannot be null", else_node);
+            d.with_label("only runs when the value is null");
+            d.with_related_place(place_of_node(context.unit, subject_node, "this is " + described_type(type) + ", which is never null"));
+            d.with_help("take the `else` block away");
+            report(context, d);
+        }
+        made.else_part = analyse_part(context, else_node);
+    }
+    return made;
+}

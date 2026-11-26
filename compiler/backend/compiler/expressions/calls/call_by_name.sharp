@@ -15,7 +15,8 @@ import (
     backend.compiler.overloads,
     backend.compiler.lambdas,
     backend.compiler.expressions,
-    backend.compiler.expressions.primary
+    backend.compiler.expressions.primary,
+    backend.compiler.statements
 )
 
 /**
@@ -85,6 +86,21 @@ def call_by_name(context: analysis_context, node: _int64, callee_node: _int64, a
         return construct(context, type_of_class(context.class_of!!), arguments, node, callee_node, 1);
     }
 
+    // 2b. a member of the object of an `apply(value) { }` around, the innermost first
+    if(context.scope != null) {
+        applied := new lookup_result();
+        find_applied_member(context, name, applied);
+        if(applied.kind == FOUND_FIELD && field_holds_function(context, applied.field!!)) {
+            return call_function_value(context, expression_for_found(context, applied, callee_node, name), arguments, node);
+        }
+        if(applied.kind == FOUND_FUNCTIONS) {
+            on_object := expression_for_found(context, applied, callee_node, name);
+            if(on_object.kind == BX_FUNCTIONS) {
+                return call_named_functions(context, on_object as bound_functions, arguments, type_arguments, node, callee_node);
+            }
+        }
+    }
+
     // 3. and 4. a member of the class
     if(context.class_of != null) {
         member := new lookup_result();
@@ -105,6 +121,12 @@ def call_by_name(context: analysis_context, node: _int64, callee_node: _int64, a
 
     // 7. a class of that name: an object made without `new`
     named := look_up_name(context, name, callee_node);
+
+    // 6b. nothing called `apply` is in reach, and it is written `apply(value) { ... }`: the language's `apply`
+    if(named.kind == FOUND_NOTHING && type_arguments == null && name == "apply") {
+        built_in := built_in_apply(context, node, arguments);
+        if(built_in != null) { return built_in!!; }
+    }
     if(named.kind == FOUND_TYPE) {
         type : resolved_type = context.session.types.error_type;
         if(named.type != null) { type = named.type!!; }
@@ -115,6 +137,30 @@ def call_by_name(context: analysis_context, node: _int64, callee_node: _int64, a
         if(type.kind == RT_CLASS || type.kind == RT_ERROR) { return construct(context, type, arguments, node, callee_node, 1); }
     }
     return report_failed_search(context, search, named, name, node, callee_node, arguments);
+}
+
+/**
+ * `apply(value) { ... }` [`else { ... }`] as the language's `apply`
+ * (statements/scope_blocks.sharp), or null when the call is not written that
+ * way: ONE value in the parentheses, then a block without parameters (a
+ * lambda written without `->`, which has not been analysed yet: it waits for
+ * a parameter, and there is none). The block of that lambda is then analysed
+ * as an ordinary block of this function.
+ */
+def built_in_apply(context: analysis_context, node: _int64, arguments: list<call_argument>) : bound_expression? {
+    tree : syntax_tree = context.tree;
+    if(arguments.size() != 2) { return null; }
+    value : call_argument = arguments.at(0);
+    block : call_argument = arguments.at(1);
+    if(value.is_lambda == 1 || value.named != null || value.request_node >= 0) { return null; }
+    if(block.is_lambda == 0 || block.lambda_parameters >= 0) { return null; }
+
+    // the lambda must be the block written AFTER the parentheses, not a second argument inside them
+    lambda_node : _int64 = lambda_node_of(context, block.node);
+    if(lambda_node < 0 || tree.parents!![lambda_node] != node) { return null; }
+    then_node : _int64 = tree.child_of_kind(lambda_node, N_BLOCK);
+    if(then_node < 0) { return null; }
+    return apply_block(context, node, value.value, value.node, then_node, tree.child_of_kind(node, N_BLOCK));
 }
 
 /**

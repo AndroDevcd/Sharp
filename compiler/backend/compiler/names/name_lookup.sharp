@@ -22,6 +22,8 @@ import (
  *
  *   1. the local variables and parameters, innermost block outward (and the
  *      local aliases, when the function declares any);
+ *   1b. inside the block of an `apply(value) { }`: the class of that value
+ *      and its bases, the innermost `apply` first;
  *   2. the class the code is in, then its base classes upward: a field, an
  *      enum value, an alias or class declared inside, a function;
  *   3. the modules the file sees, in order: its own module, `std`,
@@ -56,6 +58,12 @@ def look_up_name(context: analysis_context, name: string, node: _int64) : lookup
     // 1. locals and parameters
     if(context.scope != null) {
         find_local(context, name, found);
+        if(found.kind != FOUND_NOTHING) { return found; }
+    }
+
+    // 1b. the objects of the `apply` blocks around
+    if(context.scope != null) {
+        find_applied_member(context, name, found);
         if(found.kind != FOUND_NOTHING) { return found; }
     }
 
@@ -118,6 +126,35 @@ def find_enum_value_by_plain_name(file: sharp_file, name: string, found: lookup_
                 }
             }
         }
+    }
+}
+
+/**
+ * Step 1b: a member of an object being applied. The blocks are walked like
+ * the locals, innermost first; each `apply` declared a hidden variable there
+ * (`is_applied`: statements/scope_blocks.sharp) whose class is asked for the
+ * name. `found.applied` is that variable and `found.depth` the functions
+ * crossed to reach it (a lambda inside the block captures it).
+ */
+def find_applied_member(context: analysis_context, name: string, found: lookup_result) {
+    current : local_scope? = context.scope;
+    depth : _int64 = 0;
+    while(current != null) {
+        if(current!!.variables != null) {
+            here := current!!.variables!!;
+            for(i : _int64 = here.size() - 1; i >= 0; i--) {
+                variable := here.at(i);
+                if(variable.is_applied == 0 || variable.type.kind != RT_CLASS || variable.type.class_of == null) { continue; }
+                find_class_member(context.prog, variable.type.class_of!!, name, found);
+                if(found.kind != FOUND_NOTHING) {
+                    found.applied = variable;
+                    found.depth = depth;
+                    return;
+                }
+            }
+        }
+        if(current!!.outer != null && current!!.outer!!.function != current!!.function) { depth++; }
+        current = current!!.outer;
     }
 }
 

@@ -82,6 +82,7 @@ def analyse_statement(context: analysis_context, node: _int64, into: list<bound_
 
     kind : _int64 = context.tree.kinds!![node];
     before : _int64 = into.size();
+    blocks_before : _int64 = context.scope_blocks;
 
     if(kind == N_BLOCK) { into.add(analyse_block(context, node)); }
     else if(kind == N_VARIABLE) { declare_locals(context, node, into, null, 0); }
@@ -105,6 +106,11 @@ def analyse_statement(context: analysis_context, node: _int64, into: list<bound_
     }
     else if(kind == N_EMPTY_STATEMENT || kind == N_ERROR) { into.add(new bound_empty(context.unit, node)); }
     else { into.add(report_statement_without_rule(context, node)); }
+
+    // a `with` / `apply` somewhere in it: the flow analysis must find its blocks (flow/reachability.sharp)
+    if(context.scope_blocks != blocks_before) {
+        for(i : _int64 = before; i < into.size(); i++) { into.at(i).holds_blocks = 1; }
+    }
 
     // for -analysis-stats
     counters : analysis_counters = context.session.counters;

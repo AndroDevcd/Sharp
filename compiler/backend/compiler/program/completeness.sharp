@@ -119,6 +119,12 @@ def count_in_statement(statement: bound_statement, counted: unknown_count) {
 def count_in_expression(expression: bound_expression, counted: unknown_count) {
     counted.expressions.add(expression);
     drain_expressions(counted);
+    // (a `with` / `apply` in it holds statements: tree_parts.sharp, statements_inside)
+    while(counted.statements.size() > 0) {
+        next : bound_statement = counted.statements.pop_last();
+        statement_parts(next, counted.expressions, counted.statements);
+        drain_expressions(counted);
+    }
 }
 
 /** count every expression on the work list, and the parts of each, until it is empty */
@@ -134,6 +140,7 @@ def drain_expressions(counted: unknown_count) {
             }
         }
         add_parts(expression, counted.expressions);
+        statements_inside(expression, counted.statements);
     }
 }
 

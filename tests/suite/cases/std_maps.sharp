@@ -7,7 +7,7 @@ import ( std.testing )
  *
  *   hash_map<k, v>     put, at, size, clear
  *   dictionary<k, v>   what a dictionary literal { key : value, ... } makes:
- *                      a list of pairs, in the order they were written
+ *                      values under keys, in the order they were added
  *
  * In other files:
  *   - hash_map.remove, at() for a missing key, the empty dictionary literal:
@@ -213,36 +213,36 @@ def main(args: string[]) {
 
         // ================= dictionary literals
         digits := { "one" : 1, "two" : 2, "three" : 3 };
-        test("dictionary literal: number of pairs") { expect(digits.map.size()).should_be(3); };
-        test("first pair: key") { expect(digits.map.at(0).first).should_be("one"); };
-        test("first pair: value") { expect(digits.map.at(0).second).should_be(1); };
-        test("second pair: key") { expect(digits.map.at(1).first).should_be("two"); };
-        test("second pair: value") { expect(digits.map.at(1).second).should_be(2); };
-        test("third pair: key") { expect(digits.map.at(2).first).should_be("three"); };
-        test("third pair: value") { expect(digits.map.at(2).second).should_be(3); };
+        test("dictionary literal: number of pairs") { expect(digits.size()).should_be(3); };
+        test("first pair: key") { expect(digits.keys().at(0)).should_be("one"); };
+        test("first pair: value") { expect(digits.values().at(0).value).should_be(1); };
+        test("second pair: key") { expect(digits.keys().at(1)).should_be("two"); };
+        test("second pair: value") { expect(digits.values().at(1).value).should_be(2); };
+        test("third pair: key") { expect(digits.keys().at(2)).should_be("three"); };
+        test("third pair: value") { expect(digits.values().at(2).value).should_be(3); };
 
         words := { 10 : "ten", 20 : "twenty" };
-        test("int keys: number of pairs") { expect(words.map.size()).should_be(2); };
-        test("int keys: first key") { expect(words.map.at(0).first).should_be(10); };
-        test("int keys: first value") { expect(words.map.at(0).second).should_be("ten"); };
-        test("int keys: second key") { expect(words.map.at(1).first).should_be(20); };
-        test("int keys: second value") { expect(words.map.at(1).second).should_be("twenty"); };
+        test("int keys: number of pairs") { expect(words.size()).should_be(2); };
+        test("int keys: first key") { expect(words.keys().at(0).value).should_be(10); };
+        test("int keys: first value") { expect(words.values().at(0)).should_be("ten"); };
+        test("int keys: second key") { expect(words.keys().at(1).value).should_be(20); };
+        test("int keys: second value") { expect(words.values().at(1)).should_be("twenty"); };
 
 
         capitals := { "fr" : new city("paris", 1), "jp" : new city("tokyo", 2) };
-        test("object values: number of pairs") { expect(capitals.map.size()).should_be(2); };
-        test("object values: field of the second value") { expect(capitals.map.at(1).second.name).should_be("tokyo"); };
+        test("object values: number of pairs") { expect(capitals.size()).should_be(2); };
+        test("object values: field of the second value") { expect(capitals.values().at(1).name).should_be("tokyo"); };
 
         // keys and values can be expressions
         five : decimal = 5;
         computed := { "double" : five * 2, "square" : five * five };
-        test("computed value 1") { expect(computed.map.at(0).second).should_be(10); };
-        test("computed value 2") { expect(computed.map.at(1).second).should_be(25); };
+        test("computed value 1") { expect(computed.values().at(0).value).should_be(10); };
+        test("computed value 2") { expect(computed.values().at(1).value).should_be(25); };
 
         // going through the pairs with foreach
         total : decimal = 0;
         keys : string = "";
-        foreach(entry in digits.map) {
+        foreach(entry in digits) {
             total += entry.second;
             keys = keys + entry.first + " ";
         }

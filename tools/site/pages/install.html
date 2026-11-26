@@ -2,13 +2,14 @@
   <div class="wrap">
     <div class="section-head">
       <p class="eyebrow">Download</p>
-      <h1>Get Sharp {version}</h1>
+      <h1>Get Sharp <span data-newest-version>{version}</span></h1>
       <p>Download the zip, unpack the whole archive, then run the installer for your system. Open a new terminal afterwards so that <code>sharp</code> and <code>sharpc</code> are on your PATH.</p>
     </div>
     <div class="getit">
-      <a class="btn primary big" href="{github}/raw/{branch}/releases/sharp-{version}.zip">Download Sharp {version}</a>
+      <!-- site.js points this at the zip of the newest GitHub release; as written it opens that release's page -->
+      <a id="get-sharp" class="btn primary big" href="{github}/releases/latest">Download Sharp <span data-newest-version>{version}</span></a>
       <span>One zip for Windows and 64-bit Linux.</span>
-      <a href="{github}/tree/{branch}/releases">All releases</a>
+      <a href="{github}/releases">All releases</a>
     </div>
     <div class="oses">
       <article>

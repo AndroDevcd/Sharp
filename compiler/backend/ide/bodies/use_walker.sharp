@@ -104,6 +104,12 @@ def walk_statement(walker: use_walker, bodies: file_bodies, statement: bound_sta
 def walk_expression(walker: use_walker, bodies: file_bodies, expression: bound_expression) {
     walker.expressions.add(expression);
     drain_expressions(walker, bodies);
+    // (a `with` / `apply` in it holds statements: tree_parts.sharp, statements_inside)
+    while(walker.statements.size() > 0) {
+        next : bound_statement = walker.statements.pop_last();
+        statement_parts(next, walker.expressions, walker.statements);
+        drain_expressions(walker, bodies);
+    }
 }
 
 private def drain_expressions(walker: use_walker, bodies: file_bodies) {
@@ -111,6 +117,7 @@ private def drain_expressions(walker: use_walker, bodies: file_bodies) {
         expression : bound_expression = walker.expressions.pop_last();
         add_expression_use(walker, bodies, expression);
         add_parts(expression, walker.expressions);
+        statements_inside(expression, walker.statements);
     }
 }
 
