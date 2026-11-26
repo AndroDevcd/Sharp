@@ -55,7 +55,8 @@ a { color: var(--accent); }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
 p { margin: 0; }
-code, pre, kbd { font-family: var(--mono); }
+code, pre, kbd { font-family: var(--mono); font-variant-ligatures: none; }      /* := and -> stay the two characters that are typed */
+p code, li code { overflow-wrap: anywhere; }      /* a long path in a sentence breaks where the line ends, and does not widen the page */
 .wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 
@@ -201,7 +202,8 @@ nav.main a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--
 .lib .summary code, .lib main > p code { font-size: 13.5px; background: var(--accent-soft); color: var(--ink); padding: 1px 5px; }
 .pager { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--line); font-weight: 600; }
 .pager a { text-decoration: none; }
-.code.wide pre { font-size: 12.5px; line-height: 1.35; }
+/* a drawing made of box characters: the web font has none, so the whole drawing is in a font of the system that has them, or its lines do not meet */
+.code.wide pre { font-family: "Cascadia Mono", Consolas, "DejaVu Sans Mono", Menlo, monospace; font-size: 12.5px; line-height: 1.35; }
 .gui .pair.top { align-items: start; }
 .plainlist { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; display: flex; flex-direction: column; gap: 6px; }
 table.cmds { border-collapse: collapse; width: 100%; font-size: 14.5px; }
@@ -212,7 +214,7 @@ table.cmds td code { font-size: 13px; }
 table.years td { font-variant-numeric: tabular-nums; }
 table.years td b { color: var(--accent); }
 .getit { display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap; padding: 22px; background: var(--surface); border: 1px solid var(--line); }
-.getit span { color: var(--muted); font-size: 15px; }
+.getit > span { color: var(--muted); font-size: 15px; }
 .getit > a:last-child { font-weight: 600; margin-left: auto; }
 .btn.big { font-size: 17px; padding: 15px 30px 15px 22px; }
 
@@ -233,11 +235,11 @@ table.years td b { color: var(--accent); }
 /* ---- install */
 .inst .wrap { padding-block: 40px 56px; display: flex; flex-direction: column; gap: 28px; }
 .inst h1 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 800; }
-.oses { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.oses { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr); gap: 20px; }      /* the third holds the longest commands */
 .oses article { background: var(--surface); border: 1px solid var(--line); padding: 20px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .oses h2 { font-size: 20px; font-weight: 700; }
 .oses p { color: var(--muted); font-size: 15px; }
-.oses .code pre { font-size: 12.5px; padding: 12px 14px; }
+.oses .code pre { font-size: 12.5px; padding: 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 footer .wrap { padding-block: 26px; display: flex; gap: 18px; flex-wrap: wrap; justify-content: space-between; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
 
@@ -272,7 +274,7 @@ footer .wrap { padding-block: 26px; display: flex; gap: 18px; flex-wrap: wrap; j
 .lib p code { background: var(--accent-soft); color: var(--ink); padding: 1px 5px; }
 .lib .fn { scroll-margin-top: 70px; }
 .lib .fn .code, .lib .type > .code { max-width: 100%; }
-.lib .scroll { overflow-x: auto; }
+.scroll { overflow-x: auto; }      /* a wide table scrolls in its own box, the page never does */
 .lib table.fields { border-collapse: collapse; font-size: 14px; width: 100%; }
 .lib table.fields td { padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
 .lib table.fields td:first-child code { color: var(--ink); font-weight: 600; }
